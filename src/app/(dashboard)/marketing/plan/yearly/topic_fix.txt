@@ -1,0 +1,26 @@
+                                      {cat.topics.map((topic, tIdx) => (
+                                        <tr key={topic.id} style={{ borderBottom: "1px solid var(--border)", background: "transparent" }}>
+                                          <td />
+                                          <td />
+                                          <td style={{ padding: "4px 14px 4px 44px" }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--border)" }} />
+                                              <AutoResizeTextarea
+                                                value={topic.name}
+                                                readOnly={isYearlyPlanReadOnly}
+                                                onChange={e => updateTopic(p.id, cat.id, topic.id, { name: e.target.value })}
+                                                placeholder="Tiêu đề nội dung..."
+                                                style={{ border: "none", background: "transparent", outline: "none", flex: 1, fontSize: 13, color: "var(--foreground)", padding: 0, minHeight: 20, lineHeight: 1.4, cursor: isYearlyPlanReadOnly ? "default" : "text" }}
+                                                autoFocus={topic.name === "" && !isYearlyPlanReadOnly}
+                                              />
+                                            </div>
+                                          </td>
+                                          <td />
+                                          <td />
+                                          <td style={{ padding: "0px 14px", textAlign: "right", whiteSpace: "nowrap" }}>
+                                            <button disabled={isYearlyPlanReadOnly} onClick={() => deleteTopic(p.id, cat.id, topic.id)} style={{ background: "transparent", border: "none", cursor: isYearlyPlanReadOnly ? "not-allowed" : "pointer", color: "var(--muted-foreground)", width: 24, height: 24, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 4, opacity: isYearlyPlanReadOnly ? 0.3 : 1 }} onMouseEnter={e => { if (!isYearlyPlanReadOnly) e.currentTarget.style.color = "#dc2626" }} onMouseLeave={e => { if (!isYearlyPlanReadOnly) e.currentTarget.style.color = "var(--muted-foreground)" }}>
+                                              <i className="bi bi-trash" style={{ fontSize: 14 }} />
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      ))}

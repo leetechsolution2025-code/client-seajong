@@ -1,0 +1,46 @@
+{
+  "name": "client-seajong",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "rm -f .next/dev/lock && NODE_OPTIONS='--max-http-header-size=65536' next dev",
+    "dev:clean": "pkill -f 'next dev' 2>/dev/null; sleep 1; rm -f .next/dev/lock; NODE_OPTIONS='--max-http-header-size=65536' next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "setup": "npx prisma db push --accept-data-loss && npx tsx prisma/seed.ts && node prisma/seed-departments.js && node prisma/seed-company-info.js && node prisma/seed-branches.js && node prisma/seed-categories.js && node prisma/seed-admin.js",
+    "start:fresh": "npm install && npm run setup && npm run dev"
+  },
+  "dependencies": {
+    "@google/genai": "^1.46.0",
+    "@prisma/client": "^6.19.2",
+    "apexcharts": "^5.10.4",
+    "bcryptjs": "^3.0.3",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.37.0",
+    "next": "16.1.6",
+    "next-auth": "^4.24.13",
+    "next-themes": "^0.4.6",
+    "prisma": "^6.19.2",
+    "react": "19.2.3",
+    "react-apexcharts": "^2.1.0",
+    "react-dom": "19.2.3",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "npx tsx prisma/seed.ts"
+  }
+}

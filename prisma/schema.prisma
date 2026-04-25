@@ -1,0 +1,1697 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ── Thông tin công ty của project hiện tại (1 dòng duy nhất) ─────────────────
+// Master project → leetech | Child project → khách hàng tương ứng
+model CompanyInfo {
+  id          String   @id @default(cuid())
+  name        String                    // Tên đầy đủ: "Công ty TNHH Leetech"
+  shortName   String                    // Tên ngắn: "Leetech"
+  logoUrl     String?                   // Logo (data URL hoặc path)
+  slogan      String?                   // Khẩu hiệu
+  address     String?                   // Địa chỉ
+  phone       String?                   // Số điện thoại
+  email       String?                   // Email liên hệ
+  website     String?                   // Website
+  taxCode     String?                   // Mã số thuế
+  legalRep    String?                   // Người đại diện pháp luật
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ── Dữ liệu sản phẩm đồng bộ từ seajong.com ──────────────────────────────────
+model SeajongCategory {
+  id          Int      @id
+  name        String
+  slug        String
+  count       Int      @default(0)
+  parent      Int      @default(0)
+  syncedAt    DateTime @default(now())
+  products    SeajongProduct[] @relation("ProductCategories")
+}
+
+model SeajongProduct {
+  id          Int      @id
+  slug        String   @unique
+  url         String
+  name        String
+  excerpt     String   @default("")
+  description String   @default("")
+  images      String   @default("[]")
+  specs       String   @default("{}")
+  updatedAt   DateTime
+  syncedAt    DateTime @default(now())
+  categories  SeajongCategory[] @relation("ProductCategories")
+}
+
+model SeajongSyncLog {
+  id          String   @id @default(cuid())
+  status      String
+  message     String   @default("")
+  totalSynced Int      @default(0)
+  startedAt   DateTime @default(now())
+  finishedAt  DateTime?
+}
+
+
+model Client {
+  id          String   @id @default(cuid())
+  name        String
+  shortName   String   @unique
+  domain      String?  @unique
+  logoUrl     String?
+  address     String?  // Địa chỉ công ty
+  phone       String?  // Số điện thoại
+  email       String?  // Email liên hệ
+  taxCode     String?  // Mã số thuế
+  legalRep    String?  // Người đại diện pháp luật
+  slogan      String?  // Slogan / khẩu hiệu
+  config      String?  // JSON string for custom client configurations
+  status      String   @default("active") // active, suspended, pending
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+  modules     Module[]
+  employees   Employee[]
+}
+
+model User {
+  id                String                  @id @default(cuid())
+  email             String                  @unique
+  password          String
+  name              String?
+  role              String                  @default("USER") // SUPERADMIN, ADMIN, USER
+  permissions       String                  @default("[]")   // JSON: ["chat","notify","task","report","plan","approve_request","approve_budget"]
+  deptAccess        String                  @default("[]")   // JSON: [{"code":"sales","level":"full"},{"code":"plan_finance","level":"view"}]
+  clientId          String?
+  client            Client?                 @relation(fields: [clientId], references: [id])
+  employee          Employee?
+  createdNotifications Notification[]       @relation("NotificationCreator")
+  sentMessages      Message[]               @relation("MessageSender")
+  messageParticipants MessageParticipant[]
+  marketingPlans    MarketingYearlyPlan[]
+  approvedYearlyPlans MarketingYearlyPlan[] @relation("PlanApprover")
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+}
+
+model Employee {
+  id                    String    @id @default(cuid())
+
+  // ── Bước 1: Định danh ─────────────────────────────────────────────────────
+  branchCode            String?                   // Chi nhánh: "sejong-royal" | "seajong"
+  code                  String    @unique         // Mã NV: SEA-20260317-xxxx-XXXX
+  fullName              String
+  gender                String    @default("male")
+  birthDate             DateTime?
+  nationalId            String?                   // Số CCCD
+  nationalIdDate        DateTime?                 // Ngày cấp CCCD
+  nationalIdPlace       String?                   // Nơi cấp CCCD
+  permanentAddress      String?                   // Địa chỉ thường trú
+  currentAddress        String?                   // Địa chỉ tạm trú
+  phone                 String?
+  workEmail             String    @unique
+  personalEmail         String?
+  emergencyName         String?                   // Liên hệ khẩn cấp - tên
+  emergencyRelation     String?                   // Liên hệ khẩn cấp - quan hệ
+  emergencyPhone        String?                   // Liên hệ khẩn cấp - SĐT
+
+  // ── Bước 2: Công việc ────────────────────────────────────────────────────
+  departmentCode        String
+  departmentName        String
+  position              String
+  level                 String    @default("staff") // staff | mid_manager | senior_manager
+  manager               String?                   // Mã NV quản lý
+  employeeType          String    @default("official") // official | probation | intern | collaborator
+  startDate             DateTime?
+  workLocation          String    @default("main") // main | branch | remote | hybrid
+
+  // ── Bước 3: Hợp đồng & Pháp lý ──────────────────────────────────────────
+  contractType          String    @default("unsigned") // unsigned | probation | definite | indefinite
+  contractNumber        String?
+  contractSignDate      DateTime?
+  contractEndDate       DateTime?
+  profileStatus         String    @default("pending") // complete | partial | pending
+  socialInsuranceNumber String?
+  taxCode               String?
+
+  // ── Bước 4: Lương & Phúc lợi ─────────────────────────────────────────────
+  baseSalary            Float?
+  mealAllowance         Float?
+  fuelAllowance         Float?
+  phoneAllowance        Float?
+  seniorityAllowance    Float?
+  bankAccount           String?
+  bankName              String?
+  bankBranch            String?
+  dependents            Int       @default(0)
+
+  // ── Bước 5: Kỹ năng ──────────────────────────────────────────────────────
+  skills                String?   // comma-separated hoặc JSON
+  softSkills            String?
+  education             String?
+  certifications        String?
+
+  // ── Bước 6: Chuyên cần ───────────────────────────────────────────────────
+  annualLeave           Int       @default(12)
+  workShift             String    @default("standard")
+  notes                 String?
+
+  // ── System ───────────────────────────────────────────────────────────────
+  status                String    @default("active") // active | inactive | resigned
+  clientId              String?
+  client                Client?   @relation(fields: [clientId], references: [id])
+  userId                String?   @unique
+  user                  User?     @relation(fields: [userId], references: [id])
+  customers             Customer[]
+  careHistories         CustomerCareHistory[] @relation("CareHistoryEmployee")
+  quotations            Quotation[]           @relation("QuotationEmployee")
+  contracts             Contract[]            @relation("ContractEmployee")
+  retailInvoices        RetailInvoice[]       @relation("RetailInvoiceEmployee")
+  payrolls              Payroll[]
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+// ── plan_finance: Chấm công & Bảng lương ──────────────────────────────────────
+model Payroll {
+  id            String    @id @default(cuid())
+  nam           Int                          // Năm (2025, 2026...)
+  thang         Int                          // Tháng (1–12)
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id])
+
+  // Chấm công
+  nguonChamCong String    @default("thu-cong")  // thu-cong | may-cham-cong
+  ngayCong      Float     @default(0)        // Số ngày công thực tế
+  ngayNghiPhep  Float     @default(0)        // Ngày nghỉ phép hưởng lương
+  ngayNghiKhac  Float     @default(0)        // Ngày nghỉ không lương
+  gioLamThem    Float     @default(0)        // Giờ làm thêm
+
+  // Lương
+  luongCoBan    Float     @default(0)        // Lương cơ bản tháng đó
+  phuCap        Float     @default(0)        // Tổng phụ cấp
+  thuong        Float     @default(0)        // Thưởng tháng
+  luongLamThem  Float     @default(0)        // Lương làm thêm giờ
+
+  // Khấu trừ
+  khauTruBH     Float     @default(0)        // BHXH+BHYT+BHTN phần NV (~10.5%)
+  thueTNCN      Float     @default(0)        // Thuế TNCN
+  khauTruKhac   Float     @default(0)        // Tạm ứng, phạt, khác
+
+  // Thực nhận & Chi phí công ty
+  luongThucNhan Float     @default(0)        // = (luongCoBan + phuCap + thuong + luongLamThem) - khauTruBH - thueTNCN - khauTruKhac
+  chiPhiCtyDong Float     @default(0)        // BH công ty đóng (~23.5% lương CB)
+  tongChiPhiCty Float     @default(0)        // = luongThucNhan + chiPhiCtyDong
+
+  // Trạng thái
+  trangThai     String    @default("chua-tra") // chua-tra | da-tra | tam-ung
+  ngayTra       DateTime?
+  ghiChu        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([employeeId, thang, nam])
+  @@index([nam, thang])
+  @@index([trangThai])
+  @@index([employeeId])
+}
+
+
+model Module {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  icon        String?
+  clients     Client[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DepartmentCategory {
+  id          String   @id @default(cuid())
+  code        String   @unique          // Mã định danh: "hr", "it", "sales", ...
+  nameVi      String                    // Tên tiếng Việt: "Nhân sự"
+  nameEn      String                    // Tên tiếng Anh: "Human Resources"
+  group       String                    // Nhóm: "core", "support", "business", "management"
+  icon        String?                   // Bootstrap icon class: "bi-people"
+  description String?                   // Mô tả chức năng
+  sortOrder   Int      @default(0)      // Thứ tự hiển thị
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ── Danh mục tổng quát (thay thế hardcode strings) ───────────────────────────
+// type: expense_type | asset_type | customer_group | customer_source |
+//       payment_method | inventory_type | work_shift | position |
+//       care_method | contract_type | debt_type | priority_level
+model Category {
+  id          String   @id @default(cuid())
+  type        String                    // Loại danh mục (value của CategoryTypeDef)
+  code        String                    // Mã ngắn: "van-phong", "may-moc"...
+  name        String                    // Tên hiển thị: "Văn phòng", "Máy móc"
+  color       String?                   // Mã màu HEX: "#10b981"
+  icon        String?                   // Bootstrap icon: "bi-laptop"
+  description String?                   // Mô tả thêm
+  sortOrder   Int      @default(0)      // Thứ tự hiển thị
+  isActive    Boolean  @default(true)
+  clientId    String?                   // null = toàn cục; có giá trị = riêng cho client
+
+  parentId    String?                   // Danh mục cha (tự tham chiếu)
+  parent      Category?  @relation("CategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryParent")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([type, code])               // Mỗi type không trùng code
+  @@index([type])
+  @@index([isActive])
+  @@index([clientId])
+  @@index([parentId])
+}
+
+// ── Định nghĩa các loại danh mục (dynamic, thay thế hardcode) ─────────────────
+model CategoryTypeDef {
+  id        String   @id @default(cuid())
+  value     String   @unique            // "expense_type", "asset_type" — dùng làm type trong Category
+  label     String                      // "Loại chi phí", "Loại tài sản"
+  icon      String   @default("bi-folder")
+  color     String   @default("#6366f1")
+  prefix    String   @default("CAT")   // Prefix sinh mã: "EXP", "AST"...
+  sortOrder Int      @default(0)
+  isSystem  Boolean  @default(false)   // true = hệ thống, không xoá được
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+
+// ── Chi nhánh / Công ty con ───────────────────────────────────────────────────
+model Branch {
+  id          String   @id @default(cuid())
+  code        String   @unique          // Mã chi nhánh: "sejong-royal", "seajong"
+  name        String                    // Tên đầy đủ: "Công ty Sejong Royal"
+  shortName   String?                   // Tên viết tắt: "Sejong Royal"
+  address     String?                   // Địa chỉ chi nhánh
+  phone       String?                   // Điện thoại
+  email       String?                   // Email liên hệ
+  taxCode     String?                   // Mã số thuế
+  legalRep    String?                   // Người đại diện pháp luật
+  status      String   @default("active") // active | inactive
+  sortOrder   Int      @default(0)
+  clientId    String?                   // null = toàn cục (master scope)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+// ── Thông báo ────────────────────────────────────────────────────────────────
+model Notification {
+  id             String    @id @default(cuid())
+  title          String                                                    // Tiêu đề
+  content        String                                                    // Nội dung
+  type           String    @default("info")                                // info | success | warning | error | message | document
+  priority       String    @default("normal")                             // normal | high | urgent
+  audienceType   String    @default("all")                                 // all | department | group | individual
+  audienceValue  String?                                                   // dept code / userId (JSON array for group)
+  attachments    String?                                                   // JSON: [{name,url,size,type}]
+  clientId       String?                                                   // null = master scope
+  createdById    String
+  createdBy      User      @relation("NotificationCreator", fields: [createdById], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  recipients     NotificationRecipient[]
+}
+
+model NotificationRecipient {
+  id             String    @id @default(cuid())
+  notificationId String
+  userId         String
+  isRead         Boolean   @default(false)
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId])
+}
+
+// ── Nhắn tin nội bộ ──────────────────────────────────────────────────────────
+model Message {
+  id           String               @id @default(cuid())
+  content      String                                          // Nội dung tin nhắn
+  attachments  String?                                         // JSON: [{name,url,size,type}]
+  senderId     String                                          // Người gửi
+  sender       User                 @relation("MessageSender", fields: [senderId], references: [id])
+  clientId     String?                                         // null = master scope
+  isDeleted    Boolean              @default(false)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  participants MessageParticipant[]
+}
+
+model MessageParticipant {
+  id          String   @id @default(cuid())
+  messageId   String
+  userId      String                                           // Người nhận
+  isRead      Boolean  @default(false)
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+// ── Khách hàng ────────────────────────────────────────────────────────────────
+model Customer {
+  id              String    @id @default(cuid())
+
+  // Thông tin cơ bản
+  name            String                        // Tên khách hàng
+  address         String?                       // Địa chỉ
+  nguon           String?                       // Nguồn: tu-nhien | gioi-thieu | quang-cao | khac
+  nhom            String?                       // Nhóm: ca-nhan | doanh-nghiep | doi-tac | khach-le
+
+  // Đại diện liên hệ
+  daiDien         String?                       // Tên đại diện
+  xungHo          String?   @default("Anh")     // Anh | Chị | Ông | Bà
+  chucVu          String?                       // Chức vụ
+
+  // Liên hệ
+  dienThoai       String?
+  email           String?
+  ghiChu          String?
+
+  // Người chăm sóc
+  nguoiChamSocId  String?
+  nguoiChamSoc    Employee? @relation(fields: [nguoiChamSocId], references: [id])
+
+  saleOrders      SaleOrder[]
+  careHistories   CustomerCareHistory[]
+  quotations      Quotation[]
+  contracts       Contract[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([nguon])
+  @@index([nhom])
+}
+
+// ── Lịch sử chăm sóc khách hàng ──────────────────────────────────────────────
+model CustomerCareHistory {
+  id                String    @id @default(cuid())
+
+  // Quan hệ
+  customerId        String
+  customer          Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  // Người chăm sóc (Employee)
+  nguoiChamSocId    String?
+  nguoiChamSoc      Employee? @relation("CareHistoryEmployee", fields: [nguoiChamSocId], references: [id])
+
+  // Thông tin buổi chăm sóc
+  ngayChamSoc       DateTime                    // Ngày & giờ chăm sóc
+  hinhThuc          String                      // goi-dien | gap-mat | email | khac
+  thaiDo            String?                      // tich-cuc | trung-lap | tieu-cuc | do-du
+
+  // Thông tin khách hàng tại buổi gặp
+  nhuCau            String?                      // cao | trung-binh | thap | chua-xac-dinh
+  nganSach          String?                      // duoi-100 | 100-500 | tren-500 | chua-xac-dinh
+  thoiGianDauTu     String?                      // ngay-lap-tuc | 1-3-thang | 3-6-thang | tren-6-thang | chua-xac-dinh
+  thanhToan         String?                      // tien-mat | chuyen-khoan | tra-gop | khac
+
+  // Người đại diện tại buổi gặp
+  nguoiDaiDien      String?                      // Tên người đại diện
+  soDienThoai       String?                      // SĐT người đại diện
+
+  // Kết quả
+  tomTat            String                       // Tóm tắt kết quả buổi chăm sóc
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([customerId])
+  @@index([nguoiChamSocId])
+  @@index([ngayChamSoc])
+}
+
+// ── plan_finance: Nhà cung cấp ────────────────────────────────────────────────
+model Supplier {
+  id          String    @id @default(cuid())
+  code        String?   @unique          // Mã NCC (tự sinh)
+  name        String                     // Tên nhà cung cấp *
+  taxCode     String?                    // Mã số thuế
+  address     String?                    // Địa chỉ giao dịch
+  phone       String?                    // Điện thoại
+  email       String?
+  website     String?
+  contactName String?                    // Người liên hệ
+  xungHo      String?                    // Xưng hô (Anh, Chị, Anh/Chị...)
+  hanMucNo    Float     @default(0)      // Hạn mức nợ (đồng)
+  danhGia     Int       @default(0)      // Độ uy tín 0-5 sao
+  trangThai   String    @default("active") // active | inactive | paused
+  ghiChu      String?                    // Ghi chú
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  purchaseOrders       PurchaseOrder[]
+  purchaseRequestItems PurchaseRequestItem[] // Các dòng YC gán cho NCC này
+  categories           SupplierCategory[]    // Các danh mục NCC cung cấp
+
+  @@index([trangThai])
+}
+
+// ── Join table: Nhà cung cấp ↔ Danh mục hàng hoá ────────────────────────────
+model SupplierCategory {
+  supplierId  String
+  categoryId  String
+  supplier    Supplier          @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  category    InventoryCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([supplierId, categoryId])
+  @@index([categoryId])
+}
+
+// ── plan_finance: Đơn bán hàng ────────────────────────────────────────────────
+model SaleOrder {
+  id           String    @id @default(cuid())
+  code         String?   @unique          // Mã đơn hàng
+  customerId   String?
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  ngayDat      DateTime?                  // Ngày đặt
+  ngayGiao     DateTime?                  // Ngày giao
+  trangThai    String    @default("draft") // draft | confirmed | shipping | done | cancelled
+  tongTien     Float     @default(0)       // Tổng tiền
+  daThanhToan  Float     @default(0)       // Đã thanh toán
+  ghiChu       String?
+  nguoiPhuTrach String?                   // Nhân viên phụ trách (tên)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([trangThai])
+  @@index([customerId])
+}
+
+// ── plan_finance: Yêu cầu mua hàng ──────────────────────────────────────────
+model PurchaseRequest {
+  id            String                @id @default(cuid())
+  code          String?               @unique          // Mã phiếu: YC-20260319-0001
+  nguoiYeuCau   String                                 // Tên người yêu cầu
+  donVi         String                                 // Đơn vị / phòng ban
+  ngayTao       DateTime              @default(now())
+  ngayCanCo     DateTime?                              // Ngày cần có hàng
+  lyDo          String?                                // Lý do yêu cầu
+  trangThai     String                @default("chua-xu-ly") // chua-xu-ly | dang-xu-ly | da-xu-ly | tu-choi
+  ghiChu        String?
+  clientId      String?
+  createdById   String?               // userId người tạo
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  items         PurchaseRequestItem[]
+  purchaseOrders PurchaseOrder[]      // Đơn mua được tạo từ phiếu này (Phase 1)
+
+  @@index([trangThai])
+  @@index([donVi])
+  @@index([clientId])
+}
+
+// ── plan_finance: Chi tiết mặt hàng trong yêu cầu mua ─────────────────────────────────
+model PurchaseRequestItem {
+  id                  String             @id @default(cuid())
+  purchaseRequestId   String
+  purchaseRequest     PurchaseRequest    @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  inventoryItemId     String?
+  inventoryItem       InventoryItem?     @relation(fields: [inventoryItemId], references: [id])
+  tenHang             String
+  donVi               String?
+  soLuong             Float              @default(1)
+  donGiaDK            Float              @default(0)    // Đơn giá dự kiến
+  ghiChu              String?
+  sortOrder           Int                @default(0)
+
+  trangThaiXuLy       String             @default("cho-xu-ly") // cho-xu-ly | da-tao-don | bo-qua
+  supplierId          String?            // NCC dự kiến
+  supplier            Supplier?          @relation(fields: [supplierId], references: [id])
+  purchaseOrderItemId String?            @unique
+  purchaseOrderItem   PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id])
+
+  @@index([purchaseRequestId])
+  @@index([inventoryItemId])
+  @@index([trangThaiXuLy])
+  @@index([supplierId])
+}
+
+// ── plan_finance: Đơn mua hàng ───────────────────────────────────────────
+model PurchaseOrder {
+  id                  String              @id @default(cuid())
+  code                String?             @unique
+  supplierId          String?
+  supplier            Supplier?           @relation(fields: [supplierId], references: [id])
+  purchaseRequestId   String?             // Phase 1: FK đơn giản → phiếu YC nguồn
+  purchaseRequest     PurchaseRequest?    @relation(fields: [purchaseRequestId], references: [id])
+  ngayDat             DateTime?
+  ngayNhan            DateTime?
+  trangThai           String              @default("draft") // draft | ordered | received | cancelled
+  tongTien            Float               @default(0)
+  daThanhToan         Float               @default(0)
+  ghiChu              String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  items               PurchaseOrderItem[]
+  stockMovements      StockMovement[]     // Các lần nhập kho từ PO này
+
+  @@index([trangThai])
+  @@index([supplierId])
+  @@index([purchaseRequestId])
+}
+
+
+// ── plan_finance: Chi tiết hàng hoá trong đơn mua ────────────────────────────
+model PurchaseOrderItem {
+  id                String         @id @default(cuid())
+  purchaseOrderId   String
+  purchaseOrder     PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  inventoryItemId   String?
+  inventoryItem     InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  tenHang           String
+  donVi             String?
+  soLuong           Float          @default(1)
+  donGia            Float          @default(0)
+  thanhTien         Float          @default(0)
+  soLuongDaNhan     Float          @default(0)
+  ghiChu            String?
+  sortOrder         Int            @default(0)
+
+  purchaseRequestItem PurchaseRequestItem? // Ngược lại từ YC item
+
+  @@index([purchaseOrderId])
+  @@index([inventoryItemId])
+}
+
+// ── plan_finance: Chi phí ─────────────────────────────────────────────────────
+model Expense {
+  id          String    @id @default(cuid())
+  tenChiPhi   String                       // Tên khoản chi
+  loai        String?                      // Nhóm: van-phong | nhan-su | marketing | it | khac
+  soTien      Float     @default(0)
+  ngayChiTra  DateTime?
+  nguoiChiTra String?                      // Tên người chi
+  trangThai   String    @default("pending") // pending | approved | paid | rejected
+  ghiChu      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([loai])
+  @@index([trangThai])
+}
+
+// ── plan_finance: Công nợ ─────────────────────────────────────────────────────
+model Debt {
+  id          String    @id @default(cuid())
+  loai        String    @default("phai-thu") // phai-thu | phai-tra
+  doiTuong    String                          // Tên khách/nhà cung cấp
+  soTien      Float     @default(0)
+  daThu       Float     @default(0)
+  hanThanhToan DateTime?
+  trangThai   String    @default("chua-thu") // chua-thu | mot-phan | da-thu | qua-han
+  ghiChu      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([loai])
+  @@index([trangThai])
+}
+
+// ── plan_finance: Tài sản cố định ─────────────────────────────────────────────
+model Asset {
+  id           String    @id @default(cuid())
+  code         String?   @unique
+  tenTaiSan    String
+  loai         String?                      // may-moc | phuong-tien | thiet-bi | nha-xuong | khac
+  ngayMua      DateTime?
+  giaTriMua    Float     @default(0)
+  giaTriConLai Float     @default(0)
+  khauHao      Float     @default(0)        // % khấu hao/năm
+  trangThai    String    @default("dang-su-dung") // dang-su-dung | thanh-ly | bao-duong | hong
+  viTri        String?
+  ghiChu       String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([loai])
+  @@index([trangThai])
+}
+
+// ── plan_finance: Danh mục hàng hoá ──────────────────────────────────────────
+model InventoryCategory {
+  id        String             @id @default(cuid())
+  name      String             @unique  // Tên danh mục: "Ốc vít", "Tôn mạ màu..."
+  code      String?            @unique  // Mã ngắn (tuỳ chọn): "OV", "TMM"...
+  sortOrder Int                @default(0)
+  isActive  Boolean            @default(true)
+  items     InventoryItem[]
+  suppliers SupplierCategory[] // Các NCC cung cấp danh mục này
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+// ── plan_finance: Kho hàng ────────────────────────────────────────────────────
+model Warehouse {
+  id          String   @id @default(cuid())
+  code        String?  @unique              // Mã kho: "KHO-HN", "KHO-HCM"
+  name        String                        // Tên kho: "Kho Hà Nội"
+  address     String?                       // Địa chỉ kho
+  phone       String?                       // Điện thoại quản lý kho
+  managerId   String?                       // ID người quản lý kho
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stocks           InventoryStock[]          // Tồn kho tại kho này
+  movementsFrom    StockMovement[] @relation("MovementFrom")  // Xuất từ kho này
+  movementsTo      StockMovement[] @relation("MovementTo")    // Nhập vào kho này
+  stockCounts      StockCount[]                               // Phiếu kiểm kho tại kho này
+
+  @@index([isActive])
+}
+
+// ── plan_finance: Hàng hoá (master data) ──────────────────────────────────────
+model InventoryItem {
+  id              String             @id @default(cuid())
+  code            String?            @unique                // Mã SKU
+  tenHang         String                                    // Tên hàng hoá
+  loai            String?                                   // hang-hoa | nguyen-lieu | thanh-pham | khac
+  categoryId      String?
+  category        InventoryCategory? @relation(fields: [categoryId], references: [id])
+  donVi           String?            @default("cái")       // Đơn vị tính
+  soLuong         Float              @default(0)           // [LEGACY] Tồn đầu kỳ — live stock đọc từ InventoryStock
+  soLuongMin      Float              @default(0)           // Tồn tối thiểu mặc định (override per kho trong InventoryStock)
+  giaNhap         Float              @default(0)           // Giá nhập (₫)
+  giaBan          Float              @default(0)           // Giá bán (₫)
+  nhaCungCap      String?                                   // Nhà cung cấp mặc định
+  thongSoKyThuat  String?                                   // Thông số kỹ thuật
+  trangThai       String             @default("con-hang")  // Tính từ tổng tồn kho
+  ghiChu          String?                                   // Ghi chú
+  dinhMucId       String?                                   // FK → DinhMuc (nếu có)
+  dinhMuc         DinhMuc?           @relation(fields: [dinhMucId], references: [id])
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([loai])
+  @@index([trangThai])
+  @@index([categoryId])
+  @@index([nhaCungCap])
+  @@index([dinhMucId])
+  purchaseOrderItems    PurchaseOrderItem[]
+  purchaseRequestItems  PurchaseRequestItem[]
+  retailInvoiceItems    RetailInvoiceItem[]
+  stocks                InventoryStock[]     // Tồn kho tại các kho
+  movements             StockMovement[]      // Lịch sử biến động
+}
+
+// ── plan_finance: Định mức vật tư (header) ────────────────────────────────────
+model DinhMuc {
+  id          String         @id @default(cuid())
+  code        String?        @unique  // Mã định mức: "DM-SP-001"
+  tenDinhMuc  String?                 // Tên / mô tả định mức
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  items       InventoryItem[]  // Các hàng hoá áp dụng định mức này
+  vatTu       DinhMucVatTu[]   // Danh sách vật tư trong định mức
+
+  @@index([code])
+}
+
+// ── plan_finance: Chi tiết vật tư trong định mức ─────────────────────────────
+model DinhMucVatTu {
+  id        String   @id @default(cuid())
+  dinhMucId String
+  dinhMuc   DinhMuc  @relation(fields: [dinhMucId], references: [id], onDelete: Cascade)
+  tenVatTu  String             // Tên vật tư
+  soLuong   Float    @default(1)
+  donViTinh String?            // Đơn vị tính
+  ghiChu    String?
+
+  @@index([dinhMucId])
+}
+
+
+
+// ── plan_finance: Tồn kho theo từng kho ──────────────────────────────────────
+model InventoryStock {
+  id              String        @id @default(cuid())
+  inventoryItemId String
+  warehouseId     String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  warehouse       Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  soLuong         Float         @default(0)  // Tồn hiện tại tại kho này
+  soLuongMin      Float         @default(0)  // Ngưỡng cảnh báo riêng của kho này
+  viTriHang       String?                    // Hàng (H)
+  viTriCot        String?                    // Cột (C)
+  viTriTang       String?                    // Tầng (T)
+  ghiChu          String?                    // Ghi chú riêng của kho này
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([inventoryItemId, warehouseId])
+  @@index([warehouseId])
+  @@index([inventoryItemId])
+}
+
+// ── plan_finance: Biến động kho (nhập / xuất / chuyển / điều chỉnh) ──────────
+model StockMovement {
+  id                String         @id @default(cuid())
+  inventoryItemId   String
+  inventoryItem     InventoryItem  @relation(fields: [inventoryItemId], references: [id])
+  fromWarehouseId   String?                       // null → nhập từ ngoài vào
+  fromWarehouse     Warehouse?     @relation("MovementFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouseId     String?                       // null → xuất ra ngoài
+  toWarehouse       Warehouse?     @relation("MovementTo",   fields: [toWarehouseId],   references: [id])
+  type              String                        // nhap | xuat | chuyen | dieu-chinh
+  soLuong           Float          @default(0)   // Số lượng thực tế (luôn dương)
+  soLuongCT         Float?                        // Số lượng theo chứng từ (để đối chiếu chênh lệch)
+  soLuongTruoc      Float?                        // Tồn trước khi biến động (snapshot)
+  soLuongSau        Float?                        // Tồn sau khi biến động (snapshot)
+  donGia            Float?                        // Đơn giá tại thời điểm (nhập/xuất)
+  lyDo              String?                       // Lý do / ghi chú
+  soChungTu         String?                       // Số chứng từ (PO, SO, ...)
+  nguoiThucHien     String?                       // Tên người thực hiện
+  purchaseOrderId   String?                       // FK → PO liên kết (nếu nhập theo đơn mua)
+  purchaseOrder     PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  createdAt         DateTime       @default(now())
+
+  @@index([inventoryItemId])
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+  @@index([type])
+  @@index([soChungTu])
+  @@index([purchaseOrderId])
+  @@index([createdAt])
+}
+
+// ── plan_finance: Phiếu kiểm kho ──────────────────────────────────────────────
+model StockCount {
+  id            String          @id @default(cuid())
+  soChungTu     String?         @unique               // KK-20260320-XXXX
+  scope         String          @default("system")    // system | warehouse
+  warehouseId   String?                               // null = toàn hệ thống
+  warehouse     Warehouse?      @relation(fields: [warehouseId], references: [id])
+  nguoiKiem     String?                               // Người kiểm kho
+  ngayKiem      DateTime        @default(now())
+  ghiChu        String?
+  trangThai     String          @default("nhap")      // nhap (nháp) | hoan-thanh
+  lines         StockCountLine[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([warehouseId])
+  @@index([trangThai])
+  @@index([ngayKiem])
+}
+
+model StockCountLine {
+  id               String      @id @default(cuid())
+  stockCountId     String
+  stockCount       StockCount  @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+  inventoryItemId  String
+  warehouseId      String?                             // kho của dòng này
+  soLuongHeTong    Float       @default(0)             // Tồn hệ thống tại thời điểm kiểm
+  soLuongThucTe    Float?                              // Tồn thực tế (null = chưa nhập)
+  chenh            Float?                              // = soLuongThucTe - soLuongHeTong
+  ghiChu           String?
+  createdAt        DateTime    @default(now())
+
+  @@index([stockCountId])
+  @@index([inventoryItemId])
+}
+
+// ── plan_finance: Báo giá ─────────────────────────────────────────────────────
+model Quotation {
+  id              String          @id @default(cuid())
+  code            String?         @unique               // BG-20260319-xxxx
+  customerId      String?
+  customer        Customer?       @relation(fields: [customerId], references: [id])
+  nguoiPhuTrachId String?
+  nguoiPhuTrach   Employee?       @relation("QuotationEmployee", fields: [nguoiPhuTrachId], references: [id])
+  ngayBaoGia      DateTime?                             // Ngày lập báo giá
+  ngayHetHan      DateTime?                             // Ngày hết hạn báo giá
+  trangThai       String          @default("draft")     // draft | sent | approved | won | lost
+  uuTien          String          @default("medium")    // high | medium | low
+  tongTien        Float           @default(0)           // Tổng tiền (tự tính từ items)
+  discount        Float           @default(0)           // Chiết khấu (%)
+  vat             Float           @default(0)           // VAT (%)
+  thanhTien       Float           @default(0)           // Thành tiền sau CK + VAT
+  ghiChu          String?
+  items           QuotationItem[]
+  contracts       Contract[]                            // Hợp đồng phát sinh từ báo giá này
+  negotiations    QuotationNegotiation[]                // Lịch sử thương thảo
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([trangThai])
+  @@index([customerId])
+  @@index([nguoiPhuTrachId])
+  @@index([ngayBaoGia])
+}
+
+// ── plan_finance: Lịch sử thương thảo báo giá ────────────────────────────────
+model QuotationNegotiation {
+  id          String    @id @default(cuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  loai        String    @default("call")   // call | meeting | email | message
+  ngay        DateTime                     // Ngày thương thảo
+  nguoiThucHien String                    // Tên người thương thảo
+  ketQua      String                       // Kết quả / ghi chú
+  createdAt   DateTime  @default(now())
+
+  @@index([quotationId])
+}
+
+// ── plan_finance: Hàng hoá trong báo giá ─────────────────────────────────────
+model QuotationItem {
+  id          String     @id @default(cuid())
+  quotationId String
+  quotation   Quotation  @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  tenHang     String                                    // Tên hàng hoá / dịch vụ
+  donVi       String?    @default("cái")               // Đơn vị tính
+  soLuong     Float      @default(1)
+  donGia      Float      @default(0)                   // Đơn giá
+  thanhTien   Float      @default(0)                   // soLuong × donGia
+  ghiChu      String?
+  sortOrder   Int        @default(0)                   // Thứ tự dòng
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([quotationId])
+}
+
+// ── plan_finance: Hợp đồng ────────────────────────────────────────────────────
+model Contract {
+  id              String     @id @default(cuid())
+  code            String?    @unique                   // HD-20260319-xxxx
+  customerId      String?
+  customer        Customer?  @relation(fields: [customerId], references: [id])
+  nguoiPhuTrachId String?
+  nguoiPhuTrach   Employee?  @relation("ContractEmployee", fields: [nguoiPhuTrachId], references: [id])
+  quotationId     String?                              // Liên kết báo giá gốc (nếu có)
+  quotation       Quotation? @relation(fields: [quotationId], references: [id])
+  ngayKy          DateTime?                            // Ngày ký hợp đồng
+  ngayBatDau      DateTime?                            // Ngày bắt đầu thực hiện
+  ngayKetThuc     DateTime?                            // Ngày kết thúc / nghiệm thu
+  trangThai       String     @default("pending")       // pending | active | delayed | overdue | done | cancelled
+  uuTien          String     @default("medium")        // high | medium | low
+  giaTriHopDong   Float      @default(0)               // Giá trị hợp đồng
+  daThanhToan     Float      @default(0)               // Đã thanh toán
+  ghiChu          String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([trangThai])
+  @@index([customerId])
+  @@index([nguoiPhuTrachId])
+  @@index([quotationId])
+  @@index([ngayKetThuc])
+}
+
+
+// ── plan_finance: Hoá đơn bán lẻ ─────────────────────────────────────────────
+model RetailInvoice {
+  id              String              @id @default(cuid())
+  code            String?             @unique
+  tenKhach        String?
+  dienThoai       String?
+  diaChi          String?
+  tongTien        Float               @default(0)
+  chietKhau       Float               @default(0)
+  vat             Float               @default(0)
+  tongCong        Float               @default(0)
+  hinhThucTT      String              @default("cash")
+  tienKhachDua    Float               @default(0)
+  tienThua        Float               @default(0)
+  conNo           Float               @default(0)
+  ghiChu          String?
+  trangThai       String              @default("chua-xuat-hang") // chua-xuat-hang | da-xuat-hang
+  nguoiBanId      String?
+  nguoiBan        Employee?           @relation("RetailInvoiceEmployee", fields: [nguoiBanId], references: [id])
+  items           RetailInvoiceItem[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([trangThai])
+  @@index([createdAt])
+  @@index([nguoiBanId])
+}
+
+model RetailInvoiceItem {
+  id              String          @id @default(cuid())
+  invoiceId       String
+  invoice         RetailInvoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  inventoryItemId String?
+  inventoryItem   InventoryItem?  @relation(fields: [inventoryItemId], references: [id])
+  tenHang         String
+  dvt             String          @default("cái")
+  soLuong         Float           @default(1)
+  donGia          Float           @default(0)
+  thanhTien       Float           @default(0)
+
+  @@index([invoiceId])
+  @@index([inventoryItemId])
+}
+
+// ── board: Snapshot kinh doanh hàng tháng (cho AI phân tích xu hướng) ────────
+model MonthlySalesSnapshot {
+  id               String   @id @default(cuid())
+  year             Int                              // 2025, 2026 ...
+  month            Int                              // 1-12
+  totalCustomers   Int      @default(0)
+  quotationCount   Int      @default(0)
+  quotationWon     Int      @default(0)
+  quotationLost    Int      @default(0)
+  contractCount    Int      @default(0)
+  contractActive   Int      @default(0)
+  contractDone     Int      @default(0)
+  contractOverdue  Int      @default(0)
+  contractValue    Float    @default(0)
+  contractPaid     Float    @default(0)
+  retailCount      Int      @default(0)
+  retailRevenue    Float    @default(0)
+  retailDebt       Float    @default(0)
+  note             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([year, month])
+  @@index([year])
+}
+
+// ── board: Quản lý công việc ──────────────────────────────────────────────────
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("pending")    // pending|in-progress|review|done|cancelled
+  priority    String    @default("medium")     // low|medium|high|urgent
+  assigneeId  String                           // FK → User
+  creatorId   String                           // FK → User (lãnh đạo giao)
+  deptCode    String?                          // Phòng ban liên quan
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  comments    TaskComment[]
+
+  @@index([assigneeId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([creatorId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+// ── marketing: Đối thủ cạnh tranh ─────────────────────────────────────────────
+model Competitor {
+  id              String   @id @default(cuid())
+  name            String
+  website         String
+  color           String
+  threat          String
+  address         String?
+  status          String   @default("Đang theo dõi")
+  lastScan        String
+  tags            String   // JSON array
+  aiSummary       String
+  swot            String   // JSON object: { s:[], w:[], o:[], t:[] }
+  metrics         String   // JSON object
+  scores          String   // JSON object
+  newsHighlights  String?  // JSON array
+  marketingActivity String? // JSON object: channels, campaigns, contentThemes, postingFrequency, seoPower
+  dataSources     String?  // JSON object
+  strategySuggestions String? // JSON object: { dos: [], donts: [], tacticalAdvice: "" }
+  
+  clientId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ── marketing: Kế hoạch năm (Trưởng phòng) ────────────────────────────────────
+model MarketingAnnualPlan {
+  id             String   @id @default(cuid())
+  year           Int                           // Năm kế hoạch (2025, 2026...)
+  title          String                        // Tiêu đề kế hoạch
+  objectives     String                        // Mục tiêu chiến lược (text)
+  budget         Float    @default(0)          // Ngân sách dự kiến (VNĐ)
+  targetSegment  String?                       // Phân khúc khách hàng mục tiêu
+  platforms      String   @default("[]")       // JSON: ["Facebook","Zalo",...]
+  jobOverview    String   @default("[]")       // JSON array for job overview matrix
+  status         String   @default("draft")    // draft | submitted | approved | rejected
+  rejectedReason String?                       // Lý do từ chối
+  createdById    String                        // employeeId trưởng phòng
+  createdByName  String                        // Tên trưởng phòng
+  approvedById   String?                       // userId Giám đốc duyệt
+  approvedAt     DateTime?
+  clientId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  themes         MarketingTheme[]
+
+  @@index([year])
+  @@index([status])
+  @@index([createdById])
+}
+
+// ── marketing: Chủ đề chiến dịch (1 plan → nhiều themes) ──────────────────────
+model MarketingTheme {
+  id           String              @id @default(cuid())
+  planId       String
+  plan         MarketingAnnualPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  title        String                        // Tên chủ đề
+  description  String?                       // Mô tả
+  startMonth   Int                           // Tháng bắt đầu (1–12)
+  endMonth     Int                           // Tháng kết thúc (1–12)
+  budget       Float    @default(0)          // Ngân sách cho chủ đề
+  assignedTeam String   @default("all")      // all | sang-tao-noi-dung | thiet-ke | truyen-thong | toi-uu-tim-kiem
+  color        String   @default("#8b5cf6")  // Màu nhận diện
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contents     MarketingContent[]
+
+  @@index([planId])
+}
+
+// ── marketing: Nội dung chi tiết (1 theme → nhiều contents) ──────────────────
+model MarketingContent {
+  id           String         @id @default(cuid())
+  themeId      String
+  theme        MarketingTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  title        String                        // Tiêu đề nội dung
+  channel      String?                       // facebook | youtube | tiktok | email | website | zalo
+  format       String?                       // video | image | article | email | story | reel
+  targetMonth  Int                           // Tháng triển khai (1–12)
+  budget       Float    @default(0)          // Ngân sách
+  kpi          String?                       // Chỉ tiêu (lượt xem, leads...)
+  assignedTeam String?  @default("all")      // Bộ phận chịu trách nhiệm
+  notes        String?                       // Ghi chú thêm
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tasks        MarketingTask[]
+
+  @@index([themeId])
+  @@index([targetMonth])
+}
+
+// ── marketing: Kế hoạch tháng (Nhân viên) ─────────────────────────────────────
+model MarketingMonthlyPlan {
+  id             String   @id @default(cuid())
+  year           Int
+  month          Int                           // 1–12
+  employeeId     String                        // ID nhân viên lập kế hoạch
+  employeeName   String                        // Tên nhân viên (cached)
+  team           String?                       // Bộ phận: sang-tao-noi-dung | thiet-ke | truyen-thong | toi-uu-tim-kiem
+  summary        String?                       // Tóm tắt mục tiêu tháng
+  status         String   @default("draft")    // draft | submitted | approved | rejected
+  rejectedReason String?                       // Lý do từ chối
+  reviewedById   String?                       // ID trưởng phòng đã duyệt
+  reviewedAt     DateTime?
+  clientId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tasks          MarketingTask[]
+
+  @@unique([year, month, employeeId])
+  @@index([year, month])
+  @@index([employeeId])
+  @@index([status])
+}
+
+// ── marketing: Task chi tiết trong kế hoạch tháng ────────────────────────────
+model MarketingTask {
+  id             String               @id @default(cuid())
+  monthlyPlanId  String
+  monthlyPlan    MarketingMonthlyPlan @relation(fields: [monthlyPlanId], references: [id], onDelete: Cascade)
+  contentId      String?                       // FK → MarketingContent (nếu lấy từ kế hoạch năm)
+  content        MarketingContent?    @relation(fields: [contentId], references: [id])
+  title          String                        // Tiêu đề task / Công việc
+  description    String?
+  taskType       String?                       // Loại: content | design | ads | event | seo | other
+  category       String?                       // Hạng mục: Facebook | TikTok | YouTube | SEO | Email...
+  taskGroup      String?                       // Nhóm đầu mục: chu_de_thang | content | trade | seo
+  taskSubGroup   String?                       // Nhóm con (VD: ngay_le | noi_dung | san_pham dưới chu_de_thang)
+  week1          Boolean  @default(false)      // Thực hiện tuần 1
+  week2          Boolean  @default(false)      // Thực hiện tuần 2
+  week3          Boolean  @default(false)      // Thực hiện tuần 3
+  week4          Boolean  @default(false)      // Thực hiện tuần 4
+  week1Content   String?                       // Nội dung công việc tuần 1
+  week2Content   String?                       // Nội dung công việc tuần 2
+  week3Content   String?                       // Nội dung công việc tuần 3
+  week4Content   String?                       // Nội dung công việc tuần 4
+  assigneeName   String?                       // Người thực hiện (cached name)
+  channel        String?
+  format         String?
+  deadline       DateTime?
+  actualResult   String?                       // Kết quả thực tế sau khi hoàn thành
+  status         String   @default("pending")  // pending | in_progress | done | cancelled
+  sortOrder      Int      @default(0)
+  budget         Float    @default(0)
+  
+  comments       MarketingTaskComment[]
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([monthlyPlanId])
+  @@index([contentId])
+  @@index([status])
+}
+
+model MarketingTaskComment {
+  id             String   @id @default(cuid())
+  taskId         String
+  userId         String
+  userName       String
+  content        String
+  attachmentUrl  String?
+  attachmentName String?
+  createdAt      DateTime @default(now())
+  
+  task           MarketingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+// ── marketing: Thư viện Tài nguyên ────────────────────────────────────────────
+model MediaFolder {
+  id            String        @id @default(cuid())
+  name          String
+  ownerId       String?       // null = "Tài liệu chung"
+  ownerName     String?       // Cached tên nhân viên
+  parentId      String?       // null = root, có = subfolder
+  isPublic      Boolean       @default(false)  // true = Tài liệu chung
+  ownerIsActive Boolean       @default(true)   // false = nhân viên đã nghỉ
+  clientId      String?
+  createdAt     DateTime      @default(now())
+  parent        MediaFolder?  @relation("FolderTree", fields: [parentId], references: [id])
+  children      MediaFolder[] @relation("FolderTree")
+  assets        MediaAsset[]
+}
+
+model MediaAsset {
+  id          String      @id @default(cuid())
+  folderId    String
+  name        String
+  description String?
+  type        String      // catalogue|banner|video|slide|photo|template|cert
+  channel     String      @default("all") // showroom|digital|print|all
+  fileUrl     String      // /uploads/marketing/...
+  fileSize    Int         @default(0)
+  fileType    String      // pdf|jpg|png|mp4|pptx|docx...
+  thumbnail   String?
+  uploadedBy  String      // userId
+  downloads   Int         @default(0)
+  clientId    String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  folder      MediaFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+}
+
+// ── marketing: Kế hoạch Năm (Tổng quan) ──────────────────────────────────────
+model MarketingYearlyPlan {
+  id              String   @id @default(cuid())
+  code            String   @unique                       // Ví dụ: MKT-2025-20260421-XXXX
+  year            Int
+  status          String   @default("ban-nhap")          // ban-nhap | trinh-duyet | ban-hanh | huy
+  isCurrent       Boolean  @default(false)               // Chỉ duy nhất 1 bản hiệu lực
+  versionStatus   String   @default("DRAFT")             // ACTIVE | DRAFT | REPLACED
+  authorId        String?
+  author          User?    @relation(fields: [authorId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  generalPlan     MarketingGeneralPlan?
+  budgetPlan      MarketingBudgetPlan?
+  goals           MarketingYearlyGoal[]
+  tasks           MarketingYearlyTask[]
+  executionMonths MarketingExecutionMonth[]
+  revisionCount   Int      @default(0)          // Số lần sửa đổi
+  revisionData    String?                       // Lưu bản nháp shadow khi đã chốt
+  
+  approvedAt      DateTime?                     // Thời điểm phê duyệt
+  approvedById    String?                       // Người phê duyệt (Giám đốc)
+  approver        User?    @relation("PlanApprover", fields: [approvedById], references: [id])
+
+  @@index([year])
+  @@index([status])
+  @@index([isCurrent])
+}
+
+model MarketingGeneralPlan {
+  id              String   @id @default(cuid())
+  planId          String   @unique
+  plan            MarketingYearlyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  
+  primaryGoal     String?
+  totalBudget     Float?   @default(0)
+  targetAudience  String?
+  platforms       String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model MarketingYearlyGoal {
+  id              String   @id @default(cuid())
+  planId          String
+  plan            MarketingYearlyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  label           String
+  description     String?
+  icon            String?
+  color           String?
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([planId])
+}
+
+model MarketingYearlyTask {
+  id              String   @id @default(cuid())
+  planId          String
+  plan            MarketingYearlyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  parentId        String?
+  parent          MarketingYearlyTask?  @relation("TaskTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children        MarketingYearlyTask[] @relation("TaskTree")
+  
+  name            String
+  description     String?
+  department      String?
+  assigneeId      String?               // Liên kết về bảng Employee hoặc User
+  color           String?
+  isExpanded      Boolean  @default(true)
+  status          String   @default("pending")
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  executionMonths MarketingExecutionMonth[]
+
+  @@index([planId])
+  @@index([parentId])
+  @@index([assigneeId])
+}
+
+// ── marketing: Dữ liệu Kế hoạch Chiến lược (Tab 2) ──────────────────────────
+model OutlineMarketingPlan {
+  id        String   @id @default(cuid())
+  year      Int
+  planId    String?  @unique
+  planData  String   // JSON text lưu toàn bộ cấu trúc pillars, categories, topics
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([year])
+}
+
+// ── marketing: Kế hoạch thực hiện (Tab 3) ───────────────────────────────────
+model MarketingExecutionMonth {
+  id              String   @id @default(cuid())
+  planId          String
+  plan            MarketingYearlyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  taskId          String
+  task            MarketingYearlyTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  month           Int
+  
+  groups          MarketingExecutionGroup[]
+  
+  @@unique([planId, taskId, month])
+}
+
+model MarketingExecutionGroup {
+  id                String   @id @default(cuid())
+  monthId           String
+  monthPlan         MarketingExecutionMonth @relation(fields: [monthId], references: [id], onDelete: Cascade)
+  
+  name              String
+  color             String?
+  orderIndex        Int      @default(0)
+  strategyPillarId  String?  
+  
+  tasks             MarketingExecutionDetail[]
+}
+
+model MarketingExecutionDetail {
+  id              String   @id @default(cuid())
+  groupId         String
+  group           MarketingExecutionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  parentId        String?
+  parent          MarketingExecutionDetail? @relation("DetailTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children        MarketingExecutionDetail[] @relation("DetailTree")
+
+  isDetail        Boolean  @default(false)
+  
+  name            String
+  week            String?
+  orderIndex      Int      @default(0)
+
+  // Content specific
+  visual          String?
+  quantity        String?
+  channel         String?
+  
+  // Nguồn dữ liệu mới (Media Data)
+  ads             Boolean  @default(false)
+  targetAudience  String?
+  recordTime      String?
+  location        String?
+  detailContent   String?
+  
+  // Tasks specific
+  pic             String?
+  status          String   @default("pending")
+  note            String?
+}
+
+
+// ── Approval Center: Hồ sơ phê duyệt đa năng ────────────────────────────────
+model ApprovalRequest {
+  id              String   @id @default(cuid())
+
+  // Định danh nguồn gốc (Polymorphic)
+  entityType      String   // "marketing_yearly_plan" | "marketing_monthly_plan" | "expense" | "leave_request" | "purchase_order" | "quotation" | ...
+  entityId        String   // ID của bản ghi gốc
+  entityCode      String?  // Mã hiển thị: "MKT-2026", "EXPENSE-047"
+  entityTitle     String   // Tiêu đề rút gọn hiển thị trong danh sách
+
+  // Workflow
+  status          String   @default("pending")  // pending | approved | rejected | recalled | on_hold
+  priority        String   @default("normal")   // urgent | high | normal | low
+  dueDate         DateTime?
+
+  // Phòng ban / Ngữ cảnh
+  department      String?  // "marketing" | "hr" | "finance" | "purchase" | ...
+  metadata        String?  // JSON: { year, month, amount, currency, ... }
+
+  // Người liên quan
+  requestedById   String   // User ID người gửi
+  requestedByName String   // Tên cached
+  approverId      String?  // User ID được assign duyệt (null = broadcast)
+  approvedById    String?  // User ID thực sự đã duyệt/từ chối
+  approvedAt      DateTime?
+
+  // Kết quả
+  note            String?
+  rejectedReason  String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  comments        ApprovalComment[]
+
+  @@index([entityType, entityId])
+  @@index([status, approverId])
+  @@index([requestedById])
+  @@index([department, status])
+  @@index([createdAt])
+}
+
+// ── Approval Center: Thảo luận & Lịch sử ─────────────────────────────────────
+model ApprovalComment {
+  id          String          @id @default(cuid())
+  requestId   String
+  request     ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  authorId    String          // User ID
+  authorName  String          // Tên cached
+  authorRole  String?         // "approver" | "requester" | "observer"
+  content     String          // Nội dung tin nhắn
+
+  // Reply thread (1 cấp)
+  parentId    String?
+  parent      ApprovalComment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies     ApprovalComment[] @relation("CommentThread")
+
+  attachments String?           // JSON: [{ name, url, size }]
+  isSystem    Boolean  @default(false)  // true = auto-generated event log
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+
+// ── Social Media Connections ──────────────────────────────────────────────────
+model SocialConnection {
+  id            String   @id @default(cuid())
+  platform      String   // "facebook" | "instagram" | "youtube" | "tiktok"
+  pageId        String?  // Facebook Page ID
+  pageName      String?  // Facebook Page Name
+  pageToken     String?  // Page Access Token (long-lived)
+  userToken     String?  // User Access Token (long-lived)
+  appId         String?  // App ID
+  appSecret     String?  // App Secret
+  verifyToken   String?  // Webhook Verify Token
+  webhookActive Boolean  @default(false)
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([platform])
+}
+
+// ── marketing: Quản lý Chiến dịch & Leads tự động ────────────────────────────
+model MarketingCampaign {
+  id              String   @id @default(cuid())
+  externalId      String   @unique             // ID từ platform (Facebook Campaign ID...)
+  name            String
+  platform        String                       // facebook | youtube | tiktok | google
+  status          String                       // ACTIVE | PAUSED | ARCHIVED ...
+  objective       String?                      // lead_generation | awareness | conversion ...
+  
+  budget          Float    @default(0)
+  dailyBudget     Float    @default(0)
+  spent           Float    @default(0)
+  currency        String   @default("VND")
+  
+  startTime       DateTime?
+  stopTime        DateTime?
+  
+  // Quan hệ
+  leads           MarketingLead[]
+  
+  clientId        String?                      // null = master scope
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([platform])
+  @@index([status])
+  @@index([clientId])
+}
+
+model MarketingLead {
+  id              String   @id @default(cuid())
+  campaignId      String
+  campaign        MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  externalId      String?  @unique             // ID lead từ platform (Facebook Lead ID...)
+  
+  fullName        String?
+  email           String?
+  phone           String?
+  
+  // Dữ liệu mở rộng
+  formValues      String?                      // JSON: Các field tùy chỉnh trong form của platform
+  status          String   @default("new")     // new | contacted | qualified | converted | lost
+  
+  // Tracking
+  source          String?                      // utm_source
+  medium          String?                      // utm_medium
+  adId            String?                      // ID quảng cáo cụ thể sinh ra lead
+  
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([campaignId])
+  @@index([status])
+  @@index([email])
+  @@index([phone])
+}
+
+// ── marketing: Chi tiết ngân sách (Tab 4) ───────────────────────────────────
+model MarketingBudgetPlan {
+  id              String   @id @default(cuid())
+  planId          String   @unique
+  plan            MarketingYearlyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  // Cấu hình con số tổng Tab 4.1
+  revenueGoal     Float    @default(0)  // Mục tiêu doanh thu
+  mktRate         Float    @default(0)  // Tỷ lệ tổng marketing
+  mktValue        Float    @default(0)  // Tổng ngân sách marketing
+  
+  agencyRate      Float    @default(0)  // % cho đại lý
+  agencyValue     Float    @default(0)  // Giá trị cho đại lý
+  
+  brandingRate    Float    @default(0)  // % cho branding
+  brandingValue   Float    @default(0)  // Giá trị cho branding
+
+  items           MarketingBudgetItem[]
+  monthlyTotals   MarketingMonthlyBudgetTotal[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model MarketingBudgetItem {
+  id              String   @id @default(cuid())
+  budgetPlanId    String
+  budgetPlan      MarketingBudgetPlan @relation(fields: [budgetPlanId], references: [id], onDelete: Cascade)
+  
+  type            String   // "agency" | "branding"
+  name            String   // Tên hạng mục công việc
+  rate            Float    @default(0) // Tỷ lệ cơ bản (trong Tab 4.1)
+  value           Float    @default(0) // Giá trị cơ bản
+  note            String?
+  sortOrder       Int      @default(0)
+
+  monthlyDetails  MarketingMonthlyBudgetItem[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model MarketingMonthlyBudgetTotal {
+  id              String   @id @default(cuid())
+  budgetPlanId    String
+  budgetPlan      MarketingBudgetPlan @relation(fields: [budgetPlanId], references: [id], onDelete: Cascade)
+  month           Int      // 1-12
+  totalValue      Float    @default(0) // Số tiền TỔNG CỘNG nhập tay tháng đó
+
+  @@unique([budgetPlanId, month])
+}
+
+model MarketingMonthlyBudgetItem {
+  id              String   @id @default(cuid())
+  itemId          String
+  item            MarketingBudgetItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  month           Int      // 1-12
+  rate            Float    @default(0) // % của hạng mục trong tháng đó
+  value           Float    @default(0) // Số tiền thực tế trong tháng đó
+  note            String?
+
+  @@unique([itemId, month])
+}
+
+// ── marketing: Quản lý Sự kiện (Events) ──────────────────────────────────────
+model MarketingEvent {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  name              String
+  type              String   @default("Workshop")
+  category          String   @default("B2B")
+  isOnline          Boolean  @default(false)
+  startDate         DateTime
+  endDate           DateTime
+  location          String?
+  address           String?
+  budget            Float?
+  expectedAttendees Int?
+  pic               String?
+  description       String?
+  status            String   @default("draft") // draft | active | completed | cancelled
+  
+  // Tài chính sự kiện (Tab 1)
+  managementFeeRate Float    @default(5)
+  vatRate           Float    @default(10)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  tasks             MarketingEventTask[]
+  contents          MarketingEventContent[]
+}
+
+model MarketingEventContent {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       MarketingEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  item        String
+  description String?
+  unit        String?
+  price       Float    @default(0)
+  quantity    Float    @default(0)
+  level       Int      @default(0)
+  
+  parentId    String?
+  parent      MarketingEventContent?  @relation("EventContentTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    MarketingEventContent[] @relation("EventContentTree")
+  
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([eventId])
+  @@index([parentId])
+}
+
+model MarketingEventTask {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       MarketingEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name        String
+  parentId    String?
+  parent      MarketingEventTask?  @relation("EventTaskTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    MarketingEventTask[] @relation("EventTaskTree")
+  pic         String?
+  startDate   DateTime?
+  endDate     DateTime?
+  weeks       String?              // JSON string array: "[13,14,15]" (SQLite doesn't support Int[])
+  content     String?
+  sortOrder   Int                  @default(0)
+  hasChildren Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
