@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const [pendingCount, lowStockItems, totalInventoryValue, assetsInUse] = await Promise.all([
+    const [pendingCount, lowStockItems, assetsInUse] = await Promise.all([
       (prisma as any).hrSupplyRequest.count({
         where: {
           status: { in: ["PENDING", "OVER_NORM"] }
