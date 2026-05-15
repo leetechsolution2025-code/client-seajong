@@ -5,7 +5,7 @@
 
 APP_NAME="client-seajong"
 PORT=3711
-DOMAIN="seajong.vn"
+DOMAIN="seajong.leetech.vn"
 
 # Nginx config path
 NGINX_CONF="/etc/nginx/sites-available/${APP_NAME}"
