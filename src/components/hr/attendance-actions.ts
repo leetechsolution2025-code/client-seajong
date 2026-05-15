@@ -219,6 +219,19 @@ export async function getAttendanceData(month: number, year: number) {
     });
 
 
+    const allDays = eachDayOfInterval({ start: startDate, end: endDate });
+    const standardWorkDays = allDays.filter(day => {
+      const isSunday = day.getDay() === 0;
+      const isHoliday = holidays.some((h: any) => {
+        const hStart = new Date(h.startDate);
+        const hEnd = new Date(h.endDate);
+        hStart.setHours(0,0,0,0);
+        hEnd.setHours(23,59,59,999);
+        return day >= hStart && day <= hEnd;
+      });
+      return !isSunday && !isHoliday;
+    }).length;
+
     return {
       departments: departmentList,
       stats: {
@@ -227,7 +240,7 @@ export async function getAttendanceData(month: number, year: number) {
         absentToday,
         leaveToday,
         totalViolationMinutes,
-        workDays: daysInMonthCount - holidays.length 
+        workDays: standardWorkDays
       }
     };
   } catch (error) {
