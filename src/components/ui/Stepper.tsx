@@ -17,17 +17,14 @@ interface StepperProps {
 
 export const Stepper: React.FC<StepperProps> = ({ steps, currentStep, onStepChange, children }) => {
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "12px 16px", minHeight: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", padding: "12px 16px 24px" }}>
       <div style={{
         background: "white",
         borderRadius: 20,
         border: "1px solid #eef2f6",
         display: "flex",
         flexDirection: "column",
-        flex: 1,
-        minHeight: 0,
         boxShadow: "0 4px 20px rgba(0,0,0,0.02)",
-        overflow: "hidden"
       }}>
         {/* ── STEPPER HEADER (FIXED) ── */}
         <div style={{
@@ -94,8 +91,8 @@ export const Stepper: React.FC<StepperProps> = ({ steps, currentStep, onStepChan
           <div style={{ flex: 1.5 }} />
         </div>
 
-        {/* ── STEP CONTENT (SCROLLABLE) ── */}
-        <div style={{ padding: "24px", flex: 1, overflowY: "auto" }}>
+        {/* ── STEP CONTENT ── */}
+        <div style={{ padding: "24px" }}>
           {children}
         </div>
       </div>

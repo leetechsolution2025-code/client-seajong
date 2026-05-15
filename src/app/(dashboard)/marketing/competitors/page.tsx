@@ -336,7 +336,7 @@ export default function CompetitorsPage() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--background)" }}>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100%", background: "var(--background)" }}>
       <PageHeader
         title="Theo dõi đối thủ"
         description="Theo dõi tự động định vị giá, phân tích SWOT và chiến lược truyền thông của đối thủ"
