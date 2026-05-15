@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const [pendingCount, lowStockItems, assetsInUse] = await Promise.all([
+    const [pendingCount, supplyItems, assetsInUse] = await Promise.all([
       (prisma as any).hrSupplyRequest.count({
         where: {
           status: { in: ["PENDING", "OVER_NORM"] }
@@ -13,20 +13,16 @@ export async function GET() {
       // We fetch and filter in JS for accuracy and to avoid IDE errors
       (prisma as any).hrSupplyItem.findMany({
         where: { isActive: true },
-        select: { currentStock: true, minStock: true }
+        select: { currentStock: true, minStock: true, price: true }
       }),
       (prisma as any).hrAssetHandover.count({
         where: { status: "USING" }
       })
     ]);
 
-    const lowStockCount = lowStockItems.filter((i: any) => i.currentStock < i.minStock).length;
+    const lowStockCount = supplyItems.filter((i: any) => i.currentStock < i.minStock).length;
+    const totalValue = supplyItems.reduce((acc: number, item: any) => acc + (item.currentStock * (item.price || 0)), 0);
 
-    const items = await (prisma as any).hrSupplyItem.findMany({ 
-      where: { isActive: true },
-      select: { currentStock: true, price: true } 
-    });
-    const totalValue = items.reduce((acc: number, item: any) => acc + (item.currentStock * item.price), 0);
 
     return NextResponse.json({
       pendingCount,

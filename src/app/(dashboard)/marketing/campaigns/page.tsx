@@ -146,9 +146,23 @@ function CreateCampaignOffcanvas({ open, onClose }: { open: boolean; onClose: ()
 }
 
 // ── Offcanvas Kết nối API ────────────────────────────────────────────────────
-function ConnectAdsOffcanvas({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [activeTab, setActiveTab] = useState('fb');
+function ConnectAdsOffcanvas({ 
+  open, 
+  onClose, 
+  onShowDoc,
+  activeTab,
+  setActiveTab,
+  redirectUri
+}: { 
+  open: boolean; 
+  onClose: () => void; 
+  onShowDoc: () => void;
+  activeTab: string;
+  setActiveTab: (t: string) => void;
+  redirectUri: string;
+}) {
   const [origin, setOrigin] = useState('');
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -215,22 +229,12 @@ function ConnectAdsOffcanvas({ open, onClose }: { open: boolean; onClose: () => 
   };
 
   const PLATFORMS = [
-    { key: "fb", label: "Facebook", icon: "bi-facebook", color: "#1877F2", devUrl: "https://developers.facebook.com/apps/{id}/settings/basic/" },
+    { key: "fb", label: "Facebook & Instagram", icon: "bi-facebook", color: "#1877F2", devUrl: "https://developers.facebook.com/apps/{id}/settings/basic/" },
     { key: "yt", label: "Youtube Analytics", icon: "bi-youtube", color: "#FF0000", devUrl: "https://console.cloud.google.com/apis/credentials" },
-    { key: "ig", label: "Instagram", icon: "bi-instagram", color: "#E4405F", devUrl: "https://developers.facebook.com/apps/{id}/settings/basic/" },
     { key: "tt", label: "Tiktok", icon: "bi-tiktok", color: "var(--foreground)", devUrl: "https://developers.tiktok.com/console/" }
   ];
 
   const currentStatus = statuses[activeTab];
-  // Tự động tính toán Redirect URI dựa trên domain khách hàng đang truy cập - Đã fix Hydration Mismatch
-  const [redirectUri, setRedirectUri] = useState("");
-
-  useEffect(() => {
-    if (mounted) {
-      const uri = `${window.location.protocol}//${window.location.host}/api/${activeTab === 'yt' ? 'youtube' : activeTab === 'fb' ? 'facebook' : activeTab === 'ig' ? 'instagram' : 'tiktok'}/callback`;
-      setRedirectUri(uri);
-    }
-  }, [mounted, activeTab]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -265,7 +269,7 @@ function ConnectAdsOffcanvas({ open, onClose }: { open: boolean; onClose: () => 
         </div>
 
         {/* Tab Navbar */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${PLATFORMS.length}, 1fr)`, background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>
           {PLATFORMS.map(p => {
             const active = activeTab === p.key;
             return (
@@ -281,135 +285,245 @@ function ConnectAdsOffcanvas({ open, onClose }: { open: boolean; onClose: () => 
           <AnimatePresence mode="wait">
             <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }}>
               
-              {/* ── RECOMMENDED: WEBHOOK METHOD (SIMPLE) ── */}
-              {(activeTab === 'fb' || activeTab === 'ig' || activeTab === 'tt') && (
-                <div style={{ background: "rgba(16, 185, 129, 0.05)", borderRadius: 16, padding: "20px", border: "1px solid rgba(16, 185, 129, 0.2)", marginBottom: 24 }}>
-                  <div style={{ display: "flex", gap: 14, marginBottom: 16 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <i className="bi bi-magic" style={{ color: "#fff", fontSize: 20 }} />
+              {/* ── RECOMMENDED: WEBHOOK METHOD (FOR FACEBOOK & TIKTOK LEADS) ── */}
+              {(activeTab === 'fb' || activeTab === 'tt') && (
+                <div style={{ background: "rgba(16, 185, 129, 0.05)", borderRadius: 20, padding: "24px", border: "1px solid rgba(16, 185, 129, 0.2)", marginBottom: 24, position: "relative", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", top: 0, right: 0, width: 100, height: 100, background: "radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%)", zIndex: 0 }} />
+                  
+                  <div style={{ position: "relative", zIndex: 1 }}>
+                    <div style={{ display: "flex", gap: 14, marginBottom: 20 }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 14, background: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 8px 16px rgba(16,185,129,0.2)" }}>
+                        <i className="bi bi-lightning-charge-fill" style={{ color: "#fff", fontSize: 20 }} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--foreground)" }}>Cách 1: Kết nối nhanh qua Webhook</h4>
+                        <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.4 }}>
+                          Khuyên dùng: Đơn giản, lấy dữ liệu tức thì.
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--foreground)" }}>Cách 1: Kết nối nhanh (Khuyên dùng)</h4>
-                      <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--muted-foreground)" }}>
-                        Không cần tạo App, không cần xác minh lằng nhằng.
-                      </p>
-                    </div>
-                  </div>
 
-                  <div style={{ background: "var(--card)", padding: 14, borderRadius: 12, border: "1px solid var(--border)" }}>
-                    <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Địa chỉ Webhook của bạn:</p>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <code style={{ flex: 1, background: "var(--muted)", padding: "8px 12px", borderRadius: 8, fontSize: 11, color: "#10b981", fontWeight: 700, border: "1px solid var(--border)", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {`${origin}/api/marketing/leads/webhook/${activeTab === 'fb' ? 'facebook' : activeTab === 'ig' ? 'instagram' : 'tiktok'}`}
-                      </code>
-                      <button onClick={() => copyToClipboard(`${origin}/api/marketing/leads/webhook/${activeTab === 'fb' ? 'facebook' : activeTab === 'ig' ? 'instagram' : 'tiktok'}`)} style={{ padding: "0 12px", borderRadius: 8, border: "none", background: "var(--foreground)", color: "var(--background)", cursor: "pointer", fontWeight: 700, fontSize: 11 }}>Copy</button>
+                    <div style={{ background: "var(--card)", padding: 16, borderRadius: 14, border: "1px solid var(--border)", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                        <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Webhook URL của bạn</p>
+                        <span style={{ fontSize: 10, background: "rgba(16, 185, 129, 0.15)", color: "#10b981", padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>HTTPS Active</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 10 }}>
+                        <div style={{ flex: 1, background: "var(--muted)", padding: "10px 14px", borderRadius: 10, fontSize: 12, color: "#10b981", fontWeight: 700, border: "1px solid var(--border)", overflow: "hidden", textOverflow: "ellipsis", fontFamily: "monospace" }}>
+                          {`${origin}/api/marketing/leads/webhook/${activeTab === 'fb' ? 'facebook' : 'tiktok'}`}
+                        </div>
+                        <button onClick={() => copyToClipboard(`${origin}/api/marketing/leads/webhook/${activeTab === 'fb' ? 'facebook' : 'tiktok'}`)} style={{ padding: "0 16px", borderRadius: 10, border: "none", background: "var(--foreground)", color: "var(--background)", cursor: "pointer", fontWeight: 800, fontSize: 12 }}>Copy</button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                      <div style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--foreground)", color: "var(--background)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, flexShrink: 0, marginTop: 1 }}>1</div>
-                      <p style={{ margin: 0, fontSize: 12 }}>Copy link Webhook ở trên.</p>
+                    <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <button onClick={() => setShowGuide(!showGuide)} style={{ padding: "12px", borderRadius: 12, border: "1px solid var(--border)", background: "transparent", color: "var(--foreground)", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        <i className={`bi ${showGuide ? "bi-chevron-up" : "bi-list-check"}`} />
+                        Các bước thực hiện
+                      </button>
+                      <button onClick={() => onShowDoc()} style={{ padding: "12px", borderRadius: 12, border: "none", background: "var(--foreground)", color: "var(--background)", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        <i className="bi bi-file-earmark-richtext" />
+                        Tài liệu hướng dẫn
+                      </button>
                     </div>
-                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                      <div style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--foreground)", color: "var(--background)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, flexShrink: 0, marginTop: 1 }}>2</div>
-                      <p style={{ margin: 0, fontSize: 12 }}>Dán vào <b>Make.com</b> hoặc <b>Zapier</b> để nối với Facebook.</p>
-                    </div>
+
+                    {showGuide && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} style={{ marginTop: 20, borderTop: "1px dashed var(--border)", paddingTop: 20 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                           <p style={{ margin: 0, fontSize: 12, color: "var(--muted-foreground)" }}>Mở tài liệu hướng dẫn để xem chi tiết cách cấu hình Webhook trên Make.com.</p>
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* ── ADVANCED: CUSTOM APP METHOD ── */}
-              <details style={{ marginBottom: 24 }}>
-                <summary style={{ fontSize: 13, fontWeight: 700, color: "var(--muted-foreground)", cursor: "pointer", padding: "10px 0", outline: "none" }}>
-                  <i className="bi bi-gear me-2" /> Cấu hình nâng cao (Tự tạo App riêng)
-                </summary>
-                
-                <div style={{ paddingTop: 16 }}>
-                  {/* PHẦN 1: Redirect URI */}
-                  <div style={{ background: "var(--muted)", borderRadius: 14, padding: 18, marginBottom: 24, border: "1px dashed var(--border)" }}>
-                    <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 800, color: "var(--foreground)", display: "flex", alignItems: "center", gap: 8 }}>
-                      <i className="bi bi-link-45deg" style={{ fontSize: 18 }} /> URI Chuyển hướng OAuth
-                    </h4>
-                    {activeTab === 'fb' || activeTab === 'ig' ? (
-                      <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.6 }}>
-                        1. Truy cập <a href="https://developers.facebook.com/apps" target="_blank" rel="noreferrer" style={{ color: "#1877F2", fontWeight: 800 }}>Meta for Developers</a> &gt; Chọn App của bạn.<br/>
-                        2. Vào <b>Facebook Login</b> &gt; <b>Settings</b>.<br/>
-                        3. Dán link dưới đây vào <b>Valid OAuth Redirect URIs</b>:
-                      </p>
-                    ) : activeTab === 'yt' ? (
-                      <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.6 }}>
-                        1. Truy cập <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" style={{ color: "#FF0000", fontWeight: 800 }}>Google Cloud Console</a> &gt; Bật thư viện <b>YouTube Analytics API</b>.<br/>
-                        2. Vào <b>APIs &amp; Services</b> &gt; <b>Credentials</b>.<br/>
-                        3. Thêm link dưới đây vào <b>Authorized redirect URIs</b>:
-                      </p>
-                    ) : (
-                      <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.6 }}>
-                        1. Truy cập <a href="https://developers.tiktok.com/console" target="_blank" rel="noreferrer" style={{ color: "var(--foreground)", fontWeight: 800 }}>Tiktok Developer</a> &gt; Chọn App của bạn.<br/>
-                        2. Vào <b>App Details</b> &gt; <b>Login Config</b>.<br/>
-                        3. Thêm link dưới đây vào <b>Redirect Domain / URI</b>:
-                      </p>
-                    )}
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <code style={{ flex: 1, background: "var(--card)", padding: "10px 12px", borderRadius: 10, fontSize: 11, color: "#1877F2", fontWeight: 600, border: "1px solid var(--border)", wordBreak: "break-all" }}>
-                        {redirectUri}
-                      </code>
-                      <button onClick={() => copyToClipboard(redirectUri)} style={{ padding: "0 14px", borderRadius: 10, border: "none", background: "var(--foreground)", color: "var(--background)", cursor: "pointer", fontWeight: 700, fontSize: 11, flexShrink: 0 }}>Copy</button>
-                    </div>
-                  </div>
-
-                  {/* BƯỚC 1: Cấu hình */}
-                  <div style={{ border: currentStatus?.configured ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 16, padding: 20, position: "relative", marginBottom: 20, transition: "0.3s" }}>
-                    <div style={{ position: "absolute", top: -12, left: 16, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.configured ? "#10b981" : "var(--muted-foreground)" }}>BƯỚC 1: THIẾT LẬP APP</div>
-                    
-                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <div>
-                          <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "var(--muted-foreground)", marginBottom: 8, textTransform: "uppercase" }}> {activeTab === 'yt' ? 'Client ID' : 'App ID'}</label>
-                          <input value={configs[activeTab].appId} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appId: e.target.value } }))} placeholder="Copy và dán ID tại đây..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14, outline: "none" }} />
+              {/* ── NATIVE INTEGRATION: YOUTUBE ANALYTICS (DIRECT) ── */}
+              {activeTab === 'yt' && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                   <div style={{ background: "rgba(255, 0, 0, 0.03)", borderRadius: 24, padding: "28px", border: "1px solid rgba(255, 0, 0, 0.1)", position: "relative" }}>
+                      <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+                        <div style={{ width: 48, height: 48, borderRadius: 16, background: "#FF0000", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 8px 20px rgba(255,0,0,0.2)" }}>
+                          <i className="bi bi-youtube" style={{ color: "#fff", fontSize: 24 }} />
                         </div>
                         <div>
-                          <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: "var(--muted-foreground)", marginBottom: 8, textTransform: "uppercase" }}>{activeTab === 'yt' ? 'Client Secret' : 'App Secret'}</label>
-                          <input type="password" value={configs[activeTab].appSecret} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appSecret: e.target.value } }))} placeholder="••••••••••••••••••••••••" style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14, outline: "none", fontFamily: "monospace" }} />
+                          <h4 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "var(--foreground)" }}>Kết nối trực tiếp YouTube API</h4>
+                          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.5 }}>
+                             Tự động đồng bộ các chỉ số View, Subscribe và Watch-time về Dashboard của bạn.
+                          </p>
                         </div>
+                      </div>
 
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 4 }}>
-                          <a href={PLATFORMS.find(p => p.key === activeTab)?.devUrl.replace("{id}", configs[activeTab].appId || "APP_ID")} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "#1877F2", textDecoration: "none", fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
-                              <i className="bi bi-box-arrow-up-right" /> Lấy thông tin ở đâu?
-                          </a>
-                          <button onClick={() => handleSave(activeTab)} disabled={!configs[activeTab].appId || savingStatus[activeTab]} style={{ padding: "10px 20px", borderRadius: 12, border: "none", background: configs[activeTab].appId ? "var(--foreground)" : "var(--muted)", color: "var(--background)", cursor: "pointer", fontWeight: 800, fontSize: 13, transition: "0.2s" }}>
-                              {savingStatus[activeTab] ? "Đang lưu..." : currentStatus?.configured ? "✓ Đã lưu - Cập nhật" : "Lưu cấu hình"}
-                          </button>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {[
+                          { step: "BƯỚC 1", title: "Tạo dự án Google Cloud", content: "Truy cập Google Cloud Console, tạo Project mới và bật YouTube Analytics API." },
+                          { step: "BƯỚC 2", title: "Cấu hình OAuth Consent Screen", content: "Chọn External, thêm Email hỗ trợ và thêm Scope: '.../auth/yt-analytics.readonly'." },
+                          { step: "BƯỚC 3", title: "Tạo Credentials", content: "Chọn 'OAuth Client ID' -> 'Web Application'. Thêm Redirect URI bên dưới và nhận Client ID/Secret." }
+                        ].map((s, i) => (
+                          <div key={i} style={{ display: "flex", gap: 12 }}>
+                             <span style={{ fontSize: 9, fontWeight: 900, color: "#FF0000", background: "rgba(255,0,0,0.1)", padding: "2px 8px", borderRadius: 4, height: "fit-content", marginTop: 4 }}>{s.step}</span>
+                             <div>
+                               <div style={{ fontSize: 13, fontWeight: 800 }}>{s.title}</div>
+                               <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{s.content}</div>
+                             </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" style={{ padding: "12px", borderRadius: 12, border: "1px solid rgba(255,0,0,0.2)", background: "transparent", color: "#FF0000", fontSize: 12, fontWeight: 700, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                           <i className="bi bi-box-arrow-up-right" />
+                           Google Console
+                        </a>
+                        <button onClick={() => onShowDoc()} style={{ padding: "12px", borderRadius: 12, border: "none", background: "#FF0000", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                           <i className="bi bi-file-earmark-richtext" />
+                           Tài liệu đầy đủ
+                        </button>
+                      </div>
+
+                      <div style={{ marginTop: 24, padding: 16, background: "var(--muted)", borderRadius: 16, border: "1px dashed var(--border)" }}>
+                        <div style={{ fontSize: 10, fontWeight: 900, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 8 }}>Authorized redirect URIs</div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                           <code style={{ flex: 1, fontSize: 11, color: "#FF0000", fontWeight: 700, wordBreak: "break-all" }}>{redirectUri}</code>
+                           <button onClick={() => copyToClipboard(redirectUri)} style={{ border: "none", background: "transparent", color: "var(--foreground)", cursor: "pointer", fontSize: 14 }}><i className="bi bi-clipboard" /></button>
                         </div>
-                    </div>
-                  </div>
-
-                  {/* BƯỚC 2: Kết nối */}
-                  <div style={{ border: currentStatus?.connected ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 16, padding: 20, position: "relative", opacity: currentStatus?.configured ? 1 : 0.5, transition: "0.3s" }}>
-                    <div style={{ position: "absolute", top: -12, left: 16, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.connected ? "#10b981" : "var(--muted-foreground)" }}>BƯỚC 2: ỦY QUYỀN TRUY CẬP</div>
-
-                    {currentStatus?.connected ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 16, background: "rgba(16,185,129,0.05)", padding: 14, borderRadius: 12 }}>
-                          <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <i className="bi bi-check-lg" style={{ color: "#fff", fontSize: 20 }} />
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 800, fontSize: 14 }}>{currentStatus.pageName || "Đang hoạt động"}</div>
-                            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Đã lấy Token thành công</div>
-                          </div>
-                          <button onClick={() => handleDisconnect(activeTab)} style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #ef4444", background: "transparent", color: "#ef4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Ngắt kết nối</button>
                       </div>
-                    ) : (
-                      <div style={{ textAlign: "center", padding: "10px 0" }}>
-                          <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 16, lineHeight: 1.6 }}>Nhấn nút dưới để bắt đầu đăng nhập qua hệ thống {PLATFORMS.find(p => p.key === activeTab)?.label}.</p>
-                          <button onClick={() => handleConnect(activeTab)} disabled={!currentStatus?.configured} style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", background: PLATFORMS.find(p => p.key === activeTab)?.color, color: "#fff", cursor: "pointer", fontWeight: 800, fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", gap: 12, boxShadow: currentStatus?.configured ? `0 8px 24px color-mix(in srgb, ${PLATFORMS.find(p => p.key === activeTab)?.color} 30%, transparent)` : "none" }}>
-                            <i className={`bi ${PLATFORMS.find(p => p.key === activeTab)?.icon}`} style={{ fontSize: 18 }} />
-                            Đăng nhập với {PLATFORMS.find(p => p.key === activeTab)?.label}
-                          </button>
+                   </div>
+
+                   {/* CONFIG FORM & AUTHORIZE FOR YOUTUBE */}
+                   <div style={{ border: currentStatus?.configured ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 20, padding: 24, position: "relative", background: "var(--card)" }}>
+                      <div style={{ position: "absolute", top: -12, left: 20, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.configured ? "#10b981" : "var(--muted-foreground)" }}>CẤU HÌNH CLIENT ID & SECRET</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <input value={configs[activeTab].appId} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appId: e.target.value } }))} placeholder="Client ID..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
+                        <input type="password" value={configs[activeTab].appSecret} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appSecret: e.target.value } }))} placeholder="Client Secret..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
+                        <button onClick={() => handleSave(activeTab)} disabled={!configs[activeTab].appId || savingStatus[activeTab]} style={{ padding: "12px", borderRadius: 12, border: "none", background: configs[activeTab].appId ? "#FF0000" : "var(--muted)", color: "#fff", cursor: "pointer", fontWeight: 800 }}>
+                          {savingStatus[activeTab] ? "Đang lưu..." : "Lưu cấu hình"}
+                        </button>
                       </div>
-                    )}
-                  </div>
+                   </div>
+
+                   <div style={{ border: currentStatus?.connected ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 20, padding: 24, position: "relative", opacity: currentStatus?.configured ? 1 : 0.5, background: "var(--card)", marginBottom: 24 }}>
+                      <div style={{ position: "absolute", top: -12, left: 20, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.connected ? "#10b981" : "var(--muted-foreground)" }}>BƯỚC 2: ỦY QUYỀN</div>
+                      <button onClick={() => handleConnect(activeTab)} disabled={!currentStatus?.configured} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "none", background: "#FF0000", color: "#fff", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+                        <i className="bi bi-google" /> Kết nối tài khoản Google
+                      </button>
+                   </div>
                 </div>
-              </details>
+              )}
+
+              {/* ── TIKTOK DIRECT API CONFIG ── */}
+              {activeTab === 'tt' && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                   <div style={{ background: "rgba(0,0,0,0.03)", borderRadius: 24, padding: 28, border: "1px solid var(--border)" }}>
+                      <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+                        <div style={{ width: 54, height: 54, borderRadius: 16, background: "var(--foreground)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--background)" }}>
+                           <i className="bi bi-tiktok" style={{ fontSize: 28 }} />
+                        </div>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "var(--foreground)" }}>Kết nối trực tiếp TikTok Ads API</h4>
+                          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.5 }}>
+                             Theo dõi hiệu quả chiến dịch TikTok Ads (Cost, Click, Conversion) ngay trên Dashboard.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {[
+                          { step: "BƯỚC 1", title: "Tạo App trên TikTok Developer", content: "Đăng ký tài khoản Developer và tạo App mới tại ads.tiktok.com." },
+                          { step: "BƯỚC 2", title: "Cấu hình Permissions", content: "Thêm các quyền 'Ads Management' và 'Ads Reporting' cho App của bạn." },
+                          { step: "BƯỚC 3", title: "Nhận App ID & Secret", content: "Thêm Redirect URI bên dưới vào cài đặt App và lấy thông tin Key." }
+                        ].map((s, i) => (
+                          <div key={i} style={{ display: "flex", gap: 12 }}>
+                             <span style={{ fontSize: 9, fontWeight: 900, color: "var(--background)", background: "var(--foreground)", padding: "2px 8px", borderRadius: 4, height: "fit-content", marginTop: 4 }}>{s.step}</span>
+                             <div>
+                               <div style={{ fontSize: 13, fontWeight: 800 }}>{s.title}</div>
+                               <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{s.content}</div>
+                             </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <a href="https://ads.tiktok.com/marketing_api/homepage/" target="_blank" rel="noreferrer" style={{ padding: "12px", borderRadius: 12, border: "1px solid var(--border)", background: "transparent", color: "var(--foreground)", fontSize: 12, fontWeight: 700, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                           <i className="bi bi-box-arrow-up-right" />
+                           TikTok Console
+                        </a>
+                        <button onClick={() => onShowDoc()} style={{ padding: "12px", borderRadius: 12, border: "none", background: "var(--foreground)", color: "var(--background)", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                           <i className="bi bi-file-earmark-richtext" />
+                           Tài liệu đầy đủ
+                        </button>
+                      </div>
+
+                      <div style={{ marginTop: 24, padding: 16, background: "var(--muted)", borderRadius: 16, border: "1px dashed var(--border)" }}>
+                        <div style={{ fontSize: 10, fontWeight: 900, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 8 }}>Authorized redirect URIs</div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                           <code style={{ flex: 1, fontSize: 11, color: "var(--foreground)", fontWeight: 700, wordBreak: "break-all" }}>{redirectUri}</code>
+                           <button onClick={() => copyToClipboard(redirectUri)} style={{ border: "none", background: "transparent", color: "var(--foreground)", cursor: "pointer", fontSize: 14 }}><i className="bi bi-clipboard" /></button>
+                        </div>
+                      </div>
+                   </div>
+
+                   {/* CONFIG FORM & AUTHORIZE FOR TIKTOK */}
+                   <div style={{ border: currentStatus?.configured ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 20, padding: 24, position: "relative", background: "var(--card)" }}>
+                      <div style={{ position: "absolute", top: -12, left: 20, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.configured ? "#10b981" : "var(--muted-foreground)" }}>CẤU HÌNH APP ID & SECRET KEY</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <input value={configs[activeTab].appId} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appId: e.target.value } }))} placeholder="App ID..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
+                        <input type="password" value={configs[activeTab].appSecret} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appSecret: e.target.value } }))} placeholder="Secret Key..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
+                        <button onClick={() => handleSave(activeTab)} disabled={!configs[activeTab].appId || savingStatus[activeTab]} style={{ padding: "12px", borderRadius: 12, border: "none", background: configs[activeTab].appId ? "var(--foreground)" : "var(--muted)", color: "var(--background)", cursor: "pointer", fontWeight: 800 }}>
+                          {savingStatus[activeTab] ? "Đang lưu..." : "Lưu cấu hình"}
+                        </button>
+                      </div>
+                   </div>
+
+                   <div style={{ border: currentStatus?.connected ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 20, padding: 24, position: "relative", opacity: currentStatus?.configured ? 1 : 0.5, background: "var(--card)", marginBottom: 24 }}>
+                      <div style={{ position: "absolute", top: -12, left: 20, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.connected ? "#10b981" : "var(--muted-foreground)" }}>BƯỚC 2: ỦY QUYỀN</div>
+                      <button onClick={() => handleConnect(activeTab)} disabled={!currentStatus?.configured} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "none", background: "var(--foreground)", color: "var(--background)", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+                        <i className="bi bi-tiktok" /> Kết nối tài khoản TikTok
+                      </button>
+                   </div>
+                </div>
+              )}
+
+              {/* ── FACEBOOK WEBHOOK CONFIG (AS DEFAULT/LEGACY) ── */}
+              {activeTab === 'fb' && (
+                <>
+                  <div style={{ border: "2px solid var(--border)", borderRadius: 24, padding: 28, marginBottom: 24, background: "rgba(24, 119, 242, 0.03)" }}>
+                    <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+                      <div style={{ width: 54, height: 54, borderRadius: 16, background: "#1877F2", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                        <i className="bi bi-facebook" style={{ fontSize: 28 }} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "var(--foreground)" }}>Kết nối qua Make.com (Webhooks)</h4>
+                        <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.5 }}>
+                          Giải pháp nhanh nhất để đồng bộ Lead từ Facebook & Instagram về CRM.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <button onClick={() => onShowDoc()} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: "#1877F2", color: "#fff", fontWeight: 800, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                      <i className="bi bi-file-earmark-text" /> Xem hướng dẫn thiết lập
+                    </button>
+                  </div>
+
+                  <details style={{ marginBottom: 24 }}>
+                    <summary style={{ fontSize: 13, fontWeight: 700, color: "var(--muted-foreground)", cursor: "pointer", padding: "10px 0" }}>Cấu hình App tự tạo (Dành cho Developer)</summary>
+                    <div style={{ paddingTop: 16, display: "flex", flexDirection: "column", gap: 20 }}>
+                      <div style={{ border: currentStatus?.configured ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 16, padding: 20, position: "relative" }}>
+                        <div style={{ position: "absolute", top: -12, left: 16, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900 }}>BƯỚC 1: NHẬP KEY</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                          <input value={configs[activeTab].appId} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appId: e.target.value } }))} placeholder="App ID..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
+                          <input type="password" value={configs[activeTab].appSecret} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appSecret: e.target.value } }))} placeholder="App Secret..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
+                          <button onClick={() => handleSave(activeTab)} style={{ padding: "10px", borderRadius: 10, background: "var(--foreground)", color: "var(--background)", fontWeight: 800 }}>Lưu cấu hình</button>
+                        </div>
+                      </div>
+                      <div style={{ border: currentStatus?.connected ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 16, padding: 20, position: "relative", opacity: currentStatus?.configured ? 1 : 0.5 }}>
+                        <div style={{ position: "absolute", top: -12, left: 16, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.connected ? "#10b981" : "var(--muted-foreground)" }}>BƯỚC 2: ỦY QUYỀN</div>
+                        <button onClick={() => handleConnect(activeTab)} disabled={!currentStatus?.configured} style={{ width: "100%", padding: "12px", borderRadius: 10, background: "#1877F2", color: "#fff", fontWeight: 800 }}>Kết nối tài khoản</button>
+                      </div>
+                    </div>
+                  </details>
+                </>
+              )}
 
             </motion.div>
           </AnimatePresence>
@@ -430,6 +544,7 @@ export default function MarketingCampaignsPage() {
   // === STATE MODULES ===
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isConnectOpen, setIsConnectOpen] = useState(false);
+  const [showFullDoc, setShowFullDoc] = useState(false);
   const [leadSeries, setLeadSeries] = useState<Array<{ name: string; data: number[] }>>([]);
   const [recentLeads, setRecentLeads] = useState<Array<{ id: number; name: string; phone: string; campaign: string; time: string; avatar: string }>>([]);
   const [chartDates, setChartDates] = useState<string[]>([]);
@@ -442,6 +557,15 @@ export default function MarketingCampaignsPage() {
   const [importMode, setImportMode] = useState<"upsert" | "skip">("upsert");
   const [isImporting, setIsImporting] = useState(false);
   const [chartRange, setChartRange] = useState<"7" | "14" | "30" | "custom">("30");
+  
+  // === LIFTED STATE FOR INTEGRATIONS ===
+  const [activeTab, setActiveTab] = useState('fb');
+  const [redirectUri, setRedirectUri] = useState("");
+
+  useEffect(() => {
+    const uri = `${window.location.protocol}//${window.location.host}/api/${activeTab === 'yt' ? 'youtube' : activeTab === 'fb' ? 'facebook' : activeTab === 'ig' ? 'instagram' : 'tiktok'}/callback`;
+    setRedirectUri(uri);
+  }, [activeTab]);
 
   const fetchDashboard = async () => {
     setFbCampaignsLoading(true);
@@ -1087,7 +1211,518 @@ export default function MarketingCampaignsPage() {
       <CreateCampaignOffcanvas open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
       
       {/* OFFCANVAS KẾT NỐI API */}
-      <ConnectAdsOffcanvas open={isConnectOpen} onClose={() => setIsConnectOpen(false)} />
+      <ConnectAdsOffcanvas 
+        open={isConnectOpen} 
+        onClose={() => setIsConnectOpen(false)} 
+        onShowDoc={() => setShowFullDoc(true)} 
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        redirectUri={redirectUri}
+      />
+
+      {/* ── FULLSCREEN DOCUMENTATION MODAL (TRUE FULLSCREEN) ── */}
+      <AnimatePresence>
+        {showFullDoc && (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              style={{ position: "fixed", inset: 0, zIndex: 3000, background: "var(--card)", display: "flex", flexDirection: "column" }}
+            >
+              <motion.div 
+                initial={{ y: 50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 50, opacity: 0 }}
+                style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}
+              >
+              {/* Modal Header */}
+              <div style={{ padding: "28px 40px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--muted)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <div style={{ 
+                    width: 48, 
+                    height: 48, 
+                    borderRadius: 14, 
+                    background: activeTab === 'yt' ? "#FF0000" : activeTab === 'tt' ? "var(--foreground)" : "#1877F2", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center" 
+                  }}>
+                    <i className={`bi ${activeTab === 'yt' ? "bi-youtube" : activeTab === 'tt' ? "bi-tiktok" : "bi-facebook"}`} style={{ fontSize: 24, color: activeTab === 'tt' ? "var(--background)" : "#fff" }} />
+                  </div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, letterSpacing: "-0.01em" }}>
+                      Tài liệu kết nối {activeTab === 'yt' ? "YouTube Analytics" : activeTab === 'tt' ? "TikTok Marketing API" : "Facebook Lead Ads"}
+                    </h2>
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--muted-foreground)" }}>
+                      {activeTab === 'yt' ? "Hướng dẫn cấu hình Native OAuth2 qua Google Cloud" : 
+                       activeTab === 'tt' ? "Hướng dẫn cấu hình TikTok Marketing API cho Dashboard" :
+                       "Hướng dẫn chi tiết quy trình tự động hóa qua Make.com"}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowFullDoc(false)}
+                  style={{ width: 44, height: 44, borderRadius: "50%", border: "none", background: "var(--foreground)", color: "var(--background)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.2s" }}
+                  onMouseEnter={e => e.currentTarget.style.transform = "rotate(90deg)"}
+                  onMouseLeave={e => e.currentTarget.style.transform = "rotate(0deg)"}
+                >
+                  <i className="bi bi-x-lg" style={{ fontSize: 18 }} />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "50px 80px", color: "var(--foreground)", lineHeight: 1.8 }}>
+                <div style={{ maxWidth: 800, margin: "0 auto" }}>
+                  {activeTab === 'yt' ? (
+                    <>
+                      <h1 style={{ fontSize: 36, fontWeight: 900, marginBottom: 16, letterSpacing: "-0.03em" }}>HƯỚNG DẪN KẾT NỐI YOUTUBE ANALYTICS API</h1>
+                      <p style={{ fontSize: 16, color: "var(--muted-foreground)", marginBottom: 48 }}>
+                        Tài liệu này hướng dẫn chi tiết cách tạo dự án trên <b>Google Cloud Console</b> và cấu hình <b>Native OAuth2</b> để tự động đồng bộ hóa các chỉ số hiệu quả từ kênh YouTube của bạn.
+                      </p>
+
+                      <section style={{ marginBottom: 48 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 800, color: "#FF0000", textTransform: "uppercase", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+                           <i className="bi bi-shield-lock" /> 📋 Điều kiện cần có
+                        </h3>
+                        <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 20 }}>
+                          <li style={{ display: "flex", gap: 12 }}>
+                            <i className="bi bi-check2-square" style={{ color: "#FF0000", fontSize: 18, marginTop: 2 }} />
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 16 }}>Tài khoản Google (Gmail) quản lý kênh YouTube.</div>
+                              <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>
+                                Bạn cần có quyền truy cập vào kênh YouTube và Google Cloud Console.
+                              </div>
+                            </div>
+                          </li>
+                          <li style={{ display: "flex", gap: 12 }}>
+                            <i className="bi bi-check2-square" style={{ color: "#FF0000", fontSize: 18, marginTop: 2 }} />
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 16 }}>Tài khoản Google Cloud Console đã kích hoạt Billing (Tùy chọn).</div>
+                              <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>
+                                API YouTube Analytics có hạn mức miễn phí rất lớn, thông thường bạn sẽ không mất phí.
+                              </div>
+                            </div>
+                          </li>
+                        </ul>
+                      </section>
+
+                      <section style={{ marginBottom: 48 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", marginBottom: 32, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 10 }}>
+                           🚀 Quy trình thiết lập chi tiết (10 - 15 phút)
+                        </h3>
+                        
+                        {[
+                          { 
+                            step: "Bước 1", 
+                            title: "Tạo Dự án (Project) mới trên Google Cloud", 
+                            content: "Dự án là 'vùng không gian' riêng để bạn quản lý việc kết nối dữ liệu. Bạn không nên dùng chung dự án với các dịch vụ khác.",
+                            subSteps: [
+                              "Truy cập: https://console.cloud.google.com/",
+                              "Ở thanh công cụ trên cùng, nhấn vào **danh sách Dự án** (thường nằm cạnh Logo Google Cloud).",
+                              "Nhấn vào nút **'NEW PROJECT'** (Dự án mới) ở góc trên bên phải cửa sổ hiện ra.",
+                              "Đặt tên dự án dễ nhớ (Ví dụ: 'He thong Marketing CRM') và nhấn **CREATE**."
+                            ]
+                          },
+                          { 
+                            step: "Bước 2", 
+                            title: "Kích hoạt các API cần thiết", 
+                            content: "Mặc định Google Cloud không bật sẵn tính năng đọc dữ liệu Youtube, bạn cần phải 'xin phép' thủ công.",
+                            subSteps: [
+                              "Tại thanh menu bên trái, chọn **APIs & Services** > **Library**.",
+                              "Tìm kiếm từ khóa: **'YouTube Analytics API'** và nhấn vào kết quả. Nhấn nút **ENABLE**.",
+                              "Tiếp tục tìm kiếm: **'YouTube Data API v3'** và cũng nhấn **ENABLE** (API này giúp lấy tên kênh và avatar)."
+                            ]
+                          },
+                          { 
+                            step: "Bước 3", 
+                            title: "Cấu hình Màn hình Ủy quyền (OAuth Consent Screen)", 
+                            content: "Đây là màn hình sẽ hiện ra khi bạn đăng nhập tài khoản Google. Nó xác nhận bạn cho phép hệ thống đọc dữ liệu của bạn.",
+                            subSteps: [
+                              "Vào **APIs & Services** > **OAuth consent screen**.",
+                              "Chọn **User Type** là **External** (Để cho phép tài khoản Gmail cá nhân kết nối). Nhấn **Create**.",
+                              "**App Information**: Điền tên ứng dụng (VD: CRM Analytics), email hỗ trợ và email liên hệ kỹ thuật.",
+                              "**Scopes**: Đây là bước quan trọng nhất. Nhấn **ADD OR REMOVE SCOPES**. Tìm và chọn 2 dòng: `.../auth/yt-analytics.readonly` và `.../auth/youtube.readonly`.",
+                              "**Test Users**: RẤT QUAN TRỌNG. Nhấn **ADD USERS** và điền chính xác địa chỉ Gmail quản lý kênh Youtube của bạn vào đây. Nếu không điền, bạn sẽ bị lỗi 'Access Denied'."
+                            ]
+                          },
+                          { 
+                            step: "Bước 4", 
+                            title: "Tạo mã Client ID và Client Secret", 
+                            content: "Đây giống như là Tên đăng nhập và Mật khẩu bí mật để hệ thống CRM có thể 'nói chuyện' với Google.",
+                            subSteps: [
+                              "Vào **APIs & Services** > **Credentials**.",
+                              "Nhấn **+ CREATE CREDENTIALS** > Chọn **OAuth client ID**.",
+                              "**Application type**: Chọn **Web application**.",
+                              "**Authorized redirect URIs**: Nhấn nút **ADD URI** và dán chính xác link màu đỏ bên dưới vào.",
+                              "Nhấn **CREATE**. Một cửa sổ sẽ hiện ra chứa **Client ID** và **Client Secret**. Hãy copy 2 mã này."
+                            ],
+                            details: [
+                              { label: "Redirect URI (Copy dòng này)", value: redirectUri }
+                            ],
+                            warning: "Lưu ý: Không được thừa hay thiếu bất kỳ ký tự nào trong Redirect URI, kể cả dấu '/' ở cuối."
+                          },
+                          { 
+                            step: "Bước 5", 
+                            title: "Kết nối trên CRM và hoàn tất", 
+                            content: "Quay lại Dashboard của bạn để thực hiện bước cuối cùng.",
+                            subSteps: [
+                              "Dán **Client ID** và **Client Secret** vào Form cấu hình.",
+                              "Nhấn **Lưu cấu hình** để hệ thống ghi nhớ.",
+                              "Nhấn nút **Kết nối tài khoản Google**. Đăng nhập bằng đúng tài khoản Gmail bạn đã thêm ở Bước 3.",
+                              "Nhấn **Allow (Cho phép)** khi Google hỏi quyền truy cập dữ liệu Analytics."
+                            ]
+                          }
+                        ].map((item, idx) => (
+                          <div key={idx} style={{ marginBottom: 60, paddingLeft: 20, borderLeft: "2px solid rgba(255,0,0,0.1)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, marginLeft: -32 }}>
+                               <span style={{ fontSize: 10, fontWeight: 900, background: "#FF0000", color: "#fff", padding: "4px 12px", borderRadius: 100, textTransform: "uppercase", boxShadow: "0 4px 12px rgba(255,0,0,0.2)" }}>{item.step}</span>
+                               <h4 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--foreground)" }}>{item.title}</h4>
+                            </div>
+                            <p style={{ margin: "0 0 20px", fontSize: 15, color: "var(--muted-foreground)", fontWeight: 500 }}>{item.content}</p>
+                            
+                            <div style={{ background: "var(--muted)", borderRadius: 20, padding: 24, border: "1px solid var(--border)" }}>
+                               <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
+                                 {item.subSteps.map((ss, ssi) => (
+                                   <li key={ssi} style={{ display: "flex", gap: 12, fontSize: 14, color: "var(--foreground)", lineHeight: 1.6 }}>
+                                      <i className="bi bi-arrow-right-circle-fill" style={{ color: "#FF0000", fontSize: 16, marginTop: 2 }} />
+                                      <span dangerouslySetInnerHTML={{ __html: ss.replace(/\*\*(.*?)\*\*/g, '<b style="color:#FF0000">$1</b>') }} />
+                                   </li>
+                                 ))}
+                               </ul>
+                            </div>
+
+                            {item.details && (
+                              <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+                                {item.details.map((d, i) => (
+                                  <div key={i} style={{ padding: "16px 20px", background: "rgba(255,0,0,0.03)", borderRadius: 16, border: "1px dashed #FF0000" }}>
+                                    <div style={{ fontSize: 11, fontWeight: 900, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 6 }}>{d.label}</div>
+                                    <div style={{ fontSize: 15, fontWeight: 700, color: "#FF0000", wordBreak: "break-all", fontFamily: "monospace" }}>{d.value}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {item.warning && (
+                              <div style={{ marginTop: 16, display: "flex", gap: 10, color: "#92400e", background: "#fef3c7", padding: "12px 16px", borderRadius: 12, fontSize: 13 }}>
+                                <i className="bi bi-exclamation-triangle-fill" />
+                                <b>{item.warning}</b>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </section>
+                    </>
+                  ) : activeTab === 'tt' ? (
+                    <>
+                      <h1 style={{ fontSize: 36, fontWeight: 900, marginBottom: 16, letterSpacing: "-0.03em" }}>HƯỚNG DẪN KẾT NỐI TIKTOK MARKETING API</h1>
+                      <p style={{ fontSize: 16, color: "var(--muted-foreground)", marginBottom: 48 }}>
+                        Tài liệu này hướng dẫn chi tiết cách tạo dự án trên <b>TikTok For Business Developers</b> và cấu hình <b>OAuth2</b> để tự động đồng bộ hóa các chỉ số quảng cáo (Chi phí, Lượt xem, Click) về Dashboard CRM của bạn.
+                      </p>
+
+                      <section style={{ marginBottom: 48 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+                           <i className="bi bi-shield-check" /> 📋 Điều kiện cần có
+                        </h3>
+                        <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 20 }}>
+                          <li style={{ display: "flex", gap: 12 }}>
+                            <i className="bi bi-check2-square" style={{ color: "var(--foreground)", fontSize: 18, marginTop: 2 }} />
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 16 }}>Tài khoản TikTok For Business.</div>
+                              <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>
+                                Bạn cần có tài khoản quảng cáo đang hoạt động để lấy dữ liệu.
+                              </div>
+                            </div>
+                          </li>
+                          <li style={{ display: "flex", gap: 12 }}>
+                            <i className="bi bi-check2-square" style={{ color: "var(--foreground)", fontSize: 18, marginTop: 2 }} />
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 16 }}>Quyền truy cập TikTok Developer Console.</div>
+                              <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>
+                                Đăng ký tại ads.tiktok.com/marketing_api/homepage.
+                              </div>
+                            </div>
+                          </li>
+                        </ul>
+                      </section>
+
+                      <section style={{ marginBottom: 48 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", marginBottom: 32, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 10 }}>
+                           🚀 Quy trình thiết lập chi tiết (15 - 20 phút)
+                        </h3>
+                        
+                        {[
+                          { 
+                            step: "Bước 1", 
+                            title: "Đăng ký tài khoản Developer", 
+                            content: "Truy cập TikTok Marketing API Homepage và hoàn thiện hồ sơ Developer của bạn.",
+                            subSteps: [
+                              "Truy cập: ads.tiktok.com/marketing_api/homepage/",
+                              "Đăng nhập bằng tài khoản TikTok Ads của bạn.",
+                              "Điền thông tin hồ sơ (Cá nhân/Doanh nghiệp) để được cấp quyền tạo App."
+                            ]
+                          },
+                          { 
+                            step: "Bước 2", 
+                            title: "Tạo Ứng dụng (App) mới", 
+                            content: "Tạo một App để kết nối CRM của bạn với dữ liệu quảng cáo TikTok.",
+                            subSteps: [
+                              "Nhấn nút **'Create App'** trong Dashboard.",
+                              "Đặt tên cho App (Ví dụ: 'CRM Analytics Connector').",
+                              "Mô tả mục đích sử dụng App để TikTok phê duyệt (Dùng nội bộ để theo dõi báo cáo)."
+                            ]
+                          },
+                          { 
+                            step: "Bước 3", 
+                            title: "Cấu hình Permissions & Redirect URI", 
+                            content: "Cấp quyền cho App và thiết lập đường dẫn quay về sau khi ủy quyền.",
+                            subSteps: [
+                              "Trong menu **Permissions**, hãy chọn các quyền: `Ads Management` và `Ads Reporting`.",
+                              "Tìm mục **Redirect URI**, nhấn **Add URI** và dán link màu đen bên dưới vào.",
+                              "Lưu thay đổi để TikTok ghi nhận cấu hình."
+                            ],
+                            details: [
+                              { label: "Redirect URI (Copy dòng này)", value: redirectUri }
+                            ]
+                          },
+                          { 
+                            step: "Bước 4", 
+                            title: "Lấy App ID và Secret Key", 
+                            content: "Sao chép thông tin nhận diện App để dán vào CRM.",
+                            subSteps: [
+                              "Tìm mục **App Secret**, nhấn **Show** để xem mã bí mật.",
+                              "Copy cả **App ID** và **Secret Key**.",
+                              "**Lưu ý**: Tuyệt đối không chia sẻ Secret Key cho bất kỳ ai."
+                            ]
+                          },
+                          { 
+                            step: "Bước 5", 
+                            title: "Kết nối trên CRM và hoàn tất", 
+                            content: "Dán thông tin vào CRM và thực hiện bước ủy quyền cuối cùng.",
+                            subSteps: [
+                              "Dán mã vào Form cấu hình trên CRM và nhấn **Lưu cấu hình**.",
+                              "Nhấn nút **Kết nối tài khoản TikTok**.",
+                              "Nhấn **Confirm (Xác nhận)** trên màn hình TikTok để cấp quyền cho App của bạn."
+                            ]
+                          }
+                        ].map((item, idx) => (
+                          <div key={idx} style={{ marginBottom: 60, paddingLeft: 20, borderLeft: "2px solid rgba(0,0,0,0.1)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, marginLeft: -32 }}>
+                               <span style={{ fontSize: 10, fontWeight: 900, background: "var(--foreground)", color: "var(--background)", padding: "4px 12px", borderRadius: 100, textTransform: "uppercase" }}>{item.step}</span>
+                               <h4 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--foreground)" }}>{item.title}</h4>
+                            </div>
+                            <p style={{ margin: "0 0 20px", fontSize: 15, color: "var(--muted-foreground)", fontWeight: 500 }}>{item.content}</p>
+                            
+                            <div style={{ background: "var(--muted)", borderRadius: 20, padding: 24, border: "1px solid var(--border)" }}>
+                               <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
+                                 {item.subSteps.map((ss, ssi) => (
+                                   <li key={ssi} style={{ display: "flex", gap: 12, fontSize: 14, color: "var(--foreground)", lineHeight: 1.6 }}>
+                                      <i className="bi bi-tiktok" style={{ fontSize: 16, marginTop: 2 }} />
+                                      <span dangerouslySetInnerHTML={{ __html: ss.replace(/\*\*(.*?)\*\*/g, '<b style="color:var(--foreground)">$1</b>') }} />
+                                   </li>
+                                 ))}
+                               </ul>
+                            </div>
+
+                            {item.details && (
+                              <div style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+                                {item.details.map((d, i) => (
+                                  <div key={i} style={{ padding: "16px 20px", background: "var(--muted)", borderRadius: 16, border: "1px dashed var(--foreground)" }}>
+                                    <div style={{ fontSize: 11, fontWeight: 900, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 6 }}>{d.label}</div>
+                                    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)", wordBreak: "break-all", fontFamily: "monospace" }}>{d.value}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </section>
+                    </>
+                  ) : (
+                    <>
+                      <h1 style={{ fontSize: 36, fontWeight: 900, marginBottom: 16, letterSpacing: "-0.03em" }}>HƯỚNG DẪN KẾT NỐI FACEBOOK & INSTAGRAM QUA MAKE.COM</h1>
+                      <p style={{ fontSize: 16, color: "var(--muted-foreground)", marginBottom: 48 }}>
+                        Tài liệu này hướng dẫn bạn cách thiết lập luồng đẩy dữ liệu tự động từ <b>Facebook & Instagram Lead Ads</b> về hệ thống CRM của bạn bằng công cụ trung gian <b>Make.com</b> (trước đây là Integromat).
+                      </p>
+
+                      <section style={{ marginBottom: 48 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1877F2", textTransform: "uppercase", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+                           <i className="bi bi-card-checklist" /> 📋 Điều kiện cần có
+                        </h3>
+                        <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 20 }}>
+                          <li style={{ display: "flex", gap: 12 }}>
+                            <i className="bi bi-check2-square" style={{ color: "#1877F2", fontSize: 18, marginTop: 2 }} />
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 16 }}>Tài khoản Make.com (Gói Free là đủ dùng).</div>
+                              <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>
+                                Đăng ký miễn phí tại <a href="https://www.make.com/en/register" target="_blank" rel="noreferrer" style={{ color: "#1877F2", fontWeight: 700 }}>make.com</a>. Bạn có thể dùng tài khoản Google để đăng ký nhanh.
+                              </div>
+                            </div>
+                          </li>
+                          <li style={{ display: "flex", gap: 12 }}>
+                            <i className="bi bi-check2-square" style={{ color: "#1877F2", fontSize: 18, marginTop: 2 }} />
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 16 }}>Tài khoản Facebook có quyền Quản trị viên của Fanpage.</div>
+                              <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>
+                                Kiểm tra tại: <b>Cài đặt trang &gt; Trải nghiệm Trang mới &gt; Quyền truy cập trang</b>. Tên bạn phải nằm trong danh sách "Người có quyền truy cập Facebook".
+                              </div>
+                            </div>
+                          </li>
+                        </ul>
+                      </section>
+
+                      <section style={{ marginBottom: 48 }}>
+                        <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", marginBottom: 32, textTransform: "uppercase" }}>🚀 Quy trình tự động hóa chi tiết</h3>
+                        
+                        {[
+                          { 
+                            step: "Bước 1", 
+                            title: "Lấy Link Webhook từ CRM", 
+                            content: "Đây là 'địa chỉ nhà' của CRM để Make.com biết nơi gửi dữ liệu đến.",
+                            subSteps: [
+                              "Mở mục **Kết nối nguồn Lead** tại tab Facebook trong Dashboard CRM.",
+                              "Tại phần 'Cách 1: Kết nối nhanh', nhấn nút **Copy** để sao chép link Webhook.",
+                              "Lưu link này ra Notepad để dùng cho Bước 4."
+                            ]
+                          },
+                          { 
+                            step: "Bước 2", 
+                            title: "Thiết lập Scenario trên Make.com", 
+                            content: "Scenario giống như một robot tự động làm việc cho bạn 24/7.",
+                            subSteps: [
+                              "Đăng nhập vào Make.com, nhấn **Create a new scenario**.",
+                              "Nhấn vào dấu cộng (+), tìm module **'Facebook Lead Ads'**.",
+                              "Chọn Trigger: **Watch Leads** (Tự động chạy khi có khách hàng đăng ký mới)."
+                            ]
+                          },
+                          { 
+                            step: "Bước 3", 
+                            title: "Kết nối Fanpage và chọn Form", 
+                            content: "Robot cần biết nó phải canh chừng ở Trang nào và Mẫu (Form) quảng cáo nào.",
+                            subSteps: [
+                              "Nhấn **Add** để kết nối tài khoản Facebook cá nhân của bạn.",
+                              "**Page**: Chọn chính xác Fanpage đang chạy quảng cáo.",
+                              "**Form**: Chọn 'All' nếu muốn lấy từ tất cả quảng cáo, hoặc chọn đích danh mẫu bạn cần."
+                            ]
+                          },
+                          { 
+                            step: "Bước 4", 
+                            title: "Cấu hình Module HTTP (Đẩy dữ liệu)", 
+                            content: "Đây là bước quan trọng nhất để 'bắc cầu' dữ liệu về CRM.",
+                            subSteps: [
+                              "Nhấn vào nút **Add another module**, tìm từ khóa **'HTTP'**.",
+                              "Chọn Action: **Make a request**.",
+                              "**URL**: Dán link Webhook đã copy ở Bước 1.",
+                              "**Method**: Chọn **POST**.",
+                              "**Body content type**: Chọn **Raw**.",
+                              "**Content type**: Chọn **JSON (application/json)**."
+                            ],
+                            code: '{\n  "fullName": "{{1.full_name}}",\n  "phone": "{{1.phone_number}}",\n  "email": "{{1.email}}",\n  "campaignExternalId": "{{1.campaign_id}}",\n  "externalId": "{{1.ad_id}}",\n  "source": "facebook_make"\n}',
+                            warning: "Trong đoạn mã trên, hãy xóa phần trong ngoặc {{...}} và click chọn các trường tương ứng từ danh sách gợi ý của Make.com."
+                          },
+                          { 
+                            step: "Bước 5", 
+                            title: "Kiểm tra và Kích hoạt", 
+                            content: "Đảm bảo mọi thứ hoạt động hoàn hảo trước khi để robot tự chạy.",
+                            subSteps: [
+                              "Nhấn **Run once** ở góc dưới bên trái Make.com.",
+                              "Sử dụng **Facebook Lead Ads Testing Tool** để gửi Lead thử nghiệm.",
+                              "Nếu Module HTTP hiện vòng tròn xanh lá và CRM nhận được lead -> Thành công.",
+                              "Gạt nút **Scheduling** sang **ON** để robot bắt đầu làm việc."
+                            ]
+                          }
+                        ].map((item, idx) => (
+                          <div key={idx} style={{ marginBottom: 60, paddingLeft: 20, borderLeft: "2px solid rgba(24,119,242,0.1)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, marginLeft: -32 }}>
+                               <span style={{ fontSize: 10, fontWeight: 900, background: "#1877F2", color: "#fff", padding: "4px 12px", borderRadius: 100, textTransform: "uppercase" }}>{item.step}</span>
+                               <h4 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--foreground)" }}>{item.title}</h4>
+                            </div>
+                            <p style={{ margin: "0 0 20px", fontSize: 15, color: "var(--muted-foreground)", fontWeight: 500 }}>{item.content}</p>
+                            
+                            <div style={{ background: "var(--muted)", borderRadius: 20, padding: 24, border: "1px solid var(--border)" }}>
+                               <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
+                                 {item.subSteps.map((ss, ssi) => (
+                                   <li key={ssi} style={{ display: "flex", gap: 12, fontSize: 14, color: "var(--foreground)", lineHeight: 1.6 }}>
+                                      <i className="bi bi-check-circle-fill" style={{ color: "#1877F2", fontSize: 16, marginTop: 2 }} />
+                                      <span dangerouslySetInnerHTML={{ __html: ss.replace(/\*\*(.*?)\*\*/g, '<b style="color:#1877F2">$1</b>') }} />
+                                   </li>
+                                 ))}
+                               </ul>
+                            </div>
+
+                            {item.code && (
+                              <div style={{ marginTop: 24 }}>
+                                <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                                  <i className="bi bi-code-square" style={{ color: "#1877F2" }} /> Cấu trúc JSON chuẩn:
+                                </p>
+                                <pre style={{ margin: 0, background: "#0f172a", color: "#38bdf8", padding: 24, borderRadius: 16, fontSize: 13, overflowX: "auto", border: "1px solid rgba(56,189,248,0.2)", fontFamily: "monospace" }}>
+                                  {item.code}
+                                </pre>
+                                <div style={{ marginTop: 14, padding: "12px 16px", background: "rgba(245, 158, 11, 0.05)", borderRadius: 12, border: "1px solid rgba(245, 158, 11, 0.2)", display: "flex", gap: 10 }}>
+                                   <i className="bi bi-info-circle" style={{ color: "#f59e0b", fontSize: 16 }} />
+                                   <p style={{ margin: 0, fontSize: 13, color: "#92400e", lineHeight: 1.5 }}>
+                                      <b>Mẹo:</b> {item.warning}
+                                   </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </section>
+                    </>
+                  )}
+
+                  <section style={{ marginBottom: 48, padding: 32, borderRadius: 24, background: "rgba(239, 68, 68, 0.03)", border: "1px solid rgba(239, 68, 68, 0.15)" }}>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, color: "#ef4444", textTransform: "uppercase", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+                       <i className="bi bi-exclamation-triangle" /> 💡 Các lỗi thường gặp
+                    </h3>
+                    <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+                      {activeTab === 'yt' ? (
+                        <>
+                          <li style={{ display: "flex", gap: 12 }}>
+                            <div style={{ fontWeight: 800, minWidth: 120 }}>redirect_uri_mismatch:</div>
+                            <div style={{ fontSize: 14, color: "var(--muted-foreground)" }}>Link dán vào Google Cloud phải khớp 100% với Redirect URI trên CRM.</div>
+                          </li>
+                          <li style={{ display: "flex", gap: 12 }}>
+                            <div style={{ fontWeight: 800, minWidth: 120 }}>Access Denied:</div>
+                            <div style={{ fontSize: 14, color: "var(--muted-foreground)" }}>Hãy thêm Email của bạn vào mục "Test Users" trong phần OAuth Consent Screen.</div>
+                          </li>
+                        </>
+                      ) : (
+                        <>
+                          <li style={{ display: "flex", gap: 12 }}>
+                            <div style={{ fontWeight: 800, minWidth: 120 }}>Lỗi 403:</div>
+                            <div style={{ fontSize: 14, color: "var(--muted-foreground)" }}>Do tài khoản chưa có quyền "Lead Access" trên Business Suite. Hãy vào Business Settings &gt; Integrations &gt; Lead Access để cấp quyền.</div>
+                          </li>
+                          <li style={{ display: "flex", gap: 12 }}>
+                            <div style={{ fontWeight: 800, minWidth: 120 }}>Data trống:</div>
+                            <div style={{ fontSize: 14, color: "var(--muted-foreground)" }}>Kiểm tra xem Form trên Facebook có đúng các trường full_name, phone_number không.</div>
+                          </li>
+                          <li style={{ display: "flex", gap: 12 }}>
+                            <div style={{ fontWeight: 800, minWidth: 120 }}>Không hiện lead:</div>
+                            <div style={{ fontSize: 14, color: "var(--muted-foreground)" }}>Kiểm tra URL Webhook xem đã chính xác chưa (phải bắt đầu bằng https://).</div>
+                          </li>
+                        </>
+                      )}
+                    </ul>
+                  </section>
+
+                  <div style={{ marginTop: 64, textAlign: "center", borderTop: "1px solid var(--border)", paddingTop: 48 }}>
+                    <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>Chúc bạn thành công! Nếu gặp khó khăn, hãy liên hệ bộ phận kỹ thuật.</p>
+                    <button 
+                      onClick={() => setShowFullDoc(false)} 
+                      style={{ padding: "16px 60px", borderRadius: 100, border: "none", background: activeTab === 'yt' ? "#FF0000" : "#10b981", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer", boxShadow: activeTab === 'yt' ? "0 15px 30px rgba(255,0,0,0.3)" : "0 15px 30px rgba(16,185,129,0.3)", transition: "transform 0.2s" }}
+                      onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
+                      onMouseLeave={e => e.currentTarget.style.transform = "none"}
+                    >
+                      Đóng hướng dẫn
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* MODAL CẤU HÌNH IMPORT */}
       <AnimatePresence>

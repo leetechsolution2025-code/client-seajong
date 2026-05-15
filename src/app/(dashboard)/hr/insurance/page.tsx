@@ -656,7 +656,7 @@ export default function InsurancePage() {
   );
 }
 
-function RateInput({ label, value, onChange }: { label: string, value: number | null, onChange: (v: number) => void }) {
+function RateInput({ label, value, onChange }: { label: string, value: number, onChange: (v: number) => void }) {
   return (
     <div className="w-100">
       <label className="form-label mb-1 text-muted" style={{ fontSize: 12 }}>{label}</label>
@@ -665,7 +665,7 @@ function RateInput({ label, value, onChange }: { label: string, value: number | 
           type="number"
           className="form-control border-end-0 fw-medium"
           style={{ height: 34, fontSize: 13, background: "var(--card)" }}
-          value={value ?? ""}
+          value={value}
           step="0.1"
           onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
         />

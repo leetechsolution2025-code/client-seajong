@@ -25,7 +25,7 @@ const EMPTY: CompanyInfo = {
 function Field({
   label, value, onChange, placeholder, type = "text", icon, readOnly,
 }: {
-  label: string; value: string | null; onChange?: (v: string) => void;
+  label: string; value: string; onChange?: (v: string) => void;
   placeholder?: string; type?: string; icon: string; readOnly?: boolean;
 }) {
   return (
@@ -40,7 +40,7 @@ function Field({
         }} />
         <input
           type={type}
-          value={value ?? ""}
+          value={value}
           readOnly={readOnly}
           onChange={e => onChange?.(e.target.value)}
           placeholder={placeholder}

@@ -419,10 +419,6 @@ export default function PlanYearlyPage() {
   allVersionsRef.current = allVersions;
   plansByYearRef.current = plansByYear;
 
-  // Ref để pollStatuses đọc giá trị mới nhất mà không cần đưa vào dependency array
-  const selectedPlanIdRef = useRef<string | null>(null);
-  selectedPlanIdRef.current = selectedPlanId;
-
   const [isSubtaskOffcanvasOpen, setIsSubtaskOffcanvasOpen] = useState(false);
   const [targetParentTask, setTargetParentTask] = useState<TreeTask | null>(null);
   const [newSubtaskForm, setNewSubtaskForm] = useState({
@@ -680,7 +676,7 @@ export default function PlanYearlyPage() {
             const filteredPlans = isManagerOrAdmin ? data.plans : data.plans.filter((p: any) => p.versionStatus === 'ttvb-20260423-5393-chxz');
             const plansForYear = filteredPlans.filter((p: any) => p.year === selectedYear);
             if (plansForYear.length > 0) {
-              const active = plansForYear.find((p: any) => p.id === selectedPlanIdRef.current) || plansForYear.find((p: any) => p.isCurrent) || plansForYear[0];
+              const active = plansForYear.find((p: any) => p.id === selectedPlanId) || plansForYear.find((p: any) => p.isCurrent) || plansForYear[0];
               if (active && active.monthlyExecutionStatuses) {
                 setMonthlyExecutionStatuses(active.monthlyExecutionStatuses);
               }
@@ -691,10 +687,7 @@ export default function PlanYearlyPage() {
 
     const interval = setInterval(pollStatuses, 20000); // 20s refresh
     return () => clearInterval(interval);
-  // Bỏ selectedPlanId khỏi deps để tránh vòng lặp: loadPlansFromServer → setSelectedPlanId → re-run
-  // pollStatuses đọc selectedPlanId qua ref nên vẫn luôn có giá trị mới nhất
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isManagerOrAdmin, selectedYear]);
+  }, [isManagerOrAdmin, selectedYear, selectedPlanId]);
 
   const [isViewingDraft, setIsViewingDraft] = useState(false);
 
@@ -1009,10 +1002,7 @@ export default function PlanYearlyPage() {
       setAgencySubRows([]);
       setBrandingSubRows([]);
     }
-  // Bỏ allVersions khỏi deps để tránh vòng lặp: loadPlansFromServer → setAllVersions → re-run
-  // Effect này đọc allVersions qua allVersionsRef.current nên vẫn luôn có giá trị mới nhất
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedYear, selectedPlanId, isManagerOrAdmin]);
+  }, [selectedYear, selectedPlanId, isManagerOrAdmin, allVersions]);
 
   const updateTask = (id: string, newProps: Partial<TreeTask>) => {
     const updateArr = (arr: TreeTask[]): TreeTask[] =>

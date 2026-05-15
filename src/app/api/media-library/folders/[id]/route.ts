@@ -12,13 +12,13 @@ function isAdmin(session: any) {
 // DELETE /api/media-library/folders/[id] → xóa thư mục (và các con)
 export async function DELETE(
   _req: Request,
-  context: { params: Promise<Promise<{ id: string }> | { id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { id } = await Promise.resolve((await context.params));
+    const { id } = await context.params;
     if (!id || typeof id !== 'string') {
       return NextResponse.json({ error: 'ID không hợp lệ' }, { status: 400 });
     }

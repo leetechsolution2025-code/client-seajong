@@ -3,13 +3,13 @@
 import React from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
 
-export default function CompetitorsPage() {
+export default function MarketAnalysisPage() {
   return (
     <StandardPage
-      title="Theo dõi đối thủ"
-      description="Theo dõi tự động định vị giá, phân tích SWOT và chiến lược truyền thông của đối thủ"
-      icon="bi-binoculars"
-      color="rose"
+      title="Phân tích thị trường"
+      description="Phân tích quy mô, xu hướng và cơ hội trên thị trường"
+      icon="bi-graph-up"
+      color="indigo"
       useCard={true}
     >
       <div className="p-4 text-center text-muted">

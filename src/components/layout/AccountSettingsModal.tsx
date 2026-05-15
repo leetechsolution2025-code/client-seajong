@@ -32,11 +32,11 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
   );
 }
 
-function PwField({ value, onChange, placeholder }: { value: string | null; onChange: (v: string) => void; placeholder?: string }) {
+function PwField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   const [show, setShow] = useState(false);
   return (
     <div className="d-flex align-items-center rounded-3" style={{ height: 44, border: "1px solid var(--border)", background: "var(--card)", overflow: "hidden" }}>
-      <input type={show ? "text" : "password"} value={value ?? ""} onChange={e => onChange(e.target.value)} placeholder={placeholder || "••••••••"}
+      <input type={show ? "text" : "password"} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder || "••••••••"}
         className="border-0 flex-grow-1 h-100 px-3"
         style={{ outline: "none", background: "transparent", color: "var(--foreground)", fontSize: 14 }} />
       <button className="border-0 px-3 h-100" style={{ background: "transparent", color: "var(--muted-foreground)", cursor: "pointer" }} onClick={() => setShow(!show)}>
@@ -172,19 +172,19 @@ export function AccountSettingsModal({ isOpen, onClose }: AccountSettingsModalPr
               <div className="row g-3">
                 <div className="col-6">
                   <label style={labelStyle}>Họ và tên</label>
-                  <input type="text" value={editName ?? ""} onChange={e => setEditName(e.target.value)} style={inputStyle} />
+                  <input type="text" value={editName} onChange={e => setEditName(e.target.value)} style={inputStyle} />
                 </div>
                 <div className="col-6">
                   <label style={labelStyle}>Phòng ban</label>
-                  <input type="text" value={displayDept ?? ""} readOnly style={inputROStyle} />
+                  <input type="text" value={displayDept} readOnly style={inputROStyle} />
                 </div>
                 <div className="col-6">
                   <label style={labelStyle}>Email</label>
-                  <input type="email" value={userEmail ?? ""} readOnly style={inputROStyle} />
+                  <input type="email" value={userEmail} readOnly style={inputROStyle} />
                 </div>
                 <div className="col-6">
                   <label style={labelStyle}>Số điện thoại</label>
-                  <input type="text" value={editPhone ?? ""} onChange={e => setEditPhone(e.target.value)} placeholder="Chưa cập nhật" style={inputStyle} />
+                  <input type="text" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Chưa cập nhật" style={inputStyle} />
                 </div>
               </div>
             </div>

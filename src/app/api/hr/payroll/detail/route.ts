@@ -33,8 +33,6 @@ export async function GET(req: NextRequest) {
     };
 
     const attendanceData = await getAttendanceData(month, year);
-    let standardWorkDays = attendanceData.stats.workDays;
-    
     let targetEmp = null;
     for (const dept of attendanceData.departments) {
       const emp = dept.employees.find((e: any) => e.id === employeeId);
@@ -48,6 +46,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Payroll data not found for this employee" }, { status: 404 });
     }
 
+    let standardWorkDays = 26;
     const policy = await (prisma as any).laborPolicy.findFirst({
       where: { type: "work_hours" }
     });

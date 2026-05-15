@@ -67,7 +67,7 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
       items: [
         { name: "Quản trị tuyển dụng", href: "/hr/recruitment" },
         { name: "Yêu cầu tuyển dụng", href: "#recruitment-request" },
-        { name: "Phỏng vấn ứng viên", href: "/hr/interviews" }, 
+        { name: "Phỏng vấn ứng viên", href: "/my/interviews" }, 
       ],
     },
     {
@@ -82,7 +82,7 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
       key: "personnel", label: "Nhân sự", icon: "bi-people",
       items: [
         { name: "Quản lý hồ sơ nhân viên", href: "/hr/employees" },
-        { name: "Điều chuyển và đề bạt", href: "/hr/promotions" },
+        { name: "Báo cáo nhân sự", href: "/hr/promotions" },
         { name: "Sa thải và thôi việc", href: "/hr/terminations" },
       ],
     },
@@ -171,7 +171,7 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
         group: "Tuyển dụng", items: [
           { name: "Quản trị tuyển dụng", href: "/hr/recruitment", icon: "bi-kanban" },
           { name: "Yêu cầu tuyển dụng", href: "#recruitment-request", icon: "bi-file-earmark-plus" },
-          { name: "Phỏng vấn ứng viên", href: "/hr/interviews", icon: "bi-chat-quote" },
+          { name: "Phỏng vấn ứng viên", href: "/my/interviews", icon: "bi-chat-quote" },
         ]
       },
       {
@@ -302,11 +302,16 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
     label: "Marketing", icon: "bi-megaphone",
     sections: [
       {
-        group: "Sản phẩm và thương hiệu", items: [
-          { name: "Nhận diện thương hiệu", href: "/marketing/brand", icon: "bi-award" },
+        group: "Sản phẩm và tài nguyên", items: [
           { name: "Sản phẩm", href: "/marketing/products", icon: "bi-box-seam" },
-          { name: "Theo dõi đối thủ", href: "/marketing/competitors", icon: "bi-binoculars" },
           { name: "Thư viện tài nguyên", href: "/marketing/catalogue", icon: "bi-book" },
+        ]
+      },
+      {
+        group: "Thương hiệu và đối thủ", items: [
+          { name: "Nhận diện thương hiệu", href: "/marketing/brand", icon: "bi-award" },
+          { name: "Theo dõi đối thủ", href: "/marketing/competitors", icon: "bi-binoculars" },
+          { name: "Phân tích thị trường", href: "/marketing/market-analysis", icon: "bi-graph-up" },
         ]
       },
       {
@@ -806,7 +811,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         icon: "bi-person-plus",
                         items: [
                           { name: "Tạo yêu cầu", href: "/my/hr-requests" },
-                          { name: "Phỏng vấn ứng viên", href: "/hr/interviews" },
+                          { name: "Phỏng vấn ứng viên", href: "/my/interviews" },
                         ]
                       });
                     }

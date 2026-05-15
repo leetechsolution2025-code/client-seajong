@@ -4,8 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
-  const params = await props.params;
-  const { id: taskId } = await (params as any);
+  const { id: taskId } = await props.params;
   console.log("[Comment API] POST hit for task:", taskId);
   try {
     const session = await getServerSession(authOptions);
@@ -47,9 +46,8 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
 }
 
 export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
-  const params = await props.params;
   try {
-    const { id: taskId } = await (params as any);
+    const { id: taskId } = await props.params;
     // Use tagged template for GET as well
     const comments = await (prisma as any).$queryRaw`
       SELECT * FROM MarketingTaskComment WHERE taskId = ${taskId} ORDER BY createdAt ASC

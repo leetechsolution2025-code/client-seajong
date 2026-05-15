@@ -9,8 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "setup": "npx prisma db push --accept-data-loss && npx tsx prisma/seed.ts && node prisma/seed-departments.js && node prisma/seed-company-info.js && node prisma/seed-branches.js && node prisma/seed-categories.js && node prisma/seed-admin.js",
-    "start:fresh": "npm install && npm run setup && npm run dev",
-    "update": "git pull origin main && npm install && npm run build"
+    "start:fresh": "npm install && npm run setup && npm run dev"
   },
   "dependencies": {
     "@google/genai": "^1.46.0",

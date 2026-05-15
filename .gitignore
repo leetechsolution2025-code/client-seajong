@@ -50,3 +50,27 @@ next-env.d.ts
 
 # File uploads
 /public/uploads/
+
+# Scripts and scratch
+/_scratch/
+check_*.js
+test_*.js
+delete_*.js
+patch_*.py
+patch_*.txt
+patch.js
+patch.py
+query.js
+query_db.ts
+take_snapshot.js
+user-check.ts
+get_session*.scpt
+get_users.js
+remove_placeholders.js
+test-*.js
+test-*.mjs
+test-*.ts
+check.js
+cleanup_all.js
+delete-mock.ts
+delete_mock.js
