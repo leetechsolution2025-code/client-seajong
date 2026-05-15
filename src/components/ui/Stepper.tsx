@@ -17,14 +17,15 @@ interface StepperProps {
 
 export const Stepper: React.FC<StepperProps> = ({ steps, currentStep, onStepChange, children }) => {
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "12px 16px", height: "100%", overflow: "hidden" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "12px 16px", minHeight: 0 }}>
       <div style={{
         background: "white",
         borderRadius: 20,
         border: "1px solid #eef2f6",
         display: "flex",
         flexDirection: "column",
-        height: "100%",
+        flex: 1,
+        minHeight: 0,
         boxShadow: "0 4px 20px rgba(0,0,0,0.02)",
         overflow: "hidden"
       }}>
