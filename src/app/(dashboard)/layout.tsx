@@ -82,7 +82,7 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
       key: "personnel", label: "Nhân sự", icon: "bi-people",
       items: [
         { name: "Quản lý hồ sơ nhân viên", href: "/hr/employees" },
-        { name: "Báo cáo nhân sự", href: "/hr/promotions" },
+        { name: "Điều chuyển và đề bạt", href: "/hr/promotions" },
         { name: "Sa thải và thôi việc", href: "/hr/terminations" },
       ],
     },
