@@ -172,21 +172,8 @@ export default function CompetitorsPage() {
 
       setCompetitors(data as Competitor[]);
       if (data.length > 0) setSelectedComp(data[0] as Competitor);
-
-      // ── Tự động refresh ngầm nếu có data cũ hơn 3 ngày ──────────────
-      if (data.length > 0) {
-        const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
-        const hasStale = data.some((c: any) => {
-          if (!c.lastScan) return true;
-          const scanTime = new Date(c.lastScan).getTime();
-          return isNaN(scanTime) || Date.now() - scanTime > THREE_DAYS_MS;
-        });
-        if (hasStale) {
-          // Fire-and-forget: không block UI, chạy ngầm
-          fetch('/api/competitors/refresh').catch(() => { });
-          console.log('[Competitors] Stale data detected → background refresh triggered');
-        }
-      }
+      // NOTE: Không gọi /api/competitors/refresh từ page load.
+      // API đó dùng AI + external services, cần chạy qua cron job riêng.
     }
     load();
 
