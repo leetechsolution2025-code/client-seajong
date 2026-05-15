@@ -824,7 +824,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
 
           {/* Main Content */}
-          <main style={{ flex: 1, overflowY: "auto", minWidth: 0 }}
+          {/* height: 0 là bắt buộc trong flex container để children dùng height: "100%" tính đúng */}
+          <main style={{ flex: 1, overflowY: "auto", minWidth: 0, height: 0 }}
             onClick={() => { if (isMobile && !isCollapsed) setIsCollapsed(true); }}
           >
             <React.Suspense fallback={
