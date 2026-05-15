@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { Stepper } from "@/components/ui/Stepper";
+
 import { getCompetitors, addCompetitor, deleteCompetitor, updateCompetitor } from "./actions";
 import MarketIntelligenceHub from "./MarketIntelligenceHub";
 import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
@@ -336,7 +336,7 @@ export default function CompetitorsPage() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100%", background: "var(--background)" }}>
+    <div style={{ background: "var(--background)", paddingBottom: 32 }}>
       <PageHeader
         title="Theo dõi đối thủ"
         description="Theo dõi tự động định vị giá, phân tích SWOT và chiến lược truyền thông của đối thủ"
@@ -344,21 +344,67 @@ export default function CompetitorsPage() {
         icon="bi-radar"
       />
 
-      <Stepper
-        steps={[
-          { key: "competitors", label: "Theo dõi đối thủ", subText: "SWOT & Ads Insight", icon: "bi-radar", color: "#ec4899" },
-          { key: "market", label: "Phân tích thị trường", subText: "Quy mô & Xu hướng", icon: "bi-graph-up-arrow", color: "#6366f1" },
-        ]}
-        currentStep={currentStep}
-        onStepChange={(key) => setCurrentStep(key as any)}
-      >
-        {currentStep === "competitors" ? (
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {/* ── AI MARKET INSIGHT BANNER ── */}
-            <div style={{ background: "linear-gradient(135deg, #1e1b4b, #312e81)", padding: "20px 24px", borderRadius: 16, color: "white", marginBottom: 24, display: "flex", gap: 20, alignItems: "center" }}>
-              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <i className="bi bi-robot" style={{ fontSize: 26, color: "#a5b4fc" }} />
+      {/* ── TAB NAV (thay Stepper) ── */}
+      <div style={{ padding: "0 16px 0", marginBottom: 0 }}>
+        <div style={{
+          background: "white",
+          borderRadius: "20px 20px 0 0",
+          border: "1px solid #eef2f6",
+          borderBottom: "none",
+          padding: "12px 24px",
+          display: "flex",
+          alignItems: "center",
+          gap: 0,
+          boxShadow: "0 -2px 10px rgba(0,0,0,0.02)"
+        }}>
+          {[
+            { key: "competitors", label: "Theo dõi đối thủ", subText: "SWOT & Ads Insight", icon: "bi-radar", color: "#ec4899" },
+            { key: "market",      label: "Phân tích thị trường", subText: "Quy mô & Xu hướng", icon: "bi-graph-up-arrow", color: "#6366f1" },
+          ].map((s, idx, arr) => {
+            const active = currentStep === s.key;
+            return (
+              <div key={s.key} style={{ display: "flex", alignItems: "center" }}>
+                <button
+                  onClick={() => setCurrentStep(s.key as any)}
+                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}
+                >
+                  <div style={{
+                    width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+                    background: active ? `linear-gradient(135deg, ${s.color}, ${s.color}cc)` : "#f1f5f9",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: active ? `0 6px 12px ${s.color}4d` : "none",
+                    transition: "all 0.3s",
+                  }}>
+                    <i className={s.icon} style={{ fontSize: 18, color: active ? "white" : "#64748b" }} />
+                  </div>
+                  <div style={{ whiteSpace: "nowrap" }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: active ? "#1e293b" : "#64748b" }}>{s.label}</div>
+                    <div style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", marginTop: 1 }}>{s.subText}</div>
+                  </div>
+                </button>
+                {idx < arr.length - 1 && (
+                  <div style={{ width: 60, height: 1, background: "#e2e8f0", margin: "0 24px" }} />
+                )}
               </div>
+            );
+          })}
+        </div>
+
+        {/* ── CONTENT ── */}
+        <div style={{
+          background: "white",
+          border: "1px solid #eef2f6",
+          borderRadius: "0 0 20px 20px",
+          padding: 24,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.02)"
+        }}>
+          {currentStep === "competitors" ? (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {/* ── AI MARKET INSIGHT BANNER ── */}
+              <div style={{ background: "linear-gradient(135deg, #1e1b4b, #312e81)", padding: "20px 24px", borderRadius: 16, color: "white", marginBottom: 24, display: "flex", gap: 20, alignItems: "center" }}>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <i className="bi bi-robot" style={{ fontSize: 26, color: "#a5b4fc" }} />
+                </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 8px", background: "linear-gradient(90deg, #ec4899, #8b5cf6)", borderRadius: 99, textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -857,7 +903,8 @@ export default function CompetitorsPage() {
         ) : (
           <MarketIntelligenceHub />
         )}
-      </Stepper>
+        </div>{/* end content panel */}
+      </div>{/* end tab wrapper */}
 
       {/* ── ADD MODAL ── */}
       <AnimatePresence>
