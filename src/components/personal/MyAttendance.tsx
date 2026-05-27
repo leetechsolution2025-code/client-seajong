@@ -79,12 +79,31 @@ export function MyAttendance() {
         },
         (error) => {
           console.warn("Location error:", error);
-          setLocError(null); // Non-blocking for development
+          if (error.code === error.PERMISSION_DENIED) {
+            setLocError("LỖI GPS: BỊ CHẶN QUYỀN TRUY CẬP VỊ TRÍ");
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            setLocError("LỖI GPS: KHÔNG XÁC ĐỊNH ĐƯỢC VỊ TRÍ");
+          } else if (error.code === error.TIMEOUT) {
+            setLocError("LỖI GPS: QUÁ THỜI GIAN CHỜ LẤY VỊ TRÍ");
+          } else {
+            setLocError("LỖI GPS: KHÔNG THỂ LẤY VỊ TRÍ");
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
         }
       );
     } else {
       setLocError("Trình duyệt của bạn không hỗ trợ định vị.");
     }
+  };
+
+  const handleRefresh = () => {
+    setLoading(true);
+    fetchData();
+    requestLocation();
   };
 
   const fetchData = async (month?: number, year?: number) => {
@@ -217,13 +236,14 @@ export function MyAttendance() {
               ipAddress={clientIp}
               isInternalNetwork={isInternal}
               branchName={branch?.name || "Văn phòng chính"}
-              onRefresh={fetchData}
+              onRefresh={handleRefresh}
               refreshing={loading}
               isSundayLocked={isSundayLocked}
               hasOvertimeApproval={hasOvertimeApproval}
               isWithinGPSRange={isWithinGPSRange}
               distanceToOffice={distanceToOffice}
               allowedRadius={branch?.radius || 200}
+              gpsError={locError}
             />
           </div>
 

@@ -19,6 +19,7 @@ interface AttendanceMachineProps {
   isWithinGPSRange?: boolean;
   distanceToOffice?: number | null;
   allowedRadius?: number;
+  gpsError?: string | null;
 }
 
 export function AttendanceMachine({
@@ -37,6 +38,7 @@ export function AttendanceMachine({
   isWithinGPSRange = false,
   distanceToOffice = null,
   allowedRadius = 200,
+  gpsError = null,
 }: AttendanceMachineProps) {
   const [pressProgress, setPressProgress] = useState(0);
   const [registeredLunch, setRegisteredLunch] = useState(false);
@@ -129,37 +131,46 @@ export function AttendanceMachine({
   const allowedToPress = isMobileOrTablet ? isWithinGPSRange : isInternalNetwork;
 
   const getGpsBgColor = () => {
+    if (gpsError) return "#fef2f2";
     if (distanceToOffice === null) return "#fffbeb";
     return isWithinGPSRange ? "#ecfdf5" : "#fef2f2";
   };
 
   const getGpsBorderColor = () => {
+    if (gpsError) return "#fecaca";
     if (distanceToOffice === null) return "#fde68a";
     return isWithinGPSRange ? "#a7f3d0" : "#fecaca";
   };
 
   const getGpsTextColor = () => {
+    if (gpsError) return "#b91c1c";
     if (distanceToOffice === null) return "#b45309";
     return isWithinGPSRange ? "#047857" : "#b91c1c";
   };
 
   const getGpsIcon = () => {
+    if (gpsError) return "exclamation-triangle-fill";
     if (distanceToOffice === null) return "geo-alt";
     return isWithinGPSRange ? "geo-alt-fill" : "geo-alt";
   };
 
   const getGpsLabel = () => {
+    if (gpsError) return gpsError;
     if (distanceToOffice === null) return "ĐANG XÁC ĐỊNH VỊ TRÍ (GPS)...";
     return isWithinGPSRange ? "ĐỊNH VỊ GPS: HỢP LỆ" : "ĐỊNH VỊ GPS: NGOÀI PHẠM VI";
   };
 
   const getGpsSubtitle = () => {
+    if (gpsError) return "Vui lòng cho phép quyền vị trí trên trình duyệt";
     if (distanceToOffice === null) return `Địa điểm: ${branchName}`;
     return `Khoảng cách: ${Math.round(distanceToOffice)}m (Cho phép ≤${allowedRadius}m)`;
   };
 
   const getWarningText = () => {
     if (isMobileOrTablet) {
+      if (gpsError) {
+        return gpsError;
+      }
       if (distanceToOffice !== null) {
         return `Cách văn phòng ${Math.round(distanceToOffice)}m (cho phép ≤${allowedRadius}m)`;
       }
