@@ -32,6 +32,14 @@ const departments = [
     "sortOrder": 11
   },
   {
+    "code": "admin_ops",
+    "nameVi": "Hành chính – Văn phòng",
+    "nameEn": "Administration & Office",
+    "group": "core",
+    "icon": "bi-clipboard2-check",
+    "sortOrder": 14
+  },
+  {
     "code": "sales",
     "nameVi": "Kinh doanh",
     "nameEn": "Sales",
@@ -62,14 +70,6 @@ const departments = [
     "group": "support",
     "icon": "bi-cart3",
     "sortOrder": 32
-  },
-  {
-    "code": "qa",
-    "nameVi": "Đảm bảo chất lượng",
-    "nameEn": "Quality Assurance",
-    "group": "support",
-    "icon": "bi-patch-check",
-    "sortOrder": 33
   },
   {
     "code": "production",

@@ -125,6 +125,20 @@ export function PayrollDetailModal({ open, onClose, employeeId, month, year }: P
                           {data.salaryTheoCong.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ
                         </td>
                       </tr>
+                      {/* Tăng ca (OT) */}
+                      {data.otHours > 0 && (
+                        <tr className="border-bottom">
+                          <td className="py-3 px-3 text-muted">
+                            <div className="d-flex justify-content-between">
+                              <span><i className="bi bi-clock-history me-2"></i> Số giờ tăng ca (OT)</span>
+                              <span className="fw-bold text-warning">{data.otHours.toFixed(1)} giờ</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-end align-middle fw-bold text-warning">
+                            {data.otSalary.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ
+                          </td>
+                        </tr>
+                      )}
                       {/* Phụ cấp */}
                       <tr className="border-bottom">
                         <td className="py-3 px-3 text-muted">

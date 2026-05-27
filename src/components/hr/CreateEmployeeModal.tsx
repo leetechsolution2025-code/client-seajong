@@ -1337,8 +1337,14 @@ export default function CreateEmployeeModal({ onClose, onCreated, departments, i
       }
 
       const data = await res.json();
-      void data;
-      onCreated();
+      if (!isEditMode && data.tempPassword) {
+        setCreatedAccount({
+          email: data.loginEmail || payload.workEmail,
+          tempPassword: data.tempPassword,
+        });
+      } else {
+        onCreated();
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Có lỗi xảy ra, vui lòng thử lại.");
     } finally {

@@ -32,7 +32,7 @@ export async function GET() {
       // Lấy cấu hình mạng (IP công cộng) đang lưu tạm ở bảng branch
       const config = await (prisma as any).branch.findUnique({
         where: { id: wp.id },
-        select: { wifiIp: true }
+        select: { wifiIp: true, latitude: true, longitude: true, radius: true }
       });
 
       const subnets = await (prisma as any).branchSubnet.findMany({
@@ -44,6 +44,9 @@ export async function GET() {
         code: wp.code,
         name: wp.name,
         wifiIp: config?.wifiIp || null,
+        latitude: config?.latitude || null,
+        longitude: config?.longitude || null,
+        radius: config?.radius || 200,
         subnets
       };
     }));
@@ -66,17 +69,25 @@ export async function POST(req: Request) {
     const { type, title, content, isActive, branchConfig } = body;
 
     if (branchConfig) {
-      const { id, wifiIp } = branchConfig;
+      const { id, wifiIp, latitude, longitude, radius } = branchConfig;
+      
+      const updateData: any = {};
+      if (wifiIp !== undefined) updateData.wifiIp = wifiIp;
+      if (latitude !== undefined) updateData.latitude = latitude !== null ? parseFloat(latitude) : null;
+      if (longitude !== undefined) updateData.longitude = longitude !== null ? parseFloat(longitude) : null;
+      if (radius !== undefined) updateData.radius = radius !== null ? parseInt(radius) : null;
+
       await (prisma as any).branch.upsert({
         where: { id },
-        update: {
-          wifiIp,
-        },
+        update: updateData,
         create: {
           id,
           code: `WP-${id.substring(0, 5)}`,
           name: "Workplace",
-          wifiIp,
+          wifiIp: wifiIp || null,
+          latitude: latitude !== null && latitude !== undefined ? parseFloat(latitude) : null,
+          longitude: longitude !== null && longitude !== undefined ? parseFloat(longitude) : null,
+          radius: radius !== null && radius !== undefined ? parseInt(radius) : 200,
           clientId: session.user.clientId || "default"
         }
       });

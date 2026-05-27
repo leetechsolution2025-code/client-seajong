@@ -25,20 +25,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No payroll data found" }, { status: 404 });
     }
 
-    // Get standard work days from labor policy
-    let standardWorkDays = 26; // Default fallback
-    const policy = await (prisma as any).laborPolicy.findFirst({
-      where: { type: "work_hours" } // Assuming work_hours policy stores this info
-    });
-    
-    if (policy && policy.content) {
-      try {
-        const parsed = JSON.parse(policy.content);
-        if (parsed.standardWorkDays) {
-          standardWorkDays = Number(parsed.standardWorkDays);
-        }
-      } catch (e) {}
+    const daysInMonthCount = new Date(year, month, 0).getDate();
+    let sundaysCount = 0;
+    for (let d = 1; d <= daysInMonthCount; d++) {
+      const day = new Date(year, month - 1, d);
+      if (day.getDay() === 0) sundaysCount++;
     }
+    const standardWorkDays = daysInMonthCount - sundaysCount;
 
     const senderId = session.user.id;
     let successCount = 0;
@@ -50,6 +43,7 @@ export async function POST(req: Request) {
 
         // Tally attendance
         const cong = emp.attendance.reduce((acc: number, a: any) => acc + (a?.workday || 0), 0);
+        const ot = emp.attendance.reduce((acc: number, a: any) => acc + (a?.otHours || 0), 0);
         
         // Base Salary and Allowances
         const salary = emp.baseSalary || 0;
@@ -57,7 +51,9 @@ export async function POST(req: Request) {
         
         // Calculate Net
         const salaryTheoCong = (salary / standardWorkDays) * cong;
-        const net = salaryTheoCong + allowances;
+        const otSalary = ot * (salary / standardWorkDays / 8);
+        const khauTruBH = salary * 0.105;
+        const net = salaryTheoCong + allowances + otSalary - khauTruBH;
 
         const title = `Phiếu lương tháng ${month}/${year}`;
         const content = `## THÔNG BÁO CHI TRẢ THU NHẬP THÁNG ${month}/${year}\n` +
@@ -66,8 +62,8 @@ export async function POST(req: Request) {
           `◦ **Lương cơ bản**: ${Math.round(salary).toLocaleString('vi-VN')} đ\n` +
           `◦ **Ngày công thực tế**: ${cong.toFixed(2)} ngày\n` +
           `◦ **Phụ cấp & Thưởng**: ${Math.round(allowances).toLocaleString('vi-VN')} đ\n` +
-          `◦ **Khấu trừ (phạt, bảo hiểm)**: 0 đ\n` +
-          `◦ **Tăng ca (OT)**: 0 đ\n\n` +
+          `◦ **Tăng ca (OT)**: ${ot.toFixed(1)} giờ (${Math.round(otSalary).toLocaleString('vi-VN')} đ)\n` +
+          `◦ **Khấu trừ (Bảo hiểm 10.5%)**: ${Math.round(khauTruBH).toLocaleString('vi-VN')} đ\n\n` +
           `---\n` +
           `### **THỰC LĨNH: ${Math.round(net).toLocaleString('vi-VN')} đ**\n\n` +
           `**Lưu ý**: Nhấn nút "Chi tiết" bên dưới để xem bảng kê khai phụ cấp và chi tiết công thức tính. Nếu có thắc mắc, vui lòng liên hệ phòng Kế toán nội bộ trước ngày 10 tháng sau.\n` +

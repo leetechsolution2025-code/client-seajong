@@ -129,6 +129,20 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
       ],
     },
   ],
+  "/banhang": [
+    {
+      key: "retail", label: "Bán lẻ", icon: "bi-shop", flat: true,
+      items: [{ name: "Màn hình bán lẻ", href: "/banhang" }],
+    },
+    {
+      key: "management", label: "Quản lý", icon: "bi-gear",
+      items: [
+        { name: "Danh sách hoá đơn", href: "/plan_finance/sales" },
+        { name: "Hàng hoá tồn kho", href: "/plan_finance/inventory" },
+        { name: "Quản lý khách hàng", href: "/plan_finance/customers" },
+      ],
+    },
+  ],
 };
 
 
@@ -625,6 +639,23 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
         ]
       },
     ],
+  },
+  "/banhang": {
+    label: "Bán lẻ", icon: "bi-shop",
+    sections: [
+      {
+        group: "Bán lẻ", items: [
+          { name: "Màn hình bán lẻ", href: "/banhang", icon: "bi-shop" },
+        ]
+      },
+      {
+        group: "Quản lý", items: [
+          { name: "Danh sách hoá đơn", href: "/plan_finance/sales", icon: "bi-receipt" },
+          { name: "Hàng hoá tồn kho", href: "/plan_finance/inventory", icon: "bi-boxes" },
+          { name: "Quản lý khách hàng", href: "/plan_finance/customers", icon: "bi-people" },
+        ]
+      }
+    ]
   },
 };
 

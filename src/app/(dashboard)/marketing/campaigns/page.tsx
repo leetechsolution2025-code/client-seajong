@@ -1050,9 +1050,33 @@ export default function MarketingCampaignsPage() {
                         ><i className="bi bi-chevron-right" style={{ fontSize: 10 }} /></button>
                       </div>
                     )}
-                    <span style={{ fontSize: 11, background: "rgba(16,185,129,0.1)", color: "#10b981", padding: "2px 8px", borderRadius: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px #10b981" }} /> Đang theo dõi
+                    <span style={{ 
+                      fontSize: 11, 
+                      background: "rgba(16,185,129,0.12)", 
+                      color: "#10b981", 
+                      padding: "4px 10px", 
+                      borderRadius: 12, 
+                      fontWeight: 800, 
+                      display: "inline-flex", 
+                      alignItems: "center", 
+                      gap: 6,
+                      boxShadow: "0 0 15px rgba(16,185,129,0.2)",
+                      border: "1px solid rgba(16,185,129,0.2)"
+                    }}>
+                      <i className="bi bi-lightning-charge-fill" style={{ 
+                        fontSize: 12,
+                        filter: "drop-shadow(0 0 4px #10b981)",
+                        animation: "pulse-lightning 1.5s infinite"
+                      }} /> 
+                      KẾT NỐI TỨC THÌ
                     </span>
+                    <style>{`
+                      @keyframes pulse-lightning {
+                        0% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 2px #10b981); }
+                        50% { transform: scale(1.2); opacity: 0.8; filter: drop-shadow(0 0 8px #10b981); }
+                        100% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 2px #10b981); }
+                      }
+                    `}</style>
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "hidden", minHeight: 90, paddingRight: 4 }}>

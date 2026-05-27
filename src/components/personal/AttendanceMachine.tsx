@@ -16,6 +16,9 @@ interface AttendanceMachineProps {
   refreshing?: boolean;
   isSundayLocked?: boolean;
   hasOvertimeApproval?: boolean;
+  isWithinGPSRange?: boolean;
+  distanceToOffice?: number | null;
+  allowedRadius?: number;
 }
 
 export function AttendanceMachine({
@@ -31,11 +34,25 @@ export function AttendanceMachine({
   refreshing = false,
   isSundayLocked = false,
   hasOvertimeApproval = false,
+  isWithinGPSRange = false,
+  distanceToOffice = null,
+  allowedRadius = 200,
 }: AttendanceMachineProps) {
   const [pressProgress, setPressProgress] = useState(0);
   const [registeredLunch, setRegisteredLunch] = useState(false);
   const [registeredDinner, setRegisteredDinner] = useState(false);
   const pressTimerRef = useRef<any>(null);
+  const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      // Width <= 1194px matches iPad Pro 11" and smaller
+      setIsMobileOrTablet(window.innerWidth <= 1194);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Khoá đăng ký ăn trưa sau 10:00 sáng
   const isLunchLocked = currentTime.getHours() >= 10;
@@ -52,7 +69,8 @@ export function AttendanceMachine({
   }, [status]);
 
   const handleStartPress = () => {
-    if (!isInternalNetwork || loading || isSundayLocked) return;
+    const allowedToPress = isMobileOrTablet ? isWithinGPSRange : isInternalNetwork;
+    if (!allowedToPress || loading || isSundayLocked) return;
     
     setPressProgress(0);
     const duration = 1500; // 1.5 seconds
@@ -108,26 +126,68 @@ export function AttendanceMachine({
   };
 
   const isCompleted = status?.checkInMorning && status?.checkOutMorning && status?.checkInAfternoon && status?.checkOutAfternoon;
+  const allowedToPress = isMobileOrTablet ? isWithinGPSRange : isInternalNetwork;
+
+  const getGpsBgColor = () => {
+    if (distanceToOffice === null) return "#fffbeb";
+    return isWithinGPSRange ? "#ecfdf5" : "#fef2f2";
+  };
+
+  const getGpsBorderColor = () => {
+    if (distanceToOffice === null) return "#fde68a";
+    return isWithinGPSRange ? "#a7f3d0" : "#fecaca";
+  };
+
+  const getGpsTextColor = () => {
+    if (distanceToOffice === null) return "#b45309";
+    return isWithinGPSRange ? "#047857" : "#b91c1c";
+  };
+
+  const getGpsIcon = () => {
+    if (distanceToOffice === null) return "geo-alt";
+    return isWithinGPSRange ? "geo-alt-fill" : "geo-alt";
+  };
+
+  const getGpsLabel = () => {
+    if (distanceToOffice === null) return "ĐANG XÁC ĐỊNH VỊ TRÍ (GPS)...";
+    return isWithinGPSRange ? "ĐỊNH VỊ GPS: HỢP LỆ" : "ĐỊNH VỊ GPS: NGOÀI PHẠM VI";
+  };
+
+  const getGpsSubtitle = () => {
+    if (distanceToOffice === null) return `Địa điểm: ${branchName}`;
+    return `Khoảng cách: ${Math.round(distanceToOffice)}m (Cho phép ≤${allowedRadius}m)`;
+  };
+
+  const getWarningText = () => {
+    if (isMobileOrTablet) {
+      if (distanceToOffice !== null) {
+        return `Cách văn phòng ${Math.round(distanceToOffice)}m (cho phép ≤${allowedRadius}m)`;
+      }
+      return "Cần cho phép định vị GPS để chấm công";
+    }
+    return "Cần mạng nội bộ công ty để chấm công";
+  };
 
   return (
     <div 
-      className="card border-0 shadow-lg overflow-hidden h-100"
+      className="card border-0 shadow-sm overflow-hidden h-100"
       style={{ 
         borderRadius: "32px",
-        background: "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)",
-        color: "white"
+        background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+        border: "1px solid rgba(0, 0, 0, 0.05)",
+        color: "#0f172a"
       }}
     >
 
       <div className="px-4 py-4 text-center">
         <div 
           className="fw-bold mb-1" 
-          style={{ fontSize: "52px", lineHeight: "1", letterSpacing: "-1px" }}
+          style={{ fontSize: "52px", lineHeight: "1", letterSpacing: "-1px", color: "#0f172a" }}
           suppressHydrationWarning
         >
           {currentTime.toLocaleTimeString("vi-VN", { hour12: false })}
         </div>
-        <div className="opacity-50 small fw-medium mt-1">
+        <div className="text-muted small fw-medium mt-1">
           {formatDate(currentTime)}
         </div>
       </div>
@@ -136,20 +196,22 @@ export function AttendanceMachine({
         <div 
           className="p-3 rounded-4 mb-3 d-flex align-items-center justify-content-between position-relative"
           style={{ 
-            background: isInternalNetwork ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.05)",
-            border: `1px solid ${isInternalNetwork ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)"}`,
-            color: isInternalNetwork ? "#10b981" : "#ef4444"
+            background: isMobileOrTablet ? getGpsBgColor() : (isInternalNetwork ? "#ecfdf5" : "#fef2f2"),
+            border: `1px solid ${isMobileOrTablet ? getGpsBorderColor() : (isInternalNetwork ? "#a7f3d0" : "#fecaca")}`,
+            color: isMobileOrTablet ? getGpsTextColor() : (isInternalNetwork ? "#047857" : "#b91c1c")
           }}
         >
           <div className="d-flex align-items-center gap-3">
             <div className={`position-relative ${refreshing ? 'animate-spin' : ''}`}>
-               <i className={`bi bi-${isInternalNetwork ? "wifi" : "wifi-off"} fs-4`}></i>
+               <i className={`bi bi-${isMobileOrTablet ? getGpsIcon() : (isInternalNetwork ? "wifi" : "wifi-off")} fs-4`}></i>
             </div>
             <div>
               <div className="fw-bold small text-uppercase" style={{ letterSpacing: "0.5px", fontSize: "11px" }}>
-                {refreshing ? "ĐANG KIỂM TRA..." : (isInternalNetwork ? "ĐÃ NHẬN DIỆN MẠNG NỘI BỘ" : "KHÔNG NHẬN RA MẠNG NỘI BỘ")}
+                {refreshing ? "ĐANG KIỂM TRA..." : (isMobileOrTablet ? getGpsLabel() : (isInternalNetwork ? "ĐÃ NHẬN DIỆN MẠNG NỘI BỘ" : "KHÔNG NHẬN RA MẠNG NỘI BỘ"))}
               </div>
-              <div className="opacity-60" style={{ fontSize: "11px" }}>Địa điểm: {branchName}</div>
+              <div className="opacity-70" style={{ fontSize: "11px" }}>
+                {isMobileOrTablet ? getGpsSubtitle() : `Địa điểm: ${branchName}`}
+              </div>
             </div>
           </div>
           {onRefresh && (
@@ -173,9 +235,15 @@ export function AttendanceMachine({
             { label: "Ra chiều", time: status?.checkOutAfternoon }
           ].map((slot, idx) => (
             <div key={idx} className="col-3">
-              <div className="p-2 rounded-3 text-center" style={{ background: "rgba(255,255,255,0.03)" }}>
-                <div className="opacity-40 mb-1" style={{ fontSize: "9px", textTransform: "uppercase" }}>{slot.label}</div>
-                <div className="fw-bold" style={{ fontSize: "12px" }}>{formatTime(slot.time)}</div>
+              <div 
+                className="p-2 rounded-3 text-center" 
+                style={{ 
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0" 
+                }}
+              >
+                <div className="fw-medium mb-1 text-uppercase" style={{ fontSize: "9px", color: "#64748b", letterSpacing: "0.5px" }}>{slot.label}</div>
+                <div className="fw-bold" style={{ fontSize: "12px", color: slot.time ? "#0f172a" : "#94a3b8" }}>{formatTime(slot.time)}</div>
               </div>
             </div>
           ))}
@@ -183,22 +251,31 @@ export function AttendanceMachine({
         
         {/* Lunch Registration Toggle */}
         <div 
-          className="p-3 rounded-4 mb-2 d-flex align-items-center justify-content-between"
+          className="p-3 rounded-4 mb-2 d-flex align-items-center justify-content-between transition-all"
           onClick={() => !isLunchLocked && !isCompleted && setRegisteredLunch(!registeredLunch)}
           style={{ 
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.05)",
+            background: "white",
+            border: "1px solid #e2e8f0",
             cursor: (isLunchLocked || isCompleted) ? "default" : "pointer",
-            opacity: isLunchLocked ? 0.5 : 1
+            opacity: isLunchLocked ? 0.6 : 1,
+            boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
           }}
         >
           <div className="d-flex align-items-center gap-2">
-            <div className={`p-2 rounded-3 ${registeredLunch ? 'bg-warning text-dark' : 'bg-white bg-opacity-10 text-white text-opacity-50'}`}>
-              <i className="bi bi-sun-fill"></i>
+            <div 
+              className="p-2 rounded-3 d-flex align-items-center justify-content-center transition-all"
+              style={{
+                width: "36px",
+                height: "36px",
+                background: registeredLunch ? "#fef3c7" : "#f1f5f9",
+                color: registeredLunch ? "#d97706" : "#94a3b8"
+              }}
+            >
+              <i className="bi bi-sun-fill fs-5"></i>
             </div>
             <div>
-              <div className="fw-bold" style={{ fontSize: "13px" }}>Đăng ký ăn trưa</div>
-              <div className="opacity-50" style={{ fontSize: "11px" }}>
+              <div className="fw-bold" style={{ fontSize: "13px", color: "#0f172a" }}>Đăng ký ăn trưa</div>
+              <div style={{ fontSize: "11px", color: "#64748b" }}>
                 {isLunchLocked ? "Đã khoá (sau 10:00)" : registeredLunch ? "Đã đăng ký suất ăn" : "Chưa đăng ký suất ăn"}
               </div>
             </div>
@@ -211,28 +288,37 @@ export function AttendanceMachine({
               checked={registeredLunch}
               onChange={(e) => !isLunchLocked && !isCompleted && setRegisteredLunch(e.target.checked)}
               disabled={isLunchLocked || isCompleted}
-              style={{ width: "40px", height: "20px" }}
+              style={{ width: "40px", height: "20px", cursor: (isLunchLocked || isCompleted) ? "default" : "pointer" }}
             />
           </div>
         </div>
 
-        {/* Dinner Registration Toggle – luôn mở */}
+        {/* Dinner Registration Toggle */}
         <div 
-          className="p-3 rounded-4 mb-3 d-flex align-items-center justify-content-between"
+          className="p-3 rounded-4 mb-3 d-flex align-items-center justify-content-between transition-all"
           onClick={() => setRegisteredDinner(!registeredDinner)}
           style={{ 
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.05)",
-            cursor: "pointer"
+            background: "white",
+            border: "1px solid #e2e8f0",
+            cursor: "pointer",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
           }}
         >
           <div className="d-flex align-items-center gap-2">
-            <div className={`p-2 rounded-3 ${registeredDinner ? 'bg-danger text-white' : 'bg-white bg-opacity-10 text-white text-opacity-50'}`}>
-              <i className="bi bi-moon-stars-fill"></i>
+            <div 
+              className="p-2 rounded-3 d-flex align-items-center justify-content-center transition-all"
+              style={{
+                width: "36px",
+                height: "36px",
+                background: registeredDinner ? "#e0e7ff" : "#f1f5f9",
+                color: registeredDinner ? "#4f46e5" : "#94a3b8"
+              }}
+            >
+              <i className="bi bi-moon-stars-fill fs-5"></i>
             </div>
             <div>
-              <div className="fw-bold" style={{ fontSize: "13px" }}>Đăng ký ăn tối</div>
-              <div className="opacity-50" style={{ fontSize: "11px" }}>
+              <div className="fw-bold" style={{ fontSize: "13px", color: "#0f172a" }}>Đăng ký ăn tối</div>
+              <div style={{ fontSize: "11px", color: "#64748b" }}>
                 {registeredDinner ? "Đã đăng ký suất ăn" : "Chưa đăng ký suất ăn"}
               </div>
             </div>
@@ -244,7 +330,7 @@ export function AttendanceMachine({
               role="switch" 
               checked={registeredDinner}
               onChange={(e) => setRegisteredDinner(e.target.checked)}
-              style={{ width: "40px", height: "20px" }}
+              style={{ width: "40px", height: "20px", cursor: "pointer" }}
             />
           </div>
         </div>
@@ -256,9 +342,10 @@ export function AttendanceMachine({
               <div 
               className="position-absolute inset-0 rounded-full animate-pulse"
               style={{ 
-                background: isInternalNetwork ? "rgba(99, 102, 241, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                background: allowedToPress ? "rgba(99, 102, 241, 0.15)" : "transparent",
                 transform: "scale(1.4)",
-                filter: "blur(20px)"
+                filter: "blur(20px)",
+                pointerEvents: "none"
               }}
             />
             
@@ -269,7 +356,7 @@ export function AttendanceMachine({
                   cy="70"
                   r="64"
                   fill="none"
-                  stroke={isInternalNetwork && !isCompleted ? "rgba(255,255,255,0.05)" : "transparent"}
+                  stroke={allowedToPress && !isCompleted ? "#f1f5f9" : "transparent"}
                   strokeWidth="4"
                 />
                 <circle
@@ -277,7 +364,7 @@ export function AttendanceMachine({
                   cy="70"
                   r="64"
                   fill="none"
-                  stroke={isInternalNetwork && !isCompleted ? "#4f46e5" : "transparent"}
+                  stroke={allowedToPress && !isCompleted ? "#4f46e5" : "transparent"}
                   strokeWidth="6"
                   strokeDasharray={402} // 2 * PI * 64
                   strokeDashoffset={402 * (1 - pressProgress / 100)}
@@ -288,7 +375,7 @@ export function AttendanceMachine({
             </div>
             
             <button
-              disabled={!isInternalNetwork || loading || isCompleted || isSundayLocked}
+              disabled={!allowedToPress || loading || isCompleted || isSundayLocked}
               onMouseDown={handleStartPress}
               onMouseUp={handleEndPress}
               onMouseLeave={handleEndPress}
@@ -298,12 +385,16 @@ export function AttendanceMachine({
               style={{ 
                 width: "120px", 
                 height: "120px", 
-                background: (isInternalNetwork && !isCompleted && !isSundayLocked) ? "#4f46e5" : "rgba(255,255,255,0.05)",
-                border: "4px solid rgba(255,255,255,0.1)",
-                color: (isInternalNetwork && !isCompleted && !isSundayLocked) ? "white" : "rgba(255,255,255,0.2)",
-                boxShadow: (isInternalNetwork && !isCompleted && !isSundayLocked) ? "0 0 40px rgba(79, 70, 229, 0.4)" : "none",
-                cursor: (isInternalNetwork && !isCompleted && !isSundayLocked) ? "pointer" : "not-allowed",
-                transform: pressProgress > 0 ? "scale(0.95)" : "scale(1)"
+                borderRadius: "50%",
+                background: (allowedToPress && !isCompleted && !isSundayLocked) ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)" : "#f1f5f9",
+                border: "4px solid white",
+                color: (allowedToPress && !isCompleted && !isSundayLocked) ? "white" : "#94a3b8",
+                boxShadow: (allowedToPress && !isCompleted && !isSundayLocked) 
+                  ? "0 10px 25px rgba(79, 70, 229, 0.35)" 
+                  : "0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)",
+                cursor: (allowedToPress && !isCompleted && !isSundayLocked) ? "pointer" : "not-allowed",
+                transform: pressProgress > 0 ? "scale(0.95)" : "scale(1)",
+                transition: "all 0.2s ease"
               }}
             >
               {loading ? (
@@ -315,31 +406,29 @@ export function AttendanceMachine({
           </div>
 
           <div className="text-center pb-1">
-            <div className="fw-bold mb-1">
+            <div className="fw-bold mb-1" style={{ color: "#0f172a", fontSize: "15px" }}>
               {getActionLabel()}
             </div>
-            {!isInternalNetwork && !isCompleted && !isSundayLocked && (
-              <div className="opacity-50 small d-flex align-items-center justify-content-center gap-2" style={{ fontSize: "11px" }}>
-                <div style={{ width: "16px", height: "16px", background: "#ef4444", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <div style={{ width: "8px", height: "2px", background: "white" }}></div>
-                </div>
-                <span>Cần mạng nội bộ công ty để chấm công</span>
+            {!allowedToPress && !isCompleted && !isSundayLocked && (
+              <div className="small d-flex align-items-center justify-content-center gap-2 mt-1" style={{ fontSize: "11px", color: "#ef4444" }}>
+                <i className="bi bi-exclamation-circle-fill"></i>
+                <span>{getWarningText()}</span>
               </div>
             )}
             {isSundayLocked && (
-              <div className="text-warning small fw-medium mt-1">
+              <div className="text-warning small fw-medium mt-1" style={{ color: "#d97706" }}>
                 <i className="bi bi-info-circle me-1"></i>
                 Hôm nay là Chủ nhật. Cần yêu cầu OT được duyệt.
               </div>
             )}
-            {hasOvertimeApproval && isInternalNetwork && !isCompleted && (
-              <div className="text-info small fw-bold mt-1">
+            {hasOvertimeApproval && allowedToPress && !isCompleted && (
+              <div className="small fw-bold mt-1" style={{ color: "#0284c7" }}>
                 <i className="bi bi-patch-check-fill me-1"></i>
                 Đã được duyệt làm thêm giờ
               </div>
             )}
             {isCompleted && (
-              <div className="text-success small fw-bold">
+              <div className="small fw-bold mt-1" style={{ color: "#16a34a" }}>
                  <i className="bi bi-check-circle-fill me-1"></i>
                  Hoàn thành công việc ngày hôm nay
               </div>

@@ -27,12 +27,12 @@ export const config = {
     "/my/:path*",
     "/hr/:path*",
     "/finance/:path*",
+    "/admin_ops/:path*",
     "/board/:path*",
     "/sales/:path*",
     "/marketing/:path*",
     "/logistics/:path*",
     "/purchase/:path*",
     "/production/:path*",
-    "/qa/:path*",
   ],
 };

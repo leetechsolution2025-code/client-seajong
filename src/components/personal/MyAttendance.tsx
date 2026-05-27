@@ -10,6 +10,21 @@ import { useToast } from "@/components/ui/Toast";
 import { AttendanceMachine } from "./AttendanceMachine";
 import { motion, AnimatePresence } from "framer-motion";
 
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371e3; // metres
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // in metres
+}
+
 export function MyAttendance() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const toast = useToast();
@@ -29,6 +44,21 @@ export function MyAttendance() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const { data: session } = useSession();
+
+  const [distanceToOffice, setDistanceToOffice] = useState<number | null>(null);
+  const [isWithinGPSRange, setIsWithinGPSRange] = useState(false);
+
+  useEffect(() => {
+    if (location && branch && branch.latitude !== null && branch.longitude !== null) {
+      const dist = getDistance(location.lat, location.lng, branch.latitude, branch.longitude);
+      setDistanceToOffice(dist);
+      const allowedRadius = branch.radius || 200;
+      setIsWithinGPSRange(dist <= allowedRadius);
+    } else {
+      setDistanceToOffice(null);
+      setIsWithinGPSRange(false);
+    }
+  }, [location, branch]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -191,6 +221,9 @@ export function MyAttendance() {
               refreshing={loading}
               isSundayLocked={isSundayLocked}
               hasOvertimeApproval={hasOvertimeApproval}
+              isWithinGPSRange={isWithinGPSRange}
+              distanceToOffice={distanceToOffice}
+              allowedRadius={branch?.radius || 200}
             />
           </div>
 

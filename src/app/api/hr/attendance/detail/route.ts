@@ -104,12 +104,72 @@ export async function GET(req: NextRequest) {
 
       // Kiểm tra xem ngày này có đơn nghỉ phép đã duyệt không
       const leaveReq = personalRequests.find((r: any) => {
+        if (["late", "early"].includes(r.type)) return false;
         const start = new Date(r.startDate);
         const end = new Date(r.endDate);
         const current = new Date(day);
         current.setHours(0,0,0,0);
         return current >= start && current <= end;
       });
+
+      const lateReq = personalRequests.find((r: any) => 
+        r.type === "late" && 
+        format(new Date(r.startDate), "yyyy-MM-dd") === dateStr
+      );
+      
+      const earlyReq = personalRequests.find((r: any) => 
+        r.type === "early" && 
+        format(new Date(r.startDate), "yyyy-MM-dd") === dateStr
+      );
+
+      let requestedInMorning = null;
+      let requestedInAfternoon = null;
+      let requestedOutLunch = null;
+      let requestedOutAfternoon = null;
+
+      const extractTimeFromRequest = (request: any, field: "startDate" | "endDate") => {
+        const dateObj = request[field] ? new Date(request[field]) : null;
+        if (dateObj && !isNaN(dateObj.getTime())) {
+          const hours = dateObj.getHours();
+          const minutes = dateObj.getMinutes();
+          if (hours !== 0 || minutes !== 0) {
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+          }
+        }
+        if (request.details) {
+          try {
+            const parsed = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
+            const timeVal = parsed.time || parsed.requestedTime || parsed.lateTime || parsed.earlyTime || parsed.timeValue;
+            if (typeof timeVal === "string" && /^\d{2}:\d{2}$/.test(timeVal)) {
+              return timeVal;
+            }
+          } catch (e) {
+            if (typeof request.details === "string") {
+              const match = request.details.match(/(\d{2}):(\d{2})/);
+              if (match) return `${match[1]}:${match[2]}`;
+            }
+          }
+        }
+        return null;
+      };
+
+      if (lateReq) {
+        const timeStr = extractTimeFromRequest(lateReq, "startDate");
+        if (timeStr) {
+          const hour = parseInt(timeStr.split(":")[0]);
+          if (hour < 12) requestedInMorning = timeStr;
+          else requestedInAfternoon = timeStr;
+        }
+      }
+
+      if (earlyReq) {
+        const timeStr = extractTimeFromRequest(earlyReq, "startDate");
+        if (timeStr) {
+          const hour = parseInt(timeStr.split(":")[0]);
+          if (hour < 13.5) requestedOutLunch = timeStr;
+          else requestedOutAfternoon = timeStr;
+        }
+      }
 
       const dayAttendance = {
         date: day,
@@ -118,7 +178,11 @@ export async function GET(req: NextRequest) {
         checkInAfternoon: att?.checkInAfternoon ? new Date(att.checkInAfternoon) : null,
         checkOutAfternoon: att?.checkOutAfternoon ? new Date(att.checkOutAfternoon) : null,
         status: isHoliday ? "L" : (leaveReq ? "P" : (att?.status || null)),
-        isPermission: att?.isPermission || false
+        isPermission: att?.isPermission || !!lateReq || !!earlyReq,
+        requestedInMorning,
+        requestedInAfternoon,
+        requestedOutLunch,
+        requestedOutAfternoon
       };
 
       // Sử dụng hàm dùng chung để tính toán
@@ -131,7 +195,8 @@ export async function GET(req: NextRequest) {
         "Present": { label: "Có đi làm", color: "#f59e0b" },
         "Miss": { label: "Vi phạm chấm công", color: "#ef4444" },
         "Absent": { label: "Vắng", color: "#ef4444" },
-        "Sun": { label: "Chủ nhật", color: "#64748b" }
+        "Sun": { label: "Chủ nhật", color: "#64748b" },
+        "INSUFFICIENT": { label: "Không đủ thời gian làm việc", color: "#f43f5e" }
       };
 
       let finalLabel = statusMap[result.status]?.label || result.status;

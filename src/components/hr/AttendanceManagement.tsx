@@ -19,7 +19,7 @@ interface Employee {
   fullName: string;
   position: string;
   avatarUrl?: string;
-  attendance: ({ code: string, label?: string, registeredLunch?: boolean, registeredDinner?: boolean, workday?: number } | null)[];
+  attendance: ({ code: string, label?: string, registeredLunch?: boolean, registeredDinner?: boolean, workday?: number, otHours?: number, violationMinutes?: number } | null)[];
   baseSalary?: number;
   mealAllowance?: number;
   fuelAllowance?: number;
@@ -470,13 +470,14 @@ export function AttendanceManagement() {
                     {(() => {
                       const công = emp.attendance.reduce((acc, a) => acc + (a?.workday || 0), 0);
                       const phép = emp.attendance.filter(a => a?.code === "P").length;
-                      const ot = emp.attendance.filter(a => a?.code === "OT").length;
+                      const ot = emp.attendance.reduce((acc, a) => acc + (a?.otHours || 0), 0);
+                      const viPham = emp.attendance.reduce((acc, a) => acc + (a?.violationMinutes || 0), 0);
                       return (
                         <>
                           <td className="text-center align-middle fw-bold text-success" style={{ fontSize: "13px" }}>{công > 0 ? công.toFixed(1) : "—"}</td>
                           <td className="text-center align-middle fw-bold" style={{ fontSize: "13px", color: "#8b5cf6" }}>{phép > 0 ? phép : "—"}</td>
-                          <td className="text-center align-middle fw-bold" style={{ fontSize: "13px", color: "#0ea5e9" }}>{ot > 0 ? ot : "—"}</td>
-                          <td className="text-center align-middle fw-bold text-dark" style={{ fontSize: "13px" }}>—</td>
+                          <td className="text-center align-middle fw-bold" style={{ fontSize: "13px", color: "#0ea5e9" }}>{ot > 0 ? ot.toFixed(1) : "—"}</td>
+                          <td className="text-center align-middle fw-bold text-dark" style={{ fontSize: "13px" }}>{viPham > 0 ? `${viPham}p` : "—"}</td>
                         </>
                       );
                     })()}
@@ -526,14 +527,16 @@ export function AttendanceManagement() {
               <tbody>
                 {filteredData.flatMap(dept => dept.employees).map(emp => {
                   const công = emp.attendance.reduce((acc, a) => acc + (a?.workday || 0), 0);
-                  const ot = emp.attendance.filter(a => a?.code === "OT").length;
+                  const ot = emp.attendance.reduce((acc, a) => acc + (a?.otHours || 0), 0);
                   const salary = emp.baseSalary || 0;
                   const allowances = (emp.mealAllowance || 0) + (emp.fuelAllowance || 0) + (emp.phoneAllowance || 0) + (emp.seniorityAllowance || 0);
                   
-                  // Logic: Lương thực nhận = (Lương CB / Ngày công chuẩn) * Ngày công thực tế + Phụ cấp
+                  // Logic: Lương thực nhận = (Lương CB / Ngày công chuẩn) * Ngày công thực tế + Phụ cấp + Lương OT - Khấu trừ BH (10.5%)
                   const standardWorkDays = stats.workDays || 1; 
                   const salaryTheoCông = (salary / standardWorkDays) * công;
-                  const net = salaryTheoCông + allowances;
+                  const otSalary = ot * (salary / standardWorkDays / 8);
+                  const khauTruBH = salary * 0.105;
+                  const net = salaryTheoCông + allowances + otSalary - khauTruBH;
                   
                   return (
                     <tr key={emp.id} className="hover-row border-bottom">
@@ -551,9 +554,9 @@ export function AttendanceManagement() {
                       <td className="text-center align-middle fw-medium" style={{ fontSize: "13px" }}>{salary.toLocaleString()}</td>
                       <td className="text-center align-middle fw-medium" style={{ fontSize: "13px" }}>{công.toFixed(1)}</td>
                       <td className="text-center align-middle fw-medium" style={{ fontSize: "13px" }}>{allowances.toLocaleString()}</td>
-                      <td className="text-center align-middle fw-medium text-danger" style={{ fontSize: "13px" }}>0</td>
-                      <td className="text-center align-middle fw-medium text-warning" style={{ fontSize: "13px" }}>{ot}</td>
-                      <td className="text-center align-middle fw-bold text-success" style={{ fontSize: "13px" }}>{net.toLocaleString()}</td>
+                      <td className="text-center align-middle fw-medium text-danger" style={{ fontSize: "13px" }}>{Math.round(khauTruBH).toLocaleString()}</td>
+                      <td className="text-center align-middle fw-medium text-warning" style={{ fontSize: "13px" }}>{ot > 0 ? `${ot.toFixed(1)}h (${Math.round(otSalary).toLocaleString()})` : "—"}</td>
+                      <td className="text-center align-middle fw-bold text-success" style={{ fontSize: "13px" }}>{Math.round(net).toLocaleString()}</td>
                       <td className="text-center align-middle">
                         <span className="badge bg-light text-muted border px-2 py-1" style={{ fontSize: "10px" }}>Bản nháp</span>
                       </td>

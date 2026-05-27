@@ -6,16 +6,17 @@ const globalForPrisma = globalThis as unknown as {
 }; 
 
 const prismaClientSingleton = () => {
+  console.log("Prisma Client initialized with DB:", process.env.DATABASE_URL);
   return new PrismaClient();
 };
 
-const prisma = prismaClientSingleton();
+const prisma = globalForPrisma.prisma_smtp_v1 ?? prismaClientSingleton();
 
 export { prisma };
 export const db = prisma;
 
 if (process.env.NODE_ENV !== "production") {
-  (globalThis as any).prisma_smtp_v1 = prisma;
+  globalForPrisma.prisma_smtp_v1 = prisma;
 }
 
 export default prisma;

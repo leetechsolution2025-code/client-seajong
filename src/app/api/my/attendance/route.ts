@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/prisma";
 import { calculateDailyAttendance } from "@/lib/attendance-utils";
+import { format } from "date-fns";
 
 export const dynamic = 'force-dynamic';
 
@@ -95,6 +96,17 @@ export async function GET(req: Request) {
         date: "desc",
       },
       take: 31,
+    });
+
+    const personalRequests = await (db as any).personalRequest.findMany({
+      where: {
+        employeeId: session.user.employeeId,
+        status: "APPROVED",
+        OR: [
+          { startDate: { gte: startDate, lte: endDate } },
+          { endDate: { gte: startDate, lte: endDate } }
+        ]
+      }
     });
 
     const employee = await (db as any).employee.findUnique({
@@ -213,6 +225,67 @@ export async function GET(req: Request) {
 
     // Tính toán công cho từng bản ghi trong history
     const calculatedHistory = history.map((h: any) => {
+      const dateStr = format(new Date(h.date), "yyyy-MM-dd");
+      
+      const lateReq = personalRequests.find((r: any) => 
+        r.type === "late" && 
+        format(new Date(r.startDate), "yyyy-MM-dd") === dateStr
+      );
+      
+      const earlyReq = personalRequests.find((r: any) => 
+        r.type === "early" && 
+        format(new Date(r.startDate), "yyyy-MM-dd") === dateStr
+      );
+
+      let requestedInMorning = null;
+      let requestedInAfternoon = null;
+      let requestedOutLunch = null;
+      let requestedOutAfternoon = null;
+
+      const extractTimeFromRequest = (request: any, field: "startDate" | "endDate") => {
+        const dateObj = request[field] ? new Date(request[field]) : null;
+        if (dateObj && !isNaN(dateObj.getTime())) {
+          const hours = dateObj.getHours();
+          const minutes = dateObj.getMinutes();
+          if (hours !== 0 || minutes !== 0) {
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+          }
+        }
+        if (request.details) {
+          try {
+            const parsed = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
+            const timeVal = parsed.time || parsed.requestedTime || parsed.lateTime || parsed.earlyTime || parsed.timeValue;
+            if (typeof timeVal === "string" && /^\d{2}:\d{2}$/.test(timeVal)) {
+              return timeVal;
+            }
+          } catch (e) {
+            if (typeof request.details === "string") {
+              const match = request.details.match(/(\d{2}):(\d{2})/);
+              if (match) return `${match[1]}:${match[2]}`;
+            }
+          }
+        }
+        return null;
+      };
+
+      if (lateReq) {
+        const timeStr = extractTimeFromRequest(lateReq, "startDate");
+        if (timeStr) {
+          const hour = parseInt(timeStr.split(":")[0]);
+          if (hour < 12) requestedInMorning = timeStr;
+          else requestedInAfternoon = timeStr;
+        }
+      }
+
+      if (earlyReq) {
+        const timeStr = extractTimeFromRequest(earlyReq, "startDate");
+        if (timeStr) {
+          const hour = parseInt(timeStr.split(":")[0]);
+          if (hour < 13.5) requestedOutLunch = timeStr;
+          else requestedOutAfternoon = timeStr;
+        }
+      }
+
       const result = calculateDailyAttendance({
         date: new Date(h.date),
         checkInMorning: h.checkInMorning ? new Date(h.checkInMorning) : null,
@@ -220,7 +293,11 @@ export async function GET(req: Request) {
         checkInAfternoon: h.checkInAfternoon ? new Date(h.checkInAfternoon) : null,
         checkOutAfternoon: h.checkOutAfternoon ? new Date(h.checkOutAfternoon) : null,
         status: h.status,
-        isPermission: false // Mặc định false nếu không có trường này
+        isPermission: !!lateReq || !!earlyReq,
+        requestedInMorning,
+        requestedInAfternoon,
+        requestedOutLunch,
+        requestedOutAfternoon
       }, rules);
 
       return {
@@ -296,31 +373,64 @@ export async function POST(req: Request) {
 
     console.log(`[Attendance Check] Workplace: ${workplace?.name}, Has WifiIp: ${!!branch?.wifiIp}, Subnets: ${branch?.subnets?.length || 0}`);
 
-    // Kiểm tra nếu không tìm thấy cấu hình mạng hợp lệ
+    // Kiểm tra nếu không tìm thấy cấu hình mạng hoặc GPS hợp lệ
     const hasNetworkConfig = branch && (branch.wifiIp || (branch.subnets && branch.subnets.length > 0));
+    const hasGPSConfig = branch && branch.latitude !== null && branch.longitude !== null;
     
-    if (!hasNetworkConfig) {
+    if (!hasNetworkConfig && !hasGPSConfig) {
       return NextResponse.json({ 
         error: "Địa điểm chưa cấu hình", 
-        message: `Nơi làm việc "${workplace?.name || employee.workLocation}" chưa được thiết lập thông số mạng nội bộ. Vui lòng liên hệ quản lý.` 
+        message: `Nơi làm việc "${workplace?.name || employee.workLocation}" chưa được thiết lập thông số mạng nội bộ hoặc tọa độ GPS. Vui lòng liên hệ quản lý.` 
       }, { status: 403 });
     }
 
-    // Nếu có cấu hình, tiến hành kiểm tra IP
-    const allowedIps = branch.wifiIp ? [branch.wifiIp] : [];
-    const isInSubnet = branch.subnets?.some((s: any) => isIpInRange(ip, s.startIp, s.endIp));
-    let isInternal = allowedIps.includes(ip) || isInSubnet;
-    
-    // Đặc quyền test local: Chỉ áp dụng khi ĐÃ CÓ cấu hình mạng
-    if (!isInternal && (ip === "127.0.0.1" || ip === "::1")) {
-       isInternal = true;
+    // Tiến hành kiểm tra IP mạng nội bộ
+    let isInternal = false;
+    if (hasNetworkConfig) {
+      const allowedIps = branch.wifiIp ? [branch.wifiIp] : [];
+      const isInSubnet = branch.subnets?.some((s: any) => isIpInRange(ip, s.startIp, s.endIp));
+      isInternal = allowedIps.includes(ip) || isInSubnet;
+      
+      // Đặc quyền test local: Chỉ áp dụng khi ĐÃ CÓ cấu hình mạng
+      if (!isInternal && (ip === "127.0.0.1" || ip === "::1")) {
+         isInternal = true;
+      }
     }
 
-    if (!isInternal) {
+    // Tiến hành kiểm tra GPS
+    let isWithinGPSRange = false;
+    let computedDistance = null;
+    const allowedRadius = branch?.radius || 200;
+
+    if (hasGPSConfig && lat !== undefined && lng !== undefined && lat !== null && lng !== null) {
+      computedDistance = getDistance(parseFloat(lat), parseFloat(lng), branch.latitude, branch.longitude);
+      if (computedDistance <= allowedRadius) {
+        isWithinGPSRange = true;
+      }
+    }
+
+    if (!isInternal && !isWithinGPSRange) {
+      let errorMessage = `Bạn đang kết nối mạng ngoài (IP: ${ip})`;
+      if (hasGPSConfig) {
+        if (lat !== undefined && lng !== undefined && lat !== null && lng !== null) {
+          errorMessage += ` và vị trí của bạn không nằm trong bán kính cho phép của văn phòng (${Math.round(computedDistance || 0)}m > ${allowedRadius}m).`;
+        } else {
+          errorMessage += ` và không lấy được thông tin GPS của bạn. Vui lòng cho phép trình duyệt truy cập GPS.`;
+        }
+      } else {
+        errorMessage += `.`;
+      }
+      
       return NextResponse.json({ 
-        error: "Mạng không hợp lệ", 
-        message: `Bạn đang kết nối mạng ngoài (IP: ${ip}). Vui lòng sử dụng Wifi/LAN tại "${workplace?.name}".` 
+        error: "Xác thực vị trí thất bại", 
+        message: `${errorMessage} Vui lòng sử dụng Wifi/LAN nội bộ hoặc di chuyển vào gần khu vực văn phòng "${workplace?.name}" để chấm công.` 
       }, { status: 403 });
+    }
+
+    if (isWithinGPSRange && !isInternal) {
+      verificationNote = `GPS (${Math.round(computedDistance || 0)}m)`;
+    } else if (isInternal) {
+      verificationNote = `WiFi (${ip})`;
     }
 
     // Sunday Locking Logic

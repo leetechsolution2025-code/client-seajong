@@ -15,6 +15,10 @@ export interface DayAttendance {
   checkOutAfternoon?: Date | null;
   status?: string; // 'L' for Holiday, 'P' for Leave
   isPermission?: boolean;
+  requestedInMorning?: string | null;
+  requestedOutLunch?: string | null;
+  requestedInAfternoon?: string | null;
+  requestedOutAfternoon?: string | null;
 }
 
 /**
@@ -51,22 +55,44 @@ export function calculateDailyAttendance(day: DayAttendance, rules: AttendanceRu
   
   let isAttendanceViolation = false; // Lỗi quên chấm (chỉ có 1 đầu dữ liệu)
   let isRegulationViolation = false; // Lỗi muộn/sớm (có đủ cặp nhưng sai giờ)
+  let isInsufficientMorning = false;
+  let isInsufficientAfternoon = false;
 
-  const config = rules.summer;
+  // Lấy giờ làm chuẩn theo mùa từ nội quy lao động
+  let baseConfig = rules.summer;
+  if (rules.winter?.enabled) {
+    const month = date.getMonth() + 1; // 1-indexed
+    // Mùa đông: tháng 11, 12, 1, 2, 3
+    if (month === 11 || month === 12 || month === 1 || month === 2 || month === 3) {
+      baseConfig = rules.winter;
+    }
+  }
+
+  const config = { ...baseConfig };
+  if (day.requestedInMorning) config.inMorning = day.requestedInMorning;
+  if (day.requestedOutLunch) config.outLunch = day.requestedOutLunch;
+  if (day.requestedInAfternoon) config.inAfternoon = day.requestedInAfternoon;
+  if (day.requestedOutAfternoon) config.outAfternoon = day.requestedOutAfternoon;
 
   // Tính buổi sáng
   if (day.checkInMorning || day.checkOutMorning) {
     if (day.checkInMorning && day.checkOutMorning) {
-      const { lateMin, earlyMin } = calculateViolation(day.checkInMorning, day.checkOutMorning, config.inMorning, config.outLunch);
-      if (lateMin > 0) violationDetails.inM = { label: "Muộn", minutes: lateMin, color: "#ef4444" };
-      if (earlyMin > 0) violationDetails.outM = { label: "Sớm", minutes: earlyMin, color: "#ef4444" };
-      
-      if (lateMin > 0 || earlyMin > 0) isRegulationViolation = true;
+      const duration = differenceInMinutes(day.checkOutMorning, day.checkInMorning);
+      if (duration < 60) {
+        isInsufficientMorning = true;
+        morningPoints = 0;
+      } else {
+        const { lateMin, earlyMin } = calculateViolation(day.checkInMorning, day.checkOutMorning, config.inMorning, config.outLunch);
+        if (lateMin > 0) violationDetails.inM = { label: "Muộn", minutes: lateMin, color: "#ef4444" };
+        if (earlyMin > 0) violationDetails.outM = { label: "Sớm", minutes: earlyMin, color: "#ef4444" };
+        
+        if (lateMin > 0 || earlyMin > 0) isRegulationViolation = true;
 
-      if (day.isPermission) morningPoints = 0.5;
-      else {
-        morningPoints = applyPenalty(0.5, lateMin + earlyMin, rules.late);
-        violationMinutes += (lateMin + earlyMin);
+        if (day.isPermission) morningPoints = 0.5;
+        else {
+          morningPoints = applyPenalty(0.5, lateMin + earlyMin, rules.late);
+          violationMinutes += (lateMin + earlyMin);
+        }
       }
     } else {
       isAttendanceViolation = true;
@@ -76,16 +102,22 @@ export function calculateDailyAttendance(day: DayAttendance, rules: AttendanceRu
   // Tính buổi chiều
   if (day.checkInAfternoon || day.checkOutAfternoon) {
     if (day.checkInAfternoon && day.checkOutAfternoon) {
-      const { lateMin, earlyMin } = calculateViolation(day.checkInAfternoon, day.checkOutAfternoon, config.inAfternoon, config.outAfternoon);
-      if (lateMin > 0) violationDetails.inA = { label: "Muộn", minutes: lateMin, color: "#ef4444" };
-      if (earlyMin > 0) violationDetails.outA = { label: "Sớm", minutes: earlyMin, color: "#ef4444" };
+      const duration = differenceInMinutes(day.checkOutAfternoon, day.checkInAfternoon);
+      if (duration < 60) {
+        isInsufficientAfternoon = true;
+        afternoonPoints = 0;
+      } else {
+        const { lateMin, earlyMin } = calculateViolation(day.checkInAfternoon, day.checkOutAfternoon, config.inAfternoon, config.outAfternoon);
+        if (lateMin > 0) violationDetails.inA = { label: "Muộn", minutes: lateMin, color: "#ef4444" };
+        if (earlyMin > 0) violationDetails.outA = { label: "Sớm", minutes: earlyMin, color: "#ef4444" };
 
-      if (lateMin > 0 || earlyMin > 0) isRegulationViolation = true;
+        if (lateMin > 0 || earlyMin > 0) isRegulationViolation = true;
 
-      if (day.isPermission) afternoonPoints = 0.5;
-      else {
-        afternoonPoints = applyPenalty(0.5, lateMin + earlyMin, rules.late);
-        violationMinutes += (lateMin + earlyMin);
+        if (day.isPermission) afternoonPoints = 0.5;
+        else {
+          afternoonPoints = applyPenalty(0.5, lateMin + earlyMin, rules.late);
+          violationMinutes += (lateMin + earlyMin);
+        }
       }
     } else {
       isAttendanceViolation = true;
@@ -93,7 +125,7 @@ export function calculateDailyAttendance(day: DayAttendance, rules: AttendanceRu
   }
 
   const isFullWork = (day.checkInMorning && day.checkOutMorning && day.checkInAfternoon && day.checkOutAfternoon);
-  const isFullAttendance = isFullWork && !isRegulationViolation && !isAttendanceViolation;
+  const isFullAttendance = isFullWork && !isRegulationViolation && !isAttendanceViolation && !isInsufficientMorning && !isInsufficientAfternoon;
 
   const otMultiplier = isSunday(date) ? rules.ot.sun : rules.ot.weekday;
   const otHours = calculateOT(day, rules, otMultiplier);
@@ -103,6 +135,10 @@ export function calculateDailyAttendance(day: DayAttendance, rules: AttendanceRu
   else if (isAttendanceViolation) status = "Miss";
   else if (morningPoints + afternoonPoints > 0) status = "Present";
 
+  if ((isInsufficientMorning || isInsufficientAfternoon) && (morningPoints + afternoonPoints === 0)) {
+    status = "INSUFFICIENT";
+  }
+
   return {
     workPoints: morningPoints + afternoonPoints,
     otHours,
@@ -111,6 +147,8 @@ export function calculateDailyAttendance(day: DayAttendance, rules: AttendanceRu
     isAttendanceViolation,
     isRegulationViolation,
     isFullAttendance,
+    isInsufficientMorning,
+    isInsufficientAfternoon,
     status
   };
 }
@@ -148,7 +186,17 @@ function calculateOT(day: DayAttendance, rules: AttendanceRules, multiplier: num
   if (!day.checkOutAfternoon) return 0;
   
   const dateStr = format(day.checkOutAfternoon, "yyyy-MM-dd");
-  const stdOutAfternoon = parse(`${dateStr} ${rules.summer.outAfternoon}`, "yyyy-MM-dd HH:mm", new Date());
+  
+  let baseConfig = rules.summer;
+  if (rules.winter?.enabled) {
+    const month = day.checkOutAfternoon.getMonth() + 1; // 1-indexed
+    if (month === 11 || month === 12 || month === 1 || month === 2 || month === 3) {
+      baseConfig = rules.winter;
+    }
+  }
+
+  const stdOutAfternoonStr = day.requestedOutAfternoon || baseConfig.outAfternoon;
+  const stdOutAfternoon = parse(`${dateStr} ${stdOutAfternoonStr}`, "yyyy-MM-dd HH:mm", new Date());
   
   const otMinutes = differenceInMinutes(day.checkOutAfternoon, stdOutAfternoon);
   

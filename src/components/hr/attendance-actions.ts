@@ -10,6 +10,13 @@ export async function getAttendanceData(month: number, year: number) {
     const endDate = endOfMonth(new Date(year, month - 1));
     const daysInMonthCount = new Date(year, month, 0).getDate();
 
+    let sundaysCount = 0;
+    for (let d = 1; d <= daysInMonthCount; d++) {
+      const day = new Date(year, month - 1, d);
+      if (day.getDay() === 0) sundaysCount++;
+    }
+    const calculatedStandardWorkDays = daysInMonthCount - sundaysCount;
+
     // 1. Fetch Holiday Data from DB
     const holidayPolicy = await (db as any).laborPolicy.findFirst({
       where: { type: "holiday_regulation" }
@@ -62,10 +69,10 @@ export async function getAttendanceData(month: number, year: number) {
       }
     });
 
-    // Cập nhật: Tìm kiếm không phân biệt hoa thường và bao gồm cả business-trip
+    // Cập nhật: Tìm kiếm không phân biệt hoa thường và bao gồm cả business-trip, late, early
     const leaveRequests = await (prisma as any).personalRequest.findMany({
       where: {
-        type: { in: ["leave", "LEAVE", "business-trip", "work", "unpaid_leave"] },
+        type: { in: ["leave", "LEAVE", "business-trip", "work", "unpaid_leave", "late", "early"] },
         status: "APPROVED",
         OR: [
           { startDate: { lte: endDate, gte: startDate } },
@@ -74,6 +81,32 @@ export async function getAttendanceData(month: number, year: number) {
         ]
       }
     });
+
+    const extractTimeFromRequest = (request: any, field: "startDate" | "endDate") => {
+      const dateObj = request[field] ? new Date(request[field]) : null;
+      if (dateObj && !isNaN(dateObj.getTime())) {
+        const hours = dateObj.getHours();
+        const minutes = dateObj.getMinutes();
+        if (hours !== 0 || minutes !== 0) {
+          return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+        }
+      }
+      if (request.details) {
+        try {
+          const parsed = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
+          const timeVal = parsed.time || parsed.requestedTime || parsed.lateTime || parsed.earlyTime || parsed.timeValue;
+          if (typeof timeVal === "string" && /^\d{2}:\d{2}$/.test(timeVal)) {
+            return timeVal;
+          }
+        } catch (e) {
+          if (typeof request.details === "string") {
+            const match = request.details.match(/(\d{2}):(\d{2})/);
+            if (match) return `${match[1]}:${match[2]}`;
+          }
+        }
+      }
+      return null;
+    };
 
     // Lấy Nội quy lao động để có khung giờ chuẩn và OT
     const laborPolicy = await (db as any).laborPolicy.findFirst({
@@ -133,10 +166,46 @@ export async function getAttendanceData(month: number, year: number) {
 
         // 2. Kiểm tra đơn nghỉ phép đã duyệt
         const leaveReq = leaveRequests.find((l: any) => 
+          ["leave", "LEAVE", "business-trip", "work", "unpaid_leave"].includes(l.type) &&
           l.employeeId === emp.id && 
           day >= new Date(l.startDate!) && 
           day <= new Date(l.endDate!)
         );
+
+        const lateReq = leaveRequests.find((l: any) => 
+          l.type === "late" &&
+          l.employeeId === emp.id &&
+          format(new Date(l.startDate!), "yyyy-MM-dd") === dateStr
+        );
+
+        const earlyReq = leaveRequests.find((l: any) => 
+          l.type === "early" &&
+          l.employeeId === emp.id &&
+          format(new Date(l.startDate!), "yyyy-MM-dd") === dateStr
+        );
+
+        let requestedInMorning = null;
+        let requestedInAfternoon = null;
+        let requestedOutLunch = null;
+        let requestedOutAfternoon = null;
+
+        if (lateReq) {
+          const timeStr = extractTimeFromRequest(lateReq, "startDate");
+          if (timeStr) {
+            const hour = parseInt(timeStr.split(":")[0]);
+            if (hour < 12) requestedInMorning = timeStr;
+            else requestedInAfternoon = timeStr;
+          }
+        }
+
+        if (earlyReq) {
+          const timeStr = extractTimeFromRequest(earlyReq, "startDate");
+          if (timeStr) {
+            const hour = parseInt(timeStr.split(":")[0]);
+            if (hour < 13.5) requestedOutLunch = timeStr;
+            else requestedOutAfternoon = timeStr;
+          }
+        }
 
         // 3. Lấy dữ liệu chấm công thực tế
         const att = attendances.find((a: any) => 
@@ -151,7 +220,11 @@ export async function getAttendanceData(month: number, year: number) {
           checkInAfternoon: att?.checkInAfternoon ? new Date(att.checkInAfternoon) : null,
           checkOutAfternoon: att?.checkOutAfternoon ? new Date(att.checkOutAfternoon) : null,
           status: isHoliday ? "L" : (leaveReq ? "P" : (att?.status || null)),
-          isPermission: att?.isPermission || false
+          isPermission: att?.isPermission || !!lateReq || !!earlyReq,
+          requestedInMorning,
+          requestedInAfternoon,
+          requestedOutLunch,
+          requestedOutAfternoon
         };
 
         const result = calculateDailyAttendance(dayAttendance, rules);
@@ -161,6 +234,7 @@ export async function getAttendanceData(month: number, year: number) {
         if (result.status === "L") code = "L";
         else if (result.status === "P") code = "P";
         else if (result.status === "Sun") code = "CN";
+        else if (result.status === "INSUFFICIENT") code = "ERR";
         else if (result.violationMinutes > rules.late.allowance) {
           code = result.violationMinutes > rules.late.t50 ? "ERR" : "WARN";
         }
@@ -227,7 +301,7 @@ export async function getAttendanceData(month: number, year: number) {
         absentToday,
         leaveToday,
         totalViolationMinutes,
-        workDays: daysInMonthCount - holidays.length 
+        workDays: calculatedStandardWorkDays 
       }
     };
   } catch (error) {

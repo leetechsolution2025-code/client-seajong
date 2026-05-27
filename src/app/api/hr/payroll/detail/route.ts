@@ -46,18 +46,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Payroll data not found for this employee" }, { status: 404 });
     }
 
-    let standardWorkDays = 26;
-    const policy = await (prisma as any).laborPolicy.findFirst({
-      where: { type: "work_hours" }
-    });
-    if (policy && policy.content) {
-      try {
-        const parsed = JSON.parse(policy.content);
-        if (parsed.standardWorkDays) standardWorkDays = Number(parsed.standardWorkDays);
-      } catch (e) {}
+    const daysInMonthCount = new Date(year, month, 0).getDate();
+    let sundaysCount = 0;
+    for (let d = 1; d <= daysInMonthCount; d++) {
+      const day = new Date(year, month - 1, d);
+      if (day.getDay() === 0) sundaysCount++;
     }
+    const standardWorkDays = daysInMonthCount - sundaysCount;
 
     const cong = targetEmp.attendance.reduce((acc: number, a: any) => acc + (a?.workday || 0), 0);
+    const ot = targetEmp.attendance.reduce((acc: number, a: any) => acc + (a?.otHours || 0), 0);
     const salary = targetEmp.baseSalary || 0;
     const meal = targetEmp.mealAllowance || 0;
     const fuel = targetEmp.fuelAllowance || 0;
@@ -66,7 +64,9 @@ export async function GET(req: NextRequest) {
     const totalAllowances = meal + fuel + phone + seniority;
 
     const salaryTheoCong = (salary / standardWorkDays) * cong;
-    const net = salaryTheoCong + totalAllowances;
+    const otSalary = ot * (salary / standardWorkDays / 8);
+    const khauTruBH = salary * 0.105;
+    const net = salaryTheoCong + totalAllowances + otSalary - khauTruBH;
 
     // Lấy trạng thái đã xác nhận
     const confirmation = await (prisma as any).payrollConfirmation.findUnique({
@@ -80,8 +80,10 @@ export async function GET(req: NextRequest) {
       workDays: cong,
       baseSalary: salary,
       salaryTheoCong,
+      otHours: ot,
+      otSalary,
       allowances: { meal, fuel, phone, seniority, total: totalAllowances },
-      deductions: { total: 0 },
+      deductions: { total: khauTruBH },
       netPay: net
     });
   } catch (error: any) {

@@ -14,7 +14,7 @@ import { Stepper, StepItem } from "@/components/ui/Stepper";
 const STEP_ITEMS: StepItem[] = [
   { key: "labor_regulation", label: "Quy chế lao động", subText: "Giờ làm, OT", icon: "bi bi-clock", color: "#3b82f6" },
   { key: "holiday_regulation", label: "Quy định nghỉ lễ, Tết", subText: "Lịch nghỉ, chế độ", icon: "bi bi-calendar-event", color: "#6366f1" },
-  { key: "internal_network", label: "Thiết lập mạng nội bộ", subText: "IP, Wifi, LAN", icon: "bi bi-broadcast-pin", color: "#8b5cf6" },
+  { key: "internal_network", label: "Thiết lập mạng nội bộ", subText: "IP, Wifi, GPS", icon: "bi bi-broadcast-pin", color: "#8b5cf6" },
   { key: "parameters", label: "Thiết lập thông số", subText: "Cấu hình chung", icon: "bi bi-gear", color: "#64748b" },
 ];
 

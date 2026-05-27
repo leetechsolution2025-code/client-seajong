@@ -1141,23 +1141,36 @@ model Competitor {
   id                  String   @id @default(cuid())
   name                String
   website             String
-  color               String
-  threat              String
+  color               String?  @default("#6366f1")
+  threat              String?  @default("Normal")
   status              String   @default("Đang theo dõi")
-  lastScan            String
-  tags                String
-  aiSummary           String
-  swot                String
-  metrics             String
-  scores              String
+  lastScan            DateTime?
+  tags                String?  @default("[]")
+  aiSummary           String?
+  swot                String?  @default("{}")
+  metrics             String?  @default("{}")
+  scores              String?  @default("{}")
   newsHighlights      String?
   dataSources         String?
-  clientId            String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
   address             String?
   marketingActivity   String?
   strategySuggestions String?
+  
+  // Mức 1: Kênh theo dõi
+  facebookUrl         String?
+  tiktokUrl           String?
+  youtubeUrl          String?
+  instagramUrl        String?
+  shopeeUrl           String?
+  lazadaUrl           String?
+
+  // Mức 2: Tự động hóa
+  webhookToken        String?  @unique
+  automationStatus    String   @default("IDLE")
+
+  clientId            String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model MarketingAnnualPlan {

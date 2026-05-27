@@ -18,14 +18,14 @@ interface KpiCardProps {
 export function KpiCard({ label, value, sub, extras, icon, color, trend, progress, progressLabel }: KpiCardProps) {
   const pct = progress ? Math.round((progress.cur / progress.max) * 100) : null;
   return (
-    <div className="app-card h-100" style={{ padding: "18px", borderRadius: 14, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+    <div className="app-card h-100" style={{ padding: "14px 18px", borderRadius: 14, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center" }}>
       {/* color accent */}
       <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: color, borderRadius: "14px 0 0 14px" }} />
       <div style={{ paddingLeft: 8, flex: "0 0 auto", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div style={{ flex: 1 }}>
             <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)", opacity: 0.85 }}>{label}</p>
-            <p style={{ margin: "5px 0 2px", fontSize: 22, fontWeight: 900, color: "var(--foreground)", lineHeight: 1.1 }}>{value}</p>
+            <p style={{ margin: "2px 0 0", fontSize: 22, fontWeight: 900, color: "var(--foreground)", lineHeight: 1.1 }}>{value}</p>
             {extras && (
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px", marginTop: 4 }}>
                 {extras.map((extra, idx) => (
