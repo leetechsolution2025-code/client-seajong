@@ -120,7 +120,7 @@ export async function GET(req: Request) {
     // Quotation breakdown
     const Q_STATUS_LABELS: [string, string][] = [
       ["pending_approval", "Đang trình duyệt"],
-      ["sent",             "Đã gửi khách hàng"],
+      ["sent",             "Đang thương thảo"],
       ["won",              "Thành công"],
       ["lost",             "Thất bại"],
     ];

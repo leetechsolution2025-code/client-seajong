@@ -122,7 +122,7 @@ export function PhieuXuatKhoPreview({
 
   // ── Document (Mẫu 02-VT) ────────────────────────────────────────────────────
   const doc = (
-    <div style={{ fontFamily: "'Roboto Condensed', 'Arial Narrow', Arial, sans-serif", fontSize: 13, color: "#000", lineHeight: 1.4 }}>
+    <div className="pdf-content-page" style={{ fontFamily: "'Roboto Condensed', 'Arial Narrow', Arial, sans-serif", fontSize: 13, color: "#000", lineHeight: 1.4 }}>
 
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
@@ -151,14 +151,11 @@ export function PhieuXuatKhoPreview({
         <p style={{ margin: "3px 0 0", fontStyle: "italic", fontSize: 12 }}>Ngày {dd} tháng {mm} năm {yyyy}</p>
       </div>
 
-      {/* Số phiếu + Nợ/Có */}
+      {/* Số phiếu */}
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
         <div style={{ textAlign: "right", fontSize: 12 }}>
           <p style={{ margin: 0 }}>Số:&nbsp;
             <span style={{ borderBottom: B1, paddingBottom: 1, fontWeight: 700, minWidth: 180, display: "inline-block", textAlign: "center", letterSpacing: "0.03em" }}>{soChungTu}</span>
-          </p>
-          <p style={{ margin: "3px 0 0" }}>Nợ/Có:&nbsp;
-            <span style={{ borderBottom: B1, paddingBottom: 1, minWidth: 80, display: "inline-block" }}>&nbsp;</span>
           </p>
         </div>
       </div>

@@ -91,6 +91,7 @@ export const CreatePromotionOffcanvas = ({ isOpen, onClose, onCreated }: Props) 
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.2)", zIndex: 1060, backdropFilter: "blur(2px)" }}
           />
           <motion.div
+            className="app-custom-drawer"
             initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             style={{ 

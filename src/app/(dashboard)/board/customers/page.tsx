@@ -99,7 +99,7 @@ const NHOM_LABEL: Record<string, string> = {
 // ── Status configs ─────────────────────────────────────────────────────────────
 const Q_STATUS: Record<string, { label: string; color: string; bg: string }> = {
   draft:    { label: "Nháp",        color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
-  sent:     { label: "Đã gửi",      color: "#3b82f6", bg: "rgba(59,130,246,0.10)" },
+  sent:     { label: "Đang thương thảo", color: "#3b82f6", bg: "rgba(59,130,246,0.10)" },
   approved: { label: "Đã duyệt",    color: "#8b5cf6", bg: "rgba(139,92,246,0.10)" },
   won:      { label: "Thắng",       color: "#10b981", bg: "rgba(16,185,129,0.10)" },
   lost:     { label: "Thua",        color: "#ef4444", bg: "rgba(239,68,68,0.10)"  },

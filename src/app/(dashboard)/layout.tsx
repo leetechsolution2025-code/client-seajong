@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -10,8 +10,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { SidebarAccordion } from "@/components/layout/SidebarAccordion";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useAnimationPrefs } from "@/hooks/useAnimationPrefs";
-import { CreateRequestModal } from "@/app/(dashboard)/hr/recruitment/components/CreateRequestModal";
-import { CreateTrainingRequestModal } from "@/app/(dashboard)/hr/training/components/CreateTrainingRequestModal";
+import { CreateTrainingRequestModal } from "@/components/features/training/CreateTrainingRequestModal";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type SidebarItem = { name: string; href: string; icon?: string; requiredOrder?: number };
@@ -31,24 +30,20 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
       ],
     },
     {
-      key: "business", label: "Kinh doanh", icon: "bi-briefcase", flat: true,
-      items: [{ name: "Kinh doanh", href: "/board/customers" }],
-    },
-    {
-      key: "finance", label: "Tài chính", icon: "bi-cash-stack",
-      items: [
-        { name: "Công nợ và chi phí", href: "/board/debts" },
-        { name: "Tài sản cố định", href: "/board/assets" },
-        { name: "Báo cáo tài chính", href: "/board/finance-reports", requiredOrder: 2 },
-      ],
+      key: "plan", label: "Lập kế hoạch", icon: "bi-calendar-check", flat: true,
+      items: [{ name: "Lập kế hoạch", href: "/board/plan" }],
     },
     {
       key: "operations", label: "Vận hành hệ thống", icon: "bi-gear-wide-connected",
       items: [
-        { name: "Thực hiện đơn hàng", href: "/board/orders" },
-        { name: "Quản trị công việc", href: "/board/tasks", requiredOrder: 2 },
+        { name: "Kinh doanh và Marketing", href: "/board/business-marketing" },
+        { name: "Tài chính kế toán", href: "/board/finance-accounting" },
         { name: "Hàng hoá trong kho", href: "/board/inventory" },
       ],
+    },
+    {
+      key: "tasks", label: "Quản trị công việc", icon: "bi-kanban", flat: true,
+      items: [{ name: "Quản trị công việc", href: "/board/tasks" }],
     },
     {
       key: "hr", label: "Nhân sự", icon: "bi-people", flat: true,
@@ -66,7 +61,6 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
       key: "recruitment", label: "Tuyển dụng", icon: "bi-person-plus",
       items: [
         { name: "Quản trị tuyển dụng", href: "/hr/recruitment" },
-        { name: "Yêu cầu tuyển dụng", href: "#recruitment-request" },
         { name: "Phỏng vấn ứng viên", href: "/my/interviews" }, 
       ],
     },
@@ -74,7 +68,6 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
       key: "training", label: "Đào tạo và thử việc", icon: "bi-mortarboard",
       items: [
         { name: "Kế hoạch đào tạo", href: "/hr/training" },
-        { name: "Tạo yêu cầu đào tạo", href: "#training-request" },
         { name: "Theo dõi thử việc", href: "/hr/probation" },
       ],
     },
@@ -82,7 +75,7 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
       key: "personnel", label: "Nhân sự", icon: "bi-people",
       items: [
         { name: "Quản lý hồ sơ nhân viên", href: "/hr/employees" },
-        { name: "Báo cáo nhân sự", href: "/hr/promotions" },
+        { name: "Điều chuyển và đề bạt", href: "/hr/promotions" },
         { name: "Sa thải và thôi việc", href: "/hr/terminations" },
       ],
     },
@@ -99,8 +92,11 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
       items: [{ name: "Văn phòng phẩm và dụng cụ", href: "/hr/stationery" }],
     },
     {
-      key: "hr_approvals", label: "Phê duyệt yêu cầu", icon: "bi-check2-square", flat: true,
-      items: [{ name: "Phê duyệt yêu cầu", href: "/hr/approvals" }],
+      key: "hr_requests_approvals", label: "Yêu cầu và duyệt yêu cầu", icon: "bi-clipboard2-check",
+      items: [
+        { name: "Yêu cầu", href: "/my/recruitment" },
+        { name: "Duyệt yêu cầu", href: "/hr/approvals" },
+      ],
     },
   ],
   "/plan_finance": [
@@ -184,7 +180,6 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
       {
         group: "Tuyển dụng", items: [
           { name: "Quản trị tuyển dụng", href: "/hr/recruitment", icon: "bi-kanban" },
-          { name: "Yêu cầu tuyển dụng", href: "#recruitment-request", icon: "bi-file-earmark-plus" },
           { name: "Phỏng vấn ứng viên", href: "/my/interviews", icon: "bi-chat-quote" },
         ]
       },
@@ -194,6 +189,12 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
           { name: "Nghỉ phép", href: "/hr/leaves", icon: "bi-calendar-check" },
           { name: "Lương & Phúc lợi", href: "/hr/payroll", icon: "bi-cash-coin" },
           { name: "Đào tạo và thử việc", href: "/hr/training", icon: "bi-mortarboard" },
+        ]
+      },
+      {
+        group: "Yêu cầu và duyệt yêu cầu", icon: "bi-clipboard2-check", items: [
+          { name: "Yêu cầu", href: "/my/recruitment", icon: "bi-file-earmark-plus" },
+          { name: "Duyệt yêu cầu", href: "/hr/approvals", icon: "bi-check2-square" },
         ]
       },
     ],
@@ -283,31 +284,28 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
     label: "Kinh doanh", icon: "bi-graph-up-arrow",
     sections: [
       {
-        group: "Phát triển đại lý", icon: "bi-people", items: [
-          { name: "Danh sách đại lý", href: "/sales/partners", icon: "bi-person-badge" },
+        group: "Khách hàng và đại lý", icon: "bi-people", items: [
+          { name: "Phát triển đại lý", href: "/sales/partners", icon: "bi-person-badge" },
+          { name: "Danh sách đại lý", href: "/sales/customers", icon: "bi-people" },
           { name: "Chính sách và bảng giá", href: "/sales/pricing", icon: "bi-tags" },
-          { name: "Hạn mức công nợ", href: "/sales/credit-limit", icon: "bi-shield-check" },
         ]
       },
-      {
-        group: "Mua hàng", icon: "bi-cart-plus", items: [
-          { name: "Dự báo nhu cầu", href: "/sales/procurement/forecast", icon: "bi-graph-up" },
-          { name: "Đơn mua hàng", href: "/sales/procurement/orders", icon: "bi-cart-check" },
-          { name: "Đối soát", href: "/sales/procurement/audit", icon: "bi-clipboard-check" },
-        ]
-      },
+
       {
         group: "Bán hàng", icon: "bi-shop", items: [
-          { name: "Báo giá", href: "/sales/quotations", icon: "bi-file-text" },
-          { name: "Đơn bán hàng", href: "/sales/orders", icon: "bi-truck" },
-          { name: "Phễu đơn đa kênh", href: "/sales/omnichannel", icon: "bi-funnel" },
-          { name: "Báo giữ hàng", icon: "bi-lock", href: "/sales/reservation" },
+          { name: "Bán giá và đơn hàng", href: "/sales/quotations", icon: "bi-file-text" },
+          { name: "Phễu đơn hàng đa kênh", href: "/sales/omnichannel", icon: "bi-funnel" },
         ]
       },
       {
-        group: "Dịch vụ và tiện ích", icon: "bi-gear", items: [
-          { name: "Dịch vụ đi kèm", href: "/sales/services", icon: "bi-plus-circle" },
-          { name: "Tra cứu tồn thực tế", href: "/sales/inventory", icon: "bi-qr-code-scan" },
+        group: "Lập kế hoạch", flat: true, items: [
+          { name: "Lập kế hoạch sale", href: "/sales/plan", icon: "bi-calendar-check" },
+        ]
+      },
+      {
+        group: "Báo cáo và phân tích", icon: "bi-bar-chart-line", items: [
+          { name: "Kết quả kinh doanh", href: "/sales/business-results", icon: "bi-graph-up-arrow" },
+          { name: "Hoạt động các đại lý", href: "/sales/partner-activities", icon: "bi-people" },
         ]
       },
     ],
@@ -318,29 +316,21 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
       {
         group: "Sản phẩm và tài nguyên", items: [
           { name: "Sản phẩm", href: "/marketing/products", icon: "bi-box-seam" },
-          { name: "Thư viện tài nguyên", href: "/marketing/catalogue", icon: "bi-book" },
+          { name: "Nhận diện thương hiệu", href: "/marketing/brand", icon: "bi-award" },
         ]
       },
       {
-        group: "Thương hiệu và đối thủ", items: [
-          { name: "Nhận diện thương hiệu", href: "/marketing/brand", icon: "bi-award" },
+        group: "Thị trường và đối thủ", items: [
           { name: "Theo dõi đối thủ", href: "/marketing/competitors", icon: "bi-binoculars" },
           { name: "Phân tích thị trường", href: "/marketing/market-analysis", icon: "bi-graph-up" },
         ]
       },
       {
-        group: "Kế hoạch", items: [
-          { name: "Xây dựng kế hoạch", href: "/marketing/plan/yearly", icon: "bi-calendar2-range" },
-          { name: "Kế hoạch tháng", href: "/marketing/plan/monthly", icon: "bi-calendar-check" },
-          { name: "Duyệt kế hoạch", href: "/marketing/plan/approvals", icon: "bi-check2-square", requiredOrder: 2 },
+        group: "Lập kế hoạch", flat: true, items: [
+          { name: "Lập kế hoạch", href: "/marketing/planing-1111", icon: "bi-calendar-check" },
         ]
       },
-      {
-        group: "Quản lý chiến dịch", items: [
-          { name: "Chiến dịch", href: "/marketing/campaigns", icon: "bi-lightning-charge" },
-          { name: "Phân phối Lead", href: "/marketing/lead-distribution", icon: "bi-share" },
-        ]
-      },
+
       {
         group: "Sự kiện và đại lý", items: [
           { name: "Sự kiện", href: "/marketing/events", icon: "bi-calendar-event" },
@@ -352,12 +342,7 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
           { name: "Quản trị công việc", href: "/marketing/tasks", icon: "bi-kanban", requiredOrder: 2 },
         ]
       },
-      {
-        group: "Báo cáo", items: [
-          { name: "Tổng hợp", href: "/marketing/reports", icon: "bi-bar-chart-line", requiredOrder: 2 },
-          { name: "Hiệu quả kênh", href: "/marketing/reports/channels", icon: "bi-graph-up", requiredOrder: 2 },
-        ]
-      },
+
     ],
   },
   "/product": {
@@ -401,18 +386,17 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
     label: "Chăm sóc KH", icon: "bi-headset",
     sections: [
       {
-        group: "Tổng quan", items: [
-          { name: "Tổng quan", href: "/cs", icon: "bi-speedometer2" },
-          { name: "Yêu cầu hỗ trợ", href: "/cs/tickets", icon: "bi-ticket-detailed" },
-          { name: "Khiếu nại", href: "/cs/complaints", icon: "bi-exclamation-circle" },
-        ]
+        group: "Quản lý quan hệ khách hàng", icon: "bi-people",
+        items: [
+          { name: "Chăm sóc khách hàng", href: "/cs/fac_crm" },
+          { name: "Xử lý khiếu nại", href: "/cs/complaints" },
+        ],
       },
       {
-        group: "Quản lý", items: [
-          { name: "Cơ sở kiến thức", href: "/cs/knowledge", icon: "bi-book" },
-          { name: "Đánh giá KH", href: "/cs/ratings", icon: "bi-star" },
-          { name: "Báo cáo CS", href: "/cs/reports", icon: "bi-bar-chart", requiredOrder: 2 },
-        ]
+        group: "Hàng hoá trong kho", icon: "bi-boxes", flat: true,
+        items: [
+          { name: "Hàng hoá trong kho", href: "/cs/inventory" },
+        ],
       },
     ],
   },
@@ -453,42 +437,26 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
     ],
   },
   "/logistics": {
-    label: "Kho vận – Logistics", icon: "bi-truck",
+    label: "Quản lý hệ thống kho", icon: "bi-truck",
     sections: [
       {
-        group: "Danh mục", icon: "bi-collection", items: [
-          { name: "Vật tư và hàng hoá", href: "/logistics/products", icon: "bi-box-seam" },
-          { name: "Truy xuất hàng hoá", href: "/logistics/serial", icon: "bi-qr-code-scan" },
-          { name: "Sơ đồ kho", href: "/logistics/map", icon: "bi-map" },
-          { name: "Thiết lập hệ thống kho", href: "/logistics/warehouse-setup", icon: "bi-gear" },
+        group: "Hệ thống kho", icon: "bi-building", flat: true,
+        items: [
+          { name: "Hệ thống kho", href: "/logistics/system", icon: "bi-building" },
         ]
       },
       {
         group: "Vận hành kho", icon: "bi-hammer", items: [
-          { name: "Nhập kho", href: "/logistics/inbound", icon: "bi-arrow-down-left-square" },
-          { name: "Xuất kho", href: "/logistics/outbound", icon: "bi-arrow-up-right-square" },
+          { name: "Nhập, xuất và kiểm kho", href: "/logistics/inbound", icon: "bi-arrow-down-left-square" },
+          { name: "Gom hàng và dán nhãn", href: "/logistics/batch-packing", icon: "bi-box-seam-fill" },
           { name: "Luân chuyển nội bộ", href: "/logistics/transfers", icon: "bi-arrow-left-right" },
-          { name: "Kiểm kê & Điều chỉnh", href: "/logistics/stocktake", icon: "bi-clipboard2-check" },
         ]
       },
+
       {
-        group: "Bán hàng đa kênh", icon: "bi-shop-window", items: [
-          { name: "Đơn hàng tập trung", href: "/logistics/oms", icon: "bi-globe" },
-          { name: "Trung tâm API", href: "/logistics/api-hub", icon: "bi-plugin" },
-          { name: "Đối soát & Thanh toán", href: "/logistics/accounting", icon: "bi-cash-stack" },
-        ]
-      },
-      {
-        group: "Quản lý dịch vụ và chất lượng", icon: "bi-shield-check", items: [
-          { name: "Bảo hành & Hậu mãi", href: "/logistics/warranty", icon: "bi-shield-check" },
-          { name: "Quản lý hàng lỗi (RMA)", href: "/logistics/rma", icon: "bi-exclamation-octagon" },
-        ]
-      },
-      {
-        group: "Báo cáo và phân tích", icon: "bi-bar-chart-fill", items: [
-          { name: "Báo cáo tồn kho", href: "/logistics/inventory-reports", icon: "bi-bar-chart-line" },
-          { name: "Báo cáo kinh doanh", href: "/logistics/sales-reports", icon: "bi-graph-up-arrow" },
-          { name: "Nhật ký hệ thống", href: "/logistics/audit-logs", icon: "bi-journal-text" },
+        group: "Báo cáo và thống kê", icon: "bi-bar-chart-fill", items: [
+          { name: "Báo cáo kho", href: "/logistics/inventory-reports", icon: "bi-bar-chart-line" },
+          { name: "Nhật ký hoạt động kho", href: "/logistics/audit-logs", icon: "bi-journal-text" },
         ]
       },
     ],
@@ -497,17 +465,9 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
     label: "Mua hàng", icon: "bi-cart3",
     sections: [
       {
-        group: "Tổng quan", items: [
-          { name: "Tổng quan", href: "/purchase", icon: "bi-speedometer2" },
-          { name: "Yêu cầu mua", href: "/purchase/requests", icon: "bi-file-earmark-plus" },
-          { name: "Đơn mua hàng", href: "/purchase/orders", icon: "bi-cart-check" },
-        ]
-      },
-      {
-        group: "Nhà cung cấp", items: [
-          { name: "Danh sách NCC", href: "/purchase/suppliers", icon: "bi-building" },
-          { name: "Đánh giá NCC", href: "/purchase/evaluations", icon: "bi-star" },
-          { name: "Báo giá", href: "/purchase/quotes", icon: "bi-receipt" },
+        group: "Nhà cung cấp", icon: "bi-building", flat: true,
+        items: [
+          { name: "Nhà cung cấp", href: "/purchase/suppliers" }
         ]
       },
     ],
@@ -669,17 +629,17 @@ function getDeptKey(pathname: string): string {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
   const { prefs: animPrefs } = useAnimationPrefs();
 
   const [isMobile, setIsMobile] = useState(false);
-  const [isCreateRequestModalOpen, setIsCreateRequestModalOpen] = useState(false);
   const [isCreateTrainingModalOpen, setIsCreateTrainingModalOpen] = useState(false);
 
-  // Lắng nghe sự kiện mở modal từ các component con/trigger
+  // Lắng nghe sự kiện mở từ các component con/trigger
   useEffect(() => {
     const handleOpenTraining = () => setIsCreateTrainingModalOpen(true);
-    const handleOpenRecruitment = () => setIsCreateRequestModalOpen(true);
+    const handleOpenRecruitment = () => router.push("/my/recruitment");
 
     window.addEventListener("open-training-request-modal", handleOpenTraining);
     window.addEventListener("open-recruitment-request-modal", handleOpenRecruitment);
@@ -688,7 +648,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       window.removeEventListener("open-training-request-modal", handleOpenTraining);
       window.removeEventListener("open-recruitment-request-modal", handleOpenRecruitment);
     };
-  }, []);
+  }, [router]);
 
   // Fetch thông tin công ty từ API (real-time, không phụ thuộc JWT session)
   const [companyInfo, setCompanyInfo] = useState<{ name?: string; slogan?: string | null } | null>(null);
@@ -701,16 +661,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth <= 1024;
+      const isHrPage = window.location.pathname.startsWith("/hr");
+      const breakpoint = isHrPage ? 1200 : 1024;
+      const mobile = window.innerWidth <= breakpoint;
       setIsMobile(mobile);
-      // iPad Pro & smaller (<=1024) -> true (collapse / hide)
+      // iPad Pro & smaller (<=1200 / <=1024) -> true (collapse / hide)
       setIsCollapsed(mobile);
     };
 
     handleResize(); // trigger once on mount
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [pathname]);
 
   const handleMenuSelect = () => {
     // Nếu màn hình nhỏ thì đóng sidebar khi click
@@ -738,7 +700,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const sidebar = DEPT_SIDEBARS[activeDeptKey];
 
   const clientName = session?.user?.clientName || "";
-  // Ưu tiên slogan từ API (real-time), fallback về session (cached)
   const sloganText = companyInfo?.slogan || session?.user?.clientSlogan || companyInfo?.name || clientName || "Hệ điều hành doanh nghiệp";
   const overviewHref = activeDeptKey || "/";
 
@@ -828,29 +789,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         items: s.items,
                         flat: s.flat
                       })) || []))];
-  
-                    // Nếu không phải phòng HR, và là cấp quản lý (levelOrder <= 2)
-                    // thì thêm nhóm "Tuyển dụng" vào cuối
-                    const isHR = activeDeptKey === "/hr";
-                    const isManager = (session?.user?.levelOrder ?? 99) <= 2;
-                    const isAdmin = session?.user?.role === "SUPERADMIN" || session?.user?.role === "admin";
-  
-                    if (!isHR && (isManager || isAdmin) && !baseGroups.some(g => g.key === "dept_recruitment")) {
+
+                    const hasApprovals = baseGroups.some(g => g.key === "hr_requests_approvals" || g.label === "Yêu cầu và duyệt yêu cầu");
+                    if (!hasApprovals && activeDeptKey !== "/board") {
                       baseGroups.push({
-                        key: "dept_recruitment",
-                        label: "Tuyển dụng và đào tạo",
-                        icon: "bi-person-plus",
+                        key: "hr_requests_approvals",
+                        label: "Yêu cầu và duyệt yêu cầu",
+                        icon: "bi-clipboard2-check",
                         items: [
-                          { name: "Tạo yêu cầu", href: "/my/hr-requests" },
-                          { name: "Phỏng vấn ứng viên", href: "/my/interviews" },
+                          { name: "Yêu cầu", href: "/my/recruitment" },
+                          { name: "Duyệt yêu cầu", href: "/hr/approvals" },
                         ]
                       });
                     }
   
-                    return baseGroups;
+                    // Apply dynamic isLocked for "Duyệt yêu cầu"
+                    const isHRManager = session?.user?.role === "SUPERADMIN" || session?.user?.role === "admin" || (
+                      session?.user?.departmentCode?.toLowerCase() === "hr" &&
+                      (session?.user?.positionName?.includes("Trưởng phòng") || session?.user?.position === "vtr-20260401-1964-sbmg")
+                    );
+                    const isApprovalsLocked = !isHRManager;
+
+                    return baseGroups.map(g => ({
+                      ...g,
+                      items: g.items.map(item => {
+                        if (item.href === "/hr/approvals") {
+                          return { ...item, isLocked: isApprovalsLocked };
+                        }
+                        return item;
+                      })
+                    }));
                   })()}
                   onMenuSelect={handleMenuSelect}
-                  onRequestRecruitment={() => setIsCreateRequestModalOpen(true)}
+                  onRequestRecruitment={() => router.push("/my/recruitment")}
                   onRequestTraining={() => setIsCreateTrainingModalOpen(true)}
                 />
               </React.Suspense>
@@ -890,13 +861,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </main>
         </div>
       </div>
-      <CreateRequestModal
-        isOpen={isCreateRequestModalOpen}
-        onClose={() => setIsCreateRequestModalOpen(false)}
-        onSuccess={() => {
-          setIsCreateRequestModalOpen(false);
-        }}
-      />
       <CreateTrainingRequestModal
         isOpen={isCreateTrainingModalOpen}
         onClose={() => setIsCreateTrainingModalOpen(false)}

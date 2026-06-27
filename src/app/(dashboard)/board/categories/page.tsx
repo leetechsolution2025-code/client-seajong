@@ -671,7 +671,7 @@ export default function BoardCategoriesPage() {
 
   // Header của bảng cây
   const TreeHeader = () => (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 70px 110px 84px", gap: 8, padding: "8px 12px", borderBottom: "2px solid var(--border)", marginBottom: 4 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 70px 110px 84px", gap: 8, padding: "8px 12px", borderBottom: "2px solid var(--border)", marginBottom: 4, position: "sticky", top: 0, zIndex: 10, background: "var(--card)" }}>
       {["Tên danh mục", "Thứ tự", "Trạng thái", ""].map((h, i) => (
         <span key={i} style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", textAlign: i > 0 ? "center" : "left" }}>{h}</span>
       ))}
@@ -825,7 +825,7 @@ export default function BoardCategoriesPage() {
           </div>
         }
         rightContent={
-          <div>
+          <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", padding: "1.5rem" }}>
             <SectionTitle
               title={activeType.label}
               className="mb-3"
@@ -875,7 +875,7 @@ export default function BoardCategoriesPage() {
                 <span style={{ fontSize: 13 }}>Chưa có {activeType.label.toLowerCase()} nào. Nhấn &ldquo;Thêm mới&rdquo; để bắt đầu.</span>
               </div>
             ) : (
-              <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflowY: "auto", flex: 1, minHeight: 0 }}>
                 <TreeHeader />
                 {filteredRoots.map((root, rootIdx) => {
                   const children = childrenOf(root.id).filter(c =>

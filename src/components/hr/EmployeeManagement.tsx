@@ -54,7 +54,7 @@ export function EmployeeManagement() {
   };
 
   return (
-    <div className="d-flex flex-column h-100 p-4">
+    <div className="d-flex flex-column h-100 p-3 p-md-4">
       <EmployeeFilter
         search={search}
         onSearchChange={setSearch}
@@ -81,7 +81,7 @@ export function EmployeeManagement() {
         />
 
         {/* Pagination */}
-        <div className="d-flex justify-content-between align-items-center mt-auto p-3 border-top bg-light bg-opacity-10">
+        <div className="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 mt-auto p-3 border-top bg-light bg-opacity-10">
           <div className="text-muted" style={{ fontSize: 12 }}>
             Hiển thị <b>{employees.length}</b> nhân sự
           </div>

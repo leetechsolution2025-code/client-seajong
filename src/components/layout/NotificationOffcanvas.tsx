@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useRouter } from "next/navigation";
 import { BrandButton } from "../ui/BrandButton";
 import { PayrollDetailModal } from "@/components/hr/PayrollDetailModal";
+import { PayrollTableModal } from "@/components/hr/PayrollTableModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Attachment {
@@ -16,6 +17,11 @@ interface Attachment {
   type?: string;
   approvalId?: string;
   entityId?: string;
+  partnerId?: string;
+  partnerName?: string;
+  requesterId?: string;
+  requesterName?: string;
+  status?: string;
 }
 
 interface NotifItem {
@@ -80,6 +86,9 @@ function formatFileSize(bytes?: number) {
 
 function fileIcon(type?: string) {
   if (!type) return "bi-paperclip";
+  if (type === "special_transition_request") return "bi-shield-fill-exclamation";
+  if (type === "special_transition_response") return "bi-shield-fill-check";
+  if (type === "late_early_approval") return "bi-clock-fill";
   if (type.includes("pdf"))   return "bi-file-earmark-pdf-fill";
   if (type.includes("image")) return "bi-file-earmark-image-fill";
   if (type.includes("word") || type.includes("doc")) return "bi-file-earmark-word-fill";
@@ -112,8 +121,52 @@ function parseBold(text: string): React.ReactNode[] {
   const parts = text.split(/\*\*(.*?)\*\*/g);
   return parts.map((p, i) =>
     i % 2 === 1
-      ? <strong key={i} style={{ fontWeight: 700, color: "inherit" }}>{p}</strong>
-      : <span key={i}>{p}</span>
+      ? <strong key={i} style={{ fontWeight: 700, color: "inherit" }}>{p.replace(/\*/g, "")}</strong>
+      : <span key={i}>{p.replace(/\*/g, "")}</span>
+  );
+}
+
+function parseBadgesAndBold(text: string): React.ReactNode {
+  const tokens = text.split(/(\[Nghiêm trọng\]|\[Cần quan tâm\]|\[Nhắc việc\])/g);
+  return (
+    <>
+      {tokens.map((token, idx) => {
+        if (token === "[Nghiêm trọng]") {
+          return (
+            <span
+              key={idx}
+              className="badge bg-danger text-white me-1"
+              style={{ fontSize: "11px", padding: "4px 8px", borderRadius: "4px", verticalAlign: "middle" }}
+            >
+              Nghiêm trọng
+            </span>
+          );
+        }
+        if (token === "[Cần quan tâm]") {
+          return (
+            <span
+              key={idx}
+              className="badge text-white me-1"
+              style={{ backgroundColor: "#fd7e14", fontSize: "11px", padding: "4px 8px", borderRadius: "4px", verticalAlign: "middle" }}
+            >
+              Cần quan tâm
+            </span>
+          );
+        }
+        if (token === "[Nhắc việc]") {
+          return (
+            <span
+              key={idx}
+              className="badge text-white me-1"
+              style={{ backgroundColor: "#f59e0b", fontSize: "11px", padding: "4px 8px", borderRadius: "4px", verticalAlign: "middle", fontWeight: 700 }}
+            >
+              Nhắc việc
+            </span>
+          );
+        }
+        return parseBold(token);
+      })}
+    </>
   );
 }
 
@@ -145,7 +198,7 @@ function renderContent(text: string) {
             display: "flex", alignItems: "center", gap: 6,
           }}>
             <i className="bi bi-chevron-right" style={{ fontSize: 9 }} />
-            {label}
+            {label.replace(/\*/g, "")}
           </div>
         </div>
       );
@@ -169,7 +222,7 @@ function renderContent(text: string) {
           fontFamily: "monospace", marginTop: 8, marginBottom: 2,
         }}>
           <i className="bi bi-receipt" style={{ fontSize: 11 }} />
-          {code}
+          {code.replace(/\*/g, "")}
         </div>
       );
       return;
@@ -184,7 +237,7 @@ function renderContent(text: string) {
           fontSize: 12, color: "var(--muted-foreground)", fontWeight: 600, marginBottom: 4,
         }}>
           <i className="bi bi-building" style={{ fontSize: 11, flexShrink: 0 }} />
-          {supplier}
+          {supplier.replace(/\*/g, "")}
         </div>
       );
       return;
@@ -201,7 +254,7 @@ function renderContent(text: string) {
           marginLeft: 2, marginBottom: 2,
         }}>
           <span style={{ color: "var(--primary)", fontWeight: 700, flexShrink: 0, marginTop: 1, fontSize: 11 }}>◦</span>
-          <span style={{ flex: 1, lineHeight: 1.5 }}>{parseBold(content)}</span>
+          <span style={{ flex: 1, lineHeight: 1.5 }}>{parseBadgesAndBold(content)}</span>
         </div>
       );
       return;
@@ -218,7 +271,7 @@ function renderContent(text: string) {
           paddingLeft: 10, marginTop: 4, marginBottom: 2,
         }}>
           <i className="bi bi-arrow-right-short" style={{ fontSize: 14 }} />
-          {parseBold(total)}
+          {parseBadgesAndBold(total)}
         </div>
       );
       return;
@@ -240,7 +293,17 @@ function renderContent(text: string) {
           background: "rgba(245, 158, 11, 0.08)", borderLeft: "3px solid #f59e0b",
           fontSize: 12, color: "var(--foreground)", lineHeight: 1.6
         }}>
-          <strong style={{ color: "#d97706" }}>Lưu ý:</strong> {parseBold(content)}
+          <strong style={{ color: "#d97706" }}>Lưu ý:</strong> {parseBadgesAndBold(content)}
+        </div>
+      );
+      return;
+    }
+
+    // Nhắc việc lần xxx -> dòng chữ nhỏ màu đỏ căn phải
+    if (line.includes("Nhắc việc lần ")) {
+      nodes.push(
+        <div key={i} style={{ fontSize: 11.5, color: "#ef4444", marginTop: 6, textAlign: "right", fontWeight: 600 }}>
+          {parseBadgesAndBold(line)}
         </div>
       );
       return;
@@ -249,7 +312,7 @@ function renderContent(text: string) {
     // Văn bản thường (có thể có **bold**)
     nodes.push(
       <div key={i} style={{ fontSize: 13.5, lineHeight: 1.7, marginBottom: 2 }}>
-        {parseBold(line)}
+        {parseBadgesAndBold(line)}
       </div>
     );
   });
@@ -800,10 +863,13 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
   const [attendanceDetailData, setAttendanceDetailData] = useState<any>(null);
   const [showPayrollDetail, setShowPayrollDetail] = useState(false);
   const [payrollDetailData, setPayrollDetailData] = useState<{employeeId: string, month: number, year: number} | null>(null);
+  const [showPayrollTable, setShowPayrollTable] = useState(false);
+  const [payrollTableData, setPayrollTableData] = useState<{month: number, year: number} | null>(null);
 
   const canCreate = true; // Phân quyền sẽ quản lý trong Admin
 
   useEffect(() => { setMounted(true); }, []);
+
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -905,6 +971,10 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
       
       setProcessedIds(prev => ({ ...prev, [candidateId]: decision }));
       success(decision === 'approve' ? "Đã duyệt ứng viên" : "Đã từ chối ứng viên");
+      
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("candidate-status-updated"));
+      }
     } catch (e: any) {
       toastError("Lỗi", e.message);
     } finally {
@@ -924,6 +994,11 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
       
       setInterviewProcessed(prev => ({ ...prev, [notificationId]: decision }));
       success(decision === 'accept' ? "Đã xác nhận tham gia và thêm vào công việc cá nhân" : "Đã gửi thông báo từ chối");
+      
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("candidate-status-updated"));
+      }
+
       if (decision === 'decline') {
         setShowDeclineModal(false);
         setDeclineReason("");
@@ -1036,10 +1111,10 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: item.isRead ? 500 : 700, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 16 }}>
-                    {item.title}
+                    {item.title ? parseBadgesAndBold(item.title.replace(/\*/g, "")) : ""}
                   </div>
                   <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 16 }}>
-                    {item.content}
+                    {item.content ? item.content.replace(/\*/g, "") : ""}
                   </div>
                   <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4, opacity: 0.7 }}>
                     {timeAgo(item.createdAt)}
@@ -1085,7 +1160,7 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
             <i className="bi bi-arrow-left" /> Quay lại
           </button>
           <span style={{ fontSize: 12, color: "var(--muted-foreground)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {selected.title}
+            {selected.title ? selected.title.replace(/\*/g, "") : ""}
           </span>
           {isOwner && (
             <button
@@ -1126,7 +1201,7 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
 
           {/* Title */}
           <h3 style={{ fontSize: 17, fontWeight: 800, color: "var(--foreground)", margin: 0, lineHeight: 1.4 }}>
-            {selected.title}
+            {selected.title ? parseBadgesAndBold(selected.title.replace(/\*/g, "")) : ""}
           </h3>
 
           {/* Sender card */}
@@ -1165,7 +1240,7 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
             padding: "14px 16px", borderRadius: 10,
             background: "color-mix(in srgb, var(--muted) 50%, var(--card))",
           }}>
-            {renderContent(selected.content.split(/\[ATTENDANCE_DETAILS\]:|\[PAYROLL_DETAILS\]:/)[0])}
+            {renderContent(selected.content.split(/\[ATTENDANCE_DETAILS\]:|\[PAYROLL_DETAILS\]:|\[ACCOUNTING_PAYROLL_DETAILS\]:/)[0])}
             
             {/* Attendance Details Button */}
             {selected.content.includes("[ATTENDANCE_DETAILS]:") && (
@@ -1221,246 +1296,499 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                 </BrandButton>
               </div>
             )}
-          </div>
 
-          {/* Attachments */}
-          {selected.attachments && selected.attachments.length > 0 && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
-                File đính kèm ({selected.attachments.length})
+            {/* Accounting Payroll Table Button */}
+            {selected.content.includes("[ACCOUNTING_PAYROLL_DETAILS]:") && (
+              <div style={{ marginTop: 12 }}>
+                <BrandButton
+                  icon="bi-table"
+                  className="w-100"
+                  onClick={() => {
+                    const marker = selected.content.split("[ACCOUNTING_PAYROLL_DETAILS]:")[1]?.split("\n")[0];
+                    if (!marker) return;
+                    try {
+                      const data = JSON.parse(marker);
+                      setPayrollTableData(data);
+                      setShowPayrollTable(true);
+                      onClose();
+                    } catch (e) {
+                      console.error("Parse error:", e);
+                    }
+                  }}
+                >
+                  Xem chi tiết bảng lương
+                </BrandButton>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {selected.attachments.map((att: any, i) => {
-                  const isAction = att.type === "recruitment_action";
-                  const candidateId = att.candidateId;
-                  const decision = processedIds[candidateId];
+            )}
 
-                  return (
-                    <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <div 
-                        onClick={() => {
-                          if (att.url.startsWith("/")) {
-                            router.push(att.url);
-                            onClose();
-                          } else {
-                            window.open(att.url, "_blank");
+            {/* Action Buttons for Special Transition Request */}
+            {(() => {
+              const specialTransitionAtt = selected.attachments && selected.attachments.find((att: any) => att.type === "special_transition_request");
+              if (!specialTransitionAtt) return null;
+              
+              const att = specialTransitionAtt;
+              return (
+                <div style={{ marginTop: 16, borderTop: "1px dashed var(--border)", paddingTop: 12 }}>
+                  {(processedIds[selected.id] || att.status) === "APPROVED" ? (
+                    <div style={{ 
+                      fontSize: 13, fontWeight: 700, 
+                      color: "#166534",
+                      display: "flex", alignItems: "center", gap: 6,
+                    }}>
+                      <i className="bi bi-check-circle-fill" />
+                      ĐÃ ĐỒNG Ý PHÊ DUYỆT ĐẠC CÁCH
+                    </div>
+                  ) : (processedIds[selected.id] || att.status) === "REJECTED" ? (
+                    <div style={{ 
+                      fontSize: 13, fontWeight: 700, 
+                      color: "#991b1b",
+                      display: "flex", alignItems: "center", gap: 6,
+                    }}>
+                      <i className="bi bi-x-circle-fill" />
+                      ĐÃ TỪ CHỐI YÊU CẦU ĐẶC CÁCH
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                      <button
+                        disabled={decidingId === selected.id}
+                        onClick={async () => {
+                          setDecidingId(selected.id);
+                          try {
+                            const res = await fetch("/api/sales/partners", {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                id: att.partnerId,
+                                action: "APPROVE_EXCEPTION",
+                                notificationId: selected.id
+                              }),
+                            });
+                            if (!res.ok) throw new Error("Duyệt đặc cách thất bại");
+                            setProcessedIds(prev => ({ ...prev, [selected.id]: "APPROVED" }));
+                            success("Đã đồng ý phê duyệt đặc cách");
+                            if (typeof window !== "undefined") {
+                              window.dispatchEvent(new CustomEvent("partners-updated"));
+                            }
+                            router.refresh();
+                          } catch (e: any) {
+                            toastError("Lỗi", e.message);
+                          } finally {
+                            setDecidingId(null);
                           }
                         }}
                         style={{
-                          display: "flex", alignItems: "center", gap: 10,
-                          padding: "10px 12px", borderRadius: 10, textDecoration: "none",
-                          border: "1px solid var(--border)", background: "var(--card)",
-                          transition: "background 0.15s", cursor: "pointer"
+                          padding: "6px 16px", borderRadius: 8, border: "none",
+                          background: "#10b981", color: "#fff", fontSize: 13, fontWeight: 700,
+                          cursor: "pointer", display: "flex", alignItems: "center", gap: 6
                         }}
-                        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = "var(--muted)"}
-                        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "var(--card)"}
                       >
-                        <div style={{
-                          width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-                          background: "rgba(59,130,246,0.1)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}>
-                          <i className={`bi ${fileIcon(att.type)}`} style={{ color: "#3b82f6", fontSize: 17 }} />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {att.name}
-                          </div>
-                          {att.size && (
-                            <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 1 }}>
-                              {formatFileSize(att.size)}
-                            </div>
-                          )}
-                        </div>
-                        <i className="bi bi-eye-fill" style={{ color: "var(--muted-foreground)", fontSize: 14, flexShrink: 0 }} />
-                      </div>
+                        {decidingId === selected.id ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-check-lg" />}
+                        Đồng ý
+                      </button>
+                      <button
+                        disabled={decidingId === selected.id}
+                        onClick={async () => {
+                          setDecidingId(selected.id);
+                          try {
+                            const res = await fetch("/api/sales/partners", {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                id: att.partnerId,
+                                action: "REJECT_EXCEPTION",
+                                notificationId: selected.id
+                              }),
+                            });
+                            if (!res.ok) throw new Error("Từ chối đặc cách thất bại");
+                            setProcessedIds(prev => ({ ...prev, [selected.id]: "REJECTED" }));
+                            success("Đã từ chối phê duyệt đặc cách");
+                            if (typeof window !== "undefined") {
+                              window.dispatchEvent(new CustomEvent("partners-updated"));
+                            }
+                            router.refresh();
+                          } catch (e: any) {
+                            toastError("Lỗi", e.message);
+                          } finally {
+                            setDecidingId(null);
+                          }
+                        }}
+                        style={{
+                          padding: "6px 16px", borderRadius: 8, border: "none",
+                          background: "#ef4444", color: "#fff", fontSize: 13, fontWeight: 700,
+                          cursor: "pointer", display: "flex", alignItems: "center", gap: 6
+                        }}
+                      >
+                        {decidingId === selected.id ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-x-lg" />}
+                        Từ chối
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
 
-                      {/* Nút Chi tiết đặc biệt cho Phê duyệt Tuyển dụng */}
-                      {att.type === "recruitment_approval" && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onOpenApproval) {
-                              onOpenApproval(att.approvalId, att.entityId);
+          {/* Attachments */}
+          {/* Attachments */}
+          {(() => {
+            const isActionMetadata = (type?: string) => {
+              return [
+                "special_transition_request",
+                "special_transition_response",
+                "late_early_approval",
+                "recruitment_action",
+                "recruitment_approval",
+                "interview_invite",
+                "promotion_interview",
+                "partner_reminder"
+              ].includes(type || "");
+            };
+
+            const realFiles = selected.attachments ? selected.attachments.filter((att: any) => !isActionMetadata(att.type)) : [];
+            const actionItems = selected.attachments ? selected.attachments.filter((att: any) => isActionMetadata(att.type) && att.type !== "partner_reminder" && att.type !== "special_transition_request" && att.type !== "special_transition_response") : [];
+
+            return (
+              <>
+                {realFiles.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
+                      File đính kèm ({realFiles.length})
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {realFiles.map((att: any, i) => (
+                        <div 
+                          key={i}
+                          onClick={() => {
+                            if (att.url === "#") return;
+                            if (att.url.startsWith("/")) {
+                              if (window.location.pathname === att.url) {
+                                window.location.reload();
+                              } else {
+                                router.push(att.url);
+                              }
+                              onClose();
+                            } else {
+                              window.open(att.url, "_blank");
                             }
                           }}
                           style={{
-                            marginTop: 8,
-                            width: "100%",
-                            padding: "10px",
-                            borderRadius: 10,
-                            border: "none",
-                            background: "var(--primary)",
-                            color: "#fff",
-                            fontSize: 13,
-                            fontWeight: 700,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 8,
-                            boxShadow: "0 4px 12px rgba(5, 150, 105, 0.2)",
-                            cursor: "pointer"
+                            display: "flex", alignItems: "center", gap: 10,
+                            padding: "10px 12px", borderRadius: 10, textDecoration: "none",
+                            border: "1px solid var(--border)", background: "var(--card)",
+                            transition: "background 0.15s", cursor: att.url === "#" ? "default" : "pointer"
                           }}
+                          onMouseEnter={e => { if (att.url !== "#") (e.currentTarget as HTMLDivElement).style.background = "var(--muted)"; }}
+                          onMouseLeave={e => { if (att.url !== "#") (e.currentTarget as HTMLDivElement).style.background = "var(--card)"; }}
                         >
-                          <i className="bi bi-shield-check" />
-                          Mở trung tâm phê duyệt
-                        </button>
-                      )}
-
-                      {/* Action Buttons for Dept Head */}
-                      {isAction && candidateId && (
-                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 8 }}>
-                          {decision ? (
-                            <div style={{ 
-                              fontSize: 12, fontWeight: 700, 
-                              color: decision === 'approve' ? "#166534" : "#991b1b",
-                              display: "flex", alignItems: "center", gap: 6,
-                              padding: "4px 0"
-                            }}>
-                              <i className={`bi ${decision === 'approve' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`} />
-                              {decision === 'approve' ? "ĐÃ DUYỆT PHỎNG VẤN" : "ĐÃ TỪ CHỐI HỒ SƠ"}
+                          <div style={{
+                            width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+                            background: "rgba(59,130,246,0.1)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            <i className={`bi ${fileIcon(att.type)}`} style={{ color: "#3b82f6", fontSize: 17 }} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {att.name}
                             </div>
-                          ) : (
-                            <>
-                              <button
-                                disabled={decidingId === candidateId}
-                                onClick={() => handleCandidateDecision(candidateId, 'approve', selected.id)}
-                                style={{
-                                  background: "#dcfce7", color: "#166534", border: "none",
-                                  borderRadius: 6, padding: "6px 12px", fontSize: 11.5, fontWeight: 700,
-                                  cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
-                                  transition: "opacity 0.15s"
-                                }}
-                              >
-                                {decidingId === candidateId ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-check2" />}
-                                Duyệt
-                              </button>
-                              <button
-                                disabled={decidingId === candidateId}
-                                onClick={() => handleCandidateDecision(candidateId, 'reject', selected.id)}
-                                style={{
-                                  background: "#fee2e2", color: "#991b1b", border: "none",
-                                  borderRadius: 6, padding: "6px 12px", fontSize: 11.5, fontWeight: 700,
-                                  cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
-                                  transition: "opacity 0.15s"
-                                }}
-                              >
-                                {decidingId === candidateId ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-x-lg" />}
-                                Từ chối
-                              </button>
-                            </>
-                          )}
+                            {att.size && (
+                              <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 1 }}>
+                                {formatFileSize(att.size)}
+                              </div>
+                            )}
+                          </div>
+                          {att.url !== "#" && <i className="bi bi-eye-fill" style={{ color: "var(--muted-foreground)", fontSize: 14, flexShrink: 0 }} />}
                         </div>
-                      )}
-
-                      {/* Action Buttons for Interview Invite */}
-                      {att.type === "interview_invite" && att.candidateIds && (
-                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 8 }}>
-                          {interviewProcessed[selected.id] ? (
-                            <div style={{ 
-                              fontSize: 12, fontWeight: 700, 
-                              color: interviewProcessed[selected.id] === 'accept' ? "#166534" : "#991b1b",
-                              display: "flex", alignItems: "center", gap: 6,
-                              padding: "4px 0"
-                            }}>
-                              <i className={`bi ${interviewProcessed[selected.id] === 'accept' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`} />
-                              {interviewProcessed[selected.id] === 'accept' ? "ĐÃ XÁC NHẬN THAM GIA" : "ĐÃ TỪ CHỐI"}
-                            </div>
-                          ) : (
-                            <>
-                              <button
-                                disabled={decidingId === selected.id}
-                                onClick={() => handleInterviewResponse(att.candidateIds, 'accept', selected.id)}
-                                style={{
-                                  background: "#e0f2fe", color: "#0369a1", border: "none",
-                                  borderRadius: 6, padding: "8px 16px", fontSize: 12, fontWeight: 700,
-                                  cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-                                  transition: "all 0.15s", boxShadow: "0 2px 4px rgba(3,105,161,0.1)"
-                                }}
-                                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "#bae6fd"}
-                                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "#e0f2fe"}
-                              >
-                                {decidingId === selected.id ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-calendar-check-fill" />}
-                                Đồng ý tham gia
-                              </button>
-                              <button
-                                disabled={decidingId === selected.id}
-                                onClick={() => {
-                                  setDeclineData({ candidateIds: att.candidateIds, notificationId: selected.id });
-                                  setShowDeclineModal(true);
-                                }}
-                                style={{
-                                  background: "#fef2f2", color: "#991b1b", border: "none",
-                                  borderRadius: 6, padding: "8px 16px", fontSize: 12, fontWeight: 700,
-                                  cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-                                  transition: "all 0.15s"
-                                }}
-                                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "#fee2e2"}
-                                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2"}
-                              >
-                                {decidingId === selected.id ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-calendar-x-fill" />}
-                                Từ chối
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Action Buttons for Promotion Interview */}
-                      {att.type === "promotion_interview" && att.promotionId && (
-                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 8 }}>
-                          {promotionProcessed[selected.id] ? (
-                            <div style={{ 
-                              fontSize: 12, fontWeight: 700, 
-                              color: promotionProcessed[selected.id] === 'accept' ? "#166534" : "#991b1b",
-                              display: "flex", alignItems: "center", gap: 6,
-                              padding: "4px 0"
-                            }}>
-                              <i className={`bi ${promotionProcessed[selected.id] === 'accept' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`} />
-                              {promotionProcessed[selected.id] === 'accept' ? "ĐÃ XÁC NHẬN THAM GIA" : "ĐÃ TỪ CHỐI"}
-                            </div>
-                          ) : (
-                            <>
-                              <button
-                                disabled={decidingId === selected.id}
-                                onClick={() => handlePromotionInterviewResponse(att.promotionId, att.role, 'accept', selected.id)}
-                                style={{
-                                  background: "#e0f2fe", color: "#0369a1", border: "none",
-                                  borderRadius: 6, padding: "8px 16px", fontSize: 12, fontWeight: 700,
-                                  cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-                                  transition: "all 0.15s", boxShadow: "0 2px 4px rgba(3,105,161,0.1)"
-                                }}
-                                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "#bae6fd"}
-                                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "#e0f2fe"}
-                              >
-                                {decidingId === selected.id ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-calendar2-check-fill" />}
-                                Đồng ý tham gia
-                              </button>
-                              <button
-                                disabled={decidingId === selected.id}
-                                onClick={() => handlePromotionInterviewResponse(att.promotionId, att.role, 'decline', selected.id)}
-                                style={{
-                                  background: "#fef2f2", color: "#991b1b", border: "none",
-                                  borderRadius: 6, padding: "8px 16px", fontSize: 12, fontWeight: 700,
-                                  cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
-                                  transition: "all 0.15s"
-                                }}
-                                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "#fee2e2"}
-                                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2"}
-                              >
-                                {decidingId === selected.id ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-calendar2-x-fill" />}
-                                Từ chối
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+                  </div>
+                )}
+
+                {actionItems.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+                    {actionItems.map((att: any, i) => {
+                      const isAction = att.type === "recruitment_action";
+                      const candidateId = att.candidateId;
+                      const decision = processedIds[candidateId];
+
+                      return (
+                        <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {/* Nút Chi tiết đặc biệt cho Phê duyệt Tuyển dụng */}
+                          {att.type === "recruitment_approval" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onOpenApproval) {
+                                  onOpenApproval(att.approvalId, att.entityId);
+                                }
+                              }}
+                              style={{
+                                marginTop: 8,
+                                width: "100%",
+                                padding: "10px",
+                                borderRadius: 10,
+                                border: "none",
+                                background: "var(--primary)",
+                                color: "#fff",
+                                fontSize: 13,
+                                fontWeight: 700,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 8,
+                                boxShadow: "0 4px 12px rgba(5, 150, 105, 0.2)",
+                                cursor: "pointer"
+                              }}
+                            >
+                              <i className="bi bi-shield-check" />
+                              Mở trung tâm phê duyệt
+                            </button>
+                          )}
+
+                          {/* Action Buttons for Late/Early Approval */}
+                          {att.type === "late_early_approval" && att.requestId && (
+                            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 8 }}>
+                              {(processedIds[att.requestId] || att.status) === "APPROVED" || (processedIds[att.requestId] || att.status) === "approved" ? (
+                                <div style={{ 
+                                  fontSize: 12, fontWeight: 700, 
+                                  color: "#166534",
+                                  display: "flex", alignItems: "center", gap: 6,
+                                  padding: "4px 0"
+                                }}>
+                                  <i className="bi bi-check-circle-fill" />
+                                  ĐÃ PHÊ DUYỆT
+                                </div>
+                              ) : (processedIds[att.requestId] || att.status) === "REJECTED" || (processedIds[att.requestId] || att.status) === "rejected" ? (
+                                <div style={{ 
+                                  fontSize: 12, fontWeight: 700, 
+                                  color: "#991b1b",
+                                  display: "flex", alignItems: "center", gap: 6,
+                                  padding: "4px 0"
+                                }}>
+                                  <i className="bi bi-x-circle-fill" />
+                                  ĐÃ TỪ CHỐI
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    disabled={decidingId === att.requestId}
+                                    onClick={async () => {
+                                      setDecidingId(att.requestId);
+                                      try {
+                                        const res = await fetch(`/api/hr/approvals/${att.requestId}`, {
+                                          method: "PATCH",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ action: "APPROVE" }),
+                                        });
+                                        if (!res.ok) throw new Error("Phê duyệt thất bại");
+                                        setProcessedIds(prev => ({ ...prev, [att.requestId]: "APPROVED" }));
+                                        success("Đã phê duyệt yêu cầu thành công");
+                                      } catch (e: any) {
+                                        toastError("Lỗi", e.message);
+                                      } finally {
+                                        setDecidingId(null);
+                                      }
+                                    }}
+                                    style={{
+                                      background: "#dcfce7", color: "#166534", border: "none",
+                                      borderRadius: 6, padding: "6px 12px", fontSize: 11.5, fontWeight: 700,
+                                      cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+                                      transition: "opacity 0.15s"
+                                    }}
+                                  >
+                                    {decidingId === att.requestId ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-check2" />}
+                                    Duyệt
+                                  </button>
+                                  <button
+                                    disabled={decidingId === att.requestId}
+                                    onClick={async () => {
+                                      setDecidingId(att.requestId);
+                                      try {
+                                        const res = await fetch(`/api/hr/approvals/${att.requestId}`, {
+                                          method: "PATCH",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify({ action: "REJECT", note: "Từ chối từ thông báo" }),
+                                        });
+                                        if (!res.ok) throw new Error("Từ chối thất bại");
+                                        setProcessedIds(prev => ({ ...prev, [att.requestId]: "REJECTED" }));
+                                        success("Đã từ chối yêu cầu thành công");
+                                      } catch (e: any) {
+                                        toastError("Lỗi", e.message);
+                                      } finally {
+                                        setDecidingId(null);
+                                      }
+                                    }}
+                                    style={{
+                                      background: "#fee2e2", color: "#991b1b", border: "none",
+                                      borderRadius: 6, padding: "6px 12px", fontSize: 11.5, fontWeight: 700,
+                                      cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+                                      transition: "opacity 0.15s"
+                                    }}
+                                  >
+                                    {decidingId === att.requestId ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-x-lg" />}
+                                    Từ chối
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Action Buttons for Dept Head */}
+                          {isAction && candidateId && (
+                            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 8 }}>
+                              {decision ? (
+                                <div style={{ 
+                                  fontSize: 12, fontWeight: 700, 
+                                  color: decision === 'approve' ? "#166534" : "#991b1b",
+                                  display: "flex", alignItems: "center", gap: 6,
+                                  padding: "4px 0"
+                                }}>
+                                  <i className={`bi ${decision === 'approve' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`} />
+                                  {decision === 'approve' ? "ĐÃ DUYỆT PHỎNG VẤN" : "ĐÃ TỪ CHỐI HỒ SƠ"}
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    disabled={decidingId === candidateId}
+                                    onClick={() => handleCandidateDecision(candidateId, 'approve', selected.id)}
+                                    style={{
+                                      background: "#dcfce7", color: "#166534", border: "none",
+                                      borderRadius: 6, padding: "6px 12px", fontSize: 11.5, fontWeight: 700,
+                                      cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+                                      transition: "opacity 0.15s"
+                                    }}
+                                  >
+                                    {decidingId === candidateId ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-check2" />}
+                                    Duyệt
+                                  </button>
+                                  <button
+                                    disabled={decidingId === candidateId}
+                                    onClick={() => handleCandidateDecision(candidateId, 'reject', selected.id)}
+                                    style={{
+                                      background: "#fee2e2", color: "#991b1b", border: "none",
+                                      borderRadius: 6, padding: "6px 12px", fontSize: 11.5, fontWeight: 700,
+                                      cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+                                      transition: "opacity 0.15s"
+                                    }}
+                                  >
+                                    {decidingId === candidateId ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-x-lg" />}
+                                    Từ chối
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Action Buttons for Interview Invite */}
+                          {att.type === "interview_invite" && att.candidateIds && (
+                            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 8 }}>
+                              {interviewProcessed[selected.id] ? (
+                                <div style={{ 
+                                  fontSize: 12, fontWeight: 700, 
+                                  color: interviewProcessed[selected.id] === 'accept' ? "#166534" : "#991b1b",
+                                  display: "flex", alignItems: "center", gap: 6,
+                                  padding: "4px 0"
+                                }}>
+                                  <i className={`bi ${interviewProcessed[selected.id] === 'accept' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`} />
+                                  {interviewProcessed[selected.id] === 'accept' ? "ĐÃ XÁC NHẬN THAM GIA" : "ĐÃ TỪ CHỐI"}
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    disabled={decidingId === selected.id}
+                                    onClick={() => handleInterviewResponse(att.candidateIds, 'accept', selected.id)}
+                                    style={{
+                                      background: "#e0f2fe", color: "#0369a1", border: "none",
+                                      borderRadius: 6, padding: "8px 16px", fontSize: 12, fontWeight: 700,
+                                      cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                                      transition: "all 0.15s", boxShadow: "0 2px 4px rgba(3,105,161,0.1)"
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "#bae6fd"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "#e0f2fe"}
+                                  >
+                                    {decidingId === selected.id ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-calendar-check-fill" />}
+                                    Đồng ý tham gia
+                                  </button>
+                                  <button
+                                    disabled={decidingId === selected.id}
+                                    onClick={() => {
+                                      setDeclineData({ candidateIds: att.candidateIds, notificationId: selected.id });
+                                      setShowDeclineModal(true);
+                                    }}
+                                    style={{
+                                      background: "#fef2f2", color: "#991b1b", border: "none",
+                                      borderRadius: 6, padding: "8px 16px", fontSize: 12, fontWeight: 700,
+                                      cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                                      transition: "all 0.15s"
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "#fee2e2"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2"}
+                                  >
+                                    {decidingId === selected.id ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-calendar-x-fill" />}
+                                    Từ chối
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Action Buttons for Promotion Interview */}
+                          {att.type === "promotion_interview" && att.promotionId && (
+                            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 8 }}>
+                              {promotionProcessed[selected.id] ? (
+                                <div style={{ 
+                                  fontSize: 12, fontWeight: 700, 
+                                  color: promotionProcessed[selected.id] === 'accept' ? "#166534" : "#991b1b",
+                                  display: "flex", alignItems: "center", gap: 6,
+                                  padding: "4px 0"
+                                }}>
+                                  <i className={`bi ${promotionProcessed[selected.id] === 'accept' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`} />
+                                  {promotionProcessed[selected.id] === 'accept' ? "ĐÃ XÁC NHẬN THAM GIA" : "ĐÃ TỪ CHỐI"}
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    disabled={decidingId === selected.id}
+                                    onClick={() => handlePromotionInterviewResponse(att.promotionId, att.role, 'accept', selected.id)}
+                                    style={{
+                                      background: "#e0f2fe", color: "#0369a1", border: "none",
+                                      borderRadius: 6, padding: "8px 16px", fontSize: 12, fontWeight: 700,
+                                      cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                                      transition: "all 0.15s", boxShadow: "0 2px 4px rgba(3,105,161,0.1)"
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "#bae6fd"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "#e0f2fe"}
+                                  >
+                                    {decidingId === selected.id ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-calendar2-check-fill" />}
+                                    Đồng ý tham gia
+                                  </button>
+                                  <button
+                                    disabled={decidingId === selected.id}
+                                    onClick={() => handlePromotionInterviewResponse(att.promotionId, att.role, 'decline', selected.id)}
+                                    style={{
+                                      background: "#fef2f2", color: "#991b1b", border: "none",
+                                      borderRadius: 6, padding: "8px 16px", fontSize: 12, fontWeight: 700,
+                                      cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                                      transition: "all 0.15s"
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "#fee2e2"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2"}
+                                  >
+                                    {decidingId === selected.id ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-calendar2-x-fill" />}
+                                    Từ chối
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
     );
@@ -1478,6 +1806,12 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
         }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
         @keyframes spin  { to { transform: rotate(360deg); } }
+        @media (max-width: 767.98px) {
+          .notification-offcanvas-panel {
+            width: 100vw !important;
+            max-width: 100vw !important;
+          }
+        }
       `}</style>
 
       {/* Backdrop */}
@@ -1490,7 +1824,7 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
       }} onClick={onClose} />
 
       {/* Panel */}
-      <div style={{
+      <div className="notification-offcanvas-panel" style={{
         position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 9999,
         width: "min(400px, 100vw)",
         background: "var(--card)",
@@ -1597,20 +1931,11 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
       )}
       {/* Attendance Detail Modal */}
       {showAttendanceDetail && attendanceDetailData && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 20001,
-          background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)",
-          display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-        }} onClick={() => setShowAttendanceDetail(false)}>
-          <div style={{
-            background: "var(--card)", borderRadius: 24, width: "100%", maxWidth: 650,
-            maxHeight: "85vh", display: "flex", flexDirection: "column",
-            boxShadow: "0 30px 90px rgba(0,0,0,0.4)", animation: "modalIn 0.25s ease",
-            overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)"
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="attendance-detail-backdrop" onClick={() => setShowAttendanceDetail(false)}>
+          <div className="attendance-detail-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="attendance-detail-header">
               <div>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Bảng chấm công chi tiết</h3>
+                <h3 style={{ margin: 0, fontWeight: 800 }}>Bảng chấm công chi tiết</h3>
                 <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted-foreground)" }}>
                   Tháng {attendanceDetailData.month}/{attendanceDetailData.year} · {attendanceDetailData.employeeName}
                 </p>
@@ -1620,14 +1945,14 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
               </button>
             </div>
             
-            <div style={{ overflowY: "auto", padding: 0 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <div className="attendance-detail-body">
+               <table className="table-responsive">
                 <thead style={{ position: "sticky", top: 0, background: "var(--muted)", zIndex: 1 }}>
                   <tr>
-                    <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 700 }}>Ngày</th>
-                    <th style={{ padding: "12px 16px", textAlign: "center", fontWeight: 700 }}>Sáng</th>
-                    <th style={{ padding: "12px 16px", textAlign: "center", fontWeight: 700 }}>Chiều</th>
-                    <th style={{ padding: "12px 16px", textAlign: "center", fontWeight: 700 }}>Trạng thái</th>
+                    <th>Ngày</th>
+                    <th>Sáng</th>
+                    <th>Chiều</th>
+                    <th>Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1635,15 +1960,15 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                     const isWeekend = d.isWeekend;
                     return (
                       <tr key={i} style={{ borderBottom: "1px solid var(--border)", background: isWeekend ? "rgba(0,0,0,0.02)" : "transparent" }}>
-                        <td style={{ padding: "10px 16px" }}>
+                        <td>
                           <div style={{ fontWeight: 600 }}>{d.day}</div>
                           <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{d.dow}</div>
                         </td>
-                        <td style={{ padding: "10px 16px", textAlign: "center" }}>
+                        <td>
                           <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
                             {/* Sáng Vào */}
-                            <div style={{ display: "flex", alignItems: "center", width: "fit-content", minWidth: 100 }}>
-                              <span style={{ fontSize: 12, fontWeight: 500, width: 45, textAlign: "right", marginRight: 8 }}>{d.checkInMorning || "—"}</span>
+                            <div style={{ display: "flex", alignItems: "center", width: "fit-content", minWidth: 90 }}>
+                              <span style={{ fontSize: 12, fontWeight: 500, width: 40, textAlign: "right", marginRight: 8 }}>{d.checkInMorning || "—"}</span>
                               {d.details?.inM && (
                                 <span style={{ fontSize: 9, color: d.details.inM.color, fontWeight: 700, opacity: 0.9 }}>
                                   ({d.details.inM.label} {d.details.inM.minutes}p)
@@ -1651,21 +1976,26 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                               )}
                             </div>
                             {/* Sáng Ra */}
-                            <div style={{ display: "flex", alignItems: "center", width: "fit-content", minWidth: 100 }}>
-                              <span style={{ fontSize: 12, width: 45, textAlign: "right", marginRight: 8, opacity: 0.6 }}>{d.checkOutMorning || "—"}</span>
+                            <div style={{ display: "flex", alignItems: "center", width: "fit-content", minWidth: 90 }}>
+                              <span style={{ fontSize: 12, width: 40, textAlign: "right", marginRight: 8, opacity: 0.6 }}>{d.checkOutMorning || "—"}</span>
                               {d.details?.outM && (
                                 <span style={{ fontSize: 9, color: d.details.outM.color, fontWeight: 700, opacity: 0.8 }}>
                                   ({d.details.outM.label} {d.details.outM.minutes}p)
                                 </span>
                               )}
                             </div>
+                            {d.approvedLateTime && (
+                              <span style={{ fontSize: 9, color: "#10b981", fontWeight: 700, marginTop: 2, background: "rgba(16, 185, 129, 0.08)", padding: "1px 4px", borderRadius: 4, whiteSpace: "nowrap" }}>
+                                Được đi muộn trước {d.approvedLateTime}
+                              </span>
+                            )}
                           </div>
                         </td>
-                        <td style={{ padding: "10px 16px", textAlign: "center" }}>
+                        <td>
                           <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center" }}>
                             {/* Chiều Vào */}
-                            <div style={{ display: "flex", alignItems: "center", width: "fit-content", minWidth: 100 }}>
-                              <span style={{ fontSize: 12, fontWeight: 500, width: 45, textAlign: "right", marginRight: 8 }}>{d.checkInAfternoon || "—"}</span>
+                            <div style={{ display: "flex", alignItems: "center", width: "fit-content", minWidth: 90 }}>
+                              <span style={{ fontSize: 12, fontWeight: 500, width: 40, textAlign: "right", marginRight: 8 }}>{d.checkInAfternoon || "—"}</span>
                               {d.details?.inA && (
                                 <span style={{ fontSize: 9, color: d.details.inA.color, fontWeight: 700, opacity: 0.9 }}>
                                   ({d.details.inA.label} {d.details.inA.minutes}p)
@@ -1673,17 +2003,22 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                               )}
                             </div>
                             {/* Chiều Ra */}
-                            <div style={{ display: "flex", alignItems: "center", width: "fit-content", minWidth: 100 }}>
-                              <span style={{ fontSize: 12, width: 45, textAlign: "right", marginRight: 8, opacity: 0.6 }}>{d.checkOutAfternoon || "—"}</span>
+                            <div style={{ display: "flex", alignItems: "center", width: "fit-content", minWidth: 90 }}>
+                              <span style={{ fontSize: 12, width: 40, textAlign: "right", marginRight: 8, opacity: 0.6 }}>{d.checkOutAfternoon || "—"}</span>
                               {d.details?.outA && (
                                 <span style={{ fontSize: 9, color: d.details.outA.color, fontWeight: 700, opacity: 0.8 }}>
                                   ({d.details.outA.label} {d.details.outA.minutes}p)
                                 </span>
                               )}
                             </div>
+                            {d.approvedEarlyTime && (
+                              <span style={{ fontSize: 9, color: "#10b981", fontWeight: 700, marginTop: 2, background: "rgba(16, 185, 129, 0.08)", padding: "1px 4px", borderRadius: 4, whiteSpace: "nowrap" }}>
+                                Được về sớm sau {d.approvedEarlyTime}
+                              </span>
+                            )}
                           </div>
                         </td>
-                        <td style={{ padding: "10px 16px", textAlign: "center" }}>
+                        <td>
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                             {d.statusLabel ? (
                               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
@@ -1717,13 +2052,13 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
               </table>
             </div>
             
-            <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", background: "var(--muted)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ display: "flex", gap: 16 }}>
+            <div className="attendance-detail-footer">
+              <div className="stats-container">
                 <div style={{ fontSize: 12 }}><span style={{ fontWeight: 700 }}>{attendanceDetailData.totalWorkDays}</span> công</div>
                 <div style={{ fontSize: 12 }}><span style={{ fontWeight: 700 }}>{attendanceDetailData.totalLeave}</span> phép</div>
                 <div style={{ fontSize: 12 }}><span style={{ fontWeight: 700 }}>{attendanceDetailData.totalOT}</span> OT</div>
               </div>
-              <div style={{ display: "flex", gap: 10 }}>
+              <div className="buttons-container">
                 <BrandButton 
                   variant="outline" 
                   onClick={() => setShowAttendanceDetail(false)}
@@ -1775,6 +2110,15 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
           employeeId={payrollDetailData.employeeId}
           month={payrollDetailData.month}
           year={payrollDetailData.year}
+        />
+      )}
+
+      {payrollTableData && (
+        <PayrollTableModal
+          open={showPayrollTable}
+          onClose={() => setShowPayrollTable(false)}
+          month={payrollTableData.month}
+          year={payrollTableData.year}
         />
       )}
     </>,

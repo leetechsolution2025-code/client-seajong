@@ -33,7 +33,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       skills: reqs.skills || body.skills,
 
       // Also update requirements JSON string
-      requirements: typeof body.requirements === 'string' ? body.requirements : JSON.stringify(reqs)
+      requirements: typeof body.requirements === 'string' ? body.requirements : JSON.stringify(reqs),
+
+      // Kế hoạch đào tạo
+      trainingTime: body.trainingTime ?? undefined,
+      trainingLocation: body.trainingLocation ?? undefined,
+      trainingParticipants: body.trainingParticipants ?? undefined,
+      trainingContent: body.trainingContent ?? undefined,
     };
 
     // Clean undefined values

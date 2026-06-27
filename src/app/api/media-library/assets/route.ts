@@ -14,6 +14,15 @@ function isMktManager(s: any) {
     ['manager', 'mid_manager', 'senior_manager'].includes(u?.level);
 }
 
+function isManager(s: any) {
+  const u = s?.user;
+  const managerLevels = ['manager', 'mid_manager', 'senior_manager'];
+  const isMgrLevel = managerLevels.includes(u?.level);
+  const isMgrPosition = u?.positionName?.toLowerCase().includes('trưởng phòng');
+  const isAdminRole = u?.role === 'SUPERADMIN' || u?.role === 'ADMIN';
+  return isMgrLevel || isMgrPosition || isAdminRole;
+}
+
 // GET /api/media-library/assets?folderId=xxx
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -35,8 +44,7 @@ export async function GET(req: Request) {
   const admin = isAdmin(session);
   const canAccess =
     admin ||
-    folder.isPublic ||
-    folder.ownerId === userId ||
+    folder.ownerIsActive ||
     (isMktManager(session) && !folder.ownerIsActive);
 
   if (!canAccess) return NextResponse.json({ error: 'Không có quyền truy cập thư mục này' }, { status: 403 });
@@ -46,12 +54,42 @@ export async function GET(req: Request) {
   if (type) where.type = type;
   if (channel) where.channel = channel;
 
+  // Lọc theo quyền xem tài liệu: Người khác chỉ xem được tài liệu public
+  if (!admin) {
+    where.OR = [
+      { isPublic: true },
+      { uploadedBy: userId },
+      { folder: { ownerId: userId } }
+    ];
+  }
+
   const assets = await db.mediaAsset.findMany({
     where,
     orderBy: { createdAt: 'desc' },
   });
 
-  return NextResponse.json({ data: assets });
+  // Lấy departmentCode của người upload
+  const uploaderIds = Array.from(new Set(assets.map((a: any) => a.uploadedBy).filter(Boolean))) as string[];
+  const users = await prisma.user.findMany({
+    where: { id: { in: uploaderIds } },
+    select: {
+      id: true,
+      employee: {
+        select: {
+          departmentCode: true,
+        }
+      }
+    }
+  });
+
+  const uploaderDeptMap = new Map(users.map((u: any) => [u.id, u.employee?.departmentCode]));
+
+  const enrichedAssets = assets.map((a: any) => ({
+    ...a,
+    uploaderDeptCode: uploaderDeptMap.get(a.uploadedBy) || null,
+  }));
+
+  return NextResponse.json({ data: enrichedAssets });
 }
 
 // POST /api/media-library/assets → upload file
@@ -67,6 +105,8 @@ export async function POST(req: Request) {
     const description = (formData.get('description') as string) || '';
     const type = (formData.get('type') as string) || 'other';
     const channel = (formData.get('channel') as string) || 'all';
+    const isPublicStr = formData.get('isPublic') as string;
+    const isPublic = isPublicStr === 'true' || isPublicStr === '1' || isPublicStr === null || isPublicStr === undefined;
 
     if (!file || !folderId) return NextResponse.json({ error: 'Thiếu file hoặc folderId' }, { status: 400 });
 
@@ -75,9 +115,10 @@ export async function POST(req: Request) {
 
     const userId = (session.user as any)?.id;
     const admin = isAdmin(session);
+    const mgr = isManager(session);
     const canUpload =
       admin ||
-      (folder.isPublic && isMktManager(session)) ||
+      (folder.isPublic && mgr) || // Trưởng phòng được quyền upload vào tài liệu chung
       folder.ownerId === userId;
 
     if (!canUpload) {
@@ -106,6 +147,7 @@ export async function POST(req: Request) {
         fileSize: file.size,
         fileType: ext,
         uploadedBy: userId,
+        isPublic,
       },
     });
 

@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { useSession } from "next-auth/react";
 import { useToast }                  from "@/components/ui/Toast";
 import { ConfirmDialog }             from "@/components/ui/ConfirmDialog";
 import { TaoYeuCauMuaHangModal }     from "@/components/plan-finance/mua_hang/TaoYeuCauMuaHangModal";
@@ -39,7 +40,7 @@ interface StockRow {
   chuaPhanKho:     boolean;  // true = chưa từng có trong kho nào (toàn HT)
 }
 
-type FilterTab = "all" | "match" | "under" | "over" | "belowMin" | "noWarehouse";
+type FilterTab = "all" | "match" | "under" | "over" | "belowMin";
 
 interface KiemKhoModalProps { onClose: () => void; onSaved: () => void; }
 
@@ -83,6 +84,7 @@ function useBreakpoint() {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
+  const { data: session } = useSession();
   const toast    = useToast();
   const toastRef  = React.useRef(toast);
   React.useEffect(() => { toastRef.current = toast; });
@@ -92,8 +94,14 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
   const [ngayKiem, setNgayKiem]       = React.useState(today);
   const [lockDate, setLockDate]       = React.useState(true);
   const [nguoiKiem, setNguoiKiem]     = React.useState("");
+
+  React.useEffect(() => {
+    if (session?.user?.name && !nguoiKiem) {
+      setNguoiKiem(session.user.name);
+    }
+  }, [session, nguoiKiem]);
   const [ghiChu,   setGhiChu]         = React.useState("");
-  const [scope, setScope]             = React.useState<"system" | "warehouse">("system");
+  const scope = "warehouse";
   const [warehouseId, setWarehouseId] = React.useState("");
   const [warehouses, setWarehouses]   = React.useState<Warehouse[]>([]);
   const [rows,    setRows]            = React.useState<StockRow[]>([]);
@@ -132,7 +140,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
   const isMobile = isPhone || isTablet;  // phone hoặc tablet
   const [sidebarOpen, setSidebarOpen] = React.useState(false); // tablet: bottom sheet; phone: not used
 
-  // ── Load warehouses + categories ────────────────────────────────────────────
+  // ── Load warehouses ────────────────────────────────────────────
   React.useEffect(() => {
     fetch("/api/plan-finance/warehouses")
       .then(r => r.json())
@@ -141,16 +149,37 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
         setWarehouses(arr.filter(w => w.isActive));
       }).catch(() => {});
 
-    fetch("/api/plan-finance/inventory/categories")
+    fetch("/api/plan-finance/stock-counts/next-code")
       .then(r => r.json())
-      .then((d: { id: string; name: string }[]) => setCategories(Array.isArray(d) ? d : []))
-      .catch(() => {});
+      .then((data) => {
+        if (data.nextCode) {
+          setSoChungTu(data.nextCode);
+        }
+      }).catch(() => {});
   }, []);
 
-  // Auto-detect bản nháp — chỉ khi scope=warehouse và đã chọn kho
+  // Fetch categories dynamically when warehouseId changes
   React.useEffect(() => {
-    // Không hiện banner khi toàn hệ thống hoặc chưa chọn kho
-    if (scope !== "warehouse" || !warehouseId) {
+    const fetchCategories = async () => {
+      try {
+        const url = warehouseId
+          ? `/api/production/materials/categories?warehouseId=${warehouseId}`
+          : "/api/production/materials/categories";
+        const res = await fetch(url);
+        const data = await res.json();
+        setCategories(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Fetch categories error:", error);
+      }
+    };
+
+    fetchCategories();
+    setFilterCat(""); // Reset category filter when warehouse changes
+  }, [warehouseId]);
+
+  // Auto-detect bản nháp — chỉ khi đã chọn kho
+  React.useEffect(() => {
+    if (!warehouseId) {
       setDraftBanner(null);
       return;
     }
@@ -163,7 +192,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
         if (match) setDraftBanner({ id: match.id, soChungTu: match.soChungTu, updatedAt: match.updatedAt });
         else        setDraftBanner(null);
       }).catch(() => {});
-  }, [scope, warehouseId]);
+  }, [warehouseId]);
 
   const loadDraft = async (id: string) => {
     setLoadingDraft(true);
@@ -176,7 +205,6 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
       if (data.nguoiKiem) setNguoiKiem(data.nguoiKiem);
       if (data.ngayKiem)  setNgayKiem(data.ngayKiem.slice(0, 10));
       if (data.ghiChu)    setGhiChu(data.ghiChu);
-      if (data.scope)     setScope(data.scope as "system" | "warehouse");
       if (data.warehouseId) setWarehouseId(data.warehouseId);
       setDraftId(id);
       setDraftBanner(null);
@@ -231,7 +259,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
   const loadSnapshot = React.useCallback(async () => {
     setLoading(true);
     try {
-      const url = scope === "warehouse" && warehouseId
+      const url = warehouseId
         ? `/api/plan-finance/inventory/stock-snapshot?warehouseId=${warehouseId}`
         : `/api/plan-finance/inventory/stock-snapshot`;
       const data: StockRow[] = await fetch(url).then(r => r.json());
@@ -253,18 +281,18 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
       toastRef.current.error("Lỗi", "Không thể tải danh sách hàng hoá");
     } finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope, warehouseId]); // ✔ không có toast — dùng toastRef tránh re-trigger
+  }, [warehouseId]); // ✔ không có toast — dùng toastRef tránh re-trigger
 
   // Always keep ref up-to-date
   React.useEffect(() => { loadSnapshotRef.current = loadSnapshot; }, [loadSnapshot]);
 
   React.useEffect(() => {
-    if (scope === "system" || (scope === "warehouse" && warehouseId)) {
+    if (warehouseId) {
       loadSnapshot();
     } else {
       setRows([]);
     }
-  }, [scope, warehouseId, loadSnapshot]);
+  }, [warehouseId, loadSnapshot]);
 
   // ── Update row ───────────────────────────────────────────────────────────────
   const updateRow = (itemId: string, wId: string | undefined, key: keyof StockRow, val: StockRow[keyof StockRow]) => {
@@ -293,8 +321,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
       filterTab === "match"       ? statusOf(r) === "match" :
       filterTab === "under"       ? statusOf(r) === "under" :
       filterTab === "over"        ? statusOf(r) === "over"  :
-      filterTab === "belowMin"    ? isBelowMin(r) :
-      filterTab === "noWarehouse" ? r.chuaPhanKho : true;
+      filterTab === "belowMin"    ? isBelowMin(r) : true;
     const catOk    = !filterCat || r.categoryId === filterCat;
     const stOk     = !filterSt  || r.trangThai === filterSt;
     const q        = searchQ.toLowerCase();
@@ -403,9 +430,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
     return () => document.removeEventListener("keydown", h);
   }, [onClose, saving]);
 
-  const gridCols = scope === "warehouse"
-    ? "28px 1fr 110px 55px 80px 60px 80px 80px 90px 32px"
-    : "28px 1fr 110px 55px 1fr 80px 60px 80px 80px 90px 32px";
+  const gridCols = "28px 1fr 55px 80px 60px 80px 80px 90px 32px";
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -422,64 +447,9 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
           {!isPhone && <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)", fontFamily: "monospace" }}>{soChungTu}</p>}
         </div>
 
-        {/* Scope toggle — desktop only */}
-        {!isMobile && (
-          <div style={{ marginLeft: 20, display: "flex", gap: 0, borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden", fontSize: 12 }}>
-            {(["system", "warehouse"] as const).map((s, i) => (
-              <button key={s} onClick={() => !locked && setScope(s)} disabled={locked}
-                style={{ padding: "5px 12px", border: "none", borderLeft: i > 0 ? "1px solid var(--border)" : "none", background: scope === s ? "#0ea5e9" : "var(--card)", color: scope === s ? "#fff" : "var(--foreground)", fontWeight: scope === s ? 700 : 400, cursor: locked ? "not-allowed" : "pointer", transition: "all 0.15s" }}>
-                {s === "system" ? "🌐 Toàn hệ thống" : "🏭 Từng kho"}
-              </button>
-            ))}
-          </div>
-        )}
 
-        {/* Warehouse select — desktop inline */}
-        {scope === "warehouse" && !isMobile && (
-          <select value={warehouseId} onChange={e => !locked && setWarehouseId(e.target.value)} disabled={locked}
-            style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${warehouseId ? "rgba(14,165,233,0.5)" : "var(--border)"}`, background: "var(--card)", color: "var(--foreground)", fontSize: 13, cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.7 : 1 }}>
-            <option value="">— Chọn kho —</option>
-            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}{w.code ? ` (${w.code})` : ""}</option>)}
-          </select>
-        )}
 
-        {/* Nút Lịch sử + Báo cáo — desktop only */}
-        {!isMobile && scope === "warehouse" && warehouseId && (
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => setShowLichSu(true)}
-              style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", border: "1px solid var(--border)", background: "var(--muted)", color: "var(--muted-foreground)", fontSize: 12, fontWeight: 600, borderRadius: 7, cursor: "pointer" }}>
-              <i className="bi bi-clock-history" style={{ fontSize: 12 }} /> Lịch sử
-            </button>
-            <div ref={baoCaoMenuRef} style={{ position: "relative" }}>
-              <button onClick={() => setShowBaoCaoMenu(v => !v)}
-                style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", border: "1px solid rgba(99,102,241,0.4)", background: "rgba(99,102,241,0.07)", color: "#6366f1", fontSize: 12, fontWeight: 600, borderRadius: 7, cursor: "pointer" }}>
-                <i className="bi bi-file-earmark-bar-graph" style={{ fontSize: 12 }} /> Báo cáo
-                <i className="bi bi-chevron-down" style={{ fontSize: 10, marginLeft: 2 }} />
-              </button>
-              {showBaoCaoMenu && (
-                <>
-                  <div style={{ position: "fixed", inset: 0, zIndex: 9998 }} onClick={() => setShowBaoCaoMenu(false)} />
-                  <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", minWidth: 220, zIndex: 9999, overflow: "hidden", padding: "4px 0" }}>
-                    {([
-                      { key: "the-kho",      icon: "bi-journal-bookmark",       label: "Thẻ kho" },
-                      { key: "xuat-nhap-ton", icon: "bi-table",                  label: "Bảng kê Xuất - Nhập - Tồn" },
-                      { key: "nhap-kho",     icon: "bi-box-arrow-in-down-right", label: "Bảng kê Nhập kho" },
-                      { key: "xuat-kho",     icon: "bi-box-arrow-up-right",      label: "Bảng kê Xuất kho" },
-                    ] as const).map(item => (
-                      <button key={item.key} onClick={() => { setBaoCaoType(item.key); setShowBaoCaoMenu(false); }}
-                        style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "9px 16px", border: "none", background: "transparent", color: "var(--foreground)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", textAlign: "left" }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "var(--muted)")}
-                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                        <i className={`bi ${item.icon}`} style={{ fontSize: 14, color: "#6366f1", width: 18, textAlign: "center" }} />
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+
 
         <div style={{ marginLeft: "auto", display: "flex", gap: isPhone ? 6 : 8, alignItems: "center" }}>
           {/* Mobile: toggle sidebar panel */}
@@ -512,7 +482,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                   {savingDraft ? "Lưu..." : "Lưu nháp"}
                 </button>
               )}
-              {!isMobile && scope === "warehouse" && warehouseId && (
+              {!isMobile && warehouseId && (
                 <button onClick={handleSave} disabled={saving || locked || loading || entered.length === 0}
                   style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 20px", border: "none", background: (saving || locked || loading || entered.length === 0) ? "var(--muted)" : "#0ea5e9", color: (saving || locked || loading || entered.length === 0) ? "var(--muted-foreground)" : "#fff", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: (saving || locked || loading || entered.length === 0) ? "not-allowed" : "pointer" }}>
                   {saving ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-clipboard-check" />}
@@ -716,68 +686,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
         {/* ── MAIN AREA ────────────────────────────────────────────────────── */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-          {/* ── MOBILE: scope + kho select bar ───────────────────────────── */}
-          {isMobile && (
-            <div style={{ flexShrink: 0, borderBottom: "1px solid var(--border)", padding: "10px 12px", display: "flex", alignItems: "center", gap: 8, background: "var(--card)", flexWrap: "wrap" }}>
-              {/* Scope toggle */}
-              <div style={{ display: "flex", gap: 0, borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden", fontSize: 12 }}>
-                {(["system", "warehouse"] as const).map((s, i) => (
-                  <button key={s} onClick={() => !locked && setScope(s)} disabled={locked}
-                    style={{ padding: "6px 12px", border: "none", borderLeft: i > 0 ? "1px solid var(--border)" : "none", background: scope === s ? "#0ea5e9" : "var(--card)", color: scope === s ? "#fff" : "var(--foreground)", fontWeight: scope === s ? 700 : 400, cursor: locked ? "not-allowed" : "pointer" }}>
-                    {s === "system" ? "🌐 HT" : "🏭 Kho"}
-                  </button>
-                ))}
-              </div>
 
-              {/* Warehouse select */}
-              {scope === "warehouse" && (
-                <select value={warehouseId} onChange={e => !locked && setWarehouseId(e.target.value)} disabled={locked}
-                  style={{ flex: 1, padding: "6px 10px", borderRadius: 7, border: `1.5px solid ${warehouseId ? "rgba(14,165,233,0.5)" : "var(--border)"}`, background: "var(--card)", color: "var(--foreground)", fontSize: 13, cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.7 : 1 }}>
-                  <option value="">— Chọn kho —</option>
-                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}{w.code ? ` (${w.code})` : ""}</option>)}
-                </select>
-              )}
-
-              {/* Lịch sử + Báo cáo buttons for mobile */}
-              {scope === "warehouse" && warehouseId && (
-                <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
-                  <button onClick={() => setShowLichSu(true)}
-                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", border: "1px solid var(--border)", background: "var(--muted)", color: "var(--muted-foreground)", fontSize: 12, fontWeight: 600, borderRadius: 7, cursor: "pointer" }}>
-                    <i className="bi bi-clock-history" style={{ fontSize: 12 }} />
-                    {isTablet && " Lịch sử"}
-                  </button>
-                  <div ref={baoCaoMenuRef} style={{ position: "relative" }}>
-                    <button onClick={() => setShowBaoCaoMenu(v => !v)}
-                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", border: "1px solid rgba(99,102,241,0.4)", background: "rgba(99,102,241,0.07)", color: "#6366f1", fontSize: 12, fontWeight: 600, borderRadius: 7, cursor: "pointer" }}>
-                      <i className="bi bi-file-earmark-bar-graph" style={{ fontSize: 12 }} />
-                      {isTablet && " Báo cáo"}
-                    </button>
-                    {showBaoCaoMenu && (
-                      <>
-                        <div style={{ position: "fixed", inset: 0, zIndex: 9998 }} onClick={() => setShowBaoCaoMenu(false)} />
-                        <div style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", minWidth: 200, zIndex: 9999, overflow: "hidden", padding: "4px 0" }}>
-                          {([
-                            { key: "the-kho",      icon: "bi-journal-bookmark",       label: "Thẻ kho" },
-                            { key: "xuat-nhap-ton", icon: "bi-table",                  label: "Bảng kê XNT" },
-                            { key: "nhap-kho",     icon: "bi-box-arrow-in-down-right", label: "Bảng kê Nhập" },
-                            { key: "xuat-kho",     icon: "bi-box-arrow-up-right",      label: "Bảng kê Xuất" },
-                          ] as const).map(item => (
-                            <button key={item.key} onClick={() => { setBaoCaoType(item.key); setShowBaoCaoMenu(false); }}
-                              style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "9px 14px", border: "none", background: "transparent", color: "var(--foreground)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", textAlign: "left" }}
-                              onMouseEnter={e => (e.currentTarget.style.background = "var(--muted)")}
-                              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                              <i className={`bi ${item.icon}`} style={{ fontSize: 13, color: "#6366f1" }} />
-                              {item.label}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Banner bản nháp */}
           {draftBanner && !draftId && (
@@ -798,13 +707,21 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
             </div>
           )}
 
-          {/* Filter bar: Category + Status + Search */}
+          {/* Filter bar: Warehouse + Category + Status + Search */}
           <div style={{ flexShrink: 0, borderBottom: "1px solid var(--border)", padding: "10px 20px", display: "flex", alignItems: "center", gap: 8, background: "var(--background)", flexWrap: "wrap" }}>
+            <FilterSelect
+              options={warehouses.map(w => ({ label: w.name, value: w.id }))}
+              value={warehouseId}
+              onChange={setWarehouseId}
+              placeholder="Chọn kho"
+              disabled={locked}
+            />
             <FilterSelect
               options={categories.map(c => ({ label: c.name, value: c.id }))}
               value={filterCat}
               onChange={setFilterCat}
               placeholder="Danh mục"
+              disabled={!warehouseId}
             />
             <FilterSelect
               options={[
@@ -815,11 +732,14 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
               value={filterSt}
               onChange={setFilterSt}
               placeholder="Trạng thái"
+              disabled={!warehouseId}
             />
             <SearchInput
               value={searchQ}
               onChange={setSearchQ}
               placeholder="Tìm hàng hoá, SKU..."
+              disabled={!warehouseId}
+              style={{ width: 280 }}
             />
             {(filterCat || filterSt || searchQ) && (
               <button onClick={() => { setFilterCat(""); setFilterSt(""); setSearchQ(""); }}
@@ -828,6 +748,16 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                 onMouseLeave={e => (e.currentTarget.style.background = "none")}>
                 <i className="bi bi-x-circle" style={{ fontSize: 12 }} /> Xóa bộ lọc
               </button>
+            )}
+
+            {warehouseId && (
+              <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
+                <button onClick={() => setShowLichSu(true)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", border: "1px solid var(--border)", background: "var(--muted)", color: "var(--muted-foreground)", fontSize: 12, fontWeight: 600, borderRadius: 7, cursor: "pointer", height: 34 }}>
+                  <i className="bi bi-clock-history" style={{ fontSize: 12 }} /> Lịch sử
+                </button>
+
+              </div>
             )}
           </div>
 
@@ -839,9 +769,6 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
               { id: "under",    label: "📉 Thiếu",      count: underRows.length,   color: "#f43f5e" },
               { id: "over",     label: "📈 Thừa",       count: overRows.length,    color: "#f59e0b" },
               { id: "belowMin",    label: "⚠️ Dưới Min",        count: belowMinRows.length, color: "#f97316" },
-              ...(scope === "system" && noWhRows.length > 0
-                ? [{ id: "noWarehouse" as FilterTab, label: "📦 Chưa phân kho", count: noWhRows.length, color: "#8b5cf6" }]
-                : []),
             ] as { id: FilterTab; label: string; count: number; color: string }[]).map(tab => (
               <button key={tab.id} onClick={() => setFilterTab(tab.id)}
                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 12px", borderRadius: 20, border: `1px solid ${filterTab === tab.id ? tab.color : "var(--border)"}`, background: filterTab === tab.id ? `${tab.color}18` : "transparent", color: filterTab === tab.id ? tab.color : "var(--muted-foreground)", fontSize: 12, fontWeight: filterTab === tab.id ? 700 : 400, cursor: "pointer", transition: "all 0.15s" }}>
@@ -874,7 +801,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
               <div style={{ padding: "60px 0", textAlign: "center", color: "var(--muted-foreground)" }}>
                 <i className="bi bi-inbox" style={{ fontSize: 40, display: "block", marginBottom: 14, opacity: 0.3 }} />
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
-                  {scope === "warehouse" && !warehouseId ? "Vui lòng chọn kho để bắt đầu kiểm kê" : "Không có hàng hoá trong kho"}
+                  {!warehouseId ? "Vui lòng chọn kho để bắt đầu kiểm kê" : "Không có hàng hoá trong kho"}
                 </p>
               </div>
             ) : isPhone ? (
@@ -974,9 +901,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                   <div style={{ display: "grid", gridTemplateColumns: gridCols, gap: 4, padding: "10px 10px 7px", fontSize: 10.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", background: "var(--muted)", borderRadius: "8px 8px 0 0", marginTop: 16 }}>
                     <div>#</div>
                     <div>Hàng hoá</div>
-                    <div style={{ textAlign: "center" }}>SKU</div>
                     <div style={{ textAlign: "center" }}>ĐVT</div>
-                    {scope !== "warehouse" && <div style={{ textAlign: "center" }}>Kho</div>}
                     <div style={{ textAlign: "right" }}>Tồn HT</div>
                     <div style={{ textAlign: "right" }}>Tồn Min</div>
                     <div style={{ textAlign: "center" }}>Thực tế</div>
@@ -1007,18 +932,16 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                         <div style={{ textAlign: "center", fontSize: 11, color: "var(--muted-foreground)", fontWeight: 600 }}>{idx + 1}</div>
                         <div>
                           <div style={{ fontWeight: 600, fontSize: 12.5 }}>{row.tenHang}</div>
-                          {row.thongSoKyThuat && (
-                            <div style={{ fontSize: 10, color: "var(--muted-foreground)", marginTop: 1 }}>{row.thongSoKyThuat}</div>
-                          )}
+                          <div style={{ fontSize: 10, color: "var(--muted-foreground)", marginTop: 1 }}>
+                            {row.categoryName || "Chưa phân loại"}{row.maSku ? ` | ${row.maSku}` : ""}
+                          </div>
                           {(row.viTriHang || row.viTriCot || row.viTriTang) && (
                             <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>
                               📍 {[row.viTriHang, row.viTriCot, row.viTriTang].filter(Boolean).join("-")}
                             </div>
                           )}
                         </div>
-                        <div style={{ textAlign: "center", fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{row.maSku ?? "—"}</div>
                         <div style={{ textAlign: "center", fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>{row.donVi ?? "—"}</div>
-                        {scope !== "warehouse" && <div style={{ textAlign: "center", fontSize: 11, color: "var(--muted-foreground)" }}>{row.warehouseName ?? "—"}</div>}
                         <div style={{ textAlign: "right", fontSize: 13, fontWeight: 700 }}>{fmtN(row.soLuongHeTong)}</div>
                         <div style={{ textAlign: "right" }}>
                           {row.soLuongMin > 0 ? (
@@ -1104,7 +1027,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                 {savingDraft ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> : draftId ? <i className="bi bi-cloud-check-fill" style={{ color: "#10b981" }} /> : <i className="bi bi-floppy" />}
                 Lưu
               </button>
-              {scope === "warehouse" && warehouseId && (
+              {warehouseId && (
                 <button onClick={handleSave} disabled={saving || locked || loading || entered.length === 0}
                   style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", border: "none", background: (saving || locked || loading || entered.length === 0) ? "var(--muted)" : "#0ea5e9", color: (saving || locked || loading || entered.length === 0) ? "var(--muted-foreground)" : "#fff", fontSize: 13, fontWeight: 700, borderRadius: 10, cursor: (saving || locked || loading || entered.length === 0) ? "not-allowed" : "pointer", flexShrink: 0 }}>
                   {saving ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-clipboard-check" />}
@@ -1189,7 +1112,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
         <BaoCaoKiemKhoPreview
           soChungTu={soChungTu}
           ngayKiem={ngayKiem}
-          warehouseName={scope === "warehouse" && warehouseId
+          warehouseName={warehouseId
             ? (warehouses.find(w => w.id === warehouseId)?.name ?? warehouseId)
             : "Toàn hệ thống"}
           nguoiKiem={nguoiKiem}
@@ -1239,8 +1162,8 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
       {/* Lịch sử kiểm kho */}
       {showLichSu && (
         <LichSuKiemKhoModal
-          warehouseId={scope === "warehouse" && warehouseId ? warehouseId : undefined}
-          warehouseName={scope === "warehouse" && warehouseId
+          warehouseId={warehouseId ? warehouseId : undefined}
+          warehouseName={warehouseId
             ? (warehouses.find(w => w.id === warehouseId)?.name ?? warehouseId)
             : undefined}
           onClose={() => setShowLichSu(false)}

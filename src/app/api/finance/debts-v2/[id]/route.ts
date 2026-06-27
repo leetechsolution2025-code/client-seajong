@@ -24,6 +24,48 @@ export async function PUT(
       }
     });
 
+    // Sync paidAmount to SaleOrder or Contract if referenceId is set
+    if (referenceId) {
+      const pAmt = Number(paidAmount) || 0;
+      try {
+        const order = await prisma.saleOrder.findFirst({
+          where: {
+            OR: [
+              { id: referenceId },
+              { code: referenceId }
+            ]
+          }
+        });
+        if (order) {
+          await prisma.saleOrder.update({
+            where: { id: order.id },
+            data: { daThanhToan: pAmt }
+          });
+        }
+      } catch (err) {
+        console.error("Failed to sync paidAmount to SaleOrder:", err);
+      }
+
+      try {
+        const contract = await prisma.contract.findFirst({
+          where: {
+            OR: [
+              { id: referenceId },
+              { code: referenceId }
+            ]
+          }
+        });
+        if (contract) {
+          await prisma.contract.update({
+            where: { id: contract.id },
+            data: { daThanhToan: pAmt }
+          });
+        }
+      } catch (err) {
+        console.error("Failed to sync paidAmount to Contract:", err);
+      }
+    }
+
     return NextResponse.json(debt);
   } catch (error: any) {
     console.error("Update debt error:", error);

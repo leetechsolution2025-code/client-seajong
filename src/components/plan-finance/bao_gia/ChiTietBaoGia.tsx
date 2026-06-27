@@ -3,8 +3,9 @@ import React, { useState } from "react";
 import { useSession } from "next-auth/react";
 import { Tab } from "@/components/ui/Tab";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { TaoBaoGia, type QuotationEditData } from "@/components/plan-finance/bao_gia/TaoBaoGia";
+import { BaoGiaSanitaryModal, type QuotationEditData } from "@/components/plan-finance/bao_gia/BaoGiaSanitaryModal";
 import { TaoHopDongModal } from "@/components/plan-finance/hop_dong/TaoHopDongModal";
+import { Table, TableColumn } from "@/components/ui/Table";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export interface QuotationForDetail {
@@ -30,6 +31,12 @@ export interface QuotationForDetail {
   vat?: number | null;
   tongTien?: number | null;
   ghiChu?: string | null;
+  quoteType?: string | null;
+  chiPhiThiCong?: number | null;
+  file3DUrl?: string | null;
+  fileDetailUrl?: string | null;
+  fileLayoutUrl?: string | null;
+  type?: string | null;
 }
 
 interface Negotiation {
@@ -43,26 +50,38 @@ interface Negotiation {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  draft:            { label: "Nháp",               color: "#94a3b8", bg: "rgba(148,163,184,0.1)", icon: "bi-pencil-square" },
-  pending_approval: { label: "Đang trình duyệt",   color: "#f59e0b", bg: "rgba(245,158,11,0.1)",  icon: "bi-hourglass-split" },
-  approved:         { label: "Đã phê duyệt",        color: "#8b5cf6", bg: "rgba(139,92,246,0.1)",  icon: "bi-patch-check-fill" },
-  sent:             { label: "Đã gửi khách hàng",  color: "#3b82f6", bg: "rgba(59,130,246,0.1)",  icon: "bi-send-check-fill" },
-  won:              { label: "Thành công",           color: "#10b981", bg: "rgba(16,185,129,0.1)", icon: "bi-trophy-fill" },
-  lost:             { label: "Thất bại",             color: "#ef4444", bg: "rgba(239,68,68,0.1)",  icon: "bi-x-circle-fill" },
-  cancelled:        { label: "Đã huỷ",               color: "#6b7280", bg: "rgba(107,114,128,0.1)",icon: "bi-slash-circle-fill" },
+  draft: { label: "Nháp", color: "#94a3b8", bg: "rgba(148,163,184,0.1)", icon: "bi-pencil-square" },
+  pending_approval: { label: "Đang trình duyệt", color: "#f59e0b", bg: "rgba(245,158,11,0.1)", icon: "bi-hourglass-split" },
+  approved: { label: "Đã phê duyệt", color: "#8b5cf6", bg: "rgba(139,92,246,0.1)", icon: "bi-patch-check-fill" },
+  sent: { label: "Đang thương thảo", color: "#3b82f6", bg: "rgba(59,130,246,0.1)", icon: "bi-send-check-fill" },
+  won: { label: "Thành công", color: "#10b981", bg: "rgba(16,185,129,0.1)", icon: "bi-trophy-fill" },
+  lost: { label: "Thất bại", color: "#ef4444", bg: "rgba(239,68,68,0.1)", icon: "bi-x-circle-fill" },
+  paused: { label: "Tạm dừng", color: "#f59e0b", bg: "rgba(245,158,11,0.1)", icon: "bi-pause-circle-fill" },
+  cancelled: { label: "Đã huỷ", color: "#6b7280", bg: "rgba(107,114,128,0.1)", icon: "bi-slash-circle-fill" },
 };
 
 const OFFCANVAS_TABS = [
-  { key: "info",  label: "Thông tin chung" },
+  { key: "info", label: "Thông tin chung" },
   { key: "items", label: "Khối lượng báo giá" },
 ];
 
 const ACT_TYPES = [
-  { key: "call",    label: "Gọi điện",  icon: "bi-telephone-fill",  color: "#10b981" },
-  { key: "meeting", label: "Gặp mặt",   icon: "bi-people-fill",     color: "#6366f1" },
-  { key: "email",   label: "Gửi email", icon: "bi-envelope-fill",   color: "#f59e0b" },
-  { key: "message", label: "Nhắn tin",  icon: "bi-chat-dots-fill", color: "#3b82f6" },
-  { key: "system",  label: "Hệ thống",  icon: "bi-gear-fill",       color: "#6b7280" },
+  { key: "call", label: "Gọi điện", icon: "bi-telephone-fill", color: "#10b981" },
+  { key: "meeting", label: "Gặp mặt", icon: "bi-people-fill", color: "#6366f1" },
+  { key: "email", label: "Gửi email", icon: "bi-envelope-fill", color: "#f59e0b" },
+  { key: "message", label: "Nhắn tin", icon: "bi-chat-dots-fill", color: "#3b82f6" },
+  { key: "system", label: "Hệ thống", icon: "bi-gear-fill", color: "#6b7280" },
+  { key: "create", label: "Tạo mới báo giá", icon: "bi-file-earmark-plus-fill", color: "#10b981" },
+  { key: "update", label: "Cập nhật báo giá", icon: "bi-pencil-square", color: "#f59e0b" },
+  { key: "Cập nhật", label: "Cập nhật báo giá", icon: "bi-pencil-square", color: "#f59e0b" },
+  { key: "won", label: "Thành công", icon: "bi-trophy-fill", color: "#10b981" },
+];
+
+const MANUAL_ACT_TYPES = [
+  { key: "call", label: "Gọi điện", icon: "bi-telephone-fill", color: "#10b981" },
+  { key: "meeting", label: "Gặp mặt", icon: "bi-people-fill", color: "#6366f1" },
+  { key: "message", label: "Nhắn tin", icon: "bi-chat-dots-fill", color: "#3b82f6" },
+  { key: "email", label: "Gửi email", icon: "bi-envelope-fill", color: "#f59e0b" },
 ];
 
 // ── Helper ────────────────────────────────────────────────────────────────────
@@ -96,24 +115,52 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
   const [showEdit, setShowEdit] = useState(false);
   const [showConfirmWon, setShowConfirmWon] = useState(false);
   const [markingWon, setMarkingWon] = useState(false);
+  const [ngayGiaoHang, setNgayGiaoHang] = useState("");
   const [showContract, setShowContract] = useState(false);
+
+  const [isSanitary, setIsSanitary] = useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cookies = document.cookie.split("; ");
+      const activeIndCookie = cookies.find(c => c.startsWith("active_industry_code="))?.split("=")[1];
+      setIsSanitary(activeIndCookie === "sanitary");
+    }
+  }, [localQ?.id]);
 
   React.useEffect(() => {
     if (session?.user?.name) setActPerson(session.user.name);
   }, [session?.user?.name]);
 
-  // Khi mở báo giá mới (id thay đổi) → reset localQ, tab, fetch negotiations
+  // Khi mở báo giá mới (id thay đổi) → reset localQ, tab, fetch chi tiết và negotiations
   React.useEffect(() => {
     if (!q) {
       setLocalQ(null); // q bị null → ẩn offcanvas
+      setNgayGiaoHang("");
       return;
     }
-    setLocalQ(q);          // cập nhật localQ
+    
+    // Luôn fetch chi tiết đầy đủ để đảm bảo có đủ items, discount, vat...
+    fetch(`/api/plan-finance/quotations/${q.id}`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        setLocalQ(data);
+        if (data.ngayGiaoHang) {
+          setNgayGiaoHang(new Date(data.ngayGiaoHang).toISOString().slice(0, 10));
+        } else {
+          setNgayGiaoHang("");
+        }
+      })
+      .catch(() => {
+        setLocalQ(q);
+        setNgayGiaoHang("");
+      });
+
     setActiveTab("info");  // chỉ reset tab khi đổi sang báo giá khác
     fetch(`/api/plan-finance/quotations/${q.id}/negotiations`)
       .then(r => r.json())
       .then(data => setNegotiations(Array.isArray(data) ? data : []))
-      .catch(() => {});
+      .catch(() => { });
   }, [q?.id, q === null]);
 
   // Re-fetch data sau khi edit (giữ nguyên activeTab)
@@ -123,6 +170,9 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
       if (res.ok) {
         const data = await res.json();
         setLocalQ(data);
+        if (data.ngayGiaoHang) {
+          setNgayGiaoHang(new Date(data.ngayGiaoHang).toISOString().slice(0, 10));
+        }
         // Reload negotiations mới nhất
         const neg = await fetch(`/api/plan-finance/quotations/${id}/negotiations`);
         if (neg.ok) setNegotiations(await neg.json());
@@ -183,12 +233,12 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          loai: "system",
+          loai: "won",
           ngay: new Date().toISOString().slice(0, 10),
           nguoiThucHien: session?.user?.name ?? "Hệ thống",
-          ketQua: `Báo giá ${localQ.code} đã được đánh dấu Thành công. Nút Hợp đồng đã mở khoá.`,
+          ketQua: `Báo giá ${localQ.code} đã được đánh dấu Thành công. Dữ liệu sẽ tự động chuyển thành đơn hàng.`,
         }),
-      }).catch(() => {});
+      }).catch(() => { });
       setShowConfirmWon(false);
       await refetchQ(localQ.id);
       onDeleted?.(); // refresh list
@@ -196,6 +246,67 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
       setMarkingWon(false);
     }
   };
+
+  const handleNegotiationClick = async () => {
+    if (!localQ) return;
+    
+    if (localQ.trangThai !== "sent") {
+      try {
+        const res = await fetch(`/api/plan-finance/quotations/${localQ.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trangThai: "sent" }),
+        });
+        if (res.ok) {
+          // Ghi một log tự động
+          await fetch(`/api/plan-finance/quotations/${localQ.id}/negotiations`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              loai: "system",
+              ngay: new Date().toISOString().slice(0, 10),
+              nguoiThucHien: session?.user?.name ?? "Hệ thống",
+              ketQua: `Hệ thống tự động chuyển trạng thái báo giá sang "Đang thương thảo" khi bắt đầu thương thảo.`,
+            }),
+          }).catch(() => { });
+          
+          await refetchQ(localQ.id);
+          onDeleted?.(); // refresh list
+        }
+      } catch (err) {
+        console.error("Error setting status to sent:", err);
+      }
+    }
+  };
+
+  const handleUpdateStatus = async (status: string, statusLabel: string) => {
+    if (!localQ) return;
+    try {
+      const res = await fetch(`/api/plan-finance/quotations/${localQ.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trangThai: status }),
+      });
+      if (!res.ok) { alert("Cập nhật thất bại"); return; }
+      // Ghi lịch sử
+      await fetch(`/api/plan-finance/quotations/${localQ.id}/negotiations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          loai: "system",
+          ngay: new Date().toISOString().slice(0, 10),
+          nguoiThucHien: session?.user?.name ?? "Hệ thống",
+          ketQua: `Hệ thống tự động chuyển trạng thái báo giá sang "${statusLabel}".`,
+        }),
+      }).catch(() => { });
+      
+      await refetchQ(localQ.id);
+      onDeleted?.(); // refresh list
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
 
   if (!localQ) return null;
   const q2 = localQ; // alias for shorthand
@@ -205,6 +316,114 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
   const isHighPriority = q2.uuTien === "high";
   const fmt = (n: number) => n.toLocaleString("vi-VN");
   const qItems: any[] = Array.isArray(q2.items) ? q2.items : [];
+  const isCoQuayKe = q2.quoteType === "Có quầy kệ" && isSanitary;
+  const uniqueAreas = Array.from(new Set(qItems.map(it => {
+    try {
+      if (it.ghiChu) {
+        const parsed = JSON.parse(it.ghiChu);
+        return parsed.viTri || parsed.khuVuc || "Khu vực 1";
+      }
+    } catch (e) {}
+    return "Khu vực 1";
+  })));
+  const hasMultipleAreas = isCoQuayKe && uniqueAreas.length > 1;
+
+  const itemColumns: TableColumn<any>[] = isCoQuayKe ? [
+    {
+      header: "STT",
+      width: 50,
+      align: "center",
+      render: (it, idx) => <span>{idx + 1}</span>,
+    },
+    {
+      header: "Tên hàng hoá",
+      render: (it) => {
+        let viTri = "";
+        try {
+          if (it.ghiChu) {
+            const parsed = JSON.parse(it.ghiChu);
+            viTri = parsed.viTri || parsed.khuVuc || "";
+          }
+        } catch (e) {}
+        return (
+          <div>
+            <div style={{ fontWeight: 600, color: "var(--foreground)" }}>{it.tenHang}</div>
+            {hasMultipleAreas && viTri && (
+              <span style={{ fontSize: 11, color: "var(--primary)", fontWeight: 600, background: "rgba(59,130,246,0.08)", padding: "1px 5px", borderRadius: 4, display: "inline-block", marginTop: 4 }}>
+                {viTri}
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    ...(!hasMultipleAreas ? [{
+      header: "Vị trí",
+      width: 120,
+      render: (it: any) => {
+        let viTri = "";
+        try {
+          if (it.ghiChu) {
+            const parsed = JSON.parse(it.ghiChu);
+            if (parsed && typeof parsed === "object") {
+              viTri = parsed.viTri ?? "";
+            }
+          }
+        } catch (e) { }
+        return <span>{viTri || "—"}</span>;
+      },
+    }] : []),
+    {
+      header: "Quy cách",
+      width: 150,
+      render: (it) => <span style={{ color: "var(--muted-foreground)" }}>{it.donVi ?? "—"}</span>,
+    },
+    {
+      header: "Giá bán (đ)",
+      width: 120,
+      align: "right",
+      render: (it) => <span>{fmt(it.donGia)}</span>,
+    },
+    {
+      header: "Giá đại lý (đ)",
+      width: 130,
+      align: "right",
+      render: (it) => <span style={{ fontWeight: 700, color: "var(--primary)" }}>{fmt(it.thanhTien)}</span>,
+    },
+  ] : [
+    {
+      header: "Tên hàng hoá / Dịch vụ",
+      render: (it) => (
+        <div>
+          <div style={{ fontWeight: 600, color: "var(--foreground)" }}>{it.tenHang}</div>
+        </div>
+      ),
+    },
+    {
+      header: "ĐVT",
+      width: 80,
+      align: "right",
+      render: (it) => <span style={{ color: "var(--muted-foreground)" }}>{it.donVi ?? "—"}</span>,
+    },
+    {
+      header: "SL",
+      width: 60,
+      align: "right",
+      render: (it) => <span>{it.soLuong}</span>,
+    },
+    {
+      header: "Đơn giá (đ)",
+      width: 120,
+      align: "right",
+      render: (it) => <span>{fmt(it.donGia)}</span>,
+    },
+    {
+      header: "Thành tiền (đ)",
+      width: 130,
+      align: "right",
+      render: (it) => <span style={{ fontWeight: 700, color: "var(--primary)" }}>{fmt(it.thanhTien)}</span>,
+    },
+  ];
   const selType = ACT_TYPES.find(t => t.key === actType) ?? ACT_TYPES[0];
 
   return (
@@ -259,18 +478,22 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 12 }}>
             {[
               { icon: "bi-pencil", label: "Sửa", color: q2.trangThai === "won" ? "var(--muted-foreground)" : "var(--foreground)", bg: "var(--muted)", border: "var(--border)", disabled: q2.trangThai === "won", onClick: q2.trangThai !== "won" ? () => setShowEdit(true) : undefined },
-              { icon: "bi-trash3",             label: "Xoá",       color: isOwner ? "#ef4444" : "var(--muted-foreground)", bg: isOwner ? "rgba(239,68,68,0.08)" : "var(--muted)", border: isOwner ? "rgba(239,68,68,0.25)" : "var(--border)", disabled: !isOwner, onClick: isOwner ? () => setShowConfirmDelete(true) : undefined },
-              { icon: "bi-trophy", label: "Thành công", color: q2.trangThai === "won" ? "#10b981" : "var(--foreground)", bg: q2.trangThai === "won" ? "rgba(16,185,129,0.1)" : "var(--muted)", border: q2.trangThai === "won" ? "rgba(16,185,129,0.3)" : "var(--border)", disabled: q2.trangThai === "won", onClick: q2.trangThai !== "won" ? () => setShowConfirmWon(true) : undefined },
-              { icon: "bi-file-earmark-text", label: "Hợp đồng", color: q2.trangThai === "won" ? "#8b5cf6" : "var(--muted-foreground)", bg: q2.trangThai === "won" ? "rgba(139,92,246,0.08)" : "var(--muted)", border: q2.trangThai === "won" ? "rgba(139,92,246,0.25)" : "var(--border)", disabled: q2.trangThai !== "won", onClick: q2.trangThai === "won" ? () => setShowContract(true) : undefined },
+              { icon: "bi-trash3", label: "Xoá", color: "#ef4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.25)", disabled: false, onClick: () => setShowConfirmDelete(true) },
+              { icon: "bi-chat-left-text", label: "Thương thảo", color: "var(--foreground)", bg: "var(--muted)", border: "var(--border)", disabled: false, onClick: handleNegotiationClick },
+              { 
+                icon: markingWon ? "bi-arrow-repeat spin" : "bi-trophy", 
+                label: markingWon ? "Đang lưu..." : "Thành công", 
+                color: q2.trangThai === "won" ? "#10b981" : "var(--foreground)", 
+                bg: q2.trangThai === "won" ? "rgba(16,185,129,0.1)" : "var(--muted)", 
+                border: q2.trangThai === "won" ? "rgba(16,185,129,0.3)" : "var(--border)", 
+                disabled: q2.trangThai === "won" || markingWon || !ngayGiaoHang, 
+                onClick: (q2.trangThai !== "won" && !markingWon && ngayGiaoHang) ? () => setShowConfirmWon(true) : undefined 
+              },
             ].map(({ icon, label, color, bg, border, disabled, onClick }) => (
               <button key={label}
                 disabled={disabled}
                 onClick={onClick}
-                title={
-                  (label === "Xoá" && !isOwner) ? "Chỉ người tạo mới có thể xoá" :
-                  (label === "Hợp đồng" && q2.trangThai !== "won") ? "Chỉ mở khi báo giá Thành công" :
-                  undefined
-                }
+                title={undefined}
                 style={{
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
                   padding: "7px 4px", borderRadius: 8,
@@ -288,6 +511,52 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
             ))}
           </div>
 
+          {/* Dòng 3.5: Small status change buttons */}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 12 }}>
+            <button
+              disabled={q2.trangThai === "lost"}
+              onClick={() => handleUpdateStatus("lost", "Thất bại")}
+              style={{
+                height: 26, borderRadius: 7, border: "1px solid var(--border)",
+                background: "var(--muted)", cursor: q2.trangThai === "lost" ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 4, padding: "0 10px",
+                color: q2.trangThai === "lost" ? "var(--muted-foreground)" : "#ef4444",
+                fontSize: 12, fontWeight: 600, opacity: q2.trangThai === "lost" ? 0.6 : 1
+              }}
+            >
+              <i className="bi bi-x-circle" style={{ fontSize: 12 }} />
+              Thất bại
+            </button>
+            <button
+              disabled={q2.trangThai === "paused"}
+              onClick={() => handleUpdateStatus("paused", "Tạm dừng")}
+              style={{
+                height: 26, borderRadius: 7, border: "1px solid var(--border)",
+                background: "var(--muted)", cursor: q2.trangThai === "paused" ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 4, padding: "0 10px",
+                color: q2.trangThai === "paused" ? "var(--muted-foreground)" : "#f59e0b",
+                fontSize: 12, fontWeight: 600, opacity: q2.trangThai === "paused" ? 0.6 : 1
+              }}
+            >
+              <i className="bi bi-pause-circle" style={{ fontSize: 12 }} />
+              Tạm dừng
+            </button>
+            <button
+              disabled={q2.trangThai === "cancelled"}
+              onClick={() => handleUpdateStatus("cancelled", "Huỷ bỏ")}
+              style={{
+                height: 26, borderRadius: 7, border: "1px solid var(--border)",
+                background: "var(--muted)", cursor: q2.trangThai === "cancelled" ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 4, padding: "0 10px",
+                color: q2.trangThai === "cancelled" ? "var(--muted-foreground)" : "#6b7280",
+                fontSize: 12, fontWeight: 600, opacity: q2.trangThai === "cancelled" ? 0.6 : 1
+              }}
+            >
+              <i className="bi bi-slash-circle" style={{ fontSize: 12 }} />
+              Huỷ bỏ
+            </button>
+          </div>
+
           {/* Tabs */}
           <Tab tabs={OFFCANVAS_TABS} active={activeTab} onChange={setActiveTab} />
         </div>
@@ -300,29 +569,63 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
             <>
               {/* Card khách hàng */}
               {q2.customer && (
-                <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16, padding: "14px 16px", background: "color-mix(in srgb, var(--primary) 6%, transparent)", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)" }}>
-                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: "color-mix(in srgb, var(--primary) 20%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontWeight: 800, fontSize: 18, color: "var(--primary)" }}>
-                    {q2.customer.name.trim().split(" ").pop()?.[0]?.toUpperCase() ?? "?"}
-                  </div>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q2.customer.name}</p>
-                    {q2.customer.address && (
-                      <p style={{ margin: "0 0 2px", fontSize: 11.5, color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        <i className="bi bi-geo-alt" style={{ marginRight: 4 }} />{q2.customer.address}
-                      </p>
-                    )}
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      {q2.customer.dienThoai && (
-                        <span style={{ fontSize: 11.5, color: "var(--muted-foreground)" }}>
-                          <i className="bi bi-telephone" style={{ marginRight: 3 }} />{q2.customer.dienThoai}
-                        </span>
-                      )}
-                      {q2.customer.email && (
-                        <span style={{ fontSize: 11.5, color: "var(--muted-foreground)" }}>
-                          <i className="bi bi-envelope" style={{ marginRight: 3 }} />{q2.customer.email}
-                        </span>
-                      )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16, padding: "14px 16px", background: "color-mix(in srgb, var(--primary) 6%, transparent)", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: "50%", background: "color-mix(in srgb, var(--primary) 20%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontWeight: 800, fontSize: 18, color: "var(--primary)" }}>
+                      {q2.customer.name.trim().split(" ").pop()?.[0]?.toUpperCase() ?? "?"}
                     </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q2.customer.name}</p>
+                      {q2.customer.address && (
+                        <p style={{ margin: "0 0 2px", fontSize: 11.5, color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <i className="bi bi-geo-alt" style={{ marginRight: 4 }} />{q2.customer.address}
+                        </p>
+                      )}
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        {q2.customer.dienThoai && (
+                          <span style={{ fontSize: 11.5, color: "var(--muted-foreground)" }}>
+                            <i className="bi bi-telephone" style={{ marginRight: 3 }} />{q2.customer.dienThoai}
+                          </span>
+                        )}
+                        {q2.customer.email && (
+                          <span style={{ fontSize: 11.5, color: "var(--muted-foreground)" }}>
+                            <i className="bi bi-envelope" style={{ marginRight: 3 }} />{q2.customer.email}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Đường phân cách */}
+                  <div style={{ borderTop: "1px dashed color-mix(in srgb, var(--primary) 20%, transparent)" }} />
+                  
+                  {/* Ô ngày giao hàng */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", display: "flex", alignItems: "center", gap: 4 }}>
+                      <i className="bi bi-truck" style={{ color: "var(--primary)" }} />
+                      Ngày giao hàng <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <input 
+                      type="date" 
+                      value={ngayGiaoHang} 
+                      onChange={e => setNgayGiaoHang(e.target.value)}
+                      disabled={q2.trangThai === "won"}
+                      style={{ 
+                        width: "100%", 
+                        padding: "8px 12px", 
+                        borderRadius: 8, 
+                        border: "1px solid var(--border)", 
+                        background: q2.trangThai === "won" ? "var(--muted)" : "var(--background)", 
+                        color: q2.trangThai === "won" ? "var(--muted-foreground)" : "var(--foreground)", 
+                        fontSize: 13, 
+                        boxSizing: "border-box",
+                        outline: "none",
+                        cursor: q2.trangThai === "won" ? "not-allowed" : "text",
+                        transition: "border-color 0.2s"
+                      }}
+                      onFocus={e => { if (q2.trangThai !== "won") e.target.style.borderColor = "var(--primary)"; }}
+                      onBlur={e => { if (q2.trangThai !== "won") e.target.style.borderColor = "var(--border)"; }}
+                    />
                   </div>
                 </div>
               )}
@@ -404,26 +707,51 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
             ) : (
               <>
                 <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", marginBottom: 16 }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                    <thead>
-                      <tr style={{ background: "var(--muted)" }}>
-                        {["Tên hàng hoá / Dịch vụ", "ĐVT", "SL", "Đơn giá (đ)", "Thành tiền (đ)"].map(h => (
-                          <th key={h} style={{ padding: "8px 10px", textAlign: h === "Tên hàng hoá / Dịch vụ" ? "left" : "right", fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {qItems.map((it, idx) => (
-                        <tr key={it.id ?? idx} style={{ borderTop: "1px solid var(--border)", background: idx % 2 === 0 ? "transparent" : "color-mix(in srgb, var(--muted) 50%, transparent)" }}>
-                          <td style={{ padding: "8px 10px", fontWeight: 600, color: "var(--foreground)" }}>{it.tenHang}</td>
-                          <td style={{ padding: "8px 10px", textAlign: "right", color: "var(--muted-foreground)" }}>{it.donVi ?? "—"}</td>
-                          <td style={{ padding: "8px 10px", textAlign: "right" }}>{it.soLuong}</td>
-                          <td style={{ padding: "8px 10px", textAlign: "right", color: "var(--muted-foreground)" }}>{fmt(it.donGia)}</td>
-                          <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: "var(--primary)" }}>{fmt(it.thanhTien)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  {(() => {
+                    const renderedDetailTableRows: any[] = [];
+                    const detailAreaGroups: Record<string, any[]> = {};
+
+                    qItems.forEach(it => {
+                      let kv = "Khu vực 1";
+                      try {
+                        if (it.ghiChu) {
+                          const parsed = JSON.parse(it.ghiChu);
+                          if (parsed && typeof parsed === "object") {
+                            kv = parsed.khuVuc || "Khu vực 1";
+                          }
+                        }
+                      } catch (e) { }
+
+                      if (!detailAreaGroups[kv]) detailAreaGroups[kv] = [];
+                      detailAreaGroups[kv].push(it);
+                    });
+
+                    const sortedDetailAreaKeys = Object.keys(detailAreaGroups).sort((a, b) => {
+                      const numA = parseInt(a.replace("Khu vực ", ""), 10);
+                      const numB = parseInt(b.replace("Khu vực ", ""), 10);
+                      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                      return a.localeCompare(b);
+                    });
+
+                    sortedDetailAreaKeys.forEach(kv => {
+                      renderedDetailTableRows.push({
+                        id: `header-${kv}`,
+                        isFullWidth: true,
+                        fullWidthContent: kv,
+                      });
+                      renderedDetailTableRows.push(...detailAreaGroups[kv]);
+                    });
+
+                    return (
+                      <Table
+                        rows={renderedDetailTableRows}
+                        columns={itemColumns as any[]}
+                        striped={true}
+                        compact={true}
+                        rowKey={(r) => r.id ?? r.tenHang}
+                      />
+                    );
+                  })()}
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "10px 0" }}>
                   <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{qItems.length} mặt hàng &nbsp;·&nbsp; Tổng cộng:</span>
@@ -436,10 +764,10 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
           )}
         </div>
       </div>
-      <style>{`@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
+      <style>{`@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } .spin { animation: spin 0.8s linear infinite; display: inline-block; }`}</style>
 
-      {/* ── TaoBaoGia edit mode ── */}
-      <TaoBaoGia
+      {/* ── BaoGiaSanitaryModal edit mode ── */}
+      <BaoGiaSanitaryModal
         open={showEdit}
         onClose={() => setShowEdit(false)}
         customer={q2.customer ? {
@@ -465,9 +793,15 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
           tongTien: q2.tongTien ?? 0,
           thanhTien: q2.thanhTien,
           ghiChu: q2.ghiChu ?? null,
+          quoteType: q2.quoteType,
+          chiPhiThiCong: q2.chiPhiThiCong ?? 0,
+          file3DUrl: q2.file3DUrl,
+          fileDetailUrl: q2.fileDetailUrl,
+          fileLayoutUrl: q2.fileLayoutUrl,
           items: q2.items ?? [],
         } satisfies QuotationEditData}
         onSaved={() => { refetchQ(q2.id); onDeleted?.(); }}
+        type={(q2 as any).type ?? "agency"}
       />
 
       {/* ── Tạo hợp đồng ── */}
@@ -495,7 +829,7 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
               <p style={{ margin: "0 0 6px", fontWeight: 700, fontSize: 15, color: "var(--foreground)" }}>Xác nhận Thành công</p>
               <p style={{ margin: 0, fontSize: 13, color: "var(--muted-foreground)" }}>
                 Đánh dấu báo giá <strong style={{ color: "var(--foreground)" }}>{q2.code}</strong> là <strong style={{ color: "#10b981" }}>Thành công</strong>?<br />
-                Nút <strong>Hợp đồng</strong> sẽ được mở khoá.
+                Dữ liệu sẽ tự động chuyển thành đơn hàng.
               </p>
             </div>
             <div style={{ padding: "0 24px 20px", display: "flex", gap: 10 }}>
@@ -573,7 +907,7 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
             <div style={{ padding: "20px" }}>
               <p style={{ margin: "0 0 8px", fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Loại hoạt động</p>
               <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                {ACT_TYPES.map(t => (
+                {MANUAL_ACT_TYPES.map(t => (
                   <button key={t.key}
                     onClick={() => setActType(t.key)}
                     style={{

@@ -202,7 +202,7 @@ export function ProbationStep({ onFinalize }: { onFinalize?: () => void }) {
     <div className="d-flex flex-column h-100 mt-1">
       {/* Main Table */}
       <div className="bg-white rounded-3 shadow-sm flex-grow-1 overflow-hidden d-flex flex-column">
-        <div className="overflow-auto custom-scrollbar flex-grow-1">
+        <div className="overflow-auto custom-scrollbar flex-grow-1 app-responsive-table-wrapper">
           <table className="table table-hover align-middle mb-0" style={{ fontSize: "12.5px" }}>
             <thead>
               <tr>
@@ -378,7 +378,7 @@ export function ProbationStep({ onFinalize }: { onFinalize?: () => void }) {
         <>
           <div className="position-fixed top-0 start-0 end-0 bottom-0 bg-dark opacity-25" style={{ zIndex: 100004 }} onClick={() => setSelectedProbationCandidate(null)}></div>
           <div
-            className="position-fixed top-0 end-0 bottom-0 bg-white shadow-lg border-start d-flex flex-column"
+            className="position-fixed top-0 end-0 bottom-0 bg-white shadow-lg border-start d-flex flex-column app-custom-drawer"
             style={{ width: 400, zIndex: 100005, transition: "all 0.3s ease-in-out" }}
           >
             {/* Header */}

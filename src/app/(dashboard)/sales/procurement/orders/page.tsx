@@ -4,7 +4,7 @@ export default function PurchaseOrdersPage() {
   return (
     <div className="d-flex flex-column h-100">
       <PageHeader
-        title="Đơn mua hàng (PO)"
+        title="Đơn mua hàng"
         description="Quản lý tiến độ nhập hàng từ nhà cung cấp"
         icon="bi-cart-check"
         color="indigo"

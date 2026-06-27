@@ -11,14 +11,14 @@ import { BrandButton } from "@/components/ui/BrandButton";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { motion, AnimatePresence } from "framer-motion";
-import { WorkflowCard } from "@/components/ui/WorkflowCard";
-import { CreateRequestModal } from "./components/CreateRequestModal";
 import { IntegrationPanel } from "./components/IntegrationPanel";
 import { ProbationStep } from "./components/ProbationStep";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
 import { EmployeeAvatar } from "@/components/hr/EmployeeAvatar";
+import { WorkflowCard } from "@/components/ui/WorkflowCard";
+
 
 
 // --- TYPES ---
@@ -38,6 +38,14 @@ interface RecruitmentRequest {
   salaryMin?: number;
   salaryMax?: number;
   candidates?: Candidate[];
+  level?: string;
+  workType?: string;
+  experience?: string;
+  education?: string;
+  gender?: string;
+  ageMin?: string;
+  ageMax?: string;
+  skills?: string;
 }
 
 interface Candidate {
@@ -161,7 +169,6 @@ function RecruitmentContent() {
   const [isTopCVActive, setIsTopCVActive] = useState(false);
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
   const [editRequestData, setEditRequestData] = useState<RecruitmentRequest | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [scanLogs, setScanLogs] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'match' | 'date'>('match');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -190,6 +197,383 @@ function RecruitmentContent() {
   const [selectedReportCandidate, setSelectedReportCandidate] = useState<any | null>(null);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
+
+  // --- States for Fullscreen Offer Letter Editor ---
+  const [offerLetterOpen, setOfferLetterOpen] = useState(false);
+  const [offerLetterCandidateId, setOfferLetterCandidateId] = useState<string | null>(null);
+  const [offerLetterCandidateName, setOfferLetterCandidateName] = useState("");
+  const [offerLetterHtml, setOfferLetterHtml] = useState("");
+  const [offerLetterSubject, setOfferLetterSubject] = useState("");
+  const [offerLetterLoading, setOfferLetterLoading] = useState(false);
+  const [offerLetterSending, setOfferLetterSending] = useState(false);
+
+  // Offer Letter Form Fields
+  const [offerSalary, setOfferSalary] = useState("");
+  const [offerStartDate, setOfferStartDate] = useState("");
+  const [offerStartTime, setOfferStartTime] = useState("");
+  const [offerLocation, setOfferLocation] = useState("");
+  const [offerBenefits, setOfferBenefits] = useState("");
+  const [offerDeadline, setOfferDeadline] = useState("");
+  const [offerTemplateData, setOfferTemplateData] = useState<any>(null);
+
+  // Interview Invitation Form Fields
+  const [interviewIntro, setInterviewIntro] = useState("");
+  const [interviewClosing, setInterviewClosing] = useState("");
+  const [interviewNotesText, setInterviewNotesText] = useState("");
+  const [interviewTemplateData, setInterviewTemplateData] = useState<any>(null);
+  const [interviewDate, setInterviewDate] = useState("");
+  const [interviewLocation, setInterviewLocation] = useState("");
+  const [interviewContactName, setInterviewContactName] = useState("");
+  const [interviewContactEmail, setInterviewContactEmail] = useState("");
+
+  const getOfferHtmlTemplate = (data: any, salary: string, startDate: string, startTime: string, location: string, benefits: string, deadline: string) => {
+    return `
+      <div style="background-color: #f8fafc; padding: 40px 20px; font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; line-height: 1.6;">
+        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+          <div style="padding: 30px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+            ${(data.company?.logoUrl || data.logoUrl) ? `<img src="cid:company-logo-cid" alt="Logo" style="height: 50px; margin-bottom: 15px;">` : ""}
+            <h2 style="margin: 0; color: #003087; font-size: 20px; text-transform: uppercase;">Thư Mời Làm Việc</h2>
+          </div>
+          <div style="padding: 40px 30px;">
+            <p>Bạn <strong>${data.candidateName}</strong> thân mến,</p>
+            <p>Lời đầu tiên, chúng tôi vô cùng cảm ơn vì bạn đã quan tâm và dành thời gian ứng tuyển vị trí <strong>${data.position}</strong> tại công ty chúng tôi. Thông qua buổi phỏng vấn cũng như trao đổi, chúng tôi đánh giá cao kinh nghiệm và kỹ năng của bạn.</p>
+            <p>Bởi vậy, chúng tôi xin trân trọng mời bạn gia nhập vào đội ngũ công ty <strong>${data.companyName}</strong>, với vị trí <strong>${data.position}</strong>. Bạn vui lòng bắt đầu đến nhận việc vào <strong>${startDate}</strong>, từ <strong>${startTime}</strong>, tại <strong>${location}</strong>.</p>
+            <p>Như đã thỏa thuận, mức lương khởi điểm bạn sẽ nhận được là <strong>${salary}</strong>, kèm theo các chính sách hỗ trợ khác như <strong>${benefits}</strong>.</p>
+            <p>Bạn vui lòng xác nhận lại cho chúng tôi chậm nhất là sau <strong>${deadline}</strong>. Nếu có bất cứ thắc mắc nào, bạn hãy liên hệ với chúng tôi qua số điện thoại <strong>${data.companyPhone}</strong> hoặc email <strong>${data.companyEmail}</strong>.</p>
+            <p style="margin-top: 25px;">Chúng tôi rất mong đợi được đón tiếp bạn như một thành viên của đội ngũ. Xin chân thành cảm ơn bạn!</p>
+            <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #f1f5f9;">
+              <p style="margin: 0;">Trân trọng,</p>
+              <p style="margin: 5px 0; font-weight: bold; color: #003087;">${data.senderName}</p>
+            </div>
+          </div>
+          <div style="background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 12px;">
+            <p style="margin: 0;">📍 ${data.companyAddress}</p>
+            <p style="margin: 5px 0;">📞 ${data.companyPhone}</p>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  const getInterviewHtmlTemplate = (
+    data: any,
+    intro: string,
+    dateStr: string,
+    locationStr: string,
+    contactName: string,
+    contactEmail: string,
+    closing: string,
+    notes: string
+  ) => {
+    return `
+      <div style="background-color: #f6f9fc; padding: 40px 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid #e6ebf1;">
+          
+          <!-- Header with Branding -->
+          <div style="padding: 30px 20px; text-align: center; border-bottom: 1px solid #f0f4f8;">
+            ${(data.logoUrl || data.company?.logoUrl) ? `
+              <div style="margin-bottom: 15px;">
+                <img src="cid:company-logo-cid" alt="Logo" style="max-height: 60px; width: auto; display: inline-block; border: 0;">
+              </div>
+            ` : ""}
+            <div style="font-size: 16px; font-weight: 600; color: #003087; text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.3;">${data.companyName}</div>
+            ${data.companySlogan ? `<div style="font-size: 13px; color: #718096; font-style: italic; margin-top: 6px;">${data.companySlogan}</div>` : ""}
+          </div>
+
+          <!-- Banner -->
+          <div style="background: #003087; color: #ffffff; padding: 18px; text-align: center;">
+            <h1 style="margin: 0; font-size: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;">Thư Mời Phỏng Vấn</h1>
+          </div>
+
+          <!-- Body -->
+          <div style="padding: 35px 30px; color: #4a5568;">
+            <p style="font-size: 15px; margin-top: 0;">Xin chào <strong>${data.candidateNames}</strong>,</p>
+            
+            <p style="font-size: 14px; line-height: 1.7; white-space: pre-line;">${intro}</p>
+            
+            <!-- Information Box -->
+            <div style="background-color: #f8fafc; border-radius: 10px; padding: 22px; margin: 30px 0; border: 1px solid #edf2f7;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 6px 0; width: 30px; vertical-align: top;"><span style="font-size: 16px;">🕒</span></td>
+                  <td style="padding: 6px 0;"><strong style="color: #2d3748; font-size: 14px;">Thời gian:</strong><br><span style="color: #4a5568; font-size: 14px;">${dateStr}</span></td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; width: 30px; vertical-align: top;"><span style="font-size: 16px;">📍</span></td>
+                  <td style="padding: 6px 0;"><strong style="color: #2d3748; font-size: 14px;">Địa điểm:</strong><br><span style="color: #4a5568; font-size: 14px;">${locationStr}</span></td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; width: 30px; vertical-align: top;"><span style="font-size: 16px;">👤</span></td>
+                  <td style="padding: 6px 0;"><strong style="color: #2d3748; font-size: 14px;">Người liên hệ:</strong><br><span style="color: #4a5568; font-size: 14px;">${contactName} (${contactEmail})</span></td>
+                </tr>
+              </table>
+            </div>
+
+            <p style="font-size: 14px; line-height: 1.7; white-space: pre-line;">${closing}</p>
+            
+            ${notes ? `
+              <div style="background-color: #fffaf0; padding: 15px; border-radius: 8px; border-left: 4px solid #f6ad55; margin: 20px 0;">
+                <p style="margin: 0; font-size: 13px; color: #744210;"><strong>📝 Ghi chú từ nhà tuyển dụng:</strong><br>${notes}</p>
+              </div>
+            ` : ""}
+
+            <p style="margin-top: 30px; font-size: 14px;">Chúng tôi rất mong được gặp bạn!</p>
+            
+            <div style="margin-top: 45px; border-top: 1px solid #edf2f7; padding-top: 20px;">
+              <p style="margin: 0; font-size: 13px; color: #a0aec0;">Trân trọng,</p>
+              <p style="margin: 5px 0; font-size: 15px; font-weight: bold; color: #003087;">Ban Tuyển dụng ${data.companyName}</p>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f7fafc; padding: 30px 25px; text-align: center; border-top: 1px solid #edf2f7;">
+            ${data.companyAddress ? `<p style="margin: 0 0 8px 0; font-size: 12px; color: #718096; line-height: 1.5;">📍 ${data.companyAddress}</p>` : ""}
+            <p style="margin: 0; font-size: 12px; color: #718096;">
+              ${data.companyPhone ? `📞 ${data.companyPhone}` : ""} 
+              ${data.companyWebsite ? ` &nbsp;|&nbsp; 🌐 ${data.companyWebsite}` : ""}
+              ${data.fromEmail ? ` &nbsp;|&nbsp; 📧 ${data.fromEmail}` : ""}
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  useEffect(() => {
+    if (offerTemplateData) {
+      const html = getOfferHtmlTemplate(offerTemplateData, offerSalary, offerStartDate, offerStartTime, offerLocation, offerBenefits, offerDeadline);
+      setOfferLetterHtml(html);
+    }
+  }, [offerSalary, offerStartDate, offerStartTime, offerLocation, offerBenefits, offerDeadline, offerTemplateData]);
+
+  useEffect(() => {
+    if (interviewTemplateData) {
+      const html = getInterviewHtmlTemplate(
+        interviewTemplateData,
+        interviewIntro,
+        interviewDate,
+        interviewLocation,
+        interviewContactName,
+        interviewContactEmail,
+        interviewClosing,
+        interviewNotesText
+      );
+      setInterviewEmailHtml(html);
+    }
+  }, [
+    interviewIntro,
+    interviewDate,
+    interviewLocation,
+    interviewContactName,
+    interviewContactEmail,
+    interviewClosing,
+    interviewNotesText,
+    interviewTemplateData
+  ]);
+
+
+  // --- States for Fullscreen Interview Invitation Editor ---
+  const [interviewEmailOpen, setInterviewEmailOpen] = useState(false);
+  const [interviewEmailHtml, setInterviewEmailHtml] = useState("");
+  const [interviewEmailSubject, setInterviewEmailSubject] = useState("");
+  const [interviewEmailLoading, setInterviewEmailLoading] = useState(false);
+  const [interviewEmailSending, setInterviewEmailSending] = useState(false);
+  const [interviewEmailData, setInterviewEmailData] = useState<any>(null);
+
+  // --- WYSIWYG Editor Refs ---
+  const offerEditorRef = useRef<HTMLDivElement>(null);
+  const interviewEditorRef = useRef<HTMLDivElement>(null);
+
+  // Initialize offer letter WYSIWYG editor when loading completes or html changes
+  useEffect(() => {
+    if (!offerLetterLoading && offerEditorRef.current && offerLetterHtml) {
+      const logoPath = offerTemplateData?.company?.logoUrl || offerTemplateData?.logoUrl || '';
+      const cleanLogoPath = logoPath ? (logoPath.startsWith('/') ? logoPath : `/${logoPath}`) : '';
+      const html = cleanLogoPath
+        ? offerLetterHtml.replace('cid:company-logo-cid', cleanLogoPath)
+        : offerLetterHtml.replace('cid:company-logo-cid', '');
+      if (offerEditorRef.current.innerHTML !== html) {
+        offerEditorRef.current.innerHTML = html;
+      }
+    }
+  }, [offerLetterLoading, offerLetterHtml, offerTemplateData]);
+
+  // Initialize interview email WYSIWYG editor when loading completes or html changes
+  useEffect(() => {
+    if (!interviewEmailLoading && interviewEditorRef.current && interviewEmailHtml) {
+      const logoPath = interviewTemplateData?.company?.logoUrl || interviewTemplateData?.logoUrl || '';
+      const cleanLogoPath = logoPath ? (logoPath.startsWith('/') ? logoPath : `/${logoPath}`) : '';
+      const html = cleanLogoPath
+        ? interviewEmailHtml.replace('cid:company-logo-cid', cleanLogoPath)
+        : interviewEmailHtml.replace('cid:company-logo-cid', '');
+      if (interviewEditorRef.current.innerHTML !== html) {
+        interviewEditorRef.current.innerHTML = html;
+      }
+    }
+  }, [interviewEmailLoading, interviewEmailHtml, interviewTemplateData]);
+
+  const openInterviewEmailModal = async (data: any) => {
+    setInterviewEmailData(data);
+    setInterviewEmailOpen(true);
+    setInterviewEmailLoading(true);
+    try {
+      const res = await fetch("/api/hr/candidates/schedule-interview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, candidateIds: selectedCandidateIds, draftOnly: true })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Không thể tải thư mời");
+      setInterviewEmailSubject(result.subject || "");
+      
+      setInterviewIntro(result.defaultIntro || "");
+      setInterviewClosing(result.defaultClosing || "");
+      setInterviewNotesText(result.notes || "");
+      setInterviewDate(result.formattedDate || "");
+      setInterviewLocation(result.location || "");
+      setInterviewContactName(result.fromName || "");
+      setInterviewContactEmail(result.fromEmail || "");
+      setInterviewTemplateData(result);
+
+      // Use html directly from API (contains cid:company-logo-cid which gets replaced for display)
+      setInterviewEmailHtml(result.html || "");
+    } catch (err: any) {
+      toastError("Lỗi", err.message || "Không thể tải mẫu thư mời");
+      setInterviewEmailOpen(false);
+    } finally {
+      setInterviewEmailLoading(false);
+    }
+  };
+
+  const handleSendCustomInterviewEmail = async () => {
+    if (!interviewEmailData) return;
+    setInterviewEmailSending(true);
+    try {
+      // Read edited HTML from contenteditable ref
+      const editedHtml = interviewEditorRef.current?.innerHTML || interviewEmailHtml;
+      // Restore cid: for proper email attachment handling
+      const logoPath = interviewTemplateData?.company?.logoUrl || interviewTemplateData?.logoUrl || '';
+      const cleanLogoPath = logoPath ? (logoPath.startsWith('/') ? logoPath : `/${logoPath}`) : '';
+      
+      let sendHtml = editedHtml;
+      if (cleanLogoPath) {
+        sendHtml = sendHtml.replaceAll(cleanLogoPath, 'cid:company-logo-cid');
+        const dbPath = logoPath.startsWith('/') ? logoPath.substring(1) : logoPath;
+        sendHtml = sendHtml.replaceAll(`/${logoPath}`, 'cid:company-logo-cid');
+        sendHtml = sendHtml.replaceAll(`//${dbPath}`, 'cid:company-logo-cid');
+      }
+
+      const res = await fetch("/api/hr/candidates/schedule-interview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...interviewEmailData,
+          candidateIds: selectedCandidateIds,
+          customHtml: sendHtml,
+          customSubject: interviewEmailSubject
+        })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Không thể gửi thư mời");
+
+      // Update request status to Interviewing
+      const scheduledCands = requests.flatMap(r => r.candidates || []).filter(c => selectedCandidateIds.includes(c.id));
+      const uniqueRequestIds = Array.from(new Set(scheduledCands.map(c => c.requestId).filter(Boolean)));
+      await Promise.all(uniqueRequestIds.map(async (reqId) => {
+        await fetch(`/api/hr/recruitment/${reqId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "Interviewing" })
+        });
+      }));
+
+      success("Thành công", "Đã lên lịch phỏng vấn và gửi thư mời!");
+      setInterviewEmailOpen(false);
+      setShowInterviewModal(false);
+      setSelectedCandidateIds([]);
+      fetchRequests();
+    } catch (err: any) {
+      toastError("Lỗi", err.message || "Đã có lỗi xảy ra");
+    } finally {
+      setInterviewEmailSending(false);
+    }
+  };
+
+  const openOfferLetterModal = async (candidateId: string, candidateName: string) => {
+    setOfferLetterCandidateId(candidateId);
+    setOfferLetterCandidateName(candidateName);
+    setOfferLetterOpen(true);
+    setOfferLetterLoading(true);
+    try {
+      const res = await fetch("/api/hr/candidates/send-offer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidateId, draftOnly: true })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Không thể tải thư mời");
+      setOfferLetterSubject(data.subject || "");
+      
+      setOfferSalary(data.salary || "");
+      setOfferStartDate(data.startDate || "");
+      setOfferStartTime(data.startTime || "");
+      setOfferLocation(data.location || "");
+      setOfferBenefits(data.benefits || "");
+      setOfferDeadline(data.deadline || "");
+      setOfferTemplateData(data);
+
+      // Use html directly from API (contains cid:company-logo-cid which gets replaced for display)
+      setOfferLetterHtml(data.html || "");
+    } catch (err: any) {
+      toastError("Lỗi", err.message || "Không thể tải mẫu thư mời");
+      setOfferLetterOpen(false);
+    } finally {
+      setOfferLetterLoading(false);
+    }
+  };
+
+  const handleSendCustomOffer = async () => {
+    if (!offerLetterCandidateId) return;
+    setOfferLetterSending(true);
+    try {
+      // Read edited HTML from contenteditable ref
+      const editedHtml = offerEditorRef.current?.innerHTML || offerLetterHtml;
+      // Restore cid: for proper email attachment handling
+      const logoPath = offerTemplateData?.company?.logoUrl || offerTemplateData?.logoUrl || '';
+      const cleanLogoPath = logoPath ? (logoPath.startsWith('/') ? logoPath : `/${logoPath}`) : '';
+      
+      let sendHtml = editedHtml;
+      if (cleanLogoPath) {
+        sendHtml = sendHtml.replaceAll(cleanLogoPath, 'cid:company-logo-cid');
+        const dbPath = logoPath.startsWith('/') ? logoPath.substring(1) : logoPath;
+        sendHtml = sendHtml.replaceAll(`/${logoPath}`, 'cid:company-logo-cid');
+        sendHtml = sendHtml.replaceAll(`//${dbPath}`, 'cid:company-logo-cid');
+      }
+
+      const res = await fetch("/api/hr/candidates/send-offer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateId: offerLetterCandidateId,
+          customHtml: sendHtml,
+          customSubject: offerLetterSubject
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Không thể gửi thư mời");
+      
+      success("Thành công", "Đã gửi thư mời nhận việc!");
+      setOfferLetterOpen(false);
+      fetchReportData();
+      if (selectedReportCandidate?.id === offerLetterCandidateId) {
+        setSelectedReportCandidate((prev: any) => prev ? { ...prev, status: "Đã gửi thư mời" } : null);
+      }
+    } catch (err: any) {
+      toastError("Lỗi", err.message || "Đã có lỗi xảy ra");
+    } finally {
+      setOfferLetterSending(false);
+    }
+  };
 
 
   const [isAddCandidateModalOpen, setIsAddCandidateModalOpen] = useState(false);
@@ -247,6 +631,14 @@ function RecruitmentContent() {
     const savedToken = localStorage.getItem("topcv_access_token");
     if (savedToken) setTopcvToken(savedToken);
     fetchCompanyInfo();
+
+    const handleRefresh = () => {
+      fetchRequests();
+    };
+    window.addEventListener("candidate-status-updated", handleRefresh);
+    return () => {
+      window.removeEventListener("candidate-status-updated", handleRefresh);
+    };
   }, []);
 
   const fetchCompanyInfo = async () => {
@@ -348,7 +740,7 @@ function RecruitmentContent() {
       });
 
       // Update the status of the related requests to 'Submitting'
-      const uniqueRequestIds = Array.from(new Set(selectedCands.map(c => c.requestId)));
+      const uniqueRequestIds = Array.from(new Set(selectedCands.map(c => c.requestId).filter(Boolean)));
       await Promise.all(uniqueRequestIds.map(async (reqId) => {
         await fetch(`/api/hr/recruitment/${reqId}`, {
           method: "PATCH",
@@ -626,16 +1018,13 @@ function RecruitmentContent() {
   };
 
   const handleEdit = (request: RecruitmentRequest) => {
-    setEditRequestData(request);
-    setIsCreateModalOpen(true);
-    setSelectedRequest(null);
+    router.push(`/my/recruitment?id=${request.id}`);
   };
 
   const renderRequestOffcanvas = () => {
     if (!mounted || !selectedRequest) return null;
     let reqs: any = {};
     try {
-      let reqs: any = {};
       if (typeof selectedRequest.requirements === 'string' && selectedRequest.requirements.trim()) {
         try {
           reqs = JSON.parse(selectedRequest.requirements);
@@ -652,7 +1041,7 @@ function RecruitmentContent() {
         {selectedRequest && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedRequest(null)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.2)", zIndex: 1050 }} />
-            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ duration: 0.25 }} style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 400, background: "#fff", zIndex: 1051, display: "flex", flexDirection: "column", boxShadow: "-4px 0 16px rgba(0,0,0,0.1)" }}>
+            <motion.div className="app-custom-drawer" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ duration: 0.25 }} style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 400, background: "#fff", zIndex: 1051, display: "flex", flexDirection: "column", boxShadow: "-4px 0 16px rgba(0,0,0,0.1)" }}>
               <div className="px-4 py-3 border-bottom d-flex justify-content-between align-items-center bg-light bg-opacity-50">
                 <div className="d-flex align-items-center gap-3">
                   <h6 className="mb-0 fw-bold">Chi tiết yêu cầu</h6>
@@ -666,15 +1055,21 @@ function RecruitmentContent() {
 
                 <div className="bg-light p-3 rounded-3 mb-4 border">
                   <div className="row g-2">
-                    <div className="col-6 mb-2"><span className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Cấp bậc:</span><span className="fw-bold" style={{ fontSize: "0.82rem" }}>{reqs.rank || "Nhân viên"}</span></div>
-                    <div className="col-6 mb-2"><span className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Hình thức:</span><span className="fw-bold" style={{ fontSize: "0.82rem" }}>{reqs.workType || "Toàn thời gian"}</span></div>
+                    <div className="col-6 mb-2"><span className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Cấp bậc:</span><span className="fw-bold" style={{ fontSize: "0.82rem" }}>{selectedRequest.level || reqs.level || reqs.rank || "Nhân viên"}</span></div>
+                    <div className="col-6 mb-2"><span className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Hình thức:</span><span className="fw-bold" style={{ fontSize: "0.82rem" }}>{selectedRequest.workType || reqs.workType || "Toàn thời gian"}</span></div>
                     <div className="col-6 mb-2"><span className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Số lượng:</span><span className="fw-bold" style={{ fontSize: "0.82rem" }}>{selectedRequest.quantity} người</span></div>
                     <div className="col-6 mb-2">
                       <span className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Mức lương:</span>
                       <span className="fw-bold text-success" style={{ fontSize: "0.82rem" }}>
                         {selectedRequest.salaryMin && selectedRequest.salaryMax
-                          ? `${Number(selectedRequest.salaryMin).toLocaleString()} - ${Number(selectedRequest.salaryMax).toLocaleString()}`
-                          : (reqs.salaryRange || "Thỏa thuận")}
+                          ? `${Number(selectedRequest.salaryMin).toLocaleString("vi-VN")} - ${Number(selectedRequest.salaryMax).toLocaleString("vi-VN")} VNĐ`
+                          : (selectedRequest.salaryMin 
+                              ? `${Number(selectedRequest.salaryMin).toLocaleString("vi-VN")} VNĐ`
+                              : (selectedRequest.salaryMax
+                                  ? `${Number(selectedRequest.salaryMax).toLocaleString("vi-VN")} VNĐ`
+                                  : (reqs.salaryRange || "Thỏa thuận")
+                                )
+                            )}
                       </span>
                     </div>
                     <div className="col-6"><span className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Ngày yêu cầu:</span><span className="fw-bold" style={{ fontSize: "0.82rem" }}>{reqs.requestDate || new Date(selectedRequest.date).toLocaleDateString("vi-VN")}</span></div>
@@ -687,19 +1082,19 @@ function RecruitmentContent() {
                   <div className="row g-3 mb-3">
                     <div className="col-6">
                       <span className="text-muted d-block mb-1" style={{ fontSize: "0.75rem" }}>Kinh nghiệm</span>
-                      <div className="fw-bold" style={{ fontSize: "0.82rem" }}>{reqs.experience || "Không yêu cầu"}</div>
+                      <div className="fw-bold" style={{ fontSize: "0.82rem" }}>{selectedRequest.experience || reqs.experience || "Không yêu cầu"}</div>
                     </div>
                     <div className="col-6">
                       <span className="text-muted d-block mb-1" style={{ fontSize: "0.75rem" }}>Trình độ</span>
-                      <div className="fw-bold" style={{ fontSize: "0.82rem" }}>{reqs.education || "Không yêu cầu"}</div>
+                      <div className="fw-bold" style={{ fontSize: "0.82rem" }}>{selectedRequest.education || reqs.education || "Không yêu cầu"}</div>
                     </div>
                     <div className="col-6">
                       <span className="text-muted d-block mb-1" style={{ fontSize: "0.75rem" }}>Độ tuổi</span>
-                      <div className="fw-bold" style={{ fontSize: "0.82rem" }}>{reqs.ageRange || "Không yêu cầu"}</div>
+                      <div className="fw-bold" style={{ fontSize: "0.82rem" }}>{selectedRequest.ageMin && selectedRequest.ageMax ? `${selectedRequest.ageMin} - ${selectedRequest.ageMax} tuổi` : (reqs.ageRange || "Không yêu cầu")}</div>
                     </div>
                     <div className="col-6">
                       <span className="text-muted d-block mb-1" style={{ fontSize: "0.75rem" }}>Giới tính</span>
-                      <div className="fw-bold" style={{ fontSize: "0.82rem" }}>{reqs.gender || "Tất cả"}</div>
+                      <div className="fw-bold" style={{ fontSize: "0.82rem" }}>{selectedRequest.gender || reqs.gender || "Tất cả"}</div>
                     </div>
                   </div>
                 </div>
@@ -719,7 +1114,7 @@ function RecruitmentContent() {
                   <div>
                     <h6 className="fw-bold mb-2 text-primary" style={{ fontSize: "0.85rem" }}>Yêu cầu ứng viên</h6>
                     <div className="mb-0 text-dark" style={{ lineHeight: "1.6", whiteSpace: "pre-wrap", fontSize: "0.82rem" }}>
-                      {(reqs.requirementsText || "Không có yêu cầu đặc biệt.").split('\n').map((line: string, i: number) => (
+                      {(reqs.requirementsText || reqs.requirements || reqs.note || (typeof selectedRequest.requirements === 'string' && !selectedRequest.requirements.startsWith('{') ? selectedRequest.requirements : "") || "Không có yêu cầu đặc biệt.").split('\n').map((line: string, i: number) => (
                         <div key={i} className="d-flex gap-2 mb-1">
                           <span className="text-primary">•</span>
                           <span>{line}</span>
@@ -829,6 +1224,7 @@ function RecruitmentContent() {
               exit={{ x: "100%" }}
               transition={{ duration: 0.25, ease: "easeOut" }}
               style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 400, background: "#fff", zIndex: 1051, boxShadow: "-4px 0 16px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column" }}
+              className="app-custom-drawer"
             >
               <div className="px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
                 <h6 className="mb-0 fw-bold">Hồ sơ ứng viên thực tế</h6>
@@ -1005,170 +1401,346 @@ function RecruitmentContent() {
         <WorkflowCard
           className="h-100 d-flex flex-column"
           contentPadding="p-0"
-          toolbar={null}
-          stepper={null}
-          bottomToolbar={
-            <div className="d-flex align-items-center justify-content-between w-100 px-3" style={{ minHeight: 48 }}>
-              <div className="d-flex align-items-center gap-2">
-                {step === 1 && (
-                  <>
-                    <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Tìm kiếm yêu cầu..." className="border-0 shadow-sm" style={{ width: 250 }} />
+          toolbar={
+            <div className="w-100 px-3 py-2 border-bottom bg-white" style={{ fontFamily: "var(--font-roboto-condensed)", minHeight: "auto" }}>
+              {/* Desktop layout: >= 576px */}
+              <div className="d-none d-sm-flex align-items-center justify-content-between gap-2">
+                <div className="d-flex flex-wrap align-items-center gap-2">
+                  {step === 1 && (
+                    <>
+                      <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Tìm kiếm yêu cầu..." className="border-0 shadow-sm" style={{ width: 250 }} />
+                      <FilterSelect
+                        value={deptFilter}
+                        onChange={setDeptFilter}
+                        placeholder="Phòng ban: Tất cả"
+                        width={180}
+                        className="border-0 shadow-sm"
+                        options={Array.from(new Set(requests.map(r => r.department))).filter(Boolean).map(d => ({ value: d, label: d }))}
+                      />
+                      <FilterSelect
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                        placeholder="Trạng thái: Tất cả"
+                        width={180}
+                        className="border-0 shadow-sm"
+                        options={[
+                          { value: "Approved", label: "Đã duyệt" },
+                          { value: "Recruiting", label: "Đang tìm ứng viên" },
+                          { value: "Interviewing", label: "Chờ phỏng vấn" },
+                          { value: "Submitting", label: "Đang trình duyệt" },
+                          { value: "Hired", label: "Đã tuyển dụng" },
+                          { value: "Completed", label: "Hoàn thành" }
+                        ]}
+                      />
+                    </>
+                  )}
+                  {step === 2 && (
+                    <>
+                      <FilterSelect
+                        value={candidatePositionFilter}
+                        onChange={setCandidatePositionFilter}
+                        placeholder="Tất cả vị trí"
+                        width={180}
+                        className="border-0 shadow-sm"
+                        options={Array.from(new Set((requests || []).filter(r => r.status !== "Pending" && r.status !== "Rejected").map(r => r.position))).map(pos => ({
+                          value: pos,
+                          label: pos
+                        }))}
+                      />
+                      <FilterSelect
+                        value={candidateStatusFilter}
+                        onChange={setCandidateStatusFilter}
+                        placeholder="Tất cả trạng thái"
+                        width={180}
+                        className="border-0 shadow-sm"
+                        options={[
+                          { value: "New", label: "Mới" },
+                          { value: "Unclassified", label: "Đang rà soát" },
+                          { value: "Qualified", label: "Phù hợp" },
+                          { value: "DeptReview", label: "Chờ chuyên môn duyệt" },
+                          { value: "DeptApproved", label: "Chuyên môn đã duyệt" },
+                          { value: "Interviewing", label: "Đang phỏng vấn" },
+                          { value: "Submitting", label: "Đang trình Giám đốc" },
+                          { value: "Đã gửi thư mời", label: "Đã gửi thư mời" },
+                          { value: "Đã nhận việc", label: "Đã nhận việc" },
+                          { value: "Đang thử việc", label: "Đang thử việc" },
+                          { value: "Đã chuyển thành nhân viên", label: "Đã vào làm" },
+                          { value: "Rejected", label: "Không phù hợp (Sơ loại)" },
+                          { value: "DeptRejected", label: "Chuyên môn từ chối" },
+                          { value: "RejectedHiring", label: "Giám đốc từ chối tuyển" },
+                          { value: "Không nhận việc", label: "Ứng viên không nhận việc" },
+                        ]}
+                      />
+                    </>
+                  )}
+                  {step === 4 && (
                     <FilterSelect
-                      value={deptFilter}
-                      onChange={setDeptFilter}
-                      placeholder="Phòng ban: Tất cả"
-                      width={180}
-                      className="border-0 shadow-sm"
-                      options={Array.from(new Set(requests.map(r => r.department))).filter(Boolean).map(d => ({ value: d, label: d }))}
-                    />
-                    <FilterSelect
-                      value={statusFilter}
-                      onChange={setStatusFilter}
-                      placeholder="Trạng thái: Tất cả"
-                      width={180}
-                      className="border-0 shadow-sm"
-                      options={[
-                        { value: "Approved", label: "Đã duyệt" },
-                        { value: "Recruiting", label: "Đang tìm ứng viên" },
-                        { value: "Interviewing", label: "Chờ phỏng vấn" },
-                        { value: "Submitting", label: "Đang trình duyệt" },
-                        { value: "Hired", label: "Đã tuyển dụng" },
-                        { value: "Completed", label: "Hoàn thành" }
-                      ]}
-                    />
-                  </>
-                )}
-                {step === 2 && (
-                  <>
-                    <FilterSelect
-                      value={candidatePositionFilter}
-                      onChange={setCandidatePositionFilter}
+                      value={reportPositionFilter}
+                      onChange={setReportPositionFilter}
                       placeholder="Tất cả vị trí"
-                      width={180}
+                      width={200}
                       className="border-0 shadow-sm"
-                      options={Array.from(new Set((requests || []).filter(r => r.status !== "Pending" && r.status !== "Rejected").map(r => r.position))).map(pos => ({
+                      options={Array.from(new Set(reportCandidates.map(c => c.position))).map(pos => ({
                         value: pos,
                         label: pos
                       }))}
                     />
-                    <FilterSelect
-                      value={candidateStatusFilter}
-                      onChange={setCandidateStatusFilter}
-                      placeholder="Tất cả trạng thái"
-                      width={180}
-                      className="border-0 shadow-sm"
-                      options={[
-                        { value: "New", label: "Mới" },
-                        { value: "Unclassified", label: "Đang rà soát" },
-                        { value: "Qualified", label: "Phù hợp" },
-                        { value: "DeptReview", label: "Chờ chuyên môn duyệt" },
-                        { value: "DeptApproved", label: "Chuyên môn đã duyệt" },
-                        { value: "Interviewing", label: "Đang phỏng vấn" },
-                        { value: "Submitting", label: "Đang trình Giám đốc" },
-                        { value: "Đã gửi thư mời", label: "Đã gửi thư mời" },
-                        { value: "Đã nhận việc", label: "Đã nhận việc" },
-                        { value: "Đang thử việc", label: "Đang thử việc" },
-                        { value: "Đã chuyển thành nhân viên", label: "Đã vào làm" },
-                        { value: "Rejected", label: "Không phù hợp (Sơ loại)" },
-                        { value: "DeptRejected", label: "Chuyên môn từ chối" },
-                        { value: "RejectedHiring", label: "Giám đốc từ chối tuyển" },
-                        { value: "Không nhận việc", label: "Ứng viên không nhận việc" },
-                      ]}
-                    />
-                  </>
-                )}
-                {step === 4 && (
-                  <FilterSelect
-                    value={reportPositionFilter}
-                    onChange={setReportPositionFilter}
-                    placeholder="Tất cả vị trí"
-                    width={200}
-                    className="border-0 shadow-sm"
-                    options={Array.from(new Set(reportCandidates.map(c => c.position))).map(pos => ({
-                      value: pos,
-                      label: pos
-                    }))}
-                  />
-                )}
-              </div>
+                  )}
+                </div>
 
-              <div className="d-flex align-items-center gap-3">
-                {step === 2 && (
-                  <div className="d-flex gap-2 align-items-center me-2">
-                    <div className="d-flex align-items-center gap-2 border rounded-pill px-3 py-1 bg-white shadow-sm">
-                      <div className="form-check form-switch mb-0">
-                        <input className="form-check-input" type="checkbox" id="topcvSwitch" checked={isTopCVActive} onChange={(e) => setIsTopCVActive(e.target.checked)} />
-                        <label className="small fw-bold text-muted ms-1" htmlFor="topcvSwitch" style={{ fontSize: "10px" }}>TopCV</label>
+                <div className="d-flex align-items-center gap-3">
+                  {step === 2 && (
+                    <div className="d-flex gap-2 align-items-center me-2">
+                      <div className="d-flex align-items-center gap-2 border rounded-pill px-3 py-1 bg-white shadow-sm">
+                        <div className="form-check form-switch mb-0">
+                          <input className="form-check-input" type="checkbox" id="topcvSwitch" checked={isTopCVActive} onChange={(e) => setIsTopCVActive(e.target.checked)} />
+                          <label className="small fw-bold text-muted ms-1" htmlFor="topcvSwitch" style={{ fontSize: "10px" }}>TopCV</label>
+                        </div>
+                        <div className="form-check form-switch mb-0 ms-2">
+                          <input className="form-check-input" type="checkbox" id="vl24hSwitch" checked={isVieclam24hActive} onChange={(e) => setIsVieclam24hActive(e.target.checked)} />
+                          <label className="small fw-bold text-muted ms-1" htmlFor="vl24hSwitch" style={{ fontSize: "10px" }}>VL24h</label>
+                        </div>
                       </div>
-                      <div className="form-check form-switch mb-0 ms-2">
-                        <input className="form-check-input" type="checkbox" id="vl24hSwitch" checked={isVieclam24hActive} onChange={(e) => setIsVieclam24hActive(e.target.checked)} />
-                        <label className="small fw-bold text-muted ms-1" htmlFor="vl24hSwitch" style={{ fontSize: "10px" }}>VL24h</label>
-                      </div>
-                    </div>
-                    <BrandButton
-                      onClick={handleAIScan}
-                      loading={isScanning}
-                      variant="outline"
-                      icon="bi-magic"
-                    >
-                      Agent Quét
-                    </BrandButton>
-                    {selectedCandidateIds.length > 0 && (
                       <BrandButton
-                        onClick={handleSendToDeptReview}
-                        icon="bi-send-check-fill"
-                        style={{ backgroundColor: "#198754", borderColor: "#198754" }}
-                        disabled={selectedCandidateIds.some(id => {
-                          const cand = requests.flatMap(r => r.candidates || []).find(c => c.id === id);
-                          return cand?.status === "DeptApproved";
-                        })}
+                        onClick={handleAIScan}
+                        loading={isScanning}
+                        variant="outline"
+                        icon="bi-magic"
                       >
-                        Chuyển duyệt ({selectedCandidateIds.length})
+                        Agent Quét
                       </BrandButton>
-                    )}
+                      {selectedCandidateIds.length > 0 && (
+                        <BrandButton
+                          onClick={handleSendToDeptReview}
+                          icon="bi-send-check-fill"
+                          style={{ backgroundColor: "#198754", borderColor: "#198754" }}
+                          disabled={selectedCandidateIds.some(id => {
+                            const cand = requests.flatMap(r => r.candidates || []).find(c => c.id === id);
+                            return cand?.status === "DeptApproved";
+                          })}
+                        >
+                          Chuyển duyệt ({selectedCandidateIds.length})
+                        </BrandButton>
+                      )}
+                      <BrandButton
+                        onClick={() => {
+                          setEditingCandidate(null);
+                          setIsAddCandidateModalOpen(true);
+                        }}
+                        icon="bi-person-plus-fill"
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        Thêm ứng viên
+                      </BrandButton>
+                    </div>
+                  )}
+
+                  {step === 1 && (
                     <BrandButton
-                      onClick={() => {
-                        setEditingCandidate(null);
-                        setIsAddCandidateModalOpen(true);
-                      }}
-                      icon="bi-person-plus-fill"
+                      onClick={() => router.push("/my/recruitment")}
+                      icon="bi-plus-lg"
                       style={{ whiteSpace: "nowrap" }}
                     >
-                      Thêm ứng viên
+                      Tạo yêu cầu
                     </BrandButton>
-                  </div>
+                  )}
+
+                  {step === 4 && (
+                    <BrandButton
+                      onClick={() => setShowPrintPreview(true)}
+                      disabled={selectedReportIds.length === 0}
+                      icon="bi-printer"
+                      style={{ whiteSpace: "nowrap" }}
+                    >
+                      In báo cáo ({selectedReportIds.length})
+                    </BrandButton>
+                  )}
+                </div>
+              </div>
+
+              {/* Mobile layout: < 576px */}
+              <div className="d-flex d-sm-none flex-column gap-2">
+                {step === 1 && (
+                  <>
+                    {/* Line 1: Dept filter (50%) + Status filter (50%) */}
+                    <div className="d-flex gap-2 w-100">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <FilterSelect
+                          value={deptFilter}
+                          onChange={setDeptFilter}
+                          placeholder="Phòng ban: Tất cả"
+                          width="100%"
+                          className="border-0 shadow-sm w-100"
+                          options={Array.from(new Set(requests.map(r => r.department))).filter(Boolean).map(d => ({ value: d, label: d }))}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <FilterSelect
+                          value={statusFilter}
+                          onChange={setStatusFilter}
+                          placeholder="Trạng thái: Tất cả"
+                          width="100%"
+                          className="border-0 shadow-sm w-100"
+                          options={[
+                            { value: "Approved", label: "Đã duyệt" },
+                            { value: "Recruiting", label: "Đang tuyển" },
+                            { value: "Interviewing", label: "Phỏng vấn" },
+                            { value: "Submitting", label: "Trình duyệt" },
+                            { value: "Hired", label: "Đã tuyển" },
+                            { value: "Completed", label: "Hoàn thành" }
+                          ]}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Line 2: Search input (flex-grow) + Add button (only "+") */}
+                    <div className="d-flex align-items-center gap-2 w-100">
+                      <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                        <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Tìm kiếm yêu cầu..." className="border-0 shadow-sm" style={{ width: "100%" }} />
+                      </div>
+                      <BrandButton
+                        onClick={() => router.push("/my/recruitment")}
+                        icon="bi-plus-lg"
+                        style={{ width: 34, height: 34, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, flexShrink: 0 }}
+                      >
+                        {null}
+                      </BrandButton>
+                    </div>
+                  </>
                 )}
 
-                {step === 1 && (
-                  <BrandButton
-                    onClick={() => setIsCreateModalOpen(true)}
-                    icon="bi-plus-lg"
-                    style={{ whiteSpace: "nowrap" }}
-                  >
-                    Tạo yêu cầu
-                  </BrandButton>
+                {step === 2 && (
+                  <>
+                    {/* Line 1: Position filter (50%) + Status filter (50%) */}
+                    <div className="d-flex gap-2 w-100">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <FilterSelect
+                          value={candidatePositionFilter}
+                          onChange={setCandidatePositionFilter}
+                          placeholder="Tất cả vị trí"
+                          width="100%"
+                          className="border-0 shadow-sm w-100"
+                          options={Array.from(new Set((requests || []).filter(r => r.status !== "Pending" && r.status !== "Rejected").map(r => r.position))).map(pos => ({
+                            value: pos,
+                            label: pos
+                          }))}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <FilterSelect
+                          value={candidateStatusFilter}
+                          onChange={setCandidateStatusFilter}
+                          placeholder="Tất cả trạng thái"
+                          width="100%"
+                          className="border-0 shadow-sm w-100"
+                          options={[
+                            { value: "New", label: "Mới" },
+                            { value: "Unclassified", label: "Đang rà soát" },
+                            { value: "Qualified", label: "Phù hợp" },
+                            { value: "DeptReview", label: "Chờ chuyên môn" },
+                            { value: "DeptApproved", label: "Chuyên môn duyệt" },
+                            { value: "Interviewing", label: "Phỏng vấn" },
+                            { value: "Submitting", label: "Trình GĐ" },
+                            { value: "Đã gửi thư mời", label: "Đã gửi thư mời" },
+                            { value: "Đã nhận việc", label: "Đã nhận việc" },
+                            { value: "Rejected", label: "Không phù hợp" },
+                          ]}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Line 2: Switches wrapper (flex-grow) + CV Scan button + Add candidate button */}
+                    <div className="d-flex align-items-center justify-content-between gap-2 w-100">
+                      <div className="d-flex align-items-center gap-2 border rounded-pill px-3 py-1 bg-white shadow-sm flex-grow-1" style={{ height: 34, minWidth: 0 }}>
+                        <div className="form-check form-switch mb-0">
+                          <input className="form-check-input" type="checkbox" id="topcvSwitchMobile" checked={isTopCVActive} onChange={(e) => setIsTopCVActive(e.target.checked)} />
+                          <label className="small fw-bold text-muted ms-1" htmlFor="topcvSwitchMobile" style={{ fontSize: "9px" }}>TopCV</label>
+                        </div>
+                        <div className="form-check form-switch mb-0 ms-2">
+                          <input className="form-check-input" type="checkbox" id="vl24hSwitchMobile" checked={isVieclam24hActive} onChange={(e) => setIsVieclam24hActive(e.target.checked)} />
+                          <label className="small fw-bold text-muted ms-1" htmlFor="vl24hSwitchMobile" style={{ fontSize: "9px" }}>VL24h</label>
+                        </div>
+                      </div>
+                      <BrandButton
+                        onClick={handleAIScan}
+                        loading={isScanning}
+                        variant="outline"
+                        icon="bi-magic"
+                        style={{ width: 34, height: 34, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, flexShrink: 0 }}
+                        title="Quét CV"
+                      >
+                        {null}
+                      </BrandButton>
+                      <BrandButton
+                        onClick={() => {
+                          setEditingCandidate(null);
+                          setIsAddCandidateModalOpen(true);
+                        }}
+                        icon="bi-person-plus-fill"
+                        style={{ width: 34, height: 34, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, flexShrink: 0 }}
+                      >
+                        {null}
+                      </BrandButton>
+                    </div>
+
+                    {/* Line 3: Decision actions (only if candidates are selected) */}
+                    {selectedCandidateIds.length > 0 && (
+                      <div className="w-100">
+                        <BrandButton
+                          onClick={handleSendToDeptReview}
+                          icon="bi-send-check-fill"
+                          className="w-100 py-1 text-white"
+                          style={{ height: 34, fontSize: 11, backgroundColor: "#198754", borderColor: "#198754", display: "flex", alignItems: "center", justifyContent: "center" }}
+                          disabled={selectedCandidateIds.some(id => {
+                            const cand = requests.flatMap(r => r.candidates || []).find(c => c.id === id);
+                            return cand?.status === "DeptApproved";
+                          })}
+                        >
+                          Duyệt ({selectedCandidateIds.length})
+                        </BrandButton>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {step === 4 && (
-                  <BrandButton
-                    onClick={() => setShowPrintPreview(true)}
-                    disabled={selectedReportIds.length === 0}
-                    icon="bi-printer"
-                    style={{ whiteSpace: "nowrap" }}
-                  >
-                    In báo cáo ({selectedReportIds.length})
-                  </BrandButton>
+                  <div className="d-flex gap-2 w-100">
+                    <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                      <FilterSelect
+                        value={reportPositionFilter}
+                        onChange={setReportPositionFilter}
+                        placeholder="Tất cả vị trí"
+                        width="100%"
+                        className="border-0 shadow-sm w-100"
+                        options={Array.from(new Set(reportCandidates.map(c => c.position))).map(pos => ({
+                          value: pos,
+                          label: pos
+                        }))}
+                      />
+                    </div>
+                    <BrandButton
+                      onClick={() => setShowPrintPreview(true)}
+                      disabled={selectedReportIds.length === 0}
+                      icon="bi-printer"
+                      style={{ width: 34, height: 34, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, flexShrink: 0 }}
+                    >
+                      {null}
+                    </BrandButton>
+                  </div>
                 )}
               </div>
             </div>
           }
-        >
-          <div className="h-100 d-flex flex-column overflow-hidden">
+          stepper={
             <ModernStepper
               steps={stepsDef}
               currentStep={step}
               onStepChange={(num: number) => setStep(num)}
             />
+          }
+          bottomToolbar={null}
+        >
+          <div className="h-100 d-flex flex-column overflow-hidden">
             <div className="flex-grow-1 overflow-auto custom-scrollbar">
               {step === 1 && (
                 <Table
@@ -1211,7 +1783,15 @@ function RecruitmentContent() {
                             try { rowReqs = JSON.parse(row.requirements); } catch (e) { rowReqs = { note: row.requirements }; }
                           } else { rowReqs = row.requirements || {}; }
                         } catch (e) { }
-                        const range = rowReqs.salaryRange || "Thỏa thuận";
+                        const range = row.salaryMin && row.salaryMax
+                          ? `${Number(row.salaryMin).toLocaleString("vi-VN")} - ${Number(row.salaryMax).toLocaleString("vi-VN")}`
+                          : (row.salaryMin
+                              ? `${Number(row.salaryMin).toLocaleString("vi-VN")}`
+                              : (row.salaryMax
+                                  ? `${Number(row.salaryMax).toLocaleString("vi-VN")}`
+                                  : (rowReqs.salaryRange || "Thỏa thuận")
+                                )
+                            );
                         return <span className="text-success fw-bold">{range.replace(" VNĐ", "")}</span>;
                       }
                     },
@@ -1571,7 +2151,11 @@ function RecruitmentContent() {
                       width: "40px",
                       align: "center",
                       render: (row) => {
-                        const isAccepted = row.status === "Hired" || row.status === "Đang thử việc" || row.status === "Đã tiếp nhận" || row.majorityDecision === 'HIRE';
+                        const isAccepted = row.status === "Hired" || 
+                                           row.status === "Đang thử việc" || 
+                                           row.status === "Đã tiếp nhận" || 
+                                           row.status === "Đã gửi thư mời" || 
+                                           row.majorityDecision === 'HIRE';
                         if (!isAccepted) return null;
 
                         return (
@@ -1580,16 +2164,17 @@ function RecruitmentContent() {
                               className="btn btn-link btn-sm p-0 text-muted shadow-none border-0" 
                               type="button"
                               data-bs-toggle="dropdown"
+                              data-bs-boundary="viewport"
+                              data-bs-popper-config='{"strategy":"fixed"}'
                               aria-expanded="false"
                             >
                               <i className="bi bi-three-dots-vertical fs-6"></i>
                             </button>
-                            <ul className="dropdown-menu dropdown-menu-end shadow border-0 py-2" style={{ fontSize: '13px', borderRadius: '12px', minWidth: '160px' }}>
+                            <ul className="dropdown-menu dropdown-menu-end shadow border-0 py-2" style={{ fontSize: '13px', borderRadius: '12px', minWidth: '160px', zIndex: 10005 }}>
                               <li>
                                 <button 
-                                  className={`dropdown-item d-flex align-items-center gap-2 py-2 ${row.status === "Đã gửi thư mời" ? "disabled opacity-50" : ""}`}
-                                  disabled={row.status === "Đã gửi thư mời"}
-                                  onClick={() => handleSendOffer(row.id)}
+                                  className="dropdown-item d-flex align-items-center gap-2 py-2"
+                                  onClick={() => openOfferLetterModal(row.id, row.name)}
                                 >
                                   <i className="bi bi-send-fill text-primary"></i>
                                   Gửi thư mời
@@ -1642,28 +2227,6 @@ function RecruitmentContent() {
           if (saved) setTopcvToken(saved);
         }}
       />
-      <CreateRequestModal
-        isOpen={isCreateModalOpen}
-        initialData={editRequestData}
-        onClose={() => {
-          setIsCreateModalOpen(false);
-          setEditRequestData(null);
-        }}
-        onSuccess={() => {
-          fetchRequests();
-          if (step === 4) fetchReportData();
-          if (selectedRequest) {
-            fetch(`/api/hr/recruitment`)
-              .then(res => res.json())
-              .then(data => {
-                const updated = data.find((r: any) => r.id === selectedRequest.id);
-                if (updated) setSelectedRequest(updated);
-              });
-          }
-          success("Thành công", "Dữ liệu yêu cầu đã được lưu.");
-        }}
-      />
-
       <ConfirmDialog
         open={confirmConfig.open}
         title={confirmConfig.title}
@@ -1833,7 +2396,7 @@ function RecruitmentContent() {
       {selectedReportCandidate && createPortal(
         <>
           <div onClick={() => setSelectedReportCandidate(null)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.3)", zIndex: 100001, backdropFilter: "blur(2px)" }} />
-          <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 400, background: "#fff", zIndex: 100002, display: "flex", flexDirection: "column", boxShadow: "-8px 0 40px rgba(15,23,42,0.15)" }}>
+          <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 400, background: "#fff", zIndex: 100002, display: "flex", flexDirection: "column", boxShadow: "-8px 0 40px rgba(15,23,42,0.15)" }} className="app-custom-drawer">
             <div style={{ padding: "20px 24px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div className="mb-0 fw-bold" style={{ fontSize: "16px" }}>{selectedReportCandidate.name}</div>
@@ -1952,39 +2515,18 @@ function RecruitmentContent() {
               )}
 
               {/* Nút Trình duyệt / Gửi thư mời */}
-              { (selectedReportCandidate.status === "Đồng ý nhận" || selectedReportCandidate.status === "Đã tiếp nhận" || selectedReportCandidate.status === "Đồng ý tuyển dụng" || selectedReportCandidate.status === "Hired") ? (
+              { (selectedReportCandidate.status === "Đồng ý nhận" || 
+                 selectedReportCandidate.status === "Đã tiếp nhận" || 
+                 selectedReportCandidate.status === "Đồng ý tuyển dụng" || 
+                 selectedReportCandidate.status === "Hired" || 
+                 selectedReportCandidate.status === "Đã gửi thư mời") ? (
                 <BrandButton
                   variant="primary"
                   className="flex-grow-1"
                   style={{ backgroundColor: "#198754", borderColor: "#198754" }}
                   icon="bi-send-check"
                   onClick={() => {
-                    setConfirmConfig({
-                      open: true,
-                      title: "Gửi thư mời làm việc",
-                      message: `Xác nhận gửi thư mời làm việc cho ứng viên ${selectedReportCandidate.name}?`,
-                      variant: "info",
-                      onConfirm: async () => {
-                        setConfirmConfig(p => ({ ...p, open: false }));
-                        try {
-                          const res = await fetch("/api/hr/candidates/send-offer", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ candidateId: selectedReportCandidate.id })
-                          });
-                          const result = await res.json();
-                          if (res.ok) {
-                            success(result.message);
-                            fetchReportData();
-                            setSelectedReportCandidate(null);
-                          } else {
-                            toastError("Lỗi", result.error || "Không thể gửi thư mời");
-                          }
-                        } catch (err) {
-                          toastError("Lỗi", "Đã có lỗi xảy ra");
-                        }
-                      }
-                    });
+                    openOfferLetterModal(selectedReportCandidate.id, selectedReportCandidate.name);
                   }}
                 >
                   Gửi thư mời nhận việc
@@ -2018,39 +2560,8 @@ function RecruitmentContent() {
           onOpenConfig={() => setShowSmtpConfig(true)}
           candidateCount={selectedCandidateIds.length}
           candidateIds={selectedCandidateIds}
-          onConfirm={async (data) => {
-            setIsScheduling(true);
-            try {
-              const res = await fetch("/api/hr/candidates/schedule-interview", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...data, candidateIds: selectedCandidateIds })
-              });
-              const result = await res.json();
-              if (!res.ok) throw new Error(result.details || result.error || "Lỗi khi lên lịch");
-
-              // Update the status of the related requests to 'Interviewing'
-              const scheduledCands = requests.flatMap(r => r.candidates || []).filter(c => selectedCandidateIds.includes(c.id));
-              const uniqueRequestIds = Array.from(new Set(scheduledCands.map(c => c.requestId)));
-              await Promise.all(uniqueRequestIds.map(async (reqId) => {
-                await fetch(`/api/hr/recruitment/${reqId}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ status: "Interviewing" })
-                });
-              }));
-
-              success("Đã lên lịch phỏng vấn và gửi thông báo!");
-              setShowInterviewModal(false);
-              setSelectedCandidateIds([]);
-              fetchRequests();
-            } catch (err: any) {
-              toastError("Lỗi", err.message);
-            } finally {
-              setIsScheduling(false);
-            }
-          }}
-          loading={isScheduling}
+          onConfirm={openInterviewEmailModal}
+          loading={interviewEmailLoading}
           departmentName={requests.find(r => r.candidates?.some(c => c.id === selectedCandidateIds[0]))?.department || ""}
         />
       )}
@@ -2086,6 +2597,471 @@ function RecruitmentContent() {
           loading={isSubmittingApproval}
           onConfirm={handleSubmitForApproval}
         />
+      )}
+
+      {offerLetterOpen && (
+        <div 
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex flex-column" 
+          style={{ 
+            zIndex: 2000, 
+            background: "rgba(15, 23, 42, 0.9)", 
+            backdropFilter: "blur(12px)",
+            color: "#f8fafc",
+            fontFamily: "var(--font-roboto-condensed), 'Roboto Condensed', sans-serif"
+          }}
+        >
+          {/* Header */}
+          <div className="d-flex align-items-center justify-content-between p-2 p-md-3 border-bottom" style={{ backgroundColor: '#0f172a', borderColor: 'rgba(255, 255, 255, 0.1)', flexShrink: 0 }}>
+            <div className="d-flex align-items-center gap-2 gap-md-3 min-w-0">
+              <div className="rounded-circle d-none d-sm-flex align-items-center justify-content-center text-white shadow-sm flex-shrink-0" style={{ width: 40, height: 40, background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
+                <i className="bi bi-envelope-open-fill fs-5"></i>
+              </div>
+              <div className="min-w-0">
+                <h5 className="m-0 fw-bold text-white text-truncate" style={{ letterSpacing: '0.3px', fontSize: '15px' }}>Soạn thảo Thư mời làm việc</h5>
+                <div className="d-flex align-items-center gap-2 mt-1" style={{ fontSize: '11px' }}>
+                  <span style={{ color: '#94a3b8' }}>Ứng viên:</span>
+                  <span className="badge rounded-pill fw-semibold text-truncate" style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', padding: '3px 10px', maxWidth: '150px' }}>
+                    {offerLetterCandidateName}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="d-flex align-items-center gap-2 flex-shrink-0">
+              {/* Desktop Buttons */}
+              <div className="d-none d-md-flex align-items-center gap-2">
+                <button 
+                  type="button" 
+                  className="btn btn-outline-light rounded-pill px-4"
+                  style={{ borderColor: 'rgba(255, 255, 255, 0.2)', fontSize: '13px', fontWeight: 500 }}
+                  onClick={() => setOfferLetterOpen(false)}
+                  disabled={offerLetterSending}
+                >
+                  Hủy bỏ
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-success rounded-pill px-4 d-flex align-items-center gap-2 shadow-sm"
+                  style={{ fontSize: '13px', fontWeight: 500 }}
+                  onClick={handleSendCustomOffer}
+                  disabled={offerLetterLoading || offerLetterSending || !offerLetterSubject}
+                >
+                  {offerLetterSending ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      Đang gửi...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-send-fill"></i>
+                      Gửi thư mời
+                    </>
+                  )}
+                </button>
+              </div>
+              {/* Mobile Close Button */}
+              <button 
+                type="button" 
+                className="btn btn-light rounded-circle border-0 d-flex align-items-center justify-content-center d-md-none" 
+                style={{ width: "36px", height: "36px" }}
+                onClick={() => setOfferLetterOpen(false)}
+                disabled={offerLetterSending}
+              >
+                <i className="bi bi-x-lg text-dark" />
+              </button>
+            </div>
+          </div>
+
+          {offerLetterLoading ? (
+            <div className="flex-grow-1 d-flex flex-column align-items-center justify-content-center">
+              <div className="spinner-border text-primary mb-3" style={{ width: '3rem', height: '3rem' }} role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <h5 className="text-white bg-dark bg-opacity-50 px-3 py-2 rounded-3">Đang tạo mẫu thư mời...</h5>
+            </div>
+          ) : (
+            <div className="flex-grow-1 d-flex flex-column overflow-hidden">
+              {/* Subject Input Row */}
+              <div className="p-2 p-md-3 border-bottom d-flex flex-column flex-md-row align-items-md-center gap-1 gap-md-3" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', flexShrink: 0 }}>
+                <span className="fw-semibold text-nowrap d-none d-md-inline" style={{ minWidth: '120px', fontSize: '13px', color: '#374151' }}>Tiêu đề Email:</span>
+                <span className="fw-bold text-muted text-uppercase d-inline d-md-none" style={{ fontSize: '10px', letterSpacing: '0.5px' }}>Tiêu đề Email</span>
+                <input 
+                  type="text" 
+                  className="form-control shadow-none"
+                  style={{ borderColor: '#d1d5db', fontSize: '13px' }}
+                  value={offerLetterSubject}
+                  onChange={(e) => setOfferLetterSubject(e.target.value)}
+                  placeholder="Nhập tiêu đề thư mời..."
+                />
+              </div>
+
+              {/* Formatting Toolbar */}
+              <div className="d-flex align-items-center gap-1 flex-wrap px-3 py-2 border-bottom" style={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', flexShrink: 0 }}>
+                <button
+                  className="btn btn-sm btn-outline-secondary border px-2 py-1"
+                  title="Đậm (Ctrl+B)"
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand('bold'); }}
+                  style={{ fontSize: '13px', lineHeight: 1 }}
+                ><i className="bi bi-type-bold" /></button>
+                <button
+                  className="btn btn-sm btn-outline-secondary border px-2 py-1"
+                  title="Nghiêng (Ctrl+I)"
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand('italic'); }}
+                  style={{ fontSize: '13px', lineHeight: 1 }}
+                ><i className="bi bi-type-italic" /></button>
+                <button
+                  className="btn btn-sm btn-outline-secondary border px-2 py-1"
+                  title="Gạch chân (Ctrl+U)"
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand('underline'); }}
+                  style={{ fontSize: '13px', lineHeight: 1 }}
+                ><i className="bi bi-type-underline" /></button>
+                <div style={{ width: 1, height: 20, backgroundColor: '#d1d5db', margin: '0 4px' }} />
+                <button
+                  className="btn btn-sm btn-outline-secondary border px-2 py-1"
+                  title="Căn trái"
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyLeft'); }}
+                  style={{ fontSize: '13px', lineHeight: 1 }}
+                ><i className="bi bi-text-left" /></button>
+                <button
+                  className="btn btn-sm btn-outline-secondary border px-2 py-1"
+                  title="Căn giữa"
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyCenter'); }}
+                  style={{ fontSize: '13px', lineHeight: 1 }}
+                ><i className="bi bi-text-center" /></button>
+                <button
+                  className="btn btn-sm btn-outline-secondary border px-2 py-1"
+                  title="Căn phải"
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyRight'); }}
+                  style={{ fontSize: '13px', lineHeight: 1 }}
+                ><i className="bi bi-text-right" /></button>
+                <div style={{ width: 1, height: 20, backgroundColor: '#d1d5db', margin: '0 4px' }} />
+                <span className="d-none d-lg-inline" style={{ fontSize: '12px', color: '#6b7280' }}>
+                  <i className="bi bi-cursor-text me-1" />
+                  Click trực tiếp vào nội dung để chỉnh sửa
+                </span>
+              </div>
+
+              {/* WYSIWYG Editor Area */}
+              <div
+                className="flex-grow-1 overflow-auto custom-scrollbar p-0 p-sm-4 offer-wysiwyg-wrapper"
+              >
+                <div
+                  ref={offerEditorRef}
+                  contentEditable={true}
+                  suppressContentEditableWarning={true}
+                  className="offer-editor-content"
+                  style={{
+                    outline: 'none',
+                    maxWidth: '680px',
+                    margin: '0 auto',
+                    minHeight: '400px',
+                    cursor: 'text'
+                  }}
+                />
+              </div>
+              <style>{`
+                .offer-wysiwyg-wrapper {
+                  background-color: #e8ecf0;
+                }
+                @media (max-width: 767px) {
+                  .offer-wysiwyg-wrapper {
+                    background-color: #ffffff !important;
+                    padding: 0 !important;
+                  }
+                  .offer-editor-content {
+                    max-width: 100% !important;
+                    width: 100% !important;
+                  }
+                  /* 1. Outer wrapper inside editor - remove background and padding */
+                  .offer-editor-content > div {
+                    background-color: #ffffff !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    max-width: 100% !important;
+                    width: 100% !important;
+                  }
+                  /* 2. Inner card wrapper inside editor - make fullscreen, flat, no shadows or border-radius */
+                  .offer-editor-content > div > div,
+                  .offer-editor-content > div > table {
+                    max-width: 100% !important;
+                    width: 100% !important;
+                    border-radius: 0 !important;
+                    box-shadow: none !important;
+                    padding: 20px 16px !important;
+                    margin: 0 !important;
+                    border: none !important;
+                    background-color: #ffffff !important;
+                  }
+                }
+              `}</style>
+
+              {/* Sticky Bottom Actions for Mobile/Tablet */}
+              <div className="d-flex d-md-none bg-dark p-3 border-top gap-3 shadow-lg flex-shrink-0" style={{ borderColor: 'rgba(255, 255, 255, 0.1)', zIndex: 10 }}>
+                <button 
+                  type="button" 
+                  className="btn btn-outline-light rounded-pill flex-grow-1 py-2 fw-bold"
+                  style={{ fontSize: '13px' }}
+                  onClick={() => setOfferLetterOpen(false)}
+                  disabled={offerLetterSending}
+                >
+                  Hủy bỏ
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-success rounded-pill flex-grow-1 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                  style={{ fontSize: '13px' }}
+                  onClick={handleSendCustomOffer}
+                  disabled={offerLetterLoading || offerLetterSending || !offerLetterSubject}
+                >
+                  {offerLetterSending ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      Đang gửi...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-send-fill"></i>
+                      Gửi thư mời
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {interviewEmailOpen && (
+        <div 
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex flex-column" 
+          style={{ 
+            zIndex: 2000, 
+            background: "rgba(15, 23, 42, 0.9)", 
+            backdropFilter: "blur(12px)",
+            color: "#f8fafc",
+            fontFamily: "var(--font-roboto-condensed), 'Roboto Condensed', sans-serif"
+          }}
+        >
+          {/* Header */}
+          <div className="d-flex align-items-center justify-content-between p-2 p-md-3 border-bottom" style={{ backgroundColor: '#0f172a', borderColor: 'rgba(255, 255, 255, 0.1)', flexShrink: 0 }}>
+            <div className="d-flex align-items-center gap-2 gap-md-3 min-w-0">
+              <div className="rounded-circle d-none d-sm-flex align-items-center justify-content-center text-white shadow-sm flex-shrink-0" style={{ width: 40, height: 40, background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' }}>
+                <i className="bi bi-calendar2-check-fill fs-5"></i>
+              </div>
+              <div className="min-w-0">
+                <h5 className="m-0 fw-bold text-white text-truncate" style={{ letterSpacing: '0.3px', fontSize: '15px' }}>Soạn thảo Thư mời phỏng vấn</h5>
+                <div className="d-flex align-items-center gap-2 mt-1" style={{ fontSize: '11px' }}>
+                  <span style={{ color: '#94a3b8' }}>Ứng viên:</span>
+                  <span className="badge rounded-pill fw-semibold text-truncate" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa', padding: '3px 10px', maxWidth: '150px' }}>
+                    {requests.flatMap(r => r.candidates || []).filter(c => selectedCandidateIds.includes(c.id)).map(c => c.name).join(", ") || "Chưa chọn"}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="d-flex align-items-center gap-2 flex-shrink-0">
+              {/* Desktop Buttons */}
+              <div className="d-none d-md-flex align-items-center gap-2">
+                <button 
+                  type="button" 
+                  className="btn btn-outline-light rounded-pill px-4"
+                  style={{ borderColor: 'rgba(255, 255, 255, 0.2)', fontSize: '13px', fontWeight: 500 }}
+                  onClick={() => setInterviewEmailOpen(false)}
+                  disabled={interviewEmailSending}
+                >
+                  Hủy bỏ
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-success rounded-pill px-4 d-flex align-items-center gap-2 shadow-sm"
+                  style={{ fontSize: '13px', fontWeight: 500 }}
+                  onClick={handleSendCustomInterviewEmail}
+                  disabled={interviewEmailLoading || interviewEmailSending || !interviewEmailSubject}
+                >
+                  {interviewEmailSending ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      Đang gửi...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-send-fill"></i>
+                      Gửi thư mời
+                    </>
+                  )}
+                </button>
+              </div>
+              {/* Mobile Close Button */}
+              <button 
+                type="button" 
+                className="btn btn-light rounded-circle border-0 d-flex align-items-center justify-content-center d-md-none" 
+                style={{ width: "36px", height: "36px" }}
+                onClick={() => setInterviewEmailOpen(false)}
+                disabled={interviewEmailSending}
+              >
+                <i className="bi bi-x-lg text-dark" />
+              </button>
+            </div>
+          </div>
+
+          {interviewEmailLoading ? (
+            <div className="flex-grow-1 d-flex flex-column align-items-center justify-content-center">
+              <div className="spinner-border text-primary mb-3" style={{ width: '3rem', height: '3rem' }} role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <h5 className="text-white bg-dark bg-opacity-50 px-3 py-2 rounded-3">Đang tạo mẫu thư mời...</h5>
+            </div>
+          ) : (
+            <div className="flex-grow-1 d-flex flex-column overflow-hidden">
+              {/* Subject Input Row */}
+              <div className="p-2 p-md-3 border-bottom d-flex flex-column flex-md-row align-items-md-center gap-1 gap-md-3" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0', flexShrink: 0 }}>
+                <span className="fw-semibold text-nowrap d-none d-md-inline" style={{ minWidth: '120px', fontSize: '13px', color: '#374151' }}>Tiêu đề Email:</span>
+                <span className="fw-bold text-muted text-uppercase d-inline d-md-none" style={{ fontSize: '10px', letterSpacing: '0.5px' }}>Tiêu đề Email</span>
+                <input 
+                  type="text" 
+                  className="form-control shadow-none"
+                  style={{ borderColor: '#d1d5db', fontSize: '13px' }}
+                  value={interviewEmailSubject}
+                  onChange={(e) => setInterviewEmailSubject(e.target.value)}
+                  placeholder="Nhập tiêu đề thư mời phỏng vấn..."
+                />
+              </div>
+
+              {/* Formatting Toolbar */}
+              <div className="d-flex align-items-center gap-1 flex-wrap px-3 py-2 border-bottom" style={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', flexShrink: 0 }}>
+                <button
+                  className="btn btn-sm btn-outline-secondary border px-2 py-1"
+                  title="Đậm (Ctrl+B)"
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand('bold'); }}
+                  style={{ fontSize: '13px', lineHeight: 1 }}
+                ><i className="bi bi-type-bold" /></button>
+                <button
+                  className="btn btn-sm btn-outline-secondary border px-2 py-1"
+                  title="Nghiêng (Ctrl+I)"
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand('italic'); }}
+                  style={{ fontSize: '13px', lineHeight: 1 }}
+                ><i className="bi bi-type-italic" /></button>
+                <button
+                  className="btn btn-sm btn-outline-secondary border px-2 py-1"
+                  title="Gạch chân (Ctrl+U)"
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand('underline'); }}
+                  style={{ fontSize: '13px', lineHeight: 1 }}
+                ><i className="bi bi-type-underline" /></button>
+                <div style={{ width: 1, height: 20, backgroundColor: '#d1d5db', margin: '0 4px' }} />
+                <button
+                  className="btn btn-sm btn-outline-secondary border px-2 py-1"
+                  title="Căn trái"
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyLeft'); }}
+                  style={{ fontSize: '13px', lineHeight: 1 }}
+                ><i className="bi bi-text-left" /></button>
+                <button
+                  className="btn btn-sm btn-outline-secondary border px-2 py-1"
+                  title="Căn giữa"
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyCenter'); }}
+                  style={{ fontSize: '13px', lineHeight: 1 }}
+                ><i className="bi bi-text-center" /></button>
+                <button
+                  className="btn btn-sm btn-outline-secondary border px-2 py-1"
+                  title="Căn phải"
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyRight'); }}
+                  style={{ fontSize: '13px', lineHeight: 1 }}
+                ><i className="bi bi-text-right" /></button>
+                <div style={{ width: 1, height: 20, backgroundColor: '#d1d5db', margin: '0 4px' }} />
+                <span className="d-none d-lg-inline" style={{ fontSize: '12px', color: '#6b7280' }}>
+                  <i className="bi bi-cursor-text me-1" />
+                  Click trực tiếp vào nội dung để chỉnh sửa
+                </span>
+              </div>
+
+              {/* WYSIWYG Editor Area */}
+              <div
+                className="flex-grow-1 overflow-auto custom-scrollbar p-0 p-sm-4 interview-wysiwyg-wrapper"
+              >
+                <div
+                  ref={interviewEditorRef}
+                  contentEditable={true}
+                  suppressContentEditableWarning={true}
+                  className="interview-editor-content"
+                  style={{
+                    outline: 'none',
+                    maxWidth: '680px',
+                    margin: '0 auto',
+                    minHeight: '400px',
+                    cursor: 'text'
+                  }}
+                />
+              </div>
+              <style>{`
+                .interview-wysiwyg-wrapper {
+                  background-color: #e8ecf0;
+                }
+                @media (max-width: 767px) {
+                  .interview-wysiwyg-wrapper {
+                    background-color: #ffffff !important;
+                    padding: 0 !important;
+                  }
+                  .interview-editor-content {
+                    max-width: 100% !important;
+                    width: 100% !important;
+                  }
+                  /* 1. Outer wrapper inside editor - remove background and padding */
+                  .interview-editor-content > div {
+                    background-color: #ffffff !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    max-width: 100% !important;
+                    width: 100% !important;
+                  }
+                  /* 2. Inner card wrapper inside editor - make fullscreen, flat, no shadows or border-radius */
+                  .interview-editor-content > div > div,
+                  .interview-editor-content > div > table {
+                    max-width: 100% !important;
+                    width: 100% !important;
+                    border-radius: 0 !important;
+                    box-shadow: none !important;
+                    padding: 20px 16px !important;
+                    margin: 0 !important;
+                    border: none !important;
+                    background-color: #ffffff !important;
+                    box-sizing: border-box !important;
+                  }
+                }
+              `}</style>
+
+              {/* Sticky Bottom Actions for Mobile/Tablet */}
+              <div className="d-flex d-md-none bg-dark p-3 border-top gap-3 shadow-lg flex-shrink-0" style={{ borderColor: 'rgba(255, 255, 255, 0.1)', zIndex: 10 }}>
+                <button 
+                  type="button" 
+                  className="btn btn-outline-light rounded-pill flex-grow-1 py-2 fw-bold"
+                  style={{ fontSize: '13px' }}
+                  onClick={() => setInterviewEmailOpen(false)}
+                  disabled={interviewEmailSending}
+                >
+                  Hủy bỏ
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-success rounded-pill flex-grow-1 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                  style={{ fontSize: '13px' }}
+                  onClick={handleSendCustomInterviewEmail}
+                  disabled={interviewEmailLoading || interviewEmailSending || !interviewEmailSubject}
+                >
+                  {interviewEmailSending ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      Đang gửi...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-send-fill"></i>
+                      Gửi thư mời
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </StandardPage>
   );
@@ -2282,35 +3258,37 @@ function AddCandidateModal({ isOpen, onClose, requests, onSuccess, editingCandid
       fontFamily: "var(--font-roboto-condensed), 'Roboto Condensed', sans-serif"
     }}>
       {/* Top Header */}
-      <div className="bg-white px-5 py-3 d-flex justify-content-between align-items-center border-bottom sticky-top">
-        <div className="d-flex align-items-center gap-3">
-          <div className="d-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-3" style={{ width: "40px", height: "40px" }}>
+      <div className="bg-white px-3 px-md-5 py-2 py-md-3 d-flex justify-content-between align-items-center border-bottom sticky-top">
+        <div className="d-flex align-items-center gap-3 flex-shrink-1 min-w-0">
+          <div className="d-none d-sm-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-3 flex-shrink-0" style={{ width: "40px", height: "40px" }}>
             <i className="bi bi-person-plus-fill fs-5" />
           </div>
-          <div>
-            <div className="d-flex align-items-center gap-2">
-              <h6 className="fw-bold text-dark mb-0">Thêm hồ sơ ứng viên</h6>
+          <div className="min-w-0">
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <h6 className="fw-bold text-dark mb-0 text-truncate" style={{ fontSize: "15px" }}>Thêm hồ sơ ứng viên</h6>
               <button
                 type="button"
-                className="btn btn-warning btn-sm px-3 py-1 fw-bold border-0 rounded-pill d-flex align-items-center gap-1 shadow-sm"
+                className="btn btn-warning btn-sm px-3 py-1 fw-bold border-0 rounded-pill d-none d-xl-flex align-items-center gap-1 shadow-sm"
                 style={{ fontSize: "11px", color: "#854d0e" }}
                 onClick={() => setIsSupportModalOpen(true)}
               >
                 <i className="bi bi-magic" /> HỖ TRỢ
               </button>
             </div>
-            <p className="text-muted mb-0" style={{ fontSize: "11px" }}>Tạo mới hồ sơ nhân sự vào hệ thống tuyển dụng</p>
+            <p className="text-muted mb-0 text-truncate d-none d-sm-block" style={{ fontSize: "11px" }}>Tạo mới hồ sơ nhân sự vào hệ thống tuyển dụng</p>
           </div>
         </div>
-        <div className="d-flex align-items-center gap-3">
-          <BrandButton
-            type="submit"
-            form="add-candidate-form"
-            loading={loading}
-            icon="bi-check-lg"
-          >
-            Lưu hồ sơ
-          </BrandButton>
+        <div className="d-flex align-items-center gap-2 gap-md-3 flex-shrink-0">
+          <div className="d-none d-xl-block">
+            <BrandButton
+              type="submit"
+              form="add-candidate-form"
+              loading={loading}
+              icon="bi-check-lg"
+            >
+              Lưu hồ sơ
+            </BrandButton>
+          </div>
           <button onClick={onClose} className="btn btn-light rounded-circle border-0 d-flex align-items-center justify-content-center" style={{ width: "36px", height: "36px" }}>
             <i className="bi bi-x-lg" />
           </button>
@@ -2318,17 +3296,17 @@ function AddCandidateModal({ isOpen, onClose, requests, onSuccess, editingCandid
       </div>
 
       {/* Scrollable Form */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "30px 0" }} className="custom-scrollbar">
-        <form id="add-candidate-form" onSubmit={handleSubmit} className="mx-auto px-4" style={{ maxWidth: "1200px" }}>
-          <div className="row g-4">
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px 0" }} className="custom-scrollbar">
+        <form id="add-candidate-form" onSubmit={handleSubmit} className="mx-auto px-2 px-md-4" style={{ maxWidth: "1200px" }}>
+          <div className="row g-3 g-md-4">
             <div className="col-lg-5">
               {/* Section 1: Basic Info */}
               <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style={{ background: "#fff" }}>
-                <div className="px-4 py-3 border-bottom d-flex align-items-center gap-2" style={{ background: "#f8fafc" }}>
+                <div className="px-3 px-md-4 py-3 border-bottom d-flex align-items-center gap-2" style={{ background: "#f8fafc" }}>
                   <i className="bi bi-person-lines-fill text-primary" />
                   <h6 className="fw-bold text-dark mb-0" style={{ fontSize: "14px" }}>1. THÔNG TIN ỨNG VIÊN</h6>
                 </div>
-                <div className="card-body p-4">
+                <div className="card-body p-3 p-md-4">
                   <div className="row g-3">
                     <div className="col-12">
                       <label style={labelStyle}>VỊ TRÍ ỨNG TUYỂN <span className="text-danger">*</span></label>
@@ -2500,37 +3478,40 @@ function AddCandidateModal({ isOpen, onClose, requests, onSuccess, editingCandid
               {/* Section 2: Professional Competence */}
               <div className="h-100 d-flex flex-column">
                 <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white flex-grow-1 d-flex flex-column" style={{ minHeight: "600px" }}>
-                  <div className="px-4 py-3 border-bottom d-flex justify-content-between align-items-center" style={{ background: "#f8fafc" }}>
+                  <div className="px-3 px-md-4 py-3 border-bottom d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2" style={{ background: "#f8fafc" }}>
                     <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2" style={{ fontSize: "14px" }}>
                       <i className="bi bi-mortarboard-fill text-primary" />
                       2. NĂNG LỰC CHUYÊN MÔN
                     </h6>
-                    <div className="bg-light p-1 rounded-3 d-flex gap-2 align-items-center" style={{ border: "1px solid #e2e8f0" }}>
-                      <div className="d-flex gap-1">
+                    <div className="bg-light p-1 rounded-3 d-flex gap-2 align-items-center w-100 w-sm-auto justify-content-between" style={{ border: "1px solid #e2e8f0" }}>
+                      <div className="d-flex gap-1 flex-grow-1 flex-sm-grow-0">
                         {[
-                          { id: 'exp', label: 'KINH NGHIỆM LÀM VIỆC' },
-                          { id: 'skills', label: 'KỸ NĂNG & CHỨNG CHỈ' }
+                          { id: 'exp', label: 'KINH NGHIỆM LÀM VIỆC', labelMobile: 'KINH NGHIỆM' },
+                          { id: 'skills', label: 'KỸ NĂNG & CHỨNG CHỈ', labelMobile: 'KỸ NĂNG' }
                         ].map(tab => (
                           <button
                             key={tab.id}
                             type="button"
-                            className={`btn btn-sm px-3 py-1 fw-bold border-0 transition-all ${activeTab === tab.id ? 'bg-white text-primary shadow-sm' : 'text-muted'}`}
+                            className={`btn btn-sm px-2 px-sm-3 py-1 fw-bold border-0 transition-all flex-grow-1 flex-sm-grow-0 ${activeTab === tab.id ? 'bg-white text-primary shadow-sm' : 'text-muted'}`}
                             style={{ fontSize: "10px", borderRadius: "6px" }}
                             onClick={() => setActiveTab(tab.id as any)}
                           >
-                            {tab.label}
+                            <span className="d-none d-sm-inline">{tab.label}</span>
+                            <span className="d-inline d-sm-none">{tab.labelMobile}</span>
                           </button>
                         ))}
                       </div>
                       <div className="vr mx-1" style={{ height: "16px" }}></div>
                       <button
                         type="button"
-                        className="btn btn-outline-primary btn-sm px-2 py-0 border-0"
+                        className="btn btn-outline-primary btn-sm px-2 py-0 border-0 flex-shrink-0 d-flex align-items-center justify-content-center gap-1"
                         title="Định dạng lại văn bản (Xóa dấu sao, thêm gạch đầu dòng)"
                         onClick={handleCleanText}
                         style={{ fontSize: "10px", height: "24px" }}
                       >
-                        <i className="bi bi-stars me-1" /> LÀM ĐẸP VĂN BẢN
+                        <i className="bi bi-stars" />
+                        <span className="d-none d-sm-inline">LÀM ĐẸP VĂN BẢN</span>
+                        <span className="d-inline d-sm-none">ĐỊNH DẠNG</span>
                       </button>
                     </div>
                   </div>
@@ -2582,6 +3563,37 @@ function AddCandidateModal({ isOpen, onClose, requests, onSuccess, editingCandid
           </div>
         </form>
       </div>
+
+      {/* Sticky Bottom Actions for Mobile/Tablet */}
+      <div className="d-flex d-xl-none bg-white p-3 border-top sticky-bottom gap-3 shadow-lg" style={{ zIndex: 10 }}>
+        <button
+          type="button"
+          className="btn btn-warning flex-grow-1 py-2.5 fw-bold border-0 rounded-pill d-flex align-items-center justify-content-center gap-2 shadow-sm"
+          style={{ fontSize: "13px", color: "#854d0e" }}
+          onClick={() => setIsSupportModalOpen(true)}
+        >
+          <i className="bi bi-magic" /> HỖ TRỢ AI
+        </button>
+        <button
+          type="submit"
+          form="add-candidate-form"
+          className="btn btn-primary flex-grow-1 py-2.5 fw-bold border-0 rounded-pill d-flex align-items-center justify-content-center gap-2 shadow-sm"
+          style={{ fontSize: "13px", backgroundColor: "#003087" }}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+              <span className="ms-1">ĐANG LƯU...</span>
+            </>
+          ) : (
+            <>
+              <i className="bi bi-check-lg" /> LƯU HỒ SƠ
+            </>
+          )}
+        </button>
+      </div>
+
       <style>{`
           .bg-primary-subtle { background-color: #e0e7ff; }
           .text-primary { color: #003087 !important; }
@@ -2594,35 +3606,39 @@ function AddCandidateModal({ isOpen, onClose, requests, onSuccess, editingCandid
         `}</style>
       {isSupportModalOpen && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#fff", zIndex: 11000, display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "12px 24px", borderBottom: "1.5px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
-            <h6 className="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
+          <div className="px-3 px-sm-4 py-3 border-bottom d-flex justify-content-between align-items-center bg-light" style={{ borderBottom: "1.5px solid #f1f5f9" }}>
+            <h6 className="mb-0 fw-bold text-dark d-flex align-items-center gap-2" style={{ fontSize: "14px" }}>
               <i className="bi bi-textarea-t text-primary" />
-              DÁN NỘI DUNG CV ĐỂ AI LẤY THÔNG TIN
+              <span className="d-none d-sm-inline">DÁN NỘI DUNG CV ĐỂ AI LẤY THÔNG TIN</span>
+              <span className="d-inline d-sm-none">QUÉT CV BẰNG AI</span>
             </h6>
             <div className="d-flex gap-2">
-              <button className="btn btn-light btn-sm px-4 rounded-pill fw-bold" onClick={() => setIsSupportModalOpen(false)}>QUAY LẠI</button>
+              <button className="btn btn-light btn-sm px-2 px-sm-4 rounded-pill fw-bold" style={{ fontSize: "12px" }} onClick={() => setIsSupportModalOpen(false)}>QUAY LẠI</button>
               <button
-                className="btn btn-primary btn-sm px-4 rounded-pill fw-bold d-flex align-items-center gap-2"
+                className="btn btn-primary btn-sm px-2 px-sm-4 rounded-pill fw-bold d-flex align-items-center gap-1 gap-sm-2"
+                style={{ fontSize: "12px" }}
                 onClick={handleAIParsing}
                 disabled={isParsing || !cvText.trim()}
               >
                 {isParsing ? (
                   <>
                     <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    ĐANG PHÂN TÍCH...
+                    <span className="d-none d-sm-inline">ĐANG PHÂN TÍCH...</span>
+                    <span className="d-inline d-sm-none">ĐANG PHÂN TÍCH...</span>
                   </>
                 ) : (
                   <>
                     <i className="bi bi-lightning-charge-fill" />
-                    LẤY THÔNG TIN (AI)
+                    <span className="d-none d-sm-inline">LẤY THÔNG TIN (AI)</span>
+                    <span className="d-inline d-sm-none">LẤY TIN (AI)</span>
                   </>
                 )}
               </button>
             </div>
           </div>
-          <div className="flex-grow-1 p-4 bg-light">
+          <div className="flex-grow-1 p-3 p-sm-4 bg-light">
             <textarea
-              className="form-control w-100 h-100 shadow-none border-0 p-4 rounded-4"
+              className="form-control w-100 h-100 shadow-none border-0 p-3 p-sm-4 rounded-4"
               placeholder="Dán toàn bộ văn bản từ CV vào đây. Sau đó nhấn nút 'LẤY THÔNG TIN' phía trên để AI tự động điền form cho mày..."
               style={{ resize: "none", fontSize: "14px", lineHeight: "1.6", background: "#fff" }}
               autoFocus

@@ -122,24 +122,29 @@ export async function GET(req: NextRequest) {
     where,
     include: {
       warehouse: { select: { name: true } },
-      _count:    { select: { lines: true } },
+      lines:     { select: { soLuongThucTe: true } },
     },
     orderBy: { updatedAt: "desc" },
   });
 
-  return NextResponse.json(counts.map(c => ({
-    id:            c.id,
-    soChungTu:     c.soChungTu,
-    scope:         c.scope,
-    warehouseId:   c.warehouseId,
-    warehouseName: c.warehouse?.name ?? null,
-    nguoiKiem:     c.nguoiKiem,
-    ngayKiem:      c.ngayKiem,
-    trangThai:     c.trangThai,
-    ghiChu:        c.ghiChu,
-    soLuongDong:   c._count.lines,
-    updatedAt:     c.updatedAt,
-  })));
+  return NextResponse.json(counts.map(c => {
+    const totalLines = c.lines.length;
+    const checkedLines = c.lines.filter(l => l.soLuongThucTe !== null).length;
+    return {
+      id:            c.id,
+      soChungTu:     c.soChungTu,
+      scope:         c.scope,
+      warehouseId:   c.warehouseId,
+      warehouseName: c.warehouse?.name ?? null,
+      nguoiKiem:     c.nguoiKiem,
+      ngayKiem:      c.ngayKiem,
+      trangThai:     c.trangThai,
+      ghiChu:        c.ghiChu,
+      soLuongDong:   totalLines,
+      daKiemCount:   checkedLines,
+      updatedAt:     c.updatedAt,
+    };
+  }));
 }
 
 /**

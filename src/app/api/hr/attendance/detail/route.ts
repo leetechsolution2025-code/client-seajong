@@ -79,20 +79,6 @@ export async function GET(req: NextRequest) {
       const now = new Date();
       now.setHours(23, 59, 59, 999);
 
-      // Nếu là ngày trong tương lai -> Trả về null hoặc object trống tùy UI
-      if (day > now) {
-        return {
-          day: day.getDate(),
-          dow: dowMap[day.getDay()],
-          date: dateStr,
-          isWeekend: day.getDay() === 0,
-          statusLabel: "",
-          statusColor: "transparent"
-        };
-      }
-
-      const att = attendances.find((a: any) => format(new Date(a.date), "yyyy-MM-dd") === dateStr);
-      
       // Kiểm tra ngày lễ
       const isHoliday = holidays.some((h: any) => {
         const hStart = new Date(h.startDate);
@@ -112,6 +98,20 @@ export async function GET(req: NextRequest) {
         return current >= start && current <= end;
       });
 
+      // Nếu là ngày trong tương lai và không có phép hay ngày lễ -> Trả về null hoặc object trống tùy UI
+      if (day > now && !isHoliday && !leaveReq) {
+        return {
+          day: day.getDate(),
+          dow: dowMap[day.getDay()],
+          date: dateStr,
+          isWeekend: day.getDay() === 0,
+          statusLabel: "",
+          statusColor: "transparent"
+        };
+      }
+
+      const att = attendances.find((a: any) => format(new Date(a.date), "yyyy-MM-dd") === dateStr);
+
       const lateReq = personalRequests.find((r: any) => 
         r.type === "late" && 
         format(new Date(r.startDate), "yyyy-MM-dd") === dateStr
@@ -128,14 +128,6 @@ export async function GET(req: NextRequest) {
       let requestedOutAfternoon = null;
 
       const extractTimeFromRequest = (request: any, field: "startDate" | "endDate") => {
-        const dateObj = request[field] ? new Date(request[field]) : null;
-        if (dateObj && !isNaN(dateObj.getTime())) {
-          const hours = dateObj.getHours();
-          const minutes = dateObj.getMinutes();
-          if (hours !== 0 || minutes !== 0) {
-            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-          }
-        }
         if (request.details) {
           try {
             const parsed = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
@@ -148,6 +140,14 @@ export async function GET(req: NextRequest) {
               const match = request.details.match(/(\d{2}):(\d{2})/);
               if (match) return `${match[1]}:${match[2]}`;
             }
+          }
+        }
+        const dateObj = request[field] ? new Date(request[field]) : null;
+        if (dateObj && !isNaN(dateObj.getTime())) {
+          const hours = dateObj.getHours();
+          const minutes = dateObj.getMinutes();
+          if (hours !== 0 || minutes !== 0) {
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
           }
         }
         return null;
@@ -171,13 +171,28 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      let leaveStatus = null;
+      if (leaveReq) {
+        leaveStatus = "P";
+        if (leaveReq.details) {
+          try {
+            const parsed = typeof leaveReq.details === "string" ? JSON.parse(leaveReq.details) : leaveReq.details;
+            if (parsed.leaveType === "Nghỉ không lương") {
+              leaveStatus = "KL";
+            } else if (parsed.leaveType === "Nghỉ ốm có BHXH") {
+              leaveStatus = "BHXH";
+            }
+          } catch (e) {}
+        }
+      }
+
       const dayAttendance = {
         date: day,
         checkInMorning: att?.checkInMorning ? new Date(att.checkInMorning) : null,
         checkOutMorning: att?.checkOutMorning ? new Date(att.checkOutMorning) : null,
         checkInAfternoon: att?.checkInAfternoon ? new Date(att.checkInAfternoon) : null,
         checkOutAfternoon: att?.checkOutAfternoon ? new Date(att.checkOutAfternoon) : null,
-        status: isHoliday ? "L" : (leaveReq ? "P" : (att?.status || null)),
+        status: isHoliday ? "L" : (leaveStatus || (att?.status || null)),
         isPermission: att?.isPermission || !!lateReq || !!earlyReq,
         requestedInMorning,
         requestedInAfternoon,
@@ -191,6 +206,8 @@ export async function GET(req: NextRequest) {
       const statusMap: Record<string, { label: string, color: string }> = {
         "L": { label: "Ngày lễ", color: "#6366f1" },
         "P": { label: "Nghỉ phép", color: "#8b5cf6" },
+        "KL": { label: "Nghỉ không lương", color: "#6b7280" },
+        "BHXH": { label: "Nghỉ ốm có BHXH", color: "#ec4899" },
         "OK": { label: "Đủ công", color: "#10b981" },
         "Present": { label: "Có đi làm", color: "#f59e0b" },
         "Miss": { label: "Vi phạm chấm công", color: "#ef4444" },
@@ -208,6 +225,16 @@ export async function GET(req: NextRequest) {
         finalColor = result.workPoints >= 0.75 ? "#f59e0b" : "#ef4444";
       }
 
+      let approvedLateTime = null;
+      if (lateReq) {
+        approvedLateTime = extractTimeFromRequest(lateReq, "startDate");
+      }
+
+      let approvedEarlyTime = null;
+      if (earlyReq) {
+        approvedEarlyTime = extractTimeFromRequest(earlyReq, "startDate");
+      }
+
       return {
         day: day.getDate(),
         dow: dowMap[day.getDay()],
@@ -220,18 +247,20 @@ export async function GET(req: NextRequest) {
         statusLabel: finalLabel,
         statusColor: finalColor,
         isWeekend: day.getDay() === 0,
-        workday: result.workPoints,
+        workday: day > now ? 0 : result.workPoints,
         otHours: result.otHours,
         violationMinutes: result.violationMinutes,
         details: result.violationDetails,
         isViolation: result.isAttendanceViolation || result.isRegulationViolation,
         isAttendanceViolation: result.isAttendanceViolation,
-        isRegulationViolation: result.isRegulationViolation
+        isRegulationViolation: result.isRegulationViolation,
+        approvedLateTime,
+        approvedEarlyTime
       };
     });
 
     const totalWorkValue = days.reduce((acc, d) => acc + (d.workday || 0), 0);
-    const totalLeave = days.filter(d => d.status === "P").length;
+    const totalLeave = days.filter(d => ["P", "KL", "BHXH"].includes(d.status || "")).length;
     const totalOTHours = days.reduce((acc, d) => acc + (d.otHours || 0), 0);
 
     return NextResponse.json({

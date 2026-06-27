@@ -58,14 +58,60 @@ export async function PATCH(
     const body = await req.json();
     const { trangThai, uuTien, daThanhToan, ghiChu } = body;
 
-    const updated = await prisma.contract.update({
-      where: { id },
-      data: {
-        ...(trangThai    !== undefined && { trangThai }),
-        ...(uuTien       !== undefined && { uuTien }),
-        ...(daThanhToan  !== undefined && { daThanhToan: parseFloat(daThanhToan) }),
-        ...(ghiChu       !== undefined && { ghiChu }),
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      const currentContract = await tx.contract.findUnique({
+        where: { id },
+        include: { customer: true }
+      });
+      if (!currentContract) throw new Error("Contract not found");
+
+      const contractUpdate = await tx.contract.update({
+        where: { id },
+        data: {
+          ...(trangThai    !== undefined && { trangThai }),
+          ...(uuTien       !== undefined && { uuTien }),
+          ...(daThanhToan  !== undefined && { daThanhToan: parseFloat(daThanhToan) }),
+          ...(ghiChu       !== undefined && { ghiChu }),
+        },
+      });
+
+      const nextDaThanhToan = daThanhToan !== undefined ? parseFloat(daThanhToan) : currentContract.daThanhToan;
+      const refId = currentContract.code || currentContract.id;
+
+      // Tìm bản ghi công nợ tương ứng
+      const existingDebt = await tx.debt.findFirst({
+        where: { referenceId: refId }
+      });
+
+      if (existingDebt) {
+        const nextPaid = nextDaThanhToan;
+        const nextStatus = nextPaid >= existingDebt.amount ? "PAID" : (nextPaid > 0 ? "PARTIAL" : "UNPAID");
+        await tx.debt.update({
+          where: { id: existingDebt.id },
+          data: {
+            paidAmount: nextPaid,
+            status: nextStatus
+          }
+        });
+      } else {
+        const conNo = currentContract.giaTriHopDong - nextDaThanhToan;
+        if (conNo > 0) {
+          await (tx.debt as any).create({
+            data: {
+              type: "phai-thu",
+              partnerName: currentContract.customer?.name ?? "Khách hàng",
+              amount: currentContract.giaTriHopDong,
+              paidAmount: nextDaThanhToan,
+              status: nextDaThanhToan === 0 ? "UNPAID" : "PARTIAL",
+              dueDate: currentContract.ngayKetThuc,
+              referenceId: refId,
+              description: `Công nợ tự động phát sinh từ hợp đồng thành công: ${refId}`,
+            }
+          });
+        }
+      }
+
+      return contractUpdate;
     });
 
     return NextResponse.json(updated);

@@ -113,7 +113,7 @@ export function BangKeXuatNhapTonModal({ warehouseId, warehouseName, onClose }: 
   });
 
   const doc = (
-    <div style={{ fontFamily: "'Roboto Condensed','Arial Narrow',Arial,sans-serif", fontSize: 13, color: "#000", lineHeight: 1.4 }}>
+    <div className="pdf-content-page" style={{ fontFamily: "'Roboto Condensed','Arial Narrow',Arial,sans-serif", fontSize: 13, color: "#000", lineHeight: 1.4 }}>
 
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>

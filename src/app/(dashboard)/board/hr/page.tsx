@@ -575,7 +575,7 @@ export default function BoardHrPage() {
   ];
 
   const rightContent = (
-    <div>
+    <div className="p-4 flex-1 d-flex flex-column" style={{ overflowY: "auto", minHeight: 0 }}>
       <SectionTitle title="Hiện trạng nguồn nhân lực" className="mb-3" />
       {/* Tabs */}
       <TabBar

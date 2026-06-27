@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { useSession } from "next-auth/react";
 import { CurrencyInput }            from "@/components/ui/CurrencyInput";
 import { useToast }                  from "@/components/ui/Toast";
 import { ConfirmDialog }             from "@/components/ui/ConfirmDialog";
@@ -7,6 +8,7 @@ import { PhieuXuatKhoPreview }       from "./PhieuXuatKhoPreview";
 import { TaoYeuCauMuaHangModal }     from "@/components/plan-finance/mua_hang/TaoYeuCauMuaHangModal";
 import { TrangThaiTonKhoBadge }      from "@/components/plan-finance/dung_chung/TrangThaiTonKhoBadge";
 import { genDocCode }                from "@/lib/genDocCode";
+import { LichSuXuatKhoOffcanvas }    from "./LichSuXuatKhoOffcanvas";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Warehouse       { id: string; code: string | null; name: string; isActive: boolean; }
@@ -64,22 +66,34 @@ const GRID = "28px 1fr 60px 80px 80px 60px 60px 60px 110px 110px 32px";
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
+  const { data: session } = useSession();
   const toast = useToast();
 
   const [mode, setMode]                 = React.useState<"manual" | "so" | "wo">("manual");
   const [warehouses, setWarehouses]     = React.useState<Warehouse[]>([]);
   const [fromWarehouseId, setFromWarehouseId] = React.useState("");
-  const [soChungTu]                     = React.useState(genSoPhieu);
+  const [soChungTu, setSoChungTu]       = React.useState(() => {
+    const d = new Date();
+    const yyyymmdd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+    return `PXH-${yyyymmdd}-001`;
+  });
   const [ngayXuat, setNgayXuat]         = React.useState(new Date().toISOString().slice(0,10));
   const [lockDate, setLockDate]         = React.useState(true);
   const [lyDo, setLyDo]                 = React.useState("Xuất kho hàng hoá");
   const [ghiChu, setGhiChu]             = React.useState("");
   const [nguoiThucHien, setNguoiThucHien] = React.useState("");
+
+  React.useEffect(() => {
+    if (session?.user?.name && !nguoiThucHien) {
+      setNguoiThucHien(session.user.name);
+    }
+  }, [session, nguoiThucHien]);
   const [lines, setLines]               = React.useState<StockLine[]>([emptyLine()]);
   const [saving, setSaving]             = React.useState(false);
   const [success, setSuccess]           = React.useState(false);
   const [confirmOpen, setConfirmOpen]   = React.useState(false);
   const [showPreview, setShowPreview]   = React.useState(false);
+  const [showLichSu, setShowLichSu]     = React.useState(false);
   const [insufficientItems, setInsufficient] = React.useState<{inventoryItemId:string;tenHang:string;soLuong:number;soLuongTon:number}[]>([]);
 
   // SO / WO
@@ -97,6 +111,13 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
         setWarehouses(active);
         if (active.length === 1) setFromWarehouseId(active[0].id);
       }).catch(() => {});
+
+    fetch("/api/plan-finance/stock-movements/next-code?type=xuat")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.nextCode) setSoChungTu(d.nextCode);
+      })
+      .catch(() => {});
   }, []);
 
   // Fetch danh sách đơn bán hàng khi chuyển sang mode "so"
@@ -537,10 +558,13 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
                 {saving
                   ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} />
                   : <i className="bi bi-check2-all" style={{ fontSize: 14 }} />}
-                Xác nhận xuất kho
+                Xác nhận
               </button>
             );
           })()}
+          <button onClick={() => setShowLichSu(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderWidth: "1.5px", borderStyle: "solid", borderColor: "var(--border)", background: "var(--muted)", color: "var(--foreground)", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}>
+            <i className="bi bi-clock-history" style={{ fontSize: 14 }} /> Lịch sử
+          </button>
           <button onClick={onClose} style={{ width: 34, height: 34, borderWidth: "1px", borderStyle: "solid", borderColor: "var(--border)", background: "var(--muted)", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
             <i className="bi bi-x" style={{ fontSize: 18 }} />
           </button>
@@ -596,8 +620,8 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
               <label style={CSS.label}>Kho xuất <span style={{ color: "#f43f5e" }}>*</span></label>
               <select value={fromWarehouseId} onChange={e => !locked && setFromWarehouseId(e.target.value)} disabled={locked}
                 style={{ ...CSS.input, appearance: "none", borderColor: fromWarehouseId ? "rgba(245,158,11,0.5)" : "var(--border)", opacity: locked ? 0.65 : 1, cursor: locked ? "not-allowed" : "pointer" }}>
-                <option value="">-- Chọn kho --</option>
-                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}{w.code ? ` (${w.code})` : ""}</option>)}
+                <option value="">Chọn kho</option>
+                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             </div>
 
@@ -826,6 +850,9 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
             })),
           }}
         />
+      )}
+      {showLichSu && (
+        <LichSuXuatKhoOffcanvas onClose={() => setShowLichSu(false)} />
       )}
     </div>
   );

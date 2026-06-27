@@ -713,6 +713,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+button, input, select, textarea, optgroup, option {
+  font-family: var(--font-roboto-condensed), "Roboto Condensed", "Roboto", "Arial", sans-serif !important;
+}
+
 /* ===== CARD COMPONENT ===== */
 .app-card {
   background: var(--card);
@@ -2697,6 +2701,755 @@ select.app-input {
 @media (max-width: 480px) {
   .ds-section-body {
     padding: var(--ds-space-4);
+  }
+}
+
+/* Responsive padding and layout adjustments for mobile/tablet screens (<= 1200px) */
+@media (max-width: 1200px) {
+  /* Stepper wrapper and container padding adjustments */
+  .workflow-card-stepper-container {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+  .modern-stepper-container {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  /* Make stepper items stretch to fill full row and align icons evenly */
+  .modern-stepper-divider {
+    display: none !important;
+  }
+  .modern-step-text {
+    display: block !important;
+    text-align: center !important;
+  }
+  .modern-step-text p {
+    display: none !important;
+  }
+  .modern-stepper-spacer {
+    display: none !important;
+  }
+  .modern-step-item {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    gap: 6px !important;
+  }
+  .modern-step-title {
+    font-size: 11px !important;
+  }
+  
+  /* Fullscreen the main card content on mobile screens */
+  .standard-page-content {
+    padding: 0 !important;
+  }
+  .standard-page-content > .bg-white.rounded-4,
+  .standard-page-content > .bg-card,
+  .standard-page-content > div > .bg-card,
+  .standard-page-content > div > .bg-white.rounded-4 {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Ensure tables have a minimum width on mobile to trigger horizontal scroll and prevent content squeeze */
+  .app-responsive-table-wrapper table {
+    min-width: 850px !important;
+  }
+  /* Override: planning page tables should NOT have a forced min-width;
+     they use explicit column widths and must fit inside the card on iPad */
+  .app-responsive-table-wrapper.mkt-plan-table-no-min table {
+    min-width: 0 !important;
+  }
+}
+
+/* Fullscreen offcanvases and custom drawers on mobile/tablet screens (<= 1200px) */
+@media (max-width: 1200px) {
+  .offcanvas,
+  .app-custom-drawer {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    border-radius: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
+}
+
+/* Custom Overrides for HR Terminations & Promotions Mobile Layouts */
+@media (max-width: 768px) {
+  .fs-terminations-container,
+  .fs-promotions-container,
+  .fs-salary-adjustments-container {
+    padding: 0 !important;
+  }
+  .fs-stationery-container {
+    padding: 0 0 60px 0 !important;
+  }
+  .fs-terminations-card,
+  .fs-promotions-card,
+  .fs-salary-adjustments-card,
+  .fs-stationery-card {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .fs-terminations-card .workflow-card-stepper-container,
+  .fs-promotions-card .workflow-card-stepper-container,
+  .fs-salary-adjustments-card .workflow-card-stepper-container,
+  .fs-stationery-card .workflow-card-stepper-container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  .fs-terminations-card .p-4,
+  .fs-promotions-card .p-4,
+  .fs-salary-adjustments-card .p-4 {
+    padding: 12px !important;
+  }
+  .fs-toolbar-wrap {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .fs-filters-wrap {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .fs-tabs-wrap {
+    order: 1 !important;
+    flex: 1 1 100% !important;
+    display: flex !important;
+  }
+  .fs-tabs-wrap button {
+    flex: 1 !important;
+    text-align: center !important;
+  }
+  .fs-search-input-wrap {
+    order: 2 !important;
+    flex: 1 1 auto !important;
+    width: auto !important;
+    margin-left: 0 !important;
+  }
+  .fs-filter-btn {
+    order: 3 !important;
+    flex: 0 0 38px !important;
+    width: 38px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    margin-left: auto !important;
+  }
+  .fs-create-btn {
+    order: 4 !important;
+    flex: 0 0 38px !important;
+    width: 38px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    margin-left: 0 !important;
+  }
+  .fs-record-count {
+    order: 5 !important;
+    text-align: right !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+  .fs-termination-drawer {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    border-left: none !important;
+    border-radius: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
+  .fs-detail-header {
+    padding: 12px !important;
+  }
+
+  /* Overrides for HR Attendance & Payroll */
+  .fs-payroll-container {
+    padding: 0 !important;
+  }
+  .fs-payroll-card {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .fs-emp-col {
+    width: 120px !important;
+    min-width: 120px !important;
+    max-width: 120px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+  .fs-emp-col span {
+    font-size: 11px !important;
+  }
+
+  /* Overrides for HR Training */
+  .fs-training-container {
+    padding: 0 !important;
+  }
+  .fs-training-card {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .fs-training-card .px-4 {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  .fs-training-card .pb-4 {
+    padding-bottom: 12px !important;
+  }
+  
+  /* Truncate page header description on mobile */
+  .page-header-desc {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Stretch filter elements on mobile */
+  .fs-filters-wrap select,
+  .fs-filters-wrap .form-select,
+  .fs-filters-wrap > div {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 110px !important;
+  }
+  .fs-filters-wrap div > select,
+  .fs-filters-wrap div > .form-select {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+  }
+}
+
+/* Custom filters sizing for Employee page */
+.w-md-auto-custom {
+  width: 100% !important;
+}
+.filter-select-dept,
+.filter-select-status {
+  flex: 1 1 auto;
+}
+
+@media (min-width: 768px) {
+  .w-md-auto-custom {
+    width: auto !important;
+  }
+  .filter-select-dept {
+    width: 200px !important;
+    flex: 0 0 200px !important;
+  }
+  .filter-select-status {
+    width: 160px !important;
+    flex: 0 0 160px !important;
+  }
+}
+
+.btn-add-responsive {
+  width: 42px !important;
+  height: 42px !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+@media (min-width: 768px) {
+  .btn-add-responsive {
+    width: auto !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+  }
+}
+
+.btn-publish-responsive {
+  width: 34px !important;
+  height: 34px !important;
+  padding: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+@media (min-width: 768px) {
+  .btn-publish-responsive {
+    width: auto !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+  }
+}
+
+/* Attendance/Payroll page filters */
+.attendance-month-picker {
+  width: 160px !important;
+  flex: 0 0 160px !important;
+}
+.attendance-dept-select,
+.attendance-status-select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .attendance-month-picker {
+    width: 180px !important;
+    flex: 0 0 180px !important;
+  }
+  .attendance-dept-select {
+    width: 160px !important;
+    flex: 0 0 160px !important;
+  }
+  .attendance-status-select {
+    width: 150px !important;
+    flex: 0 0 150px !important;
+  }
+}
+
+/* ===== ATTENDANCE DETAIL MODAL (DESKTOP & MOBILE RESPONSIVE) ===== */
+.attendance-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20001;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.attendance-detail-modal-card {
+  background: var(--card);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 650px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 30px 90px rgba(0,0,0,0.4);
+  animation: modalIn 0.25s ease;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.attendance-detail-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.attendance-detail-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 0;
+}
+.attendance-detail-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.attendance-detail-body table th {
+  padding: 12px 16px;
+  text-align: center;
+  font-weight: 700;
+}
+.attendance-detail-body table th:first-child {
+  text-align: left;
+}
+.attendance-detail-body table td {
+  padding: 10px 16px;
+  text-align: center;
+}
+.attendance-detail-body table td:first-child {
+  text-align: left;
+}
+.attendance-detail-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.attendance-detail-footer .stats-container {
+  display: flex;
+  gap: 16px;
+}
+.attendance-detail-footer .buttons-container {
+  display: flex;
+  gap: 10px;
+}
+
+@media (max-width: 767.98px) {
+  .attendance-detail-backdrop {
+    padding: 0 !important;
+  }
+  .attendance-detail-modal-card {
+    border-radius: 0 !important;
+    max-width: 100vw !important;
+    width: 100vw !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    border: none !important;
+    margin: 0 !important;
+  }
+  .attendance-detail-header {
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px 16px !important;
+  }
+  .attendance-detail-body {
+    width: 100% !important;
+    max-width: 100% !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .attendance-detail-body table {
+    width: 100% !important;
+    min-width: 100% !important;
+    font-size: 11px !important;
+    table-layout: auto !important;
+  }
+  .attendance-detail-body table th,
+  .attendance-detail-body table td {
+    padding: 6px 3px !important;
+  }
+  .attendance-detail-body table th:first-child,
+  .attendance-detail-body table td:first-child {
+    padding-left: 12px !important;
+  }
+  .attendance-detail-body table th:last-child,
+  .attendance-detail-body table td:last-child {
+    padding-right: 12px !important;
+  }
+  .attendance-detail-body table td span {
+    white-space: normal !important;
+    display: inline-block !important;
+    word-break: break-word !important;
+    font-size: 9px !important;
+    padding: 2px 4px !important;
+  }
+  .attendance-detail-footer {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)) 16px !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    align-items: stretch !important;
+  }
+  .attendance-detail-footer .stats-container {
+    justify-content: space-around !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+  .attendance-detail-footer .buttons-container {
+    width: 100% !important;
+    gap: 8px !important;
+  }
+  .attendance-detail-footer .buttons-container > * {
+    flex: 1 !important;
+    width: 100% !important;
+  }
+}
+
+.btn-action-responsive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+@media (min-width: 768px) {
+  .btn-action-responsive,
+  .btn-publish-responsive {
+    font-size: 11.5px !important;
+    height: 31px !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.2px;
+  }
+  .btn-action-responsive i,
+  .btn-publish-responsive i {
+    font-size: 13px !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .btn-action-responsive {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+  }
+  .btn-action-responsive i {
+    font-size: 16px !important;
+    margin: 0 !important;
+  }
+}
+
+/* Custom filters layout on mobile */
+@media (max-width: 767.98px) {
+  .w-md-auto-custom {
+    flex-wrap: wrap !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+  
+  /* Bố cục 2 bộ lọc (cho Chấm công & Bảng lương) - xếp cùng một hàng */
+  .w-md-auto-custom.filters-two-cols {
+    flex-wrap: nowrap !important;
+  }
+  .w-md-auto-custom.filters-two-cols .attendance-month-picker {
+    width: calc(46% - 4px) !important;
+    max-width: calc(46% - 4px) !important;
+    flex: 0 0 calc(46% - 4px) !important;
+  }
+  .w-md-auto-custom.filters-two-cols .attendance-dept-select {
+    width: calc(54% - 4px) !important;
+    max-width: calc(54% - 4px) !important;
+    flex: 0 0 calc(54% - 4px) !important;
+    padding-right: 24px !important; /* Để chừa chỗ cho mũi tên select */
+  }
+}
+
+/* Payroll Table styling */
+.payroll-table th,
+.payroll-table td {
+  padding: 6px 8px !important;
+  vertical-align: middle;
+}
+
+/* Desktop widths for payroll columns */
+.payroll-col-emp {
+  width: 220px !important;
+  min-width: 220px !important;
+  max-width: 220px !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+.payroll-col-base {
+  width: 130px !important;
+  min-width: 130px !important;
+}
+.payroll-col-days {
+  width: 90px !important;
+  min-width: 90px !important;
+}
+.payroll-col-allow {
+  width: 110px !important;
+  min-width: 110px !important;
+}
+.payroll-col-deduct {
+  width: 110px !important;
+  min-width: 110px !important;
+}
+.payroll-col-ot {
+  width: 130px !important;
+  min-width: 130px !important;
+}
+.payroll-col-net {
+  width: 130px !important;
+  min-width: 130px !important;
+}
+.payroll-col-status {
+  width: 130px !important;
+  min-width: 130px !important;
+}
+
+/* Mobile responsive widths for payroll columns */
+@media (max-width: 767.98px) {
+  .payroll-table th,
+  .payroll-table td {
+    padding: 4px 4px !important;
+    font-size: 11px !important;
+  }
+  .payroll-col-emp {
+    width: 110px !important;
+    min-width: 110px !important;
+    max-width: 110px !important;
+  }
+  .payroll-col-base {
+    width: 90px !important;
+    min-width: 90px !important;
+  }
+  .payroll-col-days {
+    width: 65px !important;
+    min-width: 65px !important;
+  }
+  .payroll-col-allow {
+    width: 80px !important;
+    min-width: 80px !important;
+  }
+  .payroll-col-deduct {
+    width: 85px !important;
+    min-width: 85px !important;
+  }
+  .payroll-col-ot {
+    width: 90px !important;
+    min-width: 90px !important;
+  }
+  .payroll-col-net {
+    width: 95px !important;
+    min-width: 95px !important;
+  }
+  .payroll-col-status {
+    width: 100px !important;
+    min-width: 100px !important;
+  }
+}
+
+/* Sticky bottom action navigation bar for Mobile */
+.sticky-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)) 12px !important;
+  z-index: 999;
+}
+
+.btn-action-mobile {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #64748b;
+  padding: 4px 8px !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 64px;
+  outline: none;
+}
+
+.btn-action-mobile i {
+  font-size: 20px !important;
+  margin: 0 !important;
+  transition: transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btn-action-mobile .action-label {
+  font-size: 10px !important;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.btn-action-mobile:active i {
+  transform: scale(0.9);
+}
+
+.btn-action-mobile:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-action-mobile:disabled i {
+  background: #e2e8f0 !important;
+  color: #94a3b8 !important;
+}
+
+.btn-action-mobile:disabled .action-label {
+  color: #94a3b8;
+}
+
+.btn-action-mobile-send-active i {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+  color: white !important;
+}
+.btn-action-mobile-send-active .action-label {
+  color: #4f46e5 !important;
+}
+
+.btn-action-mobile-approve-active i {
+  background: #0ea5e9 !important;
+  color: white !important;
+}
+.btn-action-mobile-approve-active .action-label {
+  color: #0ea5e9 !important;
+}
+
+.btn-action-mobile-publish-active i {
+  background: #10b981 !important;
+  color: white !important;
+}
+.btn-action-mobile-publish-active .action-label {
+  color: #10b981 !important;
+}
+
+/* Add padding to the scrollable container so table content isn't cut off by the bottom bar on mobile */
+@media (max-width: 767.98px) {
+  .payroll-table {
+    margin-bottom: calc(75px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  .insurance-page-container {
+    padding-bottom: calc(65px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* KPI Card Responsive Styling */
+.kpi-icon-box {
+  width: 38px;
+  height: 38px;
+}
+.kpi-icon {
+  font-size: 16px;
+}
+.kpi-label {
+  font-size: 11px;
+}
+.kpi-value {
+  font-size: 16px;
+}
+.kpi-subtitle {
+  font-size: 9.5px;
+}
+
+@media (min-width: 768px) {
+  .kpi-icon-box {
+    width: 48px;
+    height: 48px;
+  }
+  .kpi-icon {
+    font-size: 20px;
+  }
+  .kpi-label {
+    font-size: 12px;
+  }
+  .kpi-value {
+    font-size: 19px;
+  }
+  .kpi-subtitle {
+    font-size: 10px;
   }
 }
 

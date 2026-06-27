@@ -60,7 +60,6 @@ interface ApprovalCenterProps {
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const ENTITY_TYPE_LABELS: Record<string, { label: string; icon: string; color: string }> = {
   marketing_yearly_plan: { label: "KH Marketing Năm", icon: "bi-calendar2-range", color: "#dc2626" },
-  marketing_monthly_plan: { label: "KH Marketing Tháng", icon: "bi-calendar-check", color: "#0891b2" },
   marketing_monthly_execution: { label: "Bản tin/Thực thi Tháng", icon: "bi-layout-text-window", color: "#0ea5e9" },
   expense: { label: "Chi phí", icon: "bi-receipt", color: "#d97706" },
   leave_request: { label: "Nghỉ phép", icon: "bi-calendar-x", color: "#7c3aed" },
@@ -68,8 +67,13 @@ const ENTITY_TYPE_LABELS: Record<string, { label: string; icon: string; color: s
   quotation: { label: "Báo giá", icon: "bi-file-earmark-text", color: "#0b2447" },
   PROMOTION: { label: "Đề bạt", icon: "bi-arrow-up-right-circle", color: "#e11d48" },
   TRANSFER: { label: "Điều chuyển", icon: "bi-arrow-left-right", color: "#2563eb" },
-   SALARY_ADJUSTMENT: { label: "Điều chỉnh lương", icon: "bi-cash-stack", color: "#8b5cf6" },
+  SALARY_ADJUSTMENT: { label: "Điều chỉnh lương", icon: "bi-cash-stack", color: "#8b5cf6" },
   RECRUITMENT: { label: "Tuyển dụng", icon: "bi-person-plus-fill", color: "#059669" },
+  STATIONERY_PURCHASE: { label: "Mua VPP (KT duyệt)", icon: "bi-cart-fill", color: "#3b82f6" },
+  STATIONERY_PURCHASE_DIRECTOR: { label: "Mua VPP (GĐ duyệt)", icon: "bi-cart-check-fill", color: "#10b981" },
+  marketing_proposal: { label: "Đề xuất CP Marketing", icon: "bi-file-earmark-bar-graph", color: "#8b5cf6" },
+  marketing_monthly_plan: { label: "Kế hoạch MKT tháng", icon: "bi-calendar3", color: "#3b82f6" },
+  master_yearly_plan: { label: "KH Marketing Tổng thể", icon: "bi-calendar2-range", color: "#dc2626" },
 };
 
 const STATUS_CONFIG: Record<ApprovalStatus, { label: string; color: string; bg: string; icon: string }> = {
@@ -116,10 +120,14 @@ function avatarColor(name: string) {
 }
 
 function getEntityLink(entityType: string, meta: any): string | null {
+  if (entityType === "marketing_proposal") return "/marketing/planing-1111";
+  if (entityType === "marketing_monthly_plan") return "/marketing/planing-1111";
+  if (entityType === "master_yearly_plan") return "/marketing/planing-1111";
   if (entityType.startsWith("marketing_")) return "/marketing/plan/yearly";
   if (entityType === "expense") return "/plan_finance/expenses";
   if (entityType === "PROMOTION" || entityType === "TRANSFER") return "/hr/promotions";
   if (entityType === "SALARY_ADJUSTMENT") return "/hr/salary-adjustment";
+  if (entityType === "STATIONERY_PURCHASE" || entityType === "STATIONERY_PURCHASE_DIRECTOR") return "/hr/stationery";
   // Fallbacks for generic requests
   return null;
 }
@@ -518,11 +526,15 @@ function ApprovalDetail({
   onAction,
   currentUserId,
   currentUserName,
+  onBack,
+  isMobileOrTablet = false,
 }: {
   item: ApprovalRequest;
   onAction: (id: string, action: string, extra?: any) => Promise<void>;
   currentUserId: string;
   currentUserName: string;
+  onBack?: () => void;
+  isMobileOrTablet?: boolean;
 }) {
   const [comments, setComments] = useState<ApprovalComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(true);
@@ -703,37 +715,60 @@ function ApprovalDetail({
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", position: "relative" }}>
       {/* Header */}
-      <div style={{ padding: "16px 20px 0", flexShrink: 0, borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-          <div style={{
-            width: 42, height: 42, borderRadius: 11, flexShrink: 0,
-            background: entityCfg.color + "18",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <i className={`bi ${entityCfg.icon}`} style={{ fontSize: 20, color: entityCfg.color }} />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
-              {item.entityCode && (
-                <span style={{ fontSize: 11, fontWeight: 800, color: entityCfg.color, letterSpacing: "0.05em" }}>
-                  {item.entityCode}
-                </span>
-              )}
-              <StatusBadge status={item.status} />
-              {item.priority !== "normal" && (
-                <span style={{ fontSize: 10, fontWeight: 700, color: PRIORITY_CONFIG[item.priority].color }}>
-                  <i className="bi bi-exclamation-triangle-fill" style={{ marginRight: 3 }} />
-                  {PRIORITY_CONFIG[item.priority].label}
-                </span>
-              )}
+      <div style={{ padding: "16px 20px 12px", flexShrink: 0, borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
+        <div style={{ display: "flex", flexDirection: isMobileOrTablet ? "column" : "row", alignItems: isMobileOrTablet ? "stretch" : "flex-start", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flex: 1, minWidth: 0 }}>
+            {onBack && (
+              <button
+                onClick={onBack}
+                style={{
+                  background: "none", border: "1px solid var(--border)",
+                  borderRadius: 8, width: 34, height: 34,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "var(--muted-foreground)", cursor: "pointer",
+                  marginRight: 4, flexShrink: 0
+                }}
+              >
+                <i className="bi bi-arrow-left" style={{ fontSize: 16 }} />
+              </button>
+            )}
+            <div style={{
+              width: 42, height: 42, borderRadius: 11, flexShrink: 0,
+              background: entityCfg.color + "18",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <i className={`bi ${entityCfg.icon}`} style={{ fontSize: 20, color: entityCfg.color }} />
             </div>
-            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "var(--foreground)", lineHeight: 1.4 }}>
-              {item.entityTitle}
-            </h3>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+                {item.entityCode && (
+                  <span style={{ fontSize: 11, fontWeight: 800, color: entityCfg.color, letterSpacing: "0.05em" }}>
+                    {item.entityCode}
+                  </span>
+                )}
+                <StatusBadge status={item.status} />
+                {item.priority !== "normal" && (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: PRIORITY_CONFIG[item.priority].color }}>
+                    <i className="bi bi-exclamation-triangle-fill" style={{ marginRight: 3 }} />
+                    {PRIORITY_CONFIG[item.priority].label}
+                  </span>
+                )}
+              </div>
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "var(--foreground)", lineHeight: 1.4 }}>
+                {item.entityTitle}
+              </h3>
+            </div>
           </div>
 
           {/* TOP RIGHT ACTION BUTTONS */}
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto", marginTop: 4 }}>
+          <div style={{ 
+            display: "flex", gap: 8, alignItems: "center", 
+            marginLeft: isMobileOrTablet ? 0 : "auto", 
+            marginTop: isMobileOrTablet ? 8 : 4,
+            paddingLeft: isMobileOrTablet ? (onBack ? 98 : 54) : 0,
+            justifyContent: isMobileOrTablet ? "flex-start" : "flex-end",
+            flexWrap: "wrap"
+          }}>
             {(!isAlreadyApproved && (canApprove || canRecall)) && (
               <>
                 {canApprove && (
@@ -854,13 +889,36 @@ function ApprovalDetail({
               </div>
 
               {/* Attachments Section */}
-              {meta.attachments && meta.attachments.length > 0 && (
+              {((meta.attachments && meta.attachments.length > 0) || meta.pdfUrl) && (
                 <div style={{ marginTop: 14, padding: "12px 16px", background: "var(--card)", borderRadius: 12, border: "1px solid var(--border)" }}>
                   <span style={{ fontSize: 11, fontWeight: 800, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 6, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    <i className="bi bi-paperclip" style={{ fontSize: 14 }} /> Tài liệu đính kèm ({meta.attachments.length})
+                    <i className="bi bi-paperclip" style={{ fontSize: 14 }} /> Tài liệu đính kèm ({(meta.attachments?.length || 0) + (meta.pdfUrl ? 1 : 0)})
                   </span>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {meta.attachments.map((att: any, index: number) => (
+                    {meta.pdfUrl && (
+                      <div
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--background)", borderRadius: 8, textDecoration: "none", color: "var(--foreground)", fontSize: 13, border: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)", transition: "all 0.2s", cursor: "pointer" }}
+                        onClick={() => {
+                          setFullscreenPdfUrl(meta.pdfUrl);
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = "var(--primary)"}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = "color-mix(in srgb, var(--primary) 15%, transparent)"}
+                      >
+                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(220, 38, 38, 0.1)", color: "#dc2626", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <i className="bi bi-file-earmark-pdf-fill" style={{ fontSize: 16 }} />
+                        </div>
+                        <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 600 }}>
+                          {item.entityType === "marketing_monthly_plan" 
+                            ? `Ke_hoach_MKT_thang_${meta.month}_${meta.year}.pdf` 
+                            : `De_xuat_chi_phi_MKT_${meta.month}_${meta.year}.pdf`
+                          }
+                        </span>
+                        <div style={{ padding: "4px 8px", background: "var(--muted)", borderRadius: 6, fontSize: 11, color: "var(--primary)", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                          Mở tệp <i className="bi bi-box-arrow-up-right" style={{ fontSize: 10 }} />
+                        </div>
+                      </div>
+                    )}
+                    {meta.attachments && meta.attachments.map((att: any, index: number) => (
                       <div
                         key={index}
                         style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--background)", borderRadius: 8, textDecoration: "none", color: "var(--foreground)", fontSize: 13, border: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)", transition: "all 0.2s", cursor: "pointer" }}
@@ -991,6 +1049,41 @@ function ApprovalDetail({
           {/* TAB 2: TÀI LIỆU TRÌNH DUYỆT (DATA PREVIEW) */}
           <div style={{ width: "50%", height: "100%", display: "flex", flexDirection: "column", background: "var(--card)" }}>
             <div className="custom-scrollbar" style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+              {previewData?.pdfUrl && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+                    <i className="bi bi-file-earmark-check me-2" style={{ color: "var(--primary)" }} />
+                    Hồ sơ có đính kèm bản PDF chính thức
+                  </span>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button 
+                      onClick={() => setPreviewPdfUrl(null)}
+                      style={{ 
+                        fontSize: 11, fontWeight: 700, padding: "6px 12px", borderRadius: 6,
+                        border: "1px solid var(--border)",
+                        background: !previewPdfUrl ? "var(--primary)" : "var(--card)",
+                        color: !previewPdfUrl ? "#fff" : "var(--foreground)",
+                        cursor: "pointer"
+                      }}
+                    >
+                      <i className="bi bi-file-earmark-richtext me-1" /> Xem bản in chuẩn
+                    </button>
+                    <button 
+                      onClick={() => setPreviewPdfUrl(previewData.pdfUrl)}
+                      style={{ 
+                        fontSize: 11, fontWeight: 700, padding: "6px 12px", borderRadius: 6,
+                        border: "1px solid var(--border)",
+                        background: previewPdfUrl ? "var(--primary)" : "var(--card)",
+                        color: previewPdfUrl ? "#fff" : "var(--foreground)",
+                        cursor: "pointer"
+                      }}
+                    >
+                      <i className="bi bi-file-earmark-pdf me-1" /> Xem File PDF
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {previewPdfUrl ? (
                 <iframe src={previewPdfUrl} style={{ width: "100%", height: "100%", minHeight: "800px", border: "none", borderRadius: 8, background: "#fff" }} />
               ) : loadingPreview ? (
@@ -1000,13 +1093,19 @@ function ApprovalDetail({
               ) : previewData ? (
                 <div style={{ animation: "fadeIn 0.3s" }}>
 
-                  {/* Recruitment Report Specialist Preview */}
-                  {previewData.type === "RECRUITMENT_REPORT" ? (
+                  {/* High-Fidelity Custom Preview for Monthly Marketing Plan and Proposal */}
+                  {(previewData.type === "marketing_monthly_plan" || previewData.type === "marketing_proposal") ? (
+                    <MarketingMonthlyPlanPreview 
+                      data={previewData} 
+                      isMobileOrTablet={isMobileOrTablet} 
+                    />
+                  ) : previewData.type === "RECRUITMENT_REPORT" ? (
                     <RecruitmentReportPreview 
                       data={previewData} 
                       candidateDecisions={candidateDecisions}
                       onRowClick={(id) => setSelectedCandidateId(id)}
                       onPdfOpen={(url) => setFullscreenPdfUrl(url)}
+                      isMobileOrTablet={isMobileOrTablet}
                     />
                   ) : (
                     <>
@@ -1176,14 +1275,31 @@ function ApprovalDetail({
                         </table>
                       </div>
                     </div>
-                  ) : previewData.table && (
+                  ) : (previewData.table && !["marketing_monthly_plan", "marketing_proposal"].includes(previewData.type)) && (
                     <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", textAlign: "left" }}>
                         <thead>
                           <tr style={{ background: "var(--muted)" }}>
-                            {previewData.table.headers.map((h: string, i: number) => (
-                              <th key={i} style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)", color: "var(--muted-foreground)", fontWeight: 700 }}>{h}</th>
-                            ))}
+                            {previewData.table.headers.map((h: string, i: number) => {
+                              const isBudgetCol = h.toLowerCase().includes("kinh phí") || h.toLowerCase().includes("chi phí") || h.toLowerCase().includes("thành tiền");
+                              return (
+                                <th 
+                                  key={i} 
+                                  style={{ 
+                                    padding: "10px 12px", 
+                                    borderBottom: "1px solid var(--border)", 
+                                    color: "var(--muted-foreground)", 
+                                    fontWeight: 700, 
+                                    fontSize: "11.5px",
+                                    width: isBudgetCol ? "140px" : undefined,
+                                    minWidth: isBudgetCol ? "140px" : undefined,
+                                    whiteSpace: isBudgetCol ? "nowrap" : "normal"
+                                  }}
+                                >
+                                  {h}
+                                </th>
+                              );
+                            })}
                           </tr>
                         </thead>
                         <tbody>
@@ -1198,15 +1314,52 @@ function ApprovalDetail({
                               className={row.id ? "hover-bg-light" : ""}
                               onClick={() => { if (row.id) setSelectedCandidateId(row.id); }}
                             >
-                              {row.cells.map((cell: any, j: number) => {
-                                const isObj = cell && typeof cell === "object" && !Array.isArray(cell);
-                                const content = isObj ? cell.value : cell;
-                                const span = isObj ? cell.colspan || 1 : 1;
-                                const cellStyle = isObj && cell.style ? cell.style : {};
-                                const combinedStyle: any = { padding: "12px 14px", ...cellStyle };
-                                return <td key={j} colSpan={span} style={combinedStyle}><span style={{ whiteSpace: 'pre-wrap' }}>{content}</span></td>;
-                              })}
-                            </tr>
+                               {row.cells.map((cell: any, j: number) => {
+                                 const isObj = cell && typeof cell === "object" && !Array.isArray(cell);
+                                 const content = isObj ? cell.value : cell;
+                                 const span = isObj ? cell.colspan || 1 : 1;
+                                 const cellStyle = isObj && cell.style ? cell.style : {};
+                                 
+                                 const headerText = previewData.table.headers[j] || "";
+                                 const isBudgetCol = headerText.toLowerCase().includes("kinh phí") || headerText.toLowerCase().includes("chi phí") || headerText.toLowerCase().includes("thành tiền");
+                                 
+                                 const combinedStyle: any = { 
+                                   padding: "10px 12px", 
+                                   fontSize: "11.5px", 
+                                   lineHeight: "1.5",
+                                   whiteSpace: isBudgetCol ? "nowrap" : undefined,
+                                   ...cellStyle 
+                                 };
+                                 
+                                 return (
+                                   <td key={j} colSpan={span} style={combinedStyle}>
+                                     <div style={{ whiteSpace: 'pre-wrap' }}>
+                                       {typeof content === 'string' && content.includes('\n') ? (
+                                         content.split('\n').map((paragraph, pIdx, arr) => {
+                                           const trimmed = paragraph.trim();
+                                           if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+                                             const bulletText = trimmed.substring(2);
+                                             return (
+                                               <div key={pIdx} style={{ display: 'flex', gap: 6, paddingLeft: 12, margin: '3px 0' }}>
+                                                 <span style={{ color: 'var(--primary)', opacity: 0.8, fontSize: '10px' }}>•</span>
+                                                 <span style={{ flex: 1 }}>{bulletText}</span>
+                                               </div>
+                                             );
+                                           }
+                                           return (
+                                             <p key={pIdx} style={{ margin: pIdx === arr.length - 1 ? 0 : "0 0 8px 0" }}>
+                                               {paragraph}
+                                             </p>
+                                           );
+                                         })
+                                       ) : (
+                                         content
+                                       )}
+                                     </div>
+                                   </td>
+                                 );
+                               })}
+                             </tr>
                           ))}
                           {previewData.table.rows.length === 0 && (
                             <tr><td colSpan={previewData.table.headers.length} style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)" }}>Dữ liệu trình duyệt này đang trống</td></tr>
@@ -1278,7 +1431,7 @@ function ApprovalDetail({
       {/* AI Offcanvas Overlay */}
       {showAIOffcanvas && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", justifyContent: "flex-end", background: "rgba(0,0,0,0.5)", animation: "fadeIn 0.2s" }} onClick={() => setShowAIOffcanvas(false)}>
-          <div style={{ width: 400, height: "100%", background: "var(--card)", padding: 24, boxShadow: "-4px 0 24px rgba(0,0,0,0.2)", animation: "slideLeft 0.3s", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+          <div style={{ width: isMobileOrTablet ? "100%" : 400, maxWidth: "100%", height: "100%", background: "var(--card)", padding: 24, boxShadow: "-4px 0 24px rgba(0,0,0,0.2)", animation: "slideLeft 0.3s", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", paddingBottom: 16, marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--foreground)", display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #a855f7)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1436,6 +1589,7 @@ function ApprovalDetail({
              setCandidateDecisions(prev => ({ ...prev, [id]: action }));
              setSelectedCandidateId(null);
           }}
+          isMobileOrTablet={isMobileOrTablet}
         />
       )}
     </div>
@@ -1548,6 +1702,22 @@ export function ApprovalCenter({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<ApprovalRequest | null>(null);
 
+  const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
+  const [showMobileDetail, setShowMobileDetail] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileOrTablet(window.innerWidth < 1024);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    setShowMobileDetail(false);
+  }, [view, statusFilter, deptFilter]);
+
   useEffect(() => { setIsMounted(true); }, []);
 
   const loadItems = useCallback(async () => {
@@ -1591,6 +1761,9 @@ export function ApprovalCenter({
   const handleItemSelect = (item: ApprovalRequest) => {
     setSelectedId(item.id);
     setSelectedItem(item);
+    if (isMobileOrTablet) {
+      setShowMobileDetail(true);
+    }
 
     // Mark as seen khi người dùng click chọn hồ sơ
     if (typeof window !== 'undefined') {
@@ -1636,92 +1809,101 @@ export function ApprovalCenter({
 
   // ── Page layout
   if (mode === "page") {
+    const showList = !isMobileOrTablet || !showMobileDetail || !selectedItem;
+    const showDetail = !isMobileOrTablet || (showMobileDetail && !!selectedItem);
+
     return (
       <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
         {/* List pane */}
-        <div style={{
-          width: 360, flexShrink: 0, display: "flex", flexDirection: "column",
-          borderRight: "1px solid var(--border)", height: "100%",
-        }}>
-          {/* Toolbar */}
-          <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
-            <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-              {(["inbox", "mine"] as const).map(v => (
-                <button key={v} onClick={() => setView(v)} style={{
-                  flex: 1, padding: "6px 10px", borderRadius: 8, border: "none",
-                  background: view === v ? "var(--primary)" : "var(--muted)",
-                  color: view === v ? "#fff" : "var(--muted-foreground)",
-                  fontSize: 12, fontWeight: 700, cursor: "pointer",
+        {showList && (
+          <div style={{
+            width: isMobileOrTablet ? "100%" : 360, flexShrink: 0, display: "flex", flexDirection: "column",
+            borderRight: isMobileOrTablet ? "none" : "1px solid var(--border)", height: "100%",
+          }}>
+            {/* Toolbar */}
+            <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                {(["inbox", "mine"] as const).map(v => (
+                  <button key={v} onClick={() => setView(v)} style={{
+                    flex: 1, padding: "6px 10px", borderRadius: 8, border: "none",
+                    background: view === v ? "var(--primary)" : "var(--muted)",
+                    color: view === v ? "#fff" : "var(--muted-foreground)",
+                    fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  }}>
+                    {v === "inbox" ? `📥 Cần tôi duyệt${pendingCount > 0 && v === "inbox" && statusFilter === "pending" ? ` (${pendingCount})` : ""}` : "📤 Tôi đã gửi"}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{
+                  flex: 1, padding: "5px 8px", borderRadius: 8, border: "1px solid var(--border)",
+                  background: "var(--muted)", fontSize: 12, color: "var(--foreground)", outline: "none",
                 }}>
-                  {v === "inbox" ? `📥 Cần tôi duyệt${pendingCount > 0 && v === "inbox" && statusFilter === "pending" ? ` (${pendingCount})` : ""}` : "📤 Tôi đã gửi"}
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="pending">Chờ duyệt</option>
+                  <option value="approved">Đã duyệt</option>
+                  <option value="rejected">Từ chối</option>
+                  <option value="on_hold">Tạm giữ</option>
+                  <option value="recalled">Thu hồi</option>
+                </select>
+                <button onClick={loadItems} style={{
+                  width: 34, height: 34, borderRadius: 8, border: "1px solid var(--border)",
+                  background: "transparent", cursor: "pointer", color: "var(--muted-foreground)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <i className={`bi bi-arrow-clockwise${loading ? " spin" : ""}`} />
                 </button>
-              ))}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{
-                flex: 1, padding: "5px 8px", borderRadius: 8, border: "1px solid var(--border)",
-                background: "var(--muted)", fontSize: 12, color: "var(--foreground)", outline: "none",
-              }}>
-                <option value="">Tất cả trạng thái</option>
-                <option value="pending">Chờ duyệt</option>
-                <option value="approved">Đã duyệt</option>
-                <option value="rejected">Từ chối</option>
-                <option value="on_hold">Tạm giữ</option>
-                <option value="recalled">Thu hồi</option>
-              </select>
-              <button onClick={loadItems} style={{
-                width: 34, height: 34, borderRadius: 8, border: "1px solid var(--border)",
-                background: "transparent", cursor: "pointer", color: "var(--muted-foreground)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <i className={`bi bi-arrow-clockwise${loading ? " spin" : ""}`} />
-              </button>
-            </div>
-          </div>
 
-          {/* List */}
-          <div className="custom-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
-            {loading && items.length === 0 ? (
-              <div style={{ padding: 24, textAlign: "center", color: "var(--muted-foreground)" }}>
-                <span className="spinner-border spinner-border-sm" />
-              </div>
-            ) : items.length === 0 ? (
-              <div style={{ padding: 32, textAlign: "center", color: "var(--muted-foreground)" }}>
-                <i className="bi bi-inbox" style={{ fontSize: 32, display: "block", opacity: 0.3, marginBottom: 8 }} />
-                <span style={{ fontSize: 13 }}>Không có hồ sơ nào</span>
-              </div>
-            ) : (
-              items.map(item => (
-                <ApprovalListItem
-                  key={item.id}
-                  item={item}
-                  isSelected={selectedId === item.id}
-                  onClick={() => handleItemSelect(item)}
-                />
-              ))
-            )}
+            {/* List */}
+            <div className="custom-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
+              {loading && items.length === 0 ? (
+                <div style={{ padding: 24, textAlign: "center", color: "var(--muted-foreground)" }}>
+                  <span className="spinner-border spinner-border-sm" />
+                </div>
+              ) : items.length === 0 ? (
+                <div style={{ padding: 32, textAlign: "center", color: "var(--muted-foreground)" }}>
+                  <i className="bi bi-inbox" style={{ fontSize: 32, display: "block", opacity: 0.3, marginBottom: 8 }} />
+                  <span style={{ fontSize: 13 }}>Không có hồ sơ nào</span>
+                </div>
+              ) : (
+                items.map(item => (
+                  <ApprovalListItem
+                    key={item.id}
+                    item={item}
+                    isSelected={selectedId === item.id}
+                    onClick={() => handleItemSelect(item)}
+                  />
+                ))
+              )}
+            </div>
+            <div style={{ padding: "8px 14px", borderTop: "1px solid var(--border)", fontSize: 11, color: "var(--muted-foreground)" }}>
+              {total} hồ sơ
+            </div>
           </div>
-          <div style={{ padding: "8px 14px", borderTop: "1px solid var(--border)", fontSize: 11, color: "var(--muted-foreground)" }}>
-            {total} hồ sơ
-          </div>
-        </div>
+        )}
 
         {/* Detail pane */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", background: "var(--card)" }}>
-          {selectedItem ? (
-            <ApprovalDetail
-              item={selectedItem}
-              onAction={handleAction}
-              currentUserId={currentUserId}
-              currentUserName={currentUserName}
-            />
-          ) : (
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", gap: 12 }}>
-              <i className="bi bi-file-earmark-check" style={{ fontSize: 48, opacity: 0.2 }} />
-              <span style={{ fontSize: 14 }}>Chọn một hồ sơ để xem chi tiết</span>
-            </div>
-          )}
-        </div>
+        {showDetail && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", background: "var(--card)" }}>
+            {selectedItem ? (
+              <ApprovalDetail
+                item={selectedItem}
+                onAction={handleAction}
+                currentUserId={currentUserId}
+                currentUserName={currentUserName}
+                onBack={isMobileOrTablet ? () => setShowMobileDetail(false) : undefined}
+                isMobileOrTablet={isMobileOrTablet}
+              />
+            ) : (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", gap: 12 }}>
+                <i className="bi bi-file-earmark-check" style={{ fontSize: 48, opacity: 0.2 }} />
+                <span style={{ fontSize: 14 }}>Chọn một hồ sơ để xem chi tiết</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -1745,9 +1927,10 @@ export function ApprovalCenter({
 
       {/* Drawer panel */}
       <div style={{
-        position: "fixed", top: 62, right: 0, bottom: 0, width: 900,
-        maxWidth: "calc(100vw - 200px)", // Không che sidebar (200px buffer)
-        background: "var(--card)", zIndex: 50,
+        position: "fixed", top: isMobileOrTablet ? 0 : 62, right: 0, bottom: 0, 
+        width: isMobileOrTablet ? "100%" : 900,
+        maxWidth: isMobileOrTablet ? "100%" : "calc(100vw - 200px)",
+        background: "var(--card)", zIndex: isMobileOrTablet ? 9999 : 50,
         boxShadow: "-8px 0 40px rgba(0,0,0,0.15)",
         transform: isOpen ? "translateX(0)" : "translateX(100%)",
         transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
@@ -1800,67 +1983,78 @@ export function ApprovalCenter({
         {/* Drawer body = same master-detail layout */}
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
           {/* List */}
-          <div style={{ width: 320, flexShrink: 0, borderRight: "1px solid var(--border)", display: "flex", flexDirection: "column" }}>
-            {/* Tabs */}
-            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border)", display: "flex", gap: 6 }}>
-              {(["inbox", "mine"] as const).map(v => (
-                <button key={v} onClick={() => setView(v)} style={{
-                  flex: 1, padding: "5px 8px", borderRadius: 7, border: "none",
-                  background: view === v ? "var(--primary)" : "var(--muted)",
-                  color: view === v ? "#fff" : "var(--muted-foreground)",
-                  fontSize: 11, fontWeight: 700, cursor: "pointer",
+          {(!isMobileOrTablet || !showMobileDetail || !selectedItem) && (
+            <div style={{ width: isMobileOrTablet ? "100%" : 320, flexShrink: 0, borderRight: isMobileOrTablet ? "none" : "1px solid var(--border)", display: "flex", flexDirection: "column" }}>
+              {/* Tabs */}
+              <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border)", display: "flex", gap: 6 }}>
+                {(["inbox", "mine"] as const).map(v => (
+                  <button key={v} onClick={() => setView(v)} style={{
+                    flex: 1, padding: "5px 8px", borderRadius: 7, border: "none",
+                    background: view === v ? "var(--primary)" : "var(--muted)",
+                    color: view === v ? "#fff" : "var(--muted-foreground)",
+                    fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  }}>
+                    {v === "inbox" ? "📥 Cần duyệt" : "📤 Đã gửi"}
+                  </button>
+                ))}
+              </div>
+              <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border)", display: "flex", gap: 6 }}>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{
+                  flex: 1, padding: "4px 6px", borderRadius: 7, border: "1px solid var(--border)",
+                  background: "var(--muted)", fontSize: 11, color: "var(--foreground)", outline: "none",
                 }}>
-                  {v === "inbox" ? "📥 Cần duyệt" : "📤 Đã gửi"}
+                  <option value="">Tất cả</option>
+                  <option value="pending">Chờ duyệt</option>
+                  <option value="approved">Đã duyệt</option>
+                  <option value="rejected">Từ chối</option>
+                  <option value="on_hold">Tạm giữ</option>
+                  <option value="recalled">Thu hồi</option>
+                </select>
+                <button onClick={loadItems} title="Làm mới" style={{
+                  width: 28, height: 28, borderRadius: 7, border: "1px solid var(--border)",
+                  background: "transparent", cursor: "pointer", color: "var(--muted-foreground)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <i className="bi bi-arrow-clockwise" style={{ fontSize: 12 }} />
                 </button>
-              ))}
+              </div>
+              <div className="custom-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
+                {loading ? (
+                  <div style={{ padding: 20, textAlign: "center" }}><span className="spinner-border spinner-border-sm" /></div>
+                ) : items.length === 0 ? (
+                  <div style={{ padding: 24, textAlign: "center", color: "var(--muted-foreground)", fontSize: 12 }}>
+                    <i className="bi bi-inbox" style={{ fontSize: 24, display: "block", opacity: 0.3, marginBottom: 6 }} />
+                    Không có hồ sơ
+                  </div>
+                ) : (
+                  items.map(item => (
+                    <ApprovalListItem key={item.id} item={item} isSelected={selectedId === item.id} onClick={() => handleItemSelect(item)} />
+                  ))
+                )}
+              </div>
             </div>
-            <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border)", display: "flex", gap: 6 }}>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{
-                flex: 1, padding: "4px 6px", borderRadius: 7, border: "1px solid var(--border)",
-                background: "var(--muted)", fontSize: 11, color: "var(--foreground)", outline: "none",
-              }}>
-                <option value="">Tất cả</option>
-                <option value="pending">Chờ duyệt</option>
-                <option value="approved">Đã duyệt</option>
-                <option value="rejected">Từ chối</option>
-                <option value="on_hold">Tạm giữ</option>
-                <option value="recalled">Thu hồi</option>
-              </select>
-              <button onClick={loadItems} title="Làm mới" style={{
-                width: 28, height: 28, borderRadius: 7, border: "1px solid var(--border)",
-                background: "transparent", cursor: "pointer", color: "var(--muted-foreground)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <i className="bi bi-arrow-clockwise" style={{ fontSize: 12 }} />
-              </button>
-            </div>
-            <div className="custom-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
-              {loading ? (
-                <div style={{ padding: 20, textAlign: "center" }}><span className="spinner-border spinner-border-sm" /></div>
-              ) : items.length === 0 ? (
-                <div style={{ padding: 24, textAlign: "center", color: "var(--muted-foreground)", fontSize: 12 }}>
-                  <i className="bi bi-inbox" style={{ fontSize: 24, display: "block", opacity: 0.3, marginBottom: 6 }} />
-                  Không có hồ sơ
-                </div>
-              ) : (
-                items.map(item => (
-                  <ApprovalListItem key={item.id} item={item} isSelected={selectedId === item.id} onClick={() => handleItemSelect(item)} />
-                ))
-              )}
-            </div>
-          </div>
+          )}
 
           {/* Detail */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-            {selectedItem ? (
-              <ApprovalDetail item={selectedItem} onAction={handleAction} currentUserId={currentUserId} currentUserName={currentUserName} />
-            ) : (
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", gap: 12 }}>
-                <i className="bi bi-arrow-left-circle" style={{ fontSize: 32, opacity: 0.2 }} />
-                <span style={{ fontSize: 13 }}>Chọn một hồ sơ bên trái</span>
-              </div>
-            )}
-          </div>
+          {(!isMobileOrTablet || (showMobileDetail && !!selectedItem)) && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+              {selectedItem ? (
+                <ApprovalDetail 
+                  item={selectedItem} 
+                  onAction={handleAction} 
+                  currentUserId={currentUserId} 
+                  currentUserName={currentUserName} 
+                  onBack={isMobileOrTablet ? () => setShowMobileDetail(false) : undefined}
+                  isMobileOrTablet={isMobileOrTablet}
+                />
+              ) : (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", gap: 12 }}>
+                  <i className="bi bi-arrow-left-circle" style={{ fontSize: 32, opacity: 0.2 }} />
+                  <span style={{ fontSize: 13 }}>Chọn một hồ sơ bên trái</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>,
@@ -1918,27 +2112,742 @@ export function ApprovalBadgeButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function RecruitmentReportPreview({ data, onRowClick, onPdfOpen, candidateDecisions }: { 
+const HOLIDAYS_LIST_BY_MONTH: { [month: number]: { dateStr: string; name: string; weekNum: number }[] } = {
+  1: [{ dateStr: "01/01", name: "Tết Dương Lịch", weekNum: 1 }],
+  2: [
+    { dateStr: "03/02", name: "Thành lập Đảng", weekNum: 1 },
+    { dateStr: "14/02", name: "Lễ Tình nhân", weekNum: 2 }
+  ],
+  3: [
+    { dateStr: "08/03", name: "Quốc tế Phụ nữ", weekNum: 2 },
+    { dateStr: "26/03", name: "Thành lập Đoàn", weekNum: 4 }
+  ],
+  4: [{ dateStr: "30/04", name: "Giải phóng Miền Nam", weekNum: 4 }],
+  5: [
+    { dateStr: "01/05", name: "Quốc tế Lao động", weekNum: 1 },
+    { dateStr: "07/05", name: "Chiến thắng Điện Biên Phủ", weekNum: 1 },
+    { dateStr: "19/05", name: "Sinh nhật Bác", weekNum: 3 }
+  ],
+  6: [
+    { dateStr: "01/06", name: "Quốc tế Thiếu nhi", weekNum: 1 },
+    { dateStr: "05/06", name: "Môi trường Thế giới", weekNum: 1 },
+    { dateStr: "21/06", name: "Báo chí CMXHCN VN", weekNum: 3 },
+    { dateStr: "28/06", name: "Ngày Gia đình VN", weekNum: 4 }
+  ],
+  7: [{ dateStr: "27/07", name: "Thương binh Liệt sĩ", weekNum: 4 }],
+  8: [{ dateStr: "19/08", name: "Cách mạng Tháng 8", weekNum: 3 }],
+  9: [{ dateStr: "02/09", name: "Quốc khánh", weekNum: 1 }],
+  10: [
+    { dateStr: "10/10", name: "Giải phóng Thủ đô", weekNum: 2 },
+    { dateStr: "20/10", name: "Phụ nữ Việt Nam", weekNum: 3 },
+    { dateStr: "31/10", name: "Halloween", weekNum: 4 }
+  ],
+  11: [{ dateStr: "20/11", name: "Nhà giáo Việt Nam", weekNum: 3 }],
+  12: [
+    { dateStr: "22/12", name: "Thành lập Quân đội", weekNum: 4 },
+    { dateStr: "25/12", name: "Giáng sinh", weekNum: 4 }
+  ]
+};
+
+const parseDescriptionTime = (description: string) => {
+  if (!description) return { cleanDesc: "", timeStr: "" };
+  const regex = /\s*\|\s*thời\s+gian\s+thực\s+hiện:\s*(.*?)$/i;
+  const match = description.match(regex);
+  if (match) {
+    const timeStr = match[1].trim();
+    const cleanDesc = description.replace(regex, "").trim();
+    return { cleanDesc, timeStr };
+  }
+  const regex2 = /(?:^|\s+)thời\s+gian\s+thực\s+hiện:\s*(.*?)$/i;
+  const match2 = description.match(regex2);
+  if (match2) {
+    const timeStr = match2[1].trim();
+    const cleanDesc = description.replace(regex2, "").trim();
+    return { cleanDesc, timeStr };
+  }
+  return { cleanDesc: description, timeStr: "" };
+};
+
+const formatTaskDetails = (text: string) => {
+  if (!text) return [];
+  const lines = text.split("\n");
+  const processedLines: string[] = [];
+  lines.forEach(line => {
+    if (line.includes(" - ") || line.includes(" – ")) {
+      const separatorRegex = /\s+[-–]\s+/;
+      const subparts = line.split(separatorRegex);
+      subparts.forEach((part, idx) => {
+        const trimmed = part.trim();
+        if (trimmed) {
+          if (idx === 0 && !line.trim().startsWith("-") && !line.trim().startsWith("–")) {
+            processedLines.push(trimmed);
+          } else {
+            processedLines.push(`- ${trimmed}`);
+          }
+        }
+      });
+    } else {
+      const trimmed = line.trim();
+      if (trimmed) {
+        if (trimmed.startsWith("-") || trimmed.startsWith("–")) {
+          processedLines.push(`- ${trimmed.substring(1).trim()}`);
+        } else {
+          processedLines.push(trimmed);
+        }
+      }
+    }
+  });
+  return processedLines;
+};
+
+const renderTaskDescription = (description: string, isSubTask: boolean, indent: boolean = true) => {
+  if (!description) return null;
+  let normalized = description;
+  if (normalized.includes("Tuyến:") && normalized.includes("Người thực hiện:") && normalized.includes(".")) {
+    normalized = normalized.replace(/\.\s*(Người thực hiện:)/gi, " | $1");
+  }
+  const parts = normalized.split("|").map(p => p.trim()).filter(Boolean);
+  let detailsText = "";
+  const metaElements: React.ReactNode[] = [];
+  parts.forEach((part) => {
+    const isPillar = /^Tuyến:/i.test(part);
+    const isAssignee = /^Người thực hiện:/i.test(part);
+    const isAds = /^Quảng cáo:/i.test(part);
+    if (isPillar) {
+      const pillar = part.replace(/^Tuyến:/i, "").trim();
+      metaElements.push(
+        <span key="pillar" style={{ fontSize: "9.5px", fontWeight: 600, color: "#2563eb", backgroundColor: "#eff6ff", border: "1px solid #dbeafe", borderRadius: "4px", padding: "1px 5px", display: "inline-block" }}>
+          {pillar}
+        </span>
+      );
+    } else if (isAssignee) {
+      const assignee = part.replace(/^Người thực hiện:/i, "").trim();
+      metaElements.push(
+        <span key="assignee" className="text-muted d-inline-flex align-items-center gap-1" style={{ fontWeight: "normal", fontSize: "10.5px" }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" className="text-secondary me-1" viewBox="0 0 16 16" style={{ display: "inline-block", verticalAlign: "-0.125em" }}><path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+          {assignee}
+        </span>
+      );
+    } else if (isAds) {
+      const adsVal = part.replace(/^Quảng cáo:/i, "").trim();
+      const hasAds = adsVal === "Có" || adsVal.toLowerCase().includes("có");
+      metaElements.push(
+        <span key="ads" style={{
+          fontSize: "9.5px",
+          fontWeight: 600,
+          color: hasAds ? "#15803d" : "#64748b",
+          backgroundColor: hasAds ? "#f0fdf4" : "#f1f5f9",
+          border: `1px solid ${hasAds ? "#bbf7d0" : "#e2e8f0"}`,
+          borderRadius: "4px",
+          padding: "1px 5px",
+          display: "inline-block"
+        }}>
+          {hasAds ? "Có quảng cáo" : "Không quảng cáo"}
+        </span>
+      );
+    } else {
+      if (detailsText) {
+        detailsText += " | " + part;
+      } else {
+        detailsText = part;
+      }
+    }
+  });
+
+  const formattedLines = formatTaskDetails(detailsText);
+
+  return (
+    <div className="mt-1 text-start" style={{ paddingLeft: (isSubTask && indent) ? "14px" : "0px", fontSize: "11px", lineHeight: "1.4" }}>
+      {formattedLines.length > 0 && (
+        <div className="d-flex flex-column gap-1 text-secondary mb-1">
+          {formattedLines.map((line, lIdx) => {
+            const isBullet = line.startsWith("- ");
+            const cleanLine = isBullet ? line.substring(2) : line;
+            return (
+              <div key={lIdx} className="d-flex align-items-start gap-1" style={{ lineHeight: "1.4" }}>
+                {isBullet && (
+                  <span style={{ color: "#94a3b8", fontSize: "9px", marginTop: "3px", display: "inline-block" }}>•</span>
+                )}
+                <span className="text-secondary" style={{ flex: 1 }}>{cleanLine}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {metaElements.length > 0 && (
+        <div className="d-flex flex-wrap align-items-center gap-1 mt-1">
+          {metaElements.map((elem, idx) => (
+            <React.Fragment key={idx}>
+              {idx > 0 && <span className="text-muted" style={{ opacity: 0.4, margin: "0 4px", fontSize: "10px" }}>|</span>}
+              {elem}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+function MarketingMonthlyPlanPreview({ data, isMobileOrTablet = false }: { data: any, isMobileOrTablet?: boolean }) {
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/company")
+      .then(res => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then(d => {
+        if (d) setCompanyInfo(d);
+      })
+      .catch(() => {});
+  }, []);
+
+  const {
+    isPlan = true,
+    proposalData,
+    selectedMonth,
+    selectedYear,
+    plannedBudget,
+    monthlyThemes = [],
+    customHolidays = [],
+    monthlyProducts = {},
+    sectionContentItems = {},
+  } = data;
+
+  if (!proposalData) return <div style={{ padding: 20, color: "var(--muted-foreground)" }}>Không có dữ liệu kế hoạch.</div>;
+
+  const renderRows: any[] = [];
+  if (isPlan) {
+    const sectionIds = ["section_content", "section_media", "section_design", "section_seo", "section_adv", "section_pos"];
+    const SECTIONS_CONFIG: Record<string, { label: string; stt: string; color: string; bg: string }> = {
+      section_content: { label: "CONTENT", stt: "2", color: "#b91c1c", bg: "#fef2f2" },
+      section_media: { label: "MEDIA", stt: "3", color: "#1d4ed8", bg: "#eff6ff" },
+      section_design: { label: "DESIGN", stt: "4", color: "#1e3a8a", bg: "#f8fafc" },
+      section_seo: { label: "SEO", stt: "5", color: "#1e3a8a", bg: "#f8fafc" },
+      section_adv: { label: "QUẢNG CÁO", stt: "6", color: "#15803d", bg: "#f0fdf4" },
+      section_pos: { label: "ĐIỂM BÁN", stt: "7", color: "#c2410c", bg: "#fffbeb" },
+    };
+
+    const groupedTasks: Record<string, any[]> = {
+      section_content: [],
+      section_media: [],
+      section_design: [],
+      section_seo: [],
+      section_adv: [],
+      section_pos: [],
+      other: [],
+    };
+
+    Object.entries(proposalData.items || {}).forEach(([mainTaskId, mainTask]: any) => {
+      let secId = mainTask.secId;
+      let matchedOrigItem: any = null;
+      const cleanKey = mainTaskId.replace("task_auto_", "");
+      const m = selectedMonth;
+
+      for (const sId of sectionIds) {
+        const list = sectionContentItems[`${sId}_${m}`] || [];
+        const found = list.find((item: any) => String(item.id) === cleanKey);
+        if (found) {
+          matchedOrigItem = found;
+          secId = sId;
+          break;
+        }
+      }
+
+      if (!secId) {
+        const lbl = (mainTask.label || "").toUpperCase();
+        if (lbl.includes("CONTENT")) secId = "section_content";
+        else if (lbl.includes("MEDIA") || lbl.includes("PR")) secId = "section_media";
+        else if (lbl.includes("DESIGN")) secId = "section_design";
+        else if (lbl.includes("SEO")) secId = "section_seo";
+        else if (lbl.includes("AD") || lbl.includes("QUẢNG CÁO")) secId = "section_adv";
+        else if (lbl.includes("POS") || lbl.includes("ĐIỂM BÁN")) secId = "section_pos";
+      }
+
+      let displayLabel = mainTask.label;
+      let displayDesc = mainTask.description;
+
+      if (matchedOrigItem) {
+        displayLabel = matchedOrigItem.topic || matchedOrigItem.pillar || mainTask.label;
+        const parts = [];
+        if (secId === "section_content") {
+          parts.push(`Tuyến: ${matchedOrigItem.pillar || "N/A"}`);
+          parts.push(`Người thực hiện: ${matchedOrigItem.assignee || "N/A"}`);
+          if (matchedOrigItem.weeks && matchedOrigItem.weeks.length > 0) {
+            parts.push(`Thời gian thực hiện: Tuần ${matchedOrigItem.weeks.join(", ")}`);
+          }
+        } else {
+          if (matchedOrigItem.details) {
+            parts.push(matchedOrigItem.details.trim());
+          }
+          if (matchedOrigItem.pillar) {
+            parts.push(`Tuyến: ${matchedOrigItem.pillar}`);
+          }
+          if (matchedOrigItem.channel) {
+            parts.push(`Kênh: ${matchedOrigItem.channel}`);
+          }
+          if (matchedOrigItem.assignee) {
+            parts.push(`Người thực hiện: ${matchedOrigItem.assignee}`);
+          }
+          if (secId === "section_media") {
+            parts.push(`Quảng cáo: ${matchedOrigItem.isAds ? "Có" : "Không"}`);
+          }
+          if (matchedOrigItem.weeks && matchedOrigItem.weeks.length > 0) {
+            parts.push(`Thời gian thực hiện: Tuần ${matchedOrigItem.weeks.join(", ")}`);
+          }
+        }
+        displayDesc = parts.join(" | ");
+      } else {
+        if (displayLabel && displayLabel === displayLabel.toUpperCase() && displayLabel.length > 5) {
+          displayLabel = displayLabel.charAt(0) + displayLabel.slice(1).toLowerCase();
+        }
+        if (displayDesc && displayDesc.includes("Kênh:") && secId === "section_content") {
+          let matchedPillar = "Tuyển đại lý";
+          const lbl = (displayLabel || "").toLowerCase();
+          if (lbl.includes("hệ thống") || lbl.includes("đại lý") || lbl.includes("tồn kho")) {
+            matchedPillar = "Tuyển đại lý";
+          } else {
+            matchedPillar = "Khách hàng cuối";
+          }
+          displayDesc = displayDesc.replace(/Kênh:\s*[^.]+\./, `Tuyến: ${matchedPillar}.`);
+        }
+      }
+
+      const taskWithOverride = {
+        ...mainTask,
+        label: displayLabel,
+        description: displayDesc,
+      };
+
+      if (!secId || !groupedTasks[secId]) {
+        groupedTasks.other.push({ id: mainTaskId, ...taskWithOverride });
+      } else {
+        groupedTasks[secId].push({ id: mainTaskId, ...taskWithOverride });
+      }
+    });
+
+    const sectionsToRender = [...sectionIds, "other"];
+    sectionsToRender.forEach((secId) => {
+      const tasks = groupedTasks[secId] || [];
+      if (tasks.length === 0) return;
+
+      if (secId !== "other") {
+        const config = SECTIONS_CONFIG[secId];
+        renderRows.push({
+          type: "header",
+          stt: config.stt,
+          label: config.label,
+          color: config.color,
+          bg: config.bg,
+        });
+      }
+
+      tasks.forEach((task, tIdx) => {
+        const sectionStt = secId !== "other" ? SECTIONS_CONFIG[secId].stt : "8";
+        const taskIndexStr = `${sectionStt}.${tIdx + 1}`;
+
+        renderRows.push({
+          type: "task",
+          id: task.id,
+          label: task.label,
+          proposedAmount: task.proposedAmount,
+          description: task.description,
+          notes: task.notes,
+          isSubTask: false,
+          indexStr: taskIndexStr,
+        });
+
+        if (task.subTasks) {
+          task.subTasks.forEach((sub: any, subIndex: number) => {
+            renderRows.push({
+              type: "task",
+              id: sub.id,
+              label: sub.label,
+              proposedAmount: sub.proposedAmount,
+              description: sub.description,
+              notes: sub.notes,
+              category: sub.category,
+              executionMethod: sub.executionMethod,
+              department: sub.department,
+              isSubTask: true,
+              indexStr: `${taskIndexStr}.${subIndex + 1}`,
+              parentTaskId: task.id,
+            });
+          });
+        }
+      });
+    });
+  } else {
+    Object.entries(proposalData.items || {}).forEach(([mainTaskId, mainTask]: any, mainIndex) => {
+      const taskIndexStr = `${mainIndex + 1}`;
+      renderRows.push({
+        type: "task",
+        id: mainTaskId,
+        label: mainTask.label,
+        proposedAmount: mainTask.proposedAmount,
+        description: mainTask.description,
+        notes: mainTask.notes,
+        isSubTask: false,
+        indexStr: taskIndexStr,
+      });
+
+      if (mainTask.subTasks) {
+        mainTask.subTasks.forEach((sub: any, subIndex: number) => {
+          renderRows.push({
+            type: "task",
+            id: sub.id,
+            label: sub.label,
+            proposedAmount: sub.proposedAmount,
+            description: sub.description,
+            notes: sub.notes,
+            category: sub.category,
+            executionMethod: sub.executionMethod,
+            department: sub.department,
+            isSubTask: true,
+            indexStr: `${taskIndexStr}.${subIndex + 1}`,
+            parentTaskId: mainTaskId,
+          });
+        });
+      }
+    });
+  }
+
+  const totalProposed = Object.values(proposalData.items || {}).reduce(
+    (sum: number, item: any) => sum + (item.proposedAmount || 0),
+    0
+  ) + (proposalData.advReserve || 0);
+
+  const defaultHolidays = HOLIDAYS_LIST_BY_MONTH[selectedMonth] || [];
+  const monthCustomHolidays = (customHolidays || [])
+    .filter((h: any) => h.month === selectedMonth)
+    .map((h: any) => ({ ...h, isCustom: true }));
+  const holidays = [...defaultHolidays, ...monthCustomHolidays];
+
+  const currentMonthThemes = (monthlyThemes || []).filter((t: any) => t.month === selectedMonth || (!t.month && selectedMonth === 6));
+  const currentMonthProducts = (monthlyProducts && monthlyProducts[selectedMonth]) || {};
+  const weeks = [1, 2, 3, 4];
+  const hasProducts = weeks.some(w => currentMonthProducts[w] && currentMonthProducts[w].length > 0);
+
+  const hasHolidays = holidays.length > 0;
+  const hasThemes = currentMonthThemes.length > 0;
+
+  return (
+    <div style={{ padding: isMobileOrTablet ? "10px 0" : "20px 0", background: "var(--muted)", minHeight: "100%", display: "flex", justifyContent: "center" }}>
+      <div className="pdf-content-page shadow-lg" style={{ 
+        width: "794px", 
+        maxWidth: "100%",
+        boxSizing: "border-box",
+        background: "#fff", 
+        padding: isMobileOrTablet ? "20px 15px" : "30px 40px", 
+        fontFamily: "'Roboto Condensed', sans-serif",
+        position: "relative",
+        color: "#1e293b",
+        borderRadius: "8px"
+      }}>
+        {/* Company Info & Logo Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", borderBottom: "1px solid #e2e8f0", paddingBottom: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", maxWidth: "100%" }}>
+            {companyInfo?.logoUrl ? (
+              <img src={companyInfo.logoUrl} alt="Logo" style={{ width: 80, height: 40, objectFit: "contain", flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 80, height: 40, border: "1px dashed #cbd5e1", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#94a3b8", borderRadius: 4 }}>LOGO</div>
+            )}
+            <div style={{ fontSize: "10px", color: "#334155", lineHeight: 1.3 }}>
+              <p style={{ fontWeight: "bold", color: "#0f172a", textTransform: "uppercase", fontSize: "11px", letterSpacing: "0.3px", margin: "0 0 2px 0" }}>
+                {companyInfo?.name || "CÔNG TY CỔ PHẦN SEAJONG FAUCET VIỆT NAM"}
+              </p>
+              {companyInfo?.address && (
+                <p style={{ margin: "0 0 2px 0" }}>
+                  Đ/c: {companyInfo.address}
+                </p>
+              )}
+              <p style={{ margin: 0 }}>
+                {companyInfo?.phone && <span style={{ marginRight: "12px" }}>Tel: {companyInfo.phone}</span>}
+                {companyInfo?.email && <span>Email: {companyInfo.email}</span>}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Header Title Section */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", borderBottom: "2px solid #3b82f6", paddingBottom: "10px" }}>
+          <div>
+            <h5 style={{ fontWeight: "bold", color: "#2563eb", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.5px", fontSize: "16px" }}>
+              {isPlan ? "KẾ HOẠCH HOẠT ĐỘNG MARKETING" : "ĐỀ XUẤT CHI PHÍ HOẠT ĐỘNG MARKETING"}
+            </h5>
+            <p style={{ color: "#64748b", marginBottom: "0", fontWeight: "bold", textTransform: "uppercase", fontSize: "11px", letterSpacing: "0.5px" }}>
+              Tháng {selectedMonth} năm {selectedYear}
+            </p>
+            <p style={{ color: "#64748b", marginBottom: "0", marginTop: "4px", fontSize: "11px" }}>
+              Ngân sách kế hoạch: <strong style={{ color: "#0f172a" }}>{plannedBudget ? plannedBudget.toLocaleString("vi-VN") + " đồng" : "---"}</strong> | {isPlan ? "Tổng kinh phí dự kiến" : "Ngân sách đề xuất"}: <strong style={{ color: "#0f172a" }}>{totalProposed ? totalProposed.toLocaleString("vi-VN") + " đồng" : "0 đồng"}</strong>
+            </p>
+          </div>
+          <div style={{ textAlign: "right", fontSize: "11px", color: "#64748b" }}>
+            <p style={{ marginBottom: "2px" }}><strong>Số hiệu:</strong> {proposalData.code || "---"}</p>
+            <p style={{ marginBottom: 0 }}><strong>Ngày lập:</strong> {proposalData.date || "---"}</p>
+          </div>
+        </div>
+
+        {/* Info fields */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", marginBottom: "16px", fontSize: "12px" }}>
+          <div>
+            <span style={{ fontWeight: "bold", width: "120px", display: "inline-block", color: "#64748b" }}>{isPlan ? "Người lập kế hoạch:" : "Người đề xuất:"}</span>
+            <span style={{ color: "#0f172a" }}>{proposalData.proposerName || "---"}</span>
+          </div>
+          <div>
+            <span style={{ fontWeight: "bold", width: "120px", display: "inline-block", color: "#64748b" }}>Người duyệt:</span>
+            <span style={{ color: "#0f172a" }}>{proposalData.approverName || "---"}</span>
+          </div>
+          <div>
+            <span style={{ fontWeight: "bold", width: "120px", display: "inline-block", color: "#64748b" }}>{isPlan ? "Bộ phận lập:" : "Bộ phận đề xuất:"}</span>
+            <span style={{ color: "#0f172a" }}>{proposalData.department || "Phòng Marketing"}</span>
+          </div>
+          <div>
+            <span style={{ fontWeight: "bold", width: "120px", display: "inline-block", color: "#64748b" }}>Chi phí dự phòng:</span>
+            <span style={{ color: "#0f172a" }}>{proposalData.advReserve ? proposalData.advReserve.toLocaleString("vi-VN") + " đồng" : "0 đồng"}</span>
+          </div>
+        </div>
+
+        {/* Monthly Theme for Marketing Plan */}
+        {isPlan && (hasHolidays || hasThemes || hasProducts) && (
+          <div style={{ border: "1px solid #cbd5e1", borderRadius: "6px", overflow: "hidden", marginBottom: "16px", fontSize: "11.5px" }}>
+            <div style={{ background: "#f1f5f9", color: "#1e293b", fontWeight: 700, padding: "6px 12px", borderBottom: "1px solid #cbd5e1", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Chủ đề tháng {selectedMonth}
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+              <tbody>
+                {hasHolidays && (
+                  <tr style={{ borderBottom: (hasThemes || hasProducts) ? "1px solid #cbd5e1" : "none" }}>
+                    <td style={{ width: "130px", background: "#f8fafc", fontWeight: "bold", color: "#475569", padding: "6px 12px", verticalAlign: "top", borderRight: "1px solid #cbd5e1" }}>
+                      NGÀY LỄ
+                    </td>
+                    <td style={{ padding: "6px 12px" }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px" }}>
+                        {holidays.map((h: any, idx: number) => (
+                          <div key={idx} style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
+                            <span style={{ color: "#3b82f6", fontWeight: "bold" }}>{h.dateStr}</span>
+                            <span style={{ color: "#94a3b8" }}>-</span>
+                            <span style={{ color: "#334155" }}>{h.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {hasThemes && (
+                  <tr style={{ borderBottom: hasProducts ? "1px solid #cbd5e1" : "none" }}>
+                    <td style={{ width: "130px", background: "#f8fafc", fontWeight: "bold", color: "#475569", padding: "6px 12px", verticalAlign: "top", borderRight: "1px solid #cbd5e1" }}>
+                      NỘI DUNG CỐT LÕI
+                    </td>
+                    <td style={{ padding: "6px 12px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {currentMonthThemes.map((theme: any, idx: number) => (
+                          <div key={theme.id || idx} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            {theme.topic && (
+                              <div style={{ fontWeight: "bold", color: "#1e3a8a", display: "flex", alignItems: "center", gap: "6px" }}>
+                                <span style={{ background: "#dbeafe", color: "#1e40af", fontSize: "9px", fontWeight: "bold", padding: "1px 4px", borderRadius: "10px" }}>
+                                  {(idx + 1).toString().padStart(2, '0')}
+                                </span>
+                                {theme.topic}
+                              </div>
+                            )}
+                            {theme.content && (
+                              <div style={{ paddingLeft: "20px", display: "flex", flexDirection: "column", gap: "2px" }}>
+                                {theme.content.split("\n").map((line: string, lIdx: number) => {
+                                  const trimmed = line.trim();
+                                  if (!trimmed) return null;
+                                  return (
+                                    <div key={lIdx} style={{ color: "#475569", display: "flex", alignItems: "flex-start", gap: "4px", lineHeight: "1.3" }}>
+                                      <span style={{ color: "#94a3b8", fontSize: "9px", marginTop: "1px" }}>•</span>
+                                      <span style={{ flex: 1 }}>{trimmed}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {hasProducts && (
+                  <tr>
+                    <td style={{ width: "130px", background: "#f8fafc", fontWeight: "bold", color: "#475569", padding: "6px 12px", verticalAlign: "top", borderRight: "1px solid #cbd5e1" }}>
+                      SẢN PHẨM TRỌNG TÂM
+                    </td>
+                    <td style={{ padding: "6px 12px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        {weeks.map(w => {
+                          const weekProducts = currentMonthProducts[w] || [];
+                          if (weekProducts.length === 0) return null;
+                          return (
+                            <div key={w} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ fontWeight: "bold", minWidth: "50px", color: "#475569" }}>Tuần {w}:</span>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                {weekProducts.map((p: string, pIdx: number) => (
+                                  <span key={pIdx} style={{ fontSize: "9.5px", fontWeight: 600, color: "#2563eb", backgroundColor: "#eff6ff", border: "1px solid #dbeafe", borderRadius: "4px", padding: "1px 4px" }}>
+                                    {p}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Main items table */}
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", border: "1px solid #cbd5e1", marginBottom: "16px" }}>
+          <thead>
+            <tr style={{ background: "#f1f5f9" }}>
+              <th style={{ width: "50px", border: "1px solid #cbd5e1", padding: "6px 8px", textAlign: "center", fontWeight: 700, color: "#1e293b" }}>STT</th>
+              <th style={{ border: "1px solid #cbd5e1", padding: "6px 8px", textAlign: "left", fontWeight: 700, color: "#1e293b" }}>{isPlan ? "Hạng mục công việc / Nội dung chi tiết" : "Hạng mục đề xuất / Chi tiết"}</th>
+              <th style={{ width: "140px", border: "1px solid #cbd5e1", padding: "6px 8px", textAlign: "right", fontWeight: 700, color: "#1e293b" }}>{isPlan ? "Kinh phí dự kiến" : "Chi phí đề xuất"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {renderRows.map((row, idx) => {
+              if (row.type === "header") {
+                return (
+                  <tr key={`header_${idx}`} style={{ background: row.bg, color: row.color, fontWeight: "bold" }}>
+                    <td className="text-center" style={{ padding: "6px 8px", border: "1px solid #cbd5e1", textAlign: "center" }}>
+                      {row.stt}
+                    </td>
+                    <td colSpan={2} style={{ padding: "6px 8px", border: "1px solid #cbd5e1", textTransform: "uppercase", letterSpacing: "0.5px", fontSize: "11px" }}>
+                      {row.label}
+                    </td>
+                  </tr>
+                );
+              }
+
+              const displayAmount = row.isSubTask
+                ? row.proposedAmount
+                : (proposalData.items[row.id]?.subTasks?.length > 0 
+                    ? (proposalData.items[row.id].subTasks.reduce((sum: number, s: any) => sum + s.proposedAmount, 0) || row.proposedAmount)
+                    : row.proposedAmount);
+
+              const { cleanDesc, timeStr } = parseDescriptionTime(row.description);
+
+              return (
+                <tr key={row.id} style={{ background: row.isSubTask ? "transparent" : "#f8fafc" }}>
+                  <td className="text-center" style={{ fontWeight: row.isSubTask ? "normal" : "bold", padding: "6px 8px", border: "1px solid #cbd5e1", textAlign: "center" }}>
+                    {row.indexStr}
+                  </td>
+                  <td style={{ padding: `6px 8px 6px ${row.isSubTask ? 24 : 12}px`, border: "1px solid #cbd5e1" }}>
+                    <div style={{ fontWeight: row.isSubTask ? "normal" : "bold" }}>
+                      {row.isSubTask && <span style={{ color: "#94a3b8", marginRight: "6px" }}>↳</span>}
+                      {row.label}
+                    </div>
+                    {renderTaskDescription(cleanDesc, row.isSubTask)}
+                    {row.isSubTask && (row.category || row.executionMethod || row.department) && (
+                      <div className="d-flex flex-wrap gap-2 mt-1" style={{ fontSize: "10px", paddingLeft: "14px" }}>
+                        {row.category && <span style={{ color: "#7c3aed" }}>• {row.category}</span>}
+                        {row.executionMethod && <span style={{ color: "#2563eb" }}>• {row.executionMethod}</span>}
+                        {row.department && <span style={{ color: "#16a34a" }}>• {row.department}</span>}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ fontWeight: row.isSubTask ? "normal" : "bold", padding: "6px 8px", border: "1px solid #cbd5e1", textAlign: "right", verticalAlign: "top" }}>
+                    <div>
+                      {displayAmount ? displayAmount.toLocaleString("vi-VN") + " đ" : "-"}
+                    </div>
+                    {timeStr && (
+                      <div className="text-muted mt-1" style={{ fontSize: "9px", fontWeight: "normal", whiteSpace: "nowrap" }}>
+                        {timeStr}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            
+            {/* Reserve Row */}
+            {proposalData.advReserve > 0 && (
+              <tr style={{ background: "#f8fafc", fontWeight: "bold" }}>
+                <td className="text-center" style={{ padding: "6px 8px", border: "1px solid #cbd5e1", textAlign: "center" }}>-</td>
+                <td style={{ padding: "6px 8px", border: "1px solid #cbd5e1", textTransform: "uppercase" }}>Chi phí dự phòng</td>
+                <td style={{ padding: "6px 8px", border: "1px solid #cbd5e1", textAlign: "right" }}>
+                  {proposalData.advReserve.toLocaleString("vi-VN")} đ
+                </td>
+              </tr>
+            )}
+
+            {/* Total Row */}
+            <tr style={{ background: "#f1f5f9", fontWeight: "bold" }}>
+              <td colSpan={2} style={{ padding: "6px 8px", border: "1px solid #cbd5e1", textAlign: "right" }}>
+                {isPlan ? "TỔNG CỘNG KINH PHÍ DỰ KIẾN:" : "TỔNG CỘNG KINH PHÍ ĐỀ XUẤT:"}
+              </td>
+              <td style={{ padding: "6px 8px", border: "1px solid #cbd5e1", textAlign: "right", color: "#2563eb" }}>
+                {totalProposed ? totalProposed.toLocaleString("vi-VN") + " đ" : "0 đ"}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Signature block */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "24px", fontSize: "12px", textAlign: "center" }}>
+          <div>
+            <p style={{ marginBottom: "4px" }}><strong>{isPlan ? "NGƯỜI LẬP KẾ HOẠCH" : "NGƯỜI LẬP ĐỀ XUẤT"}</strong></p>
+            <div style={{ height: "45px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "4px" }}>
+              {proposalData.proposerSig ? (
+                <img src={proposalData.proposerSig} alt="Chữ ký người lập" style={{ maxHeight: "40px", maxWidth: "120px", objectFit: "contain" }} />
+              ) : (
+                <div style={{ height: "30px", borderBottom: "1px dashed #cbd5e1", width: "100px" }} />
+              )}
+            </div>
+            <p style={{ fontWeight: "bold", margin: 0 }}>{proposalData.proposerName || "Nguyễn Thu Huyền"}</p>
+          </div>
+          <div>
+            <p style={{ marginBottom: "4px" }}><strong>NGƯỜI PHÊ DUYỆT</strong></p>
+            <div style={{ height: "45px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "4px" }}>
+              {proposalData.approverSig ? (
+                <img src={proposalData.approverSig} alt="Chữ ký người duyệt" style={{ maxHeight: "40px", maxWidth: "120px", objectFit: "contain" }} />
+              ) : (
+                <div style={{ height: "30px", borderBottom: "1px dashed #cbd5e1", width: "100px" }} />
+              )}
+            </div>
+            <p style={{ fontWeight: "bold", margin: 0 }}>{proposalData.approverName || "Lê Công Vụ"}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecruitmentReportPreview({ data, onRowClick, onPdfOpen, candidateDecisions, isMobileOrTablet = false }: { 
   data: any, 
   onRowClick: (id: string) => void, 
   onPdfOpen: (url: string) => void,
-  candidateDecisions: Record<string, string>
+  candidateDecisions: Record<string, string>,
+  isMobileOrTablet?: boolean
 }) {
   const company = data.company;
   const candidates = data.candidates || [];
 
   return (
-    <div style={{ padding: "40px 0", background: "var(--muted)", minHeight: "100%", display: "flex", justifyContent: "center" }}>
+    <div style={{ padding: isMobileOrTablet ? "10px 0" : "40px 0", background: "var(--muted)", minHeight: "100%", display: "flex", justifyContent: "center" }}>
       <div className="pdf-content-page shadow-lg" style={{ 
         width: "794px", 
+        maxWidth: "100%",
+        boxSizing: "border-box",
         background: "#fff", 
-        padding: "40px 60px", 
+        padding: isMobileOrTablet ? "20px 15px" : "40px 60px", 
         fontFamily: "'Roboto Condensed', sans-serif",
         position: "relative",
         color: "#1e293b"
       }}>
         {/* --- HEADER --- */}
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "30px", borderBottom: "3px solid #003087", paddingBottom: "15px" }}>
+        <div style={{ display: "flex", flexDirection: isMobileOrTablet ? "column" : "row", justifyContent: "space-between", gap: isMobileOrTablet ? 16 : 0, marginBottom: "30px", borderBottom: "3px solid #003087", paddingBottom: "15px" }}>
           <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
             {company?.logoUrl && (
               <img src={company.logoUrl} alt="Logo" style={{ height: "60px", width: "60px", objectFit: "contain" }} />
@@ -1954,7 +2863,7 @@ function RecruitmentReportPreview({ data, onRowClick, onPdfOpen, candidateDecisi
               <p style={{ margin: 0, fontSize: "11px", color: "#666", fontWeight: "bold" }}>Phòng Hành chính Nhân sự</p>
             </div>
           </div>
-          <div style={{ textAlign: "right" }}>
+          <div style={{ textAlign: isMobileOrTablet ? "left" : "right" }}>
             <h4 style={{ margin: 0, fontWeight: 800, fontSize: "22px", color: "#333" }}>BÁO CÁO TUYỂN DỤNG</h4>
             <p style={{ margin: 0, fontSize: "12px", color: "#666" }}>Ngày lập: {new Date(data.summary[1].value).toLocaleDateString('vi-VN')}</p>
           </div>
@@ -1970,53 +2879,55 @@ function RecruitmentReportPreview({ data, onRowClick, onPdfOpen, candidateDecisi
 
         {/* --- SUMMARY TABLE --- */}
         <h6 style={{ fontSize: "15px", fontWeight: "bold", borderLeft: "4px solid #003087", paddingLeft: "10px", marginBottom: "15px", marginTop: "30px" }}>I. TỔNG HỢP KẾT QUẢ</h6>
-        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "35px" }}>
-          <thead>
-            <tr style={{ background: "#f8fafc" }}>
-              <th style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px", textAlign: "center" }}>STT</th>
-              <th style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px" }}>Họ tên ứng viên</th>
-              <th style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px" }}>Vị trí ứng tuyển</th>
-              <th style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px", textAlign: "center" }}>Điểm TB</th>
-              <th style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px", textAlign: "right" }}>Lương đề xuất</th>
-              <th style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px" }}>Đề xuất</th>
-            </tr>
-          </thead>
-          <tbody>
-            {candidates.map((c: any, idx: number) => (
-              <tr key={c.id} onClick={() => onRowClick(c.id)} style={{ cursor: "pointer" }}>
-                <td style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "13px", textAlign: "center" }}>{idx + 1}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "13px", fontWeight: "bold" }}>{c.name}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "13px" }}>{c.position}</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "13px", textAlign: "center", fontWeight: "bold" }}>{c.avgScore}/100</td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "13px", textAlign: "right", fontWeight: "bold" }}>
-                  {c.avgSalary ? `${Number(c.avgSalary).toLocaleString('vi-VN')} đ` : "--"}
-                </td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px", color: c.majorityDecision === 'HIRE' ? "#166534" : "#991b1b", fontWeight: "bold" }}>
-                  <div>{c.majorityDecision === 'HIRE' ? 'TIẾP NHẬN' : 'XEM XÉT THÊM'}</div>
-                  {/* Priority to local temporary decisions */}
-                  {candidateDecisions[c.id] === "HIRE" && <div style={{ fontSize: "10px", color: "#059669", fontWeight: "normal", fontStyle: "italic" }}>• Giám đốc: Đồng ý (Tạm thời)</div>}
-                  {candidateDecisions[c.id] === "REJECT" && <div style={{ fontSize: "10px", color: "#dc2626", fontWeight: "normal", fontStyle: "italic" }}>• Giám đốc: Từ chối (Tạm thời)</div>}
-                  {/* If no local decision, show DB status if processed */}
-                  {!candidateDecisions[c.id] && c.status === "Đã tiếp nhận" && <div style={{ fontSize: "10px", color: "#059669", fontWeight: "normal", fontStyle: "italic" }}>• Giám đốc: Đồng ý</div>}
-                  {!candidateDecisions[c.id] && c.status === "Từ chối tiếp nhận" && <div style={{ fontSize: "10px", color: "#dc2626", fontWeight: "normal", fontStyle: "italic" }}>• Giám đốc: Từ chối</div>}
-                </td>
+        <div style={{ overflowX: "auto", width: "100%", WebkitOverflowScrolling: "touch", border: "1px solid #cbd5e1", borderRadius: 8, marginBottom: "35px" }}>
+          <table style={{ width: "100%", minWidth: isMobileOrTablet ? "650px" : "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#f8fafc" }}>
+                <th style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px", textAlign: "center" }}>STT</th>
+                <th style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px" }}>Họ tên ứng viên</th>
+                <th style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px" }}>Vị trí ứng tuyển</th>
+                <th style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px", textAlign: "center" }}>Điểm TB</th>
+                <th style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px", textAlign: "right" }}>Lương đề xuất</th>
+                <th style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px" }}>Đề xuất</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {candidates.map((c: any, idx: number) => (
+                <tr key={c.id} onClick={() => onRowClick(c.id)} style={{ cursor: "pointer" }}>
+                  <td style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "13px", textAlign: "center" }}>{idx + 1}</td>
+                  <td style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "13px", fontWeight: "bold" }}>{c.name}</td>
+                  <td style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "13px" }}>{c.position}</td>
+                  <td style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "13px", textAlign: "center", fontWeight: "bold" }}>{c.avgScore}/100</td>
+                  <td style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "13px", textAlign: "right", fontWeight: "bold" }}>
+                    {c.avgSalary ? `${Number(c.avgSalary).toLocaleString('vi-VN')} đ` : "--"}
+                  </td>
+                  <td style={{ border: "1px solid #cbd5e1", padding: "8px", fontSize: "12px", color: c.majorityDecision === 'HIRE' ? "#166534" : "#991b1b", fontWeight: "bold" }}>
+                    <div>{c.majorityDecision === 'HIRE' ? 'TIẾP NHẬN' : 'XEM XÉT THÊM'}</div>
+                    {/* Priority to local temporary decisions */}
+                    {candidateDecisions[c.id] === "HIRE" && <div style={{ fontSize: "10px", color: "#059669", fontWeight: "normal", fontStyle: "italic" }}>• Giám đốc: Đồng ý (Tạm thời)</div>}
+                    {candidateDecisions[c.id] === "REJECT" && <div style={{ fontSize: "10px", color: "#dc2626", fontWeight: "normal", fontStyle: "italic" }}>• Giám đốc: Từ chối (Tạm thời)</div>}
+                    {/* If no local decision, show DB status if processed */}
+                    {!candidateDecisions[c.id] && c.status === "Đã tiếp nhận" && <div style={{ fontSize: "10px", color: "#059669", fontWeight: "normal", fontStyle: "italic" }}>• Giám đốc: Đồng ý</div>}
+                    {!candidateDecisions[c.id] && c.status === "Từ chối tiếp nhận" && <div style={{ fontSize: "10px", color: "#dc2626", fontWeight: "normal", fontStyle: "italic" }}>• Giám đốc: Từ chối</div>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {/* --- DETAILED SECTIONS --- */}
         <h6 style={{ fontSize: "15px", fontWeight: "bold", borderLeft: "4px solid #003087", paddingLeft: "10px", marginBottom: "20px" }}>II. ĐÁNH GIÁ CHI TIẾT THEO ỨNG VIÊN</h6>
         
         {candidates.map((c: any, idx: number) => (
           <div key={c.id} style={{ marginBottom: "40px", pageBreakInside: "avoid" }}>
-            <div style={{ background: "#f1f5f9", padding: "10px 15px", borderLeft: "5px solid #003087", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ background: "#f1f5f9", padding: "10px 15px", borderLeft: "5px solid #003087", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
               <span style={{ fontWeight: "bold", fontSize: "14px" }}>{idx + 1}. ỨNG VIÊN: {c.name.toUpperCase()}</span>
               <span style={{ fontSize: "12px", fontWeight: "bold" }}>Điểm trung bình: {c.avgScore}/100</span>
             </div>
             
             <div style={{ padding: "15px", border: "1px solid #e2e8f0", borderTop: "none" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "15px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobileOrTablet ? "1fr" : "1fr 1fr", gap: "20px", marginBottom: "15px" }}>
                 <div>
                   <p style={{ margin: "0 0 5px 0", fontSize: "12px", fontWeight: "bold", color: "#64748b" }}>THÔNG TIN PHỎNG VẤN:</p>
                   <ul style={{ margin: 0, paddingLeft: "15px", fontSize: "13px" }}>
@@ -2049,14 +2960,14 @@ function RecruitmentReportPreview({ data, onRowClick, onPdfOpen, candidateDecisi
         ))}
 
         {/* --- FOOTER --- */}
-        <div style={{ marginTop: "50px", display: "flex", justifyContent: "space-between", pageBreakInside: "avoid" }}>
-          <div style={{ textAlign: "center", width: "250px" }}>
-            <p style={{ marginBottom: "80px", fontSize: "14px", fontWeight: "bold" }}>Người lập báo cáo</p>
+        <div style={{ marginTop: "50px", display: "flex", flexDirection: isMobileOrTablet ? "column" : "row", justifyContent: "space-between", alignItems: "center", gap: isMobileOrTablet ? "30px" : "0", pageBreakInside: "avoid" }}>
+          <div style={{ textAlign: "center", width: isMobileOrTablet ? "100%" : "250px" }}>
+            <p style={{ marginBottom: isMobileOrTablet ? "20px" : "80px", fontSize: "14px", fontWeight: "bold" }}>Người lập báo cáo</p>
             <p style={{ margin: 0, fontWeight: "bold", fontSize: "15px" }}>PHÒNG HÀNH CHÍNH NHÂN SỰ</p>
             <p style={{ margin: 0, fontSize: "12px", color: "#666" }}>(Đã ký điện tử)</p>
           </div>
-          <div style={{ textAlign: "center", width: "250px" }}>
-            <p style={{ marginBottom: "80px", fontSize: "14px", fontWeight: "bold" }}>Ban Giám đốc phê duyệt</p>
+          <div style={{ textAlign: "center", width: isMobileOrTablet ? "100%" : "250px" }}>
+            <p style={{ marginBottom: isMobileOrTablet ? "20px" : "80px", fontSize: "14px", fontWeight: "bold" }}>Ban Giám đốc phê duyệt</p>
             <p style={{ margin: 0, fontSize: "13px" }}>(Ký và ghi rõ họ tên)</p>
           </div>
         </div>
@@ -2066,10 +2977,11 @@ function RecruitmentReportPreview({ data, onRowClick, onPdfOpen, candidateDecisi
   );
 }
 
-function CandidateViewOffcanvas({ candidateId, onClose, onAction }: { 
+function CandidateViewOffcanvas({ candidateId, onClose, onAction, isMobileOrTablet = false }: { 
   candidateId: string, 
   onClose: () => void,
-  onAction: (id: string, action: "HIRE" | "REJECT") => Promise<void>
+  onAction: (id: string, action: "HIRE" | "REJECT") => Promise<void>,
+  isMobileOrTablet?: boolean
 }) {
   const [candidate, setCandidate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -2118,7 +3030,7 @@ function CandidateViewOffcanvas({ candidateId, onClose, onAction }: {
         </div>
         
         <div style={{ padding: 20 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, textAlign: "center", marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobileOrTablet ? "1fr 1fr" : "1fr 1fr 1fr", gap: 12, textAlign: "center", marginBottom: 20 }}>
             {[
               { label: "KIẾN THỨC", val: sc.scoreKnowledge },
               { label: "KINH NGHIỆM", val: sc.scoreExperience },
@@ -2126,7 +3038,7 @@ function CandidateViewOffcanvas({ candidateId, onClose, onAction }: {
               { label: "TRÁCH NHIỆM", val: sc.scoreRespons },
               { label: "LÀM VIỆC NHÓM", val: sc.scoreTeamwork },
             ].map((item, i) => (
-              <div key={i} style={{ padding: "8px 0", borderRight: i % 3 === 2 ? "none" : "1px solid #f1f5f9" }}>
+              <div key={i} style={{ padding: "8px 0", borderRight: isMobileOrTablet ? (i % 2 === 1 ? "none" : "1px solid #f1f5f9") : (i % 3 === 2 ? "none" : "1px solid #f1f5f9") }}>
                 <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", marginBottom: 4 }}>{item.label}</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: "#1e293b" }}>{item.val}<span style={{ fontSize: 11, color: "#cbd5e1" }}>/20</span></div>
               </div>
@@ -2169,7 +3081,7 @@ function CandidateViewOffcanvas({ candidateId, onClose, onAction }: {
 
   return createPortal(
     <div style={{ position: "fixed", inset: 0, zIndex: 100100, display: "flex", justifyContent: "flex-end", background: "rgba(0,0,0,0.5)" }} onClick={onClose}>
-      <div style={{ width: 400, height: "100%", background: "#f8fafc", boxShadow: "-10px 0 30px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", animation: "slideLeft 0.3s", fontFamily: "'Roboto Condensed', sans-serif" }} onClick={e => e.stopPropagation()}>
+      <div style={{ width: isMobileOrTablet ? "100%" : 400, maxWidth: "100%", height: "100%", background: "#f8fafc", boxShadow: "-10px 0 30px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", animation: "slideLeft 0.3s", fontFamily: "'Roboto Condensed', sans-serif" }} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div style={{ background: "linear-gradient(90deg, #003087 0%, #004dc7 100%)", color: "#fff", padding: "20px 24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>

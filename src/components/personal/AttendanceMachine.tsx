@@ -19,7 +19,6 @@ interface AttendanceMachineProps {
   isWithinGPSRange?: boolean;
   distanceToOffice?: number | null;
   allowedRadius?: number;
-  gpsError?: string | null;
 }
 
 export function AttendanceMachine({
@@ -38,7 +37,6 @@ export function AttendanceMachine({
   isWithinGPSRange = false,
   distanceToOffice = null,
   allowedRadius = 200,
-  gpsError = null,
 }: AttendanceMachineProps) {
   const [pressProgress, setPressProgress] = useState(0);
   const [registeredLunch, setRegisteredLunch] = useState(false);
@@ -110,8 +108,14 @@ export function AttendanceMachine({
     return `${dayName}, ${date.toLocaleDateString("vi-VN")}`;
   };
 
+  const isLeaveOrHoliday = ["P", "L", "KL", "BHXH", "leave", "holiday"].includes(status?.status);
+
   const getActionLabel = () => {
     if (isSundayLocked) return "Máy chấm công đã khoá";
+    if (isLeaveOrHoliday) {
+      if (status?.status === "L" || status?.status === "holiday") return "Hôm nay là ngày nghỉ lễ";
+      return "Hôm nay bạn được duyệt nghỉ phép";
+    }
     if (!status) return "Nhấn giữ để Chấm vào sáng";
     if (!status.checkOutMorning) return "Nhấn giữ để Chấm ra sáng";
     if (!status.checkInAfternoon) return "Nhấn giữ để Chấm vào chiều";
@@ -121,6 +125,7 @@ export function AttendanceMachine({
 
   const getActionIcon = () => {
     if (isSundayLocked) return "lock-fill";
+    if (isLeaveOrHoliday) return "calendar-x-fill";
     if (!status || !status.checkOutMorning || (!status.checkInAfternoon && status.checkOutMorning)) {
       return "box-arrow-in-right";
     }
@@ -131,46 +136,37 @@ export function AttendanceMachine({
   const allowedToPress = isMobileOrTablet ? isWithinGPSRange : isInternalNetwork;
 
   const getGpsBgColor = () => {
-    if (gpsError) return "#fef2f2";
     if (distanceToOffice === null) return "#fffbeb";
     return isWithinGPSRange ? "#ecfdf5" : "#fef2f2";
   };
 
   const getGpsBorderColor = () => {
-    if (gpsError) return "#fecaca";
     if (distanceToOffice === null) return "#fde68a";
     return isWithinGPSRange ? "#a7f3d0" : "#fecaca";
   };
 
   const getGpsTextColor = () => {
-    if (gpsError) return "#b91c1c";
     if (distanceToOffice === null) return "#b45309";
     return isWithinGPSRange ? "#047857" : "#b91c1c";
   };
 
   const getGpsIcon = () => {
-    if (gpsError) return "exclamation-triangle-fill";
     if (distanceToOffice === null) return "geo-alt";
     return isWithinGPSRange ? "geo-alt-fill" : "geo-alt";
   };
 
   const getGpsLabel = () => {
-    if (gpsError) return gpsError;
     if (distanceToOffice === null) return "ĐANG XÁC ĐỊNH VỊ TRÍ (GPS)...";
     return isWithinGPSRange ? "ĐỊNH VỊ GPS: HỢP LỆ" : "ĐỊNH VỊ GPS: NGOÀI PHẠM VI";
   };
 
   const getGpsSubtitle = () => {
-    if (gpsError) return "Vui lòng cho phép quyền vị trí trên trình duyệt";
     if (distanceToOffice === null) return `Địa điểm: ${branchName}`;
     return `Khoảng cách: ${Math.round(distanceToOffice)}m (Cho phép ≤${allowedRadius}m)`;
   };
 
   const getWarningText = () => {
     if (isMobileOrTablet) {
-      if (gpsError) {
-        return gpsError;
-      }
       if (distanceToOffice !== null) {
         return `Cách văn phòng ${Math.round(distanceToOffice)}m (cho phép ≤${allowedRadius}m)`;
       }
@@ -353,7 +349,7 @@ export function AttendanceMachine({
               <div 
               className="position-absolute inset-0 rounded-full animate-pulse"
               style={{ 
-                background: allowedToPress ? "rgba(99, 102, 241, 0.15)" : "transparent",
+                background: (allowedToPress && !isLeaveOrHoliday) ? "rgba(99, 102, 241, 0.15)" : "transparent",
                 transform: "scale(1.4)",
                 filter: "blur(20px)",
                 pointerEvents: "none"
@@ -367,7 +363,7 @@ export function AttendanceMachine({
                   cy="70"
                   r="64"
                   fill="none"
-                  stroke={allowedToPress && !isCompleted ? "#f1f5f9" : "transparent"}
+                  stroke={allowedToPress && !isCompleted && !isLeaveOrHoliday ? "#f1f5f9" : "transparent"}
                   strokeWidth="4"
                 />
                 <circle
@@ -375,7 +371,7 @@ export function AttendanceMachine({
                   cy="70"
                   r="64"
                   fill="none"
-                  stroke={allowedToPress && !isCompleted ? "#4f46e5" : "transparent"}
+                  stroke={allowedToPress && !isCompleted && !isLeaveOrHoliday ? "#4f46e5" : "transparent"}
                   strokeWidth="6"
                   strokeDasharray={402} // 2 * PI * 64
                   strokeDashoffset={402 * (1 - pressProgress / 100)}
@@ -386,7 +382,7 @@ export function AttendanceMachine({
             </div>
             
             <button
-              disabled={!allowedToPress || loading || isCompleted || isSundayLocked}
+              disabled={!allowedToPress || loading || isCompleted || isSundayLocked || isLeaveOrHoliday}
               onMouseDown={handleStartPress}
               onMouseUp={handleEndPress}
               onMouseLeave={handleEndPress}
@@ -397,13 +393,13 @@ export function AttendanceMachine({
                 width: "120px", 
                 height: "120px", 
                 borderRadius: "50%",
-                background: (allowedToPress && !isCompleted && !isSundayLocked) ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)" : "#f1f5f9",
+                background: (allowedToPress && !isCompleted && !isSundayLocked && !isLeaveOrHoliday) ? "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)" : "#f1f5f9",
                 border: "4px solid white",
-                color: (allowedToPress && !isCompleted && !isSundayLocked) ? "white" : "#94a3b8",
-                boxShadow: (allowedToPress && !isCompleted && !isSundayLocked) 
+                color: (allowedToPress && !isCompleted && !isSundayLocked && !isLeaveOrHoliday) ? "white" : "#94a3b8",
+                boxShadow: (allowedToPress && !isCompleted && !isSundayLocked && !isLeaveOrHoliday) 
                   ? "0 10px 25px rgba(79, 70, 229, 0.35)" 
                   : "0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)",
-                cursor: (allowedToPress && !isCompleted && !isSundayLocked) ? "pointer" : "not-allowed",
+                cursor: (allowedToPress && !isCompleted && !isSundayLocked && !isLeaveOrHoliday) ? "pointer" : "not-allowed",
                 transform: pressProgress > 0 ? "scale(0.95)" : "scale(1)",
                 transition: "all 0.2s ease"
               }}
@@ -420,7 +416,7 @@ export function AttendanceMachine({
             <div className="fw-bold mb-1" style={{ color: "#0f172a", fontSize: "15px" }}>
               {getActionLabel()}
             </div>
-            {!allowedToPress && !isCompleted && !isSundayLocked && (
+            {!allowedToPress && !isCompleted && !isSundayLocked && !isLeaveOrHoliday && (
               <div className="small d-flex align-items-center justify-content-center gap-2 mt-1" style={{ fontSize: "11px", color: "#ef4444" }}>
                 <i className="bi bi-exclamation-circle-fill"></i>
                 <span>{getWarningText()}</span>

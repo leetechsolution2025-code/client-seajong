@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FilterSelect } from "@/components/ui/FilterSelect";
+import { GanttChart } from "@/components/ui/GanttChart";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface Task {
@@ -24,10 +25,11 @@ interface Task {
   week4?: boolean;
   progress?: number;        // 0-100
   description?: string;
-  monthlyPlan?: { month: number };
+  monthlyPlan?: { month: number; year?: number };
   notes?: string;
   isGeneric?: boolean;
   createdAt?: string;
+  commentsCount?: number;
 }
 
 interface Comment {
@@ -117,8 +119,8 @@ function getTaskProgress(task: any): number {
  * Tính toán xem task có nằm trong 4 tuần của một tháng cụ thể hay không 
  */
 function calculateTaskWeeks(task: Task, filterMonth: number) {
-  // Nếu là task Marketing có tuần cố định và không phải task linh hoạt, dùng dữ liệu gốc
-  if (!task.isGeneric && (task.week1 || task.week2 || task.week3 || task.week4)) {
+  // Nếu task có tuần cố định và có dữ liệu tuần thực tế được thiết lập, dùng dữ liệu gốc trực tiếp
+  if (task.week1 || task.week2 || task.week3 || task.week4) {
     return [task.week1, task.week2, task.week3, task.week4];
   }
 
@@ -137,6 +139,24 @@ function calculateTaskWeeks(task: Task, filterMonth: number) {
     const weekEnd = new Date(year, filterMonth - 1, r.e, 23, 59, 59);
     return (start <= weekEnd && end >= weekStart);
   });
+}
+
+/** 
+ * Tính ngày bắt đầu của task dựa trên tuần hoạt động đầu tiên
+ */
+function getTaskStartDate(task: Task): Date {
+  const planYear = task.monthlyPlan?.year || (task.createdAt ? new Date(task.createdAt).getFullYear() : new Date().getFullYear());
+  const planMonth = task.monthlyPlan?.month || (task.deadline ? new Date(task.deadline).getMonth() + 1 : new Date().getMonth() + 1);
+
+  if (task.week1 || task.week2 || task.week3 || task.week4) {
+    const weeksArr = [task.week1, task.week2, task.week3, task.week4];
+    const firstActiveWeek = weeksArr.indexOf(true);
+    if (firstActiveWeek >= 0) {
+      const startDays = [1, 8, 15, 22];
+      return new Date(planYear, planMonth - 1, startDays[firstActiveWeek]);
+    }
+  }
+  return task.createdAt ? new Date(task.createdAt) : new Date();
 }
 
 function DeadlineBadge({ deadline }: { deadline?: string }) {
@@ -232,261 +252,7 @@ function KpiCard({ label, value, icon, color, delay = 0 }: {
 }
 
 // ── Task Row (Table) ───────────────────────────────────────────────────────
-// ── Gantt View ────────────────────────────────────────────────────────────
-function GanttView({ tasks, filterMonth, onTaskClick }: {
-  tasks: Task[];
-  filterMonth: number;
-  onTaskClick: (t: Task) => void;
-}) {
-  const year = new Date().getFullYear();
-  const daysInMonth = new Date(year, filterMonth, 0).getDate();
-  const todayDate = new Date();
-  const isCurrentMonth = todayDate.getMonth() + 1 === filterMonth && todayDate.getFullYear() === year;
-  const todayDay = isCurrentMonth ? todayDate.getDate() : -1;
-
-  const WEEK_RANGES = [
-    { label: "Tuần 1", sub: `1–7/${filterMonth}`,               from: 1,  to: 7  },
-    { label: "Tuần 2", sub: `8–14/${filterMonth}`,              from: 8,  to: 14 },
-    { label: "Tuần 3", sub: `15–21/${filterMonth}`,             from: 15, to: 21 },
-    { label: "Tuần 4", sub: `22–${daysInMonth}/${filterMonth}`, from: 22, to: daysInMonth },
-  ];
-
-  const todayPct = isCurrentMonth ? ((todayDay - 1) / daysInMonth) * 100 : -1;
-
-  // Gradient map theo status color
-  const GRADIENTS: Record<string, string> = {
-    "#10b981": "linear-gradient(90deg, #047857 0%, #10b981 50%, #6ee7b7 100%)", // Hoàn thành
-    "#ef4444": "linear-gradient(90deg, #b91c1c 0%, #ef4444 50%, #fca5a5 100%)", // Quá hạn
-    "#f97316": "linear-gradient(90deg, #c2410c 0%, #f97316 50%, #fdba74 100%)", // Chậm tiến độ
-    "#3b82f6": "linear-gradient(90deg, #1d4ed8 0%, #3b82f6 50%, #93c5fd 100%)", // Đúng tiến độ
-    "var(--muted-foreground)": "linear-gradient(90deg, #64748b 0%, #94a3b8 50%, #e2e8f0 100%)", // Xám
-  };
-
-  if (tasks.length === 0) {
-    return (
-      <div style={{ padding: "70px 20px", textAlign: "center" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 64, height: 64, borderRadius: "50%", background: "var(--muted)", marginBottom: 14 }}>
-          <i className="bi bi-bar-chart-gantt" style={{ fontSize: 28, color: "var(--muted-foreground)" }} />
-        </div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--foreground)", marginBottom: 5 }}>Chưa có công việc nào</div>
-        <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Tháng {filterMonth} không có dữ liệu</div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      <div style={{ minWidth: 640, flexShrink: 0 }}>
-        {/* ── Column header (sticky below legend) ── */}
-        <div style={{
-          position: "sticky", top: 0, zIndex: 10,
-          display: "flex", alignItems: "stretch",
-          background: "var(--muted)",
-          borderBottom: "1px solid var(--border)",
-        }}>
-          <div style={{ width: 200, flexShrink: 0, padding: "9px 12px 9px 20px", display: "flex", alignItems: "center" }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-              Công việc
-            </span>
-          </div>
-          <div style={{ flex: 1, display: "flex" }}>
-            {WEEK_RANGES.map((w, i) => (
-              <div key={i} style={{
-                flex: 1,
-                borderLeft: "1px solid var(--border)",
-                padding: "7px 0",
-                textAlign: "center",
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)" }}>{w.label}</div>
-                <div style={{ fontSize: 9, color: "var(--muted-foreground)", marginTop: 1 }}>{w.sub}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ width: 90, flexShrink: 0, padding: "9px 16px", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Hạn chót</span>
-          </div>
-          <div style={{ width: 72, flexShrink: 0, padding: "9px 16px 9px 0", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.08em" }}>%</span>
-          </div>
-        </div>
-
-      </div>
-
-      {/* ── Scrollable task body ── */}
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "auto", position: "relative" }}>
-
-        {/* ── Today needle (một đường duy nhất bao phủ toàn bộ body) ── */}
-        {todayPct >= 0 && (
-          <div style={{
-            position: "absolute",
-            top: 0, bottom: 0,
-            /* 200px = cột tên task, tính % từ trong vùng timeline còn lại */
-            left: `calc(200px + (100% - 200px - 90px) * ${todayPct / 100})`,
-            width: 1.5,
-            background: "#ef4444",
-            zIndex: 10,
-            pointerEvents: "none",
-          }}>
-            {/* Diamond ở đầu needle */}
-            <div style={{
-              position: "absolute", top: 0,
-              left: "50%", transform: "translateX(-50%) rotate(45deg)",
-              width: 7, height: 7, background: "#ef4444",
-              borderRadius: 1.5,
-            }} />
-          </div>
-        )}
-
-        <div style={{ minWidth: 640 }}>
-
-        {/* ── Task rows ── */}
-        {tasks.map((task, idx) => {
-          const meta = getStatusMeta(task);
-          
-          // Dynamic week calculation
-          const weeks = calculateTaskWeeks(task, filterMonth);
-
-          const firstWeek = weeks.findIndex(Boolean);
-          const lastWeek  = weeks.length - 1 - [...weeks].reverse().findIndex(Boolean);
-          const hasAnyWeek = firstWeek >= 0;
-          const colW = 100 / 4;
-          const barLeft  = hasAnyWeek ? firstWeek * colW : 0;
-          const barWidth = hasAnyWeek ? (lastWeek - firstWeek + 1) * colW : 0;
-          const gradient = GRADIENTS[meta.color] || `linear-gradient(90deg, ${meta.color}, ${meta.color})`;
-
-          // Tính tiến độ
-          const progress = getTaskProgress(task);
-          const progressColor = progress >= 80 ? "#059669" : progress >= 40 ? "#2563eb" : progress > 0 ? "#ea580c" : "#94a3b8";
-
-          return (
-            <motion.div
-              key={task.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.18 }}
-              onClick={() => onTaskClick(task)}
-              style={{ display: "flex", alignItems: "center", borderBottom: "1px solid var(--border)", cursor: "pointer", transition: "background 0.12s" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "var(--muted)")}
-              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-            >
-              {/* Task name */}
-              <div style={{ width: 200, flexShrink: 0, padding: "3px 12px 3px 20px", borderRight: "1px solid var(--border)" }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3, marginBottom: 4 }}>
-                  {task.title}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: meta.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 9, fontWeight: 700, color: meta.color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{meta.label}</span>
-                </div>
-              </div>
-
-              {/* Timeline */}
-              <div style={{ flex: 1, position: "relative", height: 24 }}>
-                {/* Week column dividers (no background) */}
-                {[0,1,2,3].map(i => (
-                  <div key={i} style={{
-                    position: "absolute", top: 0, bottom: 0,
-                    left: `${i * 25}%`, width: "25%",
-                    borderLeft: i > 0 ? "1px solid var(--border)" : undefined,
-                  }} />
-                ))}
-
-                {/* Gantt bar — slim gradient pill */}
-                {hasAnyWeek && (
-                  <motion.div
-                    initial={{ scaleX: 0, y: "-50%" }}
-                    animate={{ scaleX: 1, y: "-50%" }}
-                    style={{
-                      position: "absolute",
-                      top: "50%",
-                      transformOrigin: "left center",
-                      left: `calc(${barLeft}% + 5px)`,
-                      width: `calc(${barWidth}% - 10px)`,
-                      height: 14,
-                      background: gradient,
-                      borderRadius: 20,
-                      zIndex: 2,
-                      boxShadow: `0 2px 12px ${meta.color}55, 0 1px 3px ${meta.color}33`,
-                      display: "flex", alignItems: "center", paddingLeft: 8, gap: 4, overflow: "hidden",
-                    }}
-                    transition={{ duration: 0.38, ease: [0.4, 0, 0.2, 1] }}
-                  >
-                    {weeks.map((w, wi) => {
-                      if (wi < firstWeek || wi > lastWeek) return null;
-                      return (
-                        <div key={wi} style={{
-                          width: 3.5, height: 3.5, borderRadius: "50%", flexShrink: 0,
-                          background: w ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.28)",
-                        }} />
-                      );
-                    })}
-                    {/* Progress % trên bar */}
-                    <span style={{
-                      marginLeft: "auto", marginRight: 8, fontSize: 9, fontWeight: 800,
-                      color: "rgba(255,255,255,0.95)", letterSpacing: "0.03em", flexShrink: 0,
-                    }}>
-                      {progress}%
-                    </span>
-                  </motion.div>
-                )}
-
-                {!hasAnyWeek && (
-                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>—</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Deadline */}
-              <div style={{ width: 90, flexShrink: 0, padding: "3px 12px 3px 8px", textAlign: "right", borderLeft: "1px solid var(--border)" }}>
-                {task.deadline ? (() => {
-                  const days = daysUntil(task.deadline);
-                  const d = new Date(task.deadline);
-                  const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
-                  const timeStr = d.getHours() !== 0 || d.getMinutes() !== 0 
-                    ? d.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' }) 
-                    : "";
-                  let color = "#10b981";
-                  if (days !== null) {
-                    if (days < 0) color = "#ef4444";
-                    else if (days <= 3) color = "#f97316";
-                  }
-                  return (
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color }}>{dateStr}</div>
-                      {days !== null && (
-                        <div style={{ fontSize: 9, color: "var(--muted-foreground)", marginTop: 1, fontWeight: 600 }}>
-                          {days < 0 ? `trễ ${Math.abs(days)} ngày` : days === 0 ? "hôm nay" : `còn ${days} ngày`}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })() : <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>—</span>}
-              </div>
-
-              {/* Progress column */}
-              <div style={{ width: 72, flexShrink: 0, padding: "3px 16px 3px 0", display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: 3 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: progressColor }}>{progress}%</span>
-                <div style={{ width: 40, height: 4, background: "var(--border)", borderRadius: 4, overflow: "hidden" }}>
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ delay: idx * 0.03 + 0.2, duration: 0.5, ease: "easeOut" }}
-                    style={{ height: "100%", background: progressColor, borderRadius: 4 }}
-                  />
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
-
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TaskRow({ task, onClick, index, filterMonth }: { task: Task; onClick: () => void; index: number; filterMonth: number }) {
+function TaskRow({ task, onClick, index, filterMonth, unreadCount }: { task: Task; onClick: () => void; index: number; filterMonth: number; unreadCount: number }) {
   const meta = getStatusMeta(task);
   const [hovered, setHovered] = useState(false);
 
@@ -506,8 +272,42 @@ function TaskRow({ task, onClick, index, filterMonth }: { task: Task; onClick: (
       {/* Title */}
       <td style={{ padding: "6px 12px", borderBottom: "1px solid var(--border)", maxWidth: 280 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4, lineHeight: 1 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {task.title}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+            {task.title?.startsWith("[KH MKT]") ? (
+              <>
+                <span style={{
+                  fontSize: 8.5, fontWeight: 800,
+                  background: "rgba(99, 102, 241, 0.1)", color: "#6366f1",
+                  padding: "1.5px 5px", borderRadius: 4,
+                  textTransform: "uppercase", letterSpacing: "0.03em",
+                  border: "1px solid rgba(99, 102, 241, 0.18)",
+                  flexShrink: 0
+                }}>
+                  KH MKT
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {task.title.replace("[KH MKT]", "").trim()}
+                </span>
+              </>
+            ) : (
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {task.title}
+              </span>
+            )}
+            {unreadCount > 0 && (
+              <span style={{
+                background: "#ef4444", color: "#fff",
+                fontSize: "9.5px", fontWeight: "bold",
+                borderRadius: "50%",
+                width: "17px", height: "17px",
+                minWidth: "17px", minHeight: "17px",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, lineHeight: 1, textAlign: "center", marginLeft: "6px",
+                boxShadow: "0 2px 5px rgba(239, 68, 68, 0.3)"
+              }}>
+                {unreadCount}
+              </span>
+            )}
           </div>
           <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: meta.color, letterSpacing: "0.05em" }}>
             {meta.label}
@@ -518,17 +318,35 @@ function TaskRow({ task, onClick, index, filterMonth }: { task: Task; onClick: (
       {/* Weeks */}
       <td style={{ padding: "6px 12px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", gap: 3 }}>
-          {calculateTaskWeeks(task, filterMonth).map((w, i) => (
-            <div key={i} style={{
-              width: 18, height: 18, borderRadius: 5,
-              background: w ? "#6366f1" : "var(--border)",
-              display: "flex", alignItems: "center", justifyContent: "center"
-            }}>
-              {w && <i className="bi bi-check" style={{ fontSize: 10, color: "#fff", fontWeight: 900 }} />}
-              {!w && <span style={{ fontSize: 7.5, color: "var(--muted-foreground)", fontWeight: 700 }}>T{i + 1}</span>}
-            </div>
-          ))}
+          {calculateTaskWeeks(task, filterMonth).map((w, i) => {
+            const year = new Date().getFullYear();
+            const daysInMonth = new Date(year, filterMonth, 0).getDate();
+            const range = [
+              { s: 1, e: 7 }, { s: 8, e: 14 }, { s: 15, e: 21 }, { s: 22, e: daysInMonth }
+            ][i];
+            const getDayOfWeekName = (d: number) => {
+              const date = new Date(year, filterMonth - 1, d);
+              const dayNames = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+              return dayNames[date.getDay()];
+            };
+            const tooltip = `Tuần ${i + 1}: ${getDayOfWeekName(range.s)} (${range.s}) - ${getDayOfWeekName(range.e)} (${range.e}) / Tháng ${filterMonth}`;
+            return (
+              <div key={i} title={tooltip} style={{
+                width: 18, height: 18, borderRadius: 5,
+                background: w ? "#6366f1" : "var(--border)",
+                display: "flex", alignItems: "center", justifyContent: "center"
+              }}>
+                {w && <i className="bi bi-check" style={{ fontSize: 10, color: "#fff", fontWeight: 900 }} />}
+                {!w && <span style={{ fontSize: 7.5, color: "var(--muted-foreground)", fontWeight: 700 }}>T{i + 1}</span>}
+              </div>
+            );
+          })}
         </div>
+      </td>
+
+      {/* Bắt đầu */}
+      <td style={{ padding: "6px 12px", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap", fontSize: 11, color: "var(--muted-foreground)" }}>
+        {getTaskStartDate(task).toLocaleDateString("vi-VN")}
       </td>
 
       {/* Deadline */}
@@ -567,14 +385,124 @@ function TaskRow({ task, onClick, index, filterMonth }: { task: Task; onClick: (
   );
 }
 
+// Helper to render upgraded/structured description
+function renderUpgradedDescription(desc: string) {
+  if (!desc) return null;
+
+  // Split into Details and Approval info by '---' or '—'
+  const parts = desc.split(/---|—/);
+  const mainPart = parts[0].trim();
+  const approvalPart = parts[1] ? parts[1].trim() : "";
+
+  const fields: { label: string; value: string }[] = [];
+  
+  const lines = mainPart.split("\n").map(l => l.trim()).filter(Boolean);
+  
+  for (const line of lines) {
+    if (line.toLowerCase().startsWith("hạng mục:")) {
+      const value = line.substring("hạng mục:".length).trim();
+      fields.push({ label: "Hạng mục", value });
+    } else if (line.toLowerCase().startsWith("chi tiết:")) {
+      let remaining = line.substring("chi tiết:".length).trim();
+      if (remaining.includes("|")) {
+        const segments = remaining.split("|").map(s => s.trim());
+        for (const seg of segments) {
+          const colonIndex = seg.indexOf(":");
+          if (colonIndex > 0) {
+            const label = seg.substring(0, colonIndex).trim();
+            const value = seg.substring(colonIndex + 1).trim();
+            fields.push({ label, value });
+          } else {
+            fields.push({ label: "Chi tiết", value: seg });
+          }
+        }
+      } else {
+        fields.push({ label: "Chi tiết", value: remaining });
+      }
+    } else if (line.toLowerCase().startsWith("ghi chú:")) {
+      const value = line.substring("ghi chú:".length).trim();
+      fields.push({ label: "Ghi chú", value });
+    } else {
+      const colonIndex = line.indexOf(":");
+      if (colonIndex > 0) {
+        const label = line.substring(0, colonIndex).trim();
+        const value = line.substring(colonIndex + 1).trim();
+        fields.push({ label, value });
+      } else {
+        fields.push({ label: "Chi tiết", value: line });
+      }
+    }
+  }
+
+  const approvalFields: { label: string; value: string }[] = [];
+  if (approvalPart) {
+    const cleanedApprovalPart = approvalPart.replace(/^thông tin phê duyệt:\s*/i, "").trim();
+    const lines = cleanedApprovalPart.split("\n").map(l => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      const cleanedLine = line.replace(/^-\s*/, "");
+      const colonIndex = cleanedLine.indexOf(":");
+      if (colonIndex > 0) {
+        const label = cleanedLine.substring(0, colonIndex).trim();
+        const value = cleanedLine.substring(colonIndex + 1).trim();
+        approvalFields.push({ label, value });
+      } else {
+        approvalFields.push({ label: "Thông tin", value: cleanedLine });
+      }
+    }
+  }
+
+  if (approvalFields.length > 0) {
+    return null;
+  }
+
+  if (fields.length === 0) {
+    return (
+      <div style={{
+        background: "var(--muted)", borderRadius: 12, border: "1px solid var(--border)",
+        padding: "14px 16px"
+      }}>
+        <div style={{ fontSize: 9, fontWeight: 900, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 6 }}>
+          Mô tả công việc
+        </div>
+        <p style={{ margin: 0, fontSize: 12.5, color: "var(--foreground)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{desc}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: "var(--muted)", borderRadius: 12, border: "1px solid var(--border)",
+      padding: "14px 16px"
+    }}>
+      <div style={{ fontSize: 9, fontWeight: 900, color: "#6366f1", textTransform: "uppercase", marginBottom: 10, letterSpacing: "0.06em" }}>
+        Chi tiết công việc
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {fields.map((f, idx) => (
+          <div key={idx} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase" }}>
+              {f.label}
+            </span>
+            <span style={{ fontSize: 12.5, color: "var(--foreground)", lineHeight: 1.5, fontWeight: f.label === "Hạng mục" ? 700 : 500 }}>
+              {f.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Task Detail Offcanvas ──────────────────────────────────────────────────
+
 function TaskDetailPanel({
-  task, onClose, onStatusChange, onTaskUpdate
+  task, onClose, onStatusChange, onTaskUpdate, onCommentsLoaded
 }: {
   task: Task;
   onClose: () => void;
   onStatusChange: (taskId: string, newStatus: string) => void;
   onTaskUpdate?: (taskId: string, partialData: any) => void;
+  onCommentsLoaded?: (taskId: string, count: number) => void;
 }) {
   const { data: session } = useSession();
   const [comments, setComments] = useState<Comment[]>([]);
@@ -651,19 +579,31 @@ function TaskDetailPanel({
 
   // Handle submit report
   const handleSubmitReport = async () => {
-    if (reportContent.trim() === "") return;
     setIsSubmittingReport(true);
     
-    const newReport = { p: reportProgress, c: reportContent, d: new Date().toISOString(), id: Date.now(), f: reportFileUrl, fn: reportFileName };
+    const finalContent = reportContent.trim() || `Cập nhật tiến độ lên ${reportProgress}%`;
+    const newReport = { p: reportProgress, c: finalContent, d: new Date().toISOString(), id: Date.now(), f: reportFileUrl, fn: reportFileName };
     const newArr = [...reportHistory, newReport];
     
     try {
       const payloadStr = JSON.stringify(newArr);
+      
+      // Auto transition status based on progress
+      let newStatus = task.status;
+      const patchData: Record<string, any> = { actualResult: payloadStr };
+      if (reportProgress === 100) {
+        patchData.status = "done";
+        newStatus = "done";
+      } else if (reportProgress > 0 && task.status === "pending") {
+        patchData.status = "in_progress";
+        newStatus = "in_progress";
+      }
+      
       const apiPath = (task as any).isGeneric ? `/api/board/tasks/${task.id}` : `/api/marketing/tasks/${task.id}`;
       await fetch(apiPath, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actualResult: payloadStr }),
+        body: JSON.stringify(patchData),
       });
       
       setReportHistory(newArr);
@@ -671,7 +611,9 @@ function TaskDetailPanel({
       setReportFileUrl(null);
       setReportFileName(null);
       setInitialProgress(reportProgress);
-      if (onTaskUpdate) onTaskUpdate(task.id, { actualResult: payloadStr });
+      if (onTaskUpdate) {
+        onTaskUpdate(task.id, { actualResult: payloadStr, status: newStatus });
+      }
     } catch (err) {
       console.error("Submit report failed", err);
     } finally {
@@ -684,16 +626,27 @@ function TaskDetailPanel({
     const apiPath = (task as any).isGeneric ? `/api/board/tasks/${task.id}/comments` : `/api/marketing/tasks/${task.id}/comments`;
     fetch(apiPath, { cache: "no-store" })
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setComments(d); })
+      .then(d => { 
+        if (Array.isArray(d)) {
+          setComments(d);
+          if (onCommentsLoaded) onCommentsLoaded(task.id, d.length);
+        }
+      })
       .catch(() => {});
-  }, [task.id, (task as any).isGeneric]);
+  }, [task.id, (task as any).isGeneric, onCommentsLoaded]);
 
   useEffect(() => {
     fetchComments();
+    const interval = setInterval(fetchComments, 5000);
+    return () => clearInterval(interval);
   }, [fetchComments]);
 
+  const prevCommentsLengthRef = useRef(0);
   useEffect(() => {
-    commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (comments.length > prevCommentsLengthRef.current) {
+      commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    prevCommentsLengthRef.current = comments.length;
   }, [comments]);
 
   const sendComment = async (attachment?: { url: string; name: string }) => {
@@ -827,9 +780,28 @@ function TaskDetailPanel({
                 {/* Scrollable body */}
                 <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
                   {/* Task Title in Body */}
-                  <h2 style={{ fontSize: 17, fontWeight: 900, color: "var(--foreground)", margin: "0 0 14px", lineHeight: 1.4 }}>
-                    {task.title}
-                  </h2>
+                  {task.title?.startsWith("[KH MKT]") ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+                      <div style={{ display: "flex" }}>
+                        <span style={{
+                          fontSize: 9, fontWeight: 800,
+                          background: "rgba(99, 102, 241, 0.12)", color: "#6366f1",
+                          padding: "2px 6px", borderRadius: 5,
+                          textTransform: "uppercase", letterSpacing: "0.05em",
+                          border: "1px solid rgba(99, 102, 241, 0.22)"
+                        }}>
+                          KH MKT
+                        </span>
+                      </div>
+                      <h2 style={{ fontSize: 13.5, fontWeight: 800, color: "var(--foreground)", margin: 0, lineHeight: 1.45 }}>
+                        {task.title.replace("[KH MKT]", "").trim()}
+                      </h2>
+                    </div>
+                  ) : (
+                    <h2 style={{ fontSize: 13.5, fontWeight: 800, color: "var(--foreground)", margin: "0 0 14px", lineHeight: 1.45 }}>
+                      {task.title}
+                    </h2>
+                  )}
 
           {/* Meta grid */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
@@ -922,9 +894,8 @@ function TaskDetailPanel({
 
           {/* Description */}
           {task.description && (
-            <div style={{ marginBottom: 16, padding: "12px 16px", background: "var(--muted)", borderRadius: 12, border: "1px solid var(--border)" }}>
-              <div style={{ fontSize: 9, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 6 }}>Mô tả công việc</div>
-              <p style={{ margin: 0, fontSize: 13, color: "var(--foreground)", lineHeight: 1.6 }}>{task.description}</p>
+            <div style={{ marginBottom: 16 }}>
+              {renderUpgradedDescription(task.description)}
             </div>
           )}
 
@@ -933,8 +904,13 @@ function TaskDetailPanel({
           <div style={{ height: 1, background: "var(--border)", margin: "0 0 20px" }} />
 
           {/* Comments */}
-          <div style={{ fontSize: 9, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 12 }}>
-            Nhật ký và Trao đổi ({comments.length})
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 2 }}>
+              Nhật ký và Trao đổi ({comments.length})
+            </div>
+            <div style={{ fontSize: 9.5, color: "var(--muted-foreground)", fontStyle: "italic", lineHeight: 1.3 }}>
+              Kênh thảo luận trực tiếp giữa Nhân viên thực hiện và Giám đốc / Trưởng bộ phận
+            </div>
           </div>
 
           {comments.length === 0 ? (
@@ -951,34 +927,36 @@ function TaskDetailPanel({
                 const displayName = authorName || (isMe ? (session?.user?.name || "Bạn") : "Nhân viên");
 
                 return (
-                  <div key={c.id} style={{ display: "flex", gap: 10 }}>
+                  <div key={c.id} style={{ display: "flex", gap: 10, flexDirection: isMe ? "row-reverse" : "row", alignItems: "flex-start" }}>
                     <Avatar name={displayName} size={28} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)" }}>{displayName}</span>
-                        <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", maxWidth: "80%" }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4, flexDirection: isMe ? "row-reverse" : "row" }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: isMe ? "#6366f1" : "var(--foreground)" }}>{displayName}</span>
+                        <span style={{ fontSize: 9.5, color: "var(--muted-foreground)" }}>
                           {new Date(c.createdAt).toLocaleDateString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
-                    {c.content && (
-                      <div style={{
-                        background: "var(--muted)", borderRadius: "0 10px 10px 10px",
-                        padding: "8px 12px", fontSize: 12, color: "var(--foreground)", lineHeight: 1.6,
-                        border: "1px solid var(--border)"
-                      }}>
-                        {c.content}
-                      </div>
-                    )}
-                    {c.attachmentUrl && (
-                      <a href={c.attachmentUrl} target="_blank" rel="noreferrer" style={{
-                        display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6,
-                        fontSize: 11, fontWeight: 600, color: "#6366f1", textDecoration: "none",
-                        background: "rgba(99,102,241,0.1)", padding: "4px 10px", borderRadius: 6
-                      }}>
-                        <i className="bi bi-paperclip" />
-                        {c.attachmentName || "File đính kèm"}
-                      </a>
-                    )}
+                      {c.content && (
+                        <div style={{
+                          background: isMe ? "rgba(99, 102, 241, 0.08)" : "var(--accent, #f1f5f9)",
+                          borderRadius: isMe ? "14px 4px 14px 14px" : "4px 14px 14px 14px",
+                          padding: "8px 12px", fontSize: 12, color: "var(--foreground)", lineHeight: 1.6,
+                          border: isMe ? "1px solid rgba(99, 102, 241, 0.15)" : "1px solid var(--border)",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.01)"
+                        }}>
+                          {c.content}
+                        </div>
+                      )}
+                      {c.attachmentUrl && (
+                        <a href={c.attachmentUrl} target="_blank" rel="noreferrer" style={{
+                          display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6,
+                          fontSize: 11, fontWeight: 600, color: "#6366f1", textDecoration: "none",
+                          background: "rgba(99,102,241,0.1)", padding: "4px 10px", borderRadius: 6
+                        }}>
+                          <i className="bi bi-paperclip" />
+                          {c.attachmentName || "File đính kèm"}
+                        </a>
+                      )}
                     </div>
                   </div>
                 );
@@ -1046,11 +1024,11 @@ function TaskDetailPanel({
             {/* Send button */}
             <button
               onClick={() => { sendComment(); }}
-              disabled={sending || uploading || !commentText.trim()}
+              disabled={sending || uploading}
               style={{
                 width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
                 background: (commentText.trim() && !sending && !uploading) ? "#6366f1" : "var(--muted)",
-                border: "none", cursor: (commentText.trim() && !sending && !uploading) ? "pointer" : "not-allowed",
+                border: "none", cursor: (commentText.trim() && !sending && !uploading) ? "pointer" : "default",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 color: (commentText.trim() && !sending && !uploading) ? "#fff" : "var(--muted-foreground)",
                 transition: "all 0.15s",
@@ -1076,7 +1054,28 @@ function TaskDetailPanel({
               >
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", padding: "12px 16px 0" }}>
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 18, fontWeight: 900, color: "var(--foreground)", marginBottom: 2 }}>{task.title}</div>
+                    {task.title?.startsWith("[KH MKT]") ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+                        <div style={{ display: "flex" }}>
+                          <span style={{
+                            fontSize: 9, fontWeight: 800,
+                            background: "rgba(99, 102, 241, 0.12)", color: "#6366f1",
+                            padding: "2px 6px", borderRadius: 5,
+                            textTransform: "uppercase", letterSpacing: "0.05em",
+                            border: "1px solid rgba(99, 102, 241, 0.22)"
+                          }}>
+                            KH MKT
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--foreground)" }}>
+                          {task.title.replace("[KH MKT]", "").trim()}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--foreground)", marginBottom: 8 }}>
+                        {task.title}
+                      </div>
+                    )}
                     <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
                       {(() => {
                         const s = task.status || "pending";
@@ -1237,11 +1236,11 @@ function TaskDetailPanel({
                   </div>
                   <button 
                     onClick={handleSubmitReport}
-                    disabled={isSubmittingReport || reportContent.trim() === ""}
+                    disabled={isSubmittingReport}
                     style={{
                       padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 700, 
-                      background: (isSubmittingReport || reportContent.trim() === "") ? "var(--muted)" : "linear-gradient(135deg, #6366f1, #4f46e5)", color: (isSubmittingReport || reportContent.trim() === "") ? "var(--muted-foreground)" : "#fff",
-                      border: "none", cursor: (isSubmittingReport || reportContent.trim() === "") ? "not-allowed" : "pointer",
+                      background: isSubmittingReport ? "var(--muted)" : "linear-gradient(135deg, #6366f1, #4f46e5)", color: isSubmittingReport ? "var(--muted-foreground)" : "#fff",
+                      border: "none", cursor: isSubmittingReport ? "not-allowed" : "pointer",
                       display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s"
                     }}
                   >
@@ -1288,10 +1287,40 @@ export function MyTasks({
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<"table" | "gantt">("table");
-  const ITEMS_PER_PAGE = compact ? (maxItems ?? 5) : 8;
+  const ITEMS_PER_PAGE = compact ? (maxItems ?? 5) : 50;
 
   // Lấy tên từ session hoặc prop
   const employeeName = propEmployeeName || session?.user?.name || "";
+
+  const seenCommentsKey = `tasks_seen_comments_${session?.user?.id || "guest"}`;
+  const [seenComments, setSeenComments] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(seenCommentsKey);
+      if (saved) {
+        try { setSeenComments(JSON.parse(saved)); } catch(e) {}
+      }
+    }
+  }, [seenCommentsKey]);
+
+  const handleCommentsLoaded = useCallback((taskId: string, count: number) => {
+    setSeenComments(prev => {
+      if (prev[taskId] === count) return prev;
+      const updated = { ...prev, [taskId]: count };
+      localStorage.setItem(seenCommentsKey, JSON.stringify(updated));
+      return updated;
+    });
+  }, [seenCommentsKey]);
+
+  const loadTasks = useCallback(() => {
+    fetch("/api/my/tasks")
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) setTasks(data);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -1302,7 +1331,10 @@ export function MyTasks({
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+
+    const interval = setInterval(loadTasks, 5000);
+    return () => clearInterval(interval);
+  }, [loadTasks]);
 
   // Filter tasks belonging to this employee
   const myTasks = tasks.filter(t => {
@@ -1354,6 +1386,7 @@ export function MyTasks({
   const completionRate = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
   const paginatedTasks = filteredTasks.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredTasks.length / ITEMS_PER_PAGE);
 
   // Update task status locally
   const handleStatusChange = (taskId: string, newStatus: string) => {
@@ -1501,15 +1534,6 @@ export function MyTasks({
           )}
         </div>
 
-        {/* KPI Cards */}
-        {!compact && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
-            {kpiCards.map((k, i) => (
-              <KpiCard key={i} {...k} delay={i * 0.06} />
-            ))}
-          </div>
-        )}
-
         {/* Task List Card (The one that should fill height) */}
         <div style={{ 
           flex: 1, minHeight: 0,
@@ -1522,15 +1546,15 @@ export function MyTasks({
             display: "flex", alignItems: "center", justifyContent: "space-between",
             flexWrap: "wrap", gap: 12, background: "rgba(var(--primary-rgb), 0.02)"
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "var(--foreground)", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, marginRight: 24 }}>
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "var(--foreground)", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 <i className="bi bi-list-stars" style={{ color: "#6366f1" }} />
                 Danh sách công việc
                 <span style={{ fontSize: 11, fontWeight: 600, background: "var(--muted)", color: "#6366f1", padding: "2px 8px", borderRadius: 20 }}>{filteredTasks.length}</span>
               </h3>
               
               {/* Search */}
-              <div style={{ position: "relative" }}>
+              <div style={{ position: "relative", flex: 1, maxWidth: 450 }}>
                 <i className="bi bi-search" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "var(--muted-foreground)" }} />
                 <input
                   type="text"
@@ -1539,7 +1563,7 @@ export function MyTasks({
                   onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                   style={{
                     padding: "6px 12px 6px 30px", borderRadius: 10, border: "1px solid var(--border)",
-                    background: "var(--muted)", fontSize: 12, width: 220, outline: "none", color: "var(--foreground)"
+                    background: "var(--muted)", fontSize: 12, width: "100%", outline: "none", color: "var(--foreground)"
                   }}
                 />
               </div>
@@ -1613,33 +1637,82 @@ export function MyTasks({
                 <div style={{ width: 36, height: 36, borderRadius: "50%", border: "3px solid #e2e8f0", borderTopColor: "#6366f1", animation: "spin 0.8s linear infinite" }} />
               </div>
             ) : viewMode === "table" ? (
-              <div style={{ flex: 1, overflowY: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
-                  <thead style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--muted)" }}>
-                    <tr>
-                      <th style={{ padding: "10px 20px", textAlign: "left", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>Công việc</th>
-                      <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>Tuần thực hiện</th>
-                      <th style={{ padding: "10px 12px", textAlign: "right", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>Hạn chót</th>
-                      <th style={{ padding: "10px 12px", textAlign: "right", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>Tiến độ (%)</th>
-                      <th style={{ width: 40, borderBottom: "1px solid var(--border)" }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedTasks.length > 0 ? paginatedTasks.map((t, i) => (
-                      <TaskRow key={t.id} task={t} index={i} filterMonth={filterMonth} onClick={() => setSelectedTask(t)} />
-                    )) : (
+              <>
+                <div style={{ flex: 1, overflowY: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
+                    <thead style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--muted)" }}>
                       <tr>
-                        <td colSpan={5} style={{ padding: "60px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>
-                          <i className="bi bi-inbox" style={{ fontSize: 32, display: "block", marginBottom: 10, opacity: 0.3 }} />
-                          Không tìm thấy công việc phù hợp.
-                        </td>
+                        <th style={{ padding: "10px 20px", textAlign: "left", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>Công việc</th>
+                        <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>Tuần thực hiện</th>
+                        <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>Bắt đầu</th>
+                        <th style={{ padding: "10px 12px", textAlign: "left", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>Hạn chót</th>
+                        <th style={{ padding: "10px 12px", textAlign: "right", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>Tiến độ (%)</th>
+                        <th style={{ width: 40, borderBottom: "1px solid var(--border)" }}></th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {paginatedTasks.length > 0 ? paginatedTasks.map((t, i) => (
+                        <TaskRow 
+                          key={t.id} 
+                          task={t} 
+                          index={i} 
+                          filterMonth={filterMonth} 
+                          onClick={() => setSelectedTask(t)} 
+                          unreadCount={t.commentsCount !== undefined ? Math.max(0, (t.commentsCount || 0) - (seenComments[t.id] || 0)) : 0}
+                        />
+                      )) : (
+                        <tr>
+                          <td colSpan={6} style={{ padding: "60px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>
+                            <i className="bi bi-inbox" style={{ fontSize: 32, display: "block", marginBottom: 10, opacity: 0.3 }} />
+                            Không tìm thấy công việc phù hợp.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                {totalPages > 1 && (
+                  <div style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "12px 20px", borderTop: "1px solid var(--border)", background: "rgba(99, 102, 241, 0.02)",
+                    flexShrink: 0
+                  }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)" }}>
+                      Hiển thị {(currentPage - 1) * ITEMS_PER_PAGE + 1} – {Math.min(currentPage * ITEMS_PER_PAGE, filteredTasks.length)} trong {filteredTasks.length} công việc
+                    </span>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        style={{
+                          padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700,
+                          border: "1px solid var(--border)", background: currentPage === 1 ? "var(--muted)" : "var(--card)",
+                          color: currentPage === 1 ? "var(--muted-foreground)" : "var(--foreground)",
+                          cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                          display: "flex", alignItems: "center", gap: 4, transition: "all 0.2s"
+                        }}
+                      >
+                        <i className="bi bi-chevron-left" /> Trước
+                      </button>
+                      <button
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        style={{
+                          padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700,
+                          border: "1px solid var(--border)", background: currentPage === totalPages ? "var(--muted)" : "var(--card)",
+                          color: currentPage === totalPages ? "var(--muted-foreground)" : "var(--foreground)",
+                          cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                          display: "flex", alignItems: "center", gap: 4, transition: "all 0.2s"
+                        }}
+                      >
+                        Sau <i className="bi bi-chevron-right" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
-              <GanttView tasks={filteredTasks} filterMonth={filterMonth} onTaskClick={setSelectedTask} />
+              <GanttChart tasks={filteredTasks as any} filterMonth={filterMonth} onTaskClick={setSelectedTask as any} />
             )}
           </div>
 
@@ -1669,6 +1742,7 @@ export function MyTasks({
             onClose={() => setSelectedTask(null)}
             onStatusChange={handleStatusChange}
             onTaskUpdate={handleTaskUpdate}
+            onCommentsLoaded={handleCommentsLoaded}
           />
         )}
       </AnimatePresence>

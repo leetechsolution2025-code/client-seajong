@@ -349,44 +349,47 @@ export default function HRDashboardPage() {
       >
         <div className="flex-grow-1 overflow-auto pe-1 custom-scrollbar">
           {/* ── Row 1: KPI Cards ─────────────────────────────────────────────── */}
-          <div className="row g-3 mb-3">
-            <KPICard
-              label="Tổng nhân sự"
-              value={loading ? "—" : (s?.totalHeadcount ?? 0)}
-              icon="bi-people-fill"
-              accent="#6366f1"
-              subtitle={loading ? undefined : `${s?.totalActive ?? 0} đang làm • ${s?.totalProbation ?? 0} thử việc`}
-              colClass="col-6 col-lg-3"
-            />
-            <KPICard
-              label="Mới trong tháng"
-              value={loading ? "—" : (s?.newThisMonth ?? 0)}
-              icon="bi-person-plus-fill"
-              accent="#10b981"
-              suffix=" người"
-              subtitle="Gia nhập tháng này"
-              colClass="col-6 col-lg-3"
-            />
-            <KPICard
-              label="Hợp đồng sắp hết hạn"
-              value={loading ? "—" : (s?.contractsExpiring ?? 0)}
-              icon="bi-file-earmark-text-fill"
-              accent={s?.contractsExpiring && s.contractsExpiring > 0 ? "#f59e0b" : "#6366f1"}
-              subtitle="Trong 30 ngày tới"
-              colClass="col-6 col-lg-3"
-            />
-            <KPICard
-              label="Yêu cầu tuyển dụng"
-              value={loading ? "—" : (s?.activeRecruitment ?? 0)}
-              icon="bi-briefcase-fill"
-              accent="#3b82f6"
-              subtitle={loading ? undefined : `${s?.recruiting ?? 0} đang tuyển • ${s?.interviewing ?? 0} phỏng vấn`}
-              colClass="col-6 col-lg-3"
-            />
+          <div className="px-3 px-md-0 mb-3 mt-3 mt-md-2">
+            <div className="row g-3">
+              <KPICard
+                label="Tổng nhân sự"
+                value={loading ? "—" : (s?.totalHeadcount ?? 0)}
+                icon="bi-people-fill"
+                accent="#6366f1"
+                subtitle={loading ? undefined : `${s?.totalActive ?? 0} đang làm • ${s?.totalProbation ?? 0} thử việc`}
+                colClass="col-6 col-lg-3"
+              />
+              <KPICard
+                label="Mới trong tháng"
+                value={loading ? "—" : (s?.newThisMonth ?? 0)}
+                icon="bi-person-plus-fill"
+                accent="#10b981"
+                suffix=" người"
+                subtitle="Gia nhập tháng này"
+                colClass="col-6 col-lg-3"
+              />
+              <KPICard
+                label="Hợp đồng sắp hết hạn"
+                value={loading ? "—" : (s?.contractsExpiring ?? 0)}
+                icon="bi-file-earmark-text-fill"
+                accent={s?.contractsExpiring && s.contractsExpiring > 0 ? "#f59e0b" : "#6366f1"}
+                subtitle="Trong 30 ngày tới"
+                colClass="col-6 col-lg-3"
+              />
+              <KPICard
+                label="Yêu cầu tuyển dụng"
+                value={loading ? "—" : (s?.activeRecruitment ?? 0)}
+                icon="bi-briefcase-fill"
+                accent="#3b82f6"
+                subtitle={loading ? undefined : `${s?.recruiting ?? 0} đang tuyển • ${s?.interviewing ?? 0} phỏng vấn`}
+                colClass="col-6 col-lg-3"
+              />
+            </div>
           </div>
 
           {/* ── Row 2: Main content ───────────────────────────────────────────── */}
-          <div className="row g-3">
+          <div className="px-3 px-md-0">
+            <div className="row g-3">
 
             {/* ── Left column ── */}
             <div className="col-12 col-xl-8 d-flex flex-column gap-3">
@@ -403,7 +406,7 @@ export default function HRDashboardPage() {
                     { icon: "bi-mortarboard-fill", label: "Đào tạo", desc: "Khoá học và đăng ký", color: "#8b5cf6", href: "/hr/training" },
                     { icon: "bi-graph-up-arrow", label: "Báo cáo nhân sự", desc: "Điều chỉnh chức vụ", color: "#ec4899", onClick: () => setShowReportModal(true) },
                   ].map((item, idx) => (
-                    <div key={idx} className="col-6 col-md-4">
+                    <div key={idx} className="col-12 col-sm-6 col-md-4">
                       <div
                         className="p-3 rounded-3 h-100"
                         style={{
@@ -666,6 +669,7 @@ export default function HRDashboardPage() {
             </div>
           </div>
         </div>
+      </div>
       </StandardPage>
 
       {showReportModal && (
@@ -684,7 +688,7 @@ export default function HRDashboardPage() {
                   <img src={companyInfo?.logoUrl || "/logo.png"} alt="Logo" style={{ height: "40px" }} />
                   <div>
                     <h1 style={{ margin: 0, fontSize: "12px", fontWeight: 900, textTransform: "uppercase", color: "#003087", letterSpacing: "1px" }}>{companyInfo?.name || "CÔNG TY CỔ PHẦN SEAJONG FAUCET VIỆT NAM"}</h1>
-                    <p style={{ margin: 0, fontSize: "11px", color: "#64748b" }}>{companyInfo?.slogan || "Đồng hành cùng doanh nghiệp bằng các giải pháp số hóa tối ưu"}</p>
+                    <p style={{ margin: 0, fontSize: "11px", color: "#64748b" }}>{companyInfo?.slogan || ""}</p>
                   </div>
                 </div>
 

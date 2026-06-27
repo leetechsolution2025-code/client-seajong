@@ -17,8 +17,112 @@ const PERFORMANCE_GRID = [
   { label: "Đúng hạn", val: 0, icon: "bi-clock-history", color: "#3b82f6" },
   { label: "Trễ hạn", val: 4, icon: "bi-clock", color: "#f59e0b" },
   { label: "Đang trễ", val: 8, icon: "bi-exclamation-triangle", color: "#ef4444" },
-  { label: "Đang làm", val: 1, icon: "bi-arrow-repeat", color: "#8b5cf6" },
 ];
+
+// Helper to render upgraded/structured description
+function renderUpgradedDescription(desc: string) {
+  if (!desc) return null;
+
+  // Split into Details and Approval info by '---' or '—'
+  const parts = desc.split(/---|—/);
+  const mainPart = parts[0].trim();
+  const approvalPart = parts[1] ? parts[1].trim() : "";
+
+  const fields: { label: string; value: string }[] = [];
+  
+  const lines = mainPart.split("\n").map(l => l.trim()).filter(Boolean);
+  
+  for (const line of lines) {
+    if (line.toLowerCase().startsWith("hạng mục:")) {
+      const value = line.substring("hạng mục:".length).trim();
+      fields.push({ label: "Hạng mục", value });
+    } else if (line.toLowerCase().startsWith("chi tiết:")) {
+      let remaining = line.substring("chi tiết:".length).trim();
+      if (remaining.includes("|")) {
+        const segments = remaining.split("|").map(s => s.trim());
+        for (const seg of segments) {
+          const colonIndex = seg.indexOf(":");
+          if (colonIndex > 0) {
+            const label = seg.substring(0, colonIndex).trim();
+            const value = seg.substring(colonIndex + 1).trim();
+            fields.push({ label, value });
+          } else {
+            fields.push({ label: "Chi tiết", value: seg });
+          }
+        }
+      } else {
+        fields.push({ label: "Chi tiết", value: remaining });
+      }
+    } else if (line.toLowerCase().startsWith("ghi chú:")) {
+      const value = line.substring("ghi chú:".length).trim();
+      fields.push({ label: "Ghi chú", value });
+    } else {
+      const colonIndex = line.indexOf(":");
+      if (colonIndex > 0) {
+        const label = line.substring(0, colonIndex).trim();
+        const value = line.substring(colonIndex + 1).trim();
+        fields.push({ label, value });
+      } else {
+        fields.push({ label: "Chi tiết", value: line });
+      }
+    }
+  }
+
+  const approvalFields: { label: string; value: string }[] = [];
+  if (approvalPart) {
+    const cleanedApprovalPart = approvalPart.replace(/^thông tin phê duyệt:\s*/i, "").trim();
+    const lines = cleanedApprovalPart.split("\n").map(l => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      const cleanedLine = line.replace(/^-\s*/, "");
+      const colonIndex = cleanedLine.indexOf(":");
+      if (colonIndex > 0) {
+        const label = cleanedLine.substring(0, colonIndex).trim();
+        const value = cleanedLine.substring(colonIndex + 1).trim();
+        approvalFields.push({ label, value });
+      } else {
+        approvalFields.push({ label: "Thông tin", value: cleanedLine });
+      }
+    }
+  }
+
+  if (approvalFields.length > 0) {
+    return null;
+  }
+
+  if (fields.length === 0) {
+    return (
+      <div style={{
+        background: "var(--muted)", borderRadius: 12, border: "1px solid var(--border)",
+        padding: "14px 16px"
+      }}>
+        <p style={{ margin: 0, fontSize: 12.5, color: "var(--foreground)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{desc}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      background: "var(--muted)", borderRadius: 12, border: "1px solid var(--border)",
+      padding: "14px 16px"
+    }}>
+      <div style={{ fontSize: 9, fontWeight: 900, color: "#6366f1", textTransform: "uppercase", marginBottom: 10, letterSpacing: "0.06em" }}>
+        Chi tiết công việc
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {fields.map((f, idx) => (
+          <div key={idx} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase" }}>
+              {f.label}
+            </span>
+            <span style={{ fontSize: 12.5, color: "var(--foreground)", lineHeight: 1.5, fontWeight: f.label === "Hạng mục" ? 700 : 500 }}>
+              {f.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function MarketingTasksPage() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -30,7 +134,7 @@ export default function MarketingTasksPage() {
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 7;
+  const ITEMS_PER_PAGE = 50;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -46,23 +150,61 @@ export default function MarketingTasksPage() {
   const [commentText, setCommentText] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const commentsEndRef = useRef<HTMLDivElement>(null);
   const [uploading, setUploading] = useState(false);
+
+  const seenCommentsKey = `tasks_seen_comments_${session?.user?.id || "guest"}`;
+  const [seenComments, setSeenComments] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(seenCommentsKey);
+      if (saved) {
+        try { setSeenComments(JSON.parse(saved)); } catch(e) {}
+      }
+    }
+  }, [seenCommentsKey]);
+
+  const markTaskAsRead = (taskId: string, count: number) => {
+    setSeenComments(prev => {
+      if (prev[taskId] === count) return prev;
+      const updated = { ...prev, [taskId]: count };
+      localStorage.setItem(seenCommentsKey, JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   useEffect(() => {
     if (showDetail && selectedTask) {
       fetchComments();
+      const interval = setInterval(fetchComments, 5000);
+      return () => clearInterval(interval);
     }
   }, [showDetail, selectedTask]);
 
   const fetchComments = () => {
     if (!selectedTask) return;
-    fetch(`/api/marketing/tasks/${selectedTask.id}/comments`, { cache: "no-store" })
+    const apiPath = selectedTask.isGeneric
+      ? `/api/board/tasks/${selectedTask.id}/comments`
+      : `/api/marketing/tasks/${selectedTask.id}/comments`;
+    fetch(apiPath, { cache: "no-store" })
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) setComments(data);
+        if (Array.isArray(data)) {
+          setComments(data);
+          markTaskAsRead(selectedTask.id, data.length);
+        }
       })
       .catch(err => console.error("Error fetching comments:", err));
   };
+
+  const prevCommentsLengthRef = useRef(0);
+  useEffect(() => {
+    if (comments.length > prevCommentsLengthRef.current) {
+      commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    prevCommentsLengthRef.current = comments.length;
+  }, [comments]);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportTitle, setReportTitle] = useState("BÁO CÁO ĐÁNH GIÁ HIỆU SUẤT NHÂN VIÊN MARKETING");
   const [reportNote, setReportNote] = useState("");
@@ -71,7 +213,10 @@ export default function MarketingTasksPage() {
     console.log("[handleSendComment] Sending:", { content: commentText, attachment });
     setSendingComment(true);
     try {
-      const res = await fetch(`/api/marketing/tasks/${selectedTask.id}/comments`, {
+      const apiPath = selectedTask.isGeneric
+        ? `/api/board/tasks/${selectedTask.id}/comments`
+        : `/api/marketing/tasks/${selectedTask.id}/comments`;
+      const res = await fetch(apiPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -224,6 +369,18 @@ export default function MarketingTasksPage() {
       })
       .catch(err => console.error("Error fetching tasks:", err))
       .finally(() => setLoading(false));
+
+    const loadTasks = () => {
+      fetch("/api/marketing/tasks")
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setTasks(data);
+        })
+        .catch(err => console.error("Error fetching tasks:", err));
+    };
+
+    const interval = setInterval(loadTasks, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -235,7 +392,7 @@ export default function MarketingTasksPage() {
         icon="bi-kanban"
       />
 
-      <div style={{ flex: 1, padding: "16px 24px", overflowY: "auto" }}>
+      <div className="tasks-main-container" style={{ flex: 1, padding: "16px 24px", overflow: "hidden" }}>
         {/* ── Top Small Stats ── */}
         {(() => {
           const today = new Date(); today.setHours(0,0,0,0);
@@ -263,36 +420,34 @@ export default function MarketingTasksPage() {
           ];
 
           return (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 16 }}>
+            <div className="tasks-top-stats">
               {topStats.map((s, i) => (
                 <motion.div 
                   key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                  style={{ background: "var(--card)", padding: "14px 18px", borderRadius: 12, border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 14 }}
+                  style={{ background: "var(--card)", padding: "8px 14px", borderRadius: 12, border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}
                 >
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: `color-mix(in srgb, ${s.color} 10%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <i className={`bi ${s.icon}`} style={{ fontSize: 16, color: s.color }} />
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: `color-mix(in srgb, ${s.color} 10%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <i className={`bi ${s.icon}`} style={{ fontSize: 14, color: s.color }} />
                   </div>
                   <div>
-                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 1 }}>{s.label}</p>
-                    <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "var(--foreground)" }}>{s.val}</p>
+                    <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)" }}>{s.label}</p>
+                    <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: "var(--foreground)" }}>{s.val}</p>
                   </div>
                 </motion.div>
               ))}
             </div>
           );
         })()}
-
-        <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 20, alignItems: "stretch" }}>
           {/* ── Left Sidebar: Performance ── */}
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} style={{ height: "100%" }}>
-            <div style={{ background: "var(--card)", borderRadius: 16, border: "1px solid var(--border)", padding: "16px", height: "100%", display: "flex", flexDirection: "column" }}>
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="tasks-left-panel" style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column" }}>
+            <div style={{ background: "var(--card)", borderRadius: 16, border: "1px solid var(--border)", padding: "16px", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <SectionTitle title="Đánh giá hiệu suất nhân viên" />
               
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
                 <select 
                   value={perfMonth}
                   onChange={(e) => setPerfMonth(parseInt(e.target.value))}
-                  style={{ height: 34, borderRadius: 8, border: "1px solid var(--border)", padding: "0 8px", fontSize: 11, fontWeight: 500, background: "var(--background)", color: "var(--foreground)" }}
+                  style={{ height: 30, borderRadius: 8, border: "1px solid var(--border)", padding: "0 8px", fontSize: 11, fontWeight: 500, background: "var(--background)", color: "var(--foreground)" }}
                 >
                   {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
                     <option key={m} value={m}>Tháng {m}</option>
@@ -301,7 +456,7 @@ export default function MarketingTasksPage() {
                 <select 
                   value={perfEmployee}
                   onChange={(e) => setPerfEmployee(e.target.value)}
-                  style={{ height: 34, borderRadius: 8, border: "1px solid var(--border)", padding: "0 8px", fontSize: 11, fontWeight: 500, background: "var(--background)", color: "var(--foreground)" }}
+                  style={{ height: 30, borderRadius: 8, border: "1px solid var(--border)", padding: "0 8px", fontSize: 11, fontWeight: 500, background: "var(--background)", color: "var(--foreground)" }}
                 >
                   <option value="all">Tất cả nhân viên</option>
                   {marketingEmployees.map(emp => (
@@ -339,42 +494,44 @@ export default function MarketingTasksPage() {
                 ];
 
                 return (
-                  <>
-                    <div style={{ background: "var(--accent)", borderRadius: 12, padding: "20px 16px", position: "relative", textAlign: "center", marginBottom: 16 }}>
-                      <div style={{ display: "flex", justifyContent: "center", gap: 30, alignItems: "center" }}>
-                        <div style={{ position: "relative", width: 80, height: 80 }}>
+                  <div style={{ flex: 1, overflowY: "auto", minHeight: 0, display: "flex", flexDirection: "column", paddingRight: 4 }} className="custom-scrollbar">
+                    <div style={{ background: "var(--accent)", borderRadius: 12, padding: "10px 14px", position: "relative", textAlign: "center", marginBottom: 10 }}>
+                      <div style={{ display: "flex", justifyContent: "center", gap: 16, alignItems: "center" }}>
+                        <div style={{ position: "relative", width: 68, height: 68 }}>
                           <svg style={{ width: "100%", height: "100%", transform: "rotate(-90deg)" }}>
-                            <circle cx="40" cy="40" r="34" stroke="var(--border)" strokeWidth="6" fill="none" />
-                            <circle cx="40" cy="40" r="34" stroke="#6366f1" strokeWidth="6" fill="none" strokeDasharray="213" strokeDashoffset={213 - (213 * score / 100)} strokeLinecap="round" />
+                            <circle cx="34" cy="34" r="29" stroke="var(--border)" strokeWidth="5" fill="none" />
+                            <circle cx="34" cy="34" r="29" stroke="#6366f1" strokeWidth="5" fill="none" strokeDasharray="182" strokeDashoffset={182 - (182 * score / 100)} strokeLinecap="round" />
                           </svg>
                           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                            <span style={{ fontSize: 20, fontWeight: 900, color: "var(--foreground)", lineHeight: 1 }}>{score}</span>
-                            <span style={{ fontSize: 9, color: "var(--muted-foreground)", fontWeight: 700 }}>/100 điểm</span>
+                            <span style={{ fontSize: 16, fontWeight: 900, color: "var(--foreground)", lineHeight: 1 }}>{score}</span>
+                            <span style={{ fontSize: 8, color: "var(--muted-foreground)", fontWeight: 700 }}>/100đ</span>
                           </div>
                         </div>
                         <div style={{ textAlign: "left" }}>
-                          <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#6366f1", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
-                            <i className="bi bi-people-fill" />
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#6366f1", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 4 }}>
+                            <i className="bi bi-people-fill" style={{ fontSize: 12 }} />
                           </div>
-                          <h6 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "var(--foreground)", textTransform: "uppercase" }}>Xếp loại</h6>
-                          <div style={{ display: "inline-block", background: score > 70 ? "color-mix(in srgb, #059669 15%, transparent)" : "color-mix(in srgb, #e11d48 15%, transparent)", color: score > 70 ? "#10b981" : "#fb7185", padding: "2px 8px", borderRadius: 6, fontSize: 10, fontWeight: 800, marginTop: 6 }}>
+                          <h6 style={{ margin: 0, fontSize: 12, fontWeight: 800, color: "var(--foreground)", textTransform: "uppercase" }}>Xếp loại</h6>
+                          <div style={{ display: "inline-block", background: score > 70 ? "color-mix(in srgb, #059669 15%, transparent)" : "color-mix(in srgb, #e11d48 15%, transparent)", color: score > 70 ? "#10b981" : "#fb7185", padding: "2px 6px", borderRadius: 4, fontSize: 9, fontWeight: 800, marginTop: 4 }}>
                              {score > 70 ? "Xuất sắc" : score > 40 ? "Đang ổn" : "Cần cải thiện"}
                           </div>
-                          <p style={{ margin: "5px 0 0", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Hoàn thành {done}/{total}</p>
+                          <p style={{ margin: "3px 0 0", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)" }}>Hoàn thành {done}/{total}</p>
                         </div>
                       </div>
 
-                      <div style={{ height: 4, background: "var(--border)", borderRadius: 2, marginTop: 20, overflow: "hidden", display: "flex" }}>
+                      <div style={{ height: 4, background: "var(--border)", borderRadius: 2, marginTop: 10, overflow: "hidden", display: "flex" }}>
                         <div style={{ width: total > 0 ? `${(done/total)*100}%` : "0%", background: "#10b981", height: "100%" }} />
                         <div style={{ width: total > 0 ? `${(overdue/total)*100}%` : "0%", background: "#ef4444", height: "100%" }} />
                       </div>
                     </div>
 
-                    <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, alignContent: "start" }}>
+                    <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, alignContent: "start" }}>
                       {gridData.map((s, i) => (
-                        <div key={i} style={{ background: "var(--accent)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 5px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                          <i className={`bi ${s.icon}`} style={{ fontSize: 16, color: s.color, marginBottom: 5, display: "block" }} />
-                          <div style={{ fontSize: 16, fontWeight: 900, color: "var(--foreground)" }}>{s.val}</div>
+                        <div key={i} style={{ background: "var(--accent)", border: "1px solid var(--border)", borderRadius: 12, padding: "6px 4px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
+                            <i className={`bi ${s.icon}`} style={{ fontSize: 13, color: s.color }} />
+                            <span style={{ fontSize: 14, fontWeight: 900, color: "var(--foreground)" }}>{s.val}</span>
+                          </div>
                           <div style={{ fontSize: 8, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase" }}>{s.label}</div>
                         </div>
                       ))}
@@ -383,11 +540,11 @@ export default function MarketingTasksPage() {
                     <button 
                       onClick={() => setShowReportModal(true)}
                       style={{ 
-                        marginTop: 20, width: "100%", padding: "12px", 
-                        borderRadius: 12, border: "none", 
+                        marginTop: 10, width: "100%", padding: "8px 12px", 
+                        borderRadius: 10, border: "none", 
                         background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)", 
-                        color: "#fff", fontSize: 13, fontWeight: 800, 
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                        color: "#fff", fontSize: 12, fontWeight: 800, 
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                         boxShadow: "0 4px 12px rgba(99, 102, 241, 0.2)",
                         cursor: "pointer", transition: "all 0.2s ease"
                       }}>
@@ -549,7 +706,7 @@ export default function MarketingTasksPage() {
                       />
                     )}
 
-                  </>
+                  </div>
                 );
               })()}
               </div>
@@ -557,8 +714,8 @@ export default function MarketingTasksPage() {
           </motion.div>
 
           {/* ── Right Content: Task List ── */}
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-            <div style={{ background: "var(--card)", borderRadius: 16, border: "1px solid var(--border)", padding: "16px 20px", minHeight: 550 }}>
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="tasks-right-panel" style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", minWidth: 0 }}>
+            <div className="tasks-right-card" style={{ background: "var(--card)", borderRadius: 16, border: "1px solid var(--border)", padding: "16px 20px", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <SectionTitle 
                 title="Danh sách công việc" 
                 action={(
@@ -574,7 +731,7 @@ export default function MarketingTasksPage() {
                   </select>
                 )}
               />
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12 }}>
+              <div className="tasks-filter-bar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12, flexShrink: 0 }}>
                 <div style={{ display: "flex", gap: 10, flex: 1 }}>
                   <select 
                     value={filterStatus}
@@ -606,99 +763,164 @@ export default function MarketingTasksPage() {
                     />
                   </div>
                 </div>
-                <button style={{ height: 38, padding: "0 18px", borderRadius: 10, background: "#6366f1", color: "#fff", border: "none", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+                <button style={{ height: 38, padding: "0 18px", borderRadius: 10, background: "#6366f1", color: "#fff", border: "none", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                   <i className="bi bi-plus-lg" /> Tạo mới
                 </button>
               </div>
 
-              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "left", padding: "0 10px 8px", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>Tiêu đề</th>
-                    <th style={{ textAlign: "left", padding: "0 10px 8px", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>Người thực hiện</th>
-                    <th style={{ textAlign: "right", padding: "0 10px 8px", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>Ngày đến hạn</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
+              <div className="tasks-table-wrapper custom-scrollbar" style={{ flex: 1, overflowY: "auto", marginBottom: 12, minHeight: 0 }}>
+                <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
+                  <thead style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--card)" }}>
                     <tr>
-                      <td colSpan={3} style={{ textAlign: "center", padding: "40px" }}>
-                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, color: "var(--muted-foreground)", fontSize: 13, fontWeight: 600 }}>
-                          <i className="bi bi-arrow-repeat spin" style={{ animation: "spin 1s linear infinite" }} /> Đang tải dữ liệu...
-                        </div>
-                      </td>
+                      <th style={{ textAlign: "left", padding: "8px 10px", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)", background: "var(--card)" }}>Tiêu đề</th>
+                      <th style={{ width: 170, minWidth: 170, textAlign: "left", padding: "8px 10px", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)", background: "var(--card)" }}>Người thực hiện</th>
+                      <th style={{ width: 100, minWidth: 100, textAlign: "right", padding: "8px 10px", fontSize: 10, fontWeight: 800, color: "var(--muted-foreground)", textTransform: "uppercase", borderBottom: "1px solid var(--border)", background: "var(--card)" }}>Ngày đến hạn</th>
                     </tr>
-                  ) : filteredTasks.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} style={{ textAlign: "center", padding: "60px" }}>
-                        <div style={{ color: "var(--muted-foreground)", fontSize: 14, fontWeight: 600 }}>Không tìm thấy công việc nào</div>
-                      </td>
-                    </tr>
-                  ) : filteredTasks.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((t, i) => {
-                    const assignee = t.assigneeName || "Chưa phân công";
-                    
-                    // Logic tự động xác định trạng thái thực hiện
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    const deadlineDate = t.deadline ? new Date(t.deadline) : null;
-                    if (deadlineDate) deadlineDate.setHours(0, 0, 0, 0);
-
-                    let statusLabel = "Chưa thực hiện";
-                    let statusColor = "#3b82f6"; // Blue
-
-                    if (t.status === "done") {
-                      statusLabel = "Hoàn thành";
-                      statusColor = "#10b981"; // Green
-                    } else if (t.status === "cancelled") {
-                      statusLabel = "Huỷ bỏ";
-                      statusColor = "#94a3b8"; // Gray
-                    } else if (deadlineDate && today > deadlineDate) {
-                      statusLabel = "Quá hạn";
-                      statusColor = "#ef4444"; // Red
-                    } else if (t.status === "in_progress") {
-                      statusLabel = "Đang thực hiện";
-                      statusColor = "#f59e0b"; // Orange
-                    } else if (t.status === "pending") {
-                      statusLabel = "Chưa thực hiện";
-                      statusColor = "#3b82f6";
-                    }
-
-                    return (
-                      <tr 
-                        key={t.id} 
-                        onClick={() => { setSelectedTask(t); setShowDetail(true); }}
-                        style={{ borderBottom: "1px solid var(--border)", cursor: "pointer", transition: "background 0.2s" }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = "var(--muted)"}
-                        onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                      >
-                        <td style={{ padding: "5px 10px", borderBottom: "1px solid var(--border)" }}>
-                          <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "var(--foreground)", lineHeight: 1.2 }}>{t.title}</p>
-                          <span style={{ 
-                            fontSize: 9, fontWeight: 800, 
-                            color: statusColor, 
-                            marginTop: 1, display: "block", textTransform: "uppercase" 
-                          }}>
-                            {statusLabel}
-                          </span>
-                        </td>
-                        <td style={{ padding: "5px 10px", borderBottom: "1px solid var(--border)" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div style={{ width: 26, height: 26, borderRadius: "50%", background: t.assigneeName ? "#6366f1" : "#ef4444", color: "#fff", fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, textTransform: "uppercase" }}>
-                              {assignee.split(" ").map((n: string) => n[0]).join("").slice(-2)}
-                            </div>
-                            <span style={{ fontSize: 12, fontWeight: 500, color: "var(--foreground)" }}>{assignee}</span>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={3} style={{ textAlign: "center", padding: "40px" }}>
+                          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, color: "var(--muted-foreground)", fontSize: 13, fontWeight: 600 }}>
+                            <i className="bi bi-arrow-repeat spin" style={{ animation: "spin 1s linear infinite" }} /> Đang tải dữ liệu...
                           </div>
                         </td>
-                        <td style={{ padding: "14px 10px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>
-                          <span style={{ fontSize: 12, fontWeight: 800, color: "var(--muted-foreground)" }}>
-                            {t.deadline ? new Date(t.deadline).toLocaleDateString("vi-VN") : "---"}
-                          </span>
+                      </tr>
+                    ) : filteredTasks.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} style={{ textAlign: "center", padding: "60px" }}>
+                          <div style={{ color: "var(--muted-foreground)", fontSize: 14, fontWeight: 600 }}>Không tìm thấy công việc nào</div>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    ) : filteredTasks.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((t, i) => {
+                      const assignee = t.assigneeName || "Chưa phân công";
+                      const unreadCount = t.commentsCount !== undefined ? Math.max(0, (t.commentsCount || 0) - (seenComments[t.id] || 0)) : 0;
+                      
+                      // Logic tự động xác định trạng thái thực hiện
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const deadlineDate = t.deadline ? new Date(t.deadline) : null;
+                      if (deadlineDate) deadlineDate.setHours(0, 0, 0, 0);
+
+                      let statusLabel = "Chưa thực hiện";
+                      let statusColor = "#3b82f6"; // Blue
+
+                      if (t.status === "done") {
+                        statusLabel = "Hoàn thành";
+                        statusColor = "#10b981"; // Green
+                      } else if (t.status === "cancelled") {
+                        statusLabel = "Huỷ bỏ";
+                        statusColor = "#94a3b8"; // Gray
+                      } else if (deadlineDate && today > deadlineDate) {
+                        statusLabel = "Quá hạn";
+                        statusColor = "#ef4444"; // Red
+                      } else if (t.status === "in_progress") {
+                        statusLabel = "Đang thực hiện";
+                        statusColor = "#f59e0b"; // Orange
+                      } else if (t.status === "pending") {
+                        statusLabel = "Chưa thực hiện";
+                        statusColor = "#3b82f6";
+                      }
+
+                      return (
+                        <tr 
+                          key={t.id} 
+                          onClick={() => { setSelectedTask(t); setShowDetail(true); }}
+                          style={{ borderBottom: "1px solid var(--border)", cursor: "pointer", transition: "background 0.2s" }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = "var(--muted)"}
+                          onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                        >
+                          <td style={{ padding: "5px 10px", borderBottom: "1px solid var(--border)", maxWidth: 350, overflow: "hidden" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                              {t.title?.startsWith("[KH MKT]") ? (
+                                <>
+                                  <span style={{
+                                    fontSize: 8.5, fontWeight: 800,
+                                    background: "rgba(99, 102, 241, 0.1)", color: "#6366f1",
+                                    padding: "1.5px 5px", borderRadius: 4,
+                                    textTransform: "uppercase", letterSpacing: "0.03em",
+                                    border: "1px solid rgba(99, 102, 241, 0.18)",
+                                    flexShrink: 0
+                                  }}>
+                                    KH MKT
+                                  </span>
+                                  <span style={{
+                                    fontSize: 13, fontWeight: 800, color: "var(--foreground)", lineHeight: 1.2,
+                                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0
+                                  }}>
+                                    {t.title.replace("[KH MKT]", "").trim()}
+                                  </span>
+                                </>
+                              ) : (
+                                <span style={{
+                                  fontSize: 13, fontWeight: 800, color: "var(--foreground)", lineHeight: 1.2,
+                                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0
+                                }}>
+                                  {t.title}
+                                </span>
+                              )}
+                              {unreadCount > 0 && (
+                                <span style={{
+                                  background: "#ef4444", color: "#fff",
+                                  fontSize: "9.5px", fontWeight: "bold",
+                                  borderRadius: "50%",
+                                  width: "17px", height: "17px",
+                                  minWidth: "17px", minHeight: "17px",
+                                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                  flexShrink: 0, lineHeight: 1, textAlign: "center", marginLeft: "6px",
+                                  boxShadow: "0 2px 5px rgba(239, 68, 68, 0.3)"
+                                }}>
+                                  {unreadCount}
+                                </span>
+                              )}
+                            </div>
+                            {(() => {
+                              const getTaskProgress = (task: any): number => {
+                                if (task.progress !== undefined) return task.progress;
+                                if (task.status === "done") return 100;
+                                try {
+                                  if (task.actualResult) {
+                                    const parsed = JSON.parse(task.actualResult);
+                                    if (Array.isArray(parsed) && parsed.length > 0) {
+                                      return parsed[parsed.length - 1].p || 0;
+                                    }
+                                    if (parsed && parsed.p !== undefined) return parsed.p;
+                                  }
+                                } catch (e) {}
+                                return 0;
+                              };
+
+                              const progressVal = getTaskProgress(t);
+                              return (
+                                <span style={{ 
+                                  fontSize: 9, fontWeight: 800, 
+                                  color: statusColor, 
+                                  marginTop: 1, display: "block", textTransform: "uppercase" 
+                                }}>
+                                  {statusLabel} | Tiến độ hoàn thành: {progressVal}%
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td style={{ width: 170, minWidth: 170, padding: "5px 10px", borderBottom: "1px solid var(--border)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+                              <div style={{ width: 26, height: 26, borderRadius: "50%", background: t.assigneeName ? "#6366f1" : "#ef4444", color: "#fff", fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, textTransform: "uppercase", flexShrink: 0 }}>
+                                {assignee.split(" ").map((n: string) => n[0]).join("").slice(-2)}
+                              </div>
+                              <span style={{ fontSize: 12, fontWeight: 500, color: "var(--foreground)" }}>{assignee}</span>
+                            </div>
+                          </td>
+                          <td style={{ width: 100, minWidth: 100, padding: "14px 10px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>
+                              {t.deadline ? new Date(t.deadline).toLocaleDateString("vi-VN") : "---"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
               <Pagination 
                 page={currentPage} 
@@ -708,7 +930,6 @@ export default function MarketingTasksPage() {
             </div>
           </motion.div>
         </div>
-      </div>
       
       {/* Floating Robot Icon like in image */}
       <div style={{ position: "fixed", bottom: 20, right: 30, width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #a855f7)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 16px rgba(99, 102, 241, 0.3)", cursor: "pointer", zIndex: 10 }}>
@@ -727,47 +948,67 @@ export default function MarketingTasksPage() {
               <motion.div 
                 initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 450, background: "var(--card)", zIndex: 9999, boxShadow: "-10px 0 30px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", overflow: "hidden", borderLeft: "1px solid var(--border)" }}
+                style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 400, minWidth: 400, maxWidth: 400, background: "var(--card)", zIndex: 9999, boxShadow: "-10px 0 30px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", overflow: "hidden", borderLeft: "1px solid var(--border)" }}
               >
                 {/* Fixed Content Wrapper (No Scroll) */}
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 24px", overflow: "hidden" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <h5 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--foreground)" }}>Chi tiết công việc</h5>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "10px 16px", overflow: "hidden" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Chi tiết công việc</span>
                     <button 
                       onClick={() => setShowDetail(false)}
-                      style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "var(--muted-foreground)" }}
+                      style={{ border: "none", background: "none", fontSize: 16, cursor: "pointer", color: "var(--muted-foreground)", padding: "2px 4px", lineHeight: 1 }}
                     >
                       <i className="bi bi-x-lg" />
                     </button>
                   </div>
 
                   {selectedTask && (
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, overflow: "hidden" }}>
                       <div style={{ flexShrink: 0 }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Tên công việc</span>
-                        <h4 style={{ margin: "1px 0 0", fontSize: 15, fontWeight: 800, color: "var(--foreground)", lineHeight: 1.2 }}>{selectedTask.title}</h4>
+                        {selectedTask.title?.startsWith("[KH MKT]") ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 1 }}>
+                            <div style={{ display: "flex" }}>
+                              <span style={{
+                                fontSize: 8.5, fontWeight: 800,
+                                background: "rgba(99, 102, 241, 0.1)", color: "#6366f1",
+                                padding: "1.5px 5px", borderRadius: 4,
+                                textTransform: "uppercase", letterSpacing: "0.03em",
+                                border: "1px solid rgba(99, 102, 241, 0.18)"
+                              }}>
+                                KH MKT
+                              </span>
+                            </div>
+                            <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--foreground)", lineHeight: 1.2 }}>
+                              {selectedTask.title.replace("[KH MKT]", "").trim()}
+                            </h4>
+                          </div>
+                        ) : (
+                          <h4 style={{ margin: "1px 0 0", fontSize: 15, fontWeight: 800, color: "var(--foreground)", lineHeight: 1.2 }}>{selectedTask.title}</h4>
+                        )}
                       </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: 10 }}>
+                      
+                      {/* Status and Progress labels side-by-side without wrapping */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                         <div>
                           <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Trạng thái & Tiến độ</span>
-                          <div style={{ marginTop: 2, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          <div style={{ marginTop: 4, display: "flex", gap: 8, alignItems: "center" }}>
                              {/* Task Status */}
                              <span style={{ 
-                                fontSize: 10, fontWeight: 800, 
-                                padding: "3px 8px", borderRadius: 4,
-                                background: (() => {
-                                  if (selectedTask.status === "done") return "color-mix(in srgb, #10b981 15%, transparent)";
-                                  if (selectedTask.status === "in_progress") return "color-mix(in srgb, #3b82f6 15%, transparent)";
-                                  if (selectedTask.status === "cancelled") return "color-mix(in srgb, #ef4444 15%, transparent)";
-                                  return "var(--muted)";
-                                })(),
-                                color: (() => {
-                                  if (selectedTask.status === "done") return "#10b981";
-                                  if (selectedTask.status === "in_progress") return "#3b82f6";
-                                  if (selectedTask.status === "cancelled") return "#ef4444";
-                                  return "var(--muted-foreground)";
-                                })(), 
-                                textTransform: "uppercase" 
+                                 fontSize: 10, fontWeight: 800, 
+                                 padding: "3px 8px", borderRadius: 4,
+                                 background: (() => {
+                                   if (selectedTask.status === "done") return "color-mix(in srgb, #10b981 15%, transparent)";
+                                   if (selectedTask.status === "in_progress") return "color-mix(in srgb, #3b82f6 15%, transparent)";
+                                   if (selectedTask.status === "cancelled") return "color-mix(in srgb, #ef4444 15%, transparent)";
+                                   return "var(--muted)";
+                                 })(),
+                                 color: (() => {
+                                   if (selectedTask.status === "done") return "#10b981";
+                                   if (selectedTask.status === "in_progress") return "#3b82f6";
+                                   if (selectedTask.status === "cancelled") return "#ef4444";
+                                   return "var(--muted-foreground)";
+                                 })(), 
+                                 textTransform: "uppercase" 
                               }}>
                                 {(() => {
                                   if (selectedTask.status === "done") return "Hoàn thành";
@@ -779,23 +1020,23 @@ export default function MarketingTasksPage() {
 
                              {/* Progress Status */}
                              <span style={{ 
-                                fontSize: 10, fontWeight: 800, 
-                                padding: "3px 8px", borderRadius: 4,
-                                background: (() => {
-                                  const today = new Date(); today.setHours(0,0,0,0);
-                                  const deadline = selectedTask.deadline ? new Date(selectedTask.deadline) : null;
-                                  if (selectedTask.status === "done") return "color-mix(in srgb, #10b981 15%, transparent)";
-                                  if (deadline && today > deadline) return "color-mix(in srgb, #ef4444 15%, transparent)";
-                                  return "color-mix(in srgb, #10b981 15%, transparent)";
-                                })(),
-                                color: (() => {
-                                  const today = new Date(); today.setHours(0,0,0,0);
-                                  const deadline = selectedTask.deadline ? new Date(selectedTask.deadline) : null;
-                                  if (selectedTask.status === "done") return "#10b981";
-                                  if (deadline && today > deadline) return "#ef4444";
-                                  return "#10b981";
-                                })(), 
-                                textTransform: "uppercase" 
+                                 fontSize: 10, fontWeight: 800, 
+                                 padding: "3px 8px", borderRadius: 4,
+                                 background: (() => {
+                                   const today = new Date(); today.setHours(0,0,0,0);
+                                   const deadline = selectedTask.deadline ? new Date(selectedTask.deadline) : null;
+                                   if (selectedTask.status === "done") return "color-mix(in srgb, #10b981 15%, transparent)";
+                                   if (deadline && today > deadline) return "color-mix(in srgb, #ef4444 15%, transparent)";
+                                   return "color-mix(in srgb, #10b981 15%, transparent)";
+                                 })(),
+                                 color: (() => {
+                                   const today = new Date(); today.setHours(0,0,0,0);
+                                   const deadline = selectedTask.deadline ? new Date(selectedTask.deadline) : null;
+                                   if (selectedTask.status === "done") return "#10b981";
+                                   if (deadline && today > deadline) return "#ef4444";
+                                   return "#10b981";
+                                 })(), 
+                                 textTransform: "uppercase" 
                               }}>
                                 {(() => {
                                   const today = new Date(); today.setHours(0,0,0,0);
@@ -807,17 +1048,21 @@ export default function MarketingTasksPage() {
                               </span>
                           </div>
                         </div>
-                        <div>
-                          <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Ngày bắt đầu</span>
-                          <p style={{ margin: "2px 0 0", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
-                             {selectedTask.startDate ? new Date(selectedTask.startDate).toLocaleDateString("vi-VN") : "---"}
-                          </p>
-                        </div>
-                        <div>
-                          <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Hạn chót</span>
-                          <p style={{ margin: "2px 0 0", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
-                             {selectedTask.deadline ? new Date(selectedTask.deadline).toLocaleDateString("vi-VN") : "---"}
-                          </p>
+
+                        {/* Dates grid */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                          <div>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Ngày bắt đầu</span>
+                            <p style={{ margin: "2px 0 0", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+                               {selectedTask.startDate ? new Date(selectedTask.startDate).toLocaleDateString("vi-VN") : "---"}
+                            </p>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Hạn chót</span>
+                            <p style={{ margin: "2px 0 0", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+                               {selectedTask.deadline ? new Date(selectedTask.deadline).toLocaleDateString("vi-VN") : "---"}
+                            </p>
+                          </div>
                         </div>
                       </div>
 
@@ -856,12 +1101,68 @@ export default function MarketingTasksPage() {
                       </div>
 
 
-                      <div style={{ flexShrink: 0 }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Mô tả</span>
-                        <div style={{ marginTop: 4, fontSize: 12, lineHeight: 1.4, color: "var(--muted-foreground)", background: "var(--background)", padding: "10px", borderRadius: 8 }}>
-                          {selectedTask.description || "Không có mô tả chi tiết."}
-                        </div>
-                      </div>
+
+
+                      {/* ── Progress and Report Logs Section ── */}
+                      {(() => {
+                        const getParsedReports = (actualResult: string | undefined | null) => {
+                          try {
+                            if (!actualResult) return [];
+                            const parsed = JSON.parse(actualResult);
+                            if (Array.isArray(parsed)) return parsed;
+                            if (parsed.p !== undefined) return [parsed];
+                            return [];
+                          } catch {
+                            return actualResult ? [{ p: 0, c: actualResult, d: new Date().toISOString().split('T')[0] }] : [];
+                          }
+                        };
+                        const list = getParsedReports(selectedTask.actualResult);
+                        const progress = selectedTask.status === "done" ? 100 : (list.length > 0 ? (list[list.length - 1].p || 0) : 0);
+                        const pColor = progress >= 80 ? "#059669" : progress >= 40 ? "#2563eb" : progress > 0 ? "#ea580c" : "#94a3b8";
+
+                        return (
+                          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Tiến độ báo cáo</span>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: pColor }}>{progress}%</span>
+                            </div>
+                            <div style={{ height: 6, background: "var(--border)", borderRadius: 3, position: "relative", overflow: "hidden", marginBottom: 4 }}>
+                              <div style={{ height: "100%", width: `${progress}%`, background: pColor, borderRadius: 3 }} />
+                            </div>
+
+                            {list.length > 0 && (
+                              <div style={{ marginTop: 4 }}>
+                                <span style={{ fontSize: 9, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>Báo cáo kết quả ({list.length})</span>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 120, overflowY: "auto", background: "var(--background)", padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)" }} className="custom-scrollbar">
+                                  {[...list].reverse().map((rep: any, idx: number) => (
+                                    <div key={rep.id || idx} style={{ borderBottom: idx < list.length - 1 ? "1px dashed var(--border)" : "none", paddingBottom: idx < list.length - 1 ? 6 : 0, marginBottom: idx < list.length - 1 ? 6 : 0 }}>
+                                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--foreground)" }}>Tiến độ: {rep.p}%</span>
+                                        <span style={{ fontSize: 9, color: "var(--muted-foreground)" }}>
+                                          {(() => {
+                                            const dObj = new Date(rep.id || rep.d);
+                                            if (isNaN(dObj.getTime())) return new Date(rep.d).toLocaleDateString('vi-VN');
+                                            return `${dObj.getHours().toString().padStart(2, '0')}:${dObj.getMinutes().toString().padStart(2, '0')} ${dObj.toLocaleDateString('vi-VN')}`;
+                                          })()}
+                                        </span>
+                                      </div>
+                                      <p style={{ margin: 0, fontSize: 11.5, color: "var(--muted-foreground)", lineHeight: 1.4 }}>{rep.c}</p>
+                                      {rep.f && (
+                                        <div style={{ marginTop: 4 }}>
+                                          <a href={rep.f} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9.5, fontWeight: 700, color: "#6366f1", background: "rgba(99,102,241,0.06)", padding: "2px 6px", borderRadius: 4, textDecoration: "none" }}>
+                                            <i className="bi bi-file-earmark-text" /> {rep.fn || "Minh chứng"}
+                                          </a>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
 
                       {/* ── Discussion Section (Now with dedicated Scrollbar) ── */}
                       <div style={{ marginTop: 10, borderTop: "1px solid var(--border)", paddingTop: 15, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
@@ -884,43 +1185,48 @@ export default function MarketingTasksPage() {
                                  }}>
                                    {initials}
                                  </div>
-                                 <div style={{ 
-                                   background: isMe ? "rgba(99, 102, 241, 0.08)" : "var(--accent)", 
-                                   padding: "8px 12px", 
-                                   borderRadius: isMe ? "14px 4px 14px 14px" : "4px 14px 14px 14px", 
-                                   fontSize: 12, color: "var(--foreground)", 
-                                   maxWidth: "85%",
-                                   border: isMe ? "1px solid rgba(99, 102, 241, 0.12)" : "1px solid var(--border)",
-                                   boxShadow: "0 2px 4px rgba(0,0,0,0.01)" 
-                                 }}>
-                                   <div style={{ fontWeight: 800, marginBottom: 2, color: isMe ? "var(--primary)" : "var(--foreground)", fontSize: 11 }}>{c.userName}</div>
-                                   <div style={{ lineHeight: 1.4, fontSize: 12 }}>{c.content}</div>
-                                   {c.attachmentUrl && (
-                                     <a 
-                                       href={c.attachmentUrl} 
-                                       target="_blank" 
-                                       rel="noopener noreferrer"
-                                       style={{ 
-                                         display: "flex", alignItems: "center", gap: 6, 
-                                         marginTop: 6, padding: "6px 10px", 
-                                         background: "rgba(0,0,0,0.05)", borderRadius: 6,
-                                         fontSize: 11, color: "#6366f1", textDecoration: "none",
-                                         border: "1px dashed rgba(99, 102, 241, 0.3)"
-                                       }}
-                                     >
-                                       <i className="bi bi-file-earmark-arrow-down" />
-                                       <span style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                         {c.attachmentName || "Đính kèm"}
-                                       </span>
-                                     </a>
-                                   )}
-                                   <div style={{ fontSize: 9, color: "var(--muted-foreground)", marginTop: 4, opacity: 0.8 }}>
-                                     {new Date(c.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} {new Date(c.createdAt).toLocaleDateString("vi-VN")}
+                                 <div style={{ display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", maxWidth: "80%" }}>
+                                   <div style={{ 
+                                     background: isMe ? "rgba(99, 102, 241, 0.08)" : "var(--accent)", 
+                                     padding: "8px 12px", 
+                                     borderRadius: isMe ? "14px 4px 14px 14px" : "4px 14px 14px 14px", 
+                                     fontSize: 12, color: "var(--foreground)", 
+                                     border: isMe ? "1px solid rgba(99, 102, 241, 0.12)" : "1px solid var(--border)",
+                                     boxShadow: "0 2px 4px rgba(0,0,0,0.01)",
+                                     display: "flex",
+                                     flexDirection: "column",
+                                     alignItems: isMe ? "flex-end" : "flex-start"
+                                   }}>
+                                     <div style={{ fontWeight: 800, marginBottom: 2, color: isMe ? "#6366f1" : "var(--foreground)", fontSize: 11 }}>{c.userName}</div>
+                                     <div style={{ lineHeight: 1.4, fontSize: 12, textAlign: isMe ? "right" : "left" }}>{c.content}</div>
+                                     {c.attachmentUrl && (
+                                       <a 
+                                         href={c.attachmentUrl} 
+                                         target="_blank" 
+                                         rel="noopener noreferrer"
+                                         style={{ 
+                                           display: "flex", alignItems: "center", gap: 6, 
+                                           marginTop: 6, padding: "6px 10px", 
+                                           background: "rgba(0,0,0,0.05)", borderRadius: 6,
+                                           fontSize: 11, color: "#6366f1", textDecoration: "none",
+                                           border: "1px dashed rgba(99, 102, 241, 0.3)"
+                                         }}
+                                       >
+                                         <i className="bi bi-file-earmark-arrow-down" />
+                                         <span style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                           {c.attachmentName || "Đính kèm"}
+                                         </span>
+                                       </a>
+                                     )}
+                                     <div style={{ fontSize: 9, color: "var(--muted-foreground)", marginTop: 4, opacity: 0.8 }}>
+                                       {new Date(c.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })} {new Date(c.createdAt).toLocaleDateString("vi-VN")}
+                                     </div>
                                    </div>
                                  </div>
                               </div>
                             );
                           })}
+                          <div ref={commentsEndRef} />
                         </div>
                       </div>
                     </div>
@@ -953,12 +1259,16 @@ export default function MarketingTasksPage() {
                     />
                     <button 
                       onClick={() => handleSendComment()}
-                      disabled={sendingComment || !commentText.trim()}
+                      disabled={sendingComment || uploading}
                       style={{ 
                         position: "absolute", right: 4, top: 4, width: 30, height: 30, borderRadius: 8, 
-                        background: "#6366f1", border: "none", color: "#fff", 
+                        background: commentText.trim() ? "#6366f1" : "var(--muted)", 
+                        border: "none", 
+                        color: commentText.trim() ? "#fff" : "var(--muted-foreground)", 
                         display: "flex", alignItems: "center", justifyContent: "center", 
-                        cursor: "pointer", transition: "all 0.1s", opacity: (sendingComment || !commentText.trim()) ? 0.6 : 1 
+                        cursor: commentText.trim() ? "pointer" : "default", 
+                        transition: "all 0.15s", 
+                        boxShadow: commentText.trim() ? "0 2px 6px rgba(99,102,241,0.3)" : "none"
                       }} 
                     >
                       <i className="bi bi-send-fill" style={{ fontSize: 12 }} />
@@ -969,6 +1279,101 @@ export default function MarketingTasksPage() {
           </>
         )}
       </AnimatePresence>
+
+      <style dangerouslySetInnerHTML={{__html: `
+        .tasks-main-container {
+          display: grid;
+          grid-template-columns: 340px 1fr;
+          grid-template-areas:
+            "stats stats"
+            "left right";
+          gap: 20px;
+          height: calc(100vh - 120px);
+          min-height: 0;
+        }
+        .tasks-top-stats {
+          grid-area: stats;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
+        }
+        .tasks-left-panel {
+          grid-area: left;
+          height: 100%;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        .tasks-right-panel {
+          grid-area: right;
+          height: 100%;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+        }
+        @media (max-width: 1024px) {
+          .tasks-main-container {
+            grid-template-columns: 1fr 1.2fr !important;
+            grid-template-areas:
+              "stats left"
+              "right right" !important;
+            height: auto !important;
+            min-height: auto !important;
+            overflow-y: auto !important;
+            gap: 16px !important;
+          }
+          .tasks-top-stats {
+            grid-template-columns: 1fr !important; /* Stack stats vertically on iPad to match left panel height */
+            gap: 12px !important;
+          }
+          .tasks-left-panel {
+            height: auto !important;
+            min-height: auto !important;
+          }
+          .tasks-right-panel {
+            height: auto !important;
+            min-height: auto !important;
+          }
+          .tasks-right-card {
+            min-height: 500px !important;
+          }
+          .tasks-table-wrapper {
+            overflow-x: auto !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .tasks-table-wrapper table {
+            min-width: 650px !important; /* Force horizontal scroll for table columns on very narrow screens */
+          }
+        }
+        @media (max-width: 640px) {
+          .tasks-main-container {
+            grid-template-columns: 1fr !important;
+            grid-template-areas:
+              "stats"
+              "left"
+              "right" !important;
+          }
+          .tasks-top-stats {
+            grid-template-columns: 1fr !important;
+          }
+          .tasks-filter-bar {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+          }
+          .tasks-filter-bar > div {
+            flex-direction: column !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .tasks-filter-bar select, .tasks-filter-bar input {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+        }
+      `}} />
     </div>
   );
 }

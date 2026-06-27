@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     const status     = searchParams.get("status") || "";
     const dept       = searchParams.get("dept") || "";
     const entityType = searchParams.get("entityType") || "";
+    const search     = searchParams.get("search") || "";
     const page       = Math.max(1, Number(searchParams.get("page") || 1));
     const limit      = Math.min(50, Number(searchParams.get("limit") || 20));
     const skip       = (page - 1) * limit;
@@ -48,6 +49,18 @@ export async function GET(req: NextRequest) {
       } else {
         where.entityType = entityType;
       }
+    }
+
+    if (search) {
+      where.AND = [
+        {
+          OR: [
+            { entityCode: { contains: search } },
+            { entityTitle: { contains: search } },
+            { requestedByName: { contains: search } },
+          ]
+        }
+      ];
     }
 
     const [items, total] = await Promise.all([

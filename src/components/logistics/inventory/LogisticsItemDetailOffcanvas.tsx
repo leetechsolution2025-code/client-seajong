@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, PackageSearch, Tag, Layers, Info, MapPin, Database, Clock, Package } from "lucide-react";
+import { X, PackageSearch, Tag, Layers, Info, MapPin, Database, Clock, Package, Trash2, Pencil } from "lucide-react";
 
 interface Item {
   id: string;
@@ -31,9 +31,11 @@ interface Props {
   item: Item | null;
   open: boolean;
   onClose: () => void;
+  onEdit?: (item: Item) => void;
+  onDelete?: (item: Item) => void;
 }
 
-export function LogisticsItemDetailOffcanvas({ item, open, onClose }: Props) {
+export function LogisticsItemDetailOffcanvas({ item, open, onClose, onEdit, onDelete }: Props) {
   if (!item) return null;
 
   const formatCurrency = (val: number) => {
@@ -59,7 +61,9 @@ export function LogisticsItemDetailOffcanvas({ item, open, onClose }: Props) {
           visibility: open ? "visible" : "hidden",
           borderLeft: "1px solid var(--border)",
           boxShadow: "-10px 0 30px rgba(0,0,0,0.1)",
-          background: "var(--card)"
+          background: "var(--card)",
+          display: "flex",
+          flexDirection: "column"
         }}
       >
         <div className="offcanvas-header border-bottom px-4 py-3 d-flex align-items-center justify-content-between bg-light bg-opacity-50">
@@ -76,14 +80,16 @@ export function LogisticsItemDetailOffcanvas({ item, open, onClose }: Props) {
               <PackageSearch size={20} />
             </div>
             <div>
-              <h5 className="offcanvas-title fw-bold mb-0" style={{ fontSize: 16 }}>Chi tiết vật tư</h5>
+              <h5 className="offcanvas-title fw-bold mb-0" style={{ fontSize: 16 }}>
+                {item.source === "inventory" ? "Chi tiết sản phẩm" : "Chi tiết vật tư"}
+              </h5>
               <p className="text-muted small mb-0" style={{ fontSize: 11 }}>Mã định danh: {item.code}</p>
             </div>
           </div>
           <button type="button" className="btn-close shadow-none" onClick={onClose} />
         </div>
 
-        <div className="offcanvas-body p-0 custom-scrollbar">
+        <div className="offcanvas-body p-0 custom-scrollbar" style={{ flex: 1, overflowY: "auto" }}>
           {/* Hero Section with Image */}
           <div className="p-4 border-bottom text-center bg-white">
             <div 
@@ -201,6 +207,34 @@ export function LogisticsItemDetailOffcanvas({ item, open, onClose }: Props) {
             </section>
           </div>
         </div>
+
+        {/* Footer Actions */}
+        {(onEdit || onDelete) && (
+          <div className="offcanvas-footer border-top p-3 d-flex gap-2 bg-light bg-opacity-50 flex-shrink-0">
+            {onDelete && (
+              <button 
+                type="button"
+                className="btn btn-outline-danger flex-fill d-flex align-items-center justify-content-center gap-2 fw-semibold shadow-none"
+                onClick={() => onDelete(item)}
+                style={{ fontSize: 13, height: 38, borderRadius: 10 }}
+              >
+                <Trash2 size={16} />
+                {item.source === "inventory" ? "Xoá sản phẩm" : "Xoá vật tư"}
+              </button>
+            )}
+            {onEdit && (
+              <button 
+                type="button"
+                className="btn btn-primary flex-fill d-flex align-items-center justify-content-center gap-2 fw-bold shadow-none"
+                onClick={() => onEdit(item)}
+                style={{ fontSize: 13, height: 38, borderRadius: 10 }}
+              >
+                <Pencil size={16} />
+                Chỉnh sửa
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <style jsx>{`

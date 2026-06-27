@@ -211,9 +211,9 @@ export function SalaryAdjustmentsContent() {
         icon="bi-cash-stack"
         color="rose"
       />
-      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
-        <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
-          <div className="px-4 py-2 border-bottom d-flex align-items-center justify-content-between">
+      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column fs-salary-adjustments-container" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+        <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column fs-salary-adjustments-card" style={{ minHeight: 0 }}>
+          <div className="px-4 py-2 border-bottom d-flex align-items-center justify-content-between workflow-card-stepper-container">
             <div className="flex-grow-1">
               <ModernStepper 
                 steps={STEPS} 

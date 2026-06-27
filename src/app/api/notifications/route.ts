@@ -41,6 +41,30 @@ export async function GET(req: NextRequest) {
     });
     const posMap = Object.fromEntries(positions.map(p => [p.code, p.name]));
 
+    // Collect all requestIds from attachments
+    const requestIds: string[] = [];
+    recipients.forEach((r: any) => {
+      if (r.notification?.attachments) {
+        try {
+          const parsed = JSON.parse(r.notification.attachments);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((att: any) => {
+              if (att.type === "late_early_approval" && att.requestId) {
+                requestIds.push(att.requestId);
+              }
+            });
+          }
+        } catch (e) {}
+      }
+    });
+
+    // Query status of those requests
+    const personalRequests = await prisma.personalRequest.findMany({
+      where: { id: { in: requestIds } },
+      select: { id: true, status: true }
+    });
+    const statusMap = Object.fromEntries(personalRequests.map(pr => [pr.id, pr.status]));
+
     const unreadCount = recipients.filter((r: any) => !r.isRead).length;
 
     return NextResponse.json({
@@ -49,6 +73,24 @@ export async function GET(req: NextRequest) {
         const creatorEmployee = nb.createdBy?.employee;
         const rawPos = creatorEmployee?.position || null;
         const displayPos = rawPos ? (posMap[rawPos] || rawPos) : null;
+
+        let parsedAttachments = [];
+        if (nb.attachments) {
+          try {
+            parsedAttachments = JSON.parse(nb.attachments);
+            if (Array.isArray(parsedAttachments)) {
+              parsedAttachments = parsedAttachments.map((att: any) => {
+                if (att.type === "late_early_approval" && att.requestId) {
+                  return {
+                    ...att,
+                    status: statusMap[att.requestId] || att.status || "PENDING"
+                  };
+                }
+                return att;
+              });
+            }
+          } catch (e) {}
+        }
 
         return {
           recipientId:    r.id,
@@ -61,7 +103,7 @@ export async function GET(req: NextRequest) {
           priority:       nb.priority ?? "normal",
           audienceType:   nb.audienceType,
           createdAt:      nb.createdAt,
-          attachments:    nb.attachments ? JSON.parse(nb.attachments) : [],
+          attachments:    parsedAttachments,
           createdById:    nb.createdBy?.id ?? null,
           createdByName:  creatorEmployee?.fullName || nb.createdBy?.name || "Hệ thống",
           createdByDept:  creatorEmployee?.departmentName || null,
@@ -96,20 +138,95 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Thiếu tiêu đề hoặc nội dung" }, { status: 400 });
     }
 
-    // Tạo notification record
-    const notification = await prisma.notification.create({
-      data: {
-        title:         title.trim(),
-        content:       content.trim(),
-        type,
-        priority,
-        audienceType,
-        audienceValue: audienceValue ?? null,
-        attachments:   attachments ? JSON.stringify(attachments) : null,
-        clientId:      null,
-        createdById:   session.user.id,
-      },
-    });
+    // Check if there is an existing partner_reminder notification for this partner to the same individual audienceValue
+    let existingNotification = null;
+    let count = 1;
+    let partnerId = null;
+
+    if (attachments && audienceType === "individual" && audienceValue) {
+      try {
+        const parsed = typeof attachments === "string" ? JSON.parse(attachments) : attachments;
+        const partnerReminder = Array.isArray(parsed) && parsed.find((att: any) => att.type === "partner_reminder");
+        if (partnerReminder && partnerReminder.partnerId) {
+          partnerId = partnerReminder.partnerId;
+          existingNotification = await prisma.notification.findFirst({
+            where: {
+              attachments: { contains: `"partnerId":"${partnerId}"` },
+              recipients: {
+                some: {
+                  userId: audienceValue
+                }
+              }
+            },
+            include: {
+              recipients: true
+            }
+          });
+        }
+      } catch (e) {
+        console.error("Error checking existing partner reminder notification:", e);
+      }
+    }
+
+    let notification;
+
+    if (existingNotification) {
+      try {
+        const parsed = JSON.parse(existingNotification.attachments || "[]");
+        const partnerReminder = parsed.find((att: any) => att.type === "partner_reminder");
+        if (partnerReminder) {
+          count = (partnerReminder.count || 1) + 1;
+        }
+      } catch (e) {}
+
+      const newContent = content.trim() + `\nNhắc việc lần ${count}`;
+
+      // Update existing notification
+      notification = await prisma.notification.update({
+        where: { id: existingNotification.id },
+        data: {
+          title: title.trim(),
+          content: newContent.trim(),
+          type,
+          priority,
+          attachments: JSON.stringify([{ type: "partner_reminder", partnerId, count }]),
+        }
+      });
+
+      // Reset recipient unread status and update timestamp
+      await prisma.notificationRecipient.updateMany({
+        where: {
+          notificationId: existingNotification.id,
+          userId: audienceValue
+        },
+        data: {
+          isRead: false,
+          readAt: null,
+          createdAt: new Date()
+        }
+      });
+
+      return NextResponse.json({
+        success: true,
+        notificationId: existingNotification.id,
+        recipientCount: existingNotification.recipients.length,
+      });
+    } else {
+      // Tạo notification record mới
+      notification = await prisma.notification.create({
+        data: {
+          title:         title.trim(),
+          content:       content.trim(),
+          type,
+          priority,
+          audienceType,
+          audienceValue: audienceValue ?? null,
+          attachments:   attachments ? (typeof attachments === "string" ? attachments : JSON.stringify(attachments)) : null,
+          clientId:      null,
+          createdById:   session.user.id,
+        },
+      });
+    }
 
     // Xác định danh sách userIds
     let userIds: string[] = [];

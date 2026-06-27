@@ -62,22 +62,46 @@ export async function POST(req: NextRequest) {
       giaTriHopDong, daThanhToan, ghiChu,
     } = body;
 
-    const item = await prisma.contract.create({
-      data: {
-        code,
-        trangThai:     trangThai ?? "pending",
-        uuTien:        uuTien    ?? "medium",
-        giaTriHopDong: parseFloat(giaTriHopDong ?? 0),
-        daThanhToan:   parseFloat(daThanhToan   ?? 0),
-        ghiChu,
-        ...(customerId      && { customerId }),
-        ...(nguoiPhuTrachId && { nguoiPhuTrachId }),
-        ...(quotationId     && { quotationId }),
-        ...(ngayKy          && { ngayKy:      new Date(ngayKy) }),
-        ...(ngayBatDau      && { ngayBatDau:  new Date(ngayBatDau) }),
-        ...(ngayKetThuc     && { ngayKetThuc: new Date(ngayKetThuc) }),
-      },
+    const customer = customerId ? await prisma.customer.findUnique({ where: { id: customerId } }) : null;
+    const customerName = customer ? customer.name : "Khách hàng";
+
+    const item = await prisma.$transaction(async (tx) => {
+      const contract = await tx.contract.create({
+        data: {
+          code,
+          trangThai:     trangThai ?? "pending",
+          uuTien:        uuTien    ?? "medium",
+          giaTriHopDong: parseFloat(giaTriHopDong ?? 0),
+          daThanhToan:   parseFloat(daThanhToan   ?? 0),
+          ghiChu,
+          ...(customerId      && { customerId }),
+          ...(nguoiPhuTrachId && { nguoiPhuTrachId }),
+          ...(quotationId     && { quotationId }),
+          ...(ngayKy          && { ngayKy:      new Date(ngayKy) }),
+          ...(ngayBatDau      && { ngayBatDau:  new Date(ngayBatDau) }),
+          ...(ngayKetThuc     && { ngayKetThuc: new Date(ngayKetThuc) }),
+        },
+      });
+
+      const conNo = parseFloat(giaTriHopDong ?? 0) - parseFloat(daThanhToan ?? 0);
+      if (conNo > 0) {
+        await (tx.debt as any).create({
+          data: {
+            type: "phai-thu",
+            partnerName: customerName,
+            amount: parseFloat(giaTriHopDong ?? 0),
+            paidAmount: parseFloat(daThanhToan ?? 0),
+            status: parseFloat(daThanhToan ?? 0) === 0 ? "UNPAID" : "PARTIAL",
+            dueDate: ngayKetThuc ? new Date(ngayKetThuc) : null,
+            referenceId: code || contract.id,
+            description: `Công nợ tự động phát sinh từ hợp đồng thành công: ${code || contract.id}`,
+          }
+        });
+      }
+
+      return contract;
     });
+
     return NextResponse.json(item, { status: 201 });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

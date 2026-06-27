@@ -539,9 +539,9 @@ export default function InterviewsPage() {
   });
 
   const bottomToolbar = (
-    <div className="d-flex align-items-center justify-content-between w-100" style={{ minHeight: 32 }}>
-      <div className="d-flex align-items-center gap-2">
-        <div style={{ width: 300 }}>
+    <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between w-100 gap-2" style={{ minHeight: 32 }}>
+      <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 w-100 w-md-auto">
+        <div className="w-100" style={{ maxWidth: "100%" }}>
           <SearchInput
             placeholder="Tìm kiếm ứng viên hoặc vị trí..."
             value={searchQuery}
@@ -549,18 +549,20 @@ export default function InterviewsPage() {
             className="border-0 shadow-sm hover-bg-light transition-all h-100"
           />
         </div>
-        <FilterBadgeGroup
-          options={[
-            { label: "Tất cả", value: "All", count: myInterviews.length },
-            { label: "Chờ lịch", value: "DeptApproved", count: myInterviews.filter(c => c.status === "DeptApproved").length },
-            { label: "Đang PV", value: "Interviewing", count: myInterviews.filter(c => c.status === "Interviewing").length },
-            { label: "Đã trúng tuyển", value: "Hired", count: myInterviews.filter(c => c.status === "Hired").length },
-          ]}
-          value={statusFilter}
-          onChange={setStatusFilter}
-        />
+        <div className="overflow-auto py-1" style={{ maxWidth: "100%" }}>
+          <FilterBadgeGroup
+            options={[
+              { label: "Tất cả", value: "All", count: myInterviews.length },
+              { label: "Chờ lịch", value: "DeptApproved", count: myInterviews.filter(c => c.status === "DeptApproved").length },
+              { label: "Đang PV", value: "Interviewing", count: myInterviews.filter(c => c.status === "Interviewing").length },
+              { label: "Đã trúng tuyển", value: "Hired", count: myInterviews.filter(c => c.status === "Hired").length },
+            ]}
+            value={statusFilter}
+            onChange={setStatusFilter}
+          />
+        </div>
       </div>
-      <div className="d-flex align-items-center gap-3">
+      <div className="d-flex align-items-center gap-3 mt-1 mt-md-0">
         <div className="text-muted small fw-medium">
           <i className="bi bi-info-circle me-1 text-primary opacity-75" />
           Tổng: {filteredCandidates.length} buổi phỏng vấn
@@ -576,8 +578,8 @@ export default function InterviewsPage() {
     return createPortal(
       <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", flexDirection: "column", background: "#EBF0F5", fontFamily: "'Roboto Condensed', sans-serif" }}>
         {/* Workspace Navbar */}
-        <div style={{ height: 64, background: "#fff", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <div className="workspace-navbar">
+          <div className="workspace-navbar-left" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <button
               onClick={() => setSelectedCandidate(null)}
               style={{ border: "none", background: "#f1f5f9", width: 40, height: 40, borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
@@ -590,7 +592,7 @@ export default function InterviewsPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", background: "#f1f5f9", padding: "4px", borderRadius: "14px", gap: "2px" }}>
+          <div className="workspace-navbar-middle" style={{ display: "flex", background: "#f1f5f9", padding: "4px", borderRadius: "14px", gap: "2px" }}>
             {[
               { id: "info", label: "Nội dung phỏng vấn", icon: "bi-file-person" },
               { id: "scorecard", label: "Phiếu đánh giá", icon: "bi-clipboard-check" },
@@ -612,7 +614,7 @@ export default function InterviewsPage() {
             ))}
           </div>
 
-          <div style={{ display: "flex", gap: "12px" }}>
+          <div className="workspace-navbar-right" style={{ display: "flex", gap: "12px" }}>
             <button
               onClick={handleTranscribe}
               disabled={!audioUrl}
@@ -675,40 +677,42 @@ export default function InterviewsPage() {
           <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
 
             {activeTab === 'info' && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 400px", gap: "24px", height: "100%", minHeight: 600 }}>
-                <div style={{ background: "#fff", borderRadius: "20px", border: "1px solid #e2e8f0", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-                  <div style={{ padding: "14px 24px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", fontWeight: 700, fontSize: "0.75rem", color: "#64748b", textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    <i className="bi bi-file-earmark-pdf me-2" /> Hồ sơ ứng tuyển
-                  </div>
-                  <div style={{ flex: 1, display: "flex", position: "relative", background: "#f1f5f9" }}>
-                    {selectedCandidate.cvUrl ? (
-                      <>
-                        <iframe
-                          src={getEmbedUrl(selectedCandidate.cvUrl)}
-                          style={{ width: "100%", height: "100%", border: "none" }}
-                          title="CV Preview"
-                        />
-                        <a
-                          href={selectedCandidate.cvUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn btn-sm btn-light shadow-sm"
-                          style={{ position: "absolute", bottom: "20px", right: "20px", borderRadius: "10px", fontWeight: "bold" }}
-                        >
-                          <i className="bi bi-download me-2" /> Tải xuống CV
-                        </a>
-                      </>
-                    ) : (
-                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <div style={{ textAlign: "center", color: "#94a3b8" }}>
-                          <i className="bi bi-file-pdf" style={{ fontSize: "5rem", opacity: 0.2 }} />
-                          <p className="mt-3 fw-medium">Ứng viên chưa tải lên CV bản mềm</p>
+              <div className="row g-4 h-100" style={{ minHeight: 600 }}>
+                <div className="col-12 col-xl-8 d-flex flex-column" style={{ minHeight: 450 }}>
+                  <div style={{ background: "#fff", borderRadius: "20px", border: "1px solid #e2e8f0", overflow: "hidden", display: "flex", flexDirection: "column", flex: 1, boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                    <div style={{ padding: "14px 24px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", fontWeight: 700, fontSize: "0.75rem", color: "#64748b", textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <i className="bi bi-file-earmark-pdf me-2" /> Hồ sơ ứng tuyển
+                    </div>
+                    <div style={{ flex: 1, display: "flex", position: "relative", background: "#f1f5f9" }}>
+                      {selectedCandidate.cvUrl ? (
+                        <>
+                          <iframe
+                            src={getEmbedUrl(selectedCandidate.cvUrl)}
+                            style={{ width: "100%", height: "100%", border: "none" }}
+                            title="CV Preview"
+                          />
+                          <a
+                            href={selectedCandidate.cvUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-sm btn-light shadow-sm"
+                            style={{ position: "absolute", bottom: "20px", right: "20px", borderRadius: "10px", fontWeight: "bold" }}
+                          >
+                            <i className="bi bi-download me-2" /> Tải xuống CV
+                          </a>
+                        </>
+                      ) : (
+                        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <div style={{ textAlign: "center", color: "#94a3b8" }}>
+                            <i className="bi bi-file-pdf" style={{ fontSize: "5rem", opacity: 0.2 }} />
+                            <p className="mt-3 fw-medium">Ứng viên chưa tải lên CV bản mềm</p>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                <div className="col-12 col-xl-4 d-flex flex-column gap-4">
                   <div style={{ background: "#fff", borderRadius: "20px", border: "1px solid #e2e8f0", padding: "24px", boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
                     <h6 style={{ fontWeight: 800, fontSize: "0.7rem", color: "#e11d48", textTransform: "uppercase", marginBottom: "20px", display: 'flex', justifyContent: 'space-between' }}>
                       <span>BẢNG ĐIỀU KHIỂN GHI ÂM</span>
@@ -862,69 +866,72 @@ export default function InterviewsPage() {
             )}
 
             {activeTab === 'scorecard' && (
-              <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: "24px", height: "100%" }}>
+              <div className="row g-4 h-100">
                 {/* SIDEBAR */}
-                <div style={{ background: "#fff", borderRadius: "24px", border: "1px solid #e2e8f0", padding: "24px", display: "flex", flexDirection: "column", gap: "24px", overflowY: "auto", boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
-                  {/* Candidate Summary */}
-                  <div style={{ textAlign: "center", paddingBottom: "24px", borderBottom: "1px dashed #e2e8f0" }}>
-                    <div style={{ width: 80, height: 80, borderRadius: "24px", background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: '2rem', margin: "0 auto 16px" }}>
-                      {selectedCandidate.name.charAt(0)}
+                <div className="col-12 col-xl-3">
+                  <div style={{ background: "#fff", borderRadius: "24px", border: "1px solid #e2e8f0", padding: "24px", display: "flex", flexDirection: "column", gap: "24px", overflowY: "auto", boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
+                    {/* Candidate Summary */}
+                    <div style={{ textAlign: "center", paddingBottom: "24px", borderBottom: "1px dashed #e2e8f0" }}>
+                      <div style={{ width: 80, height: 80, borderRadius: "24px", background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: '2rem', margin: "0 auto 16px" }}>
+                        {selectedCandidate.name.charAt(0)}
+                      </div>
+                      <h5 style={{ fontWeight: 800, color: "#1e293b", margin: "0 0 4px" }}>{selectedCandidate.name}</h5>
+                      <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 600 }}>{selectedCandidate.position}</div>
+                      <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "4px" }}>{selectedCandidate.request?.department}</div>
                     </div>
-                    <h5 style={{ fontWeight: 800, color: "#1e293b", margin: "0 0 4px" }}>{selectedCandidate.name}</h5>
-                    <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 600 }}>{selectedCandidate.position}</div>
-                    <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "4px" }}>{selectedCandidate.request?.department}</div>
-                  </div>
 
-                  {/* Interview Info */}
-                  <div>
-                    <h6 style={{ fontWeight: 800, fontSize: "0.7rem", color: "#94a3b8", textTransform: "uppercase", marginBottom: "12px", letterSpacing: "0.05em" }}>THÔNG TIN BUỔI PHỎNG VẤN</h6>
-                    <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                      <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-                        <i className="bi bi-calendar-event text-indigo" style={{ fontSize: "1.1rem" }} />
-                        <div>
-                          <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600 }}>Thời gian</div>
-                          <div style={{ fontSize: "0.85rem", color: "#1e293b", fontWeight: 700 }}>
-                            {selectedCandidate.interviewDate ? new Date(selectedCandidate.interviewDate).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : 'Chưa xếp lịch'}
+                    {/* Interview Info */}
+                    <div>
+                      <h6 style={{ fontWeight: 800, fontSize: "0.7rem", color: "#94a3b8", textTransform: "uppercase", marginBottom: "12px", letterSpacing: "0.05em" }}>THÔNG TIN BUỔI PHỎNG VẤN</h6>
+                      <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                          <i className="bi bi-calendar-event text-indigo" style={{ fontSize: "1.1rem" }} />
+                          <div>
+                            <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600 }}>Thời gian</div>
+                            <div style={{ fontSize: "0.85rem", color: "#1e293b", fontWeight: 700 }}>
+                              {selectedCandidate.interviewDate ? new Date(selectedCandidate.interviewDate).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : 'Chưa xếp lịch'}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                          <i className="bi bi-geo-alt text-indigo" style={{ fontSize: "1.1rem" }} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600, marginBottom: "4px" }}>Hình thức</div>
+                            <div style={{ display: 'flex', gap: '4px', background: '#e2e8f0', padding: '4px', borderRadius: '8px' }}>
+                              <button onClick={() => setInterviewMode('Offline')} style={{ flex: 1, padding: '6px', borderRadius: '6px', border: 'none', background: interviewMode === 'Offline' ? '#fff' : 'transparent', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', boxShadow: interviewMode === 'Offline' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: interviewMode === 'Offline' ? '#1e293b' : '#64748b', transition: 'all 0.2s' }}>Offline</button>
+                              <button onClick={() => setInterviewMode('Online')} style={{ flex: 1, padding: '6px', borderRadius: '6px', border: 'none', background: interviewMode === 'Online' ? '#fff' : 'transparent', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', boxShadow: interviewMode === 'Online' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: interviewMode === 'Online' ? '#4f46e5' : '#64748b', transition: 'all 0.2s' }}>Online</button>
+                            </div>
                           </div>
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                        <i className="bi bi-geo-alt text-indigo" style={{ fontSize: "1.1rem" }} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600, marginBottom: "4px" }}>Hình thức</div>
-                          <div style={{ display: 'flex', gap: '4px', background: '#e2e8f0', padding: '4px', borderRadius: '8px' }}>
-                            <button onClick={() => setInterviewMode('Offline')} style={{ flex: 1, padding: '6px', borderRadius: '6px', border: 'none', background: interviewMode === 'Offline' ? '#fff' : 'transparent', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', boxShadow: interviewMode === 'Offline' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: interviewMode === 'Offline' ? '#1e293b' : '#64748b', transition: 'all 0.2s' }}>Offline</button>
-                            <button onClick={() => setInterviewMode('Online')} style={{ flex: 1, padding: '6px', borderRadius: '6px', border: 'none', background: interviewMode === 'Online' ? '#fff' : 'transparent', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', boxShadow: interviewMode === 'Online' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', color: interviewMode === 'Online' ? '#4f46e5' : '#64748b', transition: 'all 0.2s' }}>Online</button>
-                          </div>
-                        </div>
-                      </div>
                     </div>
-                  </div>
 
-                  {/* Interviewers */}
-                  <div>
-                    <h6 style={{ fontWeight: 800, fontSize: "0.7rem", color: "#94a3b8", textTransform: "uppercase", marginBottom: "12px", letterSpacing: "0.05em" }}>HỘI ĐỒNG ĐÁNH GIÁ</h6>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {participants.length > 0 ? participants.map((p, i) => (
-                        <div key={i} style={{ background: i === 0 ? "#f0fdfa" : "#f8fafc", border: `1px solid ${i === 0 ? '#ccfbf1' : '#e2e8f0'}`, padding: "10px 14px", borderRadius: "12px" }}>
-                          <div style={{ fontSize: "0.65rem", color: i === 0 ? "#0f766e" : "#475569", fontWeight: 800, marginBottom: "2px", textTransform: 'uppercase' }}>{i === 0 ? 'TRƯỞNG HỘI ĐỒNG' : 'THÀNH VIÊN'}</div>
-                          <div style={{ fontSize: "0.85rem", color: i === 0 ? "#134e4a" : "#1e293b", fontWeight: 700 }}>{p.fullName}</div>
-                        </div>
-                      )) : (
-                        <div style={{ fontSize: '0.8rem', color: '#64748b', fontStyle: 'italic' }}>Chưa có thành viên</div>
-                      )}
+                    {/* Interviewers */}
+                    <div>
+                      <h6 style={{ fontWeight: 800, fontSize: "0.7rem", color: "#94a3b8", textTransform: "uppercase", marginBottom: "12px", letterSpacing: "0.05em" }}>HỘI ĐỒNG ĐÁNH GIÁ</h6>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {participants.length > 0 ? participants.map((p, i) => (
+                          <div key={i} style={{ background: i === 0 ? "#f0fdfa" : "#f8fafc", border: `1px solid ${i === 0 ? '#ccfbf1' : '#e2e8f0'}`, padding: "10px 14px", borderRadius: "12px" }}>
+                            <div style={{ fontSize: "0.65rem", color: i === 0 ? "#0f766e" : "#475569", fontWeight: 800, marginBottom: "2px", textTransform: 'uppercase' }}>{i === 0 ? 'TRƯỞNG HỘI ĐỒNG' : 'THÀNH VIÊN'}</div>
+                            <div style={{ fontSize: "0.85rem", color: i === 0 ? "#134e4a" : "#1e293b", fontWeight: 700 }}>{p.fullName}</div>
+                          </div>
+                        )) : (
+                          <div style={{ fontSize: '0.8rem', color: '#64748b', fontStyle: 'italic' }}>Chưa có thành viên</div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* MAIN SCORECARD */}
-                <div style={{ background: "#fff", borderRadius: "24px", border: "1px solid #e2e8f0", overflowY: "auto", boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ padding: "24px 32px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)", zIndex: 10 }}>
+                <div className="col-12 col-xl-9">
+                  <div style={{ background: "#fff", borderRadius: "24px", border: "1px solid #e2e8f0", overflowY: "auto", boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', height: "100%" }}>
+                  <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 p-3 p-md-4" style={{ borderBottom: "1px solid #f1f5f9", position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(10px)", zIndex: 10 }}>
                     <div>
                       <h4 style={{ margin: 0, fontWeight: 800, color: "#1e293b" }}>Kết quả đánh giá ứng viên</h4>
                       <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "4px" }}>Đánh giá theo chuẩn khung năng lực của vị trí {selectedCandidate.position}</div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                    <div className="d-flex align-items-center justify-content-between justify-content-md-end gap-3">
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                         <span style={{ fontSize: "0.7rem", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase" }}>TỔNG ĐIỂM ĐÁNH GIÁ</span>
                         <div style={{ fontSize: "1.5rem", fontWeight: 900, color: calculateTotalScore() >= 80 ? "#10b981" : calculateTotalScore() >= 60 ? "#4f46e5" : "#f59e0b" }}>
@@ -953,33 +960,32 @@ export default function InterviewsPage() {
                     </div>
                   </div>
 
-                  <div style={{ padding: "20px 32px 32px" }}>
-                    {/* Criteria Table */}
+                  <div className="p-3 p-md-4">
+                    {/* Criteria List */}
                     <div style={{ marginBottom: "24px" }}>
-                      <table style={{ width: "100%", borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr>
-                            <th style={{ padding: '0 0 12px 0', textAlign: 'left', fontSize: '0.75rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9' }}>TIÊU CHUẨN ĐÁNH GIÁ</th>
-                            <th style={{ padding: '0 0 12px 0', textAlign: 'right', fontSize: '0.75rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9' }}>MỨC ĐỘ ĐÁNH GIÁ</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <RatingRow label="1. Kiến thức chuyên môn" value={scores[0]} onChange={(val) => handleScoreChange(0, val)} />
-                          <RatingRow label="2. Kinh nghiệm làm việc" value={scores[1]} onChange={(val) => handleScoreChange(1, val)} />
-                          <RatingRow label="3. Kỹ năng giao tiếp" value={scores[2]} onChange={(val) => handleScoreChange(2, val)} />
-                          <RatingRow label="4. Tính trách nhiệm" value={scores[3]} onChange={(val) => handleScoreChange(3, val)} />
-                          <RatingRow label="5. Khả năng làm việc nhóm" value={scores[4]} onChange={(val) => handleScoreChange(4, val)} />
-                        </tbody>
-                      </table>
+                      {/* Header Row (Desktop Only) */}
+                      <div className="d-none d-md-flex justify-content-between pb-2 mb-2 border-bottom" style={{ borderBottomWidth: '2px', borderBottomColor: '#f1f5f9' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase' }}>TIÊU CHUẨN ĐÁNH GIÁ</span>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', textAlign: 'right' }}>MỨC ĐỘ ĐÁNH GIÁ</span>
+                      </div>
+                      
+                      {/* List Items */}
+                      <div className="d-flex flex-column">
+                        <RatingRow label="1. Kiến thức chuyên môn" value={scores[0]} onChange={(val) => handleScoreChange(0, val)} />
+                        <RatingRow label="2. Kinh nghiệm làm việc" value={scores[1]} onChange={(val) => handleScoreChange(1, val)} />
+                        <RatingRow label="3. Kỹ năng giao tiếp" value={scores[2]} onChange={(val) => handleScoreChange(2, val)} />
+                        <RatingRow label="4. Tính trách nhiệm" value={scores[3]} onChange={(val) => handleScoreChange(3, val)} />
+                        <RatingRow label="5. Khả năng làm việc nhóm" value={scores[4]} onChange={(val) => handleScoreChange(4, val)} />
+                      </div>
                     </div>
 
                     {/* Additional Questions */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                      <div>
+                    <div className="row g-3 mb-3">
+                      <div className="col-12 col-md-6">
                         <label style={{ display: 'block', fontWeight: 700, marginBottom: '8px', fontSize: '0.85rem', color: '#334155' }}>Lý do nghỉ việc chỗ cũ</label>
                         <input type="text" style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '0.9rem', outline: 'none' }} placeholder="Ghi chú lý do..." />
                       </div>
-                      <div>
+                      <div className="col-12 col-md-6">
                         <label style={{ display: 'block', fontWeight: 700, marginBottom: '8px', fontSize: '0.85rem', color: '#334155' }}>Ngày có thể nhận việc</label>
                         <input type="date" style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '0.9rem', outline: 'none' }} />
                       </div>
@@ -994,8 +1000,8 @@ export default function InterviewsPage() {
                     {/* Conclusion Section */}
                     <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
                       <h6 style={{ fontWeight: 800, color: '#1e293b', marginBottom: '16px', fontSize: '0.95rem' }}>KẾT LUẬN CUỐI CÙNG</h6>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                        <div>
+                      <div className="row g-4">
+                        <div className="col-12 col-md-6">
                           <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
                             <label onClick={() => setHireStatus('hire')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: hireStatus === 'hire' ? '#fff' : '#f1f5f9', padding: '10px', borderRadius: '10px', cursor: 'pointer', border: hireStatus === 'hire' ? '2px solid #10b981' : '1px solid #e2e8f0', color: hireStatus === 'hire' ? '#10b981' : '#64748b', boxShadow: hireStatus === 'hire' ? '0 2px 8px rgba(16,185,129,0.1)' : 'none', transition: 'all 0.2s' }}>
                               <input type="radio" name="hire_status" checked={hireStatus === 'hire'} readOnly style={{ display: 'none' }} /> <strong style={{ fontSize: '0.85rem' }}>Tuyển dụng</strong>
@@ -1011,7 +1017,7 @@ export default function InterviewsPage() {
                             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer' }}><input type="radio" name="probation" checked={probationSuggest === "60 ngày"} onChange={() => setProbationSuggest("60 ngày")} /> 60 ngày</label>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', opacity: hireStatus === 'reject' ? 0.4 : 1, pointerEvents: hireStatus === 'reject' ? 'none' : 'auto', transition: 'all 0.2s' }}>
+                        <div className="col-12 col-md-6" style={{ display: 'flex', flexDirection: 'column', gap: '10px', opacity: hireStatus === 'reject' ? 0.4 : 1, pointerEvents: hireStatus === 'reject' ? 'none' : 'auto', transition: 'all 0.2s' }}>
                           <div style={{ display: 'flex', alignItems: 'center', background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                             <div style={{ padding: '0 12px', color: '#64748b', fontSize: '0.7rem', fontWeight: 800, background: '#f1f5f9', height: '100%', display: 'flex', alignItems: 'center', alignSelf: 'stretch' }}>LƯƠNG ĐỀ XUẤT</div>
                             <input type="text" value={salarySuggest ? Number(salarySuggest).toLocaleString('en-US') : ""} onChange={(e) => setSalarySuggest(e.target.value.replace(/\D/g, ''))} style={{ flex: 1, padding: '10px', border: 'none', textAlign: 'right', fontWeight: 700, outline: 'none', fontSize: '0.9rem' }} placeholder="Nhập số tiền (VND)" />
@@ -1030,33 +1036,36 @@ export default function InterviewsPage() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
             {activeTab === 'video' && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "24px", height: "100%", minHeight: 600 }}>
-                <div ref={jitsiContainerRef} style={{ background: "#0f172a", borderRadius: "32px", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
-                  {!window.JitsiMeetExternalAPI && (
-                    <div style={{ color: '#fff', textAlign: 'center' }}>
-                      <div className="spinner-border text-primary mb-3" />
-                      <p>Đang khởi tạo nền tảng Video...</p>
-                    </div>
-                  )}
+              <div className="row g-4 h-100" style={{ minHeight: 600 }}>
+                <div className="col-12 col-xl-8 d-flex flex-column" style={{ minHeight: 400 }}>
+                  <div ref={jitsiContainerRef} className="flex-grow-1" style={{ background: "#0f172a", borderRadius: "32px", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+                    {!window.JitsiMeetExternalAPI && (
+                      <div style={{ color: '#fff', textAlign: 'center' }}>
+                        <div className="spinner-border text-primary mb-3" />
+                        <p>Đang khởi tạo nền tảng Video...</p>
+                      </div>
+                    )}
 
-                  <motion.div
-                    drag
-                    dragConstraints={jitsiContainerRef}
-                    dragMomentum={false}
-                    whileDrag={{ cursor: 'grabbing', scale: 1.05, boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}
-                    style={{ position: "absolute", top: 30, left: 30, background: "rgba(0,0,0,0.6)", padding: "10px 20px", borderRadius: "16px", color: "#fff", backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'grab', zIndex: 10 }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                      <i className="bi bi-arrows-move" style={{ opacity: 0.6, fontSize: '0.8rem' }} />
-                      <span style={{ fontSize: '1rem', fontWeight: 700 }}>{selectedCandidate.name}</span>
-                    </div>
-                    <div style={{ fontSize: '0.75rem', opacity: 0.7, paddingLeft: '24px' }}>Ứng viên phỏng vấn</div>
-                  </motion.div>
+                    <motion.div
+                      drag
+                      dragConstraints={jitsiContainerRef}
+                      dragMomentum={false}
+                      whileDrag={{ cursor: 'grabbing', scale: 1.05, boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}
+                      style={{ position: "absolute", top: 30, left: 30, background: "rgba(0,0,0,0.6)", padding: "10px 20px", borderRadius: "16px", color: "#fff", backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', cursor: 'grab', zIndex: 10 }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                        <i className="bi bi-arrows-move" style={{ opacity: 0.6, fontSize: '0.8rem' }} />
+                        <span style={{ fontSize: '1rem', fontWeight: 700 }}>{selectedCandidate.name}</span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', opacity: 0.7, paddingLeft: '24px' }}>Ứng viên phỏng vấn</div>
+                    </motion.div>
+                  </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                <div className="col-12 col-xl-4 d-flex flex-column gap-3">
                   <div style={{ flex: 1, background: "#1e293b", borderRadius: "24px", border: "2px solid #4f46e5", position: "relative", overflow: 'hidden' }}>
                     <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     <div style={{ position: "absolute", bottom: 15, left: 15, color: "#fff", fontSize: "0.75rem", background: "rgba(0,0,0,0.6)", padding: "4px 10px", borderRadius: "8px", fontWeight: 700 }}>Bạn (Cao Thị Phương)</div>
@@ -1108,30 +1117,74 @@ export default function InterviewsPage() {
 
   const RatingRow = ({ label, value, onChange }: { label: string, value: number, onChange: (val: number) => void }) => {
     return (
-      <tr style={{ borderBottom: '1px dashed #e2e8f0' }}>
-        <td style={{ padding: '12px 0', fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>{label}</td>
-        <td style={{ padding: '12px 0', textAlign: 'right' }}>
-          <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-            {['Yếu', 'Trung bình', 'Khá', 'Tốt', 'Xuất sắc'].map((v, i) => (
-              <button
-                key={i}
-                onClick={() => onChange(i)}
-                style={{
-                  padding: '8px 16px', border: i === value ? 'none' : '1px solid #e2e8f0', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700,
-                  background: i === value ? '#4f46e5' : '#fff',
-                  color: i === value ? '#fff' : '#64748b',
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  boxShadow: i === value ? '0 4px 10px rgba(79,70,229,0.2)' : 'none'
-                }}>{v}</button>
-            ))}
-          </div>
-        </td>
-      </tr>
+      <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between py-3 border-bottom border-dashed" style={{ gap: "12px" }}>
+        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>{label}</div>
+        <div className="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end">
+          {['Yếu', 'Trung bình', 'Khá', 'Tốt', 'Xuất sắc'].map((v, i) => (
+            <button
+              key={i}
+              onClick={() => onChange(i)}
+              style={{
+                padding: '6px 12px', border: i === value ? 'none' : '1px solid #e2e8f0', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700,
+                background: i === value ? '#4f46e5' : '#fff',
+                color: i === value ? '#fff' : '#64748b',
+                cursor: 'pointer', transition: 'all 0.2s',
+                boxShadow: i === value ? '0 4px 10px rgba(79,70,229,0.2)' : 'none'
+              }}>{v}</button>
+          ))}
+        </div>
+      </div>
     );
   };
 
   return (
     <>
+      <style>{`
+        .workspace-navbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 24px;
+          height: 64px;
+          background: #fff;
+          border-bottom: 1px solid #e2e8f0;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        @media (max-width: 991.98px) {
+          .workspace-navbar {
+            flex-direction: column !important;
+            height: auto !important;
+            padding: 12px 16px !important;
+            gap: 12px !important;
+            align-items: stretch !important;
+          }
+          .workspace-navbar-left {
+            justify-content: space-between !important;
+            width: 100% !important;
+          }
+          .workspace-navbar-middle {
+            justify-content: flex-start !important;
+            width: 100% !important;
+            overflow-x: auto !important;
+            padding: 4px !important;
+          }
+          .workspace-navbar-middle button {
+            flex: 1 !important;
+            padding: 8px 12px !important;
+            font-size: 0.8rem !important;
+            white-space: nowrap !important;
+            justify-content: center !important;
+          }
+          .workspace-navbar-right {
+            justify-content: space-between !important;
+            width: 100% !important;
+          }
+          .workspace-navbar-right button {
+            flex: 1 !important;
+            justify-content: center !important;
+          }
+        }
+      `}</style>
       <StandardPage
         title="Phỏng vấn ứng viên"
         description="Số hóa quy trình đánh giá và phỏng vấn tập trung"
@@ -1143,15 +1196,98 @@ export default function InterviewsPage() {
           bottomToolbar={bottomToolbar}
           contentPadding="p-0"
         >
-          <Table
-            rows={filteredCandidates}
-            columns={columns}
-            loading={loading}
-            rowKey={(c) => c.id}
-            fontSize={13}
-            striped
-            compact
-          />
+          {/* Desktop Table View */}
+          <div className="d-none d-md-block">
+            <Table
+              rows={filteredCandidates}
+              columns={columns}
+              loading={loading}
+              rowKey={(c) => c.id}
+              fontSize={13}
+              striped
+              compact
+            />
+          </div>
+
+          {/* Mobile Card List View */}
+          <div className="d-block d-md-none p-3">
+            {loading ? (
+              <div className="text-center py-4 text-muted">Đang tải danh sách...</div>
+            ) : filteredCandidates.length === 0 ? (
+              <div className="text-center py-4 text-muted">Không tìm thấy buổi phỏng vấn nào</div>
+            ) : (
+              <div className="d-flex flex-column gap-3">
+                {filteredCandidates.map(c => {
+                  const participants = getParticipants(c.interviewParticipants);
+                  const isInterviewing = c.status === 'Interviewing';
+                  return (
+                    <div key={c.id} className="card shadow-sm border border-light p-3" style={{ borderRadius: "16px", backgroundColor: "var(--card)" }}>
+                      <div className="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                          <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: "0.95rem" }}>{c.name}</h6>
+                          <span className="text-muted small">ID: {c.id.slice(-6).toUpperCase()}</span>
+                        </div>
+                        <span style={{
+                          padding: "3px 8px", borderRadius: "12px", fontSize: "9px", fontWeight: 800,
+                          background: isInterviewing ? '#e0e7ff' : '#fef3c7',
+                          color: isInterviewing ? '#4338ca' : '#92400e',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {isInterviewing ? 'ĐANG PHỎNG VẤN' : 'CHỜ LỊCH'}
+                        </span>
+                      </div>
+                      
+                      <div className="mb-2 text-muted" style={{ fontSize: "0.85rem" }}>
+                        <div className="mb-1"><i className="bi bi-briefcase me-1"></i> {c.position} - {c.request?.department}</div>
+                        {c.interviewDate ? (
+                          <div>
+                            <i className="bi bi-calendar-event me-1"></i> {new Date(c.interviewDate).toLocaleDateString('vi-VN')} {new Date(c.interviewDate).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        ) : (
+                          <div className="text-warning"><i className="bi bi-clock me-1"></i> Chưa lên lịch</div>
+                        )}
+                      </div>
+
+                      <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                        <div className="d-flex align-items-center">
+                          {participants.slice(0, 3).map((p, i) => (
+                            <div key={i} style={{
+                              width: 22, height: 22, borderRadius: "50%", background: "#e2e8f0",
+                              border: "2px solid #fff", marginLeft: i === 0 ? 0 : -6,
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: "9px", fontWeight: 800, color: '#4f46e5'
+                            }}>
+                              {p.fullName.charAt(0)}
+                            </div>
+                          ))}
+                          {participants.length > 3 && (
+                            <div style={{
+                              width: 22, height: 22, borderRadius: "50%", background: "#4f46e5",
+                              color: "#fff", border: "2px solid #fff", marginLeft: -6,
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: "8px", fontWeight: 800
+                            }}>
+                              +{participants.length - 3}
+                            </div>
+                          )}
+                          <span className="text-muted small ms-2" style={{ fontSize: "11px" }}>Hội đồng</span>
+                        </div>
+                        
+                        <button
+                          onClick={() => setSelectedCandidate(c)}
+                          className={`btn btn-sm rounded-pill px-3 fw-bold shadow-sm ${c.interviewDate ? 'btn-primary text-white' : 'btn-light text-muted'}`}
+                          style={{ fontSize: '11px', height: 28, backgroundColor: c.interviewDate ? '#003087' : '', borderColor: c.interviewDate ? '#003087' : '' }}
+                          disabled={!c.interviewDate}
+                        >
+                          {c.interviewDate ? "Tham gia" : "Chờ lịch"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </WorkflowCard>
       </StandardPage>
 

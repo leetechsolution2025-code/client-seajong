@@ -47,6 +47,8 @@ export interface TheKhoModalProps {
   inventoryItemId: string;
   warehouseId?: string;
   warehouseName?: string;
+  initFrom?: string;
+  initTo?: string;
   onClose: () => void;
 }
 
@@ -79,7 +81,7 @@ const SLabel = ({ children }: { children: React.ReactNode }) => (
 );
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function TheKhoModal({ inventoryItemId: initItemId, warehouseId, warehouseName, onClose }: TheKhoModalProps) {
+export function TheKhoModal({ inventoryItemId: initItemId, warehouseId, warehouseName, initFrom, initTo, onClose }: TheKhoModalProps) {
   const toast = useToast();
   const [company,         setCompany]         = React.useState<CompanyInfo | null>(null);
   const [warehouseAddr,   setWarehouseAddr]   = React.useState<string | null>(null);
@@ -88,10 +90,14 @@ export function TheKhoModal({ inventoryItemId: initItemId, warehouseId, warehous
   const [data,     setData]     = React.useState<CardData | null>(null);
   const [loading,  setLoading]  = React.useState(!!initItemId);
   const [from,     setFrom]     = React.useState(() => {
+    if (initFrom) return initFrom;
     const d = new Date(); d.setMonth(d.getMonth() - 3);
     return d.toISOString().slice(0, 10);
   });
-  const [to, setTo]   = React.useState(new Date().toISOString().slice(0, 10));
+  const [to, setTo]   = React.useState(() => {
+    if (initTo) return initTo;
+    return new Date().toISOString().slice(0, 10);
+  });
   const [nguoiGhiSo,  setNguoiGhiSo]  = React.useState("");
   const [ketoanTruong, setKetoanTruong] = React.useState("");
   const [giamdoc,     setGiamdoc]      = React.useState("");
@@ -198,7 +204,7 @@ export function TheKhoModal({ inventoryItemId: initItemId, warehouseId, warehous
 
   // ── Document ─────────────────────────────────────────────────────────────────
   const doc = (
-    <div style={{ fontFamily: "'Roboto Condensed', 'Arial Narrow', Arial, sans-serif", fontSize: 13, color: "#000", lineHeight: 1.4 }}>
+    <div className="pdf-content-page" style={{ fontFamily: "'Roboto Condensed', 'Arial Narrow', Arial, sans-serif", fontSize: 13, color: "#000", lineHeight: 1.4 }}>
 
       {/* ── Header: Logo + Công ty | Mẫu số ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>

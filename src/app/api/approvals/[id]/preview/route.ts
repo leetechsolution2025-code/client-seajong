@@ -226,6 +226,259 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       previewData.summary = [{ label: "Số ứng viên", value: enrichedCandidates.length }, { label: "Ngày lập", value: meta.reportDate ? new Date(meta.reportDate).toLocaleDateString('vi-VN') : "N/A" }];
       previewData.details = meta.message || "Báo cáo đề nghị tiếp nhận nhân sự sau phỏng vấn.";
       if (meta.attachments && meta.attachments.length > 0) { previewData.pdfUrl = meta.attachments[0].url; }
+    } else if (request.entityType === "STATIONERY_PURCHASE" || request.entityType === "STATIONERY_PURCHASE_DIRECTOR") {
+      const purchaseReq = await (prisma as any).hrSupplyRequest.findUnique({
+        where: { id: request.entityId },
+        include: {
+          requester: true,
+          department: true,
+          items: {
+            include: { item: true }
+          }
+        }
+      });
+
+      if (purchaseReq) {
+        const supplierName = meta.supplierName || "—";
+        const invoiceNo = meta.invoiceNo || "—";
+
+        previewData.summary = [
+          { label: "Người đề xuất", value: purchaseReq.requester?.fullName },
+          { label: "Nhà cung cấp", value: supplierName },
+          { label: "Số chứng từ/Hóa đơn", value: invoiceNo },
+          { label: "Tổng giá trị", value: Number(purchaseReq.totalAmount).toLocaleString("vi-VN") + " đ" }
+        ];
+
+        previewData.table = {
+          headers: ["Tên vật tư/dụng cụ", "Đơn vị", "Số lượng", "Đơn giá", "Thành tiền"],
+          rows: purchaseReq.items.map((i: any) => ({
+            cells: [
+              { value: i.item.name, style: { fontWeight: 700 } },
+              { value: i.item.unit || "cái" },
+              { value: i.quantity.toString(), style: { textAlign: "center" } },
+              { value: Number(i.unitPrice).toLocaleString("vi-VN") + " đ" },
+              { value: Number(i.totalPrice).toLocaleString("vi-VN") + " đ", style: { fontWeight: 700 } }
+            ]
+          }))
+        };
+
+        previewData.details = purchaseReq.note || "Không có lý do/ghi chú chi tiết.";
+      }
+    } else if (request.entityType === "marketing_proposal") {
+      if (meta.year && meta.month) {
+        const plan = await prisma.masterYearlyPlan.findUnique({
+          where: { year: parseInt(meta.year, 10) }
+        });
+        if (plan) {
+          const planObj = JSON.parse(plan.planData) || {};
+          const proposal = planObj.mkt_proposals?.[meta.month];
+          if (proposal) {
+            const mktItems: any[] = [];
+            if (proposal.items) {
+              Object.entries(proposal.items).forEach(([key, mainTask]: any) => {
+                if (mainTask.subTasks && mainTask.subTasks.length > 0) {
+                  mainTask.subTasks.forEach((sub: any) => {
+                    mktItems.push({
+                      name: `${mainTask.label || mainTask.name || "Hạng mục"} - ${sub.label}`,
+                      proposedAmount: sub.proposedAmount,
+                      description: sub.description || ""
+                    });
+                  });
+                } else {
+                  mktItems.push({
+                    name: mainTask.label || mainTask.name || "Hạng mục",
+                    proposedAmount: mainTask.proposedAmount || 0,
+                    description: mainTask.description || ""
+                  });
+                }
+              });
+            }
+            if (proposal.advReserve && proposal.advReserve > 0) {
+              mktItems.push({
+                name: "Ngân sách dự phòng quảng cáo (Reserve)",
+                proposedAmount: proposal.advReserve,
+                description: "Chi phí dự phòng phát sinh cho quảng cáo"
+              });
+            }
+
+            const totalAmount = mktItems.reduce((sum, item) => sum + (item.proposedAmount || 0), 0);
+
+            previewData.summary = [
+              { label: "Đơn vị đề xuất", value: "Phòng Marketing" },
+              { label: "Người đề xuất", value: proposal.proposerName || request.requestedByName || "—" },
+              { label: "Ngày đề xuất", value: proposal.date || new Date(request.createdAt).toLocaleDateString("vi-VN") },
+              { label: "Tổng kinh phí", value: totalAmount.toLocaleString("vi-VN") + " đ" }
+            ];
+
+            previewData.table = {
+              headers: ["Hạng mục chi tiết", "Chi phí đề xuất", "Ghi chú/Mô tả"],
+              rows: mktItems.map(item => ({
+                cells: [
+                  { value: item.name, style: { fontWeight: 700 } },
+                  { value: item.proposedAmount.toLocaleString("vi-VN") + " đ", style: { color: "#059669", fontWeight: 700 } },
+                  { value: item.description || "—", style: { color: "#64748b" } }
+                ]
+              }))
+            };
+
+            previewData.details = proposal.purpose || "Lập đề xuất chi phí Marketing.";
+            if (proposal.notes) {
+              previewData.details += `\n\n**Ghi chú:**\n${proposal.notes}`;
+            }
+
+            previewData.pdfUrl = meta.pdfUrl || proposal.pdfUrl;
+
+            // Add full monthly plan metadata for rendering like the printed document
+            previewData.isPlan = false;
+            previewData.proposalData = proposal;
+            previewData.selectedMonth = parseInt(meta.month, 10);
+            previewData.selectedYear = parseInt(meta.year, 10);
+            previewData.plannedBudget = planObj.mkt_monthlyBudgets?.[meta.month] || 0;
+            previewData.monthlyThemes = planObj.mkt_monthlyThemes || [];
+            previewData.customHolidays = planObj.mkt_customHolidays || [];
+            previewData.monthlyProducts = planObj.mkt_monthlyProducts || {};
+            previewData.sectionContentItems = planObj.mkt_sectionContentItems || {};
+          }
+        }
+      }
+    } else if (request.entityType === "marketing_monthly_plan") {
+      if (meta.year && meta.month) {
+        const plan = await prisma.masterYearlyPlan.findUnique({
+          where: { year: parseInt(meta.year, 10) }
+        });
+        if (plan) {
+          const planObj = JSON.parse(plan.planData) || {};
+          const mPlan = planObj.mkt_monthly_plans?.[meta.month];
+          if (mPlan) {
+            const mktItems: any[] = [];
+            if (mPlan.items) {
+              Object.entries(mPlan.items).forEach(([key, mainTask]: any) => {
+                mktItems.push({
+                  id: key,
+                  name: mainTask.label || mainTask.name || "Hạng mục",
+                  proposedAmount: mainTask.proposedAmount || 0,
+                  description: mainTask.description || "",
+                  isSubTask: false
+                });
+
+                if (mainTask.subTasks && mainTask.subTasks.length > 0) {
+                  mainTask.subTasks.forEach((sub: any) => {
+                    mktItems.push({
+                      id: sub.id,
+                      name: `↳ • ${sub.label}`,
+                      proposedAmount: sub.proposedAmount || 0,
+                      description: sub.description || "",
+                      isSubTask: true
+                    });
+                  });
+                }
+              });
+            }
+            if (mPlan.advReserve && mPlan.advReserve > 0) {
+              mktItems.push({
+                id: "reserve",
+                name: "Ngân sách dự phòng quảng cáo (Reserve)",
+                proposedAmount: mPlan.advReserve,
+                description: "Chi phí dự phòng phát sinh cho quảng cáo",
+                isSubTask: false
+              });
+            }
+
+            const totalAmount = mktItems
+              .filter(item => !item.isSubTask)
+              .reduce((sum, item) => {
+                const subSum = (mPlan.items[item.id]?.subTasks || []).reduce((s: number, sub: any) => s + (sub.proposedAmount || 0), 0);
+                const amt = subSum || item.proposedAmount || 0;
+                return sum + amt;
+              }, 0);
+
+            previewData.summary = [
+              { label: "Đơn vị lập", value: "Phòng Marketing" },
+              { label: "Người lập kế hoạch", value: mPlan.proposerName || request.requestedByName || "—" },
+              { label: "Ngày lập kế hoạch", value: mPlan.date || new Date(request.createdAt).toLocaleDateString("vi-VN") },
+              { label: "Kinh phí dự kiến", value: totalAmount.toLocaleString("vi-VN") + " đ" }
+            ];
+
+            previewData.table = {
+              headers: ["Hạng mục chi tiết", "Kinh phí dự kiến", "Ghi chú/Mô tả"],
+              rows: mktItems.map(item => ({
+                cells: [
+                  { 
+                    value: item.name, 
+                    style: { 
+                      fontWeight: item.isSubTask ? 400 : 700, 
+                      paddingLeft: item.isSubTask ? "20px" : "8px",
+                      color: item.isSubTask ? "#4b5563" : "#111827"
+                    } 
+                  },
+                  { 
+                    value: item.proposedAmount > 0 
+                      ? item.proposedAmount.toLocaleString("vi-VN") + " đ" 
+                      : (item.isSubTask ? "—" : "0 đ"), 
+                    style: { 
+                      color: item.proposedAmount > 0 ? "#2563eb" : "#4b5563", 
+                      fontWeight: item.isSubTask ? 400 : 700 
+                    } 
+                  },
+                  { value: item.description || "—", style: { color: "#6b7280" } }
+                ]
+              }))
+            };
+
+            const monthInt = parseInt(meta.month, 10);
+            const theme = (planObj.mkt_monthlyThemes || []).find((t: any) => t.month === monthInt || (!t.month && monthInt === 6)) || {};
+            previewData.details = `Kế hoạch Marketing tháng ${meta.month}/${meta.year}.\n\n` + 
+              `**Chủ đề tháng:** ${theme.topic || "Chưa thiết lập"}\n` +
+              `**Nội dung cốt lõi:** ${theme.content || "Chưa thiết lập"}`;
+              
+            if (mPlan.notes) {
+              previewData.details += `\n\n**Ghi chú:**\n${mPlan.notes}`;
+            }
+
+            previewData.pdfUrl = meta.pdfUrl || mPlan.pdfUrl;
+
+            // Add full monthly plan metadata for rendering like the printed document
+            previewData.isPlan = true;
+            previewData.proposalData = mPlan;
+            previewData.selectedMonth = monthInt;
+            previewData.selectedYear = meta.year;
+            previewData.plannedBudget = planObj.mkt_monthlyBudgets?.[meta.month] || 0;
+            previewData.monthlyThemes = planObj.mkt_monthlyThemes || [];
+            previewData.customHolidays = planObj.mkt_customHolidays || [];
+            previewData.monthlyProducts = planObj.mkt_monthlyProducts || {};
+            previewData.sectionContentItems = planObj.mkt_sectionContentItems || {};
+          }
+        }
+      }
+    } else if (request.entityType === "master_yearly_plan") {
+      if (meta.year) {
+        const plan = await prisma.masterYearlyPlan.findUnique({
+          where: { year: parseInt(meta.year, 10) }
+        });
+        if (plan) {
+          const planObj = JSON.parse(plan.planData) || {};
+          const valAgent = Number(planObj.revenueAgent) || 0;
+          const valAgentDev = Number(planObj.revenueAgentDev) || 0;
+          const valTraditional = Number(planObj.traditional) || Number(planObj.revenueTraditional) || 0;
+          const valEcommerce = Number(planObj.ecommerce) || Number(planObj.revenueEcommerce) || 0;
+          const totalRevenue = valAgent + valAgentDev + valTraditional + valEcommerce;
+          
+          const isCalculateByRevenue = planObj.isCalculateByRevenue ?? false;
+          const valMarketingCost = isCalculateByRevenue
+            ? Math.round(totalRevenue * (Number(planObj.costMarketingPercent) || 0) / 100)
+            : (Number(planObj.costMarketing) || 0);
+
+          previewData.summary = [
+            { label: "Năm kế hoạch", value: String(plan.year) },
+            { label: "Doanh thu mục tiêu", value: totalRevenue.toLocaleString("vi-VN") + " đ" },
+            { label: "Ngân sách Marketing", value: valMarketingCost.toLocaleString("vi-VN") + " đ" },
+            { label: "Người đề xuất", value: request.requestedByName || "—" }
+          ];
+
+          previewData.details = `Kế hoạch Marketing tổng thể và ngân sách năm ${plan.year} đang được gửi trình duyệt.`;
+          previewData.pdfUrl = meta.pdfUrl;
+        }
+      }
     }
 
     return new Response(JSON.stringify({ success: true, data: previewData }), { 

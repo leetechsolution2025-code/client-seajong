@@ -57,7 +57,13 @@ export async function POST(req: Request) {
         skills: reqs.skills || null,
 
         // Keep requirements JSON for backward compatibility / deep storage
-        requirements: typeof body.requirements === 'string' ? body.requirements : JSON.stringify(reqs)
+        requirements: typeof body.requirements === 'string' ? body.requirements : JSON.stringify(reqs),
+
+        // Kế hoạch đào tạo
+        trainingTime: body.trainingTime || null,
+        trainingLocation: body.trainingLocation || null,
+        trainingParticipants: body.trainingParticipants || null,
+        trainingContent: body.trainingContent || null,
       }
     });
     // 2. Tạo yêu cầu phê duyệt (ApprovalRequest) cho Giám đốc

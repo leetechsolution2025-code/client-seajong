@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { useSession } from "next-auth/react";
 import { CurrencyInput }             from "@/components/ui/CurrencyInput";
 import { useToast }                  from "@/components/ui/Toast";
 import { ConfirmDialog }             from "@/components/ui/ConfirmDialog";
@@ -68,6 +69,7 @@ const CSS = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function LuanChuyenKhoModal({ onClose, onSaved }: LuanChuyenKhoModalProps) {
+  const { data: session } = useSession();
   const toast = useToast();
 
   // ── Header state ────────────────────────────────────────────────────────────
@@ -75,6 +77,12 @@ export function LuanChuyenKhoModal({ onClose, onSaved }: LuanChuyenKhoModalProps
   const [ngayThucHien, setNgayThucHien] = React.useState(() => new Date().toISOString().slice(0,10));
   const [lockDate, setLockDate]         = React.useState(true);
   const [nguoiThucHien, setNguoiThucHien] = React.useState("");
+
+  React.useEffect(() => {
+    if (session?.user?.name && !nguoiThucHien) {
+      setNguoiThucHien(session.user.name);
+    }
+  }, [session, nguoiThucHien]);
   const [lyDo,   setLyDo]               = React.useState("");
   const [ghiChu, setGhiChu]             = React.useState("");
 
@@ -306,14 +314,14 @@ export function LuanChuyenKhoModal({ onClose, onSaved }: LuanChuyenKhoModalProps
         <div style={{ marginLeft: 24, display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
           <select value={fromWarehouseId} onChange={e => handleFromChange(e.target.value)} disabled={locked}
             style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${fromWarehouseId ? "rgba(99,102,241,0.5)" : "var(--border)"}`, background: "var(--card)", color: "var(--foreground)", fontSize: 13, cursor: locked ? "not-allowed" : "pointer", opacity: locked ? 0.7 : 1 }}>
-            <option value="">— Kho nguồn —</option>
-            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}{w.code ? ` (${w.code})` : ""}</option>)}
+            <option value="">Chọn kho nguồn</option>
+            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
           <i className="bi bi-arrow-right" style={{ color: "#6366f1", fontSize: 16 }} />
           <select value={toWarehouseId} onChange={e => !locked && setToWarehouseId(e.target.value)} disabled={locked || !fromWarehouseId}
             style={{ padding: "5px 10px", borderRadius: 7, border: `1.5px solid ${toWarehouseId ? "rgba(99,102,241,0.5)" : "var(--border)"}`, background: "var(--card)", color: "var(--foreground)", fontSize: 13, cursor: (locked || !fromWarehouseId) ? "not-allowed" : "pointer", opacity: (locked || !fromWarehouseId) ? 0.7 : 1 }}>
-            <option value="">{fromWarehouseId ? "— Kho đích —" : "Chọn kho nguồn trước"}</option>
-            {destWarehouses.map(w => <option key={w.id} value={w.id}>{w.name}{w.code ? ` (${w.code})` : ""}</option>)}
+            <option value="">{fromWarehouseId ? "Chọn kho đích" : "Chọn kho nguồn trước"}</option>
+            {destWarehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
         </div>
 

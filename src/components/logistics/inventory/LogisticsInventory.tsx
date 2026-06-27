@@ -6,6 +6,7 @@ import { sj_generateSKU } from "@/lib/sku-generator";
 import { AddLogisticsProductModal } from "./AddLogisticsProductModal";
 import { LogisticsItemDetailOffcanvas } from "./LogisticsItemDetailOffcanvas";
 import { TreeFilterSelect, TreeOption } from "@/components/ui/TreeFilterSelect";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface Category {
   id: string;
@@ -17,6 +18,7 @@ interface Category {
 interface Warehouse {
   id: string;
   name: string;
+  code?: string;
 }
 
 interface InventoryItem {
@@ -36,6 +38,7 @@ interface InventoryItem {
   updatedAt: string | null;
   createdAt: string | null;
   category: { id: string; name: string } | null;
+  source?: string;
 }
 
 export function LogisticsInventory() {
@@ -54,8 +57,57 @@ export function LogisticsInventory() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [deletingItem, setDeletingItem] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncLog, setSyncLog] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+
+  const handleDeleteItem = async () => {
+    if (!deletingItem) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/logistics/inventory?id=${deletingItem.id}&source=${deletingItem.source || "material"}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Không thể xoá hàng hoá");
+      
+      toast.success("Thành công", `Đã xoá hàng hoá "${deletingItem.tenHang}"`);
+      setDeletingItem(null);
+      setSelectedItem(null);
+      fetchItems();
+    } catch (error: any) {
+      toast.error("Lỗi xoá hàng hoá", error.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [items]);
+
+  const handleBulkDelete = async () => {
+    setDeleting(true);
+    try {
+      await Promise.all(selectedIds.map(async (id) => {
+        const item = items.find(it => it.id === id);
+        const source = item?.source || "material";
+        await fetch(`/api/logistics/inventory?id=${id}&source=${source}`, { method: "DELETE" });
+      }));
+
+      toast.success("Thành công", `Đã xoá ${selectedIds.length} hàng hoá`);
+      setSelectedIds([]);
+      setConfirmBulkDelete(false);
+      fetchItems();
+    } catch (error: any) {
+      toast.error("Lỗi xoá hàng loạt", error.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Fetch categories, warehouses and items
   useEffect(() => {
@@ -194,6 +246,9 @@ export function LogisticsInventory() {
     }
   };
 
+  const selectedWarehouse = warehouses.find(w => w.id === filterWarehouse);
+  const isMaterialWarehouse = !!selectedWarehouse && (selectedWarehouse.code === "KVP" || selectedWarehouse.name.toLowerCase().includes("vật tư"));
+
   const categoryOptions: TreeOption[] = categories.map(c => ({
     label: c.name,
     value: c.id,
@@ -202,30 +257,8 @@ export function LogisticsInventory() {
   }));
 
   return (
-    <div className="d-flex flex-column gap-3">
+    <div className="d-flex flex-column gap-3" style={{ height: "100%" }}>
       {/* Search and Filter */}
-      {/* ── SyncPanel ── */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "10px 16px", borderRadius: 12, marginBottom: 16,
-        background: "var(--accent-background, rgba(0,48,135,0.08))",
-        border: "1px solid var(--border)",
-        backdropFilter: "blur(8px)"
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(0,48,135,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <i className="bi bi-database-check" style={{ fontSize: 16, color: "var(--primary)" }} />
-          </div>
-          <div>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "var(--foreground)" }}>
-              {totalItems} hàng hóa trong kho
-            </p>
-            <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>
-              Dữ liệu được cập nhật dựa trên nhập xuất thực tế
-            </p>
-          </div>
-        </div>
-      </div>
 
       <div className="d-flex align-items-center gap-3 mb-4">
         <div className="position-relative flex-grow-1">
@@ -240,6 +273,21 @@ export function LogisticsInventory() {
           />
         </div>
 
+        <select 
+          className="form-select border-0 shadow-sm rounded-pill px-4"
+          style={{ width: "auto", fontSize: 13, height: 40, background: "var(--card)", color: "var(--foreground)", border: "1px solid var(--border)" }}
+          value={filterWarehouse}
+          onChange={(e) => {
+            setFilterWarehouse(e.target.value);
+            setFilterCategory("");
+          }}
+        >
+          <option value="">Tất cả kho hàng</option>
+          {warehouses.map(w => (
+            <option key={w.id} value={w.id}>{w.name}</option>
+          ))}
+        </select>
+
         <TreeFilterSelect
           options={categoryOptions}
           value={filterCategory}
@@ -249,17 +297,16 @@ export function LogisticsInventory() {
           width={220}
         />
 
-        <select 
-          className="form-select border-0 shadow-sm rounded-pill px-4"
-          style={{ width: "auto", fontSize: 13, height: 40, background: "var(--card)", color: "var(--foreground)", border: "1px solid var(--border)" }}
-          value={filterWarehouse}
-          onChange={(e) => setFilterWarehouse(e.target.value)}
-        >
-          <option value="">Tất cả kho hàng</option>
-          {warehouses.map(w => (
-            <option key={w.id} value={w.id}>{w.name}</option>
-          ))}
-        </select>
+        {selectedIds.length > 0 && (
+          <button 
+            className="btn btn-outline-danger rounded-pill px-4 fw-bold" 
+            style={{ fontSize: 13, height: 40 }}
+            onClick={() => setConfirmBulkDelete(true)}
+          >
+            <i className="bi bi-trash me-2" />
+            Xoá {selectedIds.length} đã chọn
+          </button>
+        )}
 
         <button 
           className="btn btn-primary rounded-pill px-4 fw-bold" 
@@ -279,6 +326,7 @@ export function LogisticsInventory() {
         }} 
         onSaved={fetchItems}
         warehouseId={filterWarehouse}
+        isMaterialWarehouse={isMaterialWarehouse}
         editItem={editingItem}
       />
 
@@ -286,16 +334,59 @@ export function LogisticsInventory() {
         item={selectedItem as any} 
         open={!!selectedItem} 
         onClose={() => setSelectedItem(null)} 
+        onEdit={(item) => {
+          setSelectedItem(null);
+          setEditingItem(item as any);
+        }}
+        onDelete={(item) => {
+          setDeletingItem(item);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!deletingItem}
+        variant="danger"
+        title="Xoá hàng hoá/vật tư?"
+        message={`Bạn có chắc chắn muốn xoá "${deletingItem?.tenHang}"? Hành động này sẽ xoá toàn bộ dữ liệu tồn kho liên quan và không thể hoàn tác.`}
+        confirmLabel="Xoá"
+        loading={deleting}
+        onConfirm={handleDeleteItem}
+        onCancel={() => setDeletingItem(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmBulkDelete}
+        variant="danger"
+        title="Xoá hàng hoá/vật tư hàng loạt?"
+        message={`Bạn có chắc chắn muốn xoá ${selectedIds.length} sản phẩm đã chọn? Hành động này sẽ xoá toàn bộ dữ liệu tồn kho liên quan của chúng và không thể hoàn tác.`}
+        confirmLabel="Xoá tất cả"
+        loading={deleting}
+        onConfirm={handleBulkDelete}
+        onCancel={() => setConfirmBulkDelete(false)}
       />
 
 
       {/* Table */}
-      <div className="app-card overflow-hidden" style={{ borderRadius: 16 }}>
-        <div className="table-responsive">
+      <div className="app-card overflow-hidden flex-grow-1 d-flex flex-column" style={{ borderRadius: 16, minHeight: 0 }}>
+        <div className="table-responsive flex-grow-1" style={{ overflowY: "auto" }}>
           <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
-            <thead className="bg-light">
+            <thead className="bg-light" style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--card)" }}>
               <tr style={{ height: 40 }}>
-                <th className="ps-4 border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Sản phẩm</th>
+                <th className="ps-4 border-0" style={{ width: 40 }}>
+                  <input 
+                    type="checkbox" 
+                    className="form-check-input shadow-none"
+                    checked={items.length > 0 && selectedIds.length === items.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(items.map(item => item.id));
+                      } else {
+                        setSelectedIds([]);
+                      }
+                    }}
+                  />
+                </th>
+                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Sản phẩm</th>
                 <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Model / Màu</th>
                 <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Danh mục</th>
                 <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>ĐVT</th>
@@ -307,14 +398,14 @@ export function LogisticsInventory() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-5">
+                  <td colSpan={8} className="text-center py-5">
                     <div className="spinner-border spinner-border-sm text-primary me-2" />
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-5 text-muted">
+                  <td colSpan={8} className="text-center py-5 text-muted">
                     <i className="bi bi-inbox fs-2 d-block mb-2 opacity-25" />
                     Không tìm thấy hàng hóa nào
                   </td>
@@ -326,7 +417,21 @@ export function LogisticsInventory() {
                     style={{ height: 58, cursor: "pointer" }}
                     onClick={() => setSelectedItem(item)}
                   >
-                    <td className="ps-4">
+                    <td className="ps-4" onClick={(e) => e.stopPropagation()} style={{ width: 40 }}>
+                      <input 
+                        type="checkbox" 
+                        className="form-check-input shadow-none"
+                        checked={selectedIds.includes(item.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIds(prev => [...prev, item.id]);
+                          } else {
+                            setSelectedIds(prev => prev.filter(id => id !== item.id));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td>
                       <div className="d-flex align-items-center gap-3">
                         <div 
                           style={{ 

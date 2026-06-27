@@ -27,14 +27,14 @@ export async function POST(
     const { id } = await params;
     const body = await req.json();
     const { loai, ngay, nguoiThucHien, ketQua } = body;
-    if (!ngay || !nguoiThucHien || !ketQua) {
+    if (!nguoiThucHien || !ketQua) {
       return NextResponse.json({ error: "Thiếu thông tin bắt buộc" }, { status: 400 });
     }
     const row = await prisma.quotationNegotiation.create({
       data: {
         quotationId: id,
         loai: loai ?? "call",
-        ngay: new Date(ngay),
+        ngay: ngay ? new Date(ngay) : new Date(),
         nguoiThucHien,
         ketQua,
       },
@@ -61,3 +61,33 @@ export async function DELETE(
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
+
+// PATCH — chỉnh sửa một bản ghi thương thảo
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await params;
+    const { searchParams } = new URL(req.url);
+    const negId = searchParams.get("negId");
+    if (!negId) return NextResponse.json({ error: "Thiếu negId" }, { status: 400 });
+
+    const body = await req.json();
+    const { loai, ngay, nguoiThucHien, ketQua } = body;
+
+    const row = await prisma.quotationNegotiation.update({
+      where: { id: negId },
+      data: {
+        loai: loai !== undefined ? loai : undefined,
+        ngay: ngay ? new Date(ngay) : undefined,
+        nguoiThucHien: nguoiThucHien !== undefined ? nguoiThucHien : undefined,
+        ketQua: ketQua !== undefined ? ketQua : undefined,
+      },
+    });
+    return NextResponse.json(row);
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+

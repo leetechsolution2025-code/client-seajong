@@ -102,7 +102,7 @@ const STEPS = [
   { id: 1, label: "Định danh", icon: "bi-person-vcard", short: "Cá nhân" },
   { id: 2, label: "Công việc", icon: "bi-briefcase", short: "Công việc" },
   { id: 3, label: "Hợp đồng", icon: "bi-file-earmark-text", short: "HĐ và Pháp lý" },
-  { id: 4, label: "Lương và Phúc lợi", icon: "bi-cash-stack", short: "C&B" },
+  { id: 4, label: "Lương và Phúc lợi", icon: "bi-cash-stack", short: "Lương & Phúc lợi" },
   { id: 5, label: "Kỹ năng", icon: "bi-award", short: "Kỹ năng" },
   { id: 6, label: "Chuyên cần", icon: "bi-calendar-check", short: "Nghỉ phép" },
 ];
@@ -125,7 +125,7 @@ function FieldGroup({ title, icon, children, columns }: {
           {title}
         </span>
       </div>
-      <div style={{
+      <div className="fs-field-group-grid" style={{
         display: "grid",
         gridTemplateColumns: columns ?? "repeat(auto-fit, minmax(220px, 1fr))",
         gap: "12px 16px",
@@ -263,7 +263,7 @@ function Step1({ form, set, branches, branchesLoading }: {
 
   return (
     <>
-      <div style={{ display: "flex", gap: 24, alignItems: "flex-start", marginBottom: 28 }}>
+      <div className="fs-avatar-form-layout">
         {/* Avatar Upload */}
         <div style={{ flexShrink: 0 }}>
           <label style={{ fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.04em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>
@@ -373,28 +373,32 @@ function Step1({ form, set, branches, branchesLoading }: {
               <Input value={form.fullName} onChange={v => set("fullName", v)} placeholder="Nguyễn Văn A" />
             </Field>
 
-            {/* Ngày sinh */}
-            <Field label="Ngày sinh">
-              <Input type="date" value={form.birthDate} onChange={v => set("birthDate", v)} />
-            </Field>
+            <div className="fs-grid-row-2col" style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 16px" }}>
+              {/* Ngày sinh */}
+              <Field label="Ngày sinh">
+                <Input type="date" value={form.birthDate} onChange={v => set("birthDate", v)} />
+              </Field>
 
-            {/* Giới tính */}
-            <Field label="Giới tính">
-              <Select value={form.gender} onChange={v => set("gender", v)}>
-                <option value="male">Nam</option>
-                <option value="female">Nữ</option>
-                <option value="other">Khác</option>
-              </Select>
-            </Field>
+              {/* Giới tính */}
+              <Field label="Giới tính">
+                <Select value={form.gender} onChange={v => set("gender", v)}>
+                  <option value="male">Nam</option>
+                  <option value="female">Nữ</option>
+                  <option value="other">Khác</option>
+                </Select>
+              </Field>
+            </div>
           </FieldGroup>
 
           <FieldGroup title="CCCD / Hộ chiếu" icon="bi-card-text" columns="4fr 3fr 5fr">
-            <Field label="Số CCCD / Hộ chiếu">
-              <Input value={form.nationalId} onChange={v => set("nationalId", v)} placeholder="012xxxxxxxxx" />
-            </Field>
-            <Field label="Ngày cấp">
-              <Input type="date" value={form.nationalIdDate} onChange={v => set("nationalIdDate", v)} />
-            </Field>
+            <div className="fs-grid-row-2col" style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "4fr 3fr", gap: "12px 16px" }}>
+              <Field label="Số CCCD / Hộ chiếu">
+                <Input value={form.nationalId} onChange={v => set("nationalId", v)} placeholder="012xxxxxxxxx" />
+              </Field>
+              <Field label="Ngày cấp">
+                <Input type="date" value={form.nationalIdDate} onChange={v => set("nationalIdDate", v)} />
+              </Field>
+            </div>
             <Field label="Nơi cấp">
               <Input value={form.nationalIdPlace} onChange={v => set("nationalIdPlace", v)} placeholder="Cục Cảnh sát QLHC về TTXH" />
             </Field>
@@ -441,19 +445,21 @@ function Step1({ form, set, branches, branchesLoading }: {
             <Field label="Tên người thân">
               <Input value={form.emergencyName} onChange={v => set("emergencyName", v)} placeholder="Nguyễn Thị B" />
             </Field>
-            <Field label="Mối quan hệ">
-              <Select value={form.emergencyRelation} onChange={v => set("emergencyRelation", v)}>
-                <option value="">-- Chọn --</option>
-                <option value="spouse">Vợ/Chồng</option>
-                <option value="parent">Bố/Mẹ</option>
-                <option value="sibling">Anh/Chị/Em</option>
-                <option value="child">Con</option>
-                <option value="other">Khác</option>
-              </Select>
-            </Field>
-            <Field label="SĐT liên hệ khẩn cấp">
-              <Input type="tel" value={form.emergencyPhone} onChange={v => set("emergencyPhone", v)} placeholder="0912 345 678" />
-            </Field>
+            <div className="fs-grid-row-2col" style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 16px" }}>
+              <Field label="Mối quan hệ">
+                <Select value={form.emergencyRelation} onChange={v => set("emergencyRelation", v)}>
+                  <option value="">-- Chọn --</option>
+                  <option value="spouse">Vợ/Chồng</option>
+                  <option value="parent">Bố/Mẹ</option>
+                  <option value="sibling">Anh/Chị/Em</option>
+                  <option value="child">Con</option>
+                  <option value="other">Khác</option>
+                </Select>
+              </Field>
+              <Field label="SĐT liên hệ khẩn cấp">
+                <Input type="tel" value={form.emergencyPhone} onChange={v => set("emergencyPhone", v)} placeholder="0912 345 678" />
+              </Field>
+            </div>
           </FieldGroup>
         </div>
       </div>
@@ -604,42 +610,44 @@ function Step2({
           )}
         </Field>
 
-        <Field label="Chức vụ / Vị trí" required>
-          {loading ? (
-            <div style={{ height: 40, borderRadius: 10, background: "var(--muted)", animation: "pulse 1.5s ease-in-out infinite" }} />
-          ) : (
-            <select
-              value={form.position}
-              onChange={e => set("position", e.target.value)}
-              style={{ ...selectStyle, color: form.position ? "var(--foreground)" : "var(--muted-foreground)" }}
-              onFocus={e => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.boxShadow = "0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent)"; }}
-              onBlur={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
-            >
-              <option value="">Chọn chức vụ/vị trí</option>
-              {positions.map(p => (
-                <option key={p.code} value={p.code}>{p.name}</option>
-              ))}
-            </select>
-          )}
-        </Field>
-        <Field label="Cấp bậc (Grade/Level)" required>
-          {loading ? (
-            <div style={{ height: 40, borderRadius: 10, background: "var(--muted)", animation: "pulse 1.5s ease-in-out infinite" }} />
-          ) : (
-            <select
-              value={form.level}
-              onChange={e => set("level", e.target.value)}
-              style={{ ...selectStyle, color: form.level ? "var(--foreground)" : "var(--muted-foreground)" }}
-              onFocus={e => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.boxShadow = "0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent)"; }}
-              onBlur={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
-            >
-              <option value="">Chọn cấp bậc</option>
-              {levels.map(l => (
-                <option key={l.code} value={l.code}>{l.name}</option>
-              ))}
-            </select>
-          )}
-        </Field>
+        <div className="fs-grid-row-2col" style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "4fr 3fr", gap: "12px 16px" }}>
+          <Field label="Chức vụ / Vị trí" required>
+            {loading ? (
+              <div style={{ height: 40, borderRadius: 10, background: "var(--muted)", animation: "pulse 1.5s ease-in-out infinite" }} />
+            ) : (
+              <select
+                value={form.position}
+                onChange={e => set("position", e.target.value)}
+                style={{ ...selectStyle, color: form.position ? "var(--foreground)" : "var(--muted-foreground)" }}
+                onFocus={e => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.boxShadow = "0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent)"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
+              >
+                <option value="">Chọn chức vụ/vị trí</option>
+                {positions.map(p => (
+                  <option key={p.code} value={p.code}>{p.name}</option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Field label="Cấp bậc (Grade/Level)" required>
+            {loading ? (
+              <div style={{ height: 40, borderRadius: 10, background: "var(--muted)", animation: "pulse 1.5s ease-in-out infinite" }} />
+            ) : (
+              <select
+                value={form.level}
+                onChange={e => set("level", e.target.value)}
+                style={{ ...selectStyle, color: form.level ? "var(--foreground)" : "var(--muted-foreground)" }}
+                onFocus={e => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.boxShadow = "0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent)"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
+              >
+                <option value="">Chọn cấp bậc</option>
+                {levels.map(l => (
+                  <option key={l.code} value={l.code}>{l.name}</option>
+                ))}
+              </select>
+            )}
+          </Field>
+        </div>
       </FieldGroup>
 
       <FieldGroup title="Quản lý và Phân loại" icon="bi-person-check">
@@ -689,17 +697,19 @@ function Step2({
           )}
         </Field>
 
-        <Field label="Loại hình nhân viên">
-          <Select value={form.employeeType} onChange={v => set("employeeType", v)}>
-            <option value="official">Chính thức</option>
-            <option value="probation">Thử việc</option>
-            <option value="intern">Thực tập sinh</option>
-            <option value="collaborator">Cộng tác viên</option>
-          </Select>
-        </Field>
-        <Field label="Ngày bắt đầu làm việc" required>
-          <Input type="date" value={form.startDate} onChange={v => set("startDate", v)} />
-        </Field>
+        <div className="fs-grid-row-2col" style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 16px" }}>
+          <Field label="Loại nhân viên">
+            <Select value={form.employeeType} onChange={v => set("employeeType", v)}>
+              <option value="official">Chính thức</option>
+              <option value="probation">Thử việc</option>
+              <option value="intern">Thực tập sinh</option>
+              <option value="collaborator">Cộng tác viên</option>
+            </Select>
+          </Field>
+          <Field label="Ngày bắt đầu" required>
+            <Input type="date" value={form.startDate} onChange={v => set("startDate", v)} />
+          </Field>
+        </div>
         <Field label="Địa điểm làm việc">
           {loading ? (
             <div style={{ height: 40, borderRadius: 10, background: "var(--muted)", animation: "pulse 1.5s ease-in-out infinite" }} />
@@ -759,29 +769,31 @@ function Step3({ form, set }: { form: FormData; set: (k: keyof FormData, v: stri
           </Select>
         </Field>
 
-        {/* Số hợp đồng */}
-        <Field label="Số hợp đồng">
-          {noContract ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <i className="bi bi-lock-fill" style={{ fontSize: 12, flexShrink: 0, color: "var(--muted-foreground)" }} />
-              <input readOnly value="" placeholder="—" style={lockedStyle} />
-            </div>
-          ) : (
-            <Input value={form.contractNumber} onChange={v => set("contractNumber", v)} placeholder="HĐ-2025-001" />
-          )}
-        </Field>
+        <div className="fs-grid-row-2col" style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 16px" }}>
+          {/* Số hợp đồng */}
+          <Field label="Số hợp đồng">
+            {noContract ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <i className="bi bi-lock-fill" style={{ fontSize: 12, flexShrink: 0, color: "var(--muted-foreground)" }} />
+                <input readOnly value="" placeholder="—" style={lockedStyle} />
+              </div>
+            ) : (
+              <Input value={form.contractNumber} onChange={v => set("contractNumber", v)} placeholder="HĐ-2025-001" />
+            )}
+          </Field>
 
-        {/* Ngày ký */}
-        <Field label="Ngày ký hợp đồng">
-          {noContract ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <i className="bi bi-lock-fill" style={{ fontSize: 12, flexShrink: 0, color: "var(--muted-foreground)" }} />
-              <input readOnly value="" placeholder="—" style={lockedStyle} />
-            </div>
-          ) : (
-            <Input type="date" value={form.contractSignDate} onChange={v => set("contractSignDate", v)} />
-          )}
-        </Field>
+          {/* Ngày ký */}
+          <Field label="Ngày ký">
+            {noContract ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <i className="bi bi-lock-fill" style={{ fontSize: 12, flexShrink: 0, color: "var(--muted-foreground)" }} />
+                <input readOnly value="" placeholder="—" style={lockedStyle} />
+              </div>
+            ) : (
+              <Input type="date" value={form.contractSignDate} onChange={v => set("contractSignDate", v)} />
+            )}
+          </Field>
+        </div>
 
         {/* Ngày hết hạn */}
         <Field
@@ -810,13 +822,15 @@ function Step3({ form, set }: { form: FormData; set: (k: keyof FormData, v: stri
         </Field>
       </FieldGroup>
 
-      <FieldGroup title="Bảo hiểm và Thuế" icon="bi-shield-check">
-        <Field label="Số sổ BHXH">
-          <Input value={form.socialInsuranceNumber} onChange={v => set("socialInsuranceNumber", v)} placeholder="0123456789" />
-        </Field>
-        <Field label="Mã số thuế cá nhân (MST)">
-          <Input value={form.taxCode} onChange={v => set("taxCode", v)} placeholder="8xxxxxxxxx" />
-        </Field>
+      <FieldGroup title="Bảo hiểm và Thuế" icon="bi-shield-check" columns="1fr 1fr 1fr">
+        <div className="fs-grid-row-2col" style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 16px" }}>
+          <Field label="Số sổ BHXH">
+            <Input value={form.socialInsuranceNumber} onChange={v => set("socialInsuranceNumber", v)} placeholder="0123456789" />
+          </Field>
+          <Field label="Mã số thuế">
+            <Input value={form.taxCode} onChange={v => set("taxCode", v)} placeholder="8xxxxxxxxx" />
+          </Field>
+        </div>
         <Field label="Tham gia đóng bảo hiểm">
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
             <div 
@@ -853,19 +867,23 @@ function Step4({ form, set }: { form: FormData; set: (k: keyof FormData, v: stri
         </Field>
       </FieldGroup>
 
-      <FieldGroup title="Các khoản phụ cấp (VNĐ/tháng)" icon="bi-plus-circle">
-        <Field label="Phụ cấp ăn trưa">
-          <Input type="number" value={form.mealAllowance} onChange={v => set("mealAllowance", v)} placeholder="730000" />
-        </Field>
-        <Field label="Phụ cấp xăng xe">
-          <Input type="number" value={form.fuelAllowance} onChange={v => set("fuelAllowance", v)} placeholder="500000" />
-        </Field>
-        <Field label="Phụ cấp điện thoại">
-          <Input type="number" value={form.phoneAllowance} onChange={v => set("phoneAllowance", v)} placeholder="200000" />
-        </Field>
-        <Field label="Phụ cấp thâm niên">
-          <Input type="number" value={form.seniorityAllowance} onChange={v => set("seniorityAllowance", v)} placeholder="0" />
-        </Field>
+      <FieldGroup title="Các khoản phụ cấp (VNĐ/tháng)" icon="bi-plus-circle" columns="1fr 1fr">
+        <div className="fs-grid-row-2col" style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 16px" }}>
+          <Field label="Phụ cấp ăn trưa">
+            <Input type="number" value={form.mealAllowance} onChange={v => set("mealAllowance", v)} placeholder="730000" />
+          </Field>
+          <Field label="Phụ cấp xăng xe">
+            <Input type="number" value={form.fuelAllowance} onChange={v => set("fuelAllowance", v)} placeholder="500000" />
+          </Field>
+        </div>
+        <div className="fs-grid-row-2col" style={{ gridColumn: "span 2", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 16px" }}>
+          <Field label="Phụ cấp điện thoại">
+            <Input type="number" value={form.phoneAllowance} onChange={v => set("phoneAllowance", v)} placeholder="200000" />
+          </Field>
+          <Field label="Phụ cấp thâm niên">
+            <Input type="number" value={form.seniorityAllowance} onChange={v => set("seniorityAllowance", v)} placeholder="0" />
+          </Field>
+        </div>
       </FieldGroup>
 
       <FieldGroup title="Tài khoản ngân hàng" icon="bi-bank" columns="4fr 6fr 3fr">
@@ -993,7 +1011,7 @@ function Step6({
               <img src={form.avatarUrl} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
             </div>
           )}
-          <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 24px" }}>
+          <div className="fs-summary-grid" style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 24px" }}>
           {[
             { label: "Họ tên", value: form.fullName || "—" },
             { label: "Mã NV", value: form.code || "—" },
@@ -1419,6 +1437,71 @@ export default function CreateEmployeeModal({ onClose, onCreated, departments, i
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
         }
+        /* Mobile horizontal steps */
+        .fs-step-indicator-mobile {
+          display: none;
+          gap: 8px;
+          padding: 12px 16px;
+          background: var(--card);
+          border-bottom: 1px solid var(--border);
+          overflow-x: auto;
+          white-space: nowrap;
+          flex-shrink: 0;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .fs-step-indicator-mobile::-webkit-scrollbar {
+          display: none !important;
+        }
+        .fs-header-mobile {
+          display: none;
+        }
+        .fs-header-desktop {
+          display: flex;
+        }
+        /* Responsive adjustments */
+        @media (max-width: 992px) {
+          .fs-header-desktop {
+            display: none !important;
+          }
+          .fs-header-mobile {
+            display: flex !important;
+          }
+          .fs-sidebar {
+            display: none !important;
+          }
+          .fs-step-indicator-mobile {
+            display: flex !important;
+          }
+          .fs-content {
+            padding: 24px 16px 40px !important;
+          }
+          .fs-field-group-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .fs-avatar-form-layout {
+            flex-direction: column !important;
+            align-items: center !important;
+            width: 100%;
+          }
+          .fs-avatar-form-layout > div {
+            width: 100%;
+          }
+          .fs-avatar-form-layout > div:first-child {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 12px;
+          }
+          .fs-summary-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+          .fs-grid-row-2col {
+            grid-column: 1 / -1 !important;
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
       `}</style>
 
       {/* ── Màn hình thành công + thông tin đăng nhập tạm ───── */}
@@ -1493,8 +1576,8 @@ export default function CreateEmployeeModal({ onClose, onCreated, departments, i
       {/* ── Fullscreen wrapper ─────────────────────────── */}
       <div className="fs-modal-wrap">
 
-        {/* ── Top header bar ──────────────────────────────────── */}
-        <div style={{
+        {/* ── Desktop Top header bar ──────────────────────────────────── */}
+        <div className="fs-header-desktop" style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "0 24px", height: 56, flexShrink: 0,
           borderBottom: "1px solid var(--border)",
@@ -1582,6 +1665,132 @@ export default function CreateEmployeeModal({ onClose, onCreated, departments, i
           </div>
         </div>
 
+        {/* ── Mobile Top header bar ──────────────────────────────────── */}
+        <div className="fs-header-mobile" style={{
+          display: "none", alignItems: "center", justifyContent: "space-between",
+          padding: "0 16px", height: 56, flexShrink: 0,
+          borderBottom: "1px solid var(--border)",
+          background: "var(--card)",
+          position: "relative",
+        }}>
+          {/* Left: Close icon */}
+          <button
+            onClick={onClose}
+            style={{
+              background: "none", border: "none", color: "var(--foreground)",
+              fontSize: 20, cursor: "pointer", padding: "4px 8px",
+              display: "flex", alignItems: "center", justifyContent: "center"
+            }}
+          >
+            <i className="bi bi-x-lg" />
+          </button>
+
+          {/* Center: Title & Step info */}
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--foreground)", lineHeight: 1.2 }}>
+              {isEditMode ? "Chỉnh sửa nhân sự" : "Tạo nhân viên mới"}
+            </div>
+            <div style={{ fontSize: 10.5, color: "var(--muted-foreground)", marginTop: 2 }}>
+              Bước {step} / {STEPS.length}
+            </div>
+          </div>
+
+          {/* Right: Submit Button */}
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            style={{
+              padding: "6px 14px", borderRadius: 8,
+              background: saving 
+                ? "var(--muted)" 
+                : "linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 70%, #7c3aed))",
+              border: "none", color: saving ? "var(--muted-foreground)" : "#fff", 
+              fontSize: 12, fontWeight: 700,
+              cursor: saving ? "not-allowed" : "pointer",
+              display: "flex", alignItems: "center", gap: 5,
+              boxShadow: saving ? "none" : "0 2px 8px color-mix(in srgb, var(--primary) 20%, transparent)",
+            }}
+          >
+            {saving ? (
+              <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+            ) : (
+              <i className="bi bi-check-lg" />
+            )}
+            <span>{isEditMode ? "Lưu" : "Tạo"}</span>
+          </button>
+
+          {/* Progress bar line at the very bottom of mobile header */}
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0, height: 3,
+            background: "var(--muted)", overflow: "hidden"
+          }}>
+            <div style={{
+              height: "100%",
+              width: `${(step / STEPS.length) * 100}%`,
+              background: "var(--primary)",
+              transition: "width 0.3s ease"
+            }} />
+          </div>
+        </div>
+
+        {/* ── Mobile Horizontal Steps ─────────────────────────── */}
+        <div className="fs-step-indicator-mobile">
+          {STEPS.map(s => {
+            const isValid = validateStep(s.id);
+            const isDone = isValid && step !== s.id;
+            const isCurrent = step === s.id;
+            const isLocked = s.id > step && !validateStep(step);
+            
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  setStep(s.id);
+                }}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "6px 12px", borderRadius: 20,
+                  border: "1px solid",
+                  borderColor: isCurrent 
+                    ? "var(--primary)" 
+                    : isDone 
+                      ? "color-mix(in srgb, var(--primary) 30%, transparent)" 
+                      : "var(--border)",
+                  background: isCurrent 
+                    ? "color-mix(in srgb, var(--primary) 10%, transparent)" 
+                    : "transparent",
+                  color: isCurrent 
+                    ? "var(--primary)" 
+                    : isDone 
+                      ? "var(--foreground)" 
+                      : "var(--muted-foreground)",
+                  fontSize: 12, fontWeight: isCurrent ? 700 : 500,
+                  cursor: "pointer",
+                  opacity: 1,
+                  flexShrink: 0,
+                  outline: "none",
+                }}
+              >
+                <span style={{
+                  width: 18, height: 18, borderRadius: "50%",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  background: isCurrent 
+                    ? "var(--primary)" 
+                    : isDone 
+                      ? "color-mix(in srgb, var(--primary) 20%, transparent)" 
+                      : "var(--muted)",
+                  color: isCurrent ? "#fff" : isDone ? "var(--primary)" : "var(--muted-foreground)",
+                  fontSize: 10, fontWeight: 700,
+                }}>
+                  {isDone ? "✓" : s.id}
+                </span>
+                <span>{s.short}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {/* ── Body: sidebar + content ─────────────────────────── */}
         <div className="fs-modal-body">
 
@@ -1628,19 +1837,18 @@ export default function CreateEmployeeModal({ onClose, onCreated, departments, i
                 const isValid = validateStep(s.id);
                 const isDone = isValid && step !== s.id;
                 const isCurrent = step === s.id;
-                const isLocked = s.id > step && !validateStep(step);
-                const cls = `fs-step-btn ${isCurrent ? "active" : isDone ? "done" : isLocked ? "locked" : ""}`;
+                const cls = `fs-step-btn ${isCurrent ? "active" : isDone ? "done" : ""}`;
                 
                 return (
                   <button
                     key={s.id}
                     className={cls}
                     onClick={() => {
-                      if (!isLocked || s.id < step) setStep(s.id);
+                      setStep(s.id);
                     }}
                     style={{
-                      cursor: isLocked && s.id > step ? "not-allowed" : "pointer",
-                      opacity: isLocked && s.id > step ? 0.6 : 1,
+                      cursor: "pointer",
+                      opacity: 1,
                     }}
                     tabIndex={0}
                   >
@@ -1765,15 +1973,73 @@ export default function CreateEmployeeModal({ onClose, onCreated, departments, i
             {stepContent[step - 1]}
 
             {/* ── Footer Info ─────────────────────────── */}
+            {/* ── Footer Navigation & Info ─────────────────────────── */}
             <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
+              display: "flex", flexDirection: "column", gap: 20,
               marginTop: 40, paddingTop: 24, borderTop: "1px solid var(--border)",
             }}>
-              <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
-                * Trường bắt buộc cần điền ở bước 1 và 2.
-              </span>
-              <div style={{ display: "flex", gap: 10, color: "var(--muted-foreground)", fontSize: 12 }}>
-                <i className="bi bi-info-circle" /> Bạn có thể chọn các bước ở sidebar để nhập thông tin
+              {/* Navigation Buttons */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  disabled={step === 1}
+                  className="btn btn-light border rounded-pill px-4"
+                  style={{
+                    fontSize: 13, height: 38, fontWeight: 600,
+                    visibility: step === 1 ? "hidden" : "visible",
+                    display: "flex", alignItems: "center", gap: 6
+                  }}
+                >
+                  <i className="bi bi-arrow-left" /> Quay lại
+                </button>
+
+                {step < STEPS.length ? (
+                  <button
+                    type="button"
+                    onClick={handleNext}
+                    className="btn btn-primary rounded-pill px-4"
+                    style={{
+                      fontSize: 13, height: 38, fontWeight: 700,
+                      display: "flex", alignItems: "center", gap: 6,
+                      boxShadow: "0 4px 12px color-mix(in srgb, var(--primary) 20%, transparent)"
+                    }}
+                  >
+                    Tiếp theo <i className="bi bi-arrow-right" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={saving}
+                    className="btn btn-success rounded-pill px-4"
+                    style={{
+                      fontSize: 13, height: 38, fontWeight: 700,
+                      display: "flex", alignItems: "center", gap: 6,
+                      background: "#10b981", borderColor: "#10b981",
+                      boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)"
+                    }}
+                  >
+                    {saving ? (
+                      <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+                    ) : (
+                      <i className="bi bi-check-circle-fill" />
+                    )}
+                    <span>{isEditMode ? "Lưu thay đổi" : "Hoàn thành & Tạo"}</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Info text */}
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
+                  * Trường bắt buộc cần điền ở bước 1 và 2.
+                </span>
+                <div style={{ display: "flex", gap: 6, color: "var(--muted-foreground)", fontSize: 12, alignItems: "center" }}>
+                  <i className="bi bi-info-circle" /> 
+                  <span className="d-none d-sm-inline">Bạn có thể chọn các bước ở menu để nhập thông tin trực tiếp</span>
+                  <span className="d-inline d-sm-none">Chọn các bước ở thanh trên để nhập trực tiếp</span>
+                </div>
               </div>
             </div>
           </main>

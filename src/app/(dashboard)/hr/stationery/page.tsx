@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { KPICard } from "@/components/ui/KPICard";
 import { useToast } from "@/components/ui/Toast";
@@ -17,19 +18,27 @@ import { motion, AnimatePresence } from "framer-motion";
 // ── Types ───────────────────────────────────────────────────────────────────
 interface RequestItem {
   id: string;
+  itemId?: string;
   item: {
     name: string;
+    unit?: string;
   };
   quantity: number;
+  unitPrice?: number;
+  totalPrice?: number;
 }
 
 interface Request {
   id: string;
   code: string;
-  status: "PENDING" | "APPROVED" | "DELIVERED" | "REJECTED" | "OVER_NORM";
+  status: string;
   type: string;
   createdAt: string;
   note?: string;
+  requiresDirector?: boolean;
+  supplierId?: string;
+  invoiceNo?: string;
+  totalAmount?: number;
   requester: {
     fullName: string;
   };
@@ -103,11 +112,14 @@ interface ItemNorm {
 }
 
 // ── Components ──────────────────────────────────────────────────────────────
-function StatusBadge({ status }: { status: Request["status"] }) {
-  const map: Record<Request["status"], { label: string; cls: string }> = {
-    PENDING: { label: "Chờ duyệt", cls: "bg-warning-subtle text-warning border-warning-subtle" },
-    APPROVED: { label: "Đã duyệt", cls: "bg-info-subtle text-info border-info-subtle" },
-    DELIVERED: { label: "Đã cấp phát", cls: "bg-success-subtle text-success border-success-subtle" },
+function StatusBadge({ status, type }: { status: string; type?: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    PENDING: { label: type === "PURCHASE" ? "Chờ KT duyệt" : "Chờ duyệt", cls: "bg-warning-subtle text-warning border-warning-subtle" },
+    ACCOUNTING_APPROVED: { label: "KT đã duyệt", cls: "bg-info-subtle text-info border-info-subtle" },
+    WAITING_DIRECTOR: { label: "Chờ GĐ duyệt", cls: "bg-warning text-white" },
+    APPROVED: { label: type === "PURCHASE" ? "GĐ đã duyệt" : "Văn phòng đã duyệt", cls: "bg-success text-white" },
+    ORDERING: { label: "Đang mua hàng", cls: "bg-primary text-white" },
+    DELIVERED: { label: type === "PURCHASE" ? "Đã nhập hàng" : "Đã cấp phát", cls: "bg-success-subtle text-success border-success-subtle" },
     REJECTED: { label: "Từ chối", cls: "bg-danger-subtle text-danger border-danger-subtle" },
     OVER_NORM: { label: "Vượt định mức", cls: "bg-danger text-white" },
   };
@@ -129,16 +141,41 @@ const STEP_ITEMS: ModernStepItem[] = [
 ];
 
 export default function StationeryToolsPage() {
+  const { data: session } = useSession();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const { success, error: toastError } = useToast();
+
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [isSubmittingPurchase, setIsSubmittingPurchase] = useState(false);
+  const [purchaseModalTab, setPurchaseModalTab] = useState<"create" | "import">("create");
+  const [selectedPurchaseReqForImport, setSelectedPurchaseReqForImport] = useState<Request | null>(null);
+  const [purchaseForm, setPurchaseForm] = useState({
+    supplierId: "",
+    invoiceNo: "",
+    note: "Lập đơn mua văn phòng phẩm",
+    requiresDirector: false,
+    items: [] as { itemId: string; name: string; quantity: number; price: number; unit: string }[]
+  });
 
   // Filters
   const [deptFilter, setDeptFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+
+  // --- Check mobile screen ---
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const [requests, setRequests] = useState<Request[]>([]);
+  const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [departments, setDepartments] = useState<{ id: string; nameVi: string }[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -262,13 +299,15 @@ export default function StationeryToolsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [reqRes, itemRes, statRes, deptRes, catRes, budgetRes] = await Promise.all([
+      const [reqRes, itemRes, statRes, deptRes, catRes, budgetRes, supplierRes, transactionRes] = await Promise.all([
         fetch("/api/hr/stationery/requests"),
         fetch("/api/hr/stationery/items"),
         fetch("/api/hr/stationery/stats"),
         fetch("/api/hr/departments"),
         fetch("/api/hr/stationery/categories"),
-        fetch("/api/hr/stationery/budgets")
+        fetch("/api/hr/stationery/budgets"),
+        fetch("/api/plan-finance/suppliers?limit=100&trangThai=active"),
+        fetch("/api/hr/stationery/transactions")
       ]);
 
       const reqData = reqRes.ok ? await reqRes.json() : [];
@@ -277,6 +316,8 @@ export default function StationeryToolsPage() {
       const deptData = deptRes.ok ? await deptRes.json() : { departments: [] };
       const catData = catRes.ok ? await catRes.json() : [];
       const budgetData = budgetRes.ok ? await budgetRes.json() : [];
+      const supplierData = supplierRes.ok ? await supplierRes.json() : { items: [] };
+      const transactionData = transactionRes.ok ? await transactionRes.json() : [];
 
       if (Array.isArray(reqData)) setRequests(reqData);
       if (Array.isArray(itemData)) setInventory(itemData);
@@ -284,11 +325,170 @@ export default function StationeryToolsPage() {
       setBudgets(Array.isArray(budgetData) ? budgetData : []);
       if (deptData && Array.isArray(deptData.departments)) setDepartments(deptData.departments);
       if (Array.isArray(catData)) setCategories(catData);
+      if (supplierData && Array.isArray(supplierData.items)) setSuppliers(supplierData.items);
+      if (Array.isArray(transactionData)) setTransactions(transactionData);
     } catch (err) {
       console.error("Fetch data error:", err);
       toastError("Lỗi", "Không thể tải dữ liệu văn phòng phẩm");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenPurchaseModal = () => {
+    const lowStockItems = inventory.filter(item => item.currentStock < item.minStock);
+    const initialItems = lowStockItems.map(item => ({
+      itemId: item.id,
+      name: item.name,
+      quantity: Math.max(1, item.minStock - item.currentStock),
+      price: item.price || 0,
+      unit: item.unit || "cái"
+    }));
+
+    setPurchaseForm({
+      supplierId: "",
+      invoiceNo: "",
+      note: "Lập đơn mua văn phòng phẩm",
+      requiresDirector: false,
+      items: initialItems.length > 0 ? initialItems : [{ itemId: "", name: "", quantity: 1, price: 0, unit: "cái" }]
+    });
+    setPurchaseModalTab("create");
+    setSelectedPurchaseReqForImport(null);
+    setShowPurchaseModal(true);
+  };
+
+  const handleAddPurchaseItemRow = () => {
+    setPurchaseForm(p => ({
+      ...p,
+      items: [...p.items, { itemId: "", name: "", quantity: 1, price: 0, unit: "cái" }]
+    }));
+  };
+
+  const handleRemovePurchaseItemRow = (idx: number) => {
+    setPurchaseForm(p => ({
+      ...p,
+      items: p.items.filter((_, i) => i !== idx)
+    }));
+  };
+
+  const handlePurchaseItemChange = (idx: number, field: string, val: any) => {
+    setPurchaseForm(p => {
+      const newItems = [...p.items];
+      if (field === "itemId") {
+        const selectedItem = inventory.find(item => item.id === val);
+        newItems[idx] = {
+          ...newItems[idx],
+          itemId: val,
+          name: selectedItem?.name || "",
+          price: selectedItem?.price || 0,
+          unit: selectedItem?.unit || "cái"
+        };
+      } else {
+        newItems[idx] = {
+          ...newItems[idx],
+          [field]: val
+        };
+      }
+      return { ...p, items: newItems };
+    });
+  };
+
+  const handlePurchaseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!purchaseForm.supplierId) {
+      toastError("Lỗi", "Vui lòng chọn Nhà cung cấp");
+      return;
+    }
+    if (purchaseForm.items.some(item => !item.itemId || item.quantity <= 0)) {
+      toastError("Lỗi", "Vui lòng kiểm tra lại danh sách vật tư");
+      return;
+    }
+
+    setIsSubmittingPurchase(true);
+    try {
+      // Gửi yêu cầu mua hàng PURCHASE trình duyệt
+      const res = await fetch("/api/hr/stationery/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "PURCHASE",
+          submitForApproval: true,
+          supplierId: purchaseForm.supplierId,
+          invoiceNo: purchaseForm.invoiceNo,
+          note: purchaseForm.note,
+          requiresDirector: purchaseForm.requiresDirector,
+          items: purchaseForm.items.map(item => ({
+            itemId: item.itemId,
+            quantity: item.quantity,
+            unitPrice: item.price
+          }))
+        })
+      });
+
+      if (res.ok) {
+        success("Thành công", "Đã gửi đơn trình phê duyệt tới Trưởng phòng kế toán");
+        setShowPurchaseModal(false);
+        fetchData();
+      } else {
+        const err = await res.text();
+        toastError("Lỗi", err || "Không thể tạo yêu cầu trình duyệt");
+      }
+    } catch (err: any) {
+      toastError("Lỗi", "Có lỗi xảy ra khi xử lý mua hàng");
+    } finally {
+      setIsSubmittingPurchase(false);
+    }
+  };
+
+  const handleRequestAction = async (id: string, action: string, extraData: any = {}) => {
+    try {
+      const res = await fetch(`/api/hr/stationery/requests/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...extraData })
+      });
+
+      if (res.ok) {
+        success("Thành công", "Đã cập nhật trạng thái yêu cầu");
+        fetchData();
+      } else {
+        const errObj = await res.json();
+        toastError("Lỗi", errObj.error || "Không thể cập nhật yêu cầu");
+      }
+    } catch (e: any) {
+      toastError("Lỗi", "Có lỗi xảy ra khi xử lý yêu cầu");
+    }
+  };
+
+  const handleConfirmReceive = (req: Request) => {
+    if (window.confirm(`Xác nhận đã mua và nhập kho cho yêu cầu ${req.code}?`)) {
+      handleRequestAction(req.id, "RECEIVE");
+    }
+  };
+
+  const handleImportFromRequest = async (req: Request) => {
+    if (window.confirm(`Xác nhận nhập kho toàn bộ vật tư cho đơn mua ${req.code}?`)) {
+      setIsSubmittingPurchase(true);
+      try {
+        const res = await fetch(`/api/hr/stationery/requests/${req.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "RECEIVE" })
+        });
+        if (res.ok) {
+          success("Thành công", `Đã nhập kho vật tư từ đơn ${req.code} thành công`);
+          setSelectedPurchaseReqForImport(null);
+          setShowPurchaseModal(false);
+          fetchData();
+        } else {
+          const errObj = await res.json();
+          toastError("Lỗi", errObj.error || "Không thể thực hiện nhập kho");
+        }
+      } catch (err) {
+        toastError("Lỗi", "Có lỗi xảy ra khi nhập kho");
+      } finally {
+        setIsSubmittingPurchase(false);
+      }
     }
   };
 
@@ -679,7 +879,15 @@ export default function StationeryToolsPage() {
   // Filtered Data
   const filteredRequests = requests.filter(r => {
     if (deptFilter && r.department.id !== deptFilter) return false;
-    if (statusFilter && r.status !== statusFilter) return false;
+    if (statusFilter) {
+      if (statusFilter === "PENDING") {
+        if (r.status !== "PENDING" && r.status !== "WAITING_DIRECTOR") return false;
+      } else if (statusFilter === "APPROVED") {
+        if (r.status !== "APPROVED" && r.status !== "ACCOUNTING_APPROVED" && r.status !== "ORDERING") return false;
+      } else {
+        if (r.status !== statusFilter) return false;
+      }
+    }
     if (monthFilter) {
       const rMonth = new Date(r.createdAt).toISOString().slice(0, 7);
       if (rMonth !== monthFilter) return false;
@@ -697,8 +905,8 @@ export default function StationeryToolsPage() {
 
   // Aggregates
   const counts = {
-    PENDING: requests.filter(r => r.status === "PENDING").length,
-    APPROVED: requests.filter(r => r.status === "APPROVED").length,
+    PENDING: requests.filter(r => r.status === "PENDING" || r.status === "WAITING_DIRECTOR").length,
+    APPROVED: requests.filter(r => r.status === "APPROVED" || r.status === "ACCOUNTING_APPROVED" || r.status === "ORDERING").length,
     DELIVERED: requests.filter(r => r.status === "DELIVERED").length,
     REJECTED: requests.filter(r => r.status === "REJECTED").length,
     OVER_NORM: requests.filter(r => r.status === "OVER_NORM").length,
@@ -707,6 +915,7 @@ export default function StationeryToolsPage() {
   // Month Options (Last 6 months)
   const monthOptions = Array.from({ length: 6 }).map((_, i) => {
     const d = new Date();
+    d.setDate(1); // Set to 1st of the month to prevent day-overflow
     d.setMonth(d.getMonth() - i);
     const val = d.toISOString().slice(0, 7);
     const label = `Tháng ${d.getMonth() + 1}/${d.getFullYear()}`;
@@ -716,8 +925,8 @@ export default function StationeryToolsPage() {
 
   // Bottom Toolbar Component for Step 3 (Budgets)
   const BudgetBottomToolbar = (
-    <div className="d-flex align-items-center justify-content-between w-100" style={{ minHeight: 32 }}>
-      <div className="d-flex align-items-center gap-2">
+    <div className="d-flex align-items-center justify-content-between w-100 fs-toolbar-wrap" style={{ minHeight: 32 }}>
+      <div className="d-flex align-items-center gap-2 fs-filters-wrap">
         <div style={{ width: 180 }}>
           <SearchInput
             placeholder="Tìm tên phòng ban..."
@@ -774,8 +983,8 @@ export default function StationeryToolsPage() {
 
   // Bottom Toolbar Component for Step 4 (Assets)
   const HandoverBottomToolbar = (
-    <div className="d-flex align-items-center justify-content-between w-100" style={{ minHeight: 32 }}>
-      <div className="d-flex align-items-center gap-2">
+    <div className="d-flex align-items-center justify-content-between w-100 fs-toolbar-wrap" style={{ minHeight: 32 }}>
+      <div className="d-flex align-items-center gap-2 fs-filters-wrap">
         <FilterSelect
           placeholder="Tất cả phòng ban"
           options={departments.map(d => ({ label: d.nameVi, value: d.id }))}
@@ -813,8 +1022,8 @@ export default function StationeryToolsPage() {
 
   // Bottom Toolbar Component for Step 1
   const RequestBottomToolbar = (
-    <div className="d-flex align-items-center justify-content-between w-100" style={{ minHeight: 32 }}>
-      <div className="d-flex align-items-center gap-2">
+    <div className="d-flex align-items-center justify-content-between w-100 fs-toolbar-wrap" style={{ minHeight: 32 }}>
+      <div className="d-flex align-items-center gap-2 fs-filters-wrap">
         <FilterSelect
           placeholder="Tất cả phòng ban"
           options={departments.map(d => ({ label: d.nameVi, value: d.id }))}
@@ -827,7 +1036,7 @@ export default function StationeryToolsPage() {
           placeholder="Trạng thái"
           options={[
             { label: "Chờ duyệt", value: "PENDING" },
-            { label: "Đã duyệt", value: "APPROVED" },
+            { label: "Văn phòng đã duyệt", value: "APPROVED" },
             { label: "Đã cấp phát", value: "DELIVERED" },
             { label: "Từ chối", value: "REJECTED" },
             { label: "Vượt định mức", value: "OVER_NORM" },
@@ -845,28 +1054,44 @@ export default function StationeryToolsPage() {
           width={110}
           className="border-0 shadow-sm hover-bg-light transition-all"
         />
+        {isMobile && (
+          <div className="d-flex align-items-center gap-2 bg-white rounded-pill px-3 py-0 border shadow-sm flex-shrink-0" style={{ fontSize: 11, height: 32, width: "auto" }}>
+            <span className="text-muted fw-medium">Tổng hợp:</span>
+            <span className="text-warning fw-bold">{counts.PENDING} chờ</span>
+            <span className="text-info fw-bold">{counts.APPROVED} duyệt</span>
+            <span className="text-success fw-bold">{counts.DELIVERED} cấp</span>
+            <span className="text-danger fw-bold">{counts.REJECTED + counts.OVER_NORM} lỗi</span>
+          </div>
+        )}
       </div>
 
       <div className="d-flex align-items-center gap-3 h-100">
-        <div className="d-flex align-items-center gap-2 bg-white rounded-pill px-3 py-0 border shadow-sm" style={{ fontSize: 11, height: 32 }}>
-          <span className="text-muted fw-medium">Tổng hợp:</span>
-          <span className="text-warning fw-bold">{counts.PENDING} chờ</span>
-          <span className="text-info fw-bold">{counts.APPROVED} duyệt</span>
-          <span className="text-success fw-bold">{counts.DELIVERED} cấp</span>
-          <span className="text-danger fw-bold">{counts.REJECTED + counts.OVER_NORM} lỗi</span>
-        </div>
-        <div className="text-muted border-start ps-3 d-flex align-items-center" style={{ height: 20 }}>
-          <i className="bi bi-info-circle me-1 text-primary opacity-75" />
-          <span className="fw-medium">Tổng: {filteredRequests.length}/{requests.length}</span>
-        </div>
+        {!isMobile && (
+          <>
+            <div className="d-flex align-items-center gap-2 bg-white rounded-pill px-3 py-0 border shadow-sm" style={{ fontSize: 11, height: 32 }}>
+              <span className="text-muted fw-medium">Tổng hợp:</span>
+              <span className="text-warning fw-bold">{counts.PENDING} chờ</span>
+              <span className="text-info fw-bold">{counts.APPROVED} duyệt</span>
+              <span className="text-success fw-bold">{counts.DELIVERED} cấp</span>
+              <span className="text-danger fw-bold">{counts.REJECTED + counts.OVER_NORM} lỗi</span>
+            </div>
+          </>
+        )}
+        <BrandButton
+          icon="bi-cart-plus"
+          style={{ height: 32, fontSize: 12, padding: "0 12px" }}
+          onClick={handleOpenPurchaseModal}
+        >
+          Mua hàng
+        </BrandButton>
       </div>
     </div>
   );
 
   // Bottom Toolbar Component for Step 2
   const InventoryBottomToolbar = (
-    <div className="d-flex align-items-center justify-content-between w-100" style={{ minHeight: 32 }}>
-      <div className="d-flex align-items-center gap-2">
+    <div className="d-flex align-items-center justify-content-between w-100 fs-toolbar-wrap" style={{ minHeight: 32 }}>
+      <div className="d-flex align-items-center gap-2 fs-filters-wrap">
         <SearchInput
           placeholder="Tìm tên vật tư..."
           value={searchQuery}
@@ -918,13 +1143,6 @@ export default function StationeryToolsPage() {
 
       <div className="d-flex align-items-center gap-2 h-100">
         <BrandButton
-          variant="outline"
-          icon="bi-cart-plus"
-          style={{ height: 32, fontSize: 12, padding: "0 12px" }}
-        >
-          Mua hàng
-        </BrandButton>
-        <BrandButton
           icon="bi-plus-circle"
           style={{ height: 32, fontSize: 12, padding: "0 12px" }}
           onClick={openCreatePanel}
@@ -937,6 +1155,33 @@ export default function StationeryToolsPage() {
 
   // Define Table Columns
   const requestColumns: TableColumn<Request>[] = [
+    {
+      header: (
+        <input 
+          type="checkbox" 
+          className="form-check-input shadow-none cursor-pointer" 
+          checked={filteredRequests.length > 0 && selectedRequests.length === filteredRequests.length}
+          onChange={e => {
+            if (e.target.checked) setSelectedRequests(filteredRequests.map(r => r.id));
+            else setSelectedRequests([]);
+          }}
+        />
+      ),
+      render: (r) => (
+        <input 
+          type="checkbox" 
+          className="form-check-input shadow-none cursor-pointer" 
+          checked={selectedRequests.includes(r.id)}
+          onChange={() => {
+            setSelectedRequests(prev => 
+              prev.includes(r.id) ? prev.filter(id => id !== r.id) : [...prev, r.id]
+            );
+          }}
+        />
+      ),
+      width: "40px",
+      align: "center"
+    },
     { header: "Mã yêu cầu", render: (r) => <span className="fw-bold text-primary">{r.code}</span>, width: "120px" },
     {
       header: "Người yêu cầu",
@@ -948,11 +1193,19 @@ export default function StationeryToolsPage() {
       )
     },
     {
-      header: "Nội dung vật tư",
+      header: "Nội dung yêu cầu",
       render: (r) => (
-        <span style={{ fontSize: 13 }}>
-          {r.items.map(i => `${i.item.name} (${i.quantity})`).join(", ")}
-        </span>
+        <div>
+          <div style={{ fontSize: 13 }}>
+            {r.items.map(i => `${i.item.name} (${i.quantity})`).join(", ")}
+          </div>
+          {r.note && (
+            <div className="text-muted mt-1" style={{ fontSize: 11.5, fontStyle: "italic" }}>
+              <i className="bi bi-chat-left-text me-1" style={{ fontSize: 10 }} />
+              Ghi chú/Lý do: {r.note}
+            </div>
+          )}
+        </div>
       )
     },
     {
@@ -963,30 +1216,7 @@ export default function StationeryToolsPage() {
         </span>
       )
     },
-    { header: "Trạng thái", render: (r) => <StatusBadge status={r.status} />, width: "120px" },
-    {
-      header: "Thao tác",
-      align: "right",
-      render: (r) => (
-        <div className="dropdown">
-          <button className="btn btn-light btn-sm rounded-circle shadow-none p-0" style={{ width: 28, height: 28 }} data-bs-toggle="dropdown">
-            <i className="bi bi-three-dots-vertical" />
-          </button>
-          <ul className="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
-            <li><button className="dropdown-item py-2" style={{ fontSize: 12 }}><i className="bi bi-eye me-2" />Xem chi tiết</button></li>
-            {r.status === "PENDING" && (
-              <li><button className="dropdown-item py-2 text-success" style={{ fontSize: 12 }}><i className="bi bi-check-circle me-2" />Duyệt yêu cầu</button></li>
-            )}
-            {r.status === "APPROVED" && (
-              <li><button className="dropdown-item py-2 text-primary" style={{ fontSize: 12 }}><i className="bi bi-truck me-2" />Xác nhận cấp phát</button></li>
-            )}
-            <li><hr className="dropdown-divider" /></li>
-            <li><button className="dropdown-item py-2 text-danger" style={{ fontSize: 12 }}><i className="bi bi-x-circle me-2" />Từ chối</button></li>
-          </ul>
-        </div>
-      ),
-      width: "80px"
-    },
+    { header: "Trạng thái", render: (r) => <StatusBadge status={r.status} type={r.type} />, width: "120px" },
   ];
 
   const inventoryColumns: TableColumn<InventoryItem>[] = [
@@ -1300,7 +1530,148 @@ export default function StationeryToolsPage() {
     }
   ];
 
+  const purchaseItemColumns: TableColumn<any>[] = [
+    {
+      header: "Tên vật tư / dụng cụ",
+      width: "45%",
+      render: (row, idx) => (
+        <select 
+          className="form-select form-select-sm"
+          value={row.itemId}
+          required
+          onChange={e => handlePurchaseItemChange(idx, "itemId", e.target.value)}
+        >
+          <option value="">-- Chọn vật tư --</option>
+          {inventory.map(item => (
+            <option key={item.id} value={item.id}>
+              {item.name} ({item.code || item.unit}) - Tồn: {item.currentStock}
+            </option>
+          ))}
+        </select>
+      )
+    },
+    {
+      header: "Số lượng",
+      width: "15%",
+      align: "center",
+      render: (row, idx) => (
+        <input 
+          type="number" 
+          className="form-control form-control-sm text-center" 
+          min={1}
+          required
+          value={row.quantity}
+          onChange={e => handlePurchaseItemChange(idx, "quantity", Number(e.target.value))}
+        />
+      )
+    },
+    {
+      header: "Đơn giá dự kiến (đ)",
+      width: "25%",
+      align: "right",
+      render: (row, idx) => (
+        <input 
+          type="text" 
+          className="form-control form-control-sm text-end"
+          required
+          value={row.price.toLocaleString("vi-VN")}
+          onChange={e => {
+            const rawVal = Number(e.target.value.replace(/[^0-9]/g, ""));
+            handlePurchaseItemChange(idx, "price", rawVal);
+          }}
+        />
+      )
+    },
+    {
+      header: "Thao tác",
+      width: "15%",
+      align: "center",
+      render: (row, idx) => (
+        <button 
+          type="button" 
+          className="btn btn-outline-danger btn-sm border-0 rounded-circle shadow-none p-0"
+          style={{ width: 28, height: 28, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+          onClick={() => handleRemovePurchaseItemRow(idx)}
+        >
+          <i className="bi bi-trash-fill" />
+        </button>
+      )
+    }
+  ];
 
+  const importItemColumns: TableColumn<RequestItem>[] = [
+    {
+      header: "Tên vật tư / dụng cụ",
+      width: "50%",
+      render: (item) => <span className="fw-semibold">{item.item.name}</span>
+    },
+    {
+      header: "Số lượng nhập",
+      width: "25%",
+      align: "center",
+      render: (item) => <span className="fw-bold text-dark">{item.quantity} {item.item.unit || "cái"}</span>
+    },
+    {
+      header: "Đơn giá (đ)",
+      width: "25%",
+      align: "right",
+      render: (item) => <span className="text-muted">{(item.unitPrice || 0).toLocaleString("vi-VN")}</span>
+    }
+  ];
+
+
+
+  const currentToolbar = (
+    activeTabId === "requests" ? RequestBottomToolbar : (
+      activeTabId === "inventory" ? InventoryBottomToolbar : (
+        activeTabId === "norms" ? BudgetBottomToolbar : (
+          activeTabId === "assets" ? HandoverBottomToolbar : (
+            activeTabId === "transactions" ? (
+              <div className="d-flex align-items-center justify-content-between w-100 fs-toolbar-wrap" style={{ minHeight: 32 }}>
+                <div className="d-flex align-items-center gap-2 fs-filters-wrap">
+                  <div className="d-flex align-items-center gap-2 bg-white px-2 rounded shadow-sm border" style={{ height: 32 }}>
+                    <i className="bi bi-calendar3 text-primary opacity-75 ms-1" style={{ fontSize: 10 }} />
+                    <input type="date" className="border-0 bg-transparent small fw-bold" style={{ outline: "none", fontSize: 11 }} />
+                    <span className="text-muted small">đến</span>
+                    <input type="date" className="border-0 bg-transparent small fw-bold" style={{ outline: "none", fontSize: 11 }} />
+                  </div>
+                  <FilterSelect
+                    placeholder="Loại giao dịch"
+                    options={[
+                      { label: "Tất cả", value: "all" },
+                      { label: "Nhập kho", value: "import" },
+                      { label: "Xuất kho", value: "export" },
+                    ]}
+                    value=""
+                    onChange={() => {}}
+                    width={130}
+                    className="border-0 shadow-sm hover-bg-light transition-all"
+                  />
+                  <div style={{ width: 180 }}>
+                    <SearchInput placeholder="Tìm vật tư / người thực hiện..." className="border-0 shadow-sm" />
+                  </div>
+                </div>
+                <div className="d-flex align-items-center gap-3 h-100">
+                  <button className="btn btn-outline-primary btn-sm rounded-pill px-3" style={{ fontSize: 11, height: 28 }}>
+                    <i className="bi bi-file-earmark-excel me-1" /> Xuất báo cáo
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="d-flex align-items-center justify-content-between text-muted w-100" style={{ fontSize: 12, minHeight: 32 }}>
+                <div className="d-flex align-items-center gap-3">
+                  <span className="d-flex align-items-center"><i className="bi bi-info-circle me-1 text-primary opacity-75" /> {`Tổng số bản ghi`}</span>
+                </div>
+                <div className="d-flex gap-2">
+                  <button className="btn btn-link btn-sm text-decoration-none p-0 text-muted hover-text-primary transition-all" style={{ fontSize: 12 }}><i className="bi bi-question-circle me-1" /> Hướng dẫn</button>
+                </div>
+              </div>
+            )
+          )
+        )
+      )
+    )
+  );
 
   return (
     <StandardPage
@@ -1310,107 +1681,63 @@ export default function StationeryToolsPage() {
       color="rose"
       useCard={false}
     >
-      {/* ── KPI Cards ── */}
-      <div className="row g-3 mb-3">
-        <KPICard
-          label="Yêu cầu chờ duyệt"
-          value={loading ? "—" : stats.pendingCount}
-          icon="bi-clock-history"
-          accent="#f59e0b"
-          subtitle="Cần xử lý ngay"
-          colClass="col-12 col-md-3"
-        />
-        <KPICard
-          label="Vật tư dưới mức tối thiểu"
-          value={loading ? "—" : stats.lowStockCount}
-          icon="bi-exclamation-triangle"
-          accent="#ef4444"
-          subtitle="Cần nhập hàng thêm"
-          colClass="col-12 col-md-3"
-        />
-        <KPICard
-          label="Giá trị tồn kho"
-          value={loading ? "—" : stats.totalValue.toLocaleString("vi-VN")}
-          suffix="đ"
-          icon="bi-currency-dollar"
-          accent="#10b981"
-          subtitle="Tổng giá trị tài sản"
-          colClass="col-12 col-md-3"
-        />
-        <KPICard
-          label="Dụng cụ đang bàn giao"
-          value={loading ? "—" : stats.assetsInUse}
-          icon="bi-person-check"
-          accent="#6366f1"
-          subtitle="Đang được sử dụng"
-          colClass="col-12 col-md-3"
-        />
-      </div>
+      <div className="d-flex flex-column h-100 fs-stationery-container">
+        {/* ── KPI Cards ── */}
+        <div className="px-3 px-md-0 mb-3 flex-shrink-0 d-none d-md-block">
+          <div className="row g-3">
+            <KPICard
+              label="Yêu cầu chờ duyệt"
+              value={loading ? "—" : stats.pendingCount}
+              icon="bi-clock-history"
+              accent="#f59e0b"
+              subtitle="Cần xử lý ngay"
+              colClass="col-12 col-md-3"
+            />
+            <KPICard
+              label="Vật tư dưới mức tối thiểu"
+              value={loading ? "—" : stats.lowStockCount}
+              icon="bi-exclamation-triangle"
+              accent="#ef4444"
+              subtitle="Cần nhập hàng thêm"
+              colClass="col-12 col-md-3"
+            />
+            <KPICard
+              label="Giá trị tồn kho"
+              value={loading ? "—" : stats.totalValue.toLocaleString("vi-VN")}
+              suffix="đ"
+              icon="bi-currency-dollar"
+              accent="#10b981"
+              subtitle="Tổng giá trị tài sản"
+              colClass="col-12 col-md-3"
+            />
+            <KPICard
+              label="Dụng cụ đang bàn giao"
+              value={loading ? "—" : stats.assetsInUse}
+              icon="bi-person-check"
+              accent="#6366f1"
+              subtitle="Đang được sử dụng"
+              colClass="col-12 col-md-3"
+            />
+          </div>
+        </div>
 
-      {/* ── Workflow Card ── */}
-      <WorkflowCard
-        contentPadding="p-0"
-        toolbar={null}
-        bottomToolbar={
-          activeTabId === "requests" ? RequestBottomToolbar : (
-            activeTabId === "inventory" ? InventoryBottomToolbar : (
-              activeTabId === "norms" ? BudgetBottomToolbar : (
-                activeTabId === "assets" ? HandoverBottomToolbar : (
-                  activeTabId === "transactions" ? (
-                    <div className="d-flex align-items-center justify-content-between w-100" style={{ minHeight: 32 }}>
-                      <div className="d-flex align-items-center gap-2">
-                        <div className="d-flex align-items-center gap-2 bg-white px-2 rounded shadow-sm border" style={{ height: 32 }}>
-                          <i className="bi bi-calendar3 text-primary opacity-75 ms-1" style={{ fontSize: 10 }} />
-                          <input type="date" className="border-0 bg-transparent small fw-bold" style={{ outline: "none", fontSize: 11 }} />
-                          <span className="text-muted small">đến</span>
-                          <input type="date" className="border-0 bg-transparent small fw-bold" style={{ outline: "none", fontSize: 11 }} />
-                        </div>
-                        <FilterSelect
-                          placeholder="Loại giao dịch"
-                          options={[
-                            { label: "Tất cả", value: "all" },
-                            { label: "Nhập kho", value: "import" },
-                            { label: "Xuất kho", value: "export" },
-                          ]}
-                          value=""
-                          onChange={() => {}}
-                          width={130}
-                          className="border-0 shadow-sm hover-bg-light transition-all"
-                        />
-                        <div style={{ width: 180 }}>
-                          <SearchInput placeholder="Tìm vật tư / người thực hiện..." className="border-0 shadow-sm" />
-                        </div>
-                      </div>
-                      <div className="d-flex align-items-center gap-3 h-100">
-                        <button className="btn btn-outline-primary btn-sm rounded-pill px-3" style={{ fontSize: 11, height: 28 }}>
-                          <i className="bi bi-file-earmark-excel me-1" /> Xuất báo cáo
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="d-flex align-items-center justify-content-between text-muted w-100" style={{ fontSize: 12, minHeight: 32 }}>
-                      <div className="d-flex align-items-center gap-3">
-                        <span className="d-flex align-items-center"><i className="bi bi-info-circle me-1 text-primary opacity-75" /> {`Tổng số bản ghi`}</span>
-                      </div>
-                      <div className="d-flex gap-2">
-                        <button className="btn btn-link btn-sm text-decoration-none p-0 text-muted hover-text-primary transition-all" style={{ fontSize: 12 }}><i className="bi bi-question-circle me-1" /> Hướng dẫn</button>
-                      </div>
-                    </div>
-                  )
-                )
-              )
+        {/* ── Workflow Card ── */}
+        <WorkflowCard
+          className="fs-stationery-card"
+          contentPadding="p-0"
+          toolbar={isMobile ? <div className="px-3">{currentToolbar}</div> : null}
+          bottomToolbar={isMobile ? null : currentToolbar}
+          stepper={
+            isMobile ? null : (
+              <ModernStepper
+                steps={STEP_ITEMS}
+                currentStep={currentStep}
+                onStepChange={setCurrentStep}
+                paddingX={0}
+              />
             )
-          )
-        }
-        stepper={
-          <ModernStepper
-            steps={STEP_ITEMS}
-            currentStep={currentStep}
-            onStepChange={setCurrentStep}
-            paddingX={0}
-          />
-        }
-      >
+          }
+        >
         {activeTabId === "requests" && (
           <Table
             rows={filteredRequests}
@@ -1466,22 +1793,64 @@ export default function StationeryToolsPage() {
         {activeTabId === "transactions" && (
           <div className="table-dense-container h-100">
             <Table
-              rows={[]} // TODO: Hook actual transactions data
+              rows={transactions}
               columns={[
-                { header: "Ngày giao dịch", render: () => <span className="text-muted">13/05/2026</span>, width: "140px" },
-                { header: "Vật tư", render: () => <span className="fw-bold">Giấy A4 Double A</span> },
-                { header: "Loại", render: () => <span className="badge bg-success-subtle text-success border border-success-subtle">NHẬP KHO</span>, width: "120px" },
-                { header: "Số lượng", render: () => <span className="fw-bold text-success">+50</span>, width: "100px", align: "center" },
-                { header: "Người thực hiện", render: () => <span>Admin</span> },
-                { header: "Ghi chú", render: () => <span className="text-muted small">Nhập kho định kỳ</span> },
+                { 
+                  header: "Ngày giao dịch", 
+                  render: (t: any) => (
+                    <span className="text-muted" style={{ fontSize: 12 }}>
+                      {new Date(t.createdAt).toLocaleDateString("vi-VN")} {new Date(t.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  ), 
+                  width: "140px" 
+                },
+                { 
+                  header: "Vật tư", 
+                  render: (t: any) => <span className="fw-bold" style={{ fontSize: 13 }}>{t.item?.name || "Vật tư"}</span> 
+                },
+                { 
+                  header: "Loại", 
+                  render: (t: any) => {
+                    const isImport = t.type === "IMPORT";
+                    return (
+                      <span className={`badge border ${isImport ? 'bg-success-subtle text-success border-success-subtle' : 'bg-warning-subtle text-warning border-warning-subtle'}`} style={{ fontSize: 10 }}>
+                        {isImport ? "NHẬP KHO" : "XUẤT KHO"}
+                      </span>
+                    );
+                  }, 
+                  width: "120px" 
+                },
+                { 
+                  header: "Số lượng", 
+                  render: (t: any) => {
+                    const isImport = t.type === "IMPORT";
+                    return (
+                      <span className={`fw-bold ${isImport ? 'text-success' : 'text-danger'}`} style={{ fontSize: 13 }}>
+                        {isImport ? `+${t.quantity}` : `-${t.quantity}`}
+                      </span>
+                    );
+                  }, 
+                  width: "100px", 
+                  align: "center" 
+                },
+                { 
+                  header: "Người thực hiện", 
+                  render: (t: any) => <span style={{ fontSize: 12 }}>{t.executorName || "Hệ thống"}</span> 
+                },
+                { 
+                  header: "Ghi chú", 
+                  render: (t: any) => <span className="text-muted small">{t.note || "—"}</span> 
+                },
               ]}
-              loading={false}
+              loading={loading}
               rowKey={(t: any) => t.id}
             />
-            <div className="p-5 text-center text-muted">
-              <i className="bi bi-clock-history fs-1 opacity-25 d-block mb-3" />
-              <p>Chưa có lịch sử biến động kho trong thời gian này.</p>
-            </div>
+            {!loading && transactions.length === 0 && (
+              <div className="p-5 text-center text-muted">
+                <i className="bi bi-clock-history fs-1 opacity-25 d-block mb-3" />
+                <p>Chưa có lịch sử biến động kho trong thời gian này.</p>
+              </div>
+            )}
           </div>
         )}
       </WorkflowCard>
@@ -1598,7 +1967,7 @@ export default function StationeryToolsPage() {
             <motion.div 
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 250 }}
-              className="position-fixed top-0 bottom-0 right-0 shadow-lg border-start"
+              className="position-fixed top-0 bottom-0 right-0 shadow-lg border-start app-custom-drawer"
               style={{ 
                 width: 400, 
                 zIndex: 10001, 
@@ -1774,7 +2143,7 @@ export default function StationeryToolsPage() {
             <motion.div 
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 250 }}
-              className="position-fixed top-0 bottom-0 right-0 shadow-lg border-start bg-white"
+              className="position-fixed top-0 bottom-0 right-0 shadow-lg border-start bg-white app-custom-drawer"
               style={{ 
                 width: 400, 
                 zIndex: 10001, 
@@ -1862,7 +2231,7 @@ export default function StationeryToolsPage() {
               animate={{ x: 0 }} 
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 250 }}
-              className="position-fixed top-0 bottom-0 right-0 shadow-lg border-start bg-white"
+              className="position-fixed top-0 bottom-0 right-0 shadow-lg border-start bg-white app-custom-drawer"
               style={{ width: 400, zIndex: 10001, right: 0, background: "var(--card)", overflow: "hidden" }}
             >
               <div className="h-100 d-flex flex-column">
@@ -1981,6 +2350,352 @@ export default function StationeryToolsPage() {
           </React.Fragment>
         )}
       </AnimatePresence>
+      
+      {/* ── Purchase Stationery Modal ── */}
+      {showPurchaseModal && (
+        <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 10050 }}>
+          <div className="modal-dialog modal-fullscreen">
+            <div className="modal-content border-0 h-100 d-flex flex-column" style={{ background: "var(--background)" }}>
+              
+              {/* Header with Tabs */}
+              <div className="modal-header border-bottom px-4 py-3 d-flex align-items-center justify-content-between flex-shrink-0" style={{ background: "var(--card)" }}>
+                <div className="d-flex align-items-center gap-4">
+                  <h5 className="modal-title fw-bold m-0 d-flex align-items-center gap-2" style={{ color: "var(--foreground)" }}>
+                    <i className="bi bi-cart-plus-fill text-primary" />
+                    <span>Quản lý Mua sắm & Nhập kho</span>
+                  </h5>
+                  
+                  {/* Tab Navigation */}
+                  <div className="nav nav-pills gap-1">
+                    <button 
+                      type="button" 
+                      className={`nav-link py-1.5 px-3 rounded-pill fw-semibold transition-all ${purchaseModalTab === "create" ? "active bg-primary text-white" : "bg-light text-muted"}`}
+                      onClick={() => setPurchaseModalTab("create")}
+                      style={{ fontSize: 13 }}
+                    >
+                      <i className="bi bi-file-earmark-plus me-1" />
+                      Lập đơn mua hàng gửi NCC
+                    </button>
+                    <button 
+                      type="button" 
+                      className={`nav-link py-1.5 px-3 rounded-pill fw-semibold transition-all ${purchaseModalTab === "import" ? "active bg-primary text-white" : "bg-light text-muted"}`}
+                      onClick={() => setPurchaseModalTab("import")}
+                      style={{ fontSize: 13 }}
+                    >
+                      <i className="bi bi-box-seam me-1" />
+                      Nhập kho từ đơn hàng
+                    </button>
+                  </div>
+                </div>
+                <button type="button" className="btn-close" onClick={() => setShowPurchaseModal(false)}></button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="modal-body p-4 flex-grow-1 overflow-auto">
+                {purchaseModalTab === "create" ? (
+                  /* TAB 1: CREATE PURCHASE REQUEST */
+                  <form onSubmit={handlePurchaseSubmit} className="h-100 d-flex flex-column">
+                    <div className="row g-4 flex-grow-1">
+                      {/* Left: General Info */}
+                      <div className="col-lg-4">
+                        <div className="card border shadow-sm p-4 h-100" style={{ borderRadius: 12, background: "var(--card)" }}>
+                          <h6 className="fw-bold mb-3 border-bottom pb-2 text-primary">Thông tin chung đơn mua</h6>
+                          
+                          <div className="mb-3">
+                            <label className="form-label small fw-bold text-muted">Nhà cung cấp <span className="text-danger">*</span></label>
+                            <select 
+                              className="form-select border border-secondary-subtle" 
+                              required
+                              value={purchaseForm.supplierId}
+                              onChange={e => setPurchaseForm(p => ({ ...p, supplierId: e.target.value }))}
+                            >
+                              <option value="">-- Chọn Nhà cung cấp --</option>
+                              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code || s.contactName})</option>)}
+                            </select>
+                          </div>
+                          
+                          <div className="mb-3">
+                            <label className="form-label small fw-bold text-muted">Số hóa đơn / Số chứng từ</label>
+                            <input 
+                              type="text" 
+                              className="form-control border border-secondary-subtle" 
+                              placeholder="Nhập số hóa đơn nếu có..."
+                              value={purchaseForm.invoiceNo}
+                              onChange={e => setPurchaseForm(p => ({ ...p, invoiceNo: e.target.value }))}
+                            />
+                          </div>
+
+                          <div className="mb-4">
+                            <label className="form-label small fw-bold text-muted">Ghi chú lập đơn</label>
+                            <textarea 
+                              className="form-control border border-secondary-subtle" 
+                              rows={3}
+                              placeholder="VD: Mua văn phòng phẩm bổ sung cho quý..."
+                              value={purchaseForm.note}
+                              onChange={e => setPurchaseForm(p => ({ ...p, note: e.target.value }))}
+                            />
+                          </div>
+
+                          {/* Director Approval Toggle */}
+                          <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded-3 border">
+                            <div>
+                              <div className="fw-bold" style={{ fontSize: 13 }}>Trình Giám đốc phê duyệt</div>
+                              <div className="text-muted small" style={{ fontSize: 11 }}>Cần Giám đốc duyệt sau khi Kế toán duyệt</div>
+                            </div>
+                            <div className="form-check form-switch m-0">
+                              <input 
+                                className="form-check-input shadow-none cursor-pointer" 
+                                type="checkbox" 
+                                checked={purchaseForm.requiresDirector}
+                                onChange={e => setPurchaseForm(p => ({ ...p, requiresDirector: e.target.checked }))}
+                                style={{ width: 48, height: 24 }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mt-4 p-3 bg-primary bg-opacity-10 text-primary rounded-3 border border-primary border-opacity-25 small">
+                            <i className="bi bi-info-circle-fill me-2" />
+                            Đơn hàng sẽ tự động được trình lên <strong>Trưởng phòng kế toán</strong> duyệt trước khi tiến hành mua hàng.
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Items List */}
+                      <div className="col-lg-8 d-flex flex-column">
+                        <div className="card border shadow-sm p-4 flex-grow-1 d-flex flex-column" style={{ borderRadius: 12, background: "var(--card)" }}>
+                          <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                            <h6 className="fw-bold m-0 text-primary">Danh sách vật tư đặt mua</h6>
+                            <button 
+                              type="button" 
+                              className="btn btn-outline-primary btn-sm rounded-pill py-1 px-3 d-flex align-items-center gap-1"
+                              style={{ fontSize: 12 }}
+                              onClick={handleAddPurchaseItemRow}
+                            >
+                              <i className="bi bi-plus-lg" /> Thêm dòng vật tư
+                            </button>
+                          </div>
+
+                          <div className="border rounded-3 overflow-hidden flex-grow-1 d-flex flex-column" style={{ maxHeight: "calc(100vh - 340px)", overflowY: "auto" }}>
+                            <Table
+                              rows={purchaseForm.items}
+                              columns={purchaseItemColumns}
+                              compact={true}
+                              striped={true}
+                              emptyIcon="bi-cart-x"
+                              emptyText='Chưa chọn vật tư nào. Nhấn "Thêm dòng vật tư" để chọn.'
+                            />
+                          </div>
+
+                          {/* Total and Actions Footer inside Card */}
+                          <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded-3 mt-3 border flex-shrink-0">
+                            <div>
+                              <span className="small text-muted fw-bold d-block">TỔNG TIỀN THANH TOÁN (DỰ KIẾN)</span>
+                              <span className="fw-extrabold text-primary fs-4">
+                                {purchaseForm.items.reduce((sum, item) => sum + (item.quantity * item.price), 0).toLocaleString("vi-VN")} đ
+                              </span>
+                            </div>
+                            <div className="d-flex gap-2">
+                              <BrandButton variant="outline" type="button" onClick={() => setShowPurchaseModal(false)} disabled={isSubmittingPurchase}>
+                                Hủy bỏ
+                              </BrandButton>
+                              <BrandButton type="submit" loading={isSubmittingPurchase} icon="bi-send-fill">
+                                Gửi trình duyệt
+                              </BrandButton>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  /* TAB 2: RECEIVE / IMPORT STOCK */
+                  <div className="row g-4 h-100">
+                    {/* Left Column: Ordering List */}
+                    <div className="col-lg-5">
+                      <div className="card border shadow-sm p-4 h-100 d-flex flex-column" style={{ borderRadius: 12, background: "var(--card)" }}>
+                        <h6 className="fw-bold mb-3 border-bottom pb-2 text-primary">Đơn mua hàng đang chờ nhập kho</h6>
+                        
+                        <div className="flex-grow-1 overflow-auto" style={{ maxHeight: "calc(100vh - 260px)" }}>
+                          {requests.filter(r => r.type === "PURCHASE" && r.status === "ORDERING").length === 0 ? (
+                            <div className="text-center text-muted py-5">
+                              <i className="bi bi-inbox fs-1 text-muted opacity-50 d-block mb-2" />
+                              Không có đơn mua hàng nào đang ở trạng thái "Đang mua hàng" để nhập kho.
+                            </div>
+                          ) : (
+                            <div className="list-group gap-2">
+                              {requests.filter(r => r.type === "PURCHASE" && r.status === "ORDERING").map(r => {
+                                const selected = selectedPurchaseReqForImport?.id === r.id;
+                                const supplierName = suppliers.find(s => s.id === r.supplierId)?.name || "Chưa rõ";
+                                return (
+                                  <button
+                                    key={r.id}
+                                    type="button"
+                                    onClick={() => setSelectedPurchaseReqForImport(r)}
+                                    className={`list-group-item list-group-item-action border rounded-3 p-3 text-start transition-all ${selected ? "border-primary bg-primary bg-opacity-10 shadow-sm" : "hover-bg-light"}`}
+                                  >
+                                    <div className="d-flex justify-content-between align-items-center mb-1">
+                                      <span className="fw-bold text-primary">{r.code}</span>
+                                      <span className="badge bg-primary text-white small" style={{ fontSize: 10 }}>Đang mua hàng</span>
+                                    </div>
+                                    <div className="text-dark small fw-medium mb-1">
+                                      <i className="bi bi-shop me-1 text-muted" /> {supplierName}
+                                    </div>
+                                    <div className="d-flex justify-content-between align-items-center text-muted" style={{ fontSize: 11 }}>
+                                      <span>
+                                        <i className="bi bi-calendar-event me-1" /> {new Date(r.createdAt).toLocaleDateString("vi-VN")}
+                                      </span>
+                                      <span className="fw-bold text-dark">
+                                        {(r.totalAmount || 0).toLocaleString("vi-VN")} đ
+                                      </span>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Request Details & Action */}
+                    <div className="col-lg-7">
+                      <div className="card border shadow-sm p-4 h-100 d-flex flex-column" style={{ borderRadius: 12, background: "var(--card)" }}>
+                        <h6 className="fw-bold mb-3 border-bottom pb-2 text-primary">Chi tiết đơn nhập kho</h6>
+
+                        {!selectedPurchaseReqForImport ? (
+                          <div className="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-muted py-5">
+                            <i className="bi bi-card-list fs-1 opacity-50 mb-2" />
+                            Vui lòng chọn một đơn mua hàng ở cột bên trái để xem chi tiết và thực hiện nhập kho.
+                          </div>
+                        ) : (
+                          <div className="flex-grow-1 d-flex flex-column justify-content-between">
+                            <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 350px)" }}>
+                              {/* Metadata Grid */}
+                              <div className="row g-3 mb-4 bg-light p-3 rounded-3 border">
+                                <div className="col-sm-6">
+                                  <div className="small text-muted fw-bold">MÃ ĐƠN HÀNG</div>
+                                  <div className="fw-bold text-primary">{selectedPurchaseReqForImport.code}</div>
+                                </div>
+                                <div className="col-sm-6">
+                                  <div className="small text-muted fw-bold">NHÀ CUNG CẤP</div>
+                                  <div className="fw-medium">
+                                    {suppliers.find(s => s.id === selectedPurchaseReqForImport.supplierId)?.name || "Chưa rõ"}
+                                  </div>
+                                </div>
+                                <div className="col-sm-6">
+                                  <div className="small text-muted fw-bold">SỐ HÓA ĐƠN / CHỨNG TỪ</div>
+                                  <div className="font-monospace text-dark">{selectedPurchaseReqForImport.invoiceNo || "—"}</div>
+                                </div>
+                                <div className="col-sm-6">
+                                  <div className="small text-muted fw-bold">TỔNG GIÁ TRỊ ĐƠN</div>
+                                  <div className="fw-bold text-primary">
+                                    {(selectedPurchaseReqForImport.totalAmount || 0).toLocaleString("vi-VN")} đ
+                                  </div>
+                                </div>
+                                <div className="col-12">
+                                  <div className="small text-muted fw-bold">GHI CHÚ</div>
+                                  <div className="text-muted small italic">{selectedPurchaseReqForImport.note || "Không có ghi chú."}</div>
+                                </div>
+                              </div>
+
+                              {/* Items Table */}
+                              <div className="border rounded-3 overflow-hidden mb-3">
+                                <Table
+                                  rows={selectedPurchaseReqForImport.items}
+                                  columns={importItemColumns}
+                                  compact={true}
+                                  striped={true}
+                                  rowKey={(item) => item.id}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Action Row */}
+                            <div className="d-flex align-items-center justify-content-between p-3 bg-light rounded-3 border mt-3 flex-shrink-0">
+                              <div>
+                                <span className="small text-muted fw-bold d-block">XÁC NHẬN NHẬP KHO THỰC TẾ</span>
+                                <span className="text-muted small" style={{ fontSize: 11 }}>Tăng tồn kho và ghi nhật ký giao dịch</span>
+                              </div>
+                              <div className="d-flex gap-2">
+                                <BrandButton 
+                                  variant="outline" 
+                                  onClick={() => setSelectedPurchaseReqForImport(null)}
+                                >
+                                  Bỏ chọn
+                                </BrandButton>
+                                <BrandButton 
+                                  onClick={() => handleImportFromRequest(selectedPurchaseReqForImport)}
+                                  loading={isSubmittingPurchase}
+                                  icon="bi-box-seam-fill"
+                                >
+                                  Xác nhận nhập kho
+                                </BrandButton>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Nav Bottom Bar for Stepper */}
+      {isMobile && (
+        <div className="fixed-bottom shadow-lg d-flex align-items-center justify-content-around py-2" 
+             style={{ 
+               zIndex: 1030, 
+               background: "var(--card)", 
+               borderTop: "1px solid var(--border)",
+               paddingBottom: "calc(8px + env(safe-area-inset-bottom, 0px))" 
+             }}>
+          <button 
+            onClick={() => setCurrentStep(1)}
+            className="btn btn-link p-0 d-flex flex-column align-items-center text-center flex-grow-1 border-0 text-decoration-none"
+            style={{ color: currentStep === 1 ? "#f43f5e" : "var(--muted-foreground)" }}
+          >
+            <i className={`bi ${currentStep === 1 ? "bi-clipboard-check-fill" : "bi-clipboard-check"}`} style={{ fontSize: "18px" }} />
+            <span style={{ fontSize: "10px", marginTop: "2px", fontWeight: currentStep === 1 ? "bold" : "normal" }}>Yêu cầu</span>
+          </button>
+          <button 
+            onClick={() => setCurrentStep(2)}
+            className="btn btn-link p-0 d-flex flex-column align-items-center text-center flex-grow-1 border-0 text-decoration-none"
+            style={{ color: currentStep === 2 ? "#f43f5e" : "var(--muted-foreground)" }}
+          >
+            <i className={`bi ${currentStep === 2 ? "bi-box-seam-fill" : "bi-box-seam"}`} style={{ fontSize: "18px" }} />
+            <span style={{ fontSize: "10px", marginTop: "2px", fontWeight: currentStep === 2 ? "bold" : "normal" }}>Tồn kho</span>
+          </button>
+          <button 
+            onClick={() => setCurrentStep(3)}
+            className="btn btn-link p-0 d-flex flex-column align-items-center text-center flex-grow-1 border-0 text-decoration-none"
+            style={{ color: currentStep === 3 ? "#f43f5e" : "var(--muted-foreground)" }}
+          >
+            <i className={`bi ${currentStep === 3 ? "bi-diagram-3-fill" : "bi-diagram-3"}`} style={{ fontSize: "18px" }} />
+            <span style={{ fontSize: "10px", marginTop: "2px", fontWeight: currentStep === 3 ? "bold" : "normal" }}>Định mức</span>
+          </button>
+          <button 
+            onClick={() => setCurrentStep(4)}
+            className="btn btn-link p-0 d-flex flex-column align-items-center text-center flex-grow-1 border-0 text-decoration-none"
+            style={{ color: currentStep === 4 ? "#f43f5e" : "var(--muted-foreground)" }}
+          >
+            <i className={`bi ${currentStep === 4 ? "bi-person-badge-fill" : "bi-person-badge"}`} style={{ fontSize: "18px" }} />
+            <span style={{ fontSize: "10px", marginTop: "2px", fontWeight: currentStep === 4 ? "bold" : "normal" }}>Dụng cụ</span>
+          </button>
+          <button 
+            onClick={() => setCurrentStep(5)}
+            className="btn btn-link p-0 d-flex flex-column align-items-center text-center flex-grow-1 border-0 text-decoration-none"
+            style={{ color: currentStep === 5 ? "#f43f5e" : "var(--muted-foreground)" }}
+          >
+            <i className="bi bi-arrow-left-right" style={{ fontSize: "18px", fontWeight: currentStep === 5 ? "bold" : "normal" }} />
+            <span style={{ fontSize: "10px", marginTop: "2px", fontWeight: currentStep === 5 ? "bold" : "normal" }}>Lịch sử</span>
+          </button>
+        </div>
+      )}
+      </div>
     </StandardPage>
   );
 }

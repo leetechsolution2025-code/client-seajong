@@ -31,26 +31,38 @@ export function calculateDailyAttendance(day: DayAttendance, rules: AttendanceRu
   
   // 1. Nếu là ngày lễ: 1.0 công
   if (isHoliday) {
-    return { workPoints: 1.0, otHours: 0, violationMinutes: 0, status: "L" };
+    return { workPoints: 1.0, otHours: 0, violationMinutes: 0, lateMinutes: 0, earlyMinutes: 0, status: "L" };
   }
 
   // 2. Nếu là ngày nghỉ phép (P): Giả sử P là nghỉ cả ngày (1.0)
   // Thực tế có thể tách P sáng/chiều, nhưng ở đây tạm tính theo status
   if (isLeave) {
-    return { workPoints: 1.0, otHours: 0, violationMinutes: 0, status: "P" };
+    return { workPoints: 1.0, otHours: 0, violationMinutes: 0, lateMinutes: 0, earlyMinutes: 0, status: "P" };
+  }
+
+  // 2.1 Nghỉ không lương (KL): 0.0 công
+  if (day.status === "KL") {
+    return { workPoints: 0.0, otHours: 0, violationMinutes: 0, lateMinutes: 0, earlyMinutes: 0, status: "KL" };
+  }
+
+  // 2.2 Nghỉ ốm có BHXH (BHXH): 0.0 công
+  if (day.status === "BHXH") {
+    return { workPoints: 0.0, otHours: 0, violationMinutes: 0, lateMinutes: 0, earlyMinutes: 0, status: "BHXH" };
   }
 
   // 3. Nếu là Chủ Nhật: 0 công, chỉ tính OT
   if (isSunday(date)) {
     // Logic tính OT ngày Chủ Nhật (Hệ số x2.0)
     const otHours = calculateOT(day, rules, rules.ot.sun);
-    return { workPoints: 0, otHours, violationMinutes: 0, status: "Sun" };
+    return { workPoints: 0, otHours, violationMinutes: 0, lateMinutes: 0, earlyMinutes: 0, status: "Sun" };
   }
 
   // 4. Ngày thường (T2-T7): Tính công thực tế và OT
   let morningPoints = 0;
   let afternoonPoints = 0;
   let violationMinutes = 0;
+  let lateMinutes = 0;
+  let earlyMinutes = 0;
   const violationDetails: any = {};
   
   let isAttendanceViolation = false; // Lỗi quên chấm (chỉ có 1 đầu dữ liệu)
@@ -88,11 +100,10 @@ export function calculateDailyAttendance(day: DayAttendance, rules: AttendanceRu
         
         if (lateMin > 0 || earlyMin > 0) isRegulationViolation = true;
 
-        if (day.isPermission) morningPoints = 0.5;
-        else {
-          morningPoints = applyPenalty(0.5, lateMin + earlyMin, rules.late);
-          violationMinutes += (lateMin + earlyMin);
-        }
+        morningPoints = applyPenalty(0.5, lateMin + earlyMin, rules.late);
+        lateMinutes += lateMin;
+        earlyMinutes += earlyMin;
+        violationMinutes += (lateMin + earlyMin);
       }
     } else {
       isAttendanceViolation = true;
@@ -113,11 +124,10 @@ export function calculateDailyAttendance(day: DayAttendance, rules: AttendanceRu
 
         if (lateMin > 0 || earlyMin > 0) isRegulationViolation = true;
 
-        if (day.isPermission) afternoonPoints = 0.5;
-        else {
-          afternoonPoints = applyPenalty(0.5, lateMin + earlyMin, rules.late);
-          violationMinutes += (lateMin + earlyMin);
-        }
+        afternoonPoints = applyPenalty(0.5, lateMin + earlyMin, rules.late);
+        lateMinutes += lateMin;
+        earlyMinutes += earlyMin;
+        violationMinutes += (lateMin + earlyMin);
       }
     } else {
       isAttendanceViolation = true;
@@ -143,6 +153,8 @@ export function calculateDailyAttendance(day: DayAttendance, rules: AttendanceRu
     workPoints: morningPoints + afternoonPoints,
     otHours,
     violationMinutes,
+    lateMinutes,
+    earlyMinutes,
     violationDetails,
     isAttendanceViolation,
     isRegulationViolation,

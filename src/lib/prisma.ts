@@ -1,8 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 
-// Force refresh: 2026-05-13 (Active field update)
+// Force refresh: 2026-06-22 (Force refresh cabinet category model)
 const globalForPrisma = globalThis as unknown as {
-  prisma_smtp_v1: PrismaClient | undefined; 
+  prisma_smtp_v8: PrismaClient | undefined; 
 }; 
 
 const prismaClientSingleton = () => {
@@ -10,13 +10,13 @@ const prismaClientSingleton = () => {
   return new PrismaClient();
 };
 
-const prisma = globalForPrisma.prisma_smtp_v1 ?? prismaClientSingleton();
+const prisma = globalForPrisma.prisma_smtp_v8 ?? prismaClientSingleton();
 
 export { prisma };
 export const db = prisma;
 
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma_smtp_v1 = prisma;
+  globalForPrisma.prisma_smtp_v8 = prisma;
 }
 
 export default prisma;

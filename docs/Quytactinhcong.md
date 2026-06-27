@@ -51,7 +51,16 @@ Tùy thuộc vào tổng số phút vi phạm trong một ca làm việc, tỷ l
 
 ## 4. Ngày Lễ và Nghỉ phép
 *   **Ngày Lễ / Tết (L):** Hệ thống tự động ghi nhận **1.0 công** (không cần dữ liệu quẹt thẻ chấm công thực tế).
-*   **Nghỉ phép / Công tác (P):** Tính **1.0 công** đối với các loại đơn xin nghỉ phép, đơn đi công tác ở trạng thái đã được duyệt (APPROVED).
+*   **Phân loại chế độ Nghỉ phép và Công tác (khi được APPROVED):**
+
+| Loại đơn đăng ký | Cách tính công của công ty | Chế độ Lương & Bảo hiểm | Ghi chú & Quy định áp dụng |
+| :--- | :---: | :--- | :--- |
+| **Phép năm** | **1.0 công** | Hưởng 100% lương từ công ty | Giảm trừ trực tiếp vào quỹ phép năm của nhân viên. |
+| **Nghỉ việc riêng có lương** | **1.0 công** | Hưởng 100% lương từ công ty | Áp dụng cho: Bản thân kết hôn (3 ngày), con kết hôn (1 ngày), tang chế người thân ruột thịt (3 ngày). |
+| **Nghỉ ốm có BHXH** | **0.0 công** | Công ty không trả lương. Nhận trợ cấp 75% lương đóng BHXH từ cơ quan BHXH | Yêu cầu nhân viên nộp lại **Giấy chứng nhận nghỉ việc hưởng BHXH** (Mẫu C65-HD) hoặc Giấy ra viện hợp lệ. |
+| **Nghỉ không lương** | **0.0 công** | Không hưởng lương | Nghỉ việc riêng lý do chính đáng được duyệt, không bị tính lỗi vi phạm kỷ luật chuyên cần. |
+| **Công tác / Đi làm việc ngoài** | **1.0 công** | Hưởng 100% lương + Phụ cấp công tác (nếu có) | Tính công đầy đủ dựa trên thời gian ghi trên đơn đã duyệt. |
+| **Nghỉ không phép (Tự ý vắng)** | **0.0 công** | Không hưởng lương | Vi phạm kỷ luật lao động. Bị giảm trừ KPI/chuyên cần và xử lý kỷ luật theo quy định. |
 
 ---
 

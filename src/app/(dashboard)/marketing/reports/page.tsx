@@ -102,12 +102,12 @@ export default function ReportsPage() {
       const filtered = fbCampaigns.filter(c => {
         const p = (c.platform || "").toLowerCase();
         const n = (c.name || "").toLowerCase();
-        const insightsPlatform = Array.isArray(c.insights?.data) && c.insights.data.length > 0 
-          ? (c.insights.data[0].platform || "").toLowerCase() 
+        const insightsPlatform = Array.isArray(c.insights?.data) && c.insights.data.length > 0
+          ? (c.insights.data[0].platform || "").toLowerCase()
           : "";
 
         const isMatch = keys.some(k => p.includes(k.toLowerCase()) || n.includes(k.toLowerCase()) || insightsPlatform.includes(k.toLowerCase()));
-        
+
         // If this is the default fallback (Facebook), include campaigns that don't match ANY known platform
         if (!isMatch && isDefaultFallback) {
           const isGoogle = ["google", "gg", "youtube", "yt", "search"].some(k => p.includes(k) || n.includes(k) || insightsPlatform.includes(k));
@@ -141,7 +141,7 @@ export default function ReportsPage() {
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800;900&display=swap');
         .pdf-cover-page { font-family: 'Montserrat', sans-serif !important; }
       `}</style>
-      
+
       <PageHeader
         title="Báo cáo tổng hợp Marketing"
         description={viewMode === "month" ? "Theo dõi hiệu suất chiến dịch và ngân sách theo tháng" : "Tổng hợp hiệu suất marketing toàn diện theo năm"}
@@ -154,14 +154,14 @@ export default function ReportsPage() {
         {/* ... (giữ nguyên thanh filter) ... */}
         <div className="d-flex flex-column gap-2">
           <div className="d-flex bg-card p-1 rounded-3 shadow-sm border border-border" style={{ height: 38 }}>
-            <button 
+            <button
               className={`btn btn-sm px-3 border-0 ${viewMode === "month" ? "btn-primary shadow-sm" : "text-muted"}`}
               onClick={() => setViewMode("month")}
               style={{ borderRadius: 6, fontWeight: 700, fontSize: 13, height: "100%" }}
             >
               Tháng
             </button>
-            <button 
+            <button
               className={`btn btn-sm px-3 border-0 ${viewMode === "year" ? "btn-primary shadow-sm" : "text-muted"}`}
               onClick={() => setViewMode("year")}
               style={{ borderRadius: 6, fontWeight: 700, fontSize: 13, height: "100%" }}
@@ -169,7 +169,7 @@ export default function ReportsPage() {
               Năm
             </button>
           </div>
-          
+
           <div className="d-flex align-items-center gap-2 ps-1" style={{ opacity: 0.8 }}>
             <div className="rounded-circle" style={{ width: 6, height: 6, background: loading ? "#f59e0b" : "#10b981", boxShadow: loading ? "0 0 6px #f59e0b" : "0 0 6px #10b981" }} />
             <span style={{ fontSize: 11, fontWeight: 600, color: "var(--foreground)" }}>
@@ -191,8 +191,8 @@ export default function ReportsPage() {
         </div>
 
         <div className="ms-auto">
-          <button 
-            className="btn btn-primary btn-sm d-flex align-items-center gap-2 shadow-sm" 
+          <button
+            className="btn btn-primary btn-sm d-flex align-items-center gap-2 shadow-sm"
             style={{ height: 38, borderRadius: 8, fontSize: 13, fontWeight: 700 }}
             onClick={() => setShowPrintModal(true)}
           >
@@ -218,14 +218,14 @@ export default function ReportsPage() {
               <div>
                 <label className="form-label small fw-bold text-uppercase" style={{ fontSize: "10px", color: "#64748b", letterSpacing: "1px" }}>Tùy chọn báo cáo</label>
                 <div className="d-flex flex-column gap-2">
-                  <button 
+                  <button
                     className={`btn btn-sm text-start py-2 px-3 d-flex align-items-center gap-2 ${reportType === "overall" ? "btn-primary shadow-sm" : "btn-light border text-muted"}`}
                     onClick={() => setReportType("overall")}
                     style={{ borderRadius: "8px", fontWeight: 700, fontSize: "12px" }}
                   >
                     <i className="bi bi-grid-fill" /> Tổng quát doanh nghiệp
                   </button>
-                  <button 
+                  <button
                     className={`btn btn-sm text-start py-2 px-3 d-flex align-items-center gap-2 ${reportType === "monthly" ? "btn-primary shadow-sm" : "btn-light border text-muted"}`}
                     onClick={() => setReportType("monthly")}
                     style={{ borderRadius: "8px", fontWeight: 700, fontSize: "12px" }}
@@ -249,7 +249,7 @@ export default function ReportsPage() {
                   {companyInfo?.logoUrl && <img src={companyInfo.logoUrl} alt="Logo" style={{ height: "40px" }} />}
                   <div>
                     <h1 style={{ margin: 0, fontSize: "14px", fontWeight: 900, textTransform: "uppercase", color: "#003087", letterSpacing: "1px" }}>{companyInfo?.name || "CÔNG TY CỔ PHẦN SEAJONG FAUCET VIỆT NAM"}</h1>
-                    <p style={{ margin: 0, fontSize: "11px", color: "#64748b" }}>{companyInfo?.slogan || "Đồng hành cùng doanh nghiệp bằng các giải pháp số hóa tối ưu"}</p>
+                    <p style={{ margin: 0, fontSize: "11px", color: "#64748b" }}>{companyInfo?.slogan || ""}</p>
                   </div>
                 </div>
 
@@ -295,7 +295,7 @@ export default function ReportsPage() {
                   <div style={{ width: "45%" }}>
                     <h3 style={{ fontSize: "15px", color: "#003087", textTransform: "uppercase", fontWeight: 800, margin: "0 0 12px" }}>VỀ BÁO CÁO NÀY</h3>
                     <p style={{ color: "#475569", fontSize: "11px", lineHeight: 1.6, margin: "0 0 16px" }}>
-                      {reportType === "overall" 
+                      {reportType === "overall"
                         ? `Báo cáo tổng hợp số liệu lũy kế từ ngày 01/01/${filter.year} đến thời điểm hiện tại, đánh giá hiệu quả đầu tư và tăng trưởng dài hạn.`
                         : `Báo cáo chi tiết hoạt động Marketing trong tháng ${filter.month}/${filter.year}, tập trung vào hiệu suất chiến dịch và tối ưu hóa ngân sách ngắn hạn.`
                       }
@@ -341,7 +341,7 @@ export default function ReportsPage() {
                     <div style={{ background: "#f8fafc", padding: "20px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
                       <strong style={{ display: "block", fontSize: "13px", color: "#003087", marginBottom: "8px" }}>● Mục tiêu trọng tâm:</strong>
                       <p style={{ margin: 0, fontSize: "12px", color: "#475569", lineHeight: "1.6" }}>
-                        {reportType === "overall" 
+                        {reportType === "overall"
                           ? "Tập trung đẩy mạnh hiện diện thương hiệu trên đa nền tảng, tối ưu hóa chi phí chuyển đổi (CPL) và xây dựng tệp khách hàng tiềm năng bền vững cho cả năm 2026."
                           : `Đẩy mạnh doanh số thông qua các chiến dịch quảng cáo tập trung vào tệp khách hàng mục tiêu trong tháng ${filter.month}, tăng tỷ lệ phản hồi trực tiếp qua tin nhắn.`
                         }
@@ -394,16 +394,16 @@ export default function ReportsPage() {
                       <tbody>
                         {[
                           { label: "Số lượng Lead (Khách hàng tiềm năng)", target: null as number | null, actual: totalLeads, unit: "" },
-                          { label: "Chi phí trên mỗi Lead (CPL)",          target: null as number | null, actual: avgCPL,      unit: " ₫", inverse: true },
-                          { label: "Tỷ lệ chuyển đổi (CR)",                target: null as number | null, actual: Number(totalClicks > 0 ? (totalLeads / totalClicks * 100).toFixed(1) : 0), unit: "%" },
-                          { label: "Lượt truy cập Website/Fanpage",        target: null as number | null, actual: totalImpressions, unit: "" },
-                          { label: "Ngân sách Marketing kế hoạch",         target: (planTargets?.totalBudget || null) as number | null, actual: totalSpent, unit: " ₫" },
+                          { label: "Chi phí trên mỗi Lead (CPL)", target: null as number | null, actual: avgCPL, unit: " ₫", inverse: true },
+                          { label: "Tỷ lệ chuyển đổi (CR)", target: null as number | null, actual: Number(totalClicks > 0 ? (totalLeads / totalClicks * 100).toFixed(1) : 0), unit: "%" },
+                          { label: "Lượt truy cập Website/Fanpage", target: null as number | null, actual: totalImpressions, unit: "" },
+                          { label: "Ngân sách Marketing kế hoạch", target: (planTargets?.totalBudget || null) as number | null, actual: totalSpent, unit: " ₫" },
                           ...(planTargets?.totalRevenue ? [{ label: "Doanh thu Marketing mục tiêu", target: planTargets.totalRevenue as number | null, actual: 0, unit: " ₫", inverse: false }] : []),
                         ].map((row, idx) => {
                           const percent = row.target && row.target > 0
                             ? (row.inverse
-                                ? (row.actual > 0 ? Math.round((row.target / row.actual) * 100) : 0)
-                                : Math.round((row.actual / row.target) * 100))
+                              ? (row.actual > 0 ? Math.round((row.target / row.actual) * 100) : 0)
+                              : Math.round((row.actual / row.target) * 100))
                             : null;
                           return (
                             <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
@@ -412,10 +412,10 @@ export default function ReportsPage() {
                               <td style={{ padding: "12px 15px", textAlign: "center", fontSize: "12px", fontWeight: 700, color: "#003087" }}>{row.actual.toLocaleString()}{row.unit}</td>
                               <td style={{ padding: "12px 15px", textAlign: "center" }}>
                                 {percent !== null ? (
-                                  <span style={{ 
-                                    padding: "4px 10px", 
-                                    borderRadius: "20px", 
-                                    fontSize: "11px", 
+                                  <span style={{
+                                    padding: "4px 10px",
+                                    borderRadius: "20px",
+                                    fontSize: "11px",
                                     fontWeight: 800,
                                     background: percent >= 90 ? "#ecfdf5" : percent >= 70 ? "#fffbeb" : "#fef2f2",
                                     color: percent >= 90 ? "#059669" : percent >= 70 ? "#d97706" : "#dc2626"
@@ -441,17 +441,17 @@ export default function ReportsPage() {
                   </h3>
 
                   {[
-                    { 
-                      id: "fb", name: "Facebook Ads", data: fbData, color: "#1877F2", 
-                      icon: "bi-facebook", desc: "Kênh tiếp cận chủ lực, tập trung vào các chiến dịch Messengers và Lead Forms." 
+                    {
+                      id: "fb", name: "Facebook Ads", data: fbData, color: "#1877F2",
+                      icon: "bi-facebook", desc: "Kênh tiếp cận chủ lực, tập trung vào các chiến dịch Messengers và Lead Forms."
                     },
-                    { 
-                      id: "gg", name: "Google Ads", data: ggData, color: "#EA4335", 
-                      icon: "bi-google", desc: "Kênh thu hút khách hàng có nhu cầu nóng thông qua từ khóa tìm kiếm (Search Ads)." 
+                    {
+                      id: "gg", name: "Google Ads", data: ggData, color: "#EA4335",
+                      icon: "bi-google", desc: "Kênh thu hút khách hàng có nhu cầu nóng thông qua từ khóa tìm kiếm (Search Ads)."
                     },
-                    { 
-                      id: "tt", name: "TikTok Business", data: ttData, color: "#000000", 
-                      icon: "bi-tiktok", desc: "Kênh viral nội dung sáng tạo, giúp tăng nhận diện và thu hút tệp khách hàng trẻ." 
+                    {
+                      id: "tt", name: "TikTok Business", data: ttData, color: "#000000",
+                      icon: "bi-tiktok", desc: "Kênh viral nội dung sáng tạo, giúp tăng nhận diện và thu hút tệp khách hàng trẻ."
                     }
                   ].map((p, pIdx) => (
                     <div key={p.id} style={{ marginBottom: "30px", background: "#f8fafc", borderRadius: "16px", padding: "20px", border: "1px solid #e2e8f0" }}>
@@ -487,7 +487,7 @@ export default function ReportsPage() {
                       </div>
 
                       <div style={{ fontSize: "11px", lineHeight: "1.6", color: "#475569" }}>
-                        <strong style={{ color: p.color }}>● Đánh giá hiệu quả:</strong> {p.data.leads > 0 
+                        <strong style={{ color: p.color }}>● Đánh giá hiệu quả:</strong> {p.data.leads > 0
                           ? `Kênh đang vận hành ổn định với hiệu suất ${Math.round((p.data.leads / totalLeads) * 100)}% tổng kết quả. Tỷ lệ CTR duy trì ở mức khá, nội dung quảng cáo đang có sức hút tốt.`
                           : "Kênh đang trong giai đoạn test nội dung hoặc phân bổ ngân sách thấp. Cần rà soát lại Target để cải thiện kết quả."
                         }
@@ -553,7 +553,7 @@ export default function ReportsPage() {
       )}
 
       {/* Floating Action Button for Refresh (Optional) */}
-      <button 
+      <button
         className="btn btn-primary rounded-circle shadow-lg d-flex align-items-center justify-content-center"
         style={{ position: "fixed", bottom: 30, right: 30, width: 50, height: 50, zIndex: 100 }}
         onClick={() => window.location.reload()}

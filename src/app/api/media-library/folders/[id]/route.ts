@@ -9,6 +9,15 @@ function isAdmin(session: any) {
   return session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN';
 }
 
+function isManager(session: any) {
+  const u = session?.user;
+  const managerLevels = ['manager', 'mid_manager', 'senior_manager'];
+  const isMgrLevel = managerLevels.includes(u?.level);
+  const isMgrPosition = u?.positionName?.toLowerCase().includes('trưởng phòng');
+  const isAdminRole = u?.role === 'SUPERADMIN' || u?.role === 'ADMIN';
+  return isMgrLevel || isMgrPosition || isAdminRole;
+}
+
 // DELETE /api/media-library/folders/[id] → xóa thư mục (và các con)
 export async function DELETE(
   _req: Request,
@@ -34,7 +43,30 @@ export async function DELETE(
     }
 
     // Kiểm tra quyền
-    if (!admin && folder.ownerId !== userId) {
+    let canDelete = admin || folder.ownerId === userId;
+
+    if (!canDelete && folder.isPublic && folder.parentId !== null) {
+      const mgr = isManager(session);
+      if (mgr && folder.ownerId) {
+        const owner = await prisma.user.findUnique({
+          where: { id: folder.ownerId },
+          select: {
+            employee: {
+              select: {
+                departmentCode: true,
+              }
+            }
+          }
+        });
+        const ownerDept = owner?.employee?.departmentCode;
+        const currentUserDept = (session.user as any)?.departmentCode;
+        if (ownerDept && currentUserDept && ownerDept.toLowerCase() === currentUserDept.toLowerCase()) {
+          canDelete = true;
+        }
+      }
+    }
+
+    if (!canDelete) {
       return NextResponse.json({ error: 'Không có quyền xóa thư mục này' }, { status: 403 });
     }
 

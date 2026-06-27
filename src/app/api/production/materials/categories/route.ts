@@ -20,14 +20,65 @@ export async function GET(req: Request) {
       if (wh) warehouseType = (wh as any).type;
     }
 
+    // Đọc cookie active_industry_code từ request headers
+    const cookieHeader = req.headers.get("cookie") || "";
+    let activeIndustryCode = cookieHeader
+      .split("; ")
+      .find(row => row.startsWith("active_industry_code="))
+      ?.split("=")[1];
+
+    if (!activeIndustryCode) {
+      const client = await prisma.client.findFirst({
+        include: { industry: true }
+      });
+      if (client?.industry) {
+        activeIndustryCode = client.industry.code;
+      }
+    }
+
+    // Mặc định nếu chưa có cookie là wood_door
+    if (!activeIndustryCode) {
+      activeIndustryCode = "wood_door";
+    }
+
     let allCategories: any[] = [];
+    let rootCategoryId: string | null = null;
+
     // Kho hàng lỗi (DEFECT) cũng dùng bộ danh mục của hàng hóa (PRODUCT)
     if (warehouseType === "PRODUCT" || warehouseType === "DEFECT") {
+      const industryProductCodeMap: Record<string, string> = {
+        "wood_door": "SP_GO",
+        "sanitary": "SP_VESINH",
+        "building_materials": "SP_VLXD"
+      };
+      const prodRootCode = industryProductCodeMap[activeIndustryCode] || "SP_GO";
+      const rootCategory = await prisma.inventoryCategory.findFirst({
+        where: { code: prodRootCode, parentId: null, isActive: true }
+      });
+      if (rootCategory) {
+        rootCategoryId = rootCategory.id;
+      }
+
       allCategories = await prisma.inventoryCategory.findMany({
         where: { isActive: true },
         orderBy: { sortOrder: "asc" }
       });
     } else {
+      // Tìm Industry để lấy rootCategoryCode
+      const industry = await prisma.industry.findUnique({
+        where: { code: activeIndustryCode }
+      });
+
+      if (industry) {
+        // Tìm danh mục gốc tương ứng với rootCategoryCode
+        const rootCategory = await prisma.category.findFirst({
+          where: { code: industry.rootCategoryCode, type: "vat_tu_san_xuat", isActive: true }
+        });
+        if (rootCategory) {
+          rootCategoryId = rootCategory.id;
+        }
+      }
+
       allCategories = await prisma.category.findMany({
         where: { type: "vat_tu_san_xuat", isActive: true },
         orderBy: { sortOrder: "asc" }
@@ -38,18 +89,19 @@ export async function GET(req: Request) {
     const buildTree = (parentId: string | null, level: number) => {
       const children = allCategories.filter(c => (c as any).parentId === parentId);
       children.forEach(cat => {
+        const hasChildren = allCategories.some(c => (c as any).parentId === cat.id);
         result.push({
           id: cat.id,
           name: cat.name,
           code: cat.code,
-          isHeader: parentId === null && level === 0,
+          isHeader: hasChildren,
           level: level
         });
         buildTree(cat.id, level + 1);
       });
     };
 
-    buildTree(null, 0);
+    buildTree(rootCategoryId, 0);
 
     return NextResponse.json(result);
   } catch (e) {

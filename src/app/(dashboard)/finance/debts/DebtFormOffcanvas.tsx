@@ -204,8 +204,8 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
                     type="number"
                     step="0.1"
                     className="form-control"
-                    value={formData.interestRate}
-                    onChange={e => setFormData({ ...formData, interestRate: parseFloat(e.target.value) })}
+                    value={formData.interestRate ?? ""}
+                    onChange={e => setFormData({ ...formData, interestRate: e.target.value === "" ? 0 : parseFloat(e.target.value) })}
                     style={inputStyle}
                   />
                 </div>

@@ -17,17 +17,40 @@ export default function LoginForm() {
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState("Pass@123");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [company, setCompany] = useState<CompanyInfo>({});
+  const [industries, setIndustries] = useState<any[]>([]);
+  const [selectedIndustry, setSelectedIndustry] = useState("");
 
   // Fetch thông tin công ty để hiển thị logo & tên động (không hardcode)
   useEffect(() => {
     fetch("/api/company")
       .then(r => r.ok ? r.json() : {})
       .then(d => setCompany(d))
+      .catch(() => {});
+  }, []);
+
+  // Fetch danh sách ngành nghề phục vụ dev/test
+  useEffect(() => {
+    fetch("/api/industries")
+      .then(r => r.ok ? r.json() : [])
+      .then(d => {
+        if (Array.isArray(d)) {
+          setIndustries(d);
+          // Đọc cookie cũ hoặc mặc định là sản xuất đồ gỗ
+          const cookies = document.cookie.split("; ");
+          const activeIndCookie = cookies.find(c => c.startsWith("active_industry_code="))?.split("=")[1];
+          if (activeIndCookie && d.some(i => i.code === activeIndCookie)) {
+            setSelectedIndustry(activeIndCookie);
+          } else {
+            const defaultInd = d.find(ind => ind.code === "wood_door") || d[0];
+            if (defaultInd) setSelectedIndustry(defaultInd.code);
+          }
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -48,6 +71,10 @@ export default function LoginForm() {
     if (!email || !password) {
       setError("Vui lòng nhập đầy đủ email và mật khẩu.");
       return;
+    }
+
+    if (selectedIndustry) {
+      document.cookie = `active_industry_code=${selectedIndustry}; path=/; max-age=31536000`;
     }
 
     setLoading(true);
@@ -119,6 +146,31 @@ export default function LoginForm() {
           )}
 
           <form onSubmit={handleSubmit} noValidate className="login-form">
+
+            {/* Industry Switcher (Dev/Test) */}
+            {!process.env.NEXT_PUBLIC_CLIENT_SHORT_NAME && industries.length > 0 && (
+              <div className="login-field">
+                <label htmlFor="login-industry" className="login-label">Ngành nghề hoạt động (Dev/Test)</label>
+                <div className="login-input-wrap" style={{ position: "relative" }}>
+                  <i className="bi bi-briefcase login-input-icon" />
+                  <select
+                    id="login-industry"
+                    value={selectedIndustry}
+                    onChange={(e) => setSelectedIndustry(e.target.value)}
+                    disabled={loading}
+                    className="login-input"
+                    style={{ appearance: "none", cursor: "pointer", paddingRight: "30px" }}
+                  >
+                    {industries.map((ind) => (
+                      <option key={ind.id} value={ind.code}>
+                        {ind.name}
+                      </option>
+                    ))}
+                  </select>
+                  <i className="bi bi-chevron-down" style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", fontSize: "11px", opacity: 0.5 }} />
+                </div>
+              </div>
+            )}
 
             {/* Email */}
             <div className="login-field">

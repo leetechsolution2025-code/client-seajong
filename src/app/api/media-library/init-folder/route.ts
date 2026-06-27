@@ -11,6 +11,8 @@ function isMktManager(s: any) {
   return u?.departmentCode === 'MKT' && (u?.level === 'senior_manager' || u?.level === 'mid_manager');
 }
 
+const initializingUserIds = new Set<string>();
+
 /**
  * POST /api/media-library/init-folder
  * Tự động tạo folder gốc "Tài liệu chung" (nếu chưa có) 
@@ -35,21 +37,29 @@ export async function POST(req: Request) {
   }
 
   if (action === 'create' && userId && userName) {
-    // Tạo folder cá nhân cho bất kỳ tài khoản nào
-    const existing = await db.mediaFolder.findFirst({ where: { ownerId: userId, parentId: null } });
-    if (!existing) {
-      const folder = await db.mediaFolder.create({
-        data: {
-          name: userName,
-          ownerId: userId,
-          ownerName: userName,
-          isPublic: false,
-          ownerIsActive: true,
-        },
-      });
-      return NextResponse.json({ data: folder, message: `Đã tạo thư mục cho ${userName}` });
+    if (initializingUserIds.has(userId)) {
+      return NextResponse.json({ message: 'Thư mục đang được khởi tạo' });
     }
-    return NextResponse.json({ message: 'Thư mục đã tồn tại' });
+    initializingUserIds.add(userId);
+    try {
+      // Tạo folder cá nhân cho bất kỳ tài khoản nào
+      const existing = await db.mediaFolder.findFirst({ where: { ownerId: userId, parentId: null } });
+      if (!existing) {
+        const folder = await db.mediaFolder.create({
+          data: {
+            name: userName,
+            ownerId: userId,
+            ownerName: userName,
+            isPublic: false,
+            ownerIsActive: true,
+          },
+        });
+        return NextResponse.json({ data: folder, message: `Đã tạo thư mục cho ${userName}` });
+      }
+      return NextResponse.json({ message: 'Thư mục đã tồn tại' });
+    } finally {
+      initializingUserIds.delete(userId);
+    }
   }
 
   if (action === 'deactivate' && userId) {

@@ -16,6 +16,8 @@ interface FilterSelectProps {
   placeholder?: string;
   width?: number | string;
   className?: string;
+  disabled?: boolean;
+  required?: boolean;
 }
 
 
@@ -29,12 +31,14 @@ export const SELECT_STYLE: React.CSSProperties = {
   color: "var(--foreground)",
 };
 
-export function FilterSelect({ options, value, onChange, placeholder = "Tất cả", width, className }: FilterSelectProps) {
+export function FilterSelect({ options, value, onChange, placeholder = "Tất cả", width, className, disabled, required }: FilterSelectProps) {
   return (
     <select
       value={value ?? ""}
       onChange={e => onChange?.(e.target.value)}
       className={cn("form-select form-select-sm", className)}
+      disabled={disabled}
+      required={required}
       style={{ 
         ...SELECT_STYLE, 
         width: width ?? "auto",
@@ -43,7 +47,7 @@ export function FilterSelect({ options, value, onChange, placeholder = "Tất c�
         borderRadius: className?.includes("rounded-pill") ? 50 : 8
       }}
     >
-      <option value="">{placeholder}</option>
+      {placeholder && <option value="">{placeholder}</option>}
       {options.map(o => (
         <option 
           key={o.value} 

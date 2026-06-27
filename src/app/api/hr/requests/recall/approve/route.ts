@@ -151,7 +151,7 @@ export async function GET(req: Request) {
       }
     });
 
-    const redirectUrl = new URL('/my/hr-requests?toast=recall_approved', req.url);
+    const redirectUrl = new URL('/my/recruitment?toast=recall_approved', req.url);
     return NextResponse.redirect(redirectUrl);
 
   } catch (error) {

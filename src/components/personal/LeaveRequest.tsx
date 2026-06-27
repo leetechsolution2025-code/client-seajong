@@ -10,8 +10,8 @@ import { PersonalRequestOffcanvas } from "./PersonalRequestOffcanvas";
 const REQUEST_TYPES = [
   {
     id: "leave",
-    title: "nghỉ phép",
-    description: "Đăng ký nghỉ phép năm, nghỉ việc riêng hoặc nghỉ không lương.",
+    title: "nghỉ phép và đi muộn về sớm",
+    description: "Đăng ký nghỉ phép năm, nghỉ việc riêng, nghỉ không lương hoặc xin đi muộn/về sớm.",
     icon: "bi-calendar-check",
     color: "#10b981",
   },

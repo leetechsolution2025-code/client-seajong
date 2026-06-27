@@ -296,7 +296,7 @@ export default function ProbationPage() {
       useCard={false}
     >
       {/* KPI Section */}
-      <div className="row g-3 mb-2">
+      <div className="row g-3 mb-2 px-3 px-md-0">
         <KPICard
           label="Đang thử việc"
           value={stats.total}
@@ -325,8 +325,8 @@ export default function ProbationPage() {
 
       {/* Main Content Card */}
       <div className="bg-card rounded-4 shadow-sm border overflow-hidden d-flex flex-column flex-grow-1">
-        {/* Table Section */}
-        <div className="flex-grow-1 overflow-auto">
+        {/* Desktop Table View */}
+        <div className="d-none d-md-block flex-grow-1 overflow-auto">
           <Table<Probationer>
             columns={columns}
             rows={filteredData}
@@ -334,10 +334,98 @@ export default function ProbationPage() {
           />
         </div>
 
+        {/* Mobile Card List View */}
+        <div className="d-block d-md-none flex-grow-1 overflow-auto p-3">
+          {loading ? (
+            <div className="text-center py-4 text-muted">Đang tải danh sách...</div>
+          ) : filteredData.length === 0 ? (
+            <div className="text-center py-4 text-muted">Không tìm thấy nhân sự nào</div>
+          ) : (
+            <div className="d-flex flex-column gap-3">
+              {filteredData.map(item => {
+                return (
+                  <div key={item.id} className="card shadow-sm border border-light p-3" style={{ borderRadius: "16px", backgroundColor: "var(--card)" }}>
+                    {/* Header: Avatar, Name, Status */}
+                    <div className="d-flex justify-content-between align-items-start mb-3">
+                      <div className="d-flex align-items-center gap-2">
+                        {item.avatar ? (
+                          <img 
+                            src={item.avatar} 
+                            alt={item.fullName} 
+                            className="rounded-circle border"
+                            style={{ width: 40, height: 40, objectFit: "cover" }}
+                          />
+                        ) : (
+                          <div 
+                            className="rounded-circle d-flex align-items-center justify-content-center border fw-bold text-white shadow-sm"
+                            style={{ 
+                              width: 40, 
+                              height: 40, 
+                              fontSize: 13,
+                              background: "linear-gradient(135deg, var(--primary) 0%, #4338ca 100%)"
+                            }}
+                          >
+                            {getInitials(item.fullName)}
+                          </div>
+                        )}
+                        <div>
+                          <h6 className="fw-bold mb-0 text-dark" style={{ fontSize: "0.9rem" }}>{item.fullName}</h6>
+                          <span className="text-muted small" style={{ fontSize: "0.75rem" }}>{item.position}</span>
+                        </div>
+                      </div>
+                      <StatusBadge status={item.status} />
+                    </div>
+
+                    {/* Details */}
+                    <div className="mb-3 text-muted" style={{ fontSize: "0.8rem" }}>
+                      <div className="d-flex justify-content-between mb-1">
+                        <span>Phòng ban:</span>
+                        <span className="text-dark fw-medium">{item.department}</span>
+                      </div>
+                      <div className="d-flex justify-content-between mb-1">
+                        <span>Người hướng dẫn:</span>
+                        <span className="text-dark fw-medium">{item.mentorName}</span>
+                      </div>
+                      <div className="d-flex justify-content-between mb-2">
+                        <span>Thời hạn:</span>
+                        <span className="text-dark fw-medium">
+                          {new Date(item.startDate).toLocaleDateString('vi-VN')} - {new Date(item.endDate).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+                      <div className="mt-2">
+                        <ProgressBar value={item.progress} status={item.status} />
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="d-flex gap-2 pt-2 border-top">
+                      <BrandButton 
+                        variant="outline" 
+                        className="flex-1 py-1" 
+                        style={{ fontSize: "11px", height: 32 }}
+                        onClick={() => handleShowDetail(item)}
+                      >
+                        <i className="bi bi-eye me-1" /> Chi tiết
+                      </BrandButton>
+                      <BrandButton 
+                        variant="primary" 
+                        className="flex-1 py-1 text-white" 
+                        style={{ fontSize: "11px", height: 32 }}
+                      >
+                        <i className="bi bi-pencil-square me-1" /> Đánh giá
+                      </BrandButton>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Toolbar (Moved to Bottom) */}
-        <div className="px-3 py-2 border-top bg-light d-flex flex-wrap align-items-center justify-content-between gap-3">
-          <div className="d-flex align-items-center gap-2">
-            <div style={{ width: 250 }}>
+        <div className="px-3 py-3 px-md-3 py-md-2 border-top bg-light d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3">
+          <div className="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2 flex-grow-1">
+            <div className="w-100" style={{ maxWidth: "100%", width: "100%" }}>
               <SearchInput 
                 placeholder="Tìm tên hoặc mã nhân viên..." 
                 value={search}
@@ -345,26 +433,28 @@ export default function ProbationPage() {
                 className="bg-white"
               />
             </div>
-            <FilterSelect
-              placeholder="Trạng thái"
-              options={[
-                { label: "Tất cả trạng thái", value: "ALL" },
-                { label: "Mới hội nhập", value: "ONBOARDING" },
-                { label: "Đang thử việc", value: "ON_TRACK" },
-                { label: "Đang đánh giá", value: "EVALUATING" },
-                { label: "Đã đạt", value: "PASSED" },
-                { label: "Gia hạn/Không đạt", value: "FAILED" },
-              ]}
-              value={statusFilter}
-              onChange={setStatusFilter}
-              width={180}
-            />
+            <div className="w-100" style={{ maxWidth: "100%", width: "100%" }}>
+              <FilterSelect
+                placeholder="Trạng thái"
+                options={[
+                  { label: "Tất cả trạng thái", value: "ALL" },
+                  { label: "Mới hội nhập", value: "ONBOARDING" },
+                  { label: "Đang thử việc", value: "ON_TRACK" },
+                  { label: "Đang đánh giá", value: "EVALUATING" },
+                  { label: "Đã đạt", value: "PASSED" },
+                  { label: "Gia hạn/Không đạt", value: "FAILED" },
+                ]}
+                value={statusFilter}
+                onChange={setStatusFilter}
+                width="100%"
+              />
+            </div>
           </div>
-          <div className="d-flex gap-2">
-            <BrandButton variant="outline">
-              <i className="bi bi-download me-2" /> Xuất báo cáo
+          <div className="d-flex gap-2 justify-content-between justify-content-md-end">
+            <BrandButton variant="outline" className="flex-1 flex-md-grow-0">
+              <i className="bi bi-download me-2" /> <span className="d-none d-sm-inline">Xuất báo cáo</span><span className="d-inline d-sm-none">Xuất</span>
             </BrandButton>
-            <BrandButton variant="primary" onClick={() => {}}>
+            <BrandButton variant="primary" className="flex-1 flex-md-grow-0 text-white" onClick={() => {}}>
               <i className="bi bi-person-plus me-2" /> Thêm mới
             </BrandButton>
           </div>
@@ -387,7 +477,7 @@ export default function ProbationPage() {
             <motion.div 
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 250 }}
-              className="position-fixed top-0 bottom-0 right-0 shadow-lg border-start bg-white"
+              className="position-fixed top-0 bottom-0 right-0 shadow-lg border-start bg-white app-custom-drawer"
               style={{ width: 400, zIndex: 10001, right: 0, overflow: "hidden" }}
             >
               <div className="h-100 d-flex flex-column">

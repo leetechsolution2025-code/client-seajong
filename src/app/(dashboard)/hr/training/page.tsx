@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Tab, TabItem } from "@/components/ui/Tab";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { Table, TableColumn } from "@/components/ui/Table";
-import { CreateTrainingRequestModal } from "./components/CreateTrainingRequestModal";
+import { CreateTrainingRequestModal } from "@/components/features/training/CreateTrainingRequestModal";
 import { CreateTrainingPlanModal } from "./components/CreateTrainingPlanModal";
 import { CourseExecutionModal } from "./components/CourseExecutionModal";
 import { TrainingRequestOffcanvas } from "./components/TrainingRequestOffcanvas";
@@ -279,8 +279,8 @@ export default function TrainingPage() {
     <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
       <PageHeader title="Quản lý đào tạo và thử việc" description="Số hóa quy trình đào tạo nội bộ và theo dõi lộ trình thử việc của nhân sự mới" icon="bi-mortarboard-fill" color="indigo" />
 
-      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
-        <div className="bg-card rounded-4 shadow-sm flex-grow-1 d-flex flex-column" style={{ minHeight: 0, border: "1px solid var(--border)", borderTop: "none" }}>
+      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column fs-training-container" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+        <div className="bg-card rounded-4 shadow-sm flex-grow-1 d-flex flex-column fs-training-card" style={{ minHeight: 0, border: "1px solid var(--border)", borderTop: "none" }}>
           <div className="px-4 py-2">
             <ModernStepper steps={STEPS} currentStep={currentStep} onStepChange={setCurrentStep} paddingX={0} />
           </div>

@@ -7,10 +7,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { AccountSettingsModal } from "./AccountSettingsModal";
 import { NotificationOffcanvas } from "./NotificationOffcanvas";
 import { MessageOffcanvas } from "./MessageOffcanvas";
-import { ApprovalBadgeButton, ApprovalCenter } from "@/components/approvals/ApprovalCenter";
+import { ApprovalCenter } from "@/components/approvals/ApprovalCenter";
 import { EmployeeAvatar } from "@/components/hr/EmployeeAvatar";
 import { useSearchParams } from "next/navigation";
 import { normalizeImgSrc } from "@/lib/utils/image";
+import { useToast } from "@/components/ui/Toast";
 
 interface TopbarProps {
   onToggleSidebar: () => void;
@@ -21,6 +22,7 @@ interface CompanyInfo {
   shortName: string;
   logoUrl?: string | null;
   slogan?: string | null;
+  industryName?: string;
 }
 
 const DEPT_LABEL: Record<string, string> = {
@@ -41,6 +43,10 @@ const ROLE_LABEL: Record<string, string> = {
 
 export function Topbar({ onToggleSidebar }: TopbarProps) {
   const { data: session } = useSession();
+  const { info: showInfoToast } = useToast();
+  const knownNotificationIds = useRef<Set<string>>(new Set());
+  const isInitialLoad = useRef<boolean>(true);
+
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen]       = useState(false);
   const [msgOpen,   setMsgOpen]         = useState(false);
@@ -77,20 +83,69 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
 
   /* ── Tải badge số thông báo & tin nhắn (polling 10s) ── */
   useEffect(() => {
+    const playBeep = () => {
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioContextClass) return;
+        const ctx = new AudioContextClass();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(800, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.15);
+      } catch (err) {
+        console.error("Play beep error:", err);
+      }
+    };
+
     const fetchCounts = () => {
       fetch("/api/notifications")
         .then(r => r.json())
-        .then(d => { if (d.unreadCount !== undefined) setUnreadCount(d.unreadCount); })
+        .then(d => {
+          if (d.unreadCount !== undefined) {
+            setUnreadCount(d.unreadCount);
+          }
+          if (d.notifications && Array.isArray(d.notifications)) {
+            let hasNewUnread = false;
+            let lastSender = "";
+
+            d.notifications.forEach((notif: any) => {
+              if (!knownNotificationIds.current.has(notif.id)) {
+                knownNotificationIds.current.add(notif.id);
+                if (!isInitialLoad.current && !notif.isRead) {
+                  hasNewUnread = true;
+                  lastSender = notif.createdByName || "Hệ thống";
+                }
+              }
+            });
+
+            if (isInitialLoad.current) {
+              isInitialLoad.current = false;
+            } else if (hasNewUnread) {
+              playBeep();
+              showInfoToast("Thông báo", `Bạn có thông báo mới từ ${lastSender}`);
+            }
+          }
+        })
         .catch(() => {});
+
       fetch("/api/messages")
         .then(r => r.json())
         .then(d => { if (d.unreadCount !== undefined) setUnreadMsgCount(d.unreadCount); })
         .catch(() => {});
     };
+
     fetchCounts();
     const interval = setInterval(fetchCounts, 10_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [showInfoToast]);
 
   /* ── Fetch avatar nhân viên đang đăng nhập (tránh nhồi Base64 vào session gây lỗi cookie) ── */
   useEffect(() => {
@@ -202,6 +257,9 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
           {/* Brand text — ẩn trên màn nhỏ */}
           <div className="d-none d-md-flex flex-column" style={{ gap: 0 }}>
             <span className="topbar-brand-name">{displayClientName}</span>
+            {company?.industryName && (
+              <span className="topbar-brand-sub">{company.industryName}</span>
+            )}
           </div>
         </Link>
       </div>
@@ -246,9 +304,6 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
             </span>
           )}
         </button>
-
-        {/* Approval Center */}
-        <ApprovalBadgeButton onClick={() => { setApprovalOpen(true); setNotifOpen(false); setMsgOpen(false); setUserMenuOpen(false); }} />
 
         {/* Messages */}
         <button

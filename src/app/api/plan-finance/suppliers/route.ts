@@ -13,13 +13,16 @@ export async function GET(req: NextRequest) {
     const page       = Math.max(1, parseInt(searchParams.get("page")  ?? "1"));
     const limit      = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "10")));
     const search     = searchParams.get("search")     ?? "";
-    const trangThai  = searchParams.get("trangThai")  ?? "";
-    const categoryId = searchParams.get("categoryId") ?? "";
+    const trangThai   = searchParams.get("trangThai")   ?? "";
+    const categoryId  = searchParams.get("categoryId")  ?? "";
+    const categoryIds = searchParams.get("categoryIds") ?? "";
+
+    const categoryIdList = categoryIds ? categoryIds.split(",") : (categoryId ? [categoryId] : []);
 
     const where = {
       ...(search     && { name: { contains: search } }),
       ...(trangThai  && { trangThai }),
-      ...(categoryId && { categories: { some: { categoryId } } }),
+      ...(categoryIdList.length > 0 && { categories: { some: { categoryId: { in: categoryIdList } } } }),
     };
 
     const [total, items] = await Promise.all([
@@ -63,13 +66,31 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { name, code, taxCode, address, phone, email, website, contactName, xungHo, hanMucNo, ghiChu, categoryIds, trangThai } = body;
+    const { name, taxCode, address, phone, email, website, contactName, xungHo, hanMucNo, ghiChu, categoryIds, trangThai } = body;
     if (!name?.trim()) return NextResponse.json({ error: "Tên NCC không được để trống" }, { status: 400 });
+
+    // Auto-generate code: NCC-YYYYmmdd-STT (STT resets to 001 every day)
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const dateStr = `${yyyy}${mm}${dd}`;
+
+    const countToday = await prisma.supplier.count({
+      where: {
+        createdAt: {
+          gte: new Date(new Date().setHours(0, 0, 0, 0))
+        }
+      }
+    });
+    const stt = String(countToday + 1).padStart(3, "0");
+    const generatedCode = `NCC-${dateStr}-${stt}`;
 
     const item = await prisma.supplier.create({
       data: {
         name: name.trim(),
-        code, taxCode, address, phone, email, website, contactName, xungHo, ghiChu,
+        code: generatedCode, 
+        taxCode, address, phone, email, website, contactName, xungHo, ghiChu,
         hanMucNo: hanMucNo || 0,
         trangThai: trangThai || "active",
         categories: categoryIds ? {

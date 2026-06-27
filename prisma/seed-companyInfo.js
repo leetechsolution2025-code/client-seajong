@@ -11,7 +11,7 @@ const companyData = {
   name:     "Công ty TNHH MTV Tư vấn và cung cấp giải pháp số LEE-TECH",
   shortName:"leetech",
   logoUrl:  "/uploads/logo_1774079920956.png",
-  slogan:   "Đồng hành cùng doanh nghiêp bằng các giải pháp số hóa tối ưu và dễ tiếp cận. Đơn giản hóa công nghệ để giúp chủ doanh nghiệp quản trị thông minh hơn, tối ưu vận hành và bứt phá doanh thu.",
+  slogan:   "Tiên phong kiến tạo giá trị thực",
   address:  "Số 18 Đỗ Ngọc Du, phường Lê Thanh Nghị, TP. Hải Phòng",
   phone:    "0913527583",
   email:    "leetech.solution2025@gmail.com",

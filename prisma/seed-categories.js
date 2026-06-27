@@ -17,7 +17,7 @@ const categoryTypes = [
     "isSystem": true,
     "isActive": true,
     "createdAt": "2026-04-01T15:58:23.119Z",
-    "updatedAt": "2026-05-14T18:08:10.891Z"
+    "updatedAt": "2026-06-22T02:31:58.276Z"
   },
   {
     "id": "cmnfte142000k8okbs9dtjdhi",
@@ -30,7 +30,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-01T15:59:19.971Z",
-    "updatedAt": "2026-04-01T15:59:19.971Z"
+    "updatedAt": "2026-06-05T11:28:19.095Z"
   },
   {
     "id": "cmnfteqqa000v8okb8nd2eg3x",
@@ -43,7 +43,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-01T15:59:53.170Z",
-    "updatedAt": "2026-04-01T15:59:53.170Z"
+    "updatedAt": "2026-06-05T11:28:19.096Z"
   },
   {
     "id": "cmnftflrd00168okbwr3e0nge",
@@ -56,7 +56,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-01T16:00:33.386Z",
-    "updatedAt": "2026-04-01T16:00:33.386Z"
+    "updatedAt": "2026-06-05T11:28:19.097Z"
   },
   {
     "id": "cmnftfvq6001h8okbhgkcmsb3",
@@ -69,7 +69,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-01T16:00:46.303Z",
-    "updatedAt": "2026-04-01T16:00:46.303Z"
+    "updatedAt": "2026-06-05T11:28:19.098Z"
   },
   {
     "id": "cmnfth3i2001s8okbeqcsasvi",
@@ -82,7 +82,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-01T16:01:43.034Z",
-    "updatedAt": "2026-04-01T16:01:43.034Z"
+    "updatedAt": "2026-06-05T11:28:19.098Z"
   },
   {
     "id": "cmnfthh4u00238okbzp2qidbh",
@@ -95,7 +95,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-01T16:02:00.702Z",
-    "updatedAt": "2026-04-01T16:02:00.702Z"
+    "updatedAt": "2026-06-05T11:28:19.098Z"
   },
   {
     "id": "cmnfthq31002e8okb3ff1qnph",
@@ -108,7 +108,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-01T16:02:12.301Z",
-    "updatedAt": "2026-04-01T16:02:12.301Z"
+    "updatedAt": "2026-06-05T11:28:19.099Z"
   },
   {
     "id": "cmnftic1r00308okbdy61u2px",
@@ -121,7 +121,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-01T16:02:40.767Z",
-    "updatedAt": "2026-04-01T16:02:40.767Z"
+    "updatedAt": "2026-06-05T11:28:19.099Z"
   },
   {
     "id": "cmnftimzb003b8okbqlrfl8yu",
@@ -134,7 +134,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-01T16:02:54.935Z",
-    "updatedAt": "2026-04-01T16:02:54.935Z"
+    "updatedAt": "2026-06-05T11:28:19.100Z"
   },
   {
     "id": "cmnftjd4w003m8okbcve1xxve",
@@ -147,7 +147,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-01T16:03:28.832Z",
-    "updatedAt": "2026-04-01T16:03:28.832Z"
+    "updatedAt": "2026-06-05T11:28:19.100Z"
   },
   {
     "id": "cmnftji8q003x8okb3b50tv0y",
@@ -160,7 +160,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-01T16:03:35.450Z",
-    "updatedAt": "2026-04-01T16:03:35.450Z"
+    "updatedAt": "2026-06-05T11:28:19.101Z"
   },
   {
     "id": "cmnws2az600b5gpuim21dbt3y",
@@ -173,7 +173,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-13T12:54:18.259Z",
-    "updatedAt": "2026-04-13T12:54:18.259Z"
+    "updatedAt": "2026-06-05T11:28:19.101Z"
   },
   {
     "id": "cmnwyfqnk00gbgpuir8jft9hu",
@@ -186,7 +186,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-13T15:52:42.800Z",
-    "updatedAt": "2026-04-13T15:52:42.800Z"
+    "updatedAt": "2026-06-05T11:28:19.102Z"
   },
   {
     "id": "cmnwzabcu00n7gpuiz9v6j94w",
@@ -199,7 +199,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-13T16:16:29.310Z",
-    "updatedAt": "2026-04-13T16:16:29.310Z"
+    "updatedAt": "2026-06-05T11:28:19.102Z"
   },
   {
     "id": "cmob29y7o00bp8oun9qt4jspq",
@@ -212,7 +212,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-23T12:48:57.588Z",
-    "updatedAt": "2026-04-23T12:48:57.588Z"
+    "updatedAt": "2026-06-05T11:28:19.103Z"
   },
   {
     "id": "cmob2azri00c68oun2vwylu76",
@@ -225,7 +225,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-04-23T12:49:46.255Z",
-    "updatedAt": "2026-04-23T12:49:46.255Z"
+    "updatedAt": "2026-06-05T11:28:19.103Z"
   },
   {
     "id": "cmotstzu7001kgnmmlmu4ny7f",
@@ -238,7 +238,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-05-06T08:32:13.999Z",
-    "updatedAt": "2026-05-06T08:32:13.999Z"
+    "updatedAt": "2026-06-05T11:28:19.103Z"
   },
   {
     "id": "cmou5mxgb000agnbfpiqtlzis",
@@ -251,7 +251,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-05-06T14:30:39.323Z",
-    "updatedAt": "2026-05-06T14:30:39.323Z"
+    "updatedAt": "2026-06-05T11:28:19.104Z"
   },
   {
     "id": "cmovbbq37002dgny1u7sf36bz",
@@ -264,7 +264,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-05-07T09:57:40.436Z",
-    "updatedAt": "2026-05-07T09:57:40.436Z"
+    "updatedAt": "2026-06-05T11:28:19.104Z"
   },
   {
     "id": "cmovt68dy0014gn8fnc89gjp6",
@@ -277,7 +277,7 @@ const categoryTypes = [
     "isSystem": false,
     "isActive": true,
     "createdAt": "2026-05-07T18:17:17.302Z",
-    "updatedAt": "2026-05-07T18:17:17.302Z"
+    "updatedAt": "2026-06-05T11:28:19.105Z"
   },
   {
     "id": "cmnftct8v00008okbavq7znxs",
@@ -290,7 +290,7 @@ const categoryTypes = [
     "isSystem": true,
     "isActive": true,
     "createdAt": "2026-04-01T15:58:23.119Z",
-    "updatedAt": "2026-05-14T18:08:10.891Z"
+    "updatedAt": "2026-06-22T02:31:58.276Z"
   },
   {
     "id": "cmnftct8v00028okb7hydls7p",
@@ -303,7 +303,7 @@ const categoryTypes = [
     "isSystem": true,
     "isActive": true,
     "createdAt": "2026-04-01T15:58:23.119Z",
-    "updatedAt": "2026-05-14T18:08:10.891Z"
+    "updatedAt": "2026-06-22T02:31:58.252Z"
   },
   {
     "id": "cmnftct8v00038okbooiqmbog",
@@ -316,7 +316,7 @@ const categoryTypes = [
     "isSystem": true,
     "isActive": true,
     "createdAt": "2026-04-01T15:58:23.119Z",
-    "updatedAt": "2026-05-14T18:08:10.892Z"
+    "updatedAt": "2026-06-22T02:31:58.303Z"
   },
   {
     "id": "cmnftct8v00048okb0h711pk5",
@@ -329,7 +329,7 @@ const categoryTypes = [
     "isSystem": true,
     "isActive": true,
     "createdAt": "2026-04-01T15:58:23.119Z",
-    "updatedAt": "2026-05-14T18:08:10.892Z"
+    "updatedAt": "2026-06-22T02:31:58.253Z"
   },
   {
     "id": "cmnftct8v00058okbft6m880v",
@@ -342,7 +342,7 @@ const categoryTypes = [
     "isSystem": true,
     "isActive": true,
     "createdAt": "2026-04-01T15:58:23.119Z",
-    "updatedAt": "2026-05-14T18:08:10.892Z"
+    "updatedAt": "2026-06-22T02:31:58.253Z"
   },
   {
     "id": "cmnftct8v00068okbik1bdair",
@@ -355,7 +355,7 @@ const categoryTypes = [
     "isSystem": true,
     "isActive": true,
     "createdAt": "2026-04-01T15:58:23.120Z",
-    "updatedAt": "2026-05-14T18:08:10.892Z"
+    "updatedAt": "2026-06-22T02:31:58.253Z"
   },
   {
     "id": "cmnftct8v00078okbohvzaw5b",
@@ -368,7 +368,7 @@ const categoryTypes = [
     "isSystem": true,
     "isActive": true,
     "createdAt": "2026-04-01T15:58:23.120Z",
-    "updatedAt": "2026-05-14T18:08:10.892Z"
+    "updatedAt": "2026-06-22T02:31:58.253Z"
   },
   {
     "id": "cmnftct8v00088okbwoi6wdp0",
@@ -381,7 +381,7 @@ const categoryTypes = [
     "isSystem": true,
     "isActive": true,
     "createdAt": "2026-04-01T15:58:23.120Z",
-    "updatedAt": "2026-05-14T18:08:10.892Z"
+    "updatedAt": "2026-06-22T02:31:58.253Z"
   },
   {
     "id": "cmnftct8v00098okbls1jc9fh",
@@ -394,7 +394,7 @@ const categoryTypes = [
     "isSystem": true,
     "isActive": true,
     "createdAt": "2026-04-01T15:58:23.120Z",
-    "updatedAt": "2026-05-14T18:08:10.893Z"
+    "updatedAt": "2026-06-22T02:31:58.253Z"
   }
 ];
 const categories = [
@@ -411,7 +411,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-28T14:04:19.703Z",
-    "updatedAt": "2026-04-28T14:04:49.909Z"
+    "updatedAt": "2026-06-05T11:28:19.109Z"
   },
   {
     "id": "cmoip69a10008i4aloj62g2mb",
@@ -426,7 +426,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-28T14:04:19.705Z",
-    "updatedAt": "2026-04-28T14:04:49.910Z"
+    "updatedAt": "2026-06-05T11:28:19.110Z"
   },
   {
     "id": "cmoip69a2000bi4al889a0vlu",
@@ -441,7 +441,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-28T14:04:19.706Z",
-    "updatedAt": "2026-04-28T14:04:49.911Z"
+    "updatedAt": "2026-06-05T11:28:19.110Z"
   },
   {
     "id": "cmoip69a3000ei4al1hw8mlmt",
@@ -456,7 +456,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmoip699z0005i4althkbrtu5",
     "createdAt": "2026-04-28T14:04:19.707Z",
-    "updatedAt": "2026-04-28T14:04:49.912Z"
+    "updatedAt": "2026-06-05T11:28:19.167Z"
   },
   {
     "id": "cmoip69a4000hi4alewdics24",
@@ -471,7 +471,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmoip699z0005i4althkbrtu5",
     "createdAt": "2026-04-28T14:04:19.709Z",
-    "updatedAt": "2026-04-28T14:04:49.914Z"
+    "updatedAt": "2026-06-05T11:28:19.168Z"
   },
   {
     "id": "cmoip69a5000ki4alf58zg5hs",
@@ -486,7 +486,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmoip699z0005i4althkbrtu5",
     "createdAt": "2026-04-28T14:04:19.710Z",
-    "updatedAt": "2026-04-28T14:04:49.914Z"
+    "updatedAt": "2026-06-05T11:28:19.168Z"
   },
   {
     "id": "cmoip69a6000ni4al9ty3vhzh",
@@ -501,7 +501,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmoip69a10008i4aloj62g2mb",
     "createdAt": "2026-04-28T14:04:19.711Z",
-    "updatedAt": "2026-04-28T14:04:49.916Z"
+    "updatedAt": "2026-06-05T11:28:19.169Z"
   },
   {
     "id": "cmoip69a7000qi4al6dtq75ac",
@@ -516,7 +516,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmoip69a10008i4aloj62g2mb",
     "createdAt": "2026-04-28T14:04:19.712Z",
-    "updatedAt": "2026-04-28T14:04:49.917Z"
+    "updatedAt": "2026-06-05T11:28:19.169Z"
   },
   {
     "id": "cmoip69a8000ti4alqmivi6ly",
@@ -531,7 +531,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmoip69a10008i4aloj62g2mb",
     "createdAt": "2026-04-28T14:04:19.713Z",
-    "updatedAt": "2026-04-28T14:04:49.918Z"
+    "updatedAt": "2026-06-05T11:28:19.170Z"
   },
   {
     "id": "cmoip69a9000wi4al49zmu3xj",
@@ -546,7 +546,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmoip69a2000bi4al889a0vlu",
     "createdAt": "2026-04-28T14:04:19.714Z",
-    "updatedAt": "2026-04-28T14:04:49.920Z"
+    "updatedAt": "2026-06-05T11:28:19.170Z"
   },
   {
     "id": "cmoip69aa000zi4alo2gvhhi5",
@@ -561,7 +561,202 @@ const categories = [
     "clientId": null,
     "parentId": "cmoip69a2000bi4al889a0vlu",
     "createdAt": "2026-04-28T14:04:19.715Z",
-    "updatedAt": "2026-04-28T14:04:49.921Z"
+    "updatedAt": "2026-06-05T11:28:19.171Z"
+  },
+  {
+    "id": "cmq0rroot0000vesinh123456",
+    "type": "vat_tu_san_xuat",
+    "code": "VTSX_VESINH",
+    "name": "Ngành thiết bị vệ sinh, nhà bếp",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": null,
+    "createdAt": "2026-06-05T10:10:50.516Z",
+    "updatedAt": "2026-06-05T11:28:19.198Z"
+  },
+  {
+    "id": "cmq0rroot0001wooddoor123",
+    "type": "vat_tu_san_xuat",
+    "code": "VTSX_GO",
+    "name": "Ngành sản xuất đồ gỗ xây dựng",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": null,
+    "createdAt": "2026-06-05T10:10:50.516Z",
+    "updatedAt": "2026-06-05T11:28:19.198Z"
+  },
+  {
+    "id": "cmq0rroot0002vlxd4567890",
+    "type": "vat_tu_san_xuat",
+    "code": "VTSX_VLXD",
+    "name": "Ngành vật liệu xây dựng",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": null,
+    "createdAt": "2026-06-05T10:10:50.517Z",
+    "updatedAt": "2026-06-05T11:28:19.199Z"
+  },
+  {
+    "id": "cmq0rvlxd0001vatlieutho",
+    "type": "vat_tu_san_xuat",
+    "code": "VLXD_THO",
+    "name": "Vật liệu thô",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": "cmq0rroot0002vlxd4567890",
+    "createdAt": "2026-06-05T10:10:50.525Z",
+    "updatedAt": "2026-06-05T11:28:19.203Z"
+  },
+  {
+    "id": "cmq0rvlxd0002vatlieuhoanthien",
+    "type": "vat_tu_san_xuat",
+    "code": "VLXD_HOAN_THIEN",
+    "name": "Vật liệu hoàn thiện",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": "cmq0rroot0002vlxd4567890",
+    "createdAt": "2026-06-05T10:10:50.525Z",
+    "updatedAt": "2026-06-05T11:28:19.203Z"
+  },
+  {
+    "id": "cmq0rvlxd0003satthep",
+    "type": "vat_tu_san_xuat",
+    "code": "SAT_THEP",
+    "name": "Sắt thép xây dựng",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": "cmq0rroot0002vlxd4567890",
+    "createdAt": "2026-06-05T10:10:50.526Z",
+    "updatedAt": "2026-06-05T11:28:19.204Z"
+  },
+  {
+    "id": "cmq0rvlxd0004catda",
+    "type": "vat_tu_san_xuat",
+    "code": "CAT_DA_SOI",
+    "name": "Cát, đá, sỏi",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": "cmq0rvlxd0001vatlieutho",
+    "createdAt": "2026-06-05T10:10:50.526Z",
+    "updatedAt": "2026-06-05T11:28:19.204Z"
+  },
+  {
+    "id": "cmq0rvlxd0005ximang",
+    "type": "vat_tu_san_xuat",
+    "code": "XI_MANG",
+    "name": "Xi măng",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": "cmq0rvlxd0001vatlieutho",
+    "createdAt": "2026-06-05T10:10:50.527Z",
+    "updatedAt": "2026-06-05T11:28:19.204Z"
+  },
+  {
+    "id": "cmq0rvlxd0006gachxay",
+    "type": "vat_tu_san_xuat",
+    "code": "GACH_XAY",
+    "name": "Gạch xây dựng",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": "cmq0rvlxd0001vatlieutho",
+    "createdAt": "2026-06-05T10:10:50.527Z",
+    "updatedAt": "2026-06-05T11:28:19.205Z"
+  },
+  {
+    "id": "cmq0rwood0000vattuchinh",
+    "type": "vat_tu_san_xuat",
+    "code": "VT_CHINH",
+    "name": "Vật tư chính",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": "cmq0rroot0001wooddoor123",
+    "createdAt": "2026-06-05T10:14:29.752Z",
+    "updatedAt": "2026-06-05T11:28:19.201Z"
+  },
+  {
+    "id": "cmq0rwood0000vattuphu",
+    "type": "vat_tu_san_xuat",
+    "code": "VT_PHU",
+    "name": "Vật tư phụ",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": "cmq0rroot0001wooddoor123",
+    "createdAt": "2026-06-05T10:14:29.752Z",
+    "updatedAt": "2026-06-05T11:28:19.201Z"
+  },
+  {
+    "id": "cmq0rwood0000vattutieuhao",
+    "type": "vat_tu_san_xuat",
+    "code": "VT_TIEU_HAO",
+    "name": "Vật tư tiêu hao",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": "cmq0rroot0001wooddoor123",
+    "createdAt": "2026-06-05T10:14:29.753Z",
+    "updatedAt": "2026-06-05T11:28:19.202Z"
+  },
+  {
+    "id": "cmq0rwood0000phukien",
+    "type": "vat_tu_san_xuat",
+    "code": "PHU_KIEN",
+    "name": "Phụ kiện",
+    "color": null,
+    "icon": null,
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "clientId": null,
+    "parentId": "cmq0rroot0001wooddoor123",
+    "createdAt": "2026-06-05T10:14:29.753Z",
+    "updatedAt": "2026-06-05T11:28:19.202Z"
   },
   {
     "id": "cmnftmtx2005d8okb2ljv5a2p",
@@ -576,7 +771,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:06:10.550Z",
-    "updatedAt": "2026-04-01T16:06:10.550Z"
+    "updatedAt": "2026-06-05T11:28:19.111Z"
   },
   {
     "id": "cmnftslao005l8okbq2iuvp77",
@@ -591,7 +786,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:10:39.313Z",
-    "updatedAt": "2026-04-01T16:10:39.313Z"
+    "updatedAt": "2026-06-05T11:28:19.111Z"
   },
   {
     "id": "cmnfv0mgb009d8okbg909j7n6",
@@ -606,7 +801,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:44:53.675Z",
-    "updatedAt": "2026-04-01T16:44:53.675Z"
+    "updatedAt": "2026-06-05T11:28:19.112Z"
   },
   {
     "id": "cmnfv2753009l8okbl7kexm3t",
@@ -621,7 +816,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:46:07.143Z",
-    "updatedAt": "2026-04-01T16:46:07.143Z"
+    "updatedAt": "2026-06-05T11:28:19.113Z"
   },
   {
     "id": "cmnfv33uc009v8okbpr7bcmwt",
@@ -636,7 +831,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:46:49.524Z",
-    "updatedAt": "2026-04-01T16:46:49.524Z"
+    "updatedAt": "2026-06-05T11:28:19.113Z"
   },
   {
     "id": "cmnfv43xq00a38okbm4jpatg6",
@@ -651,7 +846,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:47:36.303Z",
-    "updatedAt": "2026-04-01T16:47:36.303Z"
+    "updatedAt": "2026-06-05T11:28:19.114Z"
   },
   {
     "id": "cmnfv4qlm00a98okb4f0y1ixw",
@@ -666,7 +861,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:48:05.674Z",
-    "updatedAt": "2026-04-01T16:48:05.674Z"
+    "updatedAt": "2026-06-05T11:28:19.114Z"
   },
   {
     "id": "cmnfv5gal00af8okbfsaeiv0m",
@@ -681,7 +876,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:48:38.973Z",
-    "updatedAt": "2026-04-01T16:48:38.973Z"
+    "updatedAt": "2026-06-05T11:28:19.115Z"
   },
   {
     "id": "cmnfv7kpj00av8okbw1rpq8w4",
@@ -696,7 +891,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:50:18.008Z",
-    "updatedAt": "2026-04-01T16:50:18.008Z"
+    "updatedAt": "2026-06-05T11:28:19.115Z"
   },
   {
     "id": "cmnfv852w00b18okbwobmpvtp",
@@ -711,7 +906,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:50:44.408Z",
-    "updatedAt": "2026-04-01T16:50:44.408Z"
+    "updatedAt": "2026-06-05T11:28:19.116Z"
   },
   {
     "id": "cmnfv9h2700b98okbc87u7qwg",
@@ -726,7 +921,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:51:46.591Z",
-    "updatedAt": "2026-04-01T16:51:46.591Z"
+    "updatedAt": "2026-06-05T11:28:19.116Z"
   },
   {
     "id": "cmnfv9wvn00bd8okb7uzfg7k3",
@@ -741,7 +936,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:52:07.092Z",
-    "updatedAt": "2026-04-01T16:52:07.092Z"
+    "updatedAt": "2026-06-05T11:28:19.117Z"
   },
   {
     "id": "cmnfvaety00bh8okb1cgql9ci",
@@ -756,7 +951,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:52:30.359Z",
-    "updatedAt": "2026-04-01T16:52:30.359Z"
+    "updatedAt": "2026-06-05T11:28:19.117Z"
   },
   {
     "id": "cmnfvbg1r00bn8okb54dz70mn",
@@ -771,7 +966,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:53:18.591Z",
-    "updatedAt": "2026-04-01T16:53:18.591Z"
+    "updatedAt": "2026-06-05T11:28:19.118Z"
   },
   {
     "id": "cmnfvcde400bv8okbruv0e7mo",
@@ -786,7 +981,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:54:01.805Z",
-    "updatedAt": "2026-04-01T16:54:01.805Z"
+    "updatedAt": "2026-06-05T11:28:19.118Z"
   },
   {
     "id": "cmnfvopqw00cz8okbceumrnhw",
@@ -801,7 +996,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T17:03:37.689Z",
-    "updatedAt": "2026-04-01T17:03:37.689Z"
+    "updatedAt": "2026-06-05T11:28:19.119Z"
   },
   {
     "id": "cmnfvpvaa00d98okbkb68b8dl",
@@ -816,7 +1011,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T17:04:31.522Z",
-    "updatedAt": "2026-04-01T17:04:31.522Z"
+    "updatedAt": "2026-06-05T11:28:19.119Z"
   },
   {
     "id": "cmnfvqpw500dj8okbfcpblulf",
@@ -831,7 +1026,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T17:05:11.189Z",
-    "updatedAt": "2026-04-01T17:05:11.189Z"
+    "updatedAt": "2026-06-05T11:28:19.120Z"
   },
   {
     "id": "cmnws3j9600bhgpuiil7oqb8a",
@@ -846,7 +1041,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-13T12:55:15.642Z",
-    "updatedAt": "2026-04-13T12:55:41.604Z"
+    "updatedAt": "2026-06-05T11:28:19.120Z"
   },
   {
     "id": "cmnwyfyzj00gngpuiod5clyyr",
@@ -861,7 +1056,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-13T15:52:53.599Z",
-    "updatedAt": "2026-04-13T16:03:25.524Z"
+    "updatedAt": "2026-06-05T11:28:19.121Z"
   },
   {
     "id": "cmnwze3qn00njgpuidqsbsuq7",
@@ -876,7 +1071,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-13T16:19:26.063Z",
-    "updatedAt": "2026-04-13T16:19:26.063Z"
+    "updatedAt": "2026-06-05T11:28:19.121Z"
   },
   {
     "id": "cmob2a6ly00c18oun9dle9f92",
@@ -891,7 +1086,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-23T12:49:08.471Z",
-    "updatedAt": "2026-04-23T12:49:08.471Z"
+    "updatedAt": "2026-06-05T11:28:19.122Z"
   },
   {
     "id": "cmob2bkew00ci8ounleakhl8d",
@@ -906,7 +1101,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-23T12:50:13.016Z",
-    "updatedAt": "2026-04-23T12:50:13.016Z"
+    "updatedAt": "2026-06-05T11:28:19.122Z"
   },
   {
     "id": "cmotsu8lf001wgnmmcjhnzio7",
@@ -921,7 +1116,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T08:32:25.347Z",
-    "updatedAt": "2026-05-06T08:32:25.347Z"
+    "updatedAt": "2026-06-05T11:28:19.123Z"
   },
   {
     "id": "cmou5nfn7000mgnbfq1lnhcre",
@@ -936,7 +1131,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T14:31:02.899Z",
-    "updatedAt": "2026-05-06T14:42:58.913Z"
+    "updatedAt": "2026-06-05T11:28:19.123Z"
   },
   {
     "id": "cmovbci7l002pgny15b7tqtdl",
@@ -951,7 +1146,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-07T09:58:16.881Z",
-    "updatedAt": "2026-05-07T09:58:16.881Z"
+    "updatedAt": "2026-06-05T11:28:19.124Z"
   },
   {
     "id": "cmovt8iff001ggn8fy0wcmd6l",
@@ -964,9 +1159,9 @@ const categories = [
     "sortOrder": 1,
     "isActive": true,
     "clientId": null,
-    "parentId": null,
+    "parentId": "cmq0rroot0000vesinh123456",
     "createdAt": "2026-05-07T18:19:03.627Z",
-    "updatedAt": "2026-05-07T18:19:03.627Z"
+    "updatedAt": "2026-06-05T11:28:19.199Z"
   },
   {
     "id": "cmnftpjro005f8okb5gx9usa6",
@@ -981,7 +1176,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:08:17.365Z",
-    "updatedAt": "2026-04-01T16:08:17.365Z"
+    "updatedAt": "2026-06-05T11:28:19.125Z"
   },
   {
     "id": "cmnftxxnn005x8okbpkyqw2sa",
@@ -996,7 +1191,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:14:48.611Z",
-    "updatedAt": "2026-04-01T16:14:48.611Z"
+    "updatedAt": "2026-06-05T11:28:19.125Z"
   },
   {
     "id": "cmnfv0wzz009f8okb9dj6dgpt",
@@ -1011,7 +1206,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:45:07.344Z",
-    "updatedAt": "2026-04-01T16:45:07.344Z"
+    "updatedAt": "2026-06-05T11:28:19.126Z"
   },
   {
     "id": "cmnfv2don009n8okbqjyv6c3i",
@@ -1026,7 +1221,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:46:15.623Z",
-    "updatedAt": "2026-04-01T16:46:15.623Z"
+    "updatedAt": "2026-06-05T11:28:19.126Z"
   },
   {
     "id": "cmnfv3ilt009x8okbd70d5tob",
@@ -1041,7 +1236,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:47:08.657Z",
-    "updatedAt": "2026-04-01T16:47:08.657Z"
+    "updatedAt": "2026-06-05T11:28:19.127Z"
   },
   {
     "id": "cmnfv48pl00a58okbrspaddr4",
@@ -1056,7 +1251,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:47:42.489Z",
-    "updatedAt": "2026-04-01T16:47:42.489Z"
+    "updatedAt": "2026-06-05T11:28:19.127Z"
   },
   {
     "id": "cmnfv4ycp00ab8okb9jtqplin",
@@ -1071,7 +1266,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:48:15.722Z",
-    "updatedAt": "2026-04-01T16:48:15.722Z"
+    "updatedAt": "2026-06-05T11:28:19.128Z"
   },
   {
     "id": "cmnfv5obx00ah8okb5rd3ccsp",
@@ -1086,7 +1281,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:48:49.389Z",
-    "updatedAt": "2026-04-01T16:48:49.389Z"
+    "updatedAt": "2026-06-05T11:28:19.128Z"
   },
   {
     "id": "cmnfv7qsi00ax8okb5o4j3sg7",
@@ -1101,7 +1296,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:50:25.890Z",
-    "updatedAt": "2026-04-01T16:50:25.890Z"
+    "updatedAt": "2026-06-05T11:28:19.129Z"
   },
   {
     "id": "cmnfv89ao00b38okblf0v9ndu",
@@ -1116,7 +1311,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:50:49.873Z",
-    "updatedAt": "2026-04-01T16:50:49.873Z"
+    "updatedAt": "2026-06-05T11:28:19.129Z"
   },
   {
     "id": "cmnfv9mo100bb8okb8ck69k7j",
@@ -1131,7 +1326,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:51:53.857Z",
-    "updatedAt": "2026-04-01T16:51:53.857Z"
+    "updatedAt": "2026-06-05T11:28:19.129Z"
   },
   {
     "id": "cmnfva4x400bf8okb0x6rxn4r",
@@ -1146,7 +1341,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:52:17.512Z",
-    "updatedAt": "2026-04-01T16:52:17.512Z"
+    "updatedAt": "2026-06-05T11:28:19.130Z"
   },
   {
     "id": "cmnfvas6h00bj8okbpv8r3zug",
@@ -1161,7 +1356,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:52:47.657Z",
-    "updatedAt": "2026-04-01T16:52:47.657Z"
+    "updatedAt": "2026-06-05T11:28:19.130Z"
   },
   {
     "id": "cmnfvbonx00bp8okbt146f0vk",
@@ -1176,7 +1371,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:53:29.757Z",
-    "updatedAt": "2026-04-01T16:53:29.757Z"
+    "updatedAt": "2026-06-05T11:28:19.131Z"
   },
   {
     "id": "cmnfvcihi00bx8okbja5cujhy",
@@ -1191,7 +1386,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:54:08.406Z",
-    "updatedAt": "2026-04-01T16:54:08.406Z"
+    "updatedAt": "2026-06-05T11:28:19.131Z"
   },
   {
     "id": "cmnfvozf000d18okbtaw4s6lm",
@@ -1206,7 +1401,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T17:03:50.220Z",
-    "updatedAt": "2026-04-01T17:03:50.220Z"
+    "updatedAt": "2026-06-05T11:28:19.132Z"
   },
   {
     "id": "cmnfvpzz500db8okb3i1vgm48",
@@ -1221,7 +1416,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T17:04:37.602Z",
-    "updatedAt": "2026-04-01T17:04:37.602Z"
+    "updatedAt": "2026-06-05T11:28:19.132Z"
   },
   {
     "id": "cmnfvqz8700dl8okbfafdanw4",
@@ -1236,7 +1431,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T17:05:23.287Z",
-    "updatedAt": "2026-04-01T17:05:23.287Z"
+    "updatedAt": "2026-06-05T11:28:19.133Z"
   },
   {
     "id": "cmnws4ibk00bjgpuigrrwut2j",
@@ -1251,7 +1446,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-13T12:56:01.089Z",
-    "updatedAt": "2026-04-13T12:57:29.228Z"
+    "updatedAt": "2026-06-05T11:28:19.133Z"
   },
   {
     "id": "cmnwyg6hf00gpgpuiweikdufc",
@@ -1266,7 +1461,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-13T15:53:03.315Z",
-    "updatedAt": "2026-04-13T15:53:03.315Z"
+    "updatedAt": "2026-06-05T11:28:19.134Z"
   },
   {
     "id": "cmnwzeipj00nlgpuiqxvy7xfo",
@@ -1281,7 +1476,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-13T16:19:45.464Z",
-    "updatedAt": "2026-04-13T18:46:54.760Z"
+    "updatedAt": "2026-06-05T11:28:19.134Z"
   },
   {
     "id": "cmob2alh600c38ounx741qaiz",
@@ -1296,7 +1491,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-23T12:49:27.739Z",
-    "updatedAt": "2026-04-23T12:49:27.739Z"
+    "updatedAt": "2026-06-05T11:28:19.135Z"
   },
   {
     "id": "cmob2bqz300ck8ounsxrepgwr",
@@ -1311,7 +1506,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-23T12:50:21.520Z",
-    "updatedAt": "2026-04-23T12:50:21.520Z"
+    "updatedAt": "2026-06-05T11:28:19.135Z"
   },
   {
     "id": "cmotsugsm001ygnmms1o96hmg",
@@ -1326,7 +1521,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T08:32:35.974Z",
-    "updatedAt": "2026-05-06T08:32:35.974Z"
+    "updatedAt": "2026-06-05T11:28:19.136Z"
   },
   {
     "id": "cmou5nlfv000ognbfh6bw7hxl",
@@ -1341,7 +1536,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T14:31:10.411Z",
-    "updatedAt": "2026-05-06T14:42:58.915Z"
+    "updatedAt": "2026-06-05T11:28:19.136Z"
   },
   {
     "id": "cmovbd0ay002rgny1nr2pygp4",
@@ -1356,7 +1551,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-07T09:58:40.330Z",
-    "updatedAt": "2026-05-07T09:58:40.330Z"
+    "updatedAt": "2026-06-05T11:28:19.137Z"
   },
   {
     "id": "cmovt8uh7001ign8fechctok8",
@@ -1369,9 +1564,9 @@ const categories = [
     "sortOrder": 2,
     "isActive": true,
     "clientId": null,
-    "parentId": null,
+    "parentId": "cmq0rroot0000vesinh123456",
     "createdAt": "2026-05-07T18:19:19.244Z",
-    "updatedAt": "2026-05-07T18:19:19.244Z"
+    "updatedAt": "2026-06-05T11:28:19.199Z"
   },
   {
     "id": "cmnftpwqu005h8okbpmsifih6",
@@ -1386,7 +1581,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:08:34.182Z",
-    "updatedAt": "2026-04-01T16:08:34.182Z"
+    "updatedAt": "2026-06-05T11:28:19.138Z"
   },
   {
     "id": "cmnftzcq3005z8okbnnqqp2ka",
@@ -1401,7 +1596,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:15:54.795Z",
-    "updatedAt": "2026-04-01T16:15:54.795Z"
+    "updatedAt": "2026-06-05T11:28:19.138Z"
   },
   {
     "id": "cmnfv1azm009h8okb94k3kfoc",
@@ -1416,7 +1611,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:45:25.474Z",
-    "updatedAt": "2026-04-01T16:45:25.474Z"
+    "updatedAt": "2026-06-05T11:28:19.139Z"
   },
   {
     "id": "cmnfv2mx3009p8okb79u8c39p",
@@ -1431,7 +1626,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:46:27.591Z",
-    "updatedAt": "2026-04-01T16:46:27.591Z"
+    "updatedAt": "2026-06-05T11:28:19.139Z"
   },
   {
     "id": "cmnfv3rj3009z8okbgbn50pxm",
@@ -1446,7 +1641,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:47:20.223Z",
-    "updatedAt": "2026-04-01T16:47:20.223Z"
+    "updatedAt": "2026-06-05T11:28:19.140Z"
   },
   {
     "id": "cmnfv4g3e00a78okb0rj96zur",
@@ -1461,7 +1656,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:47:52.058Z",
-    "updatedAt": "2026-04-01T16:47:52.058Z"
+    "updatedAt": "2026-06-05T11:28:19.140Z"
   },
   {
     "id": "cmnfv546i00ad8okbo1pzo2t3",
@@ -1476,7 +1671,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:48:23.274Z",
-    "updatedAt": "2026-04-01T16:48:23.274Z"
+    "updatedAt": "2026-06-05T11:28:19.141Z"
   },
   {
     "id": "cmnfv6e1e00aj8okbjco634ro",
@@ -1491,7 +1686,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:49:22.706Z",
-    "updatedAt": "2026-04-01T16:49:22.706Z"
+    "updatedAt": "2026-06-05T11:28:19.141Z"
   },
   {
     "id": "cmnfv7xb900az8okbuny9l8n4",
@@ -1506,7 +1701,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:50:34.341Z",
-    "updatedAt": "2026-04-01T16:50:34.341Z"
+    "updatedAt": "2026-06-05T11:28:19.142Z"
   },
   {
     "id": "cmnfv8d8c00b58okbdv1j7dvz",
@@ -1521,7 +1716,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:50:54.973Z",
-    "updatedAt": "2026-04-01T16:50:54.973Z"
+    "updatedAt": "2026-06-05T11:28:19.142Z"
   },
   {
     "id": "cmnfvaytj00bl8okbz8c7b801",
@@ -1536,7 +1731,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:52:56.263Z",
-    "updatedAt": "2026-04-01T16:52:56.263Z"
+    "updatedAt": "2026-06-05T11:28:19.143Z"
   },
   {
     "id": "cmnfvbtiz00br8okb4q10kxo5",
@@ -1551,7 +1746,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:53:36.059Z",
-    "updatedAt": "2026-04-01T16:53:36.059Z"
+    "updatedAt": "2026-06-05T11:28:19.143Z"
   },
   {
     "id": "cmnfvp8ng00d38okbrtdk8d0t",
@@ -1566,7 +1761,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T17:04:02.188Z",
-    "updatedAt": "2026-04-01T17:04:02.188Z"
+    "updatedAt": "2026-06-05T11:28:19.144Z"
   },
   {
     "id": "cmnfvq7a800dd8okbwdrfnmqf",
@@ -1581,7 +1776,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T17:04:47.072Z",
-    "updatedAt": "2026-04-01T17:04:47.072Z"
+    "updatedAt": "2026-06-05T11:28:19.144Z"
   },
   {
     "id": "cmnfvr83500dn8okbt2seogub",
@@ -1596,7 +1791,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T17:05:34.769Z",
-    "updatedAt": "2026-04-01T17:05:34.769Z"
+    "updatedAt": "2026-06-05T11:28:19.145Z"
   },
   {
     "id": "cmnws56jc00blgpuiqmw8lglz",
@@ -1611,7 +1806,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-13T12:56:32.473Z",
-    "updatedAt": "2026-04-13T12:56:32.473Z"
+    "updatedAt": "2026-06-05T11:28:19.145Z"
   },
   {
     "id": "cmnwygazc00grgpuidjckfuhe",
@@ -1626,7 +1821,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-13T15:53:09.145Z",
-    "updatedAt": "2026-04-13T15:53:09.145Z"
+    "updatedAt": "2026-06-05T11:28:19.146Z"
   },
   {
     "id": "cmnx4nerl00gzgpnt5epkfd0w",
@@ -1641,7 +1836,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-13T18:46:38.337Z",
-    "updatedAt": "2026-04-13T18:46:38.337Z"
+    "updatedAt": "2026-06-05T11:28:19.146Z"
   },
   {
     "id": "cmob2artt00c58ouneewjqo8e",
@@ -1656,7 +1851,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-23T12:49:35.969Z",
-    "updatedAt": "2026-04-23T12:49:35.969Z"
+    "updatedAt": "2026-06-05T11:28:19.147Z"
   },
   {
     "id": "cmob2bzd000cm8oun4rdxqo31",
@@ -1671,7 +1866,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-23T12:50:32.388Z",
-    "updatedAt": "2026-04-23T12:50:32.388Z"
+    "updatedAt": "2026-06-05T11:28:19.147Z"
   },
   {
     "id": "cmotsbfyf0015gnmm84gw192b",
@@ -1686,7 +1881,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv9wvn00bd8okb7uzfg7k3",
     "createdAt": "2026-05-06T08:17:48.424Z",
-    "updatedAt": "2026-05-06T08:18:53.125Z"
+    "updatedAt": "2026-06-05T11:28:19.171Z"
   },
   {
     "id": "cmotsuzx00020gnmmi4ltka8h",
@@ -1701,7 +1896,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T08:33:00.757Z",
-    "updatedAt": "2026-05-06T08:33:00.757Z"
+    "updatedAt": "2026-06-05T11:28:19.148Z"
   },
   {
     "id": "cmou5nvvf000qgnbfe9d9o3pn",
@@ -1716,7 +1911,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T14:31:23.931Z",
-    "updatedAt": "2026-05-06T14:42:58.915Z"
+    "updatedAt": "2026-06-05T11:28:19.148Z"
   },
   {
     "id": "cmovbdumn002tgny12i664mp3",
@@ -1731,7 +1926,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-07T09:59:19.631Z",
-    "updatedAt": "2026-05-07T09:59:19.631Z"
+    "updatedAt": "2026-06-05T11:28:19.149Z"
   },
   {
     "id": "cmovt9cve001kgn8f90co7wll",
@@ -1744,9 +1939,9 @@ const categories = [
     "sortOrder": 3,
     "isActive": true,
     "clientId": null,
-    "parentId": null,
+    "parentId": "cmq0rroot0000vesinh123456",
     "createdAt": "2026-05-07T18:19:43.083Z",
-    "updatedAt": "2026-05-07T18:23:43.738Z"
+    "updatedAt": "2026-06-05T11:28:19.199Z"
   },
   {
     "id": "cmnftqe49005j8okb55ypvql2",
@@ -1761,7 +1956,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:08:56.698Z",
-    "updatedAt": "2026-04-01T16:08:56.698Z"
+    "updatedAt": "2026-06-05T11:28:19.150Z"
   },
   {
     "id": "cmnfv1k1v009j8okbnnk9h8dd",
@@ -1776,7 +1971,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:45:37.220Z",
-    "updatedAt": "2026-04-01T16:45:37.220Z"
+    "updatedAt": "2026-06-05T11:28:19.150Z"
   },
   {
     "id": "cmnfv2s7s009r8okbugtkru57",
@@ -1791,7 +1986,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:46:34.457Z",
-    "updatedAt": "2026-04-01T16:46:34.457Z"
+    "updatedAt": "2026-06-05T11:28:19.151Z"
   },
   {
     "id": "cmnfv3woc00a18okbxwfnqc2e",
@@ -1806,7 +2001,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:47:26.892Z",
-    "updatedAt": "2026-04-01T16:47:26.892Z"
+    "updatedAt": "2026-06-05T11:28:19.151Z"
   },
   {
     "id": "cmnfv8jnv00b78okbu1e0fi64",
@@ -1821,7 +2016,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:51:03.308Z",
-    "updatedAt": "2026-04-01T16:51:03.308Z"
+    "updatedAt": "2026-06-05T11:28:19.152Z"
   },
   {
     "id": "cmnfvc6j000bt8okbz0veh2o0",
@@ -1836,7 +2031,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:53:52.908Z",
-    "updatedAt": "2026-04-01T16:53:52.908Z"
+    "updatedAt": "2026-06-05T11:28:19.152Z"
   },
   {
     "id": "cmnfvpfsu00d58okbmtiuwc2f",
@@ -1851,7 +2046,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T17:04:11.454Z",
-    "updatedAt": "2026-04-01T17:04:11.454Z"
+    "updatedAt": "2026-06-05T11:28:19.153Z"
   },
   {
     "id": "cmnfvqdbc00df8okb9h9g0etp",
@@ -1866,7 +2061,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T17:04:54.889Z",
-    "updatedAt": "2026-04-01T17:04:54.889Z"
+    "updatedAt": "2026-06-05T11:28:19.153Z"
   },
   {
     "id": "cmnws5i8j00bngpuiyd8ikzv2",
@@ -1881,7 +2076,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-13T12:56:47.635Z",
-    "updatedAt": "2026-04-13T12:56:47.635Z"
+    "updatedAt": "2026-06-05T11:28:19.154Z"
   },
   {
     "id": "cmnfui6i300898okbu9tahb28",
@@ -1896,7 +2091,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftslao005l8okbq2iuvp77",
     "createdAt": "2026-04-01T16:30:33.196Z",
-    "updatedAt": "2026-04-01T16:30:33.196Z"
+    "updatedAt": "2026-06-05T11:28:19.172Z"
   },
   {
     "id": "cmob2c54v00co8ounuiqwsblk",
@@ -1911,7 +2106,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-23T12:50:39.871Z",
-    "updatedAt": "2026-04-23T12:50:39.871Z"
+    "updatedAt": "2026-06-05T11:28:19.154Z"
   },
   {
     "id": "cmotschyc0017gnmm3lnqg5v6",
@@ -1926,7 +2121,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv9wvn00bd8okb7uzfg7k3",
     "createdAt": "2026-05-06T08:18:37.668Z",
-    "updatedAt": "2026-05-06T08:18:37.668Z"
+    "updatedAt": "2026-06-05T11:28:19.172Z"
   },
   {
     "id": "cmotsvcmi0022gnmmhet1xctx",
@@ -1941,7 +2136,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T08:33:17.227Z",
-    "updatedAt": "2026-05-06T08:33:17.227Z"
+    "updatedAt": "2026-06-05T11:28:19.155Z"
   },
   {
     "id": "cmou5o4ol000sgnbfwiqxwpmt",
@@ -1956,7 +2151,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T14:31:35.349Z",
-    "updatedAt": "2026-05-06T14:42:58.916Z"
+    "updatedAt": "2026-06-05T11:28:19.155Z"
   },
   {
     "id": "cmovbego4002vgny147fdnaf0",
@@ -1971,7 +2166,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-07T09:59:48.197Z",
-    "updatedAt": "2026-05-07T09:59:48.197Z"
+    "updatedAt": "2026-06-05T11:28:19.156Z"
   },
   {
     "id": "cmovt9q3d001mgn8fyvdzqrix",
@@ -1984,9 +2179,9 @@ const categories = [
     "sortOrder": 4,
     "isActive": true,
     "clientId": null,
-    "parentId": null,
+    "parentId": "cmq0rroot0000vesinh123456",
     "createdAt": "2026-05-07T18:20:00.218Z",
-    "updatedAt": "2026-05-07T18:20:00.218Z"
+    "updatedAt": "2026-06-05T11:28:19.199Z"
   },
   {
     "id": "cmp5rxf9l004hgq3mrdsu4s6k",
@@ -2016,7 +2211,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T16:46:40.822Z",
-    "updatedAt": "2026-04-01T16:46:40.822Z"
+    "updatedAt": "2026-06-05T11:28:19.157Z"
   },
   {
     "id": "cmnfvqhvq00dh8okb8vtag35l",
@@ -2031,7 +2226,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-01T17:05:00.807Z",
-    "updatedAt": "2026-04-01T17:05:00.807Z"
+    "updatedAt": "2026-06-05T11:28:19.157Z"
   },
   {
     "id": "cmnws5wh500bpgpui59s0vur8",
@@ -2046,7 +2241,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-13T12:57:06.089Z",
-    "updatedAt": "2026-04-13T12:57:06.089Z"
+    "updatedAt": "2026-06-05T11:28:19.157Z"
   },
   {
     "id": "cmnfukixf008b8okb0iticjdb",
@@ -2061,7 +2256,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftslao005l8okbq2iuvp77",
     "createdAt": "2026-04-01T16:32:22.612Z",
-    "updatedAt": "2026-04-01T16:32:22.612Z"
+    "updatedAt": "2026-06-05T11:28:19.173Z"
   },
   {
     "id": "cmnfvhrgt00c78okbr75nrbfa",
@@ -2076,7 +2271,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0mgb009d8okbg909j7n6",
     "createdAt": "2026-04-01T16:58:13.325Z",
-    "updatedAt": "2026-04-01T16:58:13.325Z"
+    "updatedAt": "2026-06-05T11:28:19.173Z"
   },
   {
     "id": "cmotqdgto002lgn59lzj58cyb",
@@ -2091,7 +2286,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T07:23:23.629Z",
-    "updatedAt": "2026-05-06T07:23:39.865Z"
+    "updatedAt": "2026-06-05T11:28:19.158Z"
   },
   {
     "id": "cmotsdt510019gnmm70sjq2eq",
@@ -2106,7 +2301,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv9wvn00bd8okb7uzfg7k3",
     "createdAt": "2026-05-06T08:19:38.822Z",
-    "updatedAt": "2026-05-06T08:19:38.822Z"
+    "updatedAt": "2026-06-05T11:28:19.174Z"
   },
   {
     "id": "cmotsvi1b0024gnmmt553vw7a",
@@ -2121,7 +2316,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T08:33:24.240Z",
-    "updatedAt": "2026-05-06T08:33:24.240Z"
+    "updatedAt": "2026-06-05T11:28:19.159Z"
   },
   {
     "id": "cmovbf1qk002xgny1acvmfyap",
@@ -2136,7 +2331,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-07T10:00:15.500Z",
-    "updatedAt": "2026-05-07T10:00:15.500Z"
+    "updatedAt": "2026-06-05T11:28:19.159Z"
   },
   {
     "id": "cmovtbf6g001ogn8f7pqt33pw",
@@ -2151,7 +2346,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt8iff001ggn8fy0wcmd6l",
     "createdAt": "2026-05-07T18:21:19.384Z",
-    "updatedAt": "2026-05-07T18:21:19.384Z"
+    "updatedAt": "2026-06-05T11:28:19.174Z"
   },
   {
     "id": "cmnws875k00brgpuiyjgugigm",
@@ -2166,7 +2361,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-13T12:58:53.240Z",
-    "updatedAt": "2026-04-13T12:58:53.240Z"
+    "updatedAt": "2026-06-05T11:28:19.160Z"
   },
   {
     "id": "cmnfuldax008d8okb2mxuox05",
@@ -2181,7 +2376,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftslao005l8okbq2iuvp77",
     "createdAt": "2026-04-01T16:33:01.978Z",
-    "updatedAt": "2026-04-01T16:33:01.978Z"
+    "updatedAt": "2026-06-05T11:28:19.175Z"
   },
   {
     "id": "cmnfvi1f200c98okb556zrzg6",
@@ -2196,7 +2391,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0mgb009d8okbg909j7n6",
     "createdAt": "2026-04-01T16:58:26.223Z",
-    "updatedAt": "2026-04-01T16:58:26.223Z"
+    "updatedAt": "2026-06-05T11:28:19.175Z"
   },
   {
     "id": "cmob1rt9g00ai8ounzfnd1qyh",
@@ -2211,7 +2406,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-23T12:34:51.365Z",
-    "updatedAt": "2026-04-24T17:30:47.433Z"
+    "updatedAt": "2026-06-05T11:28:19.160Z"
   },
   {
     "id": "cmotsepwh001bgnmmn0h6nk4k",
@@ -2226,7 +2421,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv9wvn00bd8okb7uzfg7k3",
     "createdAt": "2026-05-06T08:20:21.281Z",
-    "updatedAt": "2026-05-06T08:20:21.281Z"
+    "updatedAt": "2026-06-05T11:28:19.176Z"
   },
   {
     "id": "cmovtbrjb001qgn8fum4hj7a4",
@@ -2241,7 +2436,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt8iff001ggn8fy0wcmd6l",
     "createdAt": "2026-05-07T18:21:35.400Z",
-    "updatedAt": "2026-05-07T18:21:35.400Z"
+    "updatedAt": "2026-06-05T11:28:19.176Z"
   },
   {
     "id": "cmnfum1kz008f8okbvn92oox0",
@@ -2256,7 +2451,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftslao005l8okbq2iuvp77",
     "createdAt": "2026-04-01T16:33:33.443Z",
-    "updatedAt": "2026-04-01T16:33:33.443Z"
+    "updatedAt": "2026-06-05T11:28:19.177Z"
   },
   {
     "id": "cmnfvig0400cb8okb619tpwax",
@@ -2271,7 +2466,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0mgb009d8okbg909j7n6",
     "createdAt": "2026-04-01T16:58:45.124Z",
-    "updatedAt": "2026-04-01T16:58:45.124Z"
+    "updatedAt": "2026-06-05T11:28:19.177Z"
   },
   {
     "id": "cmob1s0v900ak8oun2t4e71e3",
@@ -2286,7 +2481,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-23T12:35:01.221Z",
-    "updatedAt": "2026-04-23T12:35:01.221Z"
+    "updatedAt": "2026-06-05T11:28:19.161Z"
   },
   {
     "id": "cmotsfyif001dgnmm25nn50hg",
@@ -2301,7 +2496,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv9wvn00bd8okb7uzfg7k3",
     "createdAt": "2026-05-06T08:21:19.095Z",
-    "updatedAt": "2026-05-06T08:21:19.095Z"
+    "updatedAt": "2026-06-05T11:28:19.178Z"
   },
   {
     "id": "cmovtc340001sgn8fnvbg2q4i",
@@ -2316,7 +2511,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt8iff001ggn8fy0wcmd6l",
     "createdAt": "2026-05-07T18:21:50.401Z",
-    "updatedAt": "2026-05-07T18:21:50.401Z"
+    "updatedAt": "2026-06-05T11:28:19.178Z"
   },
   {
     "id": "cmnfun0qq008h8okbquj6dgru",
@@ -2331,7 +2526,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftslao005l8okbq2iuvp77",
     "createdAt": "2026-04-01T16:34:19.011Z",
-    "updatedAt": "2026-04-01T16:34:19.011Z"
+    "updatedAt": "2026-06-05T11:28:19.179Z"
   },
   {
     "id": "cmnfvimy300cd8okbvtfhtknv",
@@ -2346,7 +2541,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0mgb009d8okbg909j7n6",
     "createdAt": "2026-04-01T16:58:54.123Z",
-    "updatedAt": "2026-04-01T16:58:54.123Z"
+    "updatedAt": "2026-06-05T11:28:19.179Z"
   },
   {
     "id": "cmob1sag200am8ounlp337h4w",
@@ -2361,7 +2556,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-23T12:35:13.635Z",
-    "updatedAt": "2026-04-24T17:31:03.051Z"
+    "updatedAt": "2026-06-05T11:28:19.161Z"
   },
   {
     "id": "cmotslog0001fgnmmbq1isjdr",
@@ -2376,7 +2571,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfva4x400bf8okb0x6rxn4r",
     "createdAt": "2026-05-06T08:25:45.984Z",
-    "updatedAt": "2026-05-06T08:25:45.984Z"
+    "updatedAt": "2026-06-05T11:28:19.179Z"
   },
   {
     "id": "cmovtcn8i001ugn8fi0b2k1mq",
@@ -2391,7 +2586,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt8uh7001ign8fechctok8",
     "createdAt": "2026-05-07T18:22:16.483Z",
-    "updatedAt": "2026-05-07T18:22:16.483Z"
+    "updatedAt": "2026-06-05T11:28:19.180Z"
   },
   {
     "id": "cmnfunroo008j8okb4ky1okwl",
@@ -2406,7 +2601,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftslao005l8okbq2iuvp77",
     "createdAt": "2026-04-01T16:34:53.929Z",
-    "updatedAt": "2026-04-01T16:34:53.929Z"
+    "updatedAt": "2026-06-05T11:28:19.180Z"
   },
   {
     "id": "cmnfvix7z00cf8okb1301ruzq",
@@ -2421,7 +2616,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0mgb009d8okbg909j7n6",
     "createdAt": "2026-04-01T16:59:07.439Z",
-    "updatedAt": "2026-04-01T16:59:07.439Z"
+    "updatedAt": "2026-06-05T11:28:19.181Z"
   },
   {
     "id": "cmob1sij000ao8oung5nkcjd4",
@@ -2436,7 +2631,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-23T12:35:24.108Z",
-    "updatedAt": "2026-04-23T12:35:24.108Z"
+    "updatedAt": "2026-06-05T11:28:19.162Z"
   },
   {
     "id": "cmotslv1g001hgnmm1jmmgjb3",
@@ -2451,7 +2646,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfva4x400bf8okb0x6rxn4r",
     "createdAt": "2026-05-06T08:25:54.532Z",
-    "updatedAt": "2026-05-06T08:25:54.532Z"
+    "updatedAt": "2026-06-05T11:28:19.181Z"
   },
   {
     "id": "cmovtd5qq001wgn8fql1y3an8",
@@ -2466,7 +2661,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt8uh7001ign8fechctok8",
     "createdAt": "2026-05-07T18:22:40.466Z",
-    "updatedAt": "2026-05-07T18:22:40.466Z"
+    "updatedAt": "2026-06-05T11:28:19.182Z"
   },
   {
     "id": "cmnfuomdt008l8okb686zdpov",
@@ -2481,7 +2676,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftslao005l8okbq2iuvp77",
     "createdAt": "2026-04-01T16:35:33.714Z",
-    "updatedAt": "2026-04-01T16:35:33.714Z"
+    "updatedAt": "2026-06-05T11:28:19.182Z"
   },
   {
     "id": "cmnfvj9ma00ch8okbn125ge57",
@@ -2496,7 +2691,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0mgb009d8okbg909j7n6",
     "createdAt": "2026-04-01T16:59:23.507Z",
-    "updatedAt": "2026-04-01T16:59:23.507Z"
+    "updatedAt": "2026-06-05T11:28:19.183Z"
   },
   {
     "id": "cmob1t2h000aq8ounmhvcar0c",
@@ -2511,7 +2706,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-04-23T12:35:49.956Z",
-    "updatedAt": "2026-04-23T12:35:49.956Z"
+    "updatedAt": "2026-06-05T11:28:19.162Z"
   },
   {
     "id": "cmotsmwaq001jgnmmfzi43zvd",
@@ -2526,7 +2721,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfva4x400bf8okb0x6rxn4r",
     "createdAt": "2026-05-06T08:26:42.818Z",
-    "updatedAt": "2026-05-06T08:30:53.120Z"
+    "updatedAt": "2026-06-05T11:28:19.183Z"
   },
   {
     "id": "cmovtdoe0001ygn8fqm0m758m",
@@ -2541,7 +2736,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt8uh7001ign8fechctok8",
     "createdAt": "2026-05-07T18:23:04.633Z",
-    "updatedAt": "2026-05-07T18:23:04.633Z"
+    "updatedAt": "2026-06-05T11:28:19.184Z"
   },
   {
     "id": "cmnfuptt4008n8okb7nmwlch5",
@@ -2556,7 +2751,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftxxnn005x8okbpkyqw2sa",
     "createdAt": "2026-04-01T16:36:29.993Z",
-    "updatedAt": "2026-04-01T16:36:29.993Z"
+    "updatedAt": "2026-06-05T11:28:19.184Z"
   },
   {
     "id": "cmnfvjjlu00cj8okbm1gjgn78",
@@ -2571,7 +2766,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0mgb009d8okbg909j7n6",
     "createdAt": "2026-04-01T16:59:36.450Z",
-    "updatedAt": "2026-04-01T16:59:36.450Z"
+    "updatedAt": "2026-06-05T11:28:19.185Z"
   },
   {
     "id": "cmotqbj4e002bgn59ggwxxc90",
@@ -2586,7 +2781,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T07:21:53.295Z",
-    "updatedAt": "2026-05-06T07:21:53.295Z"
+    "updatedAt": "2026-06-05T11:28:19.163Z"
   },
   {
     "id": "cmovtepez0020gn8fxiy4llwh",
@@ -2601,7 +2796,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt9cve001kgn8f90co7wll",
     "createdAt": "2026-05-07T18:23:52.619Z",
-    "updatedAt": "2026-05-08T05:34:05.564Z"
+    "updatedAt": "2026-06-05T11:28:19.185Z"
   },
   {
     "id": "cmnfuql91008p8okbzc6vlqzi",
@@ -2616,7 +2811,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftxxnn005x8okbpkyqw2sa",
     "createdAt": "2026-04-01T16:37:05.557Z",
-    "updatedAt": "2026-04-01T16:37:05.557Z"
+    "updatedAt": "2026-06-05T11:28:19.186Z"
   },
   {
     "id": "cmnfvjv8j00cl8okbpd8k8t65",
@@ -2631,7 +2826,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0mgb009d8okbg909j7n6",
     "createdAt": "2026-04-01T16:59:51.523Z",
-    "updatedAt": "2026-04-01T16:59:51.523Z"
+    "updatedAt": "2026-06-05T11:28:19.186Z"
   },
   {
     "id": "cmotqbqc1002dgn59r75esy38",
@@ -2646,7 +2841,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T07:22:02.641Z",
-    "updatedAt": "2026-05-06T07:22:02.641Z"
+    "updatedAt": "2026-06-05T11:28:19.163Z"
   },
   {
     "id": "cmovtf4cf0022gn8fp7s09mg2",
@@ -2661,7 +2856,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt9cve001kgn8f90co7wll",
     "createdAt": "2026-05-07T18:24:11.967Z",
-    "updatedAt": "2026-05-08T05:34:34.237Z"
+    "updatedAt": "2026-06-05T11:28:19.187Z"
   },
   {
     "id": "cmnfurfri008r8okbe7933a3j",
@@ -2676,7 +2871,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftxxnn005x8okbpkyqw2sa",
     "createdAt": "2026-04-01T16:37:45.102Z",
-    "updatedAt": "2026-04-01T16:37:45.102Z"
+    "updatedAt": "2026-06-05T11:28:19.187Z"
   },
   {
     "id": "cmnfvk1bh00cn8okbwy42z8s4",
@@ -2691,7 +2886,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0mgb009d8okbg909j7n6",
     "createdAt": "2026-04-01T16:59:59.405Z",
-    "updatedAt": "2026-04-01T16:59:59.405Z"
+    "updatedAt": "2026-06-05T11:28:19.188Z"
   },
   {
     "id": "cmotqbwnb002fgn59oazu6bdh",
@@ -2706,7 +2901,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T07:22:10.824Z",
-    "updatedAt": "2026-05-06T07:22:10.824Z"
+    "updatedAt": "2026-06-05T11:28:19.164Z"
   },
   {
     "id": "cmovtfmg70024gn8fbbphzsct",
@@ -2721,7 +2916,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt9q3d001mgn8fyvdzqrix",
     "createdAt": "2026-05-07T18:24:35.431Z",
-    "updatedAt": "2026-05-07T18:24:35.431Z"
+    "updatedAt": "2026-06-05T11:28:19.188Z"
   },
   {
     "id": "cmnfus0x9008t8okbk78u3y2x",
@@ -2736,7 +2931,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftxxnn005x8okbpkyqw2sa",
     "createdAt": "2026-04-01T16:38:12.525Z",
-    "updatedAt": "2026-04-01T16:38:12.525Z"
+    "updatedAt": "2026-06-05T11:28:19.189Z"
   },
   {
     "id": "cmnfvlfpw00cp8okbdlqtykmu",
@@ -2751,7 +2946,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0mgb009d8okbg909j7n6",
     "createdAt": "2026-04-01T17:01:04.724Z",
-    "updatedAt": "2026-04-01T17:01:04.724Z"
+    "updatedAt": "2026-06-05T11:28:19.189Z"
   },
   {
     "id": "cmotqcdkm002hgn59wwe0hl4q",
@@ -2766,7 +2961,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T07:22:32.758Z",
-    "updatedAt": "2026-05-06T07:22:50.858Z"
+    "updatedAt": "2026-06-05T11:28:19.164Z"
   },
   {
     "id": "cmovtfxmf0026gn8fvjdb082a",
@@ -2781,7 +2976,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt9q3d001mgn8fyvdzqrix",
     "createdAt": "2026-05-07T18:24:49.911Z",
-    "updatedAt": "2026-05-08T05:14:25.956Z"
+    "updatedAt": "2026-06-05T11:28:19.190Z"
   },
   {
     "id": "cmnfuso1n008v8okbk4c3du4o",
@@ -2796,7 +2991,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftxxnn005x8okbpkyqw2sa",
     "createdAt": "2026-04-01T16:38:42.491Z",
-    "updatedAt": "2026-04-01T16:38:42.491Z"
+    "updatedAt": "2026-06-05T11:28:19.190Z"
   },
   {
     "id": "cmnfvmkm300cr8okbfgev4g0y",
@@ -2811,7 +3006,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0wzz009f8okb9dj6dgpt",
     "createdAt": "2026-04-01T17:01:57.724Z",
-    "updatedAt": "2026-04-01T17:01:57.724Z"
+    "updatedAt": "2026-06-05T11:28:19.191Z"
   },
   {
     "id": "cmotqck1v002jgn59tdg3oibo",
@@ -2826,7 +3021,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T07:22:41.156Z",
-    "updatedAt": "2026-05-06T07:22:41.156Z"
+    "updatedAt": "2026-06-05T11:28:19.164Z"
   },
   {
     "id": "cmowgj2cy000r8omtm32oft5g",
@@ -2841,7 +3036,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt9cve001kgn8f90co7wll",
     "createdAt": "2026-05-08T05:11:07.187Z",
-    "updatedAt": "2026-05-08T05:34:51.180Z"
+    "updatedAt": "2026-06-05T11:28:19.191Z"
   },
   {
     "id": "cmnfutcw6008x8okb2wd4wnts",
@@ -2856,7 +3051,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftxxnn005x8okbpkyqw2sa",
     "createdAt": "2026-04-01T16:39:14.694Z",
-    "updatedAt": "2026-04-01T16:39:14.694Z"
+    "updatedAt": "2026-06-05T11:28:19.192Z"
   },
   {
     "id": "cmnfvmvgt00ct8okbpiu63v9g",
@@ -2871,7 +3066,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0wzz009f8okb9dj6dgpt",
     "createdAt": "2026-04-01T17:02:11.790Z",
-    "updatedAt": "2026-04-01T17:02:11.790Z"
+    "updatedAt": "2026-06-05T11:28:19.192Z"
   },
   {
     "id": "cmotqeug5002ngn59420eqlzz",
@@ -2886,7 +3081,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T07:24:27.941Z",
-    "updatedAt": "2026-05-06T07:24:27.941Z"
+    "updatedAt": "2026-06-05T11:28:19.165Z"
   },
   {
     "id": "cmowgld0u000t8omtq29382nv",
@@ -2901,7 +3096,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt9cve001kgn8f90co7wll",
     "createdAt": "2026-05-08T05:12:54.318Z",
-    "updatedAt": "2026-05-08T05:34:57.695Z"
+    "updatedAt": "2026-06-05T11:28:19.192Z"
   },
   {
     "id": "cmnfutyai008z8okbmee7lgq3",
@@ -2916,7 +3111,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftxxnn005x8okbpkyqw2sa",
     "createdAt": "2026-04-01T16:39:42.426Z",
-    "updatedAt": "2026-04-01T16:39:42.426Z"
+    "updatedAt": "2026-06-05T11:28:19.193Z"
   },
   {
     "id": "cmnfvn7rv00cv8okbuyz4q60x",
@@ -2931,7 +3126,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0wzz009f8okb9dj6dgpt",
     "createdAt": "2026-04-01T17:02:27.739Z",
-    "updatedAt": "2026-04-01T17:02:27.739Z"
+    "updatedAt": "2026-06-05T11:28:19.193Z"
   },
   {
     "id": "cmotr12r4003rgn59jmxxdo7w",
@@ -2946,7 +3141,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T07:41:45.137Z",
-    "updatedAt": "2026-05-06T07:41:45.137Z"
+    "updatedAt": "2026-06-05T11:28:19.165Z"
   },
   {
     "id": "cmowgo05b000v8omttuk18ygk",
@@ -2961,7 +3156,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmovt9q3d001mgn8fyvdzqrix",
     "createdAt": "2026-05-08T05:14:57.599Z",
-    "updatedAt": "2026-05-08T05:14:57.599Z"
+    "updatedAt": "2026-06-05T11:28:19.194Z"
   },
   {
     "id": "cmnfuuysd00918okbmpnekk70",
@@ -2976,7 +3171,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftzcq3005z8okbnnqqp2ka",
     "createdAt": "2026-04-01T16:40:29.725Z",
-    "updatedAt": "2026-04-01T16:40:29.725Z"
+    "updatedAt": "2026-06-05T11:28:19.194Z"
   },
   {
     "id": "cmnfvngc400cx8okb0f90hazb",
@@ -2991,7 +3186,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnfv0wzz009f8okb9dj6dgpt",
     "createdAt": "2026-04-01T17:02:38.837Z",
-    "updatedAt": "2026-04-01T17:02:38.837Z"
+    "updatedAt": "2026-06-05T11:28:19.195Z"
   },
   {
     "id": "cmotr1azy003tgn59l9uuzytw",
@@ -3006,7 +3201,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T07:41:55.822Z",
-    "updatedAt": "2026-05-06T07:41:55.822Z"
+    "updatedAt": "2026-06-05T11:28:19.166Z"
   },
   {
     "id": "cmnfuvin400938okbusgkjuxo",
@@ -3021,7 +3216,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftzcq3005z8okbnnqqp2ka",
     "createdAt": "2026-04-01T16:40:55.457Z",
-    "updatedAt": "2026-04-01T16:40:55.457Z"
+    "updatedAt": "2026-06-05T11:28:19.195Z"
   },
   {
     "id": "cmotr1isv003vgn59tvl4nf64",
@@ -3036,7 +3231,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-06T07:42:05.935Z",
-    "updatedAt": "2026-05-06T07:42:05.935Z"
+    "updatedAt": "2026-06-05T11:28:19.166Z"
   },
   {
     "id": "cmnfuwmkp00958okby1nwgd1o",
@@ -3051,7 +3246,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftzcq3005z8okbnnqqp2ka",
     "createdAt": "2026-04-01T16:41:47.209Z",
-    "updatedAt": "2026-04-01T16:41:47.209Z"
+    "updatedAt": "2026-06-05T11:28:19.196Z"
   },
   {
     "id": "cmovqi5xl007ggnlka55llgyj",
@@ -3066,7 +3261,7 @@ const categories = [
     "clientId": null,
     "parentId": null,
     "createdAt": "2026-05-07T17:02:35.145Z",
-    "updatedAt": "2026-05-07T17:02:35.145Z"
+    "updatedAt": "2026-06-05T11:28:19.167Z"
   },
   {
     "id": "cmnfux5o500978okbfd0stty7",
@@ -3081,7 +3276,22 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftzcq3005z8okbnnqqp2ka",
     "createdAt": "2026-04-01T16:42:11.957Z",
-    "updatedAt": "2026-04-01T16:42:11.957Z"
+    "updatedAt": "2026-06-05T11:28:19.196Z"
+  },
+  {
+    "id": "cmpxi7j460017grpvc8quzjuw",
+    "type": "position",
+    "code": "vtr-20260603-9393-rvwb",
+    "name": "Giao hàng",
+    "color": "#6366f1",
+    "icon": "bi-folder",
+    "description": null,
+    "sortOrder": 21,
+    "isActive": true,
+    "clientId": null,
+    "parentId": null,
+    "createdAt": "2026-06-03T03:25:36.774Z",
+    "updatedAt": "2026-06-03T03:25:36.774Z"
   },
   {
     "id": "cmnfuy2rs00998okbcy0ritun",
@@ -3096,7 +3306,22 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftzcq3005z8okbnnqqp2ka",
     "createdAt": "2026-04-01T16:42:54.856Z",
-    "updatedAt": "2026-04-01T16:42:54.856Z"
+    "updatedAt": "2026-06-05T11:28:19.197Z"
+  },
+  {
+    "id": "cmpxicso70093grpv9dm8mxyv",
+    "type": "position",
+    "code": "vtr-20260603-2034-jjbl",
+    "name": "Trưởng bộ phận",
+    "color": "#6366f1",
+    "icon": "bi-folder",
+    "description": null,
+    "sortOrder": 22,
+    "isActive": true,
+    "clientId": null,
+    "parentId": null,
+    "createdAt": "2026-06-03T03:29:42.439Z",
+    "updatedAt": "2026-06-03T03:29:42.439Z"
   },
   {
     "id": "cmnfuyov9009b8okbfgzau26r",
@@ -3111,7 +3336,7 @@ const categories = [
     "clientId": null,
     "parentId": "cmnftzcq3005z8okbnnqqp2ka",
     "createdAt": "2026-04-01T16:43:23.494Z",
-    "updatedAt": "2026-04-01T16:43:23.494Z"
+    "updatedAt": "2026-06-05T11:28:19.197Z"
   }
 ];
 

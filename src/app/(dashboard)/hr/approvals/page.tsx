@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { StandardPage } from "@/components/layout/StandardPage";
-import { KPICard } from "@/components/ui/KPICard";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { EmployeeAvatar } from "@/components/hr/EmployeeAvatar";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
@@ -36,6 +36,7 @@ interface ApprovalRequest {
   hrApproved: boolean;
   createdAt: string;
   updatedAt: string;
+  details?: string | null;
 }
 
 interface Department {
@@ -46,8 +47,7 @@ interface Department {
 
 const STEP_ITEMS: ModernStepItem[] = [
   { id: "pending", title: "Duyệt yêu cầu", icon: "bi-check2-circle", num: 1, desc: "Phê duyệt và xử lý" },
-  { id: "my_requests", title: "Đề xuất của tôi", icon: "bi-person-badge", num: 2, desc: "Theo dõi cá nhân" },
-  { id: "history", title: "Lịch sử phê duyệt", icon: "bi-clock-history", num: 3, desc: "Tra cứu dữ liệu cũ" },
+  { id: "history", title: "Lịch sử phê duyệt", icon: "bi-clock-history", num: 2, desc: "Tra cứu dữ liệu cũ" },
 ];
 
 const TYPE_MAP: Record<string, { label: string; color: string }> = {
@@ -59,12 +59,29 @@ const TYPE_MAP: Record<string, { label: string; color: string }> = {
   "hr-request": { label: "Hành chính - Nhân sự", color: "#10b981" },
   "work": { label: "Công tác", color: "#f59e0b" },
   "business-trip": { label: "Công tác", color: "#f59e0b" },
+  "recruitment": { label: "Tuyển dụng", color: "#3b82f6" },
+  "training": { label: "Đào tạo", color: "#06b6d4" },
+  "promotion": { label: "Đề bạt & thuyên chuyển", color: "#8b5cf6" },
+  "salary-adjustment": { label: "Điều chỉnh thu nhập", color: "#f43f5e" },
+  "stationery": { label: "Văn phòng phẩm và dụng cụ", color: "#ec4899" },
 };
 
 export default function ApprovalsPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const currentUserId = (session?.user as any)?.id;
   const { success: toastSuccess, error: toastError } = useToast();
+
+  const isHRManager = session?.user?.role === "SUPERADMIN" || session?.user?.role === "admin" || (
+    session?.user?.departmentCode?.toLowerCase() === "hr" &&
+    ((session?.user as any)?.positionName?.includes("Trưởng phòng") || (session?.user as any)?.position === "vtr-20260401-1964-sbmg")
+  );
+
+  useEffect(() => {
+    if (session && !isHRManager) {
+      router.push("/");
+    }
+  }, [session, isHRManager, router]);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -75,9 +92,10 @@ export default function ApprovalsPage() {
 
   // UI State
   const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
-  const [rejectionModal, setRejectionModal] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
+  const [rejectionModal, setRejectionModal] = useState<{ open: boolean; id: string | null; isBatch?: boolean }>({ open: false, id: null });
   const [rejectionNote, setRejectionNote] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Delete State
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
@@ -129,6 +147,10 @@ export default function ApprovalsPage() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [currentStep, searchQuery, deptFilter, statusFilter, monthFilter]);
+
   const getPositionName = (code: string) => {
     if (!code) return "—";
     const pos = positions.find(p => p.code === code);
@@ -139,15 +161,13 @@ export default function ApprovalsPage() {
     let filtered = [...allRequests];
 
     if (activeTabId === "pending") {
-      filtered = filtered.filter(r => r.status === "PENDING" && r.employee.userId !== currentUserId);
-    } else if (activeTabId === "my_requests") {
-      filtered = filtered.filter(r => r.employee.userId === currentUserId);
+      filtered = filtered.filter(r => r.status === "PENDING");
     } else if (activeTabId === "history") {
-      filtered = filtered.filter(r => r.status !== "PENDING" && r.employee.userId !== currentUserId);
+      filtered = filtered.filter(r => r.status !== "PENDING");
     }
 
     if (statusFilter) filtered = filtered.filter(r => r.status === statusFilter);
-    if (activeTabId !== "my_requests" && deptFilter) {
+    if (deptFilter) {
        filtered = filtered.filter(r => r.employee.departmentName === deptFilter);
     }
     if (monthFilter) {
@@ -199,6 +219,61 @@ export default function ApprovalsPage() {
     }
   };
 
+  const handleBatchAction = async (action: "APPROVE" | "REJECT" | "FORWARD_DIRECTOR", note?: string) => {
+    setActionLoading(true);
+    try {
+      const promises = Array.from(selectedIds).map(id =>
+        fetch(`/api/hr/approvals/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, note }),
+        })
+      );
+      
+      const results = await Promise.all(promises);
+      const allOk = results.every(res => res.ok);
+      
+      if (allOk) {
+        let msg = "Đã thực hiện hàng loạt";
+        if (action === "APPROVE") msg = "Đã phê duyệt các yêu cầu đã chọn";
+        else if (action === "REJECT") msg = "Đã từ chối các yêu cầu đã chọn";
+        else if (action === "FORWARD_DIRECTOR") msg = "Đã trình lãnh đạo các yêu cầu đã chọn";
+        
+        toastSuccess(msg);
+        setSelectedIds(new Set());
+        setRejectionModal({ open: false, id: null, isBatch: false });
+        setRejectionNote("");
+        fetchData();
+      } else {
+        toastError("Có lỗi xảy ra khi xử lý một số yêu cầu");
+        setSelectedIds(new Set());
+        fetchData();
+      }
+    } catch (error) {
+      toastError("Lỗi hệ thống");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredData.map(r => r.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    const next = new Set(selectedIds);
+    if (checked) {
+      next.add(id);
+    } else {
+      next.delete(id);
+    }
+    setSelectedIds(next);
+  };
+
   const handleDelete = async () => {
     if (!deleteConfirm.id) return;
     setDeleteLoading(true);
@@ -221,6 +296,30 @@ export default function ApprovalsPage() {
 
   const requestColumns: TableColumn<ApprovalRequest>[] = [
     {
+      header: (
+        <div onClick={(e) => e.stopPropagation()} className="d-flex justify-content-center">
+          <input
+            type="checkbox"
+            className="form-check-input cursor-pointer"
+            checked={filteredData.length > 0 && filteredData.every(r => selectedIds.has(r.id))}
+            onChange={(e) => handleSelectAll(e.target.checked)}
+          />
+        </div>
+      ),
+      render: (r) => (
+        <div onClick={(e) => e.stopPropagation()} className="d-flex justify-content-center">
+          <input
+            type="checkbox"
+            className="form-check-input cursor-pointer"
+            checked={selectedIds.has(r.id)}
+            onChange={(e) => handleSelectRow(r.id, e.target.checked)}
+          />
+        </div>
+      ),
+      width: "40px",
+      align: "center"
+    },
+    {
       header: "Người yêu cầu",
       render: (r) => (
         <div className="d-flex align-items-center gap-2">
@@ -241,11 +340,20 @@ export default function ApprovalsPage() {
       header: "Nội dung đề xuất",
       render: (r) => {
         const config = TYPE_MAP[r.type.toLowerCase()] || { label: r.type, color: "#64748b" };
+        let displayType = config.label;
+        if (r.details) {
+          try {
+            const parsed = JSON.parse(r.details);
+            if (parsed.leaveType) displayType = `${config.label} (${parsed.leaveType})`;
+            else if (parsed.requestType) displayType = `${config.label} (${parsed.requestType})`;
+            else if (parsed.time) displayType = `${config.label} (${parsed.time})`;
+          } catch (e) {}
+        }
         return (
           <div>
             <div className="d-flex align-items-center gap-2 mb-1">
               <span className="badge rounded-pill" style={{ background: `${config.color}15`, color: config.color, fontSize: 10 }}>
-                {config.label}
+                {displayType}
               </span>
               <span className="text-muted fw-medium" style={{ fontSize: 11 }}>
                 {r.startDate ? new Date(r.startDate).toLocaleDateString("vi-VN") : "N/A"}
@@ -268,13 +376,20 @@ export default function ApprovalsPage() {
       render: (r) => {
         const map = {
           PENDING: { 
-             label: r.hrApproved ? "Trình lãnh đạo" : "Chờ duyệt", 
-             cls: r.hrApproved ? "bg-info-subtle text-info border-info" : "bg-warning-subtle text-warning border-warning" 
+             label: r.type.toLowerCase() === "stationery" ? "Chưa xử lý" : (r.hrApproved ? "Trình lãnh đạo" : "Chờ duyệt"), 
+             cls: r.type.toLowerCase() === "stationery" ? "bg-warning-subtle text-warning border-warning" : (r.hrApproved ? "bg-info-subtle text-info border-info" : "bg-warning-subtle text-warning border-warning") 
           },
-          APPROVED: { label: "Đã duyệt", cls: "bg-success-subtle text-success border-success" },
-          REJECTED: { label: "Từ chối", cls: "bg-danger-subtle text-danger border-danger" },
+          APPROVED: { 
+             label: r.type.toLowerCase() === "stationery" ? "Văn phòng đang xử lý" : "Đã duyệt", 
+             cls: r.type.toLowerCase() === "stationery" ? "bg-info-subtle text-info border-info" : "bg-success-subtle text-success border-success" 
+          },
+          DELIVERED: { label: "Đã cấp phát", cls: "bg-success-subtle text-success border-success" },
+          REJECTED: { 
+             label: r.type.toLowerCase() === "stationery" ? "Văn phòng đang xử lý" : "Từ chối", 
+             cls: r.type.toLowerCase() === "stationery" ? "bg-info-subtle text-info border-info" : "bg-danger-subtle text-danger border-danger" 
+          },
         };
-        const m = map[r.status] || map.PENDING;
+        const m = map[r.status as keyof typeof map] || map.PENDING;
         return <span className={`badge border rounded-pill px-2 ${m.cls}`} style={{ fontSize: 10 }}>{m.label}</span>;
       },
       width: "120px",
@@ -284,30 +399,17 @@ export default function ApprovalsPage() {
       header: "Thao tác",
       render: (r) => (
         <div className="d-flex justify-content-end gap-1" onClick={(e) => e.stopPropagation()}>
-          {activeTabId === "my_requests" ? (
-             <button 
-              className={`btn btn-light btn-sm border-0 ${r.status === "APPROVED" ? "opacity-50 cursor-not-allowed" : ""}`} 
-              title={r.status === "APPROVED" ? "Không thể xóa đơn đã duyệt" : "Xóa yêu cầu"}
-              disabled={r.status === "APPROVED"}
-              onClick={() => setDeleteConfirm({ open: true, id: r.id })}
-            >
-              <i className="bi bi-trash3 text-danger" />
-            </button>
-          ) : (
+          {activeTabId === "pending" && r.status === "PENDING" && !r.hrApproved && (
             <>
-              {activeTabId === "pending" && r.status === "PENDING" && !r.hrApproved && (
-                <>
-                  <button className="btn btn-light btn-sm border-0" title="Duyệt" onClick={() => handleAction(r.id, "APPROVE")}>
-                    <i className="bi bi-check-lg text-success" />
-                  </button>
-                  <button className="btn btn-light btn-sm border-0" title="Trình lãnh đạo" onClick={() => handleAction(r.id, "FORWARD_DIRECTOR")}>
-                    <i className="bi bi-send text-info" />
-                  </button>
-                  <button className="btn btn-light btn-sm border-0" title="Từ chối" onClick={() => setRejectionModal({ open: true, id: r.id })}>
-                    <i className="bi bi-x-lg text-danger" />
-                  </button>
-                </>
-              )}
+              <button className="btn btn-light btn-sm border-0" title="Duyệt" onClick={() => handleAction(r.id, "APPROVE")}>
+                <i className="bi bi-check-lg text-success" />
+              </button>
+              <button className="btn btn-light btn-sm border-0" title="Trình lãnh đạo" onClick={() => handleAction(r.id, "FORWARD_DIRECTOR")}>
+                <i className="bi bi-send text-info" />
+              </button>
+              <button className="btn btn-light btn-sm border-0" title="Từ chối" onClick={() => setRejectionModal({ open: true, id: r.id })}>
+                <i className="bi bi-x-lg text-danger" />
+              </button>
             </>
           )}
         </div>
@@ -319,22 +421,53 @@ export default function ApprovalsPage() {
 
   const ApprovalsBottomToolbar = (
     <div className="d-flex align-items-center justify-content-between w-100 px-3" style={{ minHeight: 48 }}>
-      <div className="d-flex align-items-center gap-2">
-        {activeTabId !== "my_requests" && (
-          <FilterSelect
-            placeholder="Tất cả phòng ban"
-            options={departments.map(d => ({ label: d.nameVi, value: d.nameVi }))}
-            value={deptFilter}
-            onChange={setDeptFilter}
-            width={180}
-            className="border-0 shadow-sm hover-bg-light transition-all"
-          />
-        )}
+      {selectedIds.size > 0 ? (
+        <div className="d-flex align-items-center gap-2">
+          <span className="text-primary fw-bold" style={{ fontSize: 11 }}>Đã chọn {selectedIds.size} đề xuất:</span>
+          {activeTabId === "pending" && (
+            <>
+              <button 
+                className="btn btn-success btn-sm d-flex align-items-center gap-1 py-1 px-2 border-0 shadow-sm" 
+                onClick={() => handleBatchAction("APPROVE")}
+                disabled={actionLoading}
+                style={{ fontSize: 10, fontWeight: 600 }}
+              >
+                <i className="bi bi-check-lg" /> Duyệt
+              </button>
+              <button 
+                className="btn btn-info btn-sm text-white d-flex align-items-center gap-1 py-1 px-2 border-0 shadow-sm" 
+                onClick={() => handleBatchAction("FORWARD_DIRECTOR")}
+                disabled={actionLoading}
+                style={{ fontSize: 10, fontWeight: 600 }}
+              >
+                <i className="bi bi-send" /> Trình sếp
+              </button>
+              <button 
+                className="btn btn-danger btn-sm d-flex align-items-center gap-1 py-1 px-2 border-0 shadow-sm" 
+                onClick={() => setRejectionModal({ open: true, id: null, isBatch: true })}
+                disabled={actionLoading}
+                style={{ fontSize: 10, fontWeight: 600 }}
+              >
+                <i className="bi bi-x-lg" /> Từ chối
+              </button>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="d-flex align-items-center gap-2">
+        <FilterSelect
+          placeholder="Tất cả phòng ban"
+          options={departments.map(d => ({ label: d.nameVi, value: d.nameVi }))}
+          value={deptFilter}
+          onChange={setDeptFilter}
+          width={180}
+          className="border-0 shadow-sm hover-bg-light transition-all"
+        />
         <SearchInput
-          placeholder={activeTabId === "my_requests" ? "Tìm kiếm nội dung..." : "Tìm nhân viên, nội dung..."}
+          placeholder="Tìm nhân viên, nội dung..."
           value={searchQuery}
           onChange={setSearchQuery}
-          style={{ width: activeTabId === "my_requests" ? 300 : 220 }}
+          style={{ width: 220 }}
           className="border-0 shadow-sm transition-all"
         />
         <FilterSelect
@@ -358,6 +491,7 @@ export default function ApprovalsPage() {
           className="border-0 shadow-sm hover-bg-light transition-all"
         />
       </div>
+    )}
 
       <div className="d-flex align-items-center gap-3">
         <div className="bg-white rounded-pill px-3 py-1 border shadow-sm d-flex gap-3" style={{ fontSize: 11 }}>
@@ -379,14 +513,6 @@ export default function ApprovalsPage() {
       useCard={false}
     >
       <div className="flex-grow-1 d-flex flex-column gap-3 overflow-hidden">
-        
-        {/* KPI Cards */}
-        <div className="row g-3">
-          <KPICard label="Chờ phê duyệt" value={loading ? "—" : stats.pending} icon="bi-clock-history" accent="#f59e0b" subtitle="Cần xử lý ngay" colClass="col-12 col-md-3" />
-          <KPICard label="Đã duyệt hôm nay" value={loading ? "—" : stats.approvedToday} icon="bi-check-circle" accent="#10b981" subtitle="Hiệu suất xử lý" colClass="col-12 col-md-3" />
-          <KPICard label="Vi phạm/Cảnh báo" value={loading ? "—" : 0} icon="bi-exclamation-triangle" accent="#ef4444" subtitle="Yêu cầu bất thường" colClass="col-12 col-md-3" />
-          <KPICard label="Đề xuất cá nhân" value={loading ? "—" : allRequests.filter(r => r.employee.userId === currentUserId && r.status === "PENDING").length} icon="bi-person-badge" accent="#6366f1" subtitle="Đang chờ duyệt" colClass="col-12 col-md-3" />
-        </div>
 
         <WorkflowCard
           contentPadding="p-0"
@@ -430,8 +556,14 @@ export default function ApprovalsPage() {
         variant="warning"
         confirmLabel="Từ chối"
         loading={actionLoading}
-        onConfirm={() => rejectionModal.id && handleAction(rejectionModal.id, "REJECT", rejectionNote)}
-        onCancel={() => { setRejectionModal({ open: false, id: null }); setRejectionNote(""); }}
+        onConfirm={() => {
+          if (rejectionModal.isBatch) {
+            handleBatchAction("REJECT", rejectionNote);
+          } else if (rejectionModal.id) {
+            handleAction(rejectionModal.id, "REJECT", rejectionNote);
+          }
+        }}
+        onCancel={() => { setRejectionModal({ open: false, id: null, isBatch: false }); setRejectionNote(""); }}
       />
 
       {/* Delete Confirm */}
@@ -462,25 +594,45 @@ export default function ApprovalsPage() {
              </div>
 
              <div className="d-flex flex-column gap-3">
-                <div className="p-3 bg-light rounded-3 border">
-                   <div className="text-muted mb-1" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>Loại đề xuất</div>
-                   <div className="fw-bold text-primary">{TYPE_MAP[selectedRequest.type.toLowerCase()]?.label || selectedRequest.type}</div>
-                </div>
+                 <div className="p-3 bg-light rounded-3 border">
+                    <div className="text-muted mb-1" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>Loại đề xuất</div>
+                    <div className="fw-bold text-primary">
+                      {(() => {
+                         const label = TYPE_MAP[selectedRequest.type.toLowerCase()]?.label || selectedRequest.type;
+                         if (selectedRequest.details) {
+                            try {
+                               const parsed = JSON.parse(selectedRequest.details);
+                               if (parsed.leaveType) return `${label} (${parsed.leaveType})`;
+                               if (parsed.requestType) return `${label} (${parsed.requestType})`;
+                               if (parsed.time) return `${label} (${parsed.time})`;
+                            } catch (e) {}
+                         }
+                         return label;
+                      })()}
+                    </div>
+                 </div>
 
                 <div className="row g-2">
                    <div className="col-6">
                       <div className="p-3 bg-light rounded-3 border">
                         <div className="text-muted mb-1" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>Trạng thái</div>
                         {(() => {
-                           const map = {
-                              PENDING: { 
-                                 label: selectedRequest.hrApproved ? "Trình lãnh đạo" : "Chờ duyệt", 
-                                 cls: selectedRequest.hrApproved ? "text-info" : "text-warning" 
-                              },
-                              APPROVED: { label: "Đã duyệt", cls: "text-success" },
-                              REJECTED: { label: "Từ chối", cls: "text-danger" },
-                           };
-                           const m = map[selectedRequest.status] || map.PENDING;
+                            const map = {
+                               PENDING: { 
+                                  label: selectedRequest.type.toLowerCase() === "stationery" ? "Chưa xử lý" : (selectedRequest.hrApproved ? "Trình lãnh đạo" : "Chờ duyệt"), 
+                                  cls: selectedRequest.type.toLowerCase() === "stationery" ? "text-warning" : (selectedRequest.hrApproved ? "text-info" : "text-warning") 
+                               },
+                               APPROVED: { 
+                                  label: selectedRequest.type.toLowerCase() === "stationery" ? "Văn phòng đang xử lý" : "Đã duyệt", 
+                                  cls: selectedRequest.type.toLowerCase() === "stationery" ? "text-info" : "text-success" 
+                               },
+                               DELIVERED: { label: "Đã cấp phát", cls: "text-success" },
+                               REJECTED: { 
+                                  label: selectedRequest.type.toLowerCase() === "stationery" ? "Văn phòng đang xử lý" : "Từ chối", 
+                                  cls: selectedRequest.type.toLowerCase() === "stationery" ? "text-info" : "text-danger" 
+                               },
+                            };
+                           const m = map[selectedRequest.status as keyof typeof map] || map.PENDING;
                            return <div className={`fw-bold ${m.cls}`}>{m.label}</div>;
                         })()}
                       </div>
@@ -508,10 +660,123 @@ export default function ApprovalsPage() {
                    </div>
                 </div>
 
-                <div className="p-3 bg-light rounded-3 border">
-                   <div className="text-muted mb-1" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>Lý do đề xuất</div>
-                   <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6 }}>{selectedRequest.reason || "Không có nội dung chi tiết."}</div>
-                </div>
+                 <div className="p-3 bg-light rounded-3 border">
+                    <div className="text-muted mb-2" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>Nội dung chi tiết</div>
+                    {(() => {
+                       if (selectedRequest.details) {
+                          try {
+                             const details = JSON.parse(selectedRequest.details);
+                             if (selectedRequest.type.toLowerCase() === "recruitment") {
+                                return (
+                                   <div className="d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                                      <div><strong>Vị trí tuyển dụng:</strong> {details.position}</div>
+                                      <div><strong>Số lượng:</strong> {details.quantity}</div>
+                                      <div><strong>Cấp bậc:</strong> {details.level}</div>
+                                      <div><strong>Hình thức:</strong> {details.workType}</div>
+                                      <div><strong>Mức lương:</strong> {details.salary}</div>
+                                      {details.deadline && <div><strong>Hạn tuyển:</strong> {new Date(details.deadline).toLocaleDateString("vi-VN")}</div>}
+                                      {selectedRequest.reason && (
+                                         <div className="mt-2 border-top pt-2">
+                                            <strong>Mô tả / Yêu cầu chi tiết:</strong>
+                                            <div className="text-muted mt-1" style={{ whiteSpace: "pre-wrap" }}>
+                                               {selectedRequest.reason.split("\nMô tả chi tiết:\n")[1] || selectedRequest.reason}
+                                            </div>
+                                         </div>
+                                      )}
+                                   </div>
+                                );
+                             }
+                             if (selectedRequest.type.toLowerCase() === "training") {
+                                return (
+                                   <div className="d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                                      <div><strong>Chủ đề đào tạo:</strong> {details.topic}</div>
+                                      <div><strong>Giảng viên:</strong> {details.trainer || "Chưa xác định"}</div>
+                                      <div><strong>Địa điểm:</strong> {details.location || "Chưa xác định"}</div>
+                                      <div><strong>Đối tượng tham gia:</strong> {details.participants || "Chưa xác định"}</div>
+                                      {selectedRequest.reason && (
+                                         <div className="mt-2 border-top pt-2">
+                                            <strong>Nội dung đào tạo chi tiết:</strong>
+                                            <div className="text-muted mt-1" style={{ whiteSpace: "pre-wrap" }}>
+                                               {selectedRequest.reason.split("\nNội dung chi tiết:\n")[1] || selectedRequest.reason}
+                                            </div>
+                                         </div>
+                                      )}
+                                   </div>
+                                );
+                             }
+                             if (selectedRequest.type.toLowerCase() === "promotion") {
+                                return (
+                                   <div className="d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                                      <div><strong>Nhân viên:</strong> {details.employee}</div>
+                                      <div><strong>Loại đề xuất:</strong> {details.isTransfer ? "Thuyên chuyển công tác" : "Đề bạt thăng tiến"}</div>
+                                      <div><strong>Bộ phận hiện tại:</strong> {details.currentRole}</div>
+                                      {details.targetDepartment && <div><strong>Bộ phận đề xuất:</strong> {details.targetDepartment}</div>}
+                                      {details.proposedRole && <div><strong>Vị trí đề xuất:</strong> {details.proposedRole}</div>}
+                                      {selectedRequest.reason && (
+                                         <div className="mt-2 border-top pt-2">
+                                            <strong>Lý do thăng tiến / thuyên chuyển:</strong>
+                                            <div className="text-muted mt-1" style={{ whiteSpace: "pre-wrap" }}>
+                                               {selectedRequest.reason.split("\nLý do chi tiết:\n")[1] || selectedRequest.reason}
+                                            </div>
+                                         </div>
+                                      )}
+                                   </div>
+                                );
+                             }
+                             if (selectedRequest.type.toLowerCase() === "salary-adjustment") {
+                                return (
+                                   <div className="d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                                      <div><strong>Nhân viên:</strong> {details.employee}</div>
+                                      <div><strong>Loại điều chỉnh:</strong> {details.adjustmentType}</div>
+                                      <div><strong>Lương hiện tại:</strong> {details.currentSalary}</div>
+                                      <div><strong>Lương đề xuất mới:</strong> <span className="text-danger fw-bold">{details.proposedSalary}</span></div>
+                                      {selectedRequest.reason && (
+                                         <div className="mt-2 border-top pt-2">
+                                            <strong>Lý do điều chỉnh chi tiết:</strong>
+                                            <div className="text-muted mt-1" style={{ whiteSpace: "pre-wrap" }}>
+                                               {selectedRequest.reason.split("\nLý do chi tiết:\n")[1] || selectedRequest.reason}
+                                            </div>
+                                         </div>
+                                      )}
+                                   </div>
+                                );
+                             }
+                             if (selectedRequest.type.toLowerCase() === "stationery") {
+                                return (
+                                   <div className="d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                                      {details.note && <div><strong>Ghi chú / Lý do:</strong> {details.note}</div>}
+                                      <div><strong>Tổng tiền dự kiến:</strong> <span className="text-danger fw-bold">{details.totalAmount?.toLocaleString("vi-VN")} đ</span></div>
+                                      <div className="mt-2 border-top pt-2">
+                                         <strong>Danh sách vật tư đề xuất:</strong>
+                                         <div className="table-responsive mt-1">
+                                            <table className="table table-sm table-bordered" style={{ fontSize: 12 }}>
+                                               <thead>
+                                                  <tr className="bg-light">
+                                                     <th>Tên vật tư</th>
+                                                     <th style={{ width: 80 }} className="text-center">Đơn vị</th>
+                                                     <th style={{ width: 80 }} className="text-center">Số lượng</th>
+                                                  </tr>
+                                               </thead>
+                                               <tbody>
+                                                  {details.items?.map((item: any, idx: number) => (
+                                                     <tr key={idx}>
+                                                        <td>{item.name}</td>
+                                                        <td className="text-center">{item.unit}</td>
+                                                        <td className="text-center fw-bold">{item.quantity}</td>
+                                                     </tr>
+                                                  ))}
+                                               </tbody>
+                                            </table>
+                                         </div>
+                                      </div>
+                                   </div>
+                                );
+                             }
+                          } catch (e) {}
+                       }
+                       return <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{selectedRequest.reason || "Không có nội dung chi tiết."}</div>;
+                    })()}
+                 </div>
              </div>
           </div>
 

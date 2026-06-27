@@ -12,10 +12,23 @@ export async function GET(request: Request) {
 
     console.log(`API V2 (RAW) Fetching debts for type: ${type}, filter: ${daysFilter}`);
 
+    // Map type to support both seed (uppercase) and real (lowercase/vietnamese) DB values
+    let dbTypes: string[] = [];
+    const typeUpper = type.toUpperCase();
+    if (typeUpper === "RECEIVABLE" || type === "phai-thu") {
+      dbTypes = ["RECEIVABLE", "phai-thu"];
+    } else if (typeUpper === "PAYABLE" || type === "phai-tra") {
+      dbTypes = ["PAYABLE", "phai-tra"];
+    } else if (typeUpper === "LOAN" || type === "vay") {
+      dbTypes = ["LOAN", "vay"];
+    } else {
+      dbTypes = [type];
+    }
+
     // Sử dụng Raw Query để bypass lỗi "Unknown argument type" của Prisma Client
-    let query = `SELECT * FROM "Debt" WHERE "type" = $1`;
-    let params: any[] = [type];
-    let paramIndex = 2;
+    let query = `SELECT * FROM "Debt" WHERE "type" IN (${dbTypes.map((_, i) => `$${i + 1}`).join(", ")})`;
+    let params: any[] = [...dbTypes];
+    let paramIndex = dbTypes.length + 1;
 
     if (status) {
       query += ` AND "status" = $${paramIndex++}`;
@@ -50,8 +63,8 @@ export async function GET(request: Request) {
     const debts = await prisma.$queryRawUnsafe(query, ...params) as any[];
 
     // Tính toán stats (cũng dùng Raw Query để đồng bộ)
-    const statsQuery = `SELECT * FROM "Debt" WHERE "type" = $1`;
-    const allDebtsOfType = await prisma.$queryRawUnsafe(statsQuery, type) as any[];
+    const statsQuery = `SELECT * FROM "Debt" WHERE "type" IN (${dbTypes.map((_, i) => `$${i + 1}`).join(", ")})`;
+    const allDebtsOfType = await prisma.$queryRawUnsafe(statsQuery, ...dbTypes) as any[];
 
     const totalAmount = allDebtsOfType.reduce((s: number, d: any) => s + (d.amount || 0), 0);
     const totalPaid = allDebtsOfType.reduce((s: number, d: any) => s + (d.paidAmount || 0), 0);
@@ -61,12 +74,13 @@ export async function GET(request: Request) {
       d.status !== "PAID" && d.dueDate && new Date(d.dueDate) >= now && new Date(d.dueDate) <= addDays(now, 15)
     ).length;
 
+    const isReceivable = typeUpper === "RECEIVABLE" || type === "phai-thu";
     const stats = {
       totalAmount,
       totalPaid,
       recoveryRate,
       upcomingCount,
-      avgDays: type === "RECEIVABLE" ? 12 : 45,
+      avgDays: isReceivable ? 12 : 45,
       overdueCount: allDebtsOfType.filter((d: any) => d.status !== "PAID" && d.dueDate && new Date(d.dueDate) < now).length,
       countByFilter: {
         ALL: allDebtsOfType.length,
@@ -133,6 +147,48 @@ export async function PUT(request: Request) {
         status: status || "UNPAID",
       }
     });
+
+    // Sync paidAmount to SaleOrder or Contract if referenceId is set
+    if (referenceId) {
+      const pAmt = Number(paidAmount) || 0;
+      try {
+        const order = await prisma.saleOrder.findFirst({
+          where: {
+            OR: [
+              { id: referenceId },
+              { code: referenceId }
+            ]
+          }
+        });
+        if (order) {
+          await prisma.saleOrder.update({
+            where: { id: order.id },
+            data: { daThanhToan: pAmt }
+          });
+        }
+      } catch (err) {
+        console.error("Failed to sync paidAmount to SaleOrder:", err);
+      }
+
+      try {
+        const contract = await prisma.contract.findFirst({
+          where: {
+            OR: [
+              { id: referenceId },
+              { code: referenceId }
+            ]
+          }
+        });
+        if (contract) {
+          await prisma.contract.update({
+            where: { id: contract.id },
+            data: { daThanhToan: pAmt }
+          });
+        }
+      } catch (err) {
+        console.error("Failed to sync paidAmount to Contract:", err);
+      }
+    }
 
     return NextResponse.json(debt);
   } catch (error: any) {

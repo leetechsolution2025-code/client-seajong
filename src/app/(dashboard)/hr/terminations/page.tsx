@@ -129,9 +129,10 @@ export default function TerminationsPage() {
         color="rose" 
       />
 
-      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column fs-terminations-container" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         {/* Main Content Card */}
         <WorkflowCard
+          className="fs-terminations-card"
           stepper={
             <ModernStepper 
               steps={dashboardSteps} 
@@ -141,21 +142,21 @@ export default function TerminationsPage() {
             />
           }
           toolbar={
-            <div className="d-flex justify-content-between align-items-center">
-              <div className="d-flex align-items-center gap-2 flex-grow-1">
-                <div className="d-flex gap-1 bg-light p-1 rounded-3 border">
+            <div className="d-flex justify-content-between align-items-center fs-toolbar-wrap">
+              <div className="d-flex align-items-center gap-2 flex-grow-1 fs-filters-wrap">
+                <div className="d-flex gap-1 bg-light p-1 rounded-3 border fs-tabs-wrap">
                   {["All", "RESIGNATION", "DISMISSAL"].map(tab => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab as any)}
-                      className={`btn btn-sm px-3 fw-semibold transition-all ${activeTab === tab ? "bg-white shadow-sm border text-primary" : "btn-light border-0 text-muted"}`}
+                      className={`btn btn-sm px-3 fw-semibold transition-all fs-tab-btn ${activeTab === tab ? "bg-white shadow-sm border text-primary" : "btn-light border-0 text-muted"}`}
                     >
                       {tab === "All" ? "Tất cả" : tab === "RESIGNATION" ? "Thôi việc" : "Sa thải"}
                     </button>
                   ))}
                 </div>
                 
-                <div className="position-relative ms-2" style={{ width: "300px" }}>
+                <div className="position-relative ms-2 fs-search-input-wrap" style={{ width: "300px" }}>
                   <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style={{ fontSize: "13px" }}></i>
                   <input 
                     type="text" 
@@ -167,92 +168,153 @@ export default function TerminationsPage() {
                   />
                 </div>
 
-                <button className="btn btn-sm btn-white border d-flex align-items-center gap-2 px-3 shadow-sm rounded-pill ms-auto" style={{ height: "38px", fontSize: "13px" }}>
-                  <Filter size={16} /> Lọc nâng cao
+                <button 
+                  className="btn btn-sm btn-white border d-flex align-items-center justify-content-center gap-2 px-3 shadow-sm rounded-pill ms-auto fs-filter-btn" 
+                  style={{ height: "38px", fontSize: "13px" }}
+                >
+                  <Filter size={16} /> <span className="d-none d-md-inline">Lọc nâng cao</span>
+                </button>
+
+                <button 
+                  onClick={() => setShowForm(true)}
+                  className="btn btn-sm btn-primary d-flex align-items-center justify-content-center gap-2 px-3 shadow-sm rounded-pill fs-create-btn" 
+                  style={{ height: "38px", fontSize: "13px" }}
+                >
+                  <Plus size={16} /> <span className="d-none d-md-inline">Tạo yêu cầu</span>
                 </button>
               </div>
-              <div className="text-muted small ms-3 flex-shrink-0">Đang hiển thị: <b>{filteredRequests.length}</b> hồ sơ</div>
+              <div className="text-muted small ms-3 flex-shrink-0 fs-record-count">Đang hiển thị: <b>{filteredRequests.length}</b> hồ sơ</div>
             </div>
           }
         >
-          <Table
-            rows={filteredRequests}
-            loading={loading}
-            onRowClick={(r) => setSelectedRequest(r)}
-            columns={[
-              {
-                header: "Nhân sự",
-                render: (r) => (
-                  <div className="d-flex align-items-center gap-3">
-                    <EmployeeAvatar 
-                      name={r.employee?.fullName} 
-                      url={r.employee?.avatarUrl} 
-                      size={34} 
-                      borderRadius={99} 
-                    />
+          <div className="d-none d-md-block">
+            <Table
+              rows={filteredRequests}
+              loading={loading}
+              onRowClick={(r) => setSelectedRequest(r)}
+              columns={[
+                {
+                  header: "Nhân sự",
+                  render: (r) => (
+                    <div className="d-flex align-items-center gap-3">
+                      <EmployeeAvatar 
+                        name={r.employee?.fullName} 
+                        url={r.employee?.avatarUrl} 
+                        size={34} 
+                        borderRadius={99} 
+                      />
+                      <div>
+                        <div className="fw-bold text-dark" style={{ fontSize: "13px" }}>{r.employee?.fullName}</div>
+                        <div className="text-muted" style={{ fontSize: "11px" }}>{r.employee?.code}</div>
+                      </div>
+                    </div>
+                  )
+                },
+                {
+                  header: "Phòng ban / Vị trí",
+                  render: (r) => (
                     <div>
-                      <div className="fw-bold text-dark" style={{ fontSize: "13px" }}>{r.employee?.fullName}</div>
-                      <div className="text-muted" style={{ fontSize: "11px" }}>{r.employee?.code}</div>
+                      <div className="fw-semibold text-dark" style={{ fontSize: "12px" }}>{r.employee?.position}</div>
+                      <div className="text-muted" style={{ fontSize: "11px" }}>{r.employee?.departmentName}</div>
+                    </div>
+                  )
+                },
+                {
+                  header: "Loại thủ tục",
+                  render: (r) => r.type === "RESIGNATION" ? (
+                    <span className="badge rounded-pill bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1">
+                      Thôi việc
+                    </span>
+                  ) : (
+                    <span className="badge rounded-pill bg-red-100 text-red-700 border border-red-200 px-3 py-1">
+                      Sa thải
+                    </span>
+                  )
+                },
+                {
+                  header: "Tiến độ",
+                  render: (r) => (
+                    <div className="d-flex align-items-center gap-2" style={{ width: "120px" }}>
+                      <div className="progress flex-grow-1" style={{ height: "5px", borderRadius: "10px" }}>
+                        <div className={`progress-bar ${r.type === "RESIGNATION" ? "bg-primary" : "bg-danger"}`} 
+                          style={{ width: `${(r.step / (r.type === "RESIGNATION" ? 5 : 9)) * 100}%` }} />
+                      </div>
+                      <span className="text-muted fw-bold" style={{ fontSize: "11px" }}>{r.step}/{r.type === "RESIGNATION" ? 5 : 9}</span>
+                    </div>
+                  )
+                },
+                {
+                  header: "Ngày làm cuối",
+                  render: (r) => (
+                    <span className="text-muted fw-semibold" style={{ fontSize: "12px" }}>
+                      {r.lastWorkingDay ? new Date(r.lastWorkingDay).toLocaleDateString('vi-VN') : "---"}
+                    </span>
+                  )
+                },
+                {
+                  header: "Trạng thái",
+                  render: (r) => <StatusBadge status={r.status} />
+                },
+                {
+                  header: "",
+                  align: "right",
+                  render: () => (
+                    <button className="btn btn-sm btn-light border rounded-3 p-1">
+                      <MoreVertical size={14} />
+                    </button>
+                  )
+                }
+              ]}
+            />
+          </div>
+
+          <div className="d-block d-md-none fs-mobile-card-list">
+            {filteredRequests.length === 0 ? (
+              <div className="text-center py-5 text-muted bg-white rounded-4 border">
+                Không có hồ sơ nào.
+              </div>
+            ) : (
+              filteredRequests.map(r => (
+                <div 
+                  key={r.id} 
+                  className="bg-white rounded-4 border p-3 mb-2 cursor-pointer shadow-sm position-relative animate__animated animate__fadeIn"
+                  onClick={() => setSelectedRequest(r)}
+                >
+                  <div className="d-flex align-items-start justify-content-between mb-3">
+                    <div className="d-flex align-items-center gap-3">
+                      <EmployeeAvatar 
+                        name={r.employee?.fullName} 
+                        url={r.employee?.avatarUrl} 
+                        size={38} 
+                        borderRadius={99} 
+                      />
+                      <div>
+                        <div className="fw-bold text-dark" style={{ fontSize: "14px" }}>{r.employee?.fullName}</div>
+                        <div className="text-muted" style={{ fontSize: "11px" }}>{r.employee?.code} • {r.employee?.departmentName}</div>
+                      </div>
+                    </div>
+                    <StatusBadge status={r.status} />
+                  </div>
+                  
+                  <div className="d-flex justify-content-between align-items-center pt-2 border-top">
+                    <div style={{ fontSize: "12px" }}>
+                      <span className="text-muted">Hình thức:</span>{" "}
+                      <span className={`fw-semibold ${r.type === 'RESIGNATION' ? 'text-primary' : 'text-danger'}`}>
+                        {r.type === 'RESIGNATION' ? 'Thôi việc' : 'Sa thải'}
+                      </span>
+                    </div>
+                    <div className="d-flex align-items-center gap-2" style={{ width: "100px" }}>
+                      <div className="progress flex-grow-1" style={{ height: "4px", borderRadius: "10px", margin: 0 }}>
+                        <div className={`progress-bar ${r.type === "RESIGNATION" ? "bg-primary" : "bg-danger"}`} 
+                          style={{ width: `${(r.step / (r.type === "RESIGNATION" ? 5 : 9)) * 100}%` }} />
+                      </div>
+                      <span className="text-muted fw-bold" style={{ fontSize: "10px" }}>{r.step}/{r.type === "RESIGNATION" ? 5 : 9}</span>
                     </div>
                   </div>
-                )
-              },
-              {
-                header: "Phòng ban / Vị trí",
-                render: (r) => (
-                  <div>
-                    <div className="fw-semibold text-dark" style={{ fontSize: "12px" }}>{r.employee?.position}</div>
-                    <div className="text-muted" style={{ fontSize: "11px" }}>{r.employee?.departmentName}</div>
-                  </div>
-                )
-              },
-              {
-                header: "Loại thủ tục",
-                render: (r) => r.type === "RESIGNATION" ? (
-                  <span className="badge rounded-pill bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1">
-                    Thôi việc
-                  </span>
-                ) : (
-                  <span className="badge rounded-pill bg-red-100 text-red-700 border border-red-200 px-3 py-1">
-                    Sa thải
-                  </span>
-                )
-              },
-              {
-                header: "Tiến độ",
-                render: (r) => (
-                  <div className="d-flex align-items-center gap-2" style={{ width: "120px" }}>
-                    <div className="progress flex-grow-1" style={{ height: "5px", borderRadius: "10px" }}>
-                      <div className={`progress-bar ${r.type === "RESIGNATION" ? "bg-primary" : "bg-danger"}`} 
-                        style={{ width: `${(r.step / (r.type === "RESIGNATION" ? 5 : 9)) * 100}%` }} />
-                    </div>
-                    <span className="text-muted fw-bold" style={{ fontSize: "11px" }}>{r.step}/{r.type === "RESIGNATION" ? 5 : 9}</span>
-                  </div>
-                )
-              },
-              {
-                header: "Ngày làm cuối",
-                render: (r) => (
-                  <span className="text-muted fw-semibold" style={{ fontSize: "12px" }}>
-                    {r.lastWorkingDay ? new Date(r.lastWorkingDay).toLocaleDateString('vi-VN') : "---"}
-                  </span>
-                )
-              },
-              {
-                header: "Trạng thái",
-                render: (r) => <StatusBadge status={r.status} />
-              },
-              {
-                header: "",
-                align: "right",
-                render: () => (
-                  <button className="btn btn-sm btn-light border rounded-3 p-1">
-                    <MoreVertical size={14} />
-                  </button>
-                )
-              }
-            ]}
-          />
+                </div>
+              ))
+            )}
+          </div>
         </WorkflowCard>
 
       <style jsx>{`
@@ -339,7 +401,7 @@ function TerminationFormOffcanvas({ isOpen, onClose, employees, onSuccess }: any
   if (!isOpen) return null;
 
   return (
-    <div className="position-fixed top-0 end-0 h-100 bg-white shadow-lg border-start overflow-hidden" style={{ width: "450px", zIndex: 1060 }}>
+    <div className="position-fixed top-0 end-0 h-100 bg-white shadow-lg border-start overflow-hidden fs-termination-drawer" style={{ width: "450px", maxWidth: "100%", zIndex: 1060 }}>
       <div className="p-4 h-100 d-flex flex-column">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h5 className="fw-bold mb-0">Tạo thủ tục mới</h5>
@@ -384,26 +446,29 @@ function TerminationFormOffcanvas({ isOpen, onClose, employees, onSuccess }: any
             </div>
           </div>
 
-          <div className="mb-4">
-            <label className="form-label small fw-bold text-muted">3. Ngày thông báo / tiếp nhận</label>
-            <input 
-              type="date" 
-              className="form-control" 
-              required
-              value={formData.requestDate}
-              onChange={e => setFormData({...formData, requestDate: e.target.value})}
-            />
+          <div className="row g-3 mb-4">
+            <div className="col-6">
+              <label className="form-label small fw-bold text-muted">3. Ngày thông báo</label>
+              <input 
+                type="date" 
+                className="form-control" 
+                required
+                value={formData.requestDate}
+                onChange={e => setFormData({...formData, requestDate: e.target.value})}
+              />
+            </div>
+            <div className="col-6">
+              <label className="form-label small fw-bold text-muted">4. Ngày dự kiến nghỉ</label>
+              <input 
+                type="date" 
+                className="form-control" 
+                value={formData.lastWorkingDay}
+                onChange={e => setFormData({...formData, lastWorkingDay: e.target.value})}
+              />
+            </div>
           </div>
-
-          <div className="mb-4">
-            <label className="form-label small fw-bold text-muted">4. Ngày dự kiến nghỉ việc</label>
-            <input 
-              type="date" 
-              className="form-control" 
-              value={formData.lastWorkingDay}
-              onChange={e => setFormData({...formData, lastWorkingDay: e.target.value})}
-            />
-            <div className="small text-muted mt-1">Để trống nếu chưa xác định chính xác</div>
+          <div className="mb-4 text-muted small" style={{ marginTop: "-8px" }}>
+            * Để trống ngày dự kiến nghỉ nếu chưa xác định chính xác
           </div>
 
           <div className="mb-4">
@@ -535,10 +600,10 @@ function TerminationDetailOffcanvas({ request, isOpen, onClose, onUpdate }: any)
   };
 
   return (
-    <div className="position-fixed top-0 end-0 h-100 bg-white shadow-lg border-start overflow-hidden" style={{ width: "850px", zIndex: 1060 }}>
+    <div className="position-fixed top-0 end-0 h-100 bg-white shadow-lg border-start overflow-hidden fs-termination-drawer" style={{ width: "850px", maxWidth: "100%", zIndex: 1060 }}>
       <div className="p-0 h-100 d-flex flex-column bg-light">
         {/* Header Strip */}
-        <div className="bg-white p-4 border-bottom shadow-sm">
+        <div className="bg-white p-3 p-md-4 border-bottom shadow-sm fs-detail-header">
           <div className="d-flex justify-content-between align-items-start">
             <div className="d-flex align-items-center gap-4">
               <div className="position-relative">
@@ -636,9 +701,9 @@ function TerminationDetailOffcanvas({ request, isOpen, onClose, onUpdate }: any)
                               </div>
 
                               {!localData.skipInterview && (
-                                <div className="row g-3 animate__animated animate__fadeIn">
-                                  <div className="col-md-6">
-                                    <label className="form-label x-small text-muted">Thời gian phỏng vấn</label>
+                                <div className="row g-2 animate__animated animate__fadeIn">
+                                  <div className="col-6">
+                                    <label className="form-label x-small text-muted">Thời gian</label>
                                     <input 
                                       type="datetime-local" 
                                       className="form-control form-control-sm rounded-3"
@@ -646,12 +711,12 @@ function TerminationDetailOffcanvas({ request, isOpen, onClose, onUpdate }: any)
                                       onChange={e => setLocalData({...localData, interviewDate: e.target.value})}
                                     />
                                   </div>
-                                  <div className="col-md-6">
+                                  <div className="col-6">
                                     <label className="form-label x-small text-muted">Địa điểm</label>
                                     <input 
                                       type="text" 
                                       className="form-control form-control-sm rounded-3"
-                                      placeholder="Phòng họp / Link Zoom..."
+                                      placeholder="Phòng họp / Zoom..."
                                       value={localData.interviewLocation}
                                       onChange={e => setLocalData({...localData, interviewLocation: e.target.value})}
                                     />
@@ -934,8 +999,16 @@ function TerminationDetailOffcanvas({ request, isOpen, onClose, onUpdate }: any)
       </div>
 
       <style jsx>{`
-        .ls-1 { letter-spacing: 0.5px; }
+        .bg-blue-100 { background: #eff6ff; }
+        .text-blue-700 { color: #1d4ed8; }
+        .border-blue-200 { border-color: #bfdbfe !important; }
+        .bg-red-100 { background: #fef2f2; }
+        .text-red-700 { color: #b91c1c; }
+        .border-red-200 { border-color: #fecaca !important; }
         .x-small { font-size: 11px; }
+        .cursor-pointer { cursor: pointer; transition: all 0.2s; }
+        .cursor-pointer:hover { background-color: #f8fafc; }
+        .ls-1 { letter-spacing: 0.5px; }
         .scale-110 { transform: scale(1.15); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .alert-soft-primary { background: #eef2ff; color: #4338ca; }

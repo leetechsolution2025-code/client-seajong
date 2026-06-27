@@ -1273,6 +1273,12 @@ export function MessageOffcanvas({ open, onClose, onUnreadChange }: Props) {
         @keyframes pulse  { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
         @keyframes spin   { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+        @media (max-width: 767.98px) {
+          .message-offcanvas-panel {
+            width: 100vw !important;
+            max-width: 100vw !important;
+          }
+        }
       `}</style>
 
       {/* Backdrop */}
@@ -1285,7 +1291,7 @@ export function MessageOffcanvas({ open, onClose, onUnreadChange }: Props) {
       }} onClick={onClose} />
 
       {/* Panel */}
-      <div style={{
+      <div className="message-offcanvas-panel" style={{
         position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 9999,
         width: "min(400px, 100vw)",
         background: "var(--card)",

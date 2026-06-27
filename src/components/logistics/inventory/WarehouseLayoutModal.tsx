@@ -39,6 +39,50 @@ export function WarehouseLayoutModal({ warehouse, onClose, onSave }: Props) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const canvasRef = useRef<HTMLDivElement>(null);
 
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number; elX: number; elY: number } | null>(null);
+
+  const handlePointerDown = (e: React.PointerEvent, el: LayoutElement) => {
+    e.stopPropagation();
+    setSelectedId(el.id);
+    setDraggingId(el.id);
+    
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      elX: el.x,
+      elY: el.y
+    };
+    
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent, el: LayoutElement) => {
+    if (draggingId !== el.id || !dragStartRef.current) return;
+    
+    const dx = (e.clientX - dragStartRef.current.x) / (zoom * MM_TO_PX);
+    const dy = (e.clientY - dragStartRef.current.y) / (zoom * MM_TO_PX);
+    
+    let newX = dragStartRef.current.elX + dx;
+    let newY = dragStartRef.current.elY + dy;
+    
+    const snapSize = gridSize / MM_TO_PX;
+    newX = Math.round(newX / snapSize) * snapSize;
+    newY = Math.round(newY / snapSize) * snapSize;
+    
+    newX = Math.max(0, Math.min(5000 / MM_TO_PX - el.w, newX));
+    newY = Math.max(0, Math.min(5000 / MM_TO_PX - el.h, newY));
+    
+    if (newX !== el.x || newY !== el.y) {
+      updateElement(el.id, { x: newX, y: newY });
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    setDraggingId(null);
+    dragStartRef.current = null;
+  };
+
   useEffect(() => {
     if (warehouse?.layoutJson) {
       try {
@@ -54,13 +98,45 @@ export function WarehouseLayoutModal({ warehouse, onClose, onSave }: Props) {
     const nextChar = String.fromCharCode(65 + Math.floor(rackCount / 10));
     const nextIdx = (rackCount % 10) + 1;
 
+    let spawnX = 1000;
+    let spawnY = 1000;
+
+    if (canvasRef.current) {
+      const scrollLeft = canvasRef.current.scrollLeft;
+      const scrollTop = canvasRef.current.scrollTop;
+      const clientWidth = canvasRef.current.clientWidth;
+      const clientHeight = canvasRef.current.clientHeight;
+
+      const centerX = (scrollLeft + clientWidth / 2) / zoom;
+      const centerY = (scrollTop + clientHeight / 2) / zoom;
+
+      spawnX = centerX / MM_TO_PX;
+      spawnY = centerY / MM_TO_PX;
+    }
+
+    const snapSize = gridSize / MM_TO_PX;
+    spawnX = Math.round(spawnX / snapSize) * snapSize;
+    spawnY = Math.round(spawnY / snapSize) * snapSize;
+
+    const width = type === "rack" ? 2400 : type === "zone" ? 5000 : type === "wall" ? 10000 : 1200;
+    const height = type === "rack" ? 1000 : type === "zone" ? 5000 : type === "wall" ? 200 : 1200;
+
+    spawnX = spawnX - width / 2;
+    spawnY = spawnY - height / 2;
+
+    spawnX = Math.round(spawnX / snapSize) * snapSize;
+    spawnY = Math.round(spawnY / snapSize) * snapSize;
+
+    spawnX = Math.max(0, Math.min(5000 / MM_TO_PX - width, spawnX));
+    spawnY = Math.max(0, Math.min(5000 / MM_TO_PX - height, spawnY));
+
     const newEl: LayoutElement = {
       id: `el-${Date.now()}`,
       type,
-      x: 1000,
-      y: 1000,
-      w: type === "rack" ? 2400 : type === "zone" ? 5000 : type === "wall" ? 10000 : 1200,
-      h: type === "rack" ? 1000 : type === "zone" ? 5000 : type === "wall" ? 200 : 1200,
+      x: spawnX,
+      y: spawnY,
+      w: width,
+      h: height,
       name: type === "rack" ? `${nextChar}${nextIdx}` : type === "zone" ? "Khu vực" : type === "wall" ? "Tường" : "Lối vào",
       color: type === "rack" ? "#4f46e5" : type === "zone" ? "#10b981" : type === "wall" ? "#64748b" : "#f59e0b",
       rows: type === "rack" ? 4 : undefined,
@@ -100,10 +176,62 @@ export function WarehouseLayoutModal({ warehouse, onClose, onSave }: Props) {
 
   const selectedEl = elements.find(el => el.id === selectedId);
 
+  const copiedElementRef = useRef<LayoutElement | null>(null);
+
   // ── Keyboard Controls ──
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!selectedId || !selectedEl) return;
+      
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === "INPUT" || activeTag === "TEXTAREA") return;
+
+      // Rotate shortcut
+      if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        updateElement(selectedId, { rotation: (selectedEl.rotation || 0) + 90 });
+        return;
+      }
+
+      // Delete shortcut
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        deleteElement(selectedId);
+        return;
+      }
+
+      // Copy shortcut
+      if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
+        e.preventDefault();
+        copiedElementRef.current = selectedEl;
+        return;
+      }
+
+      // Paste shortcut
+      if ((e.ctrlKey || e.metaKey) && (e.key === "v" || e.key === "V")) {
+        e.preventDefault();
+        const el = copiedElementRef.current;
+        if (el) {
+          const snapSize = gridSize / MM_TO_PX;
+          const rackCount = elements.filter(x => x.type === "rack").length;
+          const nextChar = String.fromCharCode(65 + Math.floor(rackCount / 10));
+          const nextIdx = (rackCount % 10) + 1;
+
+          const newEl: LayoutElement = {
+            ...el,
+            id: `el-${Date.now()}`,
+            x: Math.max(0, Math.min(5000 / MM_TO_PX - el.w, el.x + snapSize)),
+            y: Math.max(0, Math.min(5000 / MM_TO_PX - el.h, el.y + snapSize)),
+            index: el.type === "rack" ? nextIdx : el.index,
+            prefix: el.type === "rack" ? nextChar : el.prefix,
+            name: el.type === "rack" ? `${nextChar}${nextIdx}` : el.name,
+          };
+          setElements([...elements, newEl]);
+          setSelectedId(newEl.id);
+        }
+        return;
+      }
+
       const moveStep = e.shiftKey ? 100 : 10;
       let dx = 0, dy = 0;
       if (e.key === "ArrowLeft") dx = -moveStep;
@@ -111,12 +239,21 @@ export function WarehouseLayoutModal({ warehouse, onClose, onSave }: Props) {
       else if (e.key === "ArrowUp") dy = -moveStep;
       else if (e.key === "ArrowDown") dy = moveStep;
       else return;
+
       e.preventDefault();
-      updateElement(selectedId, { x: selectedEl.x + dx, y: selectedEl.y + dy });
+      
+      let newX = selectedEl.x + dx;
+      let newY = selectedEl.y + dy;
+      
+      // Boundary check
+      newX = Math.max(0, Math.min(5000 / MM_TO_PX - selectedEl.w, newX));
+      newY = Math.max(0, Math.min(5000 / MM_TO_PX - selectedEl.h, newY));
+
+      updateElement(selectedId, { x: newX, y: newY });
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedId, selectedEl]);
+  }, [selectedId, selectedEl, elements, gridSize]);
 
   const zoomToFit = () => {
     if (elements.length === 0) {
@@ -366,13 +503,9 @@ export function WarehouseLayoutModal({ warehouse, onClose, onSave }: Props) {
             {elements.map((el) => (
               <motion.div
                 key={el.id}
-                drag dragMomentum={false} dragElastic={0}
-                onDragEnd={(_, info) => {
-                  updateElement(el.id, { 
-                    x: Math.round((el.x + info.offset.x / (zoom * MM_TO_PX)) / (gridSize / MM_TO_PX)) * (gridSize / MM_TO_PX),
-                    y: Math.round((el.y + info.offset.y / (zoom * MM_TO_PX)) / (gridSize / MM_TO_PX)) * (gridSize / MM_TO_PX)
-                  });
-                }}
+                onPointerDown={(e) => handlePointerDown(e, el)}
+                onPointerMove={(e) => handlePointerMove(e, el)}
+                onPointerUp={handlePointerUp}
                 onClick={(e) => { e.stopPropagation(); setSelectedId(el.id); }}
                 style={{
                   position: "absolute", left: el.x * MM_TO_PX, top: el.y * MM_TO_PX,
@@ -383,6 +516,7 @@ export function WarehouseLayoutModal({ warehouse, onClose, onSave }: Props) {
                   display: "flex", alignItems: "center", justifyContent: "center",
                   cursor: "move", zIndex: selectedId === el.id ? 10 : (el.type === "wall" ? 1 : 2),
                   boxShadow: selectedId === el.id ? "0 10px 25px -5px rgba(0,0,0,0.2)" : "none",
+                  touchAction: "none",
                 }}
                 animate={{ rotate: el.rotation || 0 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}

@@ -13,9 +13,7 @@ export async function GET(req: NextRequest) {
   const limit       = Math.min(50, parseInt(searchParams.get("limit") ?? "20"));
   const warehouseId = searchParams.get("warehouseId") ?? null;
 
-  // Fetch nhiều hơn để filter JS-side (SQLite không normalize dấu tiếng Việt)
-  const FETCH_LIMIT = q ? 500 : limit;
-
+  // Fetch toàn bộ khi có q để filter JS-side chính xác (SQLite không normalize dấu tiếng Việt)
   const rawItems = await prisma.inventoryItem.findMany({
     select: {
       id:        true,
@@ -42,7 +40,7 @@ export async function GET(req: NextRequest) {
           },
     },
     orderBy: { tenHang: "asc" },
-    take: FETCH_LIMIT,
+    take: q ? undefined : limit,
   });
 
   // Filter JS-side với normalize dấu tiếng Việt
@@ -51,7 +49,8 @@ export async function GET(req: NextRequest) {
     ? rawItems.filter(it => {
         const nameNorm = removeVietnameseTones(it.tenHang);
         const codeNorm = removeVietnameseTones(it.code ?? "");
-        return nameNorm.includes(qNorm) || codeNorm.includes(qNorm);
+        const queryWords = qNorm.split(/\s+/).filter(Boolean);
+        return queryWords.every(word => nameNorm.includes(word) || codeNorm.includes(word));
       })
     : rawItems;
 

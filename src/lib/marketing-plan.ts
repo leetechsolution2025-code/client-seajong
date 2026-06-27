@@ -326,6 +326,73 @@ export async function processPlanSubmission(planId: string, data: any) {
   });
 }
 
+function parseWeeksAndDeadline(weekStr: string | null | undefined, year: number, month: number): {
+  week1: boolean;
+  week2: boolean;
+  week3: boolean;
+  week4: boolean;
+  deadline: Date;
+} {
+  let w1 = false;
+  let w2 = false;
+  let w3 = false;
+  let w4 = false;
+
+  const lastDayOfMonth = new Date(year, month, 0).getDate();
+  let maxWeek = 0;
+
+  if (weekStr) {
+    const trimmed = weekStr.trim();
+    // Check if it looks like a date string (YYYY-MM-DD)
+    const dateMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateMatch) {
+      const dYear = parseInt(dateMatch[1], 10);
+      const dMonth = parseInt(dateMatch[2], 10);
+      const dDay = parseInt(dateMatch[3], 10);
+      
+      // If the date belongs to this month and year, map to appropriate week
+      if (dYear === year && dMonth === month) {
+        if (dDay <= 7) { w1 = true; maxWeek = 1; }
+        else if (dDay <= 14) { w2 = true; maxWeek = 2; }
+        else if (dDay <= 21) { w3 = true; maxWeek = 3; }
+        else { w4 = true; maxWeek = 4; }
+      } else {
+        w1 = true;
+        maxWeek = 1;
+      }
+    } else {
+      // Split by comma or space and extract numbers 1, 2, 3, 4
+      const tokens = trimmed.split(/[\s,]+/);
+      for (const token of tokens) {
+        if (token.includes("1") || token === "1") w1 = true;
+        if (token.includes("2") || token === "2") w2 = true;
+        if (token.includes("3") || token === "3") w3 = true;
+        if (token.includes("4") || token === "4") w4 = true;
+      }
+      
+      if (w4) maxWeek = 4;
+      else if (w3) maxWeek = 3;
+      else if (w2) maxWeek = 2;
+      else if (w1) maxWeek = 1;
+    }
+  }
+
+  // Calculate deadline based on maxWeek
+  let deadline: Date;
+  if (maxWeek === 1) {
+    deadline = new Date(year, month - 1, 7, 23, 59, 59);
+  } else if (maxWeek === 2) {
+    deadline = new Date(year, month - 1, 14, 23, 59, 59);
+  } else if (maxWeek === 3) {
+    deadline = new Date(year, month - 1, 21, 23, 59, 59);
+  } else {
+    // maxWeek = 4 or 0 (no weeks)
+    deadline = new Date(year, month - 1, lastDayOfMonth, 23, 59, 59);
+  }
+
+  return { week1: w1, week2: w2, week3: w3, week4: w4, deadline };
+}
+
 export async function syncMonthlyExecutionToMonthlyPlan(planId: string, monthNum: number, taskNameRaw: string) {
   // 1. Tìm task gốc cấp 1 trong kế hoạch năm (VD: "CONTENT", "TRADE", "SEO")
   // Chuẩn hóa tên để so khớp (bỏ khoảng trắng, viết hoa)
@@ -423,6 +490,8 @@ export async function syncMonthlyExecutionToMonthlyPlan(planId: string, monthNum
 
     // B. Tạo các Task chi tiết
     for (const detail of group.tasks) {
+      const parsedWeeks = parseWeeksAndDeadline(detail.week, plan.year, monthNum);
+      
       tasksToCreate.push({
         monthlyPlanId: mmp.id,
         title: detail.name,
@@ -431,16 +500,17 @@ export async function syncMonthlyExecutionToMonthlyPlan(planId: string, monthNum
         taskSubGroup: group.name, // Gắn vào header vừa tạo
         taskType: detail.channel?.toLowerCase() || "other",
         category: detail.channel || null,
-        week1: detail.week?.includes("1") || false,
-        week2: detail.week?.includes("2") || false,
-        week3: detail.week?.includes("3") || false,
-        week4: detail.week?.includes("4") || false,
-        week1Content: detail.week?.includes("1") ? detail.detailContent : null,
-        week2Content: detail.week?.includes("2") ? detail.detailContent : null,
-        week3Content: detail.week?.includes("3") ? detail.detailContent : null,
-        week4Content: detail.week?.includes("4") ? detail.detailContent : null,
+        week1: parsedWeeks.week1,
+        week2: parsedWeeks.week2,
+        week3: parsedWeeks.week3,
+        week4: parsedWeeks.week4,
+        week1Content: parsedWeeks.week1 ? detail.detailContent : null,
+        week2Content: parsedWeeks.week2 ? detail.detailContent : null,
+        week3Content: parsedWeeks.week3 ? detail.detailContent : null,
+        week4Content: parsedWeeks.week4 ? detail.detailContent : null,
         assigneeName: detail.pic || mmp.employeeName, // Fallback về người phụ trách nhóm
         channel: detail.channel || null,
+        deadline: parsedWeeks.deadline,
         status: "pending",
         sortOrder: currentSortOrder++
       });

@@ -15,6 +15,9 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { DebtFormOffcanvas } from "./DebtFormOffcanvas";
 import { ExpenseFormOffcanvas } from "./ExpenseFormOffcanvas";
+import { DebtPaymentOffcanvas, parseDebtDescription } from "./DebtPaymentOffcanvas";
+import { DebtReconciliationModal } from "./DebtReconciliationModal";
+import { WorkflowCard } from "@/components/ui/WorkflowCard";
 
 // Types
 interface DebtData {
@@ -88,6 +91,10 @@ export default function DebtsPage() {
   const [showDebtForm, setShowDebtForm] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [showPaymentOffcanvas, setShowPaymentOffcanvas] = useState(false);
+  const [selectedPaymentDebt, setSelectedPaymentDebt] = useState<any>(null);
+  const [showReconciliationModal, setShowReconciliationModal] = useState(false);
+  const [selectedReconciliationDebt, setSelectedReconciliationDebt] = useState<any>(null);
 
   const { success, error } = useToast();
   const currentStepId = DEBT_STEPS.find(s => s.num === currentStep)?.id || "RECEIVABLE";
@@ -220,7 +227,7 @@ export default function DebtsPage() {
                     : `REF: ${row.referenceId}`}
                 </span>
               )}
-              {row.description}
+              {parseDebtDescription(row.description).originalDesc}
             </div>
           </div>
         ),
@@ -304,20 +311,40 @@ export default function DebtsPage() {
               </button>
               <ul className="dropdown-menu dropdown-menu-end shadow border-0 py-2" style={{ fontSize: 12.5, minWidth: 200, zIndex: 1050 }}>
                 <li>
-                  <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
+                  <button 
+                    className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setSelectedPaymentDebt(row);
+                      setShowPaymentOffcanvas(true);
+                    }}
+                  >
                     <i className="bi bi-cash-coin text-success fs-6" />
                     <span>Ghi nhận thanh toán</span>
                   </button>
                 </li>
                 <li>
-                  <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
+                  <button 
+                    className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setEditingItem(row);
+                      setShowDebtForm(true);
+                    }}
+                  >
                     <i className="bi bi-pencil-square text-primary fs-6" />
                     <span>Chỉnh sửa thông tin</span>
                   </button>
                 </li>
-                <li><hr className="dropdown-divider opacity-50" /></li>
                 <li>
-                  <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
+                  <button 
+                    className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setSelectedReconciliationDebt(row);
+                      setShowReconciliationModal(true);
+                    }}
+                  >
                     <i className="bi bi-file-earmark-check text-info fs-6" />
                     <span>Đối chiếu công nợ</span>
                   </button>
@@ -347,6 +374,21 @@ export default function DebtsPage() {
     }
 
     const resultCols: TableColumn<any>[] = [...commonCols];
+
+    if (!isExpense && !isLoan) {
+      resultCols.push({
+        header: "Hạn thanh toán",
+        align: "center",
+        render: (row) => row.dueDate ? (
+          <div className="d-flex flex-column align-items-center">
+            <span className="fw-medium">{new Date(row.dueDate).toLocaleDateString("vi-VN")}</span>
+            {new Date(row.dueDate) < new Date() && row.status !== "PAID" && (
+              <span className="text-danger" style={{ fontSize: 10, fontWeight: 600 }}>Quá hạn</span>
+            )}
+          </div>
+        ) : "---",
+      });
+    }
 
     if (!isExpense) {
       resultCols.push({
@@ -399,22 +441,51 @@ export default function DebtsPage() {
             </button>
             <ul className="dropdown-menu dropdown-menu-end shadow border-0 py-2" style={{ fontSize: 12.5, minWidth: 200, zIndex: 1050 }}>
               <li>
-                <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
+                <button 
+                  className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    if (isExpense) {
+                      // Custom approval logic for expenses if any, currently mock
+                    } else {
+                      setSelectedPaymentDebt(row);
+                      setShowPaymentOffcanvas(true);
+                    }
+                  }}
+                >
                   <i className="bi bi-cash-coin text-success fs-6" />
                   <span>{isExpense ? "Duyệt chi" : "Ghi nhận thanh toán"}</span>
                 </button>
               </li>
               <li>
-                <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
+                <button 
+                  className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    if (isExpense) {
+                      setEditingItem(row);
+                      setShowExpenseForm(true);
+                    } else {
+                      setEditingItem(row);
+                      setShowDebtForm(true);
+                    }
+                  }}
+                >
                   <i className="bi bi-pencil-square text-primary fs-6" />
                   <span>Chỉnh sửa thông tin</span>
                 </button>
               </li>
               {!isExpense && (
                 <>
-                  <li><hr className="dropdown-divider opacity-50" /></li>
                   <li>
-                    <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
+                    <button 
+                      className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setSelectedReconciliationDebt(row);
+                        setShowReconciliationModal(true);
+                      }}
+                    >
                       <i className="bi bi-file-earmark-check text-info fs-6" />
                       <span>Đối chiếu công nợ</span>
                     </button>
@@ -449,536 +520,369 @@ export default function DebtsPage() {
 
   const columns = getColumns();
 
-  const DebtHealthGauge = ({ score, type }: { score: number, type: string }) => {
-    const [isHovered, setIsHovered] = useState(false);
-    const isReceivable = type === "RECEIVABLE";
-    const isExpense = type === "EXPENSE";
-    
-    // Logic xác định nhãn và màu sắc dựa trên điểm số
-    let statusLabel = "";
-    let themeColor = "";
-    let hexColor = "";
-    
-    if (isReceivable || isExpense) {
-      if (score >= 75) { statusLabel = isExpense ? "Ổn định" : "Tốt"; themeColor = "info"; hexColor = "#0ea5e9"; }
-      else if (score >= 40) { statusLabel = isExpense ? "Bình thường" : "Trung bình"; themeColor = "warning"; hexColor = "#f59e0b"; }
-      else { statusLabel = isExpense ? "Cần kiểm soát" : "Yếu"; themeColor = "danger"; hexColor = "#ef4444"; }
-    } else {
-      // Đối với Phải trả, điểm thu hồi cao (đã trả nhiều) -> Áp lực thấp
-      if (score >= 75) { statusLabel = "Thấp"; themeColor = "info"; hexColor = "#0ea5e9"; }
-      else if (score >= 40) { statusLabel = "Vừa"; themeColor = "warning"; hexColor = "#f59e0b"; }
-      else { statusLabel = "Cao"; themeColor = "danger"; hexColor = "#ef4444"; }
-    }
-
-    const strokeColor = hexColor;
-
-    return (
-      <div className="bg-white rounded-3 border px-4 py-3 shadow-sm h-100 d-flex flex-column">
-        <SectionTitle 
-          title={isExpense ? "Phân bổ chi phí" : (isReceivable ? "Cơ cấu nợ phải thu" : "Cơ cấu nợ phải trả")} 
-          className="mb-2" 
-        />
-        <div className="d-flex align-items-start justify-content-between">
-          <div className="d-flex align-items-center gap-4">
-            <div className="position-relative" style={{ width: 80, height: 80 }}>
-              <svg viewBox="0 0 100 100" className="w-100 h-100">
-                <circle cx="50" cy="50" r="45" fill="none" stroke="#f1f5f9" strokeWidth="8" />
-                <circle cx="50" cy="50" r="45" fill="none" stroke={strokeColor} strokeWidth="8" 
-                  strokeDasharray={`${(score / 100) * 283} 283`} 
-                  strokeLinecap="round" 
-                  transform="rotate(-90 50 50)" 
-                />
-              </svg>
-              <div className="position-absolute top-50 start-50 translate-middle text-center">
-                <div className="fw-bold" style={{ fontSize: 16, lineHeight: 1 }}>{score}</div>
-                <div className="text-muted" style={{ fontSize: 8 }}>/100</div>
-              </div>
-            </div>
-            <div>
-              <div className={`text-${themeColor} fw-bold mb-0`} style={{ fontSize: 16 }}>
-                {statusLabel}
-              </div>
-              <div className="text-muted small mb-1" style={{ fontSize: 11 }}>
-                {isExpense ? "Chỉ số sử dụng ngân sách" : (isReceivable ? "Chỉ số sức khỏe công nợ" : "Chỉ số áp lực thanh toán")}
-              </div>
-              <div className="bg-light rounded-pill overflow-hidden" style={{ width: 110, height: 5 }}>
-                <div className={`h-100 bg-${themeColor}`} style={{ width: `${score}%` }} />
-              </div>
-              <div className="d-flex justify-content-between mt-1 small text-muted" style={{ fontSize: 8 }}>
-                <span>0</span>
-                <span>100</span>
-              </div>
-            </div>
-          </div>
-
-          <BrandButton 
-            variant="outline" 
-            icon="bi-bar-chart" 
-            className={`border-0 shadow-none text-${themeColor} bg-${themeColor}-subtle px-3 rounded-pill mt-1`} 
-            style={{ fontSize: 10, height: 26 }}
-          >
-            Báo cáo
-          </BrandButton>
-        </div>
-
-        <div className="mt-4 pt-3 border-top flex-grow-1 d-flex flex-column">
-          <div className={`d-flex align-items-center gap-2 mb-3 text-${themeColor} fw-bold`} style={{ fontSize: 12 }}>
-            <i className="bi bi-stars" />
-            <span className="text-uppercase">Phân tích tình trạng</span>
-          </div>
-          <div className={`p-3 rounded-3 bg-${themeColor}-subtle border-start border-${themeColor} border-4 mb-3`}>
-            <p className="mb-0 small" style={{ lineHeight: 1.6, fontSize: 12 }}>
-              {isExpense ? (
-                <>Tỷ lệ giải ngân <strong>đạt {stats.recoveryRate}%</strong> ngân sách tháng. Tình hình chi tiêu {stats.recoveryRate > 90 ? "đang ở mức cảnh báo" : "ổn định trong tầm kiểm soát"}.</>
-              ) : isReceivable ? (
-                <>Tỷ lệ thu hồi <strong>đạt {stats.recoveryRate}%</strong> — {stats.recoveryRate < 70 ? "cần đẩy mạnh thu hồi" : "tình hình thu hồi ổn định"}. Vòng quay nợ <strong>{stats.avgDays} ngày</strong> — {stats.avgDays < 30 ? "thu hồi nhanh" : "cần cải thiện"}.</>
-              ) : (
-                <>Thời gian trả nợ bình quân <strong>{stats.avgDays} ngày</strong>. Tỷ lệ thanh toán <strong>{stats.recoveryRate}%</strong> — kế hoạch tài chính {stats.recoveryRate > 80 ? "rất tốt" : "ổn định"}.</>
-              )}
-            </p>
-          </div>
-
-          <div className="flex-grow-1 d-flex flex-column gap-2">
-            {[
-              { icon: "exclamation-circle", color: stats.recoveryRate < 50 ? "danger" : "success", text: isExpense ? `Đã thanh toán ${stats.recoveryRate}%` : (isReceivable ? `Tỷ lệ thu hồi ${stats.recoveryRate}%` : `Đã thanh toán ${stats.recoveryRate}%`) },
-              { icon: "clock-history", color: "success", text: isExpense ? `Tăng trưởng chi phí 5%` : (isReceivable ? `DSO ${stats.avgDays} ngày` : `DPO ${stats.avgDays} ngày`) },
-              { icon: "check-circle", color: stats.overdueCount > 0 ? "danger" : "success", text: isExpense ? "Mọi khoản chi đúng hạn" : (stats.overdueCount > 0 ? `${stats.overdueCount} khoản quá hạn` : "Không có khoản quá hạn") },
-              { icon: "bell", color: stats.upcomingCount > 0 ? "warning" : "success", text: isExpense ? "3 khoản chờ duyệt" : `${stats.upcomingCount} khoản đến hạn (15 ngày)` },
-            ].map((item, i) => (
-              <div key={i} className={`d-flex align-items-center gap-2 p-2 rounded-2 bg-${item.color}-subtle text-${item.color}`} style={{ fontSize: 11.5 }}>
-                <i className={`bi bi-${item.icon}`} />
-                <span>{item.text}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-3 p-3 rounded-3 bg-danger-subtle border border-danger-subtle d-flex align-items-center justify-content-between mt-auto">
-            <div className="d-flex align-items-center gap-2 text-danger fw-bold" style={{ fontSize: 11 }}>
-              <i className="bi bi-exclamation-triangle" />
-              <span>{isExpense ? "Cần rà soát 2 khoản chi" : `${stats.upcomingCount} khoản cần ${isReceivable ? "thu hồi" : "chuẩn bị trả"}`}</span>
-            </div>
-            <button 
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-              className="btn btn-sm px-3 rounded-pill fw-bold" 
-              style={{ 
-                fontSize: 10, 
-                transition: "all 0.2s",
-                backgroundColor: isHovered ? hexColor : "#fff",
-                color: isHovered ? "#fff" : hexColor,
-                border: `1.5px solid ${hexColor}`
-              }}
-            >
-              Chi tiết →
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <>
       <style>{`
         .no-caret::after { display: none !important; }
       `}</style>
       <StandardPage
-      title="Quản lý tài chính"
-      description="Theo dõi công nợ phải thu, phải trả và kiểm soát chi phí vận hành"
-      icon="bi-receipt"
-      color="indigo"
-      useCard={false}
-      paddingClassName="px-4 pb-2 pt-1"
-    >
-      <div className="d-flex flex-column h-100 flex-grow-1 overflow-hidden">
-        <div className="bg-white rounded-3 shadow-sm border mb-3">
-          <ModernStepper 
-            steps={DEBT_STEPS} 
-            currentStep={currentStep} 
-            onStepChange={setCurrentStep} 
-          />
-        </div>
+        title="Quản lý tài chính"
+        description="Theo dõi công nợ phải thu, phải trả và kiểm soát chi phí vận hành"
+        icon="bi-receipt"
+        color="indigo"
+        useCard={false}
+        paddingClassName="px-4 pb-2 pt-1"
+      >
+        <div className="d-flex flex-column h-100 flex-grow-1 overflow-hidden">
+          <WorkflowCard
+            contentPadding="px-4 pb-4 pt-2"
+            stepper={
+              <ModernStepper 
+                steps={DEBT_STEPS} 
+                currentStep={currentStep} 
+                onStepChange={setCurrentStep} 
+                paddingX={0}
+                paddingY={8}
+              />
+            }
+            toolbar={
+              currentStepId === "EXPENSE" ? (
+                <div className="d-flex flex-column gap-2 w-100">
+                  {/* Nhóm chi phí */}
+                  <div className="d-flex align-items-center gap-2 flex-wrap mb-1">
+                    <button 
+                      onClick={() => { setStatus(""); setSelectedSubCategory(""); }}
+                      className={cn(
+                        "btn btn-sm rounded-pill px-3 py-1 fw-bold",
+                        status === "" ? "btn-success" : "btn-light text-muted border"
+                      )}
+                      style={{ fontSize: 11 }}
+                    >
+                      Tất cả
+                    </button>
+                    {categories
+                      .filter(c => !c.parentId)
+                      .map((cat, i) => (
+                        <button 
+                          key={i} 
+                          onClick={() => { setStatus(cat.code); setSelectedSubCategory(""); }}
+                          className={cn(
+                            "btn btn-sm rounded-pill px-3 py-1 fw-bold",
+                            status === cat.code ? "btn-success" : "btn-light text-muted border"
+                          )}
+                          style={{ fontSize: 11 }}
+                        >
+                          {cat.name}
+                        </button>
+                      ))}
+                  </div>
 
-        {currentStepId === "RECEIVABLE" || currentStepId === "PAYABLE" || currentStepId === "EXPENSE" ? (
-          <div className="row g-3 flex-grow-1 overflow-hidden">
-            <div className="col-lg-5 d-flex flex-column h-100">
-              <DebtHealthGauge score={stats.recoveryRate} type={currentStepId} />
-            </div>
-
-            <div className="col-lg-7 d-flex flex-column h-100 overflow-hidden">
-              <div className="bg-white rounded-3 shadow-sm border p-4 flex-grow-1 d-flex flex-column overflow-hidden">
-                <div className="mb-2">
-                  <div className="d-flex align-items-center justify-content-between mb-3">
-                    <SectionTitle 
-                      title={
-                        currentStepId === "EXPENSE" ? "Danh sách các khoản chi phí" :
-                        currentStepId === "RECEIVABLE" ? "Danh sách công nợ phải thu" : "Danh sách công nợ phải trả"
-                      } 
-                      className="mb-0" 
+                  {/* Dropdown & Search */}
+                  <div className="d-flex align-items-center gap-2">
+                    <FilterSelect
+                      options={categories
+                        .filter(c => {
+                          if (!status) return false;
+                          const parent = categories.find(p => p.code === status);
+                          return c.parentId === parent?.id;
+                        })
+                        .map(c => ({ label: c.name, value: c.code }))
+                      }
+                      value={selectedSubCategory}
+                      onChange={setSelectedSubCategory}
+                      width={200}
+                      className="rounded-pill"
+                      placeholder="Tất cả loại chi phí"
                     />
-                    {currentStepId === "EXPENSE" && (
-                      <FilterSelect 
-                        options={expenseStatuses.map(s => ({ label: s.name, value: s.code }))}
-                        value={selectedExpenseStatus}
-                        onChange={setSelectedExpenseStatus}
-                        width={180}
-                        className="rounded-pill"
-                        placeholder="Tất cả trạng thái"
+                    <div className="position-relative flex-grow-1">
+                      <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
+                      <input 
+                        type="text" 
+                        className="form-control form-control-sm ps-5 rounded-pill border-light bg-light"
+                        placeholder="Tìm khoản chi, người phụ trách..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{ fontSize: 11.5, height: 34 }}
                       />
-                    )}
-                  </div>
-                  
-                  <div className="d-flex flex-column gap-2 mb-2">
-                    {currentStepId === "EXPENSE" ? (
-                      <div className="d-flex flex-column gap-2 w-100">
-                        {/* 1. Nhóm chi phí */}
-                        <div className="d-flex align-items-center gap-2 flex-wrap mb-1">
-                          <button 
-                            onClick={() => { setStatus(""); setSelectedSubCategory(""); }}
-                            className={cn(
-                              "btn btn-sm rounded-pill px-3 py-1 fw-bold",
-                              status === "" ? "btn-success" : "btn-light text-muted border"
-                            )}
-                            style={{ fontSize: 11 }}
-                          >
-                            Tất cả
-                          </button>
-                          {categories
-                            .filter(c => !c.parentId)
-                            .map((cat, i) => (
-                              <button 
-                                key={i} 
-                                onClick={() => { setStatus(cat.code); setSelectedSubCategory(""); }}
-                                className={cn(
-                                  "btn btn-sm rounded-pill px-3 py-1 fw-bold",
-                                  status === cat.code ? "btn-success" : "btn-light text-muted border"
-                                )}
-                                style={{ fontSize: 11 }}
-                              >
-                                {cat.name}
-                              </button>
-                            ))}
-                        </div>
-
-                        {/* 2. Dropdown & Search */}
-                        <div className="d-flex align-items-center gap-2">
-                          <FilterSelect
-                            options={categories
-                              .filter(c => {
-                                if (!status) return false;
-                                const parent = categories.find(p => p.code === status);
-                                return c.parentId === parent?.id;
-                              })
-                              .map(c => ({ label: c.name, value: c.code }))
-                            }
-                            value={selectedSubCategory}
-                            onChange={setSelectedSubCategory}
-                            width={200}
-                            className="rounded-pill"
-                            placeholder="Tất cả loại chi phí"
-                          />
-                          <div className="position-relative flex-grow-1">
-                            <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
-                            <input 
-                              type="text" 
-                              className="form-control form-control-sm ps-5 rounded-pill border-light bg-light"
-                              placeholder="Tìm khoản chi, người phụ trách..."
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                              style={{ fontSize: 11.5, height: 34 }}
-                            />
-                          </div>
-                          <BrandButton 
-                            icon="bi-plus-lg" 
-                            className="rounded-pill px-4" 
-                            style={{ height: 34, fontSize: 12 }}
-                            onClick={() => {
-                              setEditingItem(null);
-                              setShowExpenseForm(true);
-                            }}
-                          >
-                            Ghi phí
-                          </BrandButton>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="d-flex align-items-center gap-2 flex-wrap mb-2">
-                          {[
-                            { label: "Tất cả", value: "ALL", count: stats.countByFilter.ALL },
-                            { label: "Quá hạn", value: "OVERDUE", count: stats.countByFilter.OVERDUE },
-                            { label: "Trong 30 ngày", value: "30_DAYS", count: stats.countByFilter.DAYS_30 },
-                            { label: "30-60 ngày", value: "30_60_DAYS", count: stats.countByFilter.DAYS_30_60 },
-                            { label: "> 60 ngày", value: "OVER_60_DAYS", count: stats.countByFilter.OVER_60 },
-                          ].map((pill, i) => (
-                            <button 
-                              key={i} 
-                              onClick={() => setDaysFilter(pill.value)}
-                              className={cn(
-                                "btn btn-sm rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-2",
-                                daysFilter === pill.value ? "btn-success" : "btn-light text-muted border"
-                              )}
-                              style={{ fontSize: 11 }}
-                            >
-                              {pill.label}
-                              <span 
-                                className={cn("rounded-pill px-1.5 d-flex align-items-center justify-content-center", daysFilter === pill.value ? "bg-white text-success" : "bg-secondary-subtle")} 
-                                style={{ fontSize: 10, minWidth: 20, height: 18, lineHeight: 1 }}
-                              >
-                                {pill.count}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                        <div className="d-flex align-items-center gap-2">
-                          <div className="position-relative flex-grow-1">
-                            <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
-                            <input 
-                              type="text" 
-                              className="form-control form-control-sm ps-5 rounded-pill border-light bg-light"
-                              placeholder={
-                                currentStepId === "RECEIVABLE" ? "Tìm khách hàng, số điện thoại..." : "Tìm nhà cung cấp, số hóa đơn..."
-                              }
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                              style={{ fontSize: 11.5, height: 34 }}
-                            />
-                          </div>
-                          <FilterSelect 
-                            options={[
-                              { label: "Trạng thái", value: "" },
-                              ...STATUS_OPTIONS
-                            ]} 
-                            value={status} 
-                            onChange={setStatus} 
-                            width={150}
-                            className="rounded-pill"
-                          />
-                          <BrandButton 
-                            icon="bi-plus-lg" 
-                            className="rounded-pill px-4" 
-                            style={{ height: 34, fontSize: 12 }}
-                            onClick={() => {
-                              setEditingItem(null);
-                              setShowDebtForm(true);
-                            }}
-                          >
-                            Thêm
-                          </BrandButton>
-                        </div>
-                      </>
-                    )}
+                    </div>
+                    <FilterSelect 
+                      options={expenseStatuses.map(s => ({ label: s.name, value: s.code }))}
+                      value={selectedExpenseStatus}
+                      onChange={setSelectedExpenseStatus}
+                      width={180}
+                      className="rounded-pill"
+                      placeholder="Tất cả trạng thái"
+                    />
+                    <BrandButton 
+                      icon="bi-plus-lg" 
+                      className="rounded-pill px-4" 
+                      style={{ height: 34, fontSize: 12 }}
+                      onClick={() => {
+                        setEditingItem(null);
+                        setShowExpenseForm(true);
+                      }}
+                    >
+                      Ghi phí
+                    </BrandButton>
                   </div>
                 </div>
-
-                <div className="flex-grow-1 overflow-auto">
-                  {(() => {
-                    if (debts.length === 0) return (
-                      <Table columns={columns} rows={[]} loading={loading} emptyText={currentStepId === "EXPENSE" ? "Không tìm thấy khoản chi nào" : "Không tìm thấy khoản công nợ nào"} />
-                    );
-
-                    const totalAmount = debts.reduce((sum, d) => sum + d.amount, 0);
-                    const totalPaid = debts.reduce((sum, d) => sum + d.paidAmount, 0);
-                    const totalRows = [{
-                      id: "TOTAL_ROW",
-                      partnerName: "TỔNG CỘNG",
-                      amount: totalAmount,
-                      paidAmount: totalPaid,
-                      type: currentStepId,
-                      dueDate: null,
-                      interestRate: null,
-                      status: totalPaid === 0 ? "UNPAID" : (totalPaid >= totalAmount ? "PAID" : "PARTIAL"),
-                      description: null,
-                      referenceId: null,
-                      isTotalRow: true
-                    } as any, ...debts];
-
-                    let finalRows = totalRows;
-
-                    if (currentStepId === "EXPENSE" && debts.length > 0) {
-                      const sorted = [...debts].sort((a, b) => {
-                        const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
-                        const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
-                        return dateB - dateA;
-                      });
-
-                      // Pre-calculate totals per month
-                      const monthlyTotals: Record<string, number> = {};
-                      sorted.forEach(d => {
-                        if (d.dueDate) {
-                          const date = new Date(d.dueDate);
-                          const mKey = `THÁNG ${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
-                          monthlyTotals[mKey] = (monthlyTotals[mKey] || 0) + d.amount;
+              ) : (
+                <div className="d-flex flex-column gap-2 w-100">
+                  {currentStepId !== "LOAN" && (
+                    <div className="d-flex align-items-center gap-2 flex-wrap mb-1">
+                      {[
+                        { label: "Tất cả", value: "ALL", count: stats.countByFilter.ALL },
+                        { label: "Quá hạn", value: "OVERDUE", count: stats.countByFilter.OVERDUE },
+                        { label: "Trong 30 ngày", value: "30_DAYS", count: stats.countByFilter.DAYS_30 },
+                        { label: "30-60 ngày", value: "30_60_DAYS", count: stats.countByFilter.DAYS_30_60 },
+                        { label: "> 60 ngày", value: "OVER_60_DAYS", count: stats.countByFilter.OVER_60 },
+                      ].map((pill, i) => (
+                        <button 
+                          key={i} 
+                          onClick={() => setDaysFilter(pill.value)}
+                          className={cn(
+                            "btn btn-sm rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-2",
+                            daysFilter === pill.value ? "btn-success" : "btn-light text-muted border"
+                          )}
+                          style={{ fontSize: 11 }}
+                        >
+                          {pill.label}
+                          <span 
+                            className={cn("rounded-pill px-1.5 d-flex align-items-center justify-content-center", daysFilter === pill.value ? "bg-white text-success" : "bg-secondary-subtle")} 
+                            style={{ fontSize: 10, minWidth: 20, height: 18, lineHeight: 1 }}
+                          >
+                            {pill.count}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="d-flex align-items-center gap-2">
+                    <div className="position-relative flex-grow-1">
+                      <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
+                      <input 
+                        type="text" 
+                        className="form-control form-control-sm ps-5 rounded-pill border-light bg-light"
+                        placeholder={
+                          currentStepId === "RECEIVABLE" ? "Tìm khách hàng, số điện thoại..." : 
+                          currentStepId === "PAYABLE" ? "Tìm nhà cung cấp, số hóa đơn..." : 
+                          "Tìm gói vay, ngân hàng..."
                         }
-                      });
-
-                      const grouped: any[] = [];
-                      let lastMonth = "";
-                      sorted.forEach(d => {
-                        if (d.dueDate) {
-                          const date = new Date(d.dueDate);
-                          const monthStr = `THÁNG ${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
-                          const isCollapsed = collapsedMonths.includes(monthStr);
-                          
-                          if (monthStr !== lastMonth) {
-                            grouped.push({
-                              id: `HEADER_${monthStr}`,
-                              isFullWidth: true,
-                              fullWidthContent: (
-                                <div 
-                                  className="d-flex align-items-center justify-content-between w-100 cursor-pointer"
-                                  onClick={() => setCollapsedMonths(prev => 
-                                    prev.includes(monthStr) ? prev.filter(m => m !== monthStr) : [...prev, monthStr]
-                                  )}
-                                >
-                                  <div className="d-flex align-items-center gap-3">
-                                    <div className="d-flex align-items-center gap-2">
-                                      <i className="bi bi-calendar-check text-primary" />
-                                      <span>{monthStr}</span>
-                                    </div>
-                                    <div className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1" style={{ fontSize: 10.5, fontWeight: 700 }}>
-                                      Tổng: {monthlyTotals[monthStr]?.toLocaleString("vi-VN")} đồng
-                                    </div>
-                                  </div>
-                                  <i className={cn("bi text-muted ms-auto", isCollapsed ? "bi-chevron-down" : "bi-chevron-up")} />
-                                </div>
-                              )
-                            });
-                            lastMonth = monthStr;
-                          }
-                          
-                          if (!isCollapsed) {
-                            grouped.push(d);
-                          }
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{ fontSize: 11.5, height: 34 }}
+                      />
+                    </div>
+                    <FilterSelect 
+                      options={[
+                        { label: "Trạng thái", value: "" },
+                        ...STATUS_OPTIONS
+                      ]} 
+                      value={status} 
+                      onChange={setStatus} 
+                      width={150}
+                      className="rounded-pill"
+                    />
+                    <BrandButton 
+                      icon="bi-plus-lg" 
+                      className="rounded-pill px-4" 
+                      style={{ height: 34, fontSize: 12 }}
+                      onClick={() => {
+                        setEditingItem(null);
+                        if (currentStepId === "EXPENSE") {
+                          setShowExpenseForm(true);
                         } else {
-                           grouped.push(d);
+                          setShowDebtForm(true);
                         }
-                      });
-                      finalRows = [totalRows[0], ...grouped];
-                    }
-
-                    return (
-                      <Table 
-                        columns={columns.map(col => ({
-                          ...col,
-                          render: (row: any, index: number) => {
-                            const isTotal = row.id === "TOTAL_ROW";
-                            const content = col.render 
-                              ? (col.render as any)(row, index) 
-                              : (typeof col.header === "string" ? (row as any)[col.header.toLowerCase()] : null);
-                            
-                            if (isTotal) {
-                              if (col.header?.toString().toUpperCase() === "TRẠNG THÁI" || col.header === "") return null;
-                              return <div className="fw-bold text-primary">{content}</div>;
-                            }
-                            return content;
-                          }
-                        }))} 
-                        rows={finalRows} 
-                        loading={loading}
-                        emptyText={currentStepId === "EXPENSE" ? "Không tìm thấy khoản chi nào" : "Không tìm thấy khoản công nợ nào"}
-                        stickyFirstRow={true}
-                        compact={true}
-                      />
-                    );
-                  })()}
+                      }}
+                    >
+                      Thêm
+                    </BrandButton>
+                  </div>
                 </div>
-
-                <div className="mt-3 pt-3 border-top">
-                  <Pagination 
-                    page={1} 
-                    totalPages={1} 
-                    onChange={() => {}} 
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-3 shadow-sm border p-3 flex-grow-1 d-flex flex-column overflow-hidden h-100">
-            {/* Logic cho LOAN (Step 3) giữ nguyên */}
-            <div className="d-flex align-items-center gap-2 mb-2">
-              <div className="position-relative flex-grow-1">
-                <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
-                <input 
-                  type="text" 
-                  className="form-control form-control-sm ps-5 rounded-pill border-light bg-light"
-                  placeholder="Tìm gói vay, ngân hàng..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ fontSize: 11.5, height: 34 }}
+              )
+            }
+            bottomToolbar={
+              <div className="d-flex justify-content-end w-100">
+                <Pagination 
+                  page={1} 
+                  totalPages={1} 
+                  onChange={() => {}} 
                 />
               </div>
-              <FilterSelect 
-                options={[
-                  { label: "Trạng thái", value: "" },
-                  ...STATUS_OPTIONS
-                ]} 
-                value={status} 
-                onChange={setStatus} 
-                width={150}
-                className="rounded-pill"
-              />
-              <BrandButton 
-                icon="bi-plus-lg" 
-                className="rounded-pill px-4" 
-                style={{ height: 34, fontSize: 12 }}
-                onClick={() => {
-                  setEditingItem(null);
-                  setShowDebtForm(true);
-                }}
-              >
-                Thêm
-              </BrandButton>
-            </div>
+            }
+          >
+            {(() => {
+              if (currentStepId === "RECEIVABLE" || currentStepId === "PAYABLE" || currentStepId === "EXPENSE") {
+                if (debts.length === 0) return (
+                  <Table columns={columns} rows={[]} loading={loading} emptyText={currentStepId === "EXPENSE" ? "Không tìm thấy khoản chi nào" : "Không tìm thấy khoản công nợ nào"} />
+                );
 
-            <div className="flex-grow-1 overflow-auto">
-              <Table 
-                columns={columns} 
-                rows={debts} 
-                loading={loading}
-                emptyText="Không tìm thấy khoản nợ vay nào"
-                compact={true}
-              />
-            </div>
+                const totalAmount = debts.reduce((sum, d) => sum + d.amount, 0);
+                const totalPaid = debts.reduce((sum, d) => sum + d.paidAmount, 0);
+                const totalRows = [{
+                  id: "TOTAL_ROW",
+                  partnerName: "TỔNG CỘNG",
+                  amount: totalAmount,
+                  paidAmount: totalPaid,
+                  type: currentStepId,
+                  dueDate: null,
+                  interestRate: null,
+                  status: totalPaid === 0 ? "UNPAID" : (totalPaid >= totalAmount ? "PAID" : "PARTIAL"),
+                  description: null,
+                  referenceId: null,
+                  isTotalRow: true
+                } as any, ...debts];
 
-            <div className="mt-3 pt-3 border-top">
-              <Pagination 
-                page={1} 
-                totalPages={1} 
-                onChange={() => {}} 
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    </StandardPage>
+                let finalRows = totalRows;
 
-    <ConfirmDialog 
-      open={showDeleteConfirm}
-      title="Xác nhận xóa"
-      message={<>Bạn có chắc chắn muốn xóa? Hành động này không thể hoàn tác.</>}
-      variant="danger"
-      confirmLabel="Xóa ngay"
-      loading={isDeleting}
-      onConfirm={handleConfirmDelete}
-      onCancel={() => setShowDeleteConfirm(false)}
-    />
+                if (currentStepId === "EXPENSE" && debts.length > 0) {
+                  const sorted = [...debts].sort((a, b) => {
+                    const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+                    const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+                    return dateB - dateA;
+                  });
 
-    <DebtFormOffcanvas
-      open={showDebtForm}
-      onClose={() => setShowDebtForm(false)}
-      onSuccess={fetchDebts}
-      type={currentStepId as any}
-      initialData={editingItem}
-    />
+                  // Pre-calculate totals per month
+                  const monthlyTotals: Record<string, number> = {};
+                  sorted.forEach(d => {
+                    if (d.dueDate) {
+                      const date = new Date(d.dueDate);
+                      const mKey = `THÁNG ${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+                      monthlyTotals[mKey] = (monthlyTotals[mKey] || 0) + d.amount;
+                    }
+                  });
 
-    <ExpenseFormOffcanvas
-      open={showExpenseForm}
-      onClose={() => setShowExpenseForm(false)}
-      onSuccess={fetchDebts}
-      initialData={editingItem}
-    />
-  </>
+                  const grouped: any[] = [];
+                  let lastMonth = "";
+                  sorted.forEach(d => {
+                    if (d.dueDate) {
+                      const date = new Date(d.dueDate);
+                      const monthStr = `THÁNG ${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+                      const isCollapsed = collapsedMonths.includes(monthStr);
+                      
+                      if (monthStr !== lastMonth) {
+                        grouped.push({
+                          id: `HEADER_${monthStr}`,
+                          isFullWidth: true,
+                          fullWidthContent: (
+                            <div 
+                              className="d-flex align-items-center justify-content-between w-100 cursor-pointer"
+                              onClick={() => setCollapsedMonths(prev => 
+                                prev.includes(monthStr) ? prev.filter(m => m !== monthStr) : [...prev, monthStr]
+                              )}
+                            >
+                              <div className="d-flex align-items-center gap-3">
+                                <div className="d-flex align-items-center gap-2">
+                                  <i className="bi bi-calendar-check text-primary" />
+                                  <span>{monthStr}</span>
+                                </div>
+                                <div className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1" style={{ fontSize: 10.5, fontWeight: 700 }}>
+                                  Tổng: {monthlyTotals[monthStr]?.toLocaleString("vi-VN")} đồng
+                                </div>
+                              </div>
+                              <i className={cn("bi text-muted ms-auto", isCollapsed ? "bi-chevron-down" : "bi-chevron-up")} />
+                            </div>
+                          )
+                        });
+                        lastMonth = monthStr;
+                      }
+                      
+                      if (!isCollapsed) {
+                        grouped.push(d);
+                      }
+                    } else {
+                       grouped.push(d);
+                    }
+                  });
+                  finalRows = [totalRows[0], ...grouped];
+                }
+
+                return (
+                  <Table 
+                    columns={columns.map(col => ({
+                      ...col,
+                      render: (row: any, index: number) => {
+                        const isTotal = row.id === "TOTAL_ROW";
+                        const content = col.render 
+                          ? (col.render as any)(row, index) 
+                          : (typeof col.header === "string" ? (row as any)[col.header.toLowerCase()] : null);
+                        
+                        if (isTotal) {
+                          if (col.header?.toString().toUpperCase() === "TRẠNG THÁI" || col.header === "") return null;
+                          return <div className="fw-bold text-primary">{content}</div>;
+                        }
+                        return content;
+                      }
+                    }))} 
+                    rows={finalRows} 
+                    loading={loading}
+                    emptyText={currentStepId === "EXPENSE" ? "Không tìm thấy khoản chi nào" : "Không tìm thấy khoản công nợ nào"}
+                    stickyFirstRow={true}
+                    compact={true}
+                  />
+                );
+              } else {
+                return (
+                  <Table 
+                    columns={columns} 
+                    rows={debts} 
+                    loading={loading}
+                    emptyText="Không tìm thấy khoản nợ vay nào"
+                    compact={true}
+                  />
+                );
+              }
+            })()}
+          </WorkflowCard>
+        </div>
+      </StandardPage>
+
+      <ConfirmDialog 
+        open={showDeleteConfirm}
+        title="Xác nhận xóa"
+        message={<>Bạn có chắc chắn muốn xóa? Hành động này không thể hoàn tác.</>}
+        variant="danger"
+        confirmLabel="Xóa ngay"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      <DebtFormOffcanvas
+        open={showDebtForm}
+        onClose={() => setShowDebtForm(false)}
+        onSuccess={fetchDebts}
+        type={currentStepId as any}
+        initialData={editingItem}
+      />
+
+      <ExpenseFormOffcanvas
+        open={showExpenseForm}
+        onClose={() => setShowExpenseForm(false)}
+        onSuccess={fetchDebts}
+        initialData={editingItem}
+      />
+
+      <DebtPaymentOffcanvas
+        open={showPaymentOffcanvas}
+        onClose={() => {
+          setShowPaymentOffcanvas(false);
+          setSelectedPaymentDebt(null);
+        }}
+        onSuccess={fetchDebts}
+        debt={selectedPaymentDebt}
+      />
+
+      <DebtReconciliationModal
+        open={showReconciliationModal}
+        onClose={() => {
+          setShowReconciliationModal(false);
+          setSelectedReconciliationDebt(null);
+        }}
+        onSuccess={fetchDebts}
+        debt={selectedReconciliationDebt}
+      />
+    </>
   );
 }

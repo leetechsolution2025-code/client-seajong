@@ -35,13 +35,13 @@ export async function GET() {
       }),
     ]);
 
-    // ── Label maps và thứ tự cố định ────────────────────────────────────────────
     const ORD_LIST = [
-      { value: "draft",    label: "Bản nháp" },
-      { value: "pending",  label: "Chờ duyệt" },
-      { value: "ordered",  label: "Hàng đang về" },
-      { value: "received", label: "Đã nhận hàng" },
-      { value: "disputed", label: "Đang khiếu nại" },
+      { value: "draft",     label: "Đang tạo đơn" },
+      { value: "ordered",   label: "Đã đặt hàng" },
+      { value: "received",  label: "Đã nhận hàng" },
+      { value: "disputed",  label: "Đang khiếu nại" },
+      { value: "completed", label: "Hoàn thành" },
+      { value: "paused",    label: "Tạm dừng" },
     ];
     const REQ_LIST = [
       { value: "chua-xu-ly", label: "Chưa xử lý" },

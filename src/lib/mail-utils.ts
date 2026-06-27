@@ -13,7 +13,9 @@ export async function sendInterviewEmail({
   notes,
   interviewers,
   baseUrl,
-  meetingLink
+  meetingLink,
+  customSubject,
+  customHtml
 }: {
   to: string;
   candidateName: string;
@@ -24,6 +26,8 @@ export async function sendInterviewEmail({
   interviewers: string;
   baseUrl?: string;
   meetingLink?: string;
+  customSubject?: string;
+  customHtml?: string;
 }) {
   // 1. Fetch active SMTP config
   const config = await (prisma as any).emailConfig.findFirst({
@@ -90,7 +94,7 @@ export async function sendInterviewEmail({
     minute: '2-digit'
   });
 
-  const htmlContent = `
+  const htmlContent = customHtml || `
     <div style="background-color: #f6f9fc; padding: 40px 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
       <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid #e6ebf1;">
         
@@ -179,7 +183,7 @@ export async function sendInterviewEmail({
     const info = await transporter.sendMail({
       from: `"${config.fromName}" <${config.fromEmail}>`,
       to,
-      subject: `Mời bạn tham gia phỏng vấn – ${position} tại ${companyName}`,
+      subject: customSubject || `Mời bạn tham gia phỏng vấn – ${position} tại ${companyName}`,
       html: htmlContent,
       attachments: attachments
     });
@@ -204,6 +208,8 @@ export async function sendOfferEmail({
   phone,
   email,
   senderName,
+  customHtml,
+  customSubject,
 }: {
   to: string;
   candidateName: string;
@@ -217,6 +223,8 @@ export async function sendOfferEmail({
   phone: string;
   email: string;
   senderName: string;
+  customHtml?: string;
+  customSubject?: string;
 }) {
   const config = await (prisma as any).emailConfig.findFirst({
     where: { isActive: true },
@@ -245,7 +253,7 @@ export async function sendOfferEmail({
     tls: { rejectUnauthorized: false }
   });
 
-  const htmlContent = `
+  const htmlContent = customHtml || `
     <div style="background-color: #f8fafc; padding: 40px 20px; font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; line-height: 1.6;">
       <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
         <div style="padding: 30px; text-align: center; border-bottom: 1px solid #f1f5f9;">
@@ -257,8 +265,8 @@ export async function sendOfferEmail({
           <p>Lời đầu tiên, chúng tôi vô cùng cảm ơn vì bạn đã quan tâm và dành thời gian ứng tuyển vị trí <strong>${position}</strong> tại công ty chúng tôi. Thông qua buổi phỏng vấn cũng như trao đổi, chúng tôi đánh giá cao kinh nghiệm và kỹ năng của bạn.</p>
           <p>Bởi vậy, chúng tôi xin trân trọng mời bạn gia nhập vào đội ngũ công ty <strong>${companyName}</strong>, với vị trí <strong>${position}</strong>. Bạn vui lòng bắt đầu đến nhận việc vào <strong>${startDate}</strong>, từ <strong>${startTime}</strong>, tại <strong>${location}</strong>.</p>
           <p>Như đã thỏa thuận, mức lương khởi điểm bạn sẽ nhận được là <strong>${salary}</strong>, kèm theo các chính sách hỗ trợ khác như <strong>${benefits}</strong>.</p>
-          <p>Khi nhận được email này, bạn vui lòng xác nhận lại cho chúng tôi trước <strong>${deadline}</strong>. Nếu có bất cứ thắc mắc nào, bạn hãy liên hệ với chúng tôi qua số điện thoại <strong>${phone}</strong> hoặc email <strong>${email}</strong>.</p>
-          <p>Chúng tôi rất mong đợi được đón tiếp bạn như một thành viên của đội ngũ. Xin chân thành cảm ơn bạn!</p>
+          <p>Bạn vui lòng xác nhận lại cho chúng tôi chậm nhất là sau <strong>${deadline}</strong>. Nếu có bất cứ thắc mắc nào, bạn hãy liên hệ với chúng tôi qua số điện thoại <strong>${phone}</strong> hoặc email <strong>${email}</strong>.</p>
+          <p>Chúng tôi rất mong đợi được đón tiếp bạn như một member của đội ngũ. Xin chân thành cảm ơn bạn!</p>
           <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #f1f5f9;">
             <p style="margin: 0;">Trân trọng,</p>
             <p style="margin: 5px 0; font-weight: bold; color: #003087;">${senderName}</p>
@@ -272,11 +280,13 @@ export async function sendOfferEmail({
     </div>
   `;
 
+  const subject = customSubject || `${companyName} _ Thư mời làm việc`;
+
   try {
     await transporter.sendMail({
       from: `"${config.fromName}" <${config.fromEmail}>`,
       to,
-      subject: `${companyName} _ Thư mời làm việc`,
+      subject,
       html: htmlContent,
       attachments
     });

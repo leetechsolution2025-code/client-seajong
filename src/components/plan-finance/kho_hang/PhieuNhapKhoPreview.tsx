@@ -83,6 +83,7 @@ export function PhieuNhapKhoPreview({
   const [nguoiGiaoHang, setNguoiGiaoHang]   = React.useState("");
   const [donViGiaoHang, setDonViGiaoHang]   = React.useState("");
   const [bienBanSo, setBienBanSo]           = React.useState("");
+  const [ngayBienBan, setNgayBienBan]       = React.useState(ngayNhap);
   const [chungTuGoc, setChungTuGoc]         = React.useState("");
   const [nguoiLap, setNguoiLap]             = React.useState(nguoiThucHien ?? "");
   const [thuKho, setThuKho]                 = React.useState("");
@@ -97,6 +98,7 @@ export function PhieuNhapKhoPreview({
   const tongSLCT = lines.reduce((s, l) => s + l.soLuongCT, 0);
   const tongTien = lines.reduce((s, l) => s + l.soLuong * l.donGia, 0);
   const [yyyy, mm, dd] = ngayNhap.split("-");
+  const [bbYyyy, bbMm, bbDd] = (ngayBienBan || ngayNhap || "").split("-");
 
   // ── Sidebar ────────────────────────────────────────────────────────────────
   const sidebar = (
@@ -109,6 +111,9 @@ export function PhieuNhapKhoPreview({
       </div>
       <div><SLabel>Biên bản số</SLabel>
         <input value={bienBanSo} onChange={e => setBienBanSo(e.target.value)} placeholder="Số biên bản..." style={inp} />
+      </div>
+      <div><SLabel>Ngày biên bản</SLabel>
+        <input type="date" value={ngayBienBan} onChange={e => setNgayBienBan(e.target.value)} style={inp} />
       </div>
       <div><SLabel>Chứng từ gốc kèm theo</SLabel>
         <textarea value={chungTuGoc} onChange={e => setChungTuGoc(e.target.value)} placeholder="Vd: Hóa đơn GTGT, Phiếu xuất kho NCC..." rows={3} style={{ ...inp, resize: "vertical", lineHeight: 1.5 }} />
@@ -138,7 +143,7 @@ export function PhieuNhapKhoPreview({
 
   // ── Document (Mẫu 01-VT) ──────────────────────────────────────────────────
   const doc = (
-    <div style={{ fontFamily: "'Roboto Condensed', 'Arial Narrow', Arial, sans-serif", fontSize: 13, color: "#000", lineHeight: 1.4 }}>
+    <div className="pdf-content-page" style={{ fontFamily: "'Roboto Condensed', 'Arial Narrow', Arial, sans-serif", fontSize: 13, color: "#000", lineHeight: 1.4 }}>
 
       {/* Header: Logo + Company | Mẫu số */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
@@ -190,7 +195,7 @@ export function PhieuNhapKhoPreview({
         <p style={{ margin: "3px 0 0", fontStyle: "italic", fontSize: 12 }}>Ngày {dd} tháng {mm} năm {yyyy}</p>
       </div>
 
-      {/* Số phiếu + Nợ/Có — right aligned */}
+      {/* Số phiếu — right aligned */}
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
         <div style={{ textAlign: "right", fontSize: 12 }}>
           <p style={{ margin: 0 }}>
@@ -198,10 +203,6 @@ export function PhieuNhapKhoPreview({
             <span style={{ borderBottom: B1, paddingBottom: 1, fontWeight: 700, minWidth: 180, display: "inline-block", textAlign: "center", letterSpacing: "0.03em" }}>
               {soChungTu}
             </span>
-          </p>
-          <p style={{ margin: "3px 0 0" }}>
-            Nợ/Có:&nbsp;
-            <span style={{ borderBottom: B1, paddingBottom: 1, minWidth: 80, display: "inline-block" }}>&nbsp;</span>
           </p>
         </div>
       </div>
@@ -219,10 +220,10 @@ export function PhieuNhapKhoPreview({
           <span style={{ flex: 1, borderBottom: B05, paddingBottom: 1, minWidth: 80 }}>{bienBanSo || <>&nbsp;</>}</span>
           <span style={{ whiteSpace: "nowrap", flexShrink: 0 }}>
             , ngày&nbsp;
-            <span style={{ borderBottom: B05, display: "inline-block", minWidth: 26, textAlign: "center" }}>{dd}</span>
+            <span style={{ borderBottom: B05, display: "inline-block", minWidth: 26, textAlign: "center" }}>{bbDd || "..."}</span>
             &nbsp;tháng&nbsp;
-            <span style={{ borderBottom: B05, display: "inline-block", minWidth: 22, textAlign: "center" }}>{mm}</span>
-            &nbsp;năm {yyyy}
+            <span style={{ borderBottom: B05, display: "inline-block", minWidth: 22, textAlign: "center" }}>{bbMm || "..."}</span>
+            &nbsp;năm {bbYyyy || "...."}
           </span>
         </div>
         <FormRow label="- Của:" value={donViGiaoHang || undefined} />

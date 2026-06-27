@@ -13,8 +13,8 @@ export default function AttendancePayrollPage() {
         icon="bi-calculator"
         color="rose"
       />
-      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
-        <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
+      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column standard-page-content fs-payroll-container" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+        <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column overflow-hidden fs-payroll-card" style={{ minHeight: 0 }}>
           <AttendanceManagement />
         </div>
       </div>

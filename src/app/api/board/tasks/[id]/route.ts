@@ -8,16 +8,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const body = await req.json();
-    const { status, priority, title, description, dueDate, assigneeId, deptCode } = body;
+    const { status, priority, title, description, dueDate, assigneeId, deptCode, actualResult } = body;
 
     const updateData: Record<string, unknown> = {};
-    if (status      !== undefined) updateData.status = status;
-    if (priority    !== undefined) updateData.priority = priority;
-    if (title       !== undefined) updateData.title = title;
-    if (description !== undefined) updateData.description = description;
-    if (dueDate     !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
-    if (assigneeId  !== undefined) updateData.assigneeId = assigneeId;
-    if (deptCode    !== undefined) updateData.deptCode = deptCode;
+    if (status       !== undefined) updateData.status = status;
+    if (priority     !== undefined) updateData.priority = priority;
+    if (title        !== undefined) updateData.title = title;
+    if (description  !== undefined) updateData.description = description;
+    if (dueDate      !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
+    if (assigneeId   !== undefined) updateData.assigneeId = assigneeId;
+    if (deptCode     !== undefined) updateData.deptCode = deptCode;
+    if (actualResult !== undefined) updateData.actualResult = actualResult;
     if (status === "done") updateData.completedAt = new Date();
     if (status && status !== "done") updateData.completedAt = null;
 

@@ -1,8 +1,10 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 async function main() {
-  const benefits = await prisma.insuranceBenefit.findMany({ include: { employee: true } });
-  console.log(JSON.stringify(benefits, null, 2));
+  const reqs = await prisma.approvalRequest.findMany({
+    orderBy: { createdAt: 'desc' }
+  });
+  console.log(JSON.stringify(reqs, null, 2));
 }
 main()
   .catch(e => console.error(e))

@@ -37,7 +37,10 @@ export default function OmnichannelPage() {
   const fetchOrders = () => {
     setLoading(true);
     fetch("/api/sales/omnichannel/orders")
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("Lỗi tải danh sách đơn hàng");
+        return res.json();
+      })
       .then(data => {
         setOrders(data);
         setLoading(false);
@@ -101,6 +104,27 @@ export default function OmnichannelPage() {
       console.error("Failed to transfer orders:", error);
     }
   };
+
+  const handleSaveConfig = async (formData: any) => {
+    try {
+      const res = await fetch("/api/sales/omnichannel/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData)
+      });
+      if (res.ok) {
+        alert("Cấu hình Shopee API đã được lưu thành công vào cơ sở dữ liệu và file hệ thống .env!");
+        fetchOrders();
+      } else {
+        const err = await res.json();
+        alert(`Lỗi khi lưu cấu hình: ${err.message || err.error}`);
+      }
+    } catch (error) {
+      console.error("Failed to save configuration:", error);
+      alert("Đã xảy ra lỗi kết nối khi lưu cấu hình.");
+    }
+  };
+
 
   const columns: TableColumn<ShopeeOrder>[] = [
     {
@@ -352,7 +376,7 @@ export default function OmnichannelPage() {
       <ShopeeConfigOffcanvas 
         open={isConfigOpen} 
         onClose={() => setIsConfigOpen(false)} 
-        onSuccess={(data) => console.log("Shopee Config Saved:", data)}
+        onSuccess={handleSaveConfig}
       />
 
       <ShopeeOrderDetailOffcanvas 

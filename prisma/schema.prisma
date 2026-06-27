@@ -87,7 +87,21 @@ model Client {
   employees Employee[]
   users     User[]
   modules   Module[]   @relation("ClientToModule")
+  
+  industryId String?
+  industry   Industry?  @relation(fields: [industryId], references: [id])
 }
+
+model Industry {
+  id               String   @id @default(cuid())
+  code             String   @unique
+  name             String
+  rootCategoryCode String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  clients          Client[]
+}
+
 
 model User {
   id                   String                @id @default(cuid())
@@ -110,6 +124,7 @@ model User {
   createdNotifications Notification[]        @relation("NotificationCreator")
   recruitmentRequests  RecruitmentRequest[]  @relation("UserRequests")
   client               Client?               @relation(fields: [clientId], references: [id])
+  meetings             Meeting[]             @relation("UserMeetings")
 }
 
 model Employee {
@@ -480,6 +495,9 @@ model Customer {
   address        String?
   nguon          String?
   nhom           String?
+  loai           String?
+  soTaiKhoan     String?
+  tenNganHang    String?
   daiDien        String?
   xungHo         String?               @default("Anh")
   chucVu         String?
@@ -487,6 +505,7 @@ model Customer {
   email          String?
   ghiChu         String?
   nguoiChamSocId String?
+  hanMucCongNo   Float                 @default(0)
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
   contracts      Contract[]
@@ -494,9 +513,11 @@ model Customer {
   careHistories  CustomerCareHistory[]
   quotations     Quotation[]
   saleOrders     SaleOrder[]
+  formValues     String?
 
   @@index([nguon])
   @@index([nhom])
+  @@index([loai])
 }
 
 model CustomerCareHistory {
@@ -543,6 +564,7 @@ model Supplier {
   purchaseOrders       PurchaseOrder[]
   purchaseRequestItems PurchaseRequestItem[]
   categories           SupplierCategory[]
+  hrTransactions       HrSupplyTransaction[]
 
   @@index([trangThai])
 }
@@ -566,6 +588,8 @@ model SaleOrder {
   trangThai     String    @default("draft")
   tongTien      Float     @default(0)
   daThanhToan   Float     @default(0)
+  keToanDuyet   String    @default("pending") // "pending" | "approved" | "rejected"
+  trangThaiKho  String    @default("in_stock") // "in_stock" | "out_of_stock"
   ghiChu        String?
   nguoiPhuTrach String?
   createdAt     DateTime  @default(now())
@@ -639,6 +663,7 @@ model PurchaseOrder {
   supplier          Supplier?           @relation(fields: [supplierId], references: [id])
   items             PurchaseOrderItem[]
   stockMovements    StockMovement[]
+  activities        PurchaseOrderActivity[]
 
   @@index([trangThai])
   @@index([supplierId])
@@ -657,12 +682,26 @@ model PurchaseOrderItem {
   soLuongDaNhan       Float                @default(0)
   ghiChu              String?
   sortOrder           Int                  @default(0)
+  ngayGiao            DateTime?
   inventoryItem       InventoryItem?       @relation(fields: [inventoryItemId], references: [id])
   purchaseOrder       PurchaseOrder        @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   purchaseRequestItem PurchaseRequestItem?
 
   @@index([purchaseOrderId])
   @@index([inventoryItemId])
+}
+
+model PurchaseOrderActivity {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  loai            String        @default("system")
+  ngay            DateTime
+  nguoiThucHien   String
+  ketQua          String
+  createdAt       DateTime      @default(now())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
 }
 
 model Expense {
@@ -788,6 +827,9 @@ model InventoryItem {
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   imageUrl             String?
+  chieuDai             Float?
+  chieuRong            Float?
+  chieuDay             Float?
   dinhMuc              DinhMuc?              @relation(fields: [dinhMucId], references: [id])
   category             InventoryCategory?    @relation(fields: [categoryId], references: [id])
   stocks               InventoryStock[]
@@ -818,6 +860,9 @@ model MaterialItem {
   categoryId     String?
   imageUrl       String?
   ghiChu         String?
+  chieuDai       Float?
+  chieuRong      Float?
+  chieuDay       Float?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   dinhMucVatTu   DinhMucVatTu[]
@@ -964,8 +1009,13 @@ model Quotation {
   tongTien        Float                  @default(0)
   discount        Float                  @default(0)
   vat             Float                  @default(0)
+  chiPhiThiCong   Float                  @default(0)
   thanhTien       Float                  @default(0)
   ghiChu          String?
+  file3DUrl       String?
+  fileDetailUrl   String?
+  fileLayoutUrl   String?
+  type            String                 @default("retail")
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
   contracts       Contract[]
@@ -978,6 +1028,7 @@ model Quotation {
   @@index([customerId])
   @@index([nguoiPhuTrachId])
   @@index([ngayBaoGia])
+  @@index([type])
 }
 
 model QuotationNegotiation {
@@ -1106,19 +1157,20 @@ model MonthlySalesSnapshot {
 }
 
 model Task {
-  id          String        @id @default(cuid())
-  title       String
-  description String?
-  status      String        @default("pending")
-  priority    String        @default("medium")
-  assigneeId  String
-  creatorId   String
-  deptCode    String?
-  dueDate     DateTime?
-  completedAt DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  comments    TaskComment[]
+  id           String        @id @default(cuid())
+  title        String
+  description  String?
+  status       String        @default("pending")
+  priority     String        @default("medium")
+  assigneeId   String
+  creatorId    String
+  deptCode     String?
+  dueDate      DateTime?
+  completedAt  DateTime?
+  actualResult String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  comments     TaskComment[]
 
   @@index([assigneeId])
   @@index([status])
@@ -1340,6 +1392,7 @@ model MediaAsset {
   thumbnail   String?
   uploadedBy  String
   downloads   Int         @default(0)
+  isPublic    Boolean     @default(true)
   clientId    String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -1584,15 +1637,68 @@ model MarketingLead {
   source     String?
   medium     String?
   adId       String?
-  notes      String?
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-  campaign   MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  notes         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  campaign      MarketingCampaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  careHistories  PartnerCareHistory[]
+  bonusFormulas  PartnerBonusFormula[]
 
   @@index([campaignId])
   @@index([status])
   @@index([email])
   @@index([phone])
+}
+
+model PartnerCareHistory {
+  id                 String        @id @default(cuid())
+  partnerId          String
+  partner            MarketingLead @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  fullName           String
+  role               String?       @default("Ông chủ")
+  phone              String
+  email              String?
+  companyName        String
+  businessAddress    String
+  businessType       String?
+  premisesScale      String
+  collabNeeds        String
+  currentBrands      String?
+  deploymentPlan     String
+  expectedInvestment String?
+  investmentTimeframe String?
+  approachStep       String?       @default("Tiếp cận")
+  attitude           String?       @default("Bình thường")
+  interests          String?
+  painPoints         String?
+  premisesCondition  String?
+  otherRequirements  String?
+  stars              Int?          @default(3)
+  executionDate      DateTime      @default(now())
+  executor           String
+  cabinetArea             String?
+  cabinetUnitPrice        String?
+  cabinetBrandSupportRate String?
+  cabinetOtherCosts       String?
+  cabinetNotes            String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([partnerId])
+}
+
+model PartnerBonusFormula {
+  id          String        @id @default(cuid())
+  partnerId   String
+  partner     MarketingLead @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  formula     String
+  sortOrder   Int           @default(0)
+  savedAt     DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([partnerId])
 }
 
 model MarketingInsight {
@@ -1762,6 +1868,12 @@ model RecruitmentRequest {
   workType     String?
   candidates   Candidate[]
   requester    User?       @relation("UserRequests", fields: [requesterId], references: [id])
+
+  // Kế hoạch đào tạo
+  trainingTime         String?
+  trainingLocation     String?
+  trainingParticipants String?
+  trainingContent      String?
 }
 
 model Candidate {
@@ -1826,20 +1938,31 @@ model InterviewScorecard {
 }
 
 model TrainingRequest {
-  id          String           @id @default(cuid())
-  topic       String
-  target      String
-  goal        String
-  duration    String
-  type        String           @default("PERIODIC")
-  status      String           @default("PENDING")
-  priority    String           @default("NORMAL")
-  description String?
-  requesterId String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  courses     TrainingCourse[]
-  plan        TrainingPlan?
+  id               String           @id @default(cuid())
+  topic            String
+  target           String
+  goal             String
+  duration         String
+  type             String           @default("PERIODIC")
+  status           String           @default("PENDING")
+  priority         String           @default("NORMAL")
+  description      String?
+  requesterId      String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  courses          TrainingCourse[]
+  plan             TrainingPlan?
+  
+  // Các trường mới từ form đề xuất đào tạo
+  trainer          String?
+  startTime        DateTime?
+  endTime          DateTime?
+  location         String?
+  participants     String?
+  trainingContent  String?
+  equipment        String?
+  trainingSupplies String?
+  department       String?
 }
 
 model TrainingPlan {
@@ -2218,6 +2341,23 @@ model HrSupplyItem {
   norms        HrStationeryNorm[]
   category     HrSupplyCategory      @relation(fields: [categoryId], references: [id])
   requestItems HrSupplyRequestItem[]
+  transactions HrSupplyTransaction[]
+}
+
+model HrSupplyTransaction {
+  id           String       @id @default(cuid())
+  itemId       String
+  type         String       // "IMPORT" (Nhập kho) hoặc "EXPORT" (Xuất kho)
+  quantity     Float
+  price        Float        @default(0)
+  note         String?
+  invoiceNo    String?      // Số chứng từ / Số hóa đơn
+  supplierId   String?
+  executorId   String?      // Người thực hiện
+  executorName String?      // Tên người thực hiện
+  createdAt    DateTime     @default(now())
+  item         HrSupplyItem @relation(fields: [itemId], references: [id])
+  supplier     Supplier?    @relation(fields: [supplierId], references: [id])
 }
 
 model HrStationeryNorm {
@@ -2235,20 +2375,23 @@ model HrStationeryNorm {
 }
 
 model HrSupplyRequest {
-  id            String                @id @default(cuid())
-  code          String                @unique
-  requesterId   String
-  departmentId  String
-  type          String                @default("STATIONERY")
-  status        String                @default("PENDING")
-  totalAmount   Float                 @default(0)
-  note          String?
-  rejectionNote String?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  department    DepartmentCategory    @relation(fields: [departmentId], references: [id])
-  requester     Employee              @relation(fields: [requesterId], references: [id])
-  items         HrSupplyRequestItem[]
+  id               String                @id @default(cuid())
+  code             String                @unique
+  requesterId      String
+  departmentId     String
+  type             String                @default("STATIONERY")
+  status           String                @default("PENDING")
+  totalAmount      Float                 @default(0)
+  note             String?
+  rejectionNote    String?
+  requiresDirector Boolean               @default(false)
+  supplierId       String?
+  invoiceNo        String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  department       DepartmentCategory    @relation(fields: [departmentId], references: [id])
+  requester        Employee              @relation(fields: [requesterId], references: [id])
+  items            HrSupplyRequestItem[]
 
   @@index([status])
   @@index([type])
@@ -2326,3 +2469,89 @@ model PayrollConfirmation {
   @@unique([employeeId, month, year])
   @@index([employeeId])
 }
+
+model Meeting {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  creatorId   String
+  attendees   String   @default("[]") // JSON string: [{"id": "...", "name": "...", "email": "..."}]
+  minutes     String?
+  actionItems String?  // JSON string: [{"task": "...", "assignee": "...", "deadline": "..."}]
+  files       String   @default("[]") // JSON string of MediaAsset IDs: ["id1", "id2"]
+  host        String?
+  secretary   String?
+  clientId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator     User     @relation("UserMeetings", fields: [creatorId], references: [id])
+}
+
+model SalesYearlyPlan {
+  id             String   @id @default(cuid())
+  year           Int      @unique
+  status         String   @default("ban-nhap") // ban-nhap, cho-duyet, da-duyet
+  createdDate    String   @default("2026-06-15")
+  planRows       String   // JSON string của PlanItemRow[]
+  staffRows      String   // JSON string của StaffItemRow[]
+  monthlyTargets String?  // JSON string của Record<number, MonthlyTargetData>
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([year])
+  @@index([status])
+}
+
+model SalesMonthlyPlan {
+  id          String   @id @default(cuid())
+  year        Int
+  month       Int
+  status      String   @default("ban-nhap") // ban-nhap, cho-duyet, da-duyet
+  createdDate String   @default("2026-06-15")
+  planRows    String   // JSON string của PlanItemRow[]
+  staffRows   String   // JSON string của StaffItemRow[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([year, month])
+  @@index([year])
+  @@index([month])
+  @@index([status])
+}
+
+model MasterYearlyPlan {
+  id        String   @id @default(cuid())
+  year      Int      @unique
+  status    String   @default("draft") // draft, approved
+  planData  String   // JSON string of all planning state parameters
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([year])
+  @@index([status])
+}
+
+model CabinetCategoryItem {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  length      Float?
+  depth       Float?
+  height      Float?
+  unitPrice   Float    @default(0)
+  unit        String?  @default("cái")
+  imageUrl1   String?
+  imageUrl2   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([code])
+}
+
+
+

@@ -21,9 +21,57 @@ export async function GET(req: NextRequest) {
     const searchNorm = removeVietnameseTones(search);
     const FETCH_LIMIT = search ? 500 : PAGE_SIZE;
 
+    // Đọc active_industry_code để lọc theo ngành hàng (loại doanh nghiệp)
+    const cookieHeader = req.headers.get("cookie") || "";
+    let activeIndustryCode = cookieHeader
+      .split("; ")
+      .find(row => row.startsWith("active_industry_code="))
+      ?.split("=")[1];
+
+    if (!activeIndustryCode) {
+      const client = await prisma.client.findFirst({
+        include: { industry: true }
+      });
+      if (client?.industry) {
+        activeIndustryCode = client.industry.code;
+      }
+    }
+
+    if (!activeIndustryCode) {
+      activeIndustryCode = "wood_door";
+    }
+
+    let industryProdCategoryIds: string[] = [];
+    const industryProductCodeMap: Record<string, string> = {
+      "wood_door": "SP_GO",
+      "sanitary": "SP_VESINH",
+      "building_materials": "SP_VLXD"
+    };
+    const prodRootCode = industryProductCodeMap[activeIndustryCode] || "SP_GO";
+    const prodRootCategory = await prisma.inventoryCategory.findFirst({
+      where: { code: prodRootCode, parentId: null, isActive: true }
+    });
+    if (prodRootCategory) {
+      const categories = await prisma.inventoryCategory.findMany({
+        where: { isActive: true },
+        select: { id: true, parentId: true }
+      });
+      const descendantIds = [prodRootCategory.id];
+      const collectDescendants = (parentId: string) => {
+        categories.forEach(cat => {
+          if (cat.parentId === parentId) {
+            descendantIds.push(cat.id);
+            collectDescendants(cat.id);
+          }
+        });
+      };
+      collectDescendants(prodRootCategory.id);
+      industryProdCategoryIds = descendantIds;
+    }
+
     const where = {
       ...(trangThai  && { trangThai }),
-      ...(categoryId && { categoryId }),
+      ...(categoryId ? { categoryId } : (industryProdCategoryIds.length > 0 ? { categoryId: { in: industryProdCategoryIds } } : {})),
     };
 
     const rawItems = await prisma.inventoryItem.findMany({
@@ -42,7 +90,8 @@ export async function GET(req: NextRequest) {
       ? rawItems.filter(it => {
           const nameNorm = removeVietnameseTones(it.tenHang);
           const codeNorm = removeVietnameseTones(it.code ?? "");
-          return nameNorm.includes(searchNorm) || codeNorm.includes(searchNorm);
+          const searchWords = searchNorm.split(/\s+/).filter(Boolean);
+          return searchWords.every(word => nameNorm.includes(word) || codeNorm.includes(word));
         })
       : rawItems;
 

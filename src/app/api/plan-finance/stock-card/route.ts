@@ -36,29 +36,56 @@ export async function GET(req: NextRequest) {
     if (to)   where.createdAt.lte = new Date(to + "T23:59:59");
   }
 
-  const [item, movements] = await Promise.all([
-    prisma.inventoryItem.findUnique({
-      where:  { id: inventoryItemId },
+  let item = await prisma.inventoryItem.findUnique({
+    where:  { id: inventoryItemId },
+    select: {
+      id: true, tenHang: true, code: true, donVi: true,
+      giaNhap: true, soLuongMin: true,
+      category: { select: { name: true } },
+      stocks: warehouseId
+        ? { where: { warehouseId }, select: { soLuong: true } }
+        : { select: { soLuong: true } },
+    },
+  });
+
+  let isMaterial = false;
+  if (!item) {
+    const mat = await prisma.materialItem.findUnique({
+      where: { id: inventoryItemId },
       select: {
-        id: true, tenHang: true, code: true, donVi: true,
-        giaNhap: true, soLuongMin: true,
+        id: true, name: true, code: true, unit: true,
+        price: true, minStock: true,
         category: { select: { name: true } },
         stocks: warehouseId
           ? { where: { warehouseId }, select: { soLuong: true } }
           : { select: { soLuong: true } },
-      },
-    }),
-    prisma.stockMovement.findMany({
-      where,
-      orderBy: { createdAt: "asc" },
-      include: {
-        fromWarehouse: { select: { name: true } },
-        toWarehouse:   { select: { name: true } },
-      },
-    }),
-  ]);
+      }
+    });
+    if (mat) {
+      isMaterial = true;
+      item = {
+        id: mat.id,
+        tenHang: mat.name,
+        code: mat.code,
+        donVi: mat.unit,
+        giaNhap: mat.price,
+        soLuongMin: mat.minStock,
+        category: mat.category,
+        stocks: mat.stocks,
+      };
+    }
+  }
 
   if (!item) return NextResponse.json({ error: "Không tìm thấy mặt hàng" }, { status: 404 });
+
+  const movements = isMaterial ? [] : await prisma.stockMovement.findMany({
+    where,
+    orderBy: { createdAt: "asc" },
+    include: {
+      fromWarehouse: { select: { name: true } },
+      toWarehouse:   { select: { name: true } },
+    },
+  });
 
   // Tồn đầu kỳ = soLuongTruoc của movement đầu tiên trong kỳ
   // (số lượng tồn TRƯỚC giao dịch đầu tiên — đây mới là "Số dư đầu kỳ")

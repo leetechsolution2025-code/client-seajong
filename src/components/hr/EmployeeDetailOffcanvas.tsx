@@ -92,25 +92,25 @@ interface EmployeeDetailModalProps {
   employeeId: string | null;
 }
 
-function FieldGroup({ title, icon, children, columns }: { title: string; icon: string; children: React.ReactNode; columns?: string }) {
+function FieldGroup({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 28 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         <div style={{
-          width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+          width: 28, height: 28, borderRadius: 8, flexShrink: 0,
           background: "color-mix(in srgb, var(--primary) 12%, transparent)",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <i className={`bi ${icon}`} style={{ fontSize: 13, color: "var(--primary)" }} />
+          <i className={`bi ${icon}`} style={{ fontSize: 12, color: "var(--primary)" }} />
         </div>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)", letterSpacing: "0.01em" }}>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--foreground)" }}>
           {title}
         </span>
       </div>
       <div style={{
         display: "grid",
-        gridTemplateColumns: columns ?? "repeat(auto-fit, minmax(220px, 1fr))",
-        gap: "12px 16px",
+        gridTemplateColumns: "1fr",
+        gap: "10px",
       }}>
         {children}
       </div>
@@ -128,17 +128,17 @@ function Field({ label, value, fullWidth, hint, copyable, highlight, noWrap }: {
   };
 
   return (
-    <div style={{ gridColumn: col, display: "flex", flexDirection: "column", gap: 5 }}>
-      <label style={{ fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+    <div style={{ gridColumn: col, display: "flex", flexDirection: "column", gap: 4 }}>
+      <label style={{ fontSize: 10.5, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.02em", textTransform: "uppercase" }}>
         {label}
       </label>
       <div style={{
-        width: "100%", padding: "9px 12px",
+        width: "100%", padding: "8px 12px",
         background: "var(--background)", 
         border: "1px solid var(--border)",
-        borderRadius: 10, color: "var(--foreground)", 
-        fontSize: 13, fontWeight: 500,
-        minHeight: 38, display: "flex", alignItems: "center", justifyContent: "space-between",
+        borderRadius: 8, color: "var(--foreground)", 
+        fontSize: 12.5, fontWeight: 500,
+        minHeight: 36, display: "flex", alignItems: "center", justifyContent: "space-between",
         boxSizing: "border-box"
       }}>
         <span style={{ 
@@ -161,11 +161,11 @@ function Field({ label, value, fullWidth, hint, copyable, highlight, noWrap }: {
             onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
             onMouseOut={(e) => e.currentTarget.style.opacity = "0.5"}
           >
-            <i className="bi bi-copy" style={{ fontSize: 12 }}></i>
+            <i className="bi bi-copy" style={{ fontSize: 11 }}></i>
           </button>
         )}
       </div>
-      {hint && <span style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 10, color: "var(--muted-foreground)", marginTop: 1 }}>{hint}</span>}
     </div>
   );
 }
@@ -248,6 +248,16 @@ export function EmployeeDetailOffcanvas({ isOpen, onClose, employeeId }: Employe
       setActiveTab("overview");
     }
   }, [isOpen, employeeId]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   const fetchDetail = async (id: string) => {
     setLoading(true);
@@ -614,539 +624,296 @@ export function EmployeeDetailOffcanvas({ isOpen, onClose, employeeId }: Employe
     );
   };
 
-  if (!isOpen) return null;
-
   return (
     <>
-    <div className="fs-modal-wrap" style={{ 
-      position: "fixed", inset: 0, zIndex: 1100, 
-      background: "var(--background)", display: "flex", flexDirection: "column",
-      animation: "fsFadeIn 0.2s ease"
-    }}>
       <style>{`
-        @keyframes fsSlideIn {
-          from { opacity: 0; transform: scale(0.98); }
-          to   { opacity: 1; transform: scale(1); }
+        @media (max-width: 768px) {
+          .fs-employee-offcanvas {
+            max-width: 100% !important;
+            border-left: none !important;
+          }
         }
-        @keyframes fsFadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        .fs-modal-wrap {
-          position: fixed; inset: 0; z-index: 1100;
-          background: var(--background);
-          display: flex; flex-direction: column;
-          animation: fsFadeIn 0.18s ease;
-          overflow: hidden;
-        }
-        .fs-modal-body {
-          display: flex; flex: 1; overflow: hidden;
-        }
-        /* Sidebar */
-        .fs-sidebar {
-          width: 260px; flex-shrink: 0;
-          background: var(--card);
-          border-right: 1px solid var(--border);
-          display: flex; flex-direction: column;
-          padding: 28px 20px;
-          overflow-y: auto;
-        }
-        .fs-sidebar::-webkit-scrollbar { display: none; }
-        /* Content */
-        .fs-content {
-          flex: 1; overflow-y: auto;
-          padding: 32px 48px 32px;
-          animation: fsSlideIn 0.22s cubic-bezier(0.16,1,0.3,1);
-        }
-        .fs-content::-webkit-scrollbar { width: 5px; }
-        .fs-content::-webkit-scrollbar-track { background: transparent; }
-        .fs-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
-        .fs-step-btn {
-          display: flex; align-items: center; gap: 12px;
-          padding: 10px 12px; border-radius: 12px;
-          border: none; background: none; cursor: pointer;
-          width: 100%; text-align: left;
-          transition: background 0.15s;
-          margin-bottom: 4px;
-        }
-        .fs-step-btn:hover { background: var(--muted); }
-        .fs-step-btn.active { background: color-mix(in srgb, var(--primary) 10%, transparent); }
       `}</style>
-
-      {/* Top header bar */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 24px", height: 56, flexShrink: 0,
-        borderBottom: "1px solid var(--border)",
-        background: "var(--card)",
-      }}>
-        {/* Left: Brand + title */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 9, flexShrink: 0,
-            background: "color-mix(in srgb, var(--primary) 14%, transparent)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <i className="bi bi-person-lines-fill" style={{ fontSize: 14, color: "var(--primary)" }} />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 13, color: "var(--muted-foreground)", fontWeight: 500 }}>Nhân sự</span>
-            <i className="bi bi-chevron-right" style={{ fontSize: 10, color: "var(--muted-foreground)" }} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>Chi tiết nhân viên</span>
-          </div>
-        </div>
-
-        {/* Center */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {data?.status === "active" && (
-            <span style={{ fontSize: 12, color: "#10b981", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
-              Đang làm việc
-            </span>
-          )}
-        </div>
-
-        {/* Right: Actions + Close button */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            onClick={() => setShowPrintModal(true)}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "6px 14px", borderRadius: 9, border: "1px solid color-mix(in srgb, var(--primary) 20%, transparent)",
-              background: "color-mix(in srgb, var(--primary) 8%, transparent)", cursor: "pointer",
-              color: "var(--primary)", fontSize: 13, fontWeight: 600,
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = "color-mix(in srgb, var(--primary) 12%, transparent)";
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = "color-mix(in srgb, var(--primary) 8%, transparent)";
-            }}
-          >
-            <i className="bi bi-printer" style={{ fontSize: 14 }} />
-            Hồ sơ nhân viên
-          </button>
-
-          <button
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             onClick={onClose}
             style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "6px 14px", borderRadius: 9, border: "1px solid var(--border)",
-              background: "var(--background)", cursor: "pointer",
-              color: "var(--foreground)", fontSize: 13, fontWeight: 600,
-              transition: "all 0.15s",
+              position: "fixed",
+              inset: 0,
+              zIndex: 1099,
+              background: "rgba(15, 23, 42, 0.4)",
+              backdropFilter: "blur(4px)",
             }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = "var(--muted)";
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = "var(--background)";
+          />
+
+          {/* Offcanvas Drawer */}
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 350 }}
+            className="fs-employee-offcanvas"
+            style={{
+              position: "fixed",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: "100%",
+              maxWidth: 400,
+              zIndex: 1100,
+              background: "var(--card)",
+              borderLeft: "1px solid var(--border)",
+              boxShadow: "-10px 0 40px rgba(0, 0, 0, 0.12)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
             }}
           >
-            <i className="bi bi-x-lg" style={{ fontSize: 11 }} />
-            Đóng
-          </button>
-        </div>
-      </div>
-
-      <div className="fs-modal-body">
-        {/* Left Sidebar */}
-        <aside className="fs-sidebar">
-          <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
-            <EmployeeAvatar 
-              name={data?.fullName || ""} 
-              url={data?.avatarUrl} 
-              size={52} 
-              borderRadius={14} 
-              fontSize={20}
-            />
-            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--foreground)", marginBottom: 2 }}>
-              {data?.fullName || (loading ? "Đang tải..." : "...")}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
-              {data?.code ? `#${data.code}` : "..."}
-            </div>
-            {data?.position && (
-              <div style={{
-                marginTop: 8, fontSize: 11, fontWeight: 600,
-                color: "var(--primary)",
-                background: "color-mix(in srgb, var(--primary) 10%, transparent)",
-                borderRadius: 6, padding: "3px 8px", display: "inline-block",
-              }}>
-                {getPositionName(data.position)}
-              </div>
-            )}
-          </div>
-
-          <div style={{ flex: 1 }}>
-            {tabs.map(tab => {
-              const isCurrent = activeTab === tab.id;
-              const cls = `fs-step-btn ${isCurrent ? "active" : ""}`;
-              return (
-                <button
-                  key={tab.id}
-                  className={cls}
-                  onClick={() => setActiveTab(tab.id)}
-                >
-                  {/* Circle */}
-                  <span style={{
-                    width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    background: isCurrent
-                      ? "var(--primary)"
-                      : "var(--muted)",
-                    fontSize: 12, fontWeight: 800,
-                    color: isCurrent ? "#fff" : "var(--muted-foreground)",
-                    transition: "all 0.15s",
-                    border: isCurrent ? "2px solid var(--primary)" : "2px solid transparent",
-                  }}>
-                    <i className={`bi ${tab.icon}`} style={{ fontSize: 11 }} />
-                  </span>
-                  {/* Label */}
-                  <span style={{ flex: 1 }}>
-                    <span style={{
-                      display: "block", fontSize: 12, fontWeight: isCurrent ? 700 : 500,
-                      color: isCurrent ? "var(--primary)" : "var(--muted-foreground)",
-                      lineHeight: 1.3,
-                    }}>
-                      {tab.label}
-                    </span>
-                    {isCurrent && (
-                      <span style={{ fontSize: 10.5, color: "var(--muted-foreground)", marginTop: 1, display: "block" }}>
-                        Đang xem
-                      </span>
-                    )}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Bottom hint */}
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--border)" }}>
+            {/* Header / Content */}
             <div style={{
-              fontSize: 11, color: "var(--muted-foreground)", lineHeight: 1.6,
-              display: "flex", flexDirection: "column", gap: 4,
+              padding: "24px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 20,
+              overflowY: "auto",
+              height: "100%",
             }}>
-              <span>
-                <i className="bi bi-shield-check" style={{ color: "var(--primary)", marginRight: 5 }} />
-                Dữ liệu được bảo mật
-              </span>
-              <span>
-                <i className="bi bi-arrow-counterclockwise" style={{ color: "var(--primary)", marginRight: 5 }} />
-                Nhấn ESC để đóng
-              </span>
-            </div>
-          </div>
-        </aside>
-
-        {/* Right Content */}
-        <main className="fs-content">
-          <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-            {loading ? (
-              <div className="d-flex flex-column align-items-center justify-content-center py-5 opacity-50">
-                <div className="spinner-border text-primary mb-3" />
-                <div className="fw-bold h5">Đang lấy dữ liệu từ hệ thống...</div>
-              </div>
-            ) : errorMsg ? (
-              <div className="text-center py-5">
-                <div className="bg-danger bg-opacity-10 text-danger p-4 rounded-4 d-inline-block mb-4">
-                  <i className="bi bi-exclamation-triangle fs-1" />
+              {/* Close & Action row */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--primary)", display: "flex", alignItems: "center", gap: 6 }}>
+                  <i className="bi bi-person-badge" style={{ fontSize: 15 }} />
+                  Hồ sơ nhân sự
+                </span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => setShowPrintModal(true)}
+                    title="In hồ sơ"
+                    style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      border: "1px solid var(--border)", background: "var(--background)",
+                      color: "var(--foreground)", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all 0.15s"
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "var(--muted)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "var(--background)"}
+                  >
+                    <i className="bi bi-printer" style={{ fontSize: 14 }} />
+                  </button>
+                  <button
+                    onClick={onClose}
+                    title="Đóng"
+                    style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      border: "1px solid var(--border)", background: "var(--background)",
+                      color: "var(--foreground)", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all 0.15s"
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "var(--muted)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "var(--background)"}
+                  >
+                    <i className="bi bi-x-lg" style={{ fontSize: 12 }} />
+                  </button>
                 </div>
-                <h4 className="fw-bold text-danger">Lỗi kết nối</h4>
-                <p className="text-muted mb-4">{errorMsg}</p>
-                <button className="btn btn-primary rounded-pill px-4" onClick={() => fetchDetail(employeeId!)}>Thử lại</button>
               </div>
-            ) : data ? (
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div style={{ marginBottom: 28 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+
+              {/* Employee info */}
+              {loading ? (
+                <div className="d-flex flex-column align-items-center justify-content-center py-5 opacity-50">
+                  <div className="spinner-border spinner-border-sm text-primary mb-3" />
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>Đang tải hồ sơ...</div>
+                </div>
+              ) : errorMsg ? (
+                <div className="text-center py-5">
+                  <div className="bg-danger bg-opacity-10 text-danger p-3 rounded-3 d-inline-block mb-3">
+                    <i className="bi bi-exclamation-triangle fs-3" />
+                  </div>
+                  <h5 className="fw-bold text-danger">Lỗi kết nối</h5>
+                  <p className="text-muted small mb-3">{errorMsg}</p>
+                  <button className="btn btn-sm btn-primary rounded-pill px-3" onClick={() => fetchDetail(employeeId!)}>Thử lại</button>
+                </div>
+              ) : data ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <EmployeeAvatar 
+                      name={data.fullName} 
+                      url={data.avatarUrl} 
+                      size={48} 
+                      borderRadius={12} 
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--foreground)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                        {data.fullName}
+                      </h3>
+                      <div style={{ fontSize: 11.5, color: "var(--muted-foreground)", fontFamily: "monospace", margin: "2px 0 4px" }}>
+                        {data.code}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <span style={{
+                          fontSize: 10, fontWeight: 700,
+                          color: "var(--primary)",
+                          background: "color-mix(in srgb, var(--primary) 10%, transparent)",
+                          borderRadius: 4, padding: "2px 6px",
+                        }}>
+                          {getPositionName(data.position)}
+                        </span>
+                        {data.status === "active" ? (
+                          <span style={{
+                            fontSize: 10, fontWeight: 700,
+                            color: "#10b981",
+                            background: "rgba(16, 185, 129, 0.1)",
+                            borderRadius: 4, padding: "2px 6px",
+                          }}>
+                            Đang làm việc
+                          </span>
+                        ) : data.status === "resigned" ? (
+                          <span style={{
+                            fontSize: 10, fontWeight: 700,
+                            color: "#ef4444",
+                            background: "rgba(239, 68, 68, 0.1)",
+                            borderRadius: 4, padding: "2px 6px",
+                        }}>
+                          Đã nghỉ việc
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+
+                {/* Additional details */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {/* Số điện thoại */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.02em" }}>
+                      Số điện thoại
+                    </span>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--foreground)" }}>
+                      {data.phone || "—"}
+                    </span>
+                  </div>
+
+                  {/* Email công việc */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.02em" }}>
+                      Email công việc
+                    </span>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--foreground)" }}>
+                      {data.workEmail || "—"}
+                    </span>
+                  </div>
+
+                  {/* Bộ phận & Chức vụ */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.02em" }}>
+                        Bộ phận
+                      </span>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--foreground)", wordBreak: "break-word" }}>
+                        {data.departmentName || "—"}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.02em" }}>
+                        Chức vụ
+                      </span>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--foreground)", wordBreak: "break-word" }}>
+                        {getPositionName(data.position)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+
+                {/* Quá trình công tác Section */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{
-                      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                      width: 28, height: 28, borderRadius: 8, flexShrink: 0,
                       background: "color-mix(in srgb, var(--primary) 12%, transparent)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      <i className={`bi ${tabs.find(t => t.id === activeTab)?.icon}`} style={{ fontSize: 16, color: "var(--primary)" }} />
+                      <i className="bi bi-clock-history" style={{ fontSize: 12, color: "var(--primary)" }} />
                     </div>
-                    <div>
-                      <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--foreground)" }}>
-                        {tabs.find(t => t.id === activeTab)?.label}
-                      </h1>
-                      <p style={{ margin: 0, fontSize: 13, color: "var(--muted-foreground)" }}>
-                        {activeTab === "overview" && "Thông tin tóm tắt về nhân sự"}
-                        {activeTab === "personal" && "Thông tin định danh cá nhân, liên lạc và địa chỉ"}
-                        {activeTab === "employment" && "Vị trí công việc, phòng ban và loại hình nhân viên"}
-                        {activeTab === "contracts" && "Hợp đồng lao động, hồ sơ pháp lý và bảo hiểm"}
-                        {activeTab === "payroll" && "Mức lương, phụ cấp và thông tin ngân hàng"}
-                        {activeTab === "skills" && "Kỹ năng chuyên môn, học vấn và chứng chỉ"}
-                        {activeTab === "history" && "Quá trình công tác tại công ty"}
-                      </p>
-                    </div>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--foreground)" }}>
+                      Quá trình công tác
+                    </span>
                   </div>
-                  <div style={{ height: 1, background: "var(--border)", marginTop: 16 }} />
-                </div>
 
-                <div>
-                  {activeTab === "overview" && (
-                    <>
-                      <FieldGroup title="Thông tin cơ bản" icon="bi-person-fill" columns="repeat(4, 1fr)">
-                        <Field label="Họ và tên" value={data.fullName} highlight />
-                        <Field label="Mã nhân viên" value={data.code} highlight copyable noWrap />
-                        <Field label="Email công việc" value={data.workEmail} copyable />
-                        <Field label="Số điện thoại" value={data.phone} copyable />
-                      </FieldGroup>
-                      
-                      <FieldGroup title="Tổ chức" icon="bi-diagram-3" columns="5fr 4fr 3fr">
-                        <Field label="Phòng ban / Bộ phận" value={data.departmentName} highlight />
-                        <Field label="Chức vụ / Vị trí" value={getPositionName(data.position)} highlight />
-                        <Field label="Cấp bậc" value={getLevelName(data.level)} />
-                      </FieldGroup>
-
-                      <FieldGroup title="Tình trạng" icon="bi-activity">
-                        <Field label="Loại hình nhân viên" value={getEmpTypeLabel(data.employeeType)} />
-                        <Field label="Ngày bắt đầu làm việc" value={data.startDate ? new Date(data.startDate).toLocaleDateString("vi-VN") : undefined} />
-                        <Field label="Trạng thái" value={data.status === "active" ? "Đang làm việc" : data.status === "resigned" ? "Đã nghỉ việc" : "—"} highlight />
-                      </FieldGroup>
-                    </>
-                  )}
-
-                  {activeTab === "personal" && (
-                    <>
-                      <FieldGroup title="Thông tin cơ bản" icon="bi-person-fill" columns="repeat(3, 1fr)">
-                        <Field label="Chi nhánh" value={data.branchName} />
-                        <Field label="Mã nhân viên" value={data.code} copyable noWrap />
-                        <Field label="Họ và tên" value={data.fullName} />
-                        <Field label="Ngày sinh" value={data.birthDate ? new Date(data.birthDate).toLocaleDateString("vi-VN") : undefined} />
-                        <Field label="Giới tính" value={getGenderLabel(data.gender)} />
-                      </FieldGroup>
-
-                      <FieldGroup title="CCCD / Hộ chiếu" icon="bi-card-text" columns="4fr 3fr 5fr">
-                        <Field label="Số CCCD / Hộ chiếu" value={data.nationalId} copyable />
-                        <Field label="Ngày cấp" value={data.nationalIdDate ? new Date(data.nationalIdDate).toLocaleDateString("vi-VN") : undefined} />
-                        <Field label="Nơi cấp" value={data.nationalIdPlace} />
-                      </FieldGroup>
-
-                      <FieldGroup title="Địa chỉ" icon="bi-house-door">
-                        <Field label="Địa chỉ thường trú" value={data.permanentAddress} fullWidth />
-                        <Field label="Địa chỉ tạm trú (nơi ở hiện tại)" value={data.currentAddress} fullWidth />
-                      </FieldGroup>
-
-                      <FieldGroup title="Thông tin liên lạc" icon="bi-telephone" columns="4fr 4fr 4fr">
-                        <Field label="SĐT cá nhân" value={data.phone} copyable />
-                        <Field label="Email cá nhân" value={data.personalEmail} copyable />
-                        <Field label="Email công ty" value={data.workEmail} copyable />
-                      </FieldGroup>
-
-                      <FieldGroup title="Liên hệ khẩn cấp" icon="bi-person-heart">
-                        <Field label="Tên người thân" value={data.emergencyName} />
-                        <Field label="Mối quan hệ" value={data.emergencyRelation} />
-                        <Field label="SĐT liên hệ khẩn cấp" value={data.emergencyPhone} copyable />
-                      </FieldGroup>
-                    </>
-                  )}
-
-                  {activeTab === "employment" && (
-                    <>
-                      <FieldGroup title="Vị trí và Tổ chức" icon="bi-diagram-3" columns="5fr 4fr 3fr">
-                        <Field label="Phòng ban / Bộ phận" value={data.departmentName} highlight />
-                        <Field label="Chức vụ / Vị trí" value={getPositionName(data.position)} highlight />
-                        <Field label="Cấp bậc" value={getLevelName(data.level)} />
-                      </FieldGroup>
-
-                      <FieldGroup title="Quản lý và Phân loại" icon="bi-person-check">
-                        <Field label="Người quản lý trực tiếp" value={data.managerName} />
-                        <Field label="Loại hình nhân viên" value={getEmpTypeLabel(data.employeeType)} />
-                        <Field label="Ngày bắt đầu làm việc" value={data.startDate ? new Date(data.startDate).toLocaleDateString("vi-VN") : undefined} />
-                        <Field label="Địa điểm làm việc" value={getWorkLocationName(data.workLocation)} />
-                      </FieldGroup>
-                    </>
-                  )}
-
-                  {activeTab === "contracts" && (
-                    <>
-                      <FieldGroup title="Hợp đồng lao động hiện tại" icon="bi-file-earmark-check" columns="3fr 3fr 3fr 3fr">
-                        <Field label="Loại hợp đồng" value={getContractTypeLabel(data.laborContracts?.[0]?.contractType || "")} />
-                        <Field label="Số hợp đồng" value={data.laborContracts?.[0]?.contractNumber || "—"} copyable />
-                        <Field label="Ngày ký hợp đồng" value={data.laborContracts?.[0]?.startDate ? new Date(data.laborContracts[0].startDate).toLocaleDateString("vi-VN") : undefined} />
-                        <Field label="Ngày hết hạn" value={data.laborContracts?.[0]?.endDate ? new Date(data.laborContracts[0].endDate).toLocaleDateString("vi-VN") : undefined} />
-                      </FieldGroup>
-
-                      <FieldGroup title="Trạng thái hồ sơ" icon="bi-folder-check">
-                        <Field label="Tình trạng hồ sơ" value={data.profileStatus === "complete" ? "Đã nộp đầy đủ" : data.profileStatus === "partial" ? "Còn thiếu giấy tờ" : data.profileStatus === "pending" ? "Chưa nộp hồ sơ" : data.profileStatus} />
-                      </FieldGroup>
-
-                      <FieldGroup title="Bảo hiểm và Thuế" icon="bi-shield-check">
-                        <Field label="Số sổ BHXH" value={data.socialInsuranceNumber} copyable />
-                        <Field label="Mã số thuế cá nhân (MST)" value={data.taxCode} copyable />
-                        <Field label="Trạng thái bảo hiểm" value={
-                          <span className={`badge rounded-pill ${data.isInsuranceEnrolled ? "bg-success-subtle text-success border border-success-subtle" : "bg-light text-muted border"}`}>
-                            {data.isInsuranceEnrolled ? "Đang tham gia" : "Không tham gia"}
-                          </span>
-                        } />
-                      </FieldGroup>
-                    </>
-                  )}
-
-                  {activeTab === "payroll" && (
-                    <>
-                      <FieldGroup title="Mức lương" icon="bi-cash-stack">
-                        <Field label="Lương cơ bản (VNĐ)" value={data.baseSalary ? data.baseSalary.toLocaleString("vi-VN") : undefined} highlight />
-                      </FieldGroup>
-
-                      <FieldGroup title="Các khoản phụ cấp (VNĐ/tháng)" icon="bi-plus-circle">
-                        <Field label="Phụ cấp ăn trưa" value={data.mealAllowance ? data.mealAllowance.toLocaleString("vi-VN") : undefined} />
-                        <Field label="Phụ cấp xăng xe" value={data.fuelAllowance ? data.fuelAllowance.toLocaleString("vi-VN") : undefined} />
-                        <Field label="Phụ cấp điện thoại" value={data.phoneAllowance ? data.phoneAllowance.toLocaleString("vi-VN") : undefined} />
-                        <Field label="Phụ cấp thâm niên" value={data.seniorityAllowance ? data.seniorityAllowance.toLocaleString("vi-VN") : undefined} />
-                      </FieldGroup>
-
-                      <FieldGroup title="Tài khoản ngân hàng" icon="bi-bank" columns="4fr 6fr 3fr">
-                        <Field label="Số tài khoản" value={data.bankAccount} copyable highlight />
-                        <Field label="Tên ngân hàng" value={data.bankName} highlight />
-                        <Field label="Chi nhánh NH" value={data.bankBranch} />
-                      </FieldGroup>
-
-                      <FieldGroup title="Giảm trừ gia cảnh" icon="bi-people">
-                        <Field label="Số người phụ thuộc" value={data.dependents?.toString()} />
-                      </FieldGroup>
-                    </>
-                  )}
-
-                  {activeTab === "skills" && (
-                    <>
-                      <FieldGroup title="Học vấn và Bằng cấp" icon="bi-mortarboard">
-                        <Field label="Trình độ học vấn" value={data.education} fullWidth />
-                        <Field label="Chứng chỉ / Bằng cấp khác" value={data.certifications} fullWidth />
-                      </FieldGroup>
-
-                      <FieldGroup title="Kỹ năng" icon="bi-stars">
-                        <Field label="Kỹ năng chuyên môn" value={data.skills} fullWidth />
-                        <Field label="Kỹ năng mềm" value={data.softSkills} fullWidth />
-                      </FieldGroup>
-
-                      <FieldGroup title="Ngày phép và Chấm công" icon="bi-calendar-check">
-                        <Field label="Số ngày phép năm" value={data.annualLeave?.toString()} />
-                        <Field label="Ca làm việc mặc định" value={data.workShift} />
-                      </FieldGroup>
-
-                      <FieldGroup title="Ghi chú khác" icon="bi-journal-text">
-                        <Field label="Ghi chú nội bộ" value={data.notes} fullWidth />
-                      </FieldGroup>
-                    </>
-                  )}
-
-                  {activeTab === "history" && (
-                    <div style={{ position: "relative", paddingLeft: 40, borderLeft: "2px solid color-mix(in srgb, var(--primary) 10%, transparent)", marginLeft: 20, paddingTop: 10 }}>
-                      {data.employmentHistory && data.employmentHistory.length > 0 ? (
-                        [...data.employmentHistory]
-                          .sort((a, b) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime())
-                          .map((h, idx) => (
-                          <div key={h.id} style={{ position: "relative", marginBottom: 40 }}>
-                            <div style={{
-                              position: "absolute", left: -51, top: 2, width: 20, height: 20,
-                              borderRadius: "50%", background: "var(--background)", 
-                              border: "4px solid var(--primary)", zIndex: 2,
-                              boxShadow: "0 0 0 4px color-mix(in srgb, var(--primary) 5%, transparent)"
-                            }} />
-                            
-                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                              <div style={{ fontSize: 11, fontWeight: 800, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                                {new Date(h.effectiveDate).toLocaleDateString("vi-VN")}
-                              </div>
-                              <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                                <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--foreground)" }}>
-                                  {h.type === "promotion" ? "Thăng tiến / Bổ nhiệm" : h.type === "transfer" ? "Điều chuyển công tác" : h.newPosition || "Thay đổi thông tin"}
-                                </h4>
-                                <span className="badge bg-primary-subtle text-primary border border-primary border-opacity-10 rounded-pill px-2" style={{ fontSize: 10 }}>
-                                  {h.type === "promotion" ? "THĂNG TIẾN" : h.type === "transfer" ? "ĐIỀU CHUYỂN" : "CẬP NHẬT"}
-                                </span>
-                              </div>
-                              <div style={{ fontSize: 13, color: "var(--muted-foreground)", lineHeight: 1.4 }}>
-                                {h.newPosition && <div>Vị trí mới: <b>{h.newPosition}</b></div>}
-                                {h.newDept && <div>Phòng ban: <b>{h.newDept}</b></div>}
-                                {h.notes && <div className="mt-1 p-2 rounded bg-light border-start border-3 border-primary border-opacity-20 italic">"{h.notes}"</div>}
-                              </div>
+                  {/* Timeline of Quá trình công tác */}
+                  <div style={{ position: "relative", paddingLeft: 20, borderLeft: "2px solid color-mix(in srgb, var(--primary) 10%, transparent)", marginLeft: 13, paddingTop: 4 }}>
+                    {data.employmentHistory && data.employmentHistory.length > 0 ? (
+                      [...data.employmentHistory]
+                        .sort((a, b) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime())
+                        .map((h) => (
+                        <div key={h.id} style={{ position: "relative", marginBottom: 20 }}>
+                          <div style={{
+                            position: "absolute", left: -27, top: 3, width: 12, height: 12,
+                            borderRadius: "50%", background: "var(--card)", 
+                            border: "3px solid var(--primary)", zIndex: 2,
+                          }} />
+                          
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <div style={{ fontSize: 9.5, fontWeight: 800, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                              {new Date(h.effectiveDate).toLocaleDateString("vi-VN")}
                             </div>
-                          </div>
-                        ))
-                      ) : null}
-
-                      {/* Entry Event */}
-                      <div style={{ position: "relative", marginBottom: 20 }}>
-                        <div style={{
-                          position: "absolute", left: -51, top: 2, width: 20, height: 20,
-                          borderRadius: "50%", background: "var(--background)", 
-                          border: "4px solid var(--success)", zIndex: 2,
-                          boxShadow: "0 0 0 4px color-mix(in srgb, var(--success) 5%, transparent)"
-                        }} />
-                        
-                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                          <div style={{ fontSize: 11, fontWeight: 800, color: "var(--success)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            {data.startDate ? new Date(data.startDate).toLocaleDateString("vi-VN") : "—"}
-                          </div>
-                          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                            <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--foreground)" }}>
-                              Bắt đầu làm việc tại công ty
-                            </h4>
-                            <span className="badge bg-success-subtle text-success border border-success border-opacity-10 rounded-pill px-2" style={{ fontSize: 10 }}>
-                              GIA NHẬP
-                            </span>
-                          </div>
-                          <div style={{ fontSize: 13, color: "var(--muted-foreground)", lineHeight: 1.3 }}>
-                            <div style={{ 
-                              display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", 
-                              gap: "2px 20px", marginTop: 0, padding: "6px 12px",
-                              background: "color-mix(in srgb, var(--success) 4%, transparent)",
-                              border: "1px solid color-mix(in srgb, var(--success) 10%, transparent)",
-                              borderRadius: 8
-                            }}>
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <span style={{ color: "var(--muted-foreground)", width: 100 }}>Phòng ban:</span>
-                                <b style={{ color: "var(--foreground)" }}>{data.departmentName || "—"}</b>
-                              </div>
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <span style={{ color: "var(--muted-foreground)", width: 100 }}>Chức vụ:</span>
-                                <b style={{ color: "var(--foreground)" }}>{getPositionName(data.position)}</b>
-                              </div>
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <span style={{ color: "var(--muted-foreground)", width: 100 }}>Cấp bậc:</span>
-                                <b style={{ color: "var(--foreground)" }}>{getLevelName(data.level)}</b>
-                              </div>
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <span style={{ color: "var(--muted-foreground)", width: 100 }}>Quản lý:</span>
-                                <b style={{ color: "var(--foreground)" }}>{data.managerName || "—"}</b>
-                              </div>
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <span style={{ color: "var(--muted-foreground)", width: 100 }}>Loại hình NV:</span>
-                                <b style={{ color: "var(--foreground)" }}>{getEmpTypeLabel(data.employeeType)}</b>
-                              </div>
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <span style={{ color: "var(--muted-foreground)", width: 100 }}>Chi nhánh:</span>
-                                <b style={{ color: "var(--foreground)" }}>{data.branchName || "—"}</b>
-                              </div>
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <span style={{ color: "var(--muted-foreground)", width: 100 }}>Địa điểm:</span>
-                                <b style={{ color: "var(--foreground)" }}>{getWorkLocationName(data.workLocation)}</b>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+                                {h.type === "promotion" ? "Thăng tiến / Bổ nhiệm" : h.type === "transfer" ? "Điều chuyển công tác" : h.newPosition || "Thay đổi thông tin"}
+                              </h4>
+                              <div style={{ fontSize: 11.5, color: "var(--muted-foreground)", lineHeight: 1.4 }}>
+                                {h.newPosition && <div>Vị trí mới: <b>{getPositionName(h.newPosition)}</b></div>}
+                                {h.newDept && <div>Phòng ban: <b>{h.newDept}</b></div>}
                               </div>
                             </div>
                           </div>
                         </div>
+                      ))
+                    ) : null}
+
+                    {/* Entry Event */}
+                    <div style={{ position: "relative", marginBottom: 5 }}>
+                      <div style={{
+                        position: "absolute", left: -27, top: 3, width: 12, height: 12,
+                        borderRadius: "50%", background: "var(--card)", 
+                        border: "3px solid var(--success)", zIndex: 2,
+                      }} />
+                      
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <div style={{ fontSize: 9.5, fontWeight: 800, color: "var(--success)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          {data.startDate ? new Date(data.startDate).toLocaleDateString("vi-VN") : "—"}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+                            Gia nhập công ty
+                          </h4>
+                          <div style={{ fontSize: 11.5, color: "var(--muted-foreground)", lineHeight: 1.3 }}>
+                            Bắt đầu làm việc chính thức tại bộ phận <b>{data.departmentName}</b> với vị trí <b>{getPositionName(data.position)}</b>.
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
-              </motion.div>
+              </>
             ) : null}
           </div>
-        </main>
-      </div>
-    </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
 
     {/* Print Modal */}
     {showPrintModal && data && (

@@ -211,7 +211,7 @@ export default function EventsPage() {
         icon="bi-mic-fill"
       />
 
-      <div style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div className="event-tab-container" style={{ flex: 1, padding: '24px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         
         {/* TAB NAVIGATION */}
         <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', marginBottom: '24px', flexWrap: 'wrap' }}>
@@ -280,6 +280,42 @@ export default function EventsPage() {
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .event-row:hover { background-color: rgba(0,0,0,0.02); }
+        .event-kpi-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 14px;
+        }
+        .event-main-layout {
+          display: grid;
+          grid-template-columns: 7fr 5fr;
+          gap: 24px;
+          flex: 1;
+          min-height: 0;
+        }
+        @media (max-width: 1024px) {
+          .event-tab-container {
+            padding: 16px !important;
+          }
+          .event-kpi-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .event-main-layout {
+            grid-template-columns: 1fr !important;
+            flex: none !important;
+            height: auto !important;
+          }
+          .event-main-layout > div {
+            min-height: 380px !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .event-tab-container {
+            padding: 12px !important;
+          }
+          .event-kpi-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
       `}} />
     </div>
   );
@@ -294,7 +330,7 @@ function OverviewTab({ events, loading, series, totalBudget }: { events: any[], 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', flex: 1, minHeight: 0 }}>
       {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+      <div className="event-kpi-grid">
         <KpiCard
           label="Tổng sự kiện 2026" value={events.length.toString()} sub="Dữ liệu từ hệ thống"
           icon="bi-calendar-event" color="#ec4899"
@@ -316,7 +352,7 @@ function OverviewTab({ events, loading, series, totalBudget }: { events: any[], 
       </div>
 
       {/* Main Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '7fr 5fr', gap: '24px', flex: 1, minHeight: 0 }}>
+      <div className="event-main-layout">
         
         {/* Timeline / Chart */}
         <div className="app-card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid var(--border)', background: 'var(--card)', display: 'flex', flexDirection: 'column' }}>

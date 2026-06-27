@@ -232,8 +232,8 @@ export function ThemKetQuaChamSocModal({
             {/* Header */}
             <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: "color-mix(in srgb, #6366f1 12%, transparent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <i className="bi bi-clipboard2-pulse" style={{ fontSize: 17, color: "#6366f1" }} />
+                <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: "#eef2ff", border: "1px solid #e0e7ff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <i className="bi bi-chat-left-dots-fill" style={{ fontSize: 16, color: "#4f46e5" }} />
                 </div>
                 <div>
                   <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "var(--foreground)" }}>Thêm kết quả chăm sóc</p>

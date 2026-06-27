@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/prisma";
 import { calculateDailyAttendance } from "@/lib/attendance-utils";
-import { format } from "date-fns";
+import { format, eachDayOfInterval } from "date-fns";
 
 export const dynamic = 'force-dynamic';
 
@@ -223,10 +223,25 @@ export async function GET(req: Request) {
       } catch (e) {}
     }
 
-    // Tính toán công cho từng bản ghi trong history
-    const calculatedHistory = history.map((h: any) => {
-      const dateStr = format(new Date(h.date), "yyyy-MM-dd");
+    const now = new Date();
+    now.setHours(23, 59, 59, 999);
+
+    // Tính toán công cho từng ngày trong tháng
+    const calculatedHistory = eachDayOfInterval({ start: startDate, end: endDate }).map((day) => {
+      const dateStr = format(day, "yyyy-MM-dd");
       
+      // Tìm xem ngày này có bản ghi chấm công thực tế trong database không
+      const h = history.find((x: any) => format(new Date(x.date), "yyyy-MM-dd") === dateStr);
+      
+      const leaveReq = personalRequests.find((r: any) => {
+        if (["late", "early"].includes(r.type)) return false;
+        const start = new Date(r.startDate);
+        const end = new Date(r.endDate);
+        const current = new Date(day);
+        current.setHours(0, 0, 0, 0);
+        return current >= start && current <= end;
+      });
+
       const lateReq = personalRequests.find((r: any) => 
         r.type === "late" && 
         format(new Date(r.startDate), "yyyy-MM-dd") === dateStr
@@ -237,20 +252,21 @@ export async function GET(req: Request) {
         format(new Date(r.startDate), "yyyy-MM-dd") === dateStr
       );
 
+      // Kiểm tra ngày lễ
+      const holiday = holidays.find((hol: any) => {
+        const hStart = new Date(hol.startDate);
+        const hEnd = new Date(hol.endDate);
+        hStart.setHours(0,0,0,0);
+        hEnd.setHours(23,59,59,999);
+        return day >= hStart && day <= hEnd;
+      });
+
       let requestedInMorning = null;
       let requestedInAfternoon = null;
       let requestedOutLunch = null;
       let requestedOutAfternoon = null;
 
       const extractTimeFromRequest = (request: any, field: "startDate" | "endDate") => {
-        const dateObj = request[field] ? new Date(request[field]) : null;
-        if (dateObj && !isNaN(dateObj.getTime())) {
-          const hours = dateObj.getHours();
-          const minutes = dateObj.getMinutes();
-          if (hours !== 0 || minutes !== 0) {
-            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-          }
-        }
         if (request.details) {
           try {
             const parsed = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
@@ -263,6 +279,14 @@ export async function GET(req: Request) {
               const match = request.details.match(/(\d{2}):(\d{2})/);
               if (match) return `${match[1]}:${match[2]}`;
             }
+          }
+        }
+        const dateObj = request[field] ? new Date(request[field]) : null;
+        if (dateObj && !isNaN(dateObj.getTime())) {
+          const hours = dateObj.getHours();
+          const minutes = dateObj.getMinutes();
+          if (hours !== 0 || minutes !== 0) {
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
           }
         }
         return null;
@@ -286,30 +310,90 @@ export async function GET(req: Request) {
         }
       }
 
-      const result = calculateDailyAttendance({
-        date: new Date(h.date),
-        checkInMorning: h.checkInMorning ? new Date(h.checkInMorning) : null,
-        checkOutMorning: h.checkOutMorning ? new Date(h.checkOutMorning) : null,
-        checkInAfternoon: h.checkInAfternoon ? new Date(h.checkInAfternoon) : null,
-        checkOutAfternoon: h.checkOutAfternoon ? new Date(h.checkOutAfternoon) : null,
-        status: h.status,
+      let leaveStatus = null;
+      if (leaveReq) {
+        leaveStatus = "P";
+        if (leaveReq.details) {
+          try {
+            const parsed = typeof leaveReq.details === "string" ? JSON.parse(leaveReq.details) : leaveReq.details;
+            if (parsed.leaveType === "Nghỉ không lương") {
+              leaveStatus = "KL";
+            } else if (parsed.leaveType === "Nghỉ ốm có BHXH") {
+              leaveStatus = "BHXH";
+            }
+          } catch (e) {}
+        }
+      }
+
+      const dayAttendance = {
+        date: day,
+        checkInMorning: h?.checkInMorning ? new Date(h.checkInMorning) : null,
+        checkOutMorning: h?.checkOutMorning ? new Date(h.checkOutMorning) : null,
+        checkInAfternoon: h?.checkInAfternoon ? new Date(h.checkInAfternoon) : null,
+        checkOutAfternoon: h?.checkOutAfternoon ? new Date(h.checkOutAfternoon) : null,
+        status: holiday ? "L" : (leaveStatus || h?.status || null),
         isPermission: !!lateReq || !!earlyReq,
         requestedInMorning,
         requestedInAfternoon,
         requestedOutLunch,
         requestedOutAfternoon
-      }, rules);
+      };
+
+      const result = calculateDailyAttendance(dayAttendance, rules);
+
+      let approvedLateTime = null;
+      if (lateReq) {
+        approvedLateTime = extractTimeFromRequest(lateReq, "startDate");
+      }
+
+      let approvedEarlyTime = null;
+      if (earlyReq) {
+        approvedEarlyTime = extractTimeFromRequest(earlyReq, "startDate");
+      }
 
       return {
-        ...h,
-        workday: result.workPoints,
+        id: h?.id || `empty-${dateStr}`,
+        date: day,
+        checkInMorning: h?.checkInMorning || null,
+        checkOutMorning: h?.checkOutMorning || null,
+        checkInAfternoon: h?.checkInAfternoon || null,
+        checkOutAfternoon: h?.checkOutAfternoon || null,
+        status: dayAttendance.status,
+        workday: day > now ? 0 : result.workPoints,
         otHours: result.otHours,
-        violationMinutes: result.violationMinutes
+        violationMinutes: result.violationMinutes,
+        lateMinutes: (result as any).lateMinutes || 0,
+        earlyMinutes: (result as any).earlyMinutes || 0,
+        approvedLateTime,
+        approvedEarlyTime,
+        isHoliday: !!holiday,
+        holidayName: holiday?.name || null,
+        registeredLunch: h?.registeredLunch || false,
+        registeredDinner: h?.registeredDinner || false,
       };
     });
 
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const todayCalculated = calculatedHistory.find(x => format(new Date(x.date), "yyyy-MM-dd") === todayStr);
+    
+    const mergedAttendance = attendance ? {
+      ...attendance,
+      status: attendance.status || todayCalculated?.status || null
+    } : (todayCalculated ? {
+      id: todayCalculated.id,
+      date: todayCalculated.date,
+      checkInMorning: todayCalculated.checkInMorning,
+      checkOutMorning: todayCalculated.checkOutMorning,
+      checkInAfternoon: todayCalculated.checkInAfternoon,
+      checkOutAfternoon: todayCalculated.checkOutAfternoon,
+      status: todayCalculated.status,
+      note: null,
+      registeredLunch: todayCalculated.registeredLunch,
+      registeredDinner: todayCalculated.registeredDinner,
+    } : null);
+
     return NextResponse.json({ 
-      attendance, 
+      attendance: mergedAttendance, 
       history: calculatedHistory, 
       branch, 
       ip, 
@@ -465,6 +549,51 @@ export async function POST(req: Request) {
     const existing = await (db as any).attendance.findUnique({
       where: { employeeId_date: { employeeId: session.user.employeeId, date: today } }
     });
+
+    // 1. Kiểm tra ngày lễ
+    const holidayPolicy = await (db as any).laborPolicy.findFirst({
+      where: { type: "holiday_regulation" }
+    });
+    let holidays: any[] = [];
+    if (holidayPolicy?.content) {
+      try {
+        const parsed = JSON.parse(holidayPolicy.content);
+        const year = today.getFullYear();
+        holidays = parsed[year] || [];
+      } catch (e) {}
+    }
+    const isHoliday = holidays.some((hol: any) => {
+      const hStart = new Date(hol.startDate);
+      const hEnd = new Date(hol.endDate);
+      hStart.setHours(0,0,0,0);
+      hEnd.setHours(23,59,59,999);
+      return today >= hStart && today <= hEnd;
+    });
+
+    if (isHoliday) {
+      return NextResponse.json({ 
+        error: "Máy chấm công đã khoá", 
+        message: "Hôm nay là ngày nghỉ lễ/tết được cấu hình trên hệ thống, không cần chấm công." 
+      }, { status: 403 });
+    }
+
+    // 2. Kiểm tra nghỉ phép được duyệt
+    const leaveRequest = await (db as any).personalRequest.findFirst({
+      where: {
+        employeeId: session.user.employeeId,
+        status: "APPROVED",
+        type: { notIn: ["late", "early", "overtime"] },
+        startDate: { lte: todayEnd },
+        endDate: { gte: todayStart }
+      }
+    });
+
+    if (leaveRequest || (existing && ["P", "L", "KL", "BHXH", "leave", "holiday"].includes(existing.status))) {
+      return NextResponse.json({ 
+        error: "Máy chấm công đã khoá", 
+        message: "Hôm nay bạn được nghỉ phép theo chế độ được duyệt, không cần chấm công." 
+      }, { status: 403 });
+    }
 
     const now = new Date();
     let updateData: any = {};

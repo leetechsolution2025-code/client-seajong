@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import fs from "fs/promises";
 import path from "path";
+import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -25,7 +26,45 @@ export async function GET() {
   // Thông tin công ty là public — không cần session để Topbar có thể fetch ngay
   try {
     const company = await prisma.companyInfo.findFirst();
-    return NextResponse.json(company ?? {});
+    
+    // Đọc active_industry_code
+    const cookieStore = await cookies();
+    let activeIndustryCode = cookieStore.get("active_industry_code")?.value;
+
+    let industryName = "";
+    if (activeIndustryCode) {
+      const industry = await prisma.industry.findUnique({
+        where: { code: activeIndustryCode },
+        select: { name: true }
+      });
+      if (industry) {
+        industryName = industry.name;
+      }
+    }
+
+    if (!industryName) {
+      const client = await prisma.client.findFirst({
+        include: { industry: true }
+      });
+      if (client?.industry) {
+        industryName = client.industry.name;
+      }
+    }
+
+    if (!industryName) {
+      const defaultIndustry = await prisma.industry.findUnique({
+        where: { code: "wood_door" },
+        select: { name: true }
+      });
+      if (defaultIndustry) {
+        industryName = defaultIndustry.name;
+      }
+    }
+
+    return NextResponse.json({
+      ...(company ?? {}),
+      industryName
+    });
   } catch {
     return NextResponse.json({});
   }

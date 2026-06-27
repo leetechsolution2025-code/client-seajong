@@ -10,6 +10,62 @@ const hoverRowStyle = `
   .hover-row:hover {
     background-color: rgba(99, 102, 241, 0.04) !important;
   }
+  .event-modal-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+  .event-modal-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    background: var(--background);
+    padding: 32px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    transition: all 0.2s ease;
+  }
+  .event-modal-content {
+    flex: 1;
+    background: var(--card);
+    display: flex;
+    flex-direction: column;
+    padding: 0 20px 0 20px;
+    overflow: hidden;
+  }
+
+  /* ── iPad & Tablet Responsive for Create Event Modal ── */
+  @media (max-width: 1024px) {
+    .event-modal-sidebar {
+      position: fixed !important;
+      top: 81px !important; /* height of header */
+      left: 0 !important;
+      bottom: 0 !important;
+      z-index: 1050 !important;
+      width: 290px !important;
+      box-shadow: 4px 0 15px rgba(0,0,0,0.1) !important;
+      border-right: 1px solid var(--border) !important;
+      padding: 20px !important;
+      background: var(--card) !important;
+    }
+    .event-modal-sidebar .row > div,
+    .event-modal-sidebar div[style*="grid-template-columns"] {
+      grid-template-columns: 1fr !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 12px !important;
+    }
+    .event-modal-content {
+      padding: 0 12px 0 12px !important;
+    }
+  }
+  @media (max-width: 640px) {
+    .event-modal-sidebar {
+      width: 100% !important; /* Full width drawer on mobile */
+    }
+  }
 `;
 
 interface Props {
@@ -66,12 +122,23 @@ export function CreateEventModal({ isOpen, onClose, onRefresh, eventId }: Props)
   const [isSaving, setIsSaving] = React.useState(false);
   const [localEventId, setLocalEventId] = useState<string | null>(eventId || null);
   const [lastAddedId, setLastAddedId] = useState<number | string | null>(null);
+  const [showSidebar, setShowSidebar] = React.useState(true);
   const inputRefs = React.useRef<Record<string, HTMLInputElement | null>>({});
 
   // Sync local ID when prop changes
   React.useEffect(() => {
     setLocalEventId(eventId || null);
   }, [eventId]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      if (globalThis.window && globalThis.window.innerWidth <= 1024) {
+        setShowSidebar(false);
+      } else {
+        setShowSidebar(true);
+      }
+    }
+  }, [isOpen]);
 
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [subTaskProgress, setSubTaskProgress] = React.useState(0);
@@ -862,6 +929,28 @@ export function CreateEventModal({ isOpen, onClose, onRefresh, eventId }: Props)
               </div>
 
               <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <button
+                  onClick={() => setShowSidebar(!showSidebar)}
+                  style={{
+                    padding: "10px 16px",
+                    borderRadius: "10px",
+                    border: "1px solid var(--border)",
+                    background: showSidebar ? "rgba(236, 72, 153, 0.1)" : "transparent",
+                    color: showSidebar ? "#ec4899" : "var(--foreground)",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = showSidebar ? "rgba(236, 72, 153, 0.15)" : "var(--muted)"}
+                  onMouseLeave={e => e.currentTarget.style.background = showSidebar ? "rgba(236, 72, 153, 0.1)" : "transparent"}
+                >
+                  <i className="bi bi-sliders"></i>
+                  <span>{showSidebar ? "Ẩn thông số" : "Thông số"}</span>
+                </button>
+
                 {localEventId && (
                   <button
                     onClick={handleDelete}
@@ -931,23 +1020,13 @@ export function CreateEventModal({ isOpen, onClose, onRefresh, eventId }: Props)
               </div>
             </div>
 
-            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+            <div className="event-modal-body">
 
               {/* Sidebar (Left) */}
-              <div
-                className="custom-scrollbar"
-                style={{
-                  width: "300px",
-                  flexShrink: 0,
-                  borderRight: "1px solid var(--border)",
-                  background: "var(--background)",
-                  padding: "32px",
-                  overflowY: "auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "24px"
-                }}
-              >
+              {showSidebar && (
+                <div
+                  className="event-modal-sidebar custom-scrollbar"
+                >
                 {/* Section 1: Thông tin chung */}
                 <div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -1082,16 +1161,10 @@ export function CreateEventModal({ isOpen, onClose, onRefresh, eventId }: Props)
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Main Content (Right) */}
-              <div style={{
-                flex: 1,
-                background: "var(--card)",
-                display: "flex",
-                flexDirection: "column",
-                padding: "0 20px 0 20px",
-                overflow: "hidden"
-              }}>
+              <div className="event-modal-content">
                 {/* Top Navigation / Workflow Stepper */}
                 <div style={{
                   padding: "24px 32px",

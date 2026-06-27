@@ -228,12 +228,12 @@ async function syncAll(logId: string) {
           // Cập nhật sản phẩm vào database
           // Sử dụng findUnique + update/create thay cho upsert để tránh lỗi đối số 'id'
           const existingProduct = await prisma.seajongProduct.findUnique({
-            where: { slug: p.slug }
+            where: { id: p.id }
           });
 
           if (existingProduct) {
             await prisma.seajongProduct.update({
-              where: { id: existingProduct.id },
+              where: { id: p.id },
               data: productData,
             });
           } else {

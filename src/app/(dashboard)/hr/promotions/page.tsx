@@ -478,6 +478,7 @@ export default function PromotionsPage() {
 
   return (
     <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
+
       <PageHeader
         title="Điều chuyển và đề bạt"
         description="Quản lý lộ trình phát triển, thay đổi vị trí và thăng tiến"
@@ -485,8 +486,9 @@ export default function PromotionsPage() {
         color="rose"
       />
 
-      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+      <div className="flex-grow-1 px-3 px-md-4 pb-4 pt-2 d-flex flex-column fs-promotions-container" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         <WorkflowCard
+          className="fs-promotions-card"
           stepper={
             <ModernStepper 
               steps={STEPS} 
@@ -496,10 +498,10 @@ export default function PromotionsPage() {
             />
           }
           toolbar={
-            <div className="d-flex justify-content-between align-items-center">
-              <div className="d-flex align-items-center gap-2 flex-grow-1">
+            <div className="d-flex justify-content-between align-items-center fs-toolbar-wrap">
+              <div className="d-flex align-items-center gap-2 flex-grow-1 fs-filters-wrap">
                 {/* Search */}
-                <div className="position-relative" style={{ width: "300px" }}>
+                <div className="position-relative fs-search-input-wrap" style={{ width: "300px" }}>
                   <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style={{ fontSize: "13px" }}></i>
                   <input 
                     type="text" 
@@ -513,7 +515,7 @@ export default function PromotionsPage() {
 
                 {/* Department */}
                 <select 
-                  className="form-select border-0 shadow-sm rounded-pill px-3"
+                  className="form-select border-0 shadow-sm rounded-pill px-3 fs-filter-select fs-dept-filter"
                   style={{ width: "auto", minWidth: "160px", fontSize: 13, height: 38, background: "var(--card)", border: "1px solid var(--border)" }}
                   value={deptFilter}
                   onChange={(e) => setDeptFilter(e.target.value)}
@@ -527,7 +529,7 @@ export default function PromotionsPage() {
                 {/* Status - Context Aware */}
                 {currentStep === 1 && (
                   <select 
-                    className="form-select border-0 shadow-sm rounded-pill px-3"
+                    className="form-select border-0 shadow-sm rounded-pill px-3 fs-filter-select fs-status-filter"
                     style={{ width: "auto", minWidth: "160px", fontSize: 13, height: 38, background: "var(--card)", border: "1px solid var(--border)" }}
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
@@ -544,7 +546,7 @@ export default function PromotionsPage() {
 
                 {currentStep === 2 && (
                   <select 
-                    className="form-select border-0 shadow-sm rounded-pill px-3"
+                    className="form-select border-0 shadow-sm rounded-pill px-3 fs-filter-select fs-status-filter"
                     style={{ width: "auto", minWidth: "160px", fontSize: 13, height: 38, background: "var(--card)", border: "1px solid var(--border)" }}
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
@@ -556,7 +558,7 @@ export default function PromotionsPage() {
 
                 {currentStep === 3 && (
                   <select 
-                    className="form-select border-0 shadow-sm rounded-pill px-3"
+                    className="form-select border-0 shadow-sm rounded-pill px-3 fs-filter-select fs-status-filter"
                     style={{ width: "auto", minWidth: "160px", fontSize: 13, height: 38, background: "var(--card)", border: "1px solid var(--border)" }}
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
@@ -573,22 +575,23 @@ export default function PromotionsPage() {
                 {currentStep === 1 && (
                   <BrandButton 
                     icon="bi-plus-lg"
-                    className="ms-1"
-                    onClick={() => router.push("/my/hr-requests?tab=PROMOTION")}
+                    className="ms-1 fs-create-btn"
+                    onClick={() => router.push("/my/recruitment?tab=PROMOTION")}
                   >
-                    Tạo yêu cầu
+                    <span className="d-none d-md-inline">Tạo yêu cầu</span>
                   </BrandButton>
                 )}
 
                 {/* Step 2 Action Buttons */}
                 {currentStep === 2 && (
-                  <div className="d-flex align-items-center gap-2">
+                  <div className="d-flex align-items-center gap-2 fs-step2-actions-wrap">
                     {selectedIds.length > 0 && (
                       <BrandButton 
                         icon="bi-send-check"
+                        className="flex-grow-1"
                         onClick={() => setIsApprovalOpen(true)}
                       >
-                        Trình duyệt 
+                        <span className="d-none d-md-inline">Trình duyệt</span>
                         <span className="badge bg-white text-primary rounded-pill ms-2" style={{ fontSize: '10px', padding: '2px 6px' }}>
                           {selectedIds.length}
                         </span>
@@ -597,29 +600,225 @@ export default function PromotionsPage() {
                     <BrandButton 
                       variant="outline"
                       icon="bi-lightbulb-fill"
+                      className="flex-grow-1"
                       onClick={() => setIsSupportOpen(true)}
                     >
-                      Hỗ trợ phỏng vấn
+                      <span className="d-none d-md-inline">Hỗ trợ phỏng vấn</span>
                     </BrandButton>
                   </div>
                 )}
               </div>
-              <div className="text-muted small ms-3 flex-shrink-0">Tổng số: <b>{filteredData.length}</b> bản ghi</div>
+              <div className="text-muted small ms-3 flex-shrink-0 fs-record-count">Tổng số: <b>{filteredData.length}</b> bản ghi</div>
             </div>
           }
         >
-          <Table
-            rows={filteredData}
-            columns={columns}
-            loading={loading}
-            compact={true}
-            emptyText={`Không có yêu cầu nào đang ở bước ${STEPS.find(s => s.num === currentStep)?.title}`}
-            rowKey={(r) => r.id}
-            onRowClick={(row) => {
-              setSelectedItem(row);
-              setIsOffcanvasOpen(true);
-            }}
-          />
+          <div className="d-none d-md-block">
+            <Table
+              rows={filteredData}
+              columns={columns}
+              loading={loading}
+              compact={true}
+              emptyText={`Không có yêu cầu nào đang ở bước ${STEPS.find(s => s.num === currentStep)?.title}`}
+              rowKey={(r) => r.id}
+              onRowClick={(row) => {
+                setSelectedItem(row);
+                setIsOffcanvasOpen(true);
+              }}
+            />
+          </div>
+          
+          <div className="d-block d-md-none">
+            {loading ? (
+              <div className="text-center py-5 opacity-50">
+                <div className="spinner-border spinner-border-sm text-primary mb-2" />
+                <div style={{ fontSize: 13, fontWeight: 700 }}>Đang tải dữ liệu...</div>
+              </div>
+            ) : filteredData.length === 0 ? (
+              <div className="text-center py-5 text-muted small bg-white rounded-3 border">
+                {`Không có yêu cầu nào đang ở bước ${STEPS.find(s => s.num === currentStep)?.title}`}
+              </div>
+            ) : (
+              <div className="d-flex flex-column gap-3">
+                {filteredData.map(row => {
+                  const info = getStatusInfo(row);
+                  const labels: Record<string, string> = { PROMOTION: "Đề bạt", TRANSFER: "Điều chuyển", DEMOTION: "Miễn nhiệm" };
+                  const colors: Record<string, string> = { PROMOTION: "#8b5cf6", TRANSFER: "#3b82f6", DEMOTION: "#ef4444" };
+                  
+                  return (
+                    <div 
+                      key={row.id}
+                      onClick={() => {
+                        setSelectedItem(row);
+                        setIsOffcanvasOpen(true);
+                      }}
+                      className="p-3 bg-white rounded-3 border shadow-sm d-flex flex-column gap-2"
+                      style={{ cursor: "pointer", transition: "all 0.15s" }}
+                    >
+                      {/* Top row: Avatar, Name, Code, Checkbox (Step 2) */}
+                      <div className="d-flex align-items-center justify-content-between">
+                        <div className="d-flex align-items-center gap-2">
+                          {currentStep === 2 && (
+                            <div 
+                              onClick={(e) => e.stopPropagation()} 
+                              style={{ marginRight: 4 }}
+                            >
+                              <input 
+                                type="checkbox" 
+                                className="form-check-input"
+                                checked={selectedIds.includes(row.id)}
+                                disabled={row.interviewResult !== 'PASS'}
+                                onChange={(e) => {
+                                  if (e.target.checked) setSelectedIds(prev => [...prev, row.id]);
+                                  else setSelectedIds(prev => prev.filter(id => id !== row.id));
+                                }}
+                              />
+                            </div>
+                          )}
+                          <EmployeeAvatar 
+                            name={row.employeeName} 
+                            url={row.avatar}
+                            size={36} 
+                            borderRadius={10} 
+                            fontSize={13} 
+                          />
+                          <div>
+                            <div className="fw-bold text-dark" style={{ fontSize: "14px" }}>{row.employeeName}</div>
+                            <div className="text-muted" style={{ fontSize: "11px" }}>{row.employeeId}</div>
+                          </div>
+                        </div>
+                        
+                        {/* Type Badge & Status (Step 1 & 3) */}
+                        <div className="text-end">
+                          <span 
+                            className="badge text-white" 
+                            style={{ 
+                              backgroundColor: colors[row.type as keyof typeof colors] || "#6b7280",
+                              fontSize: "10px",
+                              fontWeight: 700
+                            }}
+                          >
+                            {labels[row.type as keyof typeof labels] || row.type}
+                          </span>
+                          
+                          {currentStep !== 2 && (
+                            <div className="mt-1" style={{ fontSize: "12px", color: info.color, fontWeight: 600 }}>
+                              {info.label}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Route Details */}
+                      <div className="p-2 rounded-2 bg-light d-flex align-items-center justify-content-between small">
+                        <span className="text-muted text-truncate" style={{ maxWidth: "45%" }}>{getPositionName(row.currentPos)}</span>
+                        <i className="bi bi-arrow-right text-primary mx-2" style={{ fontSize: "12px" }}></i>
+                        <span className="fw-bold text-dark text-truncate" style={{ maxWidth: "45%" }}>{getPositionName(row.targetPos)}</span>
+                      </div>
+
+                      {/* Additional info depending on the step */}
+                      {currentStep === 1 && (
+                        <div className="d-flex justify-content-between align-items-center mt-1" style={{ fontSize: "12px" }}>
+                          <div>
+                            <span className="text-muted">Đề xuất: </span>
+                            <span className="fw-500 text-dark">{row.requesterName || "Hệ thống"}</span>
+                          </div>
+                          <span className="text-muted">{new Date(row.createdAt).toLocaleDateString("vi-VN")}</span>
+                        </div>
+                      )}
+
+                      {currentStep === 2 && (
+                        <div className="d-flex flex-column gap-1 mt-1" style={{ fontSize: "12px" }}>
+                          <div className="d-flex justify-content-between">
+                            <span className="text-muted">Lịch phỏng vấn:</span>
+                            <span className="fw-500 text-dark">
+                              {row.interviewDate ? new Date(row.interviewDate).toLocaleDateString("vi-VN") : "Chưa đặt lịch"}
+                            </span>
+                          </div>
+                          <div className="d-flex justify-content-between">
+                            <span className="text-muted">Người phỏng vấn:</span>
+                            <span className="fw-500 text-dark">{row.interviewerName || "—"}</span>
+                          </div>
+                          <div className="d-flex justify-content-between align-items-center">
+                            <span className="text-muted">Kết quả:</span>
+                            <span className={`fw-bold ${row.interviewResult === 'PASS' ? 'text-success' : row.interviewResult === 'FAIL' ? 'text-danger' : 'text-muted'}`}>
+                              {row.interviewResult === 'PASS' ? 'Đạt yêu cầu' : row.interviewResult === 'FAIL' ? 'Không đạt' : 'Chưa phỏng vấn'}
+                            </span>
+                          </div>
+                          
+                          {/* Actions row for Step 2 */}
+                          <div 
+                            className="d-flex gap-2 justify-content-end mt-2 pt-2 border-top" 
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button 
+                              className={`btn btn-sm btn-light border rounded-pill px-3 fw-bold text-success d-flex align-items-center gap-1 ${!row.interviewDate ? 'opacity-50' : ''}`}
+                              style={{ fontSize: "11px", cursor: !row.interviewDate ? "not-allowed" : "pointer" }}
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                if (!row.interviewDate) return;
+                                handleUpdateStatus(row.id, { interviewResult: 'PASS' });
+                                handleApiUpdate(row.id, { interviewResult: 'PASS' });
+                                setSelectedIds(prev => prev.includes(row.id) ? prev : [...prev, row.id]);
+                              }}
+                              disabled={!row.interviewDate}
+                            >
+                              <i className="bi bi-check-circle"></i> Đạt
+                            </button>
+                            <button 
+                              className={`btn btn-sm btn-light border rounded-pill px-3 fw-bold text-danger d-flex align-items-center gap-1 ${!row.interviewDate ? 'opacity-50' : ''}`}
+                              style={{ fontSize: "11px", cursor: !row.interviewDate ? "not-allowed" : "pointer" }}
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                if (!row.interviewDate) return;
+                                handleUpdateStatus(row.id, { interviewResult: 'FAIL' });
+                                handleApiUpdate(row.id, { interviewResult: 'FAIL' });
+                                setSelectedIds(prev => prev.filter(id => id !== row.id));
+                              }}
+                              disabled={!row.interviewDate}
+                            >
+                              <i className="bi bi-x-circle"></i> Không đạt
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {currentStep === 3 && (
+                        <div className="d-flex flex-column gap-2 mt-1" style={{ fontSize: "12px" }}>
+                          <div>
+                            <div className="text-muted">Ý kiến của giám đốc:</div>
+                            <div className="p-2 rounded bg-light italic mt-1 text-truncate" style={{ color: row.directorNote ? "var(--foreground)" : "var(--muted-foreground)" }}>
+                              {row.directorNote ? `"${row.directorNote}"` : "Chưa có ý kiến"}
+                            </div>
+                          </div>
+                          
+                          {/* Actions row for Step 3 */}
+                          <div 
+                            className="d-flex gap-2 justify-content-end pt-2 border-top" 
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button 
+                              className="btn btn-sm btn-light border rounded-pill px-3 fw-bold text-primary d-flex align-items-center gap-1"
+                              style={{ fontSize: "11px" }}
+                              onClick={(e) => { e.stopPropagation(); }}
+                            >
+                              <i className="bi bi-file-earmark-check"></i> Ra quyết định
+                            </button>
+                            <button 
+                              className="btn btn-sm btn-light border rounded-pill px-3 fw-bold text-success d-flex align-items-center gap-1"
+                              style={{ fontSize: "11px" }}
+                              onClick={(e) => { e.stopPropagation(); }}
+                            >
+                              <i className="bi bi-megaphone"></i> Thông báo
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </WorkflowCard>
       </div>
 

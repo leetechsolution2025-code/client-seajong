@@ -77,12 +77,12 @@ function CashFlowHealth({ score }: { score: number }) {
     <div style={{ padding: "4px 0" }}>
       {/* Label + badge */}
       <div className="d-flex justify-content-between align-items-center mb-2">
-        <span style={{ fontSize: 13, fontWeight: 500, color: "var(--muted-foreground)" }}>
+        <span style={{ fontSize: 14, fontWeight: 500, color: "var(--muted-foreground)" }}>
           Chỉ số sức khoẻ dòng tiền
         </span>
         <span
           style={{
-            fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99,
+            fontSize: 12.5, fontWeight: 700, padding: "3px 10px", borderRadius: 99,
             color: zone.color, background: zone.bg, letterSpacing: "0.03em",
           }}
         >
@@ -111,9 +111,9 @@ function CashFlowHealth({ score }: { score: number }) {
 
       {/* Nhãn phân đoạn */}
       <div className="d-flex justify-content-between mt-1">
-        <span style={{ fontSize: 10, color: "#ef4444", fontWeight: 600 }}>Nguy hiểm</span>
-        <span style={{ fontSize: 10, color: "#f59e0b", fontWeight: 600 }}>Cần chú ý</span>
-        <span style={{ fontSize: 10, color: "#10b981", fontWeight: 600 }}>Tốt</span>
+        <span style={{ fontSize: 11.5, color: "#ef4444", fontWeight: 600 }}>Nguy hiểm</span>
+        <span style={{ fontSize: 11.5, color: "#f59e0b", fontWeight: 600 }}>Cần chú ý</span>
+        <span style={{ fontSize: 11.5, color: "#10b981", fontWeight: 600 }}>Tốt</span>
       </div>
     </div>
   );
@@ -148,33 +148,15 @@ const RATING_CONFIG: Record<string, { color: string; bg: string; icon: string }>
   "nguy hiểm": { color: "#ef4444", bg: "rgba(239,68,68,0.1)", icon: "bi-shield-x" },
 };
 
-function AiAnalysis() {
-  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("loading");
-  const [result, setResult] = useState<AiResult | null>(null);
-  const [errMsg, setErrMsg] = useState("");
+interface AiAnalysisProps {
+  status: "idle" | "loading" | "done" | "error";
+  result: AiResult | null;
+  errMsg: string;
+  analyze: () => void;
+  setStatus: React.Dispatch<React.SetStateAction<"idle" | "loading" | "done" | "error">>;
+}
 
-  const analyze = async () => {
-    setStatus("loading");
-    setResult(null);
-    try {
-      const res = await fetch("/api/board/ai-analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(AI_PAYLOAD),
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
-      setResult(json.data);
-      setStatus("done");
-    } catch (e) {
-      setErrMsg(String(e));
-      setStatus("error");
-    }
-  };
-
-  // Tự động phân tích khi trang load
-  useEffect(() => { analyze(); }, []);
-
+function AiAnalysis({ status, result, errMsg, analyze, setStatus }: AiAnalysisProps) {
   const ratingCfg = result ? (RATING_CONFIG[result.rating] ?? RATING_CONFIG["cần chú ý"]) : null;
 
   return (
@@ -186,7 +168,7 @@ function AiAnalysis() {
           className="btn w-100 d-flex align-items-center justify-content-center gap-2"
           style={{
             background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
-            color: "#fff", fontWeight: 600, fontSize: 13,
+            color: "#fff", fontWeight: 600, fontSize: 14,
             border: "none", borderRadius: 10, padding: "10px 16px",
             boxShadow: "0 4px 14px rgba(139,92,246,0.35)",
             transition: "opacity 0.15s",
@@ -201,7 +183,7 @@ function AiAnalysis() {
 
       {/* Loading */}
       {status === "loading" && (
-        <div className="d-flex align-items-center gap-2" style={{ padding: "12px 0", color: "var(--muted-foreground)", fontSize: 13 }}>
+        <div className="d-flex align-items-center gap-2" style={{ padding: "12px 0", color: "var(--muted-foreground)", fontSize: 14 }}>
           <div className="spinner-border spinner-border-sm" style={{ color: "#8b5cf6" }} role="status" />
           <span>Gemini đang phân tích dữ liệu tài chính...</span>
         </div>
@@ -210,8 +192,8 @@ function AiAnalysis() {
       {/* Error */}
       {status === "error" && (
         <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
-          <p style={{ fontSize: 12, color: "#ef4444", margin: 0 }}><i className="bi bi-exclamation-circle me-1" />{errMsg}</p>
-          <button onClick={() => setStatus("idle")} style={{ fontSize: 11, color: "#8b5cf6", background: "none", border: "none", padding: 0, marginTop: 4, cursor: "pointer" }}>Thử lại</button>
+          <p style={{ fontSize: 13, color: "#ef4444", margin: 0 }}><i className="bi bi-exclamation-circle me-1" />{errMsg}</p>
+          <button onClick={() => setStatus("idle")} style={{ fontSize: 12.5, color: "#8b5cf6", background: "none", border: "none", padding: 0, marginTop: 4, cursor: "pointer" }}>Thử lại</button>
         </div>
       )}
 
@@ -231,35 +213,30 @@ function AiAnalysis() {
               <p style={{ fontSize: 11, fontWeight: 700, color: ratingCfg.color, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 Đánh giá: {result.rating}
               </p>
-              <p style={{ fontSize: 13, color: "var(--foreground)", margin: 0, fontWeight: 500, lineHeight: 1.4 }}>
+              <p style={{ fontSize: 12.5, color: "var(--foreground)", margin: 0, fontWeight: 500, lineHeight: 1.4 }}>
                 {result.summary}
               </p>
             </div>
           </div>
 
-
-
           {/* Recommendation */}
-          <div style={{
-            padding: "8px 12px", borderRadius: 8,
-            background: "rgba(139,92,246,0.07)",
-            border: "1px solid rgba(139,92,246,0.2)",
-          }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: "#8b5cf6", margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              <i className="bi bi-lightbulb me-1" />Khuyến nghị
-            </p>
-            <p style={{ fontSize: 12.5, color: "var(--foreground)", margin: 0, lineHeight: 1.5 }}>
-              {result.recommendation}
-            </p>
-          </div>
-
-          {/* Phân tích lại */}
-          <button
-            onClick={() => setStatus("idle")}
-            style={{ fontSize: 11, color: "var(--muted-foreground)", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}
+          <div
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 14px", borderRadius: 10,
+              background: "rgba(139,92,246,0.07)", border: "1px solid rgba(139,92,246,0.2)",
+            }}
           >
-            <i className="bi bi-arrow-clockwise me-1" />Phân tích lại
-          </button>
+            <i className="bi bi-lightbulb" style={{ fontSize: 20, color: "#8b5cf6", flexShrink: 0 }} />
+            <div>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "#8b5cf6", margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Khuyến nghị
+              </p>
+              <p style={{ fontSize: 12.5, color: "var(--foreground)", margin: 0, fontWeight: 500, lineHeight: 1.4 }}>
+                {result.recommendation}
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -290,11 +267,11 @@ function DetailRow({ label, section }: { label: string; section: DetailSection }
   return (
     <div style={{ marginBottom: 16 }}>
       <div className="d-flex align-items-center gap-2 mb-1">
-        <i className={`bi ${cfg.icon}`} style={{ color: cfg.color, fontSize: 13 }} />
-        <span style={{ fontSize: 12, fontWeight: 700, color: cfg.color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
-        <span style={{ fontSize: 10, padding: "1px 8px", borderRadius: 99, background: cfg.bg, color: cfg.color, fontWeight: 600 }}>{section.danhGia}</span>
+        <i className={`bi ${cfg.icon}`} style={{ color: cfg.color, fontSize: 14 }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: cfg.color, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+        <span style={{ fontSize: 11.5, padding: "1px 8px", borderRadius: 99, background: cfg.bg, color: cfg.color, fontWeight: 600 }}>{section.danhGia}</span>
       </div>
-      <p style={{ fontSize: 13, color: "var(--foreground)", lineHeight: 1.6, margin: 0, paddingLeft: 20 }}>{section.nhanXet}</p>
+      <p style={{ fontSize: 14, color: "var(--foreground)", lineHeight: 1.6, margin: 0, paddingLeft: 20 }}>{section.nhanXet}</p>
     </div>
   );
 }
@@ -302,12 +279,12 @@ function DetailRow({ label, section }: { label: string; section: DetailSection }
 function ListBlock({ title, icon, color, items }: { title: string; icon: string; color: string; items: string[] }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      <p style={{ fontSize: 12, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+      <p style={{ fontSize: 13, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
         <i className={`bi ${icon} me-1`} />{title}
       </p>
       <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}>
         {items.map((item, i) => (
-          <li key={i} style={{ fontSize: 13, color: "var(--foreground)", lineHeight: 1.5 }}>{item}</li>
+          <li key={i} style={{ fontSize: 14, color: "var(--foreground)", lineHeight: 1.5 }}>{item}</li>
         ))}
       </ul>
     </div>
@@ -318,6 +295,16 @@ function AiDetailOffcanvas({ open, onClose }: { open: boolean; onClose: () => vo
   const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
   const [result, setResult] = useState<AiDetailResult | null>(null);
   const [errMsg, setErrMsg] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const fetchDetail = useCallback(async () => {
     setStatus("loading");
@@ -351,7 +338,7 @@ function AiDetailOffcanvas({ open, onClose }: { open: boolean; onClose: () => vo
       {/* Offcanvas panel */}
       <div style={{
         position: "fixed", top: 0, right: 0, bottom: 0,
-        width: 420, zIndex: 1045,
+        width: isMobile ? "100%" : 420, maxWidth: "100%", zIndex: 1045,
         background: "var(--card)", borderLeft: "1px solid var(--border)",
         display: "flex", flexDirection: "column",
         boxShadow: "-8px 0 32px rgba(0,0,0,0.2)",
@@ -360,7 +347,7 @@ function AiDetailOffcanvas({ open, onClose }: { open: boolean; onClose: () => vo
         <div className="d-flex align-items-center justify-content-between p-3" style={{ borderBottom: "1px solid var(--border)" }}>
           <div className="d-flex align-items-center gap-2">
             <i className="bi bi-stars" style={{ fontSize: 16, color: "#8b5cf6" }} />
-            <span style={{ fontWeight: 700, fontSize: 14 }}>Đánh giá AI chi tiết</span>
+            <span style={{ fontWeight: 700, fontSize: 15.5 }}>Đánh giá AI chi tiết</span>
           </div>
           <button
             onClick={onClose}
@@ -373,13 +360,13 @@ function AiDetailOffcanvas({ open, onClose }: { open: boolean; onClose: () => vo
           {status === "loading" && (
             <div className="d-flex flex-column align-items-center justify-content-center h-100 gap-3">
               <div className="spinner-border" style={{ color: "#8b5cf6" }} role="status" />
-              <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Gemini đang phân tích toàn diện...</span>
+              <span style={{ fontSize: 14, color: "var(--muted-foreground)" }}>Gemini đang phân tích toàn diện...</span>
             </div>
           )}
 
           {status === "error" && (
             <div>
-              <p style={{ color: "#ef4444", fontSize: 13 }}>{errMsg}</p>
+              <p style={{ color: "#ef4444", fontSize: 14 }}>{errMsg}</p>
               <button onClick={fetchDetail} className="btn btn-sm" style={{ background: "#8b5cf6", color: "#fff" }}>Thử lại</button>
             </div>
           )}
@@ -388,14 +375,14 @@ function AiDetailOffcanvas({ open, onClose }: { open: boolean; onClose: () => vo
             <div>
               {/* Tổng quan */}
               <div style={{ marginBottom: 20, padding: "12px 14px", borderRadius: 10, background: "rgba(139,92,246,0.07)", border: "1px solid rgba(139,92,246,0.2)" }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: "#8b5cf6", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                <p style={{ fontSize: 12.5, fontWeight: 700, color: "#8b5cf6", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   <i className="bi bi-file-earmark-text me-1" />Tổng quan
                 </p>
-                <p style={{ fontSize: 13, color: "var(--foreground)", lineHeight: 1.6, margin: 0 }}>{result.tongQuan}</p>
+                <p style={{ fontSize: 14, color: "var(--foreground)", lineHeight: 1.6, margin: 0 }}>{result.tongQuan}</p>
               </div>
 
               {/* 4 mảng phân tích */}
-              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Phân tích chi tiết</p>
+              <p style={{ fontSize: 12.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 }}>Phân tích chi tiết</p>
               <DetailRow label="Doanh thu" section={result.doanhThu} />
               <DetailRow label="Chi phí" section={result.chiPhi} />
               <DetailRow label="Dòng tiền" section={result.dongTien} />
@@ -413,7 +400,7 @@ function AiDetailOffcanvas({ open, onClose }: { open: boolean; onClose: () => vo
               <ListBlock title="Khuyến nghị cho BGĐ" icon="bi-lightbulb" color="#8b5cf6" items={result.khuyen_nghi} />
 
               {/* Làm mới */}
-              <button onClick={fetchDetail} style={{ fontSize: 11, color: "var(--muted-foreground)", background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+              <button onClick={fetchDetail} style={{ fontSize: 12.5, color: "var(--muted-foreground)", background: "none", border: "none", padding: 0, cursor: "pointer" }}>
                 <i className="bi bi-arrow-clockwise me-1" />Phân tích lại
               </button>
             </div>
@@ -424,8 +411,397 @@ function AiDetailOffcanvas({ open, onClose }: { open: boolean; onClose: () => vo
   );
 }
 
+// ── Four Pillars Dashboard ──────────────────────────────────────────────────
+interface Metric {
+  name: string;
+  value: string;
+  sub: string;
+  progress?: number;
+  trend?: "up" | "down" | "neutral";
+  trendValue?: string;
+}
+
+interface Pillar {
+  id: string;
+  title: string;
+  shortDesc: string;
+  status: string;
+  statusColor: string;
+  statusBg: string;
+  icon: string;
+  color: string;
+  axis: "commercial" | "technical";
+  metrics: Metric[];
+}
+
+const PILLARS_DATA: Pillar[] = [
+  {
+    id: "biz-mkt",
+    title: "Kinh doanh & Marketing",
+    shortDesc: "Tốc độ mở rộng thị trường & Doanh thu",
+    status: "Tăng trưởng tốt",
+    statusColor: "#8b5cf6",
+    statusBg: "rgba(139, 92, 246, 0.08)",
+    icon: "bi-megaphone-fill",
+    color: "#8b5cf6",
+    axis: "commercial",
+    metrics: [
+      { name: "Doanh thu tổng", value: "92%", sub: "3.86 tỷ / 4.2 tỷ mục tiêu tháng", progress: 92, trend: "up", trendValue: "+3.2%" },
+      { name: "Tỷ lệ thắng thầu", value: "68%", sub: "42/62 cơ hội chuyển đổi dự án", progress: 68, trend: "up", trendValue: "+2.5%" },
+      { name: "Giá trị đơn hàng (AOV)", value: "320 triệu", sub: "Tăng từ 280 triệu quý trước", progress: 75, trend: "up", trendValue: "+14%" },
+      { name: "Khách hàng mua lại", value: "84%", sub: "120 đại lý & chủ đầu tư cốt lõi", progress: 84, trend: "neutral" }
+    ]
+  },
+  {
+    id: "finance",
+    title: "Tài chính",
+    shortDesc: "Tối ưu dòng vốn & Biên lợi nhuận",
+    status: "Ổn định",
+    statusColor: "#3b82f6",
+    statusBg: "rgba(59, 130, 246, 0.08)",
+    icon: "bi-wallet2",
+    color: "#3b82f6",
+    axis: "commercial",
+    metrics: [
+      { name: "Dòng tiền thuần", value: "+850 triệu", sub: "Đảm bảo thanh toán lô nhập khẩu mới", progress: 80, trend: "up", trendValue: "+120tr" },
+      { name: "Biên LN gộp (S.phẩm)", value: "31.5%", sub: "Vệ sinh: 35% | Thiết bị bếp: 28%", progress: 63, trend: "up", trendValue: "+0.8%" },
+      { name: "Nợ quá hạn & DSO", value: "1.2 tỷ / 42 ngày", sub: "DSO giảm 3 ngày so với T2/2026", progress: 42, trend: "down", trendValue: "-3 ngày" },
+      { name: "ROE / ROI lô hàng", value: "18.5%", sub: "Lợi nhuận ròng trên vốn tự có", progress: 78, trend: "up", trendValue: "+1.5%" }
+    ]
+  },
+  {
+    id: "hr",
+    title: "Nhân sự",
+    shortDesc: "Hiệu suất chuyên gia & Năng suất",
+    status: "Đạt hiệu quả",
+    statusColor: "#10b981",
+    statusBg: "rgba(16, 185, 129, 0.08)",
+    icon: "bi-people-fill",
+    color: "#10b981",
+    axis: "technical",
+    metrics: [
+      { name: "Doanh thu / FTE", value: "120 triệu", sub: "Năng suất bình quân mỗi nhân viên", progress: 70, trend: "up", trendValue: "+4%" },
+      { name: "Doanh số / Sales Rep", value: "250 triệu", sub: "Doanh số bình quân nhân viên Sales", progress: 83, trend: "up", trendValue: "+6%" },
+      { name: "Hiệu suất kỹ thuật", value: "78%", sub: "Tỷ lệ thời gian đi lắp ráp/bảo hành", progress: 78, trend: "up", trendValue: "+2%" },
+      { name: "Tỷ lệ biến động key", value: "4.2%", sub: "Nghỉ việc của KS có chứng chỉ hãng", progress: 95, trend: "down", trendValue: "-1.1%" }
+    ]
+  },
+  {
+    id: "operations",
+    title: "Vận hành hệ thống",
+    shortDesc: "Logistics nhập khẩu & Chất lượng lắp ráp",
+    status: "Cần cải thiện",
+    statusColor: "#f59e0b",
+    statusBg: "rgba(245, 158, 11, 0.08)",
+    icon: "bi-gear-fill",
+    color: "#f59e0b",
+    axis: "technical",
+    metrics: [
+      { name: "Tỷ lệ OTIF", value: "92%", sub: "Giao lắp đúng hạn & đủ số lượng", progress: 92, trend: "up", trendValue: "+1.5%" },
+      { name: "Vòng quay / Tuổi kho", value: "4.5 vòng", sub: "Hàng tồn kho trung bình < 90 ngày", progress: 68, trend: "up", trendValue: "+0.3" },
+      { name: "Tỷ lệ lỗi lắp ráp", value: "1.8%", sub: "Lỗi cài đặt/cấu hình tại công trường", progress: 18, trend: "down", trendValue: "-0.7%" },
+      { name: "Lead Time (LTTR)", value: "4.5 giờ", sub: "Thời gian trung bình xử lý sự cố", progress: 85, trend: "down", trendValue: "-0.5h" }
+    ]
+  }
+];
+
+function FourPillarsDashboard() {
+  const [currentStep, setCurrentStep] = useState<number>(1);
+
+  const steps = [
+    { num: 1, title: "Kinh doanh", icon: "bi-megaphone-fill", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.08)" },
+    { num: 2, title: "Tài chính", icon: "bi-wallet2", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.08)" },
+    { num: 3, title: "Nhân sự", icon: "bi-people-fill", color: "#10b981", bg: "rgba(16, 185, 129, 0.08)" },
+    { num: 4, title: "Vận hành", icon: "bi-gear-fill", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
+  ];
+
+  const activePillar = PILLARS_DATA[currentStep - 1];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <style>{`
+        @keyframes stepFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .step-content-animated {
+          animation: stepFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+      `}</style>
+
+      <div>
+        {/* Title */}
+        <SectionTitle
+          title="4 Trụ Cột Vận Hành Cốt Lõi"
+          icon="bi-grid-fill"
+          className="mb-4"
+          action={
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", background: "var(--background)", padding: "3px 8px", borderRadius: 6, border: "1px solid var(--border)" }}>
+              T3/2026
+            </span>
+          }
+        />
+
+        {/* Horizontal Stepper UI */}
+        <div className="d-flex align-items-center justify-content-between position-relative mb-4 px-2" style={{ zIndex: 1 }}>
+          {/* Background Line */}
+          <div style={{
+            position: "absolute",
+            top: "16px",
+            left: "32px",
+            right: "32px",
+            height: "2px",
+            background: "var(--border)",
+            zIndex: -1
+          }} />
+
+          {steps.map((s) => {
+            const isActive = currentStep === s.num;
+            
+            return (
+              <div 
+                key={s.num} 
+                onClick={() => setCurrentStep(s.num)}
+                style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", width: 66 }}
+              >
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  background: isActive ? s.color : "var(--card)",
+                  border: `2px solid ${isActive ? s.color : "var(--border)"}`,
+                  color: isActive ? "#fff" : "var(--muted-foreground)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 13,
+                  boxShadow: isActive ? `0 0 12px ${s.color}40` : "none",
+                  transition: "all 0.3s ease"
+                }}>
+                  <i className={`bi ${s.icon}`} />
+                </div>
+                <span style={{ 
+                  fontSize: 12, 
+                  fontWeight: isActive ? 700 : 500, 
+                  color: isActive ? "var(--foreground)" : "var(--muted-foreground)", 
+                  marginTop: 6,
+                  textAlign: "center",
+                  whiteSpace: "nowrap",
+                  transition: "all 0.3s ease"
+                }}>
+                  {s.title}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Active Pillar Card with Animation */}
+        <div
+          key={currentStep}
+          className="step-content-animated"
+          style={{
+            background: "transparent",
+            padding: "8px 0 0",
+          }}
+        >
+          {/* Pillar Header */}
+          <div className="d-flex align-items-center justify-content-between mb-3 pb-2" style={{ borderBottom: "1px dashed var(--border)" }}>
+            <div className="d-flex align-items-center gap-2">
+              <div
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 8,
+                  background: activePillar.statusBg,
+                  color: activePillar.statusColor,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 14,
+                }}
+              >
+                <i className={`bi ${activePillar.icon}`} />
+              </div>
+              <div>
+                <h6 style={{ fontSize: 14.5, fontWeight: 700, margin: 0, color: "var(--foreground)" }}>{activePillar.title}</h6>
+                <span style={{ fontSize: 11.5, color: "var(--muted-foreground)" }}>{activePillar.shortDesc}</span>
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: 11.5,
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: 6,
+                color: activePillar.statusColor,
+                background: activePillar.statusBg,
+              }}
+            >
+              {activePillar.status}
+            </span>
+          </div>
+
+          {/* Metrics Grid */}
+          <div className="row g-2">
+            {activePillar.metrics.map((metric, index) => (
+              <div key={index} className="col-12 col-sm-6">
+                <div
+                  style={{
+                    background: "var(--background)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    padding: "8px 10px",
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  {/* Name + Trend */}
+                  <div className="d-flex justify-content-between align-items-start mb-1 gap-1">
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)", lineHeight: 1.2 }}>
+                      {metric.name}
+                    </span>
+                    {metric.trend && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: metric.trend === "up" ? "#10b981" : metric.trend === "down" ? "#ef4444" : "var(--muted-foreground)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <i className={`bi ${metric.trend === "up" ? "bi-arrow-up-short" : metric.trend === "down" ? "bi-arrow-down-short" : "bi-dash-lg"}`} />
+                        {metric.trendValue || ""}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Value */}
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", margin: "2px 0" }}>
+                    {metric.value}
+                  </div>
+
+                  {/* Subtitle */}
+                  <div style={{ fontSize: 11, color: "var(--muted-foreground)", lineHeight: 1.3, marginBottom: metric.progress !== undefined ? 6 : 0 }}>
+                    {metric.sub}
+                  </div>
+
+                  {/* Progress Bar */}
+                  {metric.progress !== undefined && (
+                    <div style={{ marginTop: "auto", paddingTop: 4 }}>
+                      <div style={{ height: 3.5, width: "100%", background: "var(--border)", borderRadius: 99, overflow: "hidden" }}>
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${metric.progress}%`,
+                            background: activePillar.color,
+                            borderRadius: 99,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Mobile Tab Switcher ─────────────────────────────────────────────────────
+interface MobileTabSwitcherProps {
+  activeTab: "left" | "right";
+  onChange: (tab: "left" | "right") => void;
+}
+
+function MobileTabSwitcher({ activeTab, onChange }: MobileTabSwitcherProps) {
+  return (
+    <div 
+      className="d-flex d-xl-none p-1 mb-3" 
+      style={{ 
+        background: "var(--card)", 
+        borderRadius: 12, 
+        border: "1px solid var(--border)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+      }}
+    >
+      <button
+        onClick={() => onChange("left")}
+        style={{
+          flex: 1,
+          border: "none",
+          background: activeTab === "left" ? "linear-gradient(135deg, #8b5cf6, #6366f1)" : "transparent",
+          color: activeTab === "left" ? "#fff" : "var(--muted-foreground)",
+          borderRadius: 9,
+          padding: "8px 12px",
+          fontSize: 12,
+          fontWeight: 600,
+          transition: "all 0.2s",
+          cursor: "pointer",
+          boxShadow: activeTab === "left" ? "0 2px 8px rgba(139,92,246,0.25)" : "none"
+        }}
+      >
+        <i className="bi bi-grid-fill me-1" />
+        Chỉ số vận hành
+      </button>
+      <button
+        onClick={() => onChange("right")}
+        style={{
+          flex: 1,
+          border: "none",
+          background: activeTab === "right" ? "linear-gradient(135deg, #8b5cf6, #6366f1)" : "transparent",
+          color: activeTab === "right" ? "#fff" : "var(--muted-foreground)",
+          borderRadius: 9,
+          padding: "8px 12px",
+          fontSize: 12,
+          fontWeight: 600,
+          transition: "all 0.2s",
+          cursor: "pointer",
+          boxShadow: activeTab === "right" ? "0 2px 8px rgba(139,92,246,0.25)" : "none"
+        }}
+      >
+        <i className="bi bi-graph-up me-1" />
+        Báo cáo & Phân tích AI
+      </button>
+    </div>
+  );
+}
+
 export default function BoardPage() {
   const [showDetail, setShowDetail] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"left" | "right">("left");
+  const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "done" | "error">("loading");
+  const [aiResult, setAiResult] = useState<AiResult | null>(null);
+  const [aiErrMsg, setAiErrMsg] = useState("");
+
+  const analyze = async () => {
+    setAiStatus("loading");
+    setAiResult(null);
+    try {
+      const res = await fetch("/api/board/ai-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(AI_PAYLOAD),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      setAiResult(json.data);
+      setAiStatus("done");
+    } catch (e) {
+      setAiErrMsg(String(e));
+      setAiStatus("error");
+    }
+  };
+
+  useEffect(() => { analyze(); }, []);
 
   return (
     <>
@@ -435,51 +811,81 @@ export default function BoardPage() {
       description="Board of Directors · Điều hành & chiến lược tổ chức"
       icon="bi-building"
       color="violet"
+      mobileActiveTab={mobileTab}
       // ── Cột trái (5/12) ───────────────────────────────────────────────
       leftTopContent={
-        <div className="row g-3">
-          {KPI_CARDS.map((kpi) => (
-            <KPICard
-              key={kpi.label}
-              label={kpi.label}
-              value={kpi.value}
-              icon={kpi.icon}
-              accent={kpi.accent}
-              subtitle={kpi.subtitle}
-              colClass="col-6"
-            />
-          ))}
+        <div>
+          <MobileTabSwitcher activeTab={mobileTab} onChange={setMobileTab} />
+          <div className="row g-3">
+            {KPI_CARDS.map((kpi) => (
+              <KPICard
+                key={kpi.label}
+                label={kpi.label}
+                value={kpi.value}
+                icon={kpi.icon}
+                accent={kpi.accent}
+                subtitle={kpi.subtitle}
+                colClass="col-6"
+              />
+            ))}
+          </div>
         </div>
       }
-      leftContent={<div />}
+      leftContent={<FourPillarsDashboard />}
       // ── Cột phải (7/12) ──────────────────────────────────────────────
       rightContent={
-        <div>
+        <div className="p-4 flex-1 d-flex flex-column" style={{ overflowY: "auto", minHeight: 0 }}>
+          <MobileTabSwitcher activeTab={mobileTab} onChange={setMobileTab} />
           <SectionTitle title="Diễn biến doanh thu và chi phí" className="mb-3" />
-          <YearAreaChart series={REVENUE_COST_SERIES} height={280} showLegend />
+          <YearAreaChart series={REVENUE_COST_SERIES} height={240} showLegend />
           <SectionTitle
             title="Trạng thái tài chính"
             className="mt-4 mb-3"
             action={
-              <button
-                onClick={() => setShowDetail(true)}
-                style={{
-                  background: "none", border: "1px solid var(--border)",
-                  borderRadius: 8, padding: "3px 10px",
-                  fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)",
-                  cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "#8b5cf6"; e.currentTarget.style.borderColor = "#8b5cf6"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted-foreground)"; e.currentTarget.style.borderColor = "var(--border)"; }}
-              >
-                <i className="bi bi-stars" style={{ fontSize: 12 }} />
-                Chi tiết
-              </button>
+              <div className="d-flex align-items-center gap-2">
+                {(aiStatus === "done" || aiStatus === "error") && (
+                  <button
+                    onClick={analyze}
+                    style={{
+                      background: "none", border: "1px solid var(--border)",
+                      borderRadius: 8, padding: "3px 10px",
+                      fontSize: 12.5, fontWeight: 600, color: "var(--muted-foreground)",
+                      cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = "#8b5cf6"; e.currentTarget.style.borderColor = "#8b5cf6"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted-foreground)"; e.currentTarget.style.borderColor = "var(--border)"; }}
+                  >
+                    <i className="bi bi-arrow-clockwise" style={{ fontSize: 12 }} />
+                    Phân tích lại
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowDetail(true)}
+                  style={{
+                    background: "none", border: "1px solid var(--border)",
+                    borderRadius: 8, padding: "3px 10px",
+                    fontSize: 12.5, fontWeight: 600, color: "var(--muted-foreground)",
+                    cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#8b5cf6"; e.currentTarget.style.borderColor = "#8b5cf6"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted-foreground)"; e.currentTarget.style.borderColor = "var(--border)"; }}
+                >
+                  <i className="bi bi-stars" style={{ fontSize: 12 }} />
+                  Chi tiết
+                </button>
+              </div>
             }
           />
           <CashFlowHealth score={CASH_FLOW_SCORE} />
-          <AiAnalysis />
+          <AiAnalysis 
+            status={aiStatus}
+            result={aiResult}
+            errMsg={aiErrMsg}
+            analyze={analyze}
+            setStatus={setAiStatus}
+          />
         </div>
       }
     />

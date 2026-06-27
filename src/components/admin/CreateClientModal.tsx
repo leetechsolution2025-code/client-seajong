@@ -45,6 +45,20 @@ export function CreateClientModal({
   const [branches, setBranches]     = useState<BranchInput[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [industries, setIndustries] = useState<any[]>([]);
+  const [industryId, setIndustryId] = useState("");
+
+  React.useEffect(() => {
+    if (isOpen) {
+      fetch("/api/industries")
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) setIndustries(data);
+        })
+        .catch((err) => console.error("Error fetching industries:", err));
+    }
+  }, [isOpen]);
+
 
   function handleChange(field: keyof FormData, value: string) {
     setForm((prev) => {
@@ -108,6 +122,7 @@ export function CreateClientModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          industryId: industryId || null,
           branches: branches
             .filter((b) => b.name.trim())
             .map(({ id, ...rest }) => rest),
@@ -132,6 +147,7 @@ export function CreateClientModal({
         setForm(EMPTY);
         setLogoPreview(null);
         setBranches([]);
+        setIndustryId("");
       }
     } catch {
       setError("Có lỗi xảy ra khi khởi tạo khách hàng.");
@@ -310,6 +326,23 @@ export function CreateClientModal({
                 onChange={(e) => setForm({ ...form, slogan: e.target.value })}
                 placeholder="Tiên phong kiến tạo giá trị thực" style={inputStyle} />
             </div>
+
+            <div>
+              <label style={labelStyle}>Ngành nghề kinh doanh <span style={{ color: "#ef4444" }}>*</span></label>
+              <select
+                required
+                value={industryId}
+                onChange={(e) => setIndustryId(e.target.value)}
+                style={inputStyle}
+              >
+                <option value="">-- Chọn ngành nghề --</option>
+                {industries.map((ind) => (
+                  <option key={ind.id} value={ind.id}>
+                    {ind.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </fieldset>
 
           {/* ── Chi nhánh ── */}
@@ -412,13 +445,13 @@ export function CreateClientModal({
           </button>
           <button
             onClick={handleSubmit as unknown as React.MouseEventHandler}
-            disabled={loading || !form.name || !form.shortName}
+            disabled={loading || !form.name || !form.shortName || !industryId}
             style={{
               display: "flex", alignItems: "center", gap: 8,
               padding: "9px 22px", borderRadius: 10, border: "none",
-              background: loading || !form.name || !form.shortName ? "var(--muted-foreground)" : "#6366f1",
+              background: loading || !form.name || !form.shortName || !industryId ? "var(--muted-foreground)" : "#6366f1",
               color: "#fff", fontSize: 13, fontWeight: 700,
-              cursor: loading || !form.name || !form.shortName ? "not-allowed" : "pointer",
+              cursor: loading || !form.name || !form.shortName || !industryId ? "not-allowed" : "pointer",
               opacity: loading ? 0.7 : 1, transition: "all 0.15s",
               boxShadow: "0 3px 10px rgba(99,102,241,0.35)",
             }}

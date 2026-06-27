@@ -43,10 +43,39 @@ const CSS_LABEL: React.CSSProperties = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function TaoYeuCauMuaHangModal({ onClose, onSaved, initialData }: TaoYeuCauModalProps) {
-  const [soYeuCau] = React.useState(() => {
+  const [soYeuCau, setSoYeuCau] = React.useState(() => {
     const d = new Date();
-    return `YC-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}-${Math.floor(Math.random()*9000+1000)}`;
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `YCMH-${yyyy}${mm}${dd}-001`;
   });
+
+  React.useEffect(() => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const dateStr = `${yyyy}${mm}${dd}`;
+
+    fetch("/api/plan-finance/purchase-requests?page=1&limit=200")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && data.items) {
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+
+          const todayItems = data.items.filter((item: any) => {
+            const itemDate = new Date(item.ngayTao);
+            return itemDate >= todayStart;
+          });
+
+          const nextSTT = String(todayItems.length + 1).padStart(3, "0");
+          setSoYeuCau(`YCMH-${dateStr}-${nextSTT}`);
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [ngayTao]             = React.useState(() => new Date().toISOString().slice(0,10));
   const { data: session } = useSession();
   const [donVi,  setDonVi]   = React.useState("");
@@ -264,13 +293,12 @@ export function TaoYeuCauMuaHangModal({ onClose, onSaved, initialData }: TaoYeuC
           </div>
 
           {/* Table header */}
-          <div style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "28px 1fr 70px 90px 140px 1fr 32px", gap: 5, padding: "7px 20px", background: "var(--muted)", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <div style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "28px 1fr 70px 100px 160px 32px", gap: 5, padding: "7px 20px", background: "var(--muted)", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
             <div>#</div>
             <div>Mặt hàng</div>
             <div style={{ textAlign: "center" }}>ĐVT</div>
             <div style={{ textAlign: "center" }}>SL yêu cầu</div>
-            <div style={{ textAlign: "right" }}>Đơn giá DK (₫)</div>
-            <div>Ghi chú dòng</div>
+            <div style={{ textAlign: "right" }}>Đơn giá (₫)</div>
             <div />
           </div>
 
@@ -320,7 +348,7 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
 
   return (
     <div style={{
-      display: "grid", gridTemplateColumns: "28px 1fr 70px 90px 140px 1fr 32px",
+      display: "grid", gridTemplateColumns: "28px 1fr 70px 100px 160px 32px",
       gap: 5, padding: "7px 20px",
       borderBottom: "1px solid var(--border)", alignItems: "center",
       background: idx % 2 !== 0 ? "color-mix(in srgb, var(--muted) 25%, transparent)" : "transparent",
@@ -352,7 +380,6 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
       <div style={{ textAlign: "center", fontSize: 12, color: "var(--muted-foreground)", fontWeight: 600 }}>{line.item?.donVi ?? "—"}</div>
       <input type="number" min={1} value={line.soLuong} onChange={e => onUpdate("soLuong", Math.max(1, parseFloat(e.target.value)||1))} style={{ ...inp, textAlign: "center" }} />
       <CurrencyInput value={line.donGiaDK} onChange={v => onUpdate("donGiaDK", v)} placeholder="Không bắt buộc" style={{ ...inp, textAlign: "right" }} />
-      <input value={line.ghiChu} onChange={e => onUpdate("ghiChu", e.target.value)} placeholder="Ghi chú..." style={inp} />
 
       <button onClick={onRemove} disabled={!canRemove}
         onMouseEnter={e => { if (canRemove) e.currentTarget.style.background = "rgba(244,63,94,0.1)"; }}

@@ -63,7 +63,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
               attachments: JSON.stringify([{
                 name: "Xem chi tiết",
                 type: "link",
-                url: `/my/hr-requests?id=${id}`
+                url: `/my/recruitment?id=${id}`
               }]),
               recipients: {
                 create: {

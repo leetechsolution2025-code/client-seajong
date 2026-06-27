@@ -79,31 +79,12 @@ export function MyAttendance() {
         },
         (error) => {
           console.warn("Location error:", error);
-          if (error.code === error.PERMISSION_DENIED) {
-            setLocError("LỖI GPS: BỊ CHẶN QUYỀN TRUY CẬP VỊ TRÍ");
-          } else if (error.code === error.POSITION_UNAVAILABLE) {
-            setLocError("LỖI GPS: KHÔNG XÁC ĐỊNH ĐƯỢC VỊ TRÍ");
-          } else if (error.code === error.TIMEOUT) {
-            setLocError("LỖI GPS: QUÁ THỜI GIAN CHỜ LẤY VỊ TRÍ");
-          } else {
-            setLocError("LỖI GPS: KHÔNG THỂ LẤY VỊ TRÍ");
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
+          setLocError(null); // Non-blocking for development
         }
       );
     } else {
       setLocError("Trình duyệt của bạn không hỗ trợ định vị.");
     }
-  };
-
-  const handleRefresh = () => {
-    setLoading(true);
-    fetchData();
-    requestLocation();
   };
 
   const fetchData = async (month?: number, year?: number) => {
@@ -236,14 +217,13 @@ export function MyAttendance() {
               ipAddress={clientIp}
               isInternalNetwork={isInternal}
               branchName={branch?.name || "Văn phòng chính"}
-              onRefresh={handleRefresh}
+              onRefresh={fetchData}
               refreshing={loading}
               isSundayLocked={isSundayLocked}
               hasOvertimeApproval={hasOvertimeApproval}
               isWithinGPSRange={isWithinGPSRange}
               distanceToOffice={distanceToOffice}
               allowedRadius={branch?.radius || 200}
-              gpsError={locError}
             />
           </div>
 
@@ -295,47 +275,37 @@ export function MyAttendance() {
                           <i className="bi bi-calendar-check" style={{ fontSize: "14px" }}></i>
                         </div>
                         <div className="d-flex flex-column" style={{ lineHeight: "1.2" }}>
-                           <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>
-                             {(() => {
-                               const attendanceDays = history.reduce((acc, h) => acc + (h.workday || 0), 0);
-                               const holidayDays = holidays.filter(h => {
-                                 const hStart = new Date(h.startDate);
-                                 return hStart.getMonth() + 1 === selectedMonth && hStart.getFullYear() === selectedYear;
-                               }).length;
-                               
-                               return (attendanceDays + holidayDays).toFixed(2);
-                             })()}
-                           </span>
+                            <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>
+                              {history.reduce((acc, h) => acc + (h.workday || 0), 0).toFixed(2)}
+                            </span>
                            <span className="text-muted-light fw-medium" style={{ fontSize: "10px" }}>NGÀY CÔNG</span>
                         </div>
                      </div>
-                     <div className="d-flex align-items-center gap-2">
-                        <div className="p-2 rounded-3 bg-danger-soft text-danger d-flex align-items-center justify-content-center" style={{ width: "30px", height: "30px" }}>
-                          <i className="bi bi-exclamation-triangle" style={{ fontSize: "14px" }}></i>
-                        </div>
-                        <div className="d-flex flex-column" style={{ lineHeight: "1.2" }}>
-                           <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>
-                             {history.reduce((acc, h) => acc + (h.violationMinutes || 0), 0)}
-                             <span className="fw-normal ms-1" style={{ fontSize: "11px" }}>phút</span>
-                           </span>
-                           <span className="text-muted-light fw-medium" style={{ fontSize: "10px" }}>VI PHẠM</span>
-                        </div>
-                     </div>
-
-                     <div className="d-flex align-items-center gap-2">
-                        <div className="p-2 rounded-3 bg-warning-soft text-warning d-flex align-items-center justify-content-center" style={{ width: "30px", height: "30px" }}>
-                          <i className="bi bi-box-arrow-right" style={{ fontSize: "14px" }}></i>
-                        </div>
-                        <div className="d-flex flex-column" style={{ lineHeight: "1.2" }}>
-                           <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>
-                             {history.reduce((acc, h) => {
-                               return acc + getMinutesDiff(h.checkOutMorning, 12, 0, "early") + getMinutesDiff(h.checkOutAfternoon, 17, 30, "early");
-                             }, 0)}
-                             <span className="fw-normal ms-1" style={{ fontSize: "11px" }}>phút</span>
-                           </span>
-                           <span className="text-muted-light fw-medium" style={{ fontSize: "10px" }}>VỀ SỚM</span>
-                        </div>
-                     </div>
+                      <div className="d-flex align-items-center gap-2">
+                         <div className="p-2 rounded-3 bg-danger-soft text-danger d-flex align-items-center justify-content-center" style={{ width: "30px", height: "30px" }}>
+                           <i className="bi bi-exclamation-triangle" style={{ fontSize: "14px" }}></i>
+                         </div>
+                         <div className="d-flex flex-column" style={{ lineHeight: "1.2" }}>
+                            <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>
+                              {history.reduce((acc, h: any) => acc + (h.lateMinutes || 0), 0)}
+                              <span className="fw-normal ms-1" style={{ fontSize: "11px" }}>phút</span>
+                            </span>
+                            <span className="text-muted-light fw-medium" style={{ fontSize: "10px" }}>ĐI MUỘN</span>
+                         </div>
+                      </div>
+ 
+                      <div className="d-flex align-items-center gap-2">
+                         <div className="p-2 rounded-3 bg-warning-soft text-warning d-flex align-items-center justify-content-center" style={{ width: "30px", height: "30px" }}>
+                           <i className="bi bi-box-arrow-right" style={{ fontSize: "14px" }}></i>
+                         </div>
+                         <div className="d-flex flex-column" style={{ lineHeight: "1.2" }}>
+                            <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>
+                              {history.reduce((acc, h: any) => acc + (h.earlyMinutes || 0), 0)}
+                              <span className="fw-normal ms-1" style={{ fontSize: "11px" }}>phút</span>
+                            </span>
+                            <span className="text-muted-light fw-medium" style={{ fontSize: "10px" }}>VỀ SỚM</span>
+                         </div>
+                      </div>
 
                      <div className="d-flex align-items-center gap-2">
                         <div className="p-2 rounded-3 bg-danger-soft text-danger d-flex align-items-center justify-content-center" style={{ width: "30px", height: "30px" }}>
@@ -400,50 +370,64 @@ export function MyAttendance() {
                     { 
                       header: "SÁNG (08:00 - 12:00)", 
                       render: (item: any) => (
-                        <div className="d-flex align-items-center">
-                          <div className="d-flex flex-column" style={{ width: "75px" }}>
-                             <div className="d-flex align-items-center gap-1">
-                                <span className="text-muted-light" style={{ fontSize: "9px" }}>VÀO</span>
-                                {item.checkInMorning && getAttendanceStatus(item.checkInMorning, 8, 5, "in") && (
-                                  <span className="text-danger" style={{ fontSize: "9px" }}>({getAttendanceStatus(item.checkInMorning, 8, 5, "in")?.label})</span>
-                                )}
-                             </div>
-                             <span className={`fw-bold ${item.checkInMorning ? 'text-dark' : 'text-muted-light'}`} style={{ fontSize: "12px" }}>{formatTime(item.checkInMorning)}</span>
+                        <div className="d-flex flex-column gap-1">
+                          <div className="d-flex align-items-center">
+                            <div className="d-flex flex-column" style={{ width: "75px" }}>
+                               <div className="d-flex align-items-center gap-1">
+                                  <span className="text-muted-light" style={{ fontSize: "9px" }}>VÀO</span>
+                                  {item.checkInMorning && getAttendanceStatus(item.checkInMorning, 8, 5, "in") && (
+                                    <span className="text-danger" style={{ fontSize: "9px" }}>({getAttendanceStatus(item.checkInMorning, 8, 5, "in")?.label})</span>
+                                  )}
+                               </div>
+                               <span className={`fw-bold ${item.checkInMorning ? 'text-dark' : 'text-muted-light'}`} style={{ fontSize: "12px" }}>{formatTime(item.checkInMorning)}</span>
+                            </div>
+                            <div className="d-flex flex-column" style={{ width: "75px" }}>
+                               <div className="d-flex align-items-center gap-1">
+                                  <span className="text-muted-light" style={{ fontSize: "9px" }}>RA</span>
+                                  {item.checkOutMorning && getAttendanceStatus(item.checkOutMorning, 12, 0, "out") && (
+                                    <span className="text-danger" style={{ fontSize: "9px" }}>({getAttendanceStatus(item.checkOutMorning, 12, 0, "out")?.label})</span>
+                                  )}
+                               </div>
+                               <span className={`fw-bold ${item.checkOutMorning ? 'text-dark' : 'text-muted-light'}`} style={{ fontSize: "12px" }}>{formatTime(item.checkOutMorning)}</span>
+                            </div>
                           </div>
-                          <div className="d-flex flex-column" style={{ width: "75px" }}>
-                             <div className="d-flex align-items-center gap-1">
-                                <span className="text-muted-light" style={{ fontSize: "9px" }}>RA</span>
-                                {item.checkOutMorning && getAttendanceStatus(item.checkOutMorning, 12, 0, "out") && (
-                                  <span className="text-danger" style={{ fontSize: "9px" }}>({getAttendanceStatus(item.checkOutMorning, 12, 0, "out")?.label})</span>
-                                )}
-                             </div>
-                             <span className={`fw-bold ${item.checkOutMorning ? 'text-dark' : 'text-muted-light'}`} style={{ fontSize: "12px" }}>{formatTime(item.checkOutMorning)}</span>
-                          </div>
+                          {item.approvedLateTime && (
+                            <span className="badge bg-success-soft text-success px-2 py-1 align-self-start" style={{ fontSize: "9px", fontWeight: "700" }}>
+                              Được đi muộn trước {item.approvedLateTime}
+                            </span>
+                          )}
                         </div>
                       ) 
                     },
                     { 
                       header: "CHIỀU (13:30 - 17:30)", 
                       render: (item: any) => (
-                        <div className="d-flex align-items-center">
-                          <div className="d-flex flex-column" style={{ width: "75px" }}>
-                             <div className="d-flex align-items-center gap-1">
-                                <span className="text-muted-light" style={{ fontSize: "9px" }}>VÀO</span>
-                                {item.checkInAfternoon && getAttendanceStatus(item.checkInAfternoon, 13, 35, "in") && (
-                                  <span className="text-danger" style={{ fontSize: "9px" }}>({getAttendanceStatus(item.checkInAfternoon, 13, 35, "in")?.label})</span>
-                                )}
-                             </div>
-                             <span className={`fw-bold ${item.checkInAfternoon ? 'text-dark' : 'text-muted-light'}`} style={{ fontSize: "12px" }}>{formatTime(item.checkInAfternoon)}</span>
+                        <div className="d-flex flex-column gap-1">
+                          <div className="d-flex align-items-center">
+                            <div className="d-flex flex-column" style={{ width: "75px" }}>
+                               <div className="d-flex align-items-center gap-1">
+                                  <span className="text-muted-light" style={{ fontSize: "9px" }}>VÀO</span>
+                                  {item.checkInAfternoon && getAttendanceStatus(item.checkInAfternoon, 13, 35, "in") && (
+                                    <span className="text-danger" style={{ fontSize: "9px" }}>({getAttendanceStatus(item.checkInAfternoon, 13, 35, "in")?.label})</span>
+                                  )}
+                               </div>
+                               <span className={`fw-bold ${item.checkInAfternoon ? 'text-dark' : 'text-muted-light'}`} style={{ fontSize: "12px" }}>{formatTime(item.checkInAfternoon)}</span>
+                            </div>
+                            <div className="d-flex flex-column" style={{ width: "75px" }}>
+                               <div className="d-flex align-items-center gap-1">
+                                  <span className="text-muted-light" style={{ fontSize: "9px" }}>RA</span>
+                                  {item.checkOutAfternoon && getAttendanceStatus(item.checkOutAfternoon, 17, 30, "out") && (
+                                    <span className="text-danger" style={{ fontSize: "9px" }}>({getAttendanceStatus(item.checkOutAfternoon, 17, 30, "out")?.label})</span>
+                                  )}
+                               </div>
+                               <span className={`fw-bold ${item.checkOutAfternoon ? 'text-dark' : 'text-muted-light'}`} style={{ fontSize: "12px" }}>{formatTime(item.checkOutAfternoon)}</span>
+                            </div>
                           </div>
-                          <div className="d-flex flex-column" style={{ width: "75px" }}>
-                             <div className="d-flex align-items-center gap-1">
-                                <span className="text-muted-light" style={{ fontSize: "9px" }}>RA</span>
-                                {item.checkOutAfternoon && getAttendanceStatus(item.checkOutAfternoon, 17, 30, "out") && (
-                                  <span className="text-danger" style={{ fontSize: "9px" }}>({getAttendanceStatus(item.checkOutAfternoon, 17, 30, "out")?.label})</span>
-                                )}
-                             </div>
-                             <span className={`fw-bold ${item.checkOutAfternoon ? 'text-dark' : 'text-muted-light'}`} style={{ fontSize: "12px" }}>{formatTime(item.checkOutAfternoon)}</span>
-                          </div>
+                          {item.approvedEarlyTime && (
+                            <span className="badge bg-success-soft text-success px-2 py-1 align-self-start" style={{ fontSize: "9px", fontWeight: "700" }}>
+                              Được về sớm sau {item.approvedEarlyTime}
+                            </span>
+                          )}
                         </div>
                       ) 
                     },
@@ -470,18 +454,7 @@ export function MyAttendance() {
                       }
                     }
                   ]}
-                  rows={[
-                    ...history,
-                    ...holidays.filter(h => {
-                      const hStart = new Date(h.startDate);
-                      return hStart.getMonth() + 1 === selectedMonth && hStart.getFullYear() === selectedYear;
-                    }).map(h => ({
-                      id: `holiday-${h.name}`,
-                      date: h.startDate,
-                      isHoliday: true,
-                      holidayName: h.name
-                    }))
-                  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())}
+                  rows={[...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())}
                   loading={loading}
                   emptyText="Chưa có dữ liệu chấm công"
                 />

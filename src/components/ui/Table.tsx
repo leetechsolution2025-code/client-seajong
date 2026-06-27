@@ -15,6 +15,8 @@ export interface TableColumn<T> {
   align?: "left" | "center" | "right";
   /** Không wrap text trong header */
   noWrap?: boolean;
+  /** Hợp nhất cột động */
+  colSpan?: (row: T, index: number) => number | undefined;
 }
 
 export interface TableProps<T> {
@@ -47,14 +49,38 @@ export interface TableProps<T> {
   stickyHeader?: boolean;
   /** Ghim dòng đầu tiên (thường là dòng Tổng cộng) */
   stickyFirstRow?: boolean;
+  /** Style tùy chỉnh cho wrapper */
+  wrapperStyle?: React.CSSProperties;
+  /** Class tùy chỉnh cho wrapper */
+  wrapperClassName?: string;
+  /** Custom render header function to override default standard th row */
+  renderHeader?: () => React.ReactNode;
+  /** Callback click on full-width row action button */
+  onFullWidthActionClick?: (row: T, index: number) => void;
+  /** Callback click on full-width row delete button */
+  onFullWidthDeleteClick?: (row: T, index: number) => void;
+  /** Callback on full-width row content value change */
+  onFullWidthContentChange?: (row: T, index: number, val: string) => void;
+  /** Bỏ hoàn toàn border của bảng */
+  borderless?: boolean;
+  /** Class tùy chỉnh cho mỗi dòng */
+  rowClassName?: (row: T, index: number) => string | undefined;
+  /** Style tùy chỉnh cho mỗi dòng */
+  rowStyle?: (row: T, index: number) => React.CSSProperties | undefined;
+  /** Class tùy chỉnh cho từng ô */
+  cellClassName?: (row: T, column: TableColumn<T>, index: number) => string | undefined;
+  /** Style tùy chỉnh cho từng ô */
+  cellStyle?: (row: T, column: TableColumn<T>, index: number) => React.CSSProperties | undefined;
+  /** Thuộc tính table-layout: fixed (mặc định là auto) */
+  fixedLayout?: boolean;
 }
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
-function SkeletonRow({ cols }: { cols: number }) {
+function SkeletonRow({ cols, borderless }: { cols: number; borderless?: boolean }) {
   return (
-    <tr style={{ borderBottom: "1px solid var(--border)" }}>
+    <tr style={{ borderBottom: borderless ? "none" : "1px solid var(--border)" }}>
       {Array.from({ length: cols }).map((_, j) => (
-        <td key={j} style={{ padding: "12px 14px" }}>
+        <td key={j} style={{ padding: "12px 14px", borderBottom: borderless ? "none" : "1px solid var(--border)" }}>
           <div
             style={{
               height: 12, borderRadius: 4,
@@ -86,6 +112,18 @@ export function Table<T>({
   compact = false,
   stickyHeader = true,
   stickyFirstRow = false,
+  wrapperStyle,
+  wrapperClassName,
+  renderHeader,
+  onFullWidthActionClick,
+  onFullWidthDeleteClick,
+  onFullWidthContentChange,
+  borderless = false,
+  rowClassName,
+  rowStyle,
+  cellClassName,
+  cellStyle,
+  fixedLayout = false,
 }: TableProps<T>) {
   const safeRows = Array.isArray(rows) ? rows : [];
   return (
@@ -103,7 +141,7 @@ export function Table<T>({
           position: sticky;
           top: 0;
           z-index: 10;
-          background: var(--background) !important;
+          background: var(--card, var(--background)) !important;
         }
         .sticky-first-row tr:first-child td {
           position: sticky;
@@ -117,15 +155,20 @@ export function Table<T>({
 
       <div
         className={cn(
+          "app-responsive-table-wrapper",
           stickyHeader && "sticky-header",
-          stickyFirstRow && "sticky-first-row"
+          stickyFirstRow && "sticky-first-row",
+          wrapperClassName
         )}
         style={{
-          overflowX: minWidth ? "auto" : "visible",
+          width: "100%",
+          maxWidth: "100%",
+          overflowX: "auto",
           overflowY: "visible",
           opacity: fetching ? 0.5 : 1,
           pointerEvents: fetching ? "none" : "auto",
           transition: "opacity 0.15s",
+          ...wrapperStyle,
         }}
       >
         <table
@@ -133,40 +176,46 @@ export function Table<T>({
             width: "100%",
             borderCollapse: "separate",
             borderSpacing: 0,
+            tableLayout: fixedLayout ? "fixed" : undefined,
             ...(minWidth ? { minWidth } : {}),
             fontSize,
           }}
         >
           {/* ── Header ──────────────────────────────────────────────────── */}
           <thead>
-            <tr>
-              {columns.map((col, i) => (
-                <th
-                  key={i}
-                  style={{
-                    padding: "9px 14px",
-                    textAlign: col.align ?? "left",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    color: "var(--muted-foreground)",
-                    borderBottom: "2px solid var(--border)",
-                    whiteSpace: col.noWrap !== false ? "nowrap" : undefined,
-                    width: col.width,
-                  }}
-                >
-                  {col.header}
-                </th>
-              ))}
-            </tr>
+            {renderHeader ? (
+              renderHeader()
+            ) : (
+              <tr style={{ borderBottom: borderless ? "none" : "2px solid var(--border)" }}>
+                {columns.map((col, i) => (
+                  <th
+                    key={i}
+                    className="text-uppercase"
+                    style={{
+                      padding: compact ? "6px 14px" : "9px 14px",
+                      textAlign: col.align ?? "left",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      color: "var(--muted-foreground)",
+                      borderBottom: borderless ? "none" : "2px solid var(--border)",
+                      whiteSpace: col.noWrap !== false ? "nowrap" : undefined,
+                      width: col.width,
+                    }}
+                  >
+                    {col.header}
+                  </th>
+                ))}
+              </tr>
+            )}
           </thead>
 
           {/* ── Body ────────────────────────────────────────────────────── */}
           <tbody>
             {loading ? (
               Array.from({ length: skeletonRows }).map((_, i) => (
-                <SkeletonRow key={i} cols={columns.length} />
+                <SkeletonRow key={i} cols={columns.length} borderless={borderless} />
               ))
             ) : safeRows.length === 0 ? (
               <tr>
@@ -196,23 +245,97 @@ export function Table<T>({
                   return (
                     <tr 
                       key={key} 
+                      className={cn(rowClassName ? rowClassName(row, idx) : undefined)}
                       style={{ 
                         background: "var(--muted-background, #f8f9fa)", 
-                        borderBottom: "1px solid var(--border)" 
+                        borderBottom: borderless ? "none" : "1px solid var(--border)",
+                        ...((rowStyle && rowStyle(row, idx)) || {}),
                       }}
                     >
                       <td 
                         colSpan={columns.length} 
                         style={{ 
-                          padding: "10px 14px", 
+                          padding: compact ? "6px 14px" : "10px 14px", 
                           fontWeight: 700,
                           fontSize: 12,
                           color: "var(--primary)",
                           textTransform: "uppercase",
-                          letterSpacing: "0.02em"
+                          letterSpacing: "0.02em",
+                          borderBottom: borderless ? "none" : "1px solid var(--border)",
                         }}
                       >
-                        {(row as any).fullWidthContent}
+                        <div className="d-flex align-items-center gap-2">
+                          {(() => {
+                            const fullContent = (row as any).fullWidthContent || "";
+                            if (typeof fullContent !== "string") {
+                              return <>{fullContent}</>;
+                            }
+                            const match = fullContent.match(/^([IVXLCDM\d]+\.\s*)(.*)$/i);
+                            const prefix = match ? match[1] : "";
+                            const mainText = match ? match[2] : fullContent;
+
+                            return (
+                              <>
+                                {prefix && <span className="text-secondary">{prefix}</span>}
+                                {onFullWidthContentChange && !(row as any).disableContentChange ? (
+                                  <input
+                                    type="text"
+                                    value={mainText}
+                                    onChange={(e) => {
+                                      const newVal = prefix + e.target.value;
+                                      onFullWidthContentChange(row, idx, newVal);
+                                    }}
+                                    className="form-control form-control-sm border-0 bg-transparent p-0 text-primary fw-bold"
+                                    style={{ 
+                                      fontSize: 12, 
+                                      textTransform: "uppercase", 
+                                      letterSpacing: "0.02em",
+                                      width: "auto",
+                                      minWidth: "250px",
+                                      height: "auto",
+                                      minHeight: "auto",
+                                      outline: "none",
+                                      boxShadow: "none"
+                                    }}
+                                    placeholder="Nhập tên..."
+                                  />
+                                ) : (
+                                  <span>{mainText}</span>
+                                )}
+                              </>
+                            );
+                          })()}
+                          <div className="d-inline-flex align-items-center gap-1">
+                            {onFullWidthActionClick && !(row as any).disableAdd && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onFullWidthActionClick(row, idx);
+                                }}
+                                className="btn btn-sm btn-link p-0 text-emerald d-inline-flex align-items-center justify-content-center transition"
+                                style={{ textDecoration: "none", width: "20px", height: "20px" }}
+                                title="Thêm mục con"
+                              >
+                                <i className="bi bi-plus-circle-fill" style={{ fontSize: 14 }} />
+                              </button>
+                            )}
+                            {onFullWidthDeleteClick && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onFullWidthDeleteClick(row, idx);
+                                }}
+                                className="btn btn-sm btn-link p-0 text-danger d-inline-flex align-items-center justify-content-center transition"
+                                style={{ textDecoration: "none", width: "20px", height: "20px" }}
+                                title="Xóa phòng ban"
+                              >
+                                <i className="bi bi-trash3-fill" style={{ fontSize: 13 }} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -221,29 +344,57 @@ export function Table<T>({
                 return (
                   <tr
                     key={key}
-                    className={onRowClick ? "app-tbl-row" : undefined}
+                    className={cn(
+                      onRowClick ? "app-tbl-row" : undefined,
+                      rowClassName ? rowClassName(row, idx) : undefined
+                    )}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
                     style={{
-                      borderBottom: "1px solid var(--border)",
+                      borderBottom: borderless ? "none" : "1px solid var(--border)",
                       cursor: onRowClick ? "pointer" : undefined,
                       background: isOdd
                         ? "color-mix(in srgb, var(--muted) 25%, transparent)"
                         : "transparent",
+                      ...((rowStyle && rowStyle(row, idx)) || {}),
                     }}
                   >
-                    {columns.map((col, ci) => (
-                      <td
-                        key={ci}
-                        style={{
-                          padding: compact ? "6px 14px" : "11px 14px",
-                          verticalAlign: "middle",
-                          textAlign: col.align ?? "left",
-                          borderBottom: "1px solid var(--border)",
-                        }}
-                      >
-                        {col.render(row, idx)}
-                      </td>
-                    ))}
+                    {(() => {
+                      const cells: React.ReactNode[] = [];
+                      let skipCount = 0;
+                      for (let ci = 0; ci < columns.length; ci++) {
+                        if (skipCount > 0) {
+                          skipCount--;
+                          continue;
+                        }
+                        const col = columns[ci];
+                        const span = col.colSpan ? col.colSpan(row, idx) : 1;
+                        if (span === 0) {
+                          continue;
+                        }
+                        if (span && span > 1) {
+                          skipCount = span - 1;
+                        }
+                        cells.push(
+                          <td
+                            key={ci}
+                            colSpan={span}
+                            className={cn(
+                              cellClassName ? cellClassName(row, col, idx) : undefined
+                            )}
+                            style={{
+                              padding: compact ? "6px 14px" : "11px 14px",
+                              verticalAlign: "middle",
+                              textAlign: col.align ?? "left",
+                              borderBottom: borderless ? "none" : "1px solid var(--border)",
+                              ...((cellStyle && cellStyle(row, col, idx)) || {}),
+                            }}
+                          >
+                            {col.render(row, idx)}
+                          </td>
+                        );
+                      }
+                      return cells;
+                    })()}
                   </tr>
                 );
               })

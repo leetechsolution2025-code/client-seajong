@@ -929,9 +929,9 @@ function ProductDrawer({ p, cats, onClose }: { p: Product; cats: Category[]; onC
         </div>
       )}
 
-      {/* Panel — chiều rộng chuẩn 460px */}
+      {/* Panel — chiều rộng chuẩn 400px */}
       <div style={{
-        position: "fixed", top: 0, right: 0, bottom: 0, width: 460,
+        position: "fixed", top: 0, right: 0, bottom: 0, width: 400,
         background: "var(--card)", zIndex: 1041,
         display: "flex", flexDirection: "column",
         boxShadow: "-12px 0 48px rgba(0,0,0,0.18)",

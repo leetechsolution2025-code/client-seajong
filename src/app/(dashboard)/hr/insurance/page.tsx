@@ -19,6 +19,7 @@ interface InsuranceContribution {
   employeeCode: string;
   fullName: string;
   position: string;
+  departmentName?: string;
   insuranceSalary: number;
   socialInsuranceId: string;
   companyAmount: number;
@@ -54,6 +55,8 @@ export default function InsurancePage() {
   const [selectedChangeType, setSelectedChangeType] = useState("all");
   const [selectedRegimeType, setSelectedRegimeType] = useState("all");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
+  const [isMobile, setIsMobile] = useState(false);
+  const [positionsMap, setPositionsMap] = useState<Record<string, string>>({});
 
   const [loading, setLoading] = useState(true);
   const [contributions, setContributions] = useState<any[]>([]);
@@ -82,15 +85,24 @@ export default function InsurancePage() {
     setDialogOpen(true);
   };
 
+  // --- Check mobile screen ---
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // --- Fetch Data ---
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch Filter Options (Departments & Regimes)
-        const [deptRes, regimeRes] = await Promise.all([
+        // Fetch Filter Options (Departments & Regimes & Positions)
+        const [deptRes, regimeRes, posRes] = await Promise.all([
           fetch("/api/hr/departments"),
-          fetch("/api/board/categories?type=che_do_tro_cap_bao_hiem")
+          fetch("/api/board/categories?type=che_do_tro_cap_bao_hiem"),
+          fetch("/api/board/categories?type=position")
         ]);
         
         if (deptRes.ok) {
@@ -113,6 +125,19 @@ export default function InsurancePage() {
           }
         }
 
+        if (posRes.ok) {
+          const posJson = await posRes.json();
+          if (Array.isArray(posJson)) {
+            const map: Record<string, string> = {};
+            posJson.forEach((p: any) => {
+              if (p.code && p.name) {
+                map[p.code] = p.name;
+              }
+            });
+            setPositionsMap(map);
+          }
+        }
+
         // Fetch History (Step 1)
         const historyRes = await fetch(`/api/hr/insurance/history?month=${selectedMonth}&year=${selectedYear}&search=${search}&department=${selectedDepartment}`);
         const historyJson = await historyRes.json();
@@ -123,6 +148,7 @@ export default function InsurancePage() {
             employeeCode: h.employee?.code || "N/A",
             fullName: h.employee?.fullName || "N/A",
             position: h.employee?.position || "N/A",
+            departmentName: h.employee?.departmentName || "N/A",
             avatar: h.employee?.avatarUrl,
             insuranceSalary: h.insuranceSalary,
             socialInsuranceId: h.employee?.socialInsuranceNumber || "N/A",
@@ -144,6 +170,8 @@ export default function InsurancePage() {
             ...c,
             employeeName: c.employee?.fullName || "N/A",
             employeeCode: c.employee?.code || "N/A",
+            departmentName: c.employee?.departmentName || "N/A",
+            position: c.employee?.position || "N/A",
             avatar: c.employee?.avatarUrl,
             date: new Date(c.effectiveDate).toLocaleDateString("vi-VN"),
             description: c.reason || "N/A",
@@ -161,6 +189,8 @@ export default function InsurancePage() {
             ...b,
             employeeName: b.employee?.fullName || "N/A",
             employeeCode: b.employee?.code || "N/A",
+            departmentName: b.employee?.departmentName || "N/A",
+            position: b.employee?.position || "N/A",
             avatar: b.employee?.avatarUrl,
             regime: b.regimeType,
             period: `${new Date(b.startDate).toLocaleDateString("vi-VN")} - ${new Date(b.endDate).toLocaleDateString("vi-VN")}`,
@@ -241,7 +271,7 @@ export default function InsurancePage() {
           <EmployeeAvatar name={r.fullName} url={r.avatar} size={34} borderRadius={8} />
           <div>
             <div className="fw-bold" style={{ fontSize: 13 }}>{r.fullName}</div>
-            <div className="text-muted" style={{ fontSize: 11 }}>{r.employeeCode} • {r.position}</div>
+            <div className="text-muted" style={{ fontSize: 11 }}>{r.departmentName || "N/A"} • {positionsMap[r.position] || r.position || "N/A"}</div>
           </div>
         </div>
       ),
@@ -269,7 +299,7 @@ export default function InsurancePage() {
           <EmployeeAvatar name={r.employeeName} url={r.avatar} size={34} borderRadius={8} />
           <div>
             <div className="fw-bold" style={{ fontSize: 13 }}>{r.employeeName}</div>
-            <div className="text-muted" style={{ fontSize: 11 }}>{r.employeeCode}</div>
+            <div className="text-muted" style={{ fontSize: 11 }}>{r.departmentName || "N/A"} • {positionsMap[r.position] || r.position || "N/A"}</div>
           </div>
         </div>
       ),
@@ -301,7 +331,7 @@ export default function InsurancePage() {
           <EmployeeAvatar name={r.employeeName} url={r.avatar} size={34} borderRadius={8} />
           <div>
             <div className="fw-bold" style={{ fontSize: 13 }}>{r.employeeName}</div>
-            <div className="text-muted" style={{ fontSize: 11 }}>{r.employeeCode}</div>
+            <div className="text-muted" style={{ fontSize: 11 }}>{r.departmentName || "N/A"} • {positionsMap[r.position] || r.position || "N/A"}</div>
           </div>
         </div>
       ),
@@ -336,9 +366,9 @@ export default function InsurancePage() {
       color="rose"
       useCard={false}
     >
-      <div className="d-flex flex-column gap-2 h-100">
+      <div className="d-flex flex-column gap-2 h-100 insurance-page-container">
         {/* Statistics Section */}
-        <div className="row g-3 flex-shrink-0">
+        <div className="row g-2 g-md-3 flex-shrink-0 px-2 px-md-0 d-none d-md-flex">
           <KPICard label="Tổng quỹ bảo hiểm" value={`${(totalFund / 1000000).toFixed(1)}M`} icon="bi-bank" accent="#f43f5e" subtitle={`Tháng ${selectedMonth}/${selectedYear}`} />
           <KPICard label="Số nhân viên đóng" value={String(enrolledCount)} icon="bi-people" accent="#10b981" subtitle="Đang tham gia" />
           <KPICard label="Yêu cầu giải quyết" value={String(pendingBenefits)} icon="bi-file-earmark-medical" accent="#f59e0b" subtitle="Chế độ bảo hiểm" />
@@ -353,66 +383,143 @@ export default function InsurancePage() {
           }
           toolbar={
             currentStep !== 4 && (
-              <div className="d-flex align-items-center gap-2">
-                <div className="d-flex align-items-center gap-2 bg-light p-1 rounded-3 border flex-shrink-0">
-                  <FilterSelect
-                    options={months}
-                    value={String(selectedMonth)}
-                    onChange={(v) => setSelectedMonth(Number(v))}
-                    placeholder="Chọn tháng"
-                    width={110}
-                    className="border-0 bg-transparent shadow-none"
-                  />
-                  <div className="border-end h-50" style={{ height: "20px" }}></div>
-                  <FilterSelect
-                    options={years}
-                    value={String(selectedYear)}
-                    onChange={(v) => setSelectedYear(Number(v))}
-                    placeholder="Chọn năm"
-                    width={110}
-                    className="border-0 bg-transparent shadow-none"
-                  />
+              <div className="d-flex flex-wrap align-items-center gap-2 w-100">
+                <div className="d-flex align-items-center gap-2 flex-shrink-0">
+                  <div className="d-flex align-items-center gap-2 bg-light p-1 rounded-3 border flex-shrink-0">
+                    <FilterSelect
+                      options={months}
+                      value={String(selectedMonth)}
+                      onChange={(v) => setSelectedMonth(Number(v))}
+                      placeholder="Chọn tháng"
+                      width={100}
+                      className="border-0 bg-transparent shadow-none"
+                    />
+                    <div className="border-end h-50" style={{ height: "20px" }}></div>
+                    <FilterSelect
+                      options={years}
+                      value={String(selectedYear)}
+                      onChange={(v) => setSelectedYear(Number(v))}
+                      placeholder="Chọn năm"
+                      width={100}
+                      className="border-0 bg-transparent shadow-none"
+                    />
+                  </div>
+                  <BrandButton 
+                    variant="outline" 
+                    icon="bi-file-earmark-spreadsheet" 
+                    className="px-2.5 flex-shrink-0"
+                    style={{ height: "38px" }}
+                    disabled={isMobile}
+                    title={isMobile ? "Chức năng xuất báo cáo chỉ khả dụng trên máy tính" : "Xuất báo cáo"}
+                  >
+                    <span>Xuất báo cáo</span>
+                  </BrandButton>
                 </div>
 
-                <SearchInput value={search} onChange={setSearch} placeholder="Tìm tên, mã NV..." />
-
-                {currentStep === 2 && (
-                  <FilterSelect
-                    options={changeTypes}
-                    value={selectedChangeType}
-                    onChange={setSelectedChangeType}
-                    placeholder="Loại biến động"
-                    width={180}
-                  />
+                {/* Mobile Step 2 Layout */}
+                {isMobile && currentStep === 2 && (
+                  <div className="d-flex gap-2 w-100">
+                    <FilterSelect
+                      options={changeTypes}
+                      value={selectedChangeType}
+                      onChange={setSelectedChangeType}
+                      placeholder="Loại biến động"
+                      width="50%"
+                      className="flex-grow-1"
+                    />
+                    <FilterSelect
+                      options={departmentOptions}
+                      value={selectedDepartment}
+                      onChange={setSelectedDepartment}
+                      width="50%"
+                      className="flex-grow-1"
+                    />
+                  </div>
                 )}
 
-                {currentStep === 3 && (
-                  <FilterSelect
-                    options={regimeOptions}
-                    value={selectedRegimeType}
-                    onChange={setSelectedRegimeType}
-                    placeholder="Loại chế độ"
-                    width={160}
-                  />
+                {/* Mobile Step 3 Layout */}
+                {isMobile && currentStep === 3 && (
+                  <>
+                    <div className="d-flex gap-2 w-100">
+                      <FilterSelect
+                        options={departmentOptions}
+                        value={selectedDepartment}
+                        onChange={setSelectedDepartment}
+                        width="50%"
+                        className="flex-grow-1"
+                      />
+                      <FilterSelect
+                        options={regimeOptions}
+                        value={selectedRegimeType}
+                        onChange={setSelectedRegimeType}
+                        placeholder="Loại chế độ"
+                        width="50%"
+                        className="flex-grow-1"
+                      />
+                    </div>
+                    <div className="d-flex gap-2 w-100">
+                      <div className="flex-grow-1">
+                        <SearchInput value={search} onChange={setSearch} placeholder="Tìm tên, mã NV..." />
+                      </div>
+                      <BrandButton 
+                        variant="primary" 
+                        icon="bi-plus-lg" 
+                        className="p-0 rounded-circle shadow-sm flex-shrink-0" 
+                        style={{ width: 38, minWidth: 38 }}
+                        onClick={() => setIsRegimeFormOpen(true)}
+                      >
+                        <></>
+                      </BrandButton>
+                    </div>
+                  </>
                 )}
 
-                <FilterSelect
-                  options={departmentOptions}
-                  value={selectedDepartment}
-                  onChange={setSelectedDepartment}
-                  width={160}
-                />
-                <BrandButton variant="outline" icon="bi-download" className="px-3">Xuất báo cáo</BrandButton>
-                {currentStep === 3 && (
-                  <BrandButton 
-                    variant="primary" 
-                    icon="bi-plus-lg" 
-                    className="p-0 rounded-circle shadow-sm" 
-                    style={{ width: 38, minWidth: 38 }}
-                    onClick={() => setIsRegimeFormOpen(true)}
-                  >
-                    <></>
-                  </BrandButton>
+                {/* General Layout (Desktop and Non-customized Mobile steps) */}
+                {!(isMobile && (currentStep === 2 || currentStep === 3)) && (
+                  <>
+                    <div className="flex-grow-1" style={{ minWidth: "150px" }}>
+                      <SearchInput value={search} onChange={setSearch} placeholder="Tìm tên, mã NV..." />
+                    </div>
+
+                    {currentStep === 2 && (
+                      <FilterSelect
+                        options={changeTypes}
+                        value={selectedChangeType}
+                        onChange={setSelectedChangeType}
+                        placeholder="Loại biến động"
+                        width={140}
+                      />
+                    )}
+
+                    {currentStep === 3 && (
+                      <FilterSelect
+                        options={regimeOptions}
+                        value={selectedRegimeType}
+                        onChange={setSelectedRegimeType}
+                        placeholder="Loại chế độ"
+                        width={140}
+                      />
+                    )}
+
+                    <FilterSelect
+                      options={departmentOptions}
+                      value={selectedDepartment}
+                      onChange={setSelectedDepartment}
+                      width={140}
+                    />
+
+                    {currentStep === 3 && (
+                      <BrandButton 
+                        variant="primary" 
+                        icon="bi-plus-lg" 
+                        className="p-0 rounded-circle shadow-sm flex-shrink-0" 
+                        style={{ width: 38, minWidth: 38 }}
+                        onClick={() => setIsRegimeFormOpen(true)}
+                      >
+                        <></>
+                      </BrandButton>
+                    )}
+                  </>
                 )}
               </div>
             )
@@ -630,6 +737,40 @@ export default function InsurancePage() {
             </div>
           )}
         </WorkflowCard>
+      </div>
+
+      {/* Mobile Nav Bottom Bar for KPI content */}
+      <div className="d-md-none fixed-bottom shadow-lg d-flex align-items-center justify-content-around py-2" 
+           style={{ 
+             zIndex: 1030, 
+             background: "var(--card)", 
+             borderTop: "1px solid var(--border)",
+             paddingBottom: "calc(8px + env(safe-area-inset-bottom, 0px))" 
+           }}>
+        {/* Item 1: Quỹ BH */}
+        <div className="d-flex flex-column align-items-center text-center flex-grow-1">
+          <i className="bi bi-bank" style={{ color: "#f43f5e", fontSize: "16px" }} />
+          <span className="fw-black" style={{ fontSize: "12px", marginTop: "2px", color: "var(--foreground)" }}>{((totalFund || 0) / 1000000).toFixed(1)}M</span>
+          <span style={{ fontSize: "9px", color: "var(--muted-foreground)" }}>Quỹ BH</span>
+        </div>
+        {/* Item 2: NV đóng */}
+        <div className="d-flex flex-column align-items-center text-center flex-grow-1">
+          <i className="bi bi-people" style={{ color: "#10b981", fontSize: "16px" }} />
+          <span className="fw-black" style={{ fontSize: "12px", marginTop: "2px", color: "var(--foreground)" }}>{enrolledCount}</span>
+          <span style={{ fontSize: "9px", color: "var(--muted-foreground)" }}>NV đóng</span>
+        </div>
+        {/* Item 3: Yêu cầu */}
+        <div className="d-flex flex-column align-items-center text-center flex-grow-1">
+          <i className="bi bi-file-earmark-medical" style={{ color: "#f59e0b", fontSize: "16px" }} />
+          <span className="fw-black" style={{ fontSize: "12px", marginTop: "2px", color: "var(--foreground)" }}>{pendingBenefits}</span>
+          <span style={{ fontSize: "9px", color: "var(--muted-foreground)" }}>Yêu cầu</span>
+        </div>
+        {/* Item 4: Biến động */}
+        <div className="d-flex flex-column align-items-center text-center flex-grow-1">
+          <i className="bi bi-clock-history" style={{ color: "#6366f1", fontSize: "16px" }} />
+          <span className="fw-black" style={{ fontSize: "12px", marginTop: "2px", color: "var(--foreground)" }}>{pendingChanges}</span>
+          <span style={{ fontSize: "9px", color: "var(--muted-foreground)" }}>Biến động</span>
+        </div>
       </div>
 
       <ConfirmDialog

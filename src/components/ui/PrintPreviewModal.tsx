@@ -20,7 +20,7 @@ export function printDocumentById(
   documentId: string,
   orientation: "portrait" | "landscape" = "portrait",
   title?: string,
-  keepFirstPageMargin: boolean = false,
+  keepFirstPageMargin: boolean = true,
   customMargins?: string,
 ) {
   const docEl = globalThis.document?.getElementById(documentId);
@@ -49,7 +49,26 @@ export function printDocumentById(
   <link rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
-    * { box-sizing: border-box; }
+    * { 
+      box-sizing: border-box; 
+      -webkit-print-color-adjust: exact !important; 
+      print-color-adjust: exact !important; 
+    }
+    th {
+      background-color: #003087 !important;
+      color: #fff !important;
+    }
+    .pdf-brand-bg {
+      background-color: #003087 !important;
+      color: #fff !important;
+    }
+    .pdf-brand-light-bg {
+      background-color: rgba(0, 48, 135, 0.05) !important;
+      color: #003087 !important;
+    }
+    .zebra-stripe {
+      background-color: #f8fafc !important;
+    }
     @page { 
       size: A4 ${orientation}; 
       margin: ${printMargin} !important; 
@@ -59,7 +78,7 @@ export function printDocumentById(
     }
     body { 
       margin: 0; padding: 0; 
-      font-family: 'Open Sans', 'Arial', sans-serif; 
+      font-family: 'Roboto Condensed', 'Arial Narrow', sans-serif; 
       font-size: 13px; color: #000; 
       -webkit-print-color-adjust: exact; 
       print-color-adjust: exact; 
@@ -90,6 +109,8 @@ export function printDocumentById(
     .preview-scale-wrapper { transform: none !important; width: 100% !important; margin: 0 !important; }
     img { max-width: 100%; display: block; }
     table { border-collapse: collapse; width: 100%; }
+    thead { display: table-header-group !important; }
+    tr { page-break-inside: avoid !important; }
     .no-print { display: none !important; }
   </style>
 </head>
@@ -130,6 +151,8 @@ export interface PrintPreviewModalProps {
   keepFirstPageMargin?: boolean;
   /** Tùy chỉnh lề in (CSS format: "top right bottom left") */
   printMargins?: string;
+  /** Ẩn sidebar trên màn hình lớn (desktop) */
+  hideSidebarOnDesktop?: boolean;
 }
 
 /**
@@ -146,11 +169,13 @@ export function PrintPreviewModal({
   onClose,
   documentId = "print-doc",
   printOrientation = "portrait",
-  keepFirstPageMargin = false,
+  keepFirstPageMargin = true,
   printMargins,
+  hideSidebarOnDesktop = false,
 }: PrintPreviewModalProps) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => { setMounted(true); }, []);
+  const [showSidebar, setShowSidebar] = React.useState(false);
 
   // ESC to close
   React.useEffect(() => {
@@ -159,12 +184,33 @@ export function PrintPreviewModal({
     return () => globalThis.document.removeEventListener("keydown", h);
   }, [onClose]);
 
+  // Helper to convert print margin string to screen px padding
+  const parseMarginToPx = (marginStr?: string): string | undefined => {
+    if (!marginStr) return undefined;
+    const parts = marginStr.trim().split(/\s+/);
+    const pxParts = parts.map(p => {
+      const num = parseFloat(p);
+      if (isNaN(num)) return p;
+      if (p.endsWith("mm")) {
+        return Math.round(num / 25.4 * 96) + "px";
+      }
+      if (p.endsWith("in")) {
+        return Math.round(num * 96) + "px";
+      }
+      if (p.endsWith("cm")) {
+        return Math.round(num / 2.54 * 96) + "px";
+      }
+      return p;
+    });
+    return pxParts.join(" ");
+  };
+
   // Tùy chỉnh CSS cho khổ giấy hiển thị
   const isLandscape = printOrientation === "landscape";
   const pageWidth = isLandscape ? "1123px" : "794px";
   const pageHeight = isLandscape ? "794px" : "1123px";
   // Sync preview padding with print margins: Left 25mm=95px, Others 20mm=76px
-  const previewPadding = isLandscape ? "38px" : "76px 76px 76px 95px";
+  const previewPadding = parseMarginToPx(printMargins) || (isLandscape ? "38px" : "76px 76px 76px 95px");
   const printMargin = printMargins || (isLandscape ? "15mm" : "20mm 20mm 20mm 25mm");
 
   // Không cần @media print CSS nữa — dùng iframe approach
@@ -173,6 +219,10 @@ export function PrintPreviewModal({
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link rel="stylesheet" href={GOOGLE_FONT_URL} />
       <style dangerouslySetInnerHTML={{ __html: `
+        #editor-action-items-section h4 {
+          border-bottom: none !important;
+          padding-bottom: 0 !important;
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
         /* Apply negative margins neutralizing the preview document padding to simulate full bleed */
         /* Print layout classes for screen mode (mimicking pages) */
@@ -194,7 +244,68 @@ export function PrintPreviewModal({
           position: relative;
           overflow: visible;
         }
+        #plan-print-doc {
+          background: transparent !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 12px !important;
+        }
+        #plan-print-doc .pdf-content-page, #plan-print-doc .pdf-cover-page {
+          box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
+          border: 1px solid #cbd5e1 !important;
+        }
+        .html2pdf__page-break {
+          display: none !important;
+        }
         
+        .preview-topbar {
+          padding: 10px 24px;
+          background: var(--card);
+          border-bottom: 1px solid var(--border);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          flex-shrink: 0;
+        }
+        .preview-topbar-left {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex: 1;
+          min-width: 0;
+        }
+        .preview-topbar-icon {
+          width: 34px;
+          height: 34px;
+          border-radius: 9px;
+          background: rgba(99,102,241,0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .preview-topbar-title-box {
+          flex: 1;
+          min-width: 0;
+        }
+        .preview-topbar-title-text {
+          margin: 0;
+          font-weight: 700;
+          font-size: 14px;
+          color: var(--foreground);
+        }
+        .preview-topbar-subtitle-text {
+          margin: 0;
+          font-size: 11.5px;
+          color: var(--muted-foreground);
+        }
+        .preview-topbar-right {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-shrink: 0;
+        }
         .preview-scale-wrapper {
           transform-origin: top center;
           transform: scale(0.9);
@@ -205,8 +316,113 @@ export function PrintPreviewModal({
         @media (max-width: 1200px) {
           .preview-scale-wrapper { transform: scale(0.7); }
         }
+        
+        /* ── iPad & Tablet Responsive for Print Preview Modal ── */
+        @media (max-width: 1024px) {
+          .preview-topbar {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            height: auto !important;
+            padding: 12px 16px !important;
+            gap: 12px !important;
+          }
+          .preview-topbar-left {
+            width: 100% !important;
+          }
+          .preview-topbar-right {
+            width: 100% !important;
+            justify-content: space-between !important;
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+          }
+          .preview-topbar-right > div {
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+            margin-right: 0 !important;
+          }
+          .preview-topbar-right button {
+            padding: 6px 12px !important;
+            font-size: 12px !important;
+          }
+          .preview-document-container {
+            overflow-x: hidden !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+          }
+          .preview-scale-wrapper {
+            transform: none !important;
+            transform-origin: top center !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            gap: 0 !important;
+          }
+          .pdf-content-page {
+            width: 100% !important;
+            min-height: 100vh !important;
+            min-height: 100dvh !important;
+            padding: 16px !important;
+            box-shadow: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
+          }
+        }
+        @media (max-width: 767.98px) {
+          .preview-topbar {
+            padding: calc(6px + env(safe-area-inset-top, 0px)) 12px 6px 12px !important;
+            gap: 8px !important;
+          }
+          .preview-topbar-title-text {
+            font-size: 12px !important;
+          }
+          .preview-topbar-subtitle-text {
+            font-size: 10px !important;
+          }
+          .preview-close-btn {
+            height: 28px !important;
+            padding: 0 8px !important;
+            font-size: 11.5px !important;
+          }
+          .col-ky-nhan {
+            display: none !important;
+          }
+          .lunch-print-header {
+            display: none !important;
+          }
+          .col-phong-ban {
+            display: none !important;
+          }
+          .lunch-print-title {
+            font-size: 16px !important;
+          }
+          .total-row-desktop {
+            display: none !important;
+          }
+          .total-row-mobile {
+            display: table-row !important;
+          }
+        }
+
+        .total-row-mobile {
+          display: none;
+        }
 
         @media print {
+          .col-ky-nhan {
+            display: table-cell !important;
+          }
+          .lunch-print-header {
+            display: flex !important;
+          }
+          .col-phong-ban {
+            display: table-cell !important;
+          }
+          .total-row-desktop {
+            display: table-row !important;
+          }
+          .total-row-mobile {
+            display: none !important;
+          }
           @page { 
             size: A4 ${printOrientation}; 
             margin: ${printMargin} !important; 
@@ -239,58 +455,104 @@ export function PrintPreviewModal({
             overflow: visible;
             background: #ffffff !important;
           }
+          #plan-print-doc {
+            background: #fff !important;
+            display: block !important;
+            gap: 0 !important;
+          }
+          #plan-print-doc .pdf-content-page, #plan-print-doc .pdf-cover-page {
+            box-shadow: none !important;
+            border: none !important;
+          }
           .pdf-content-page:last-child { page-break-after: auto !important; }
           .pdf-content-page > div[style*="absolute"][style*="bottom: 0"] { display: none !important; }
           .pdf-content-page > div { min-height: auto !important; padding-bottom: 0 !important; }
           .preview-scale-wrapper { transform: none !important; }
+          th {
+            background-color: #003087 !important;
+            color: #fff !important;
+          }
+          .pdf-brand-bg {
+            background-color: #003087 !important;
+            color: #fff !important;
+          }
+          .pdf-brand-light-bg {
+            background-color: rgba(0, 48, 135, 0.05) !important;
+            color: #003087 !important;
+          }
+          .zebra-stripe {
+            background-color: #f8fafc !important;
+          }
         }
       `}} />
 
       <div style={{
-        position: "fixed", inset: 0, zIndex: 6000,
+        position: "fixed", inset: 0, zIndex: 20000,
         background: "var(--muted)",
         display: "flex", flexDirection: "column",
         overflow: "hidden",
-        fontFamily: "'Open Sans', sans-serif",
+        fontFamily: "var(--font-roboto-condensed), 'Roboto Condensed', sans-serif",
       }}>
 
         {/* ── Top bar ────────────────────────────────────────────────────── */}
-        <div style={{
-          padding: "10px 24px",
-          background: "var(--card)",
-          borderBottom: "1px solid var(--border)",
-          display: "flex", alignItems: "center", gap: 16,
-          flexShrink: 0,
-        }}>
-          {/* Icon */}
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <i className="bi bi-printer-fill" style={{ fontSize: 16, color: "#818cf8" }} />
-          </div>
+        <div className="preview-topbar">
+          <div className="preview-topbar-left">
+            {/* Icon */}
+            <div className="preview-topbar-icon">
+              <i className="bi bi-printer-fill" style={{ fontSize: 16, color: "#818cf8" }} />
+            </div>
 
-          {/* Title */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: "var(--foreground)" }}>{title}</p>
-            {subtitle && (
-              <p style={{ margin: 0, fontSize: 11.5, color: "var(--muted-foreground)" }}>{subtitle}</p>
-            )}
+            {/* Title */}
+            <div className="preview-topbar-title-box">
+              <p className="preview-topbar-title-text">{title}</p>
+              {subtitle && (
+                <p className="preview-topbar-subtitle-text">{subtitle}</p>
+              )}
+            </div>
           </div>
 
           {/* Actions + Close */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <div className="preview-topbar-right">
+            {sidebar && (
+              <BrandButton
+                variant="outline"
+                onClick={() => setShowSidebar(!showSidebar)}
+                className="preview-toggle-sidebar-btn"
+                style={{
+                  height: 32,
+                  fontSize: 12.5,
+                  padding: "0 12px",
+                  background: showSidebar ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "var(--card)",
+                  color: showSidebar ? "var(--primary)" : "var(--foreground)",
+                  borderColor: showSidebar ? "var(--primary)" : "var(--border)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}
+              >
+                <i className="bi bi-sliders" />
+                <span>{showSidebar ? "Ẩn tùy chỉnh" : "Tùy chỉnh"}</span>
+              </BrandButton>
+            )}
             {actions}
             <BrandButton
               variant="outline"
               onClick={onClose}
+              className="preview-close-btn"
               style={{
                 height: 32,
                 fontSize: 12.5,
                 padding: "0 16px",
                 background: "var(--muted)",
                 color: "var(--muted-foreground)",
-                borderColor: "var(--border)"
+                borderColor: "var(--border)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px"
               }}
             >
-              <i className="bi bi-x" style={{ fontSize: 16 }} /> Đóng
+              <i className="bi bi-x" style={{ fontSize: 16 }} />
+              <span className="d-none d-md-inline">Đóng</span>
             </BrandButton>
           </div>
         </div>
@@ -299,15 +561,18 @@ export function PrintPreviewModal({
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Sidebar */}
-          {sidebar && (
-            <div style={{
-              width: 270, flexShrink: 0,
-              background: "var(--card)",
-              borderRight: "1px solid var(--border)",
-              overflowY: "auto",
-              padding: "20px 16px",
-              display: "flex", flexDirection: "column", gap: 14,
-            }}>
+          {sidebar && showSidebar && (
+            <div 
+              className={hideSidebarOnDesktop ? "d-lg-none" : ""}
+              style={{
+                width: 300, flexShrink: 0,
+                background: "var(--card)",
+                borderRight: "1px solid var(--border)",
+                overflowY: "auto",
+                padding: "20px 16px",
+                display: "flex", flexDirection: "column", gap: 14,
+              }}
+            >
               <p style={{ margin: 0, fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 Tuỳ chỉnh thông tin
               </p>
@@ -316,13 +581,13 @@ export function PrintPreviewModal({
           )}
 
           {/* Document preview area */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "32px 0 64px 0", display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
+          <div className="preview-document-container" style={{ flex: 1, overflowY: "auto", padding: "32px 0 64px 0", display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
             <div id={documentId} className="preview-scale-wrapper" style={{
               display: "flex",
               flexDirection: "column",
               gap: 32, // Perfect shadowless gap between pages
               alignItems: "center",
-              fontFamily: "'Open Sans', sans-serif",
+              fontFamily: "var(--font-roboto-condensed), 'Roboto Condensed', sans-serif",
               fontSize: 13,
               color: "#111",
               lineHeight: 1.45,

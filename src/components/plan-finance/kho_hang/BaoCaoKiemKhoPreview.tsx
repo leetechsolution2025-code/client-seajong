@@ -38,6 +38,29 @@ export interface BaoCaoKiemKhoPreviewProps {
 function fmtN(n: number)  { return n.toLocaleString("vi-VN"); }
 function fmtVnd(n: number){ return n.toLocaleString("vi-VN"); }
 
+function soThanhChu(n: number): string {
+  if (n === 0) return "Không đồng";
+  const CS = ["không","một","hai","ba","bốn","năm","sáu","bảy","tám","chín"];
+  function doc3(num: number, leading: boolean): string {
+    if (num === 0) return "";
+    const h = Math.floor(num / 100), t = Math.floor((num % 100) / 10), u = num % 10;
+    let s = "";
+    if (h > 0) s = CS[h] + " trăm";
+    else if (!leading) { if (t === 0) return "lẻ " + CS[u]; s = "không trăm"; }
+    if (t === 0) { if (u > 0) s += (s ? " lẻ " : "") + CS[u]; }
+    else if (t === 1) { s += (s ? " " : "") + "mười"; if (u === 5) s += " lăm"; else if (u > 0) s += " " + CS[u]; }
+    else { s += (s ? " " : "") + CS[t] + " mươi"; if (u === 1) s += " mốt"; else if (u === 5) s += " lăm"; else if (u > 0) s += " " + CS[u]; }
+    return s;
+  }
+  const scales = [{ v: 1_000_000_000, label: "tỷ" }, { v: 1_000_000, label: "triệu" }, { v: 1_000, label: "nghìn" }, { v: 1, label: "" }];
+  let result = "", rem = Math.round(n), first = true;
+  for (const { v, label } of scales) {
+    const q = Math.floor(rem / v); rem %= v; if (q === 0) continue;
+    result += (result ? " " : "") + doc3(q, first) + (label ? " " + label : ""); first = false;
+  }
+  return result.charAt(0).toUpperCase() + result.slice(1) + " đồng";
+}
+
 const B1  = "1px solid #000";
 const B05 = "1px solid #999";
 const inp = printStyles.sidebarInput;
@@ -63,6 +86,8 @@ function Document({
   const overLines    = countedLines.filter(l => l.chenh > 0);
   const tongHaoHut   = underLines.reduce((s, l) => s + Math.abs(l.chenh) * (l.giaNhap ?? 0), 0);
   const tongThua     = overLines.reduce((s, l)  => s + Math.abs(l.chenh) * (l.giaNhap ?? 0), 0);
+  const haoHutChu    = tongHaoHut > 0 ? soThanhChu(tongHaoHut) : "Không đồng";
+  const thuaChu      = tongThua > 0 ? soThanhChu(tongThua) : "Không đồng";
 
   const FormRow = ({ label, value }: { label: React.ReactNode; value?: React.ReactNode }) => (
     <div style={{ display: "flex", alignItems: "baseline", marginBottom: 8, fontSize: 13, gap: 4 }}>
@@ -74,7 +99,7 @@ function Document({
   );
 
   return (
-    <div style={{ fontFamily: "'Roboto Condensed', 'Arial Narrow', Arial, sans-serif", fontSize: 13, color: "#000", lineHeight: 1.4 }}>
+    <div className="pdf-content-page" style={{ fontFamily: "'Roboto Condensed', 'Arial Narrow', Arial, sans-serif", fontSize: 13, color: "#000", lineHeight: 1.4 }}>
 
       {/* Header: Logo + Company | Mẫu số */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
@@ -224,12 +249,12 @@ function Document({
       {/* Kết luận */}
       <div style={{ marginBottom: 6 }}>
         <div style={{ display: "flex", gap: 4, marginBottom: 4, fontSize: 13 }}>
-          <span style={{ flexShrink: 0, fontStyle: "italic" }}>- Tổng số chênh lệch hao hụt (bằng chữ):</span>
-          <span style={{ flex: 1, borderBottom: B05, paddingBottom: 1 }}>&nbsp;</span>
+          <span style={{ flexShrink: 0, fontStyle: "italic" }}>- Tổng số chênh lệch thiếu (bằng chữ):</span>
+          <span style={{ flex: 1, borderBottom: B05, paddingBottom: 1, fontWeight: 700, fontStyle: "italic" }}>{haoHutChu}</span>
         </div>
         <div style={{ display: "flex", gap: 4, marginBottom: 4, fontSize: 13 }}>
           <span style={{ flexShrink: 0, fontStyle: "italic" }}>- Tổng số chênh lệch thừa (bằng chữ):</span>
-          <span style={{ flex: 1, borderBottom: B05, paddingBottom: 1 }}>&nbsp;</span>
+          <span style={{ flex: 1, borderBottom: B05, paddingBottom: 1, fontWeight: 700, fontStyle: "italic" }}>{thuaChu}</span>
         </div>
         <div style={{ display: "flex", gap: 4, fontSize: 13 }}>
           <span style={{ flexShrink: 0 }}>- Nguyên nhân chênh lệch:</span>
@@ -303,7 +328,7 @@ export function BaoCaoKiemKhoPreview(props: BaoCaoKiemKhoPreviewProps) {
 
   const actions = (
     <button
-      onClick={() => printDocumentById("bao-cao-kiem-kho-doc", "portrait", `Biên bản kiểm kê - ${props.soChungTu}`)}
+      onClick={() => printDocumentById("bao-cao-kiem-kho-doc", "landscape", `Biên bản kiểm kê - ${props.soChungTu}`)}
       style={{ padding: "8px 22px", border: "none", background: "#1d4ed8", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}
     >
       <i className="bi bi-printer" /> In biên bản
@@ -328,6 +353,7 @@ export function BaoCaoKiemKhoPreview(props: BaoCaoKiemKhoPreviewProps) {
       }
       onClose={props.onClose}
       documentId="bao-cao-kiem-kho-doc"
+      printOrientation="landscape"
     />
   );
 }

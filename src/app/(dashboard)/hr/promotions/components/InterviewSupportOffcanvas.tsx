@@ -100,6 +100,7 @@ export const InterviewSupportOffcanvas = ({ isOpen, onClose, type: initialType }
             style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.3)", zIndex: 1060, backdropFilter: "blur(4px)" }}
           />
           <motion.div
+            className="app-custom-drawer"
             initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
             style={{ 

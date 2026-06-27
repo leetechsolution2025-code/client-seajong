@@ -12,7 +12,7 @@ export default function EmployeesPage() {
         icon="bi-person-lines-fill"
         color="rose"
       />
-      <div className="flex-grow-1 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+      <div className="flex-grow-1 d-flex flex-column standard-page-content" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         <EmployeeManagement />
       </div>
     </div>

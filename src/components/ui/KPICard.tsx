@@ -16,31 +16,31 @@ export function KPICard({
 }: KPICardProps) {
   return (
     <div className={colClass}>
-      <div className="app-card p-2 ps-3 d-flex align-items-center gap-3">
+      <div className="app-card p-2 ps-2.5 ps-md-3 d-flex align-items-center gap-2 gap-md-3">
         {/* Icon */}
         <div
-          className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-          style={{ width: 48, height: 48, background: `${accent}18` }}
+          className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0 kpi-icon-box"
+          style={{ background: `${accent}18` }}
         >
-          <i className={`bi ${icon}`} style={{ fontSize: 20, color: accent }} />
+          <i className={`bi ${icon} kpi-icon`} style={{ color: accent }} />
         </div>
 
         {/* Content */}
         <div className="overflow-hidden">
           <p
-            className="mb-1 fw-semibold text-truncate"
-            style={{ fontSize: 12, color: "var(--muted-foreground)", letterSpacing: "0.01em" }}
+            className="mb-1 fw-semibold text-truncate kpi-label"
+            style={{ color: "var(--muted-foreground)", letterSpacing: "0.01em" }}
           >
             {label}
           </p>
           <p
-            className="mb-0 fw-black"
-            style={{ fontSize: 19, color: "var(--foreground)", lineHeight: 1, letterSpacing: "-0.02em" }}
+            className="mb-0 fw-black kpi-value"
+            style={{ color: "var(--foreground)", lineHeight: 1, letterSpacing: "-0.02em" }}
           >
             {prefix}{value}{suffix}
           </p>
           {subtitle && (
-            <p className="mb-0" style={{ fontSize: 10, color: "var(--muted-foreground)", marginTop: 3, fontWeight: 400 }}>
+            <p className="mb-0 kpi-subtitle" style={{ color: "var(--muted-foreground)", marginTop: 3, fontWeight: 400 }}>
               {subtitle}
             </p>
           )}

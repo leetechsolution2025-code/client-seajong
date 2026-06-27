@@ -10,8 +10,10 @@ interface AddSupplierModalProps {
   /** Danh mục được chọn sẵn khi mở modal (categoryId) */
   defaultCategoryId?: string;
   onClose: () => void;
-  /** Callback nhận về { id, name } của NCC vừa tạo */
+  /** Callback nhận về { id, name } của NCC vừa tạo hoặc cập nhật */
   onSaved: (supplier: { id: string; name: string }) => void;
+  /** ID nhà cung cấp cần chỉnh sửa (nếu có sẽ kích hoạt chế độ sửa) */
+  supplierId?: string;
 }
 
 export function AddSupplierModal({
@@ -19,6 +21,7 @@ export function AddSupplierModal({
   defaultCategoryId,
   onClose,
   onSaved,
+  supplierId,
 }: AddSupplierModalProps) {
   const today = new Date().toLocaleDateString("vi-VN");
 
@@ -40,7 +43,7 @@ export function AddSupplierModal({
   const [saving, setSaving]   = React.useState(false);
   const [error, setError]     = React.useState("");
 
-  // Nếu không được truyền categories thì tự fetch
+  // Nếu không được truyền categories thì tự fetch từ API
   React.useEffect(() => {
     if (categoriesProp) return;
     fetch("/api/plan-finance/inventory/categories")
@@ -51,6 +54,33 @@ export function AddSupplierModal({
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetch dữ liệu nhà cung cấp nếu ở chế độ Sửa
+  React.useEffect(() => {
+    if (!supplierId) return;
+    fetch(`/api/plan-finance/suppliers/${supplierId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.supplier) {
+          const s = data.supplier;
+          setForm({
+            name: s.name || "",
+            address: s.address || "",
+            contactName: s.contactName || "",
+            xungHo: s.xungHo || "Anh",
+            phone: s.phone || "",
+            email: s.email || "",
+            hanMucNo: s.hanMucNo || 0,
+            ghiChu: s.ghiChu || "",
+            trangThai: s.trangThai || "active",
+          });
+          if (s.categories) {
+            setSelectedCats(s.categories.map((c: any) => c.categoryId));
+          }
+        }
+      })
+      .catch(() => {});
+  }, [supplierId]);
 
   // Đóng dropdown category khi click ngoài
   React.useEffect(() => {
@@ -74,14 +104,17 @@ export function AddSupplierModal({
     if (!form.name.trim()) { setError("Tên nhà cung cấp không được để trống"); return; }
     setSaving(true); setError("");
     try {
-      const res = await fetch("/api/plan-finance/suppliers", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      const url = supplierId ? `/api/plan-finance/suppliers/${supplierId}` : "/api/plan-finance/suppliers";
+      const method = supplierId ? "PATCH" : "POST";
+      
+      const res = await fetch(url, {
+        method, headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: form.name.trim(), address: form.address || undefined,
-          contactName: form.contactName || undefined, xungHo: form.xungHo || undefined,
-          phone: form.phone || undefined, email: form.email || undefined,
+          name: form.name.trim(), address: form.address || "",
+          contactName: form.contactName || "", xungHo: form.xungHo || "Anh",
+          phone: form.phone || "", email: form.email || "",
           hanMucNo: Number(form.hanMucNo) || 0,
-          ghiChu: form.ghiChu || undefined, trangThai: form.trangThai || "active",
+          ghiChu: form.ghiChu || "", trangThai: form.trangThai || "active",
           categoryIds: selectedCats,
         }),
       });
@@ -112,9 +145,11 @@ export function AddSupplierModal({
         {/* Header */}
         <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <div style={{ width: 32, height: 32, borderRadius: 9, background: "color-mix(in srgb, var(--primary) 12%, transparent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <i className="bi bi-person-plus-fill" style={{ fontSize: 15, color: "var(--primary)" }} />
+            <i className={supplierId ? "bi bi-pencil-square" : "bi bi-person-plus-fill"} style={{ fontSize: 15, color: "var(--primary)" }} />
           </div>
-          <span style={{ fontWeight: 800, fontSize: 15, color: "var(--foreground)" }}>Thêm nhà cung cấp mới</span>
+          <span style={{ fontWeight: 800, fontSize: 15, color: "var(--foreground)" }}>
+            {supplierId ? "Cập nhật thông tin nhà cung cấp" : "Thêm nhà cung cấp mới"}
+          </span>
           <button onClick={onClose} style={{ marginLeft: "auto", width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)", background: "var(--muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
             <i className="bi bi-x" style={{ fontSize: 17 }} />
           </button>
@@ -237,7 +272,7 @@ export function AddSupplierModal({
           <button onClick={handleSave} disabled={saving}
             style={{ padding: "8px 22px", border: "none", background: saving ? "var(--muted)" : "var(--primary)", color: saving ? "var(--muted-foreground)" : "#fff", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 7 }}>
             {saving && <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} />}
-            Lưu nhà cung cấp
+            {supplierId ? "Cập nhật nhà cung cấp" : "Lưu nhà cung cấp"}
           </button>
         </div>
       </div>

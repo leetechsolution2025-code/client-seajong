@@ -26,7 +26,7 @@ export function StandardPage({
   headerActions,
   background = "#EBF0F5",
   useCard = true,
-  paddingClassName = "px-4 pb-4 pt-2",
+  paddingClassName = "px-3 px-sm-4 pb-3 pb-sm-4 pt-2",
 }: StandardPageProps) {
   return (
     <div className="d-flex flex-column h-100 overflow-hidden" style={{ background }}>
@@ -39,9 +39,9 @@ export function StandardPage({
         {headerActions}
       </PageHeader>
 
-      <div className={`flex-grow-1 d-flex flex-column ${paddingClassName}`} style={{ minHeight: 0 }}>
+      <div className={`flex-grow-1 d-flex flex-column standard-page-content ${paddingClassName}`} style={{ minHeight: 0 }}>
         {useCard ? (
-          <div className="bg-white rounded-4 shadow-sm border p-4 flex-grow-1 overflow-auto" style={{ minHeight: 0 }}>
+          <div className="bg-white rounded-4 shadow-sm border p-3 p-sm-4 flex-grow-1 overflow-auto" style={{ minHeight: 0 }}>
             {children}
           </div>
         ) : (

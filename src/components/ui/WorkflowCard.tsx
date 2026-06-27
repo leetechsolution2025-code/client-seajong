@@ -36,7 +36,7 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
     >
       {/* Header Area: Stepper */}
       {stepper && (
-        <div className="px-4 py-1 border-bottom flex-shrink-0 bg-white">
+        <div className="px-4 py-1 border-bottom flex-shrink-0 bg-white workflow-card-stepper-container">
           {stepper}
         </div>
       )}
@@ -51,17 +51,48 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
         )}
 
         {/* Dynamic Content (Table, etc.) */}
-        <div className="flex-grow-1 overflow-auto custom-scrollbar" style={{ minHeight: 0 }}>
+        <div className="flex-grow-1 custom-scrollbar" style={{ overflowY: "auto", minHeight: 0, minWidth: 0, width: "100%" }}>
           {children}
         </div>
 
         {/* Bottom Toolbar Area */}
         {bottomToolbar && (
-          <div className="border-top flex-shrink-0 bg-light/30 px-3 py-2">
+          <div className="border-top flex-shrink-0 bg-light/30 px-3 py-1">
             {bottomToolbar}
           </div>
         )}
       </div>
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(100, 116, 139, 0.2);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(100, 116, 139, 0.4);
+        }
+        /* iPad responsive for stepper toolbar */
+        @media (max-width: 1024px) {
+          .workflow-card-stepper-container {
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+            padding-top: 4px !important;
+            padding-bottom: 4px !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .workflow-card-stepper-container {
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { LeaveForm } from "./forms/LeaveForm";
 import { OvertimeForm } from "./forms/OvertimeForm";
@@ -20,10 +20,20 @@ interface PersonalRequestOffcanvasProps {
 export function PersonalRequestOffcanvas({ isOpen, onClose, type, onSuccess }: PersonalRequestOffcanvasProps) {
   const { success: toastSuccess, error: toastError } = useToast();
   const [loading, setLoading] = useState(false);
+  const [leaveSubType, setLeaveSubType] = useState<string>("Phép năm");
+
+  useEffect(() => {
+    if (isOpen) {
+      setLeaveSubType("Phép năm");
+    }
+  }, [isOpen, type]);
 
   const getTitle = () => {
     switch (type) {
-      case "leave": return "Đăng ký nghỉ phép";
+      case "leave":
+        if (leaveSubType === "Đi muộn") return "Đăng ký Đi muộn";
+        if (leaveSubType === "Về sớm") return "Đăng ký Về sớm";
+        return "Đăng ký nghỉ phép";
       case "overtime": return "Đăng ký Làm thêm giờ";
       case "business-trip": return "Yêu cầu công tác";
       case "hr-request": return "Yêu cầu nhân sự và hồ sơ";
@@ -60,7 +70,7 @@ export function PersonalRequestOffcanvas({ isOpen, onClose, type, onSuccess }: P
   const renderForm = () => {
     switch (type) {
       case "leave":
-        return <LeaveForm onSubmit={handleSubmit} loading={loading} />;
+        return <LeaveForm onSubmit={handleSubmit} loading={loading} onTypeChange={setLeaveSubType} />;
       case "overtime":
         return <OvertimeForm onSubmit={handleSubmit} loading={loading} />;
       case "business-trip":

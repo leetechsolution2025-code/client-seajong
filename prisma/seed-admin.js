@@ -22,15 +22,20 @@ async function main() {
 
   const hashed = await bcrypt.hash(adminPassword, 12);
 
-  // Đảm bảo Client record tồn tại (với logo)
+  // Seed industry if it exists
+  let industryRecord = null;
+  
+
+  // Đảm bảo Client record tồn tại (với logo và industryId)
   const clientRecord = await prisma.client.upsert({
     where: { shortName: clientShortName },
-    update: { logoUrl },
+    update: { logoUrl, industryId: industryRecord ? industryRecord.id : null },
     create: {
       name: clientName,
       shortName: clientShortName,
       status: 'active',
       logoUrl,
+      industryId: industryRecord ? industryRecord.id : null,
     },
   });
 

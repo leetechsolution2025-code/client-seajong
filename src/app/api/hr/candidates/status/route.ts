@@ -71,10 +71,9 @@ export async function PATCH(request: Request) {
           .join("\n");
 
         const cvLinks = groupCandidates
-          .filter((c: any) => c.cvUrl || c.profileUrl)
           .map((c: any) => ({
-            name: `Xem CV - ${c.name}`,
-            url: c.cvUrl || c.profileUrl,
+            name: c.cvUrl || c.profileUrl ? `Xem CV - ${c.name}` : `Hồ sơ - ${c.name} (Chưa cập nhật CV)`,
+            url: c.cvUrl || c.profileUrl || "#",
             type: "recruitment_action",
             candidateId: c.id,
             candidateName: c.name

@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-
 import { WarehouseLayoutModal } from "./WarehouseLayoutModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 
 interface Warehouse {
   id: string;
@@ -17,202 +18,366 @@ interface Warehouse {
   createdAt: string;
 }
 
+const TYPE_CFG: Record<string, { label: string; icon: string; color: string; bg: string; gradient: string }> = {
+  showroom:  { label: "Showroom",          icon: "bi-shop",             color: "#8b5cf6", bg: "rgba(139,92,246,0.1)",  gradient: "linear-gradient(135deg, #8b5cf6, #a78bfa)" },
+  transit:   { label: "Trung chuyển",      icon: "bi-signpost-split",   color: "#f59e0b", bg: "rgba(245,158,11,0.1)",  gradient: "linear-gradient(135deg, #f59e0b, #fbbf24)" },
+  storage:   { label: "Kho lưu trữ",       icon: "bi-building",         color: "#3b82f6", bg: "rgba(59,130,246,0.1)",  gradient: "linear-gradient(135deg, #3b82f6, #60a5fa)" },
+};
+
+function getTypeCfg(wh: Warehouse) {
+  if (wh.isVirtual) return TYPE_CFG.transit;
+  return TYPE_CFG.storage;
+}
+
 export function WarehouseSetup() {
+  const toast = useToast();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLayoutWh, setEditingLayoutWh] = useState<Warehouse | null>(null);
-  const [formData, setFormData] = useState({
-    code: "",
-    name: "",
-    address: "",
-    type: "storage",
-    manager: ""
-  });
-
+  const [editingWh, setEditingWh] = useState<Warehouse | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [formData, setFormData] = useState({ code: "", name: "", address: "", type: "storage", manager: "" });
   const [saving, setSaving] = useState(false);
+
+  const handleStartEdit = (wh: Warehouse) => {
+    setEditingWh(wh);
+    setFormData({
+      code: wh.code || "",
+      name: wh.name,
+      address: wh.address || "",
+      type: wh.isVirtual ? "transit" : "storage",
+      manager: wh.managerId || "",
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingWh(null);
+    setFormData({ code: "", name: "", address: "", type: "storage", manager: "" });
+  };
 
   const fetchWarehouses = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/logistics/warehouses");
-      if (res.ok) {
-        const data = await res.json();
-        setWarehouses(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch warehouses:", error);
+      if (res.ok) setWarehouses(await res.json());
+    } catch (e) {
+      console.error("Failed to fetch warehouses:", e);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchWarehouses();
-  }, []);
+  useEffect(() => { fetchWarehouses(); }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.code || !formData.name) {
-      alert("Vui lòng nhập đầy đủ Mã và Tên kho");
-      return;
-    }
-
+    if (!formData.code || !formData.name) { toast.error("Lỗi", "Vui lòng nhập đầy đủ Mã và Tên kho"); return; }
     try {
       setSaving(true);
-      const res = await fetch("/api/logistics/warehouses", {
-        method: "POST",
+      const url = editingWh ? `/api/logistics/warehouses/${editingWh.id}` : "/api/logistics/warehouses";
+      const method = editingWh ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code: formData.code,
           name: formData.name,
           address: formData.address,
-          // Manager and type are simulated for now as they might need separate relations in a full system
           managerId: formData.manager,
           isVirtual: formData.type === "transit",
         }),
       });
-
       if (res.ok) {
+        toast.success("Thành công", editingWh ? "Đã cập nhật thông tin kho thành công" : "Đã thêm kho mới thành công");
         await fetchWarehouses();
         setIsModalOpen(false);
+        setEditingWh(null);
         setFormData({ code: "", name: "", address: "", type: "storage", manager: "" });
       } else {
         const err = await res.json();
-        alert("Lỗi: " + err.error);
+        toast.error("Lỗi", err.error || "Không thể lưu thông tin kho");
       }
-    } catch (error) {
-      alert("Không thể kết nối đến máy chủ");
-    } finally {
-      setSaving(false);
-    }
+    } catch { toast.error("Lỗi", "Không thể kết nối đến máy chủ"); }
+    finally { setSaving(false); }
   };
 
   const handleSaveLayout = async (elements: any[]) => {
     if (!editingLayoutWh) return;
-
     try {
       const res = await fetch(`/api/logistics/warehouses/${editingLayoutWh.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          layoutJson: JSON.stringify(elements)
-        }),
+        body: JSON.stringify({ layoutJson: JSON.stringify(elements) }),
       });
-
-      if (res.ok) {
-        await fetchWarehouses();
-        setEditingLayoutWh(null);
-      } else {
-        const errorData = await res.json();
-        alert(`Lỗi khi lưu layout: ${errorData.error || res.statusText}`);
+      if (res.ok) { 
+        toast.success("Thành công", "Đã cập nhật sơ đồ layout thành công");
+        await fetchWarehouses(); 
+        setEditingLayoutWh(null); 
       }
-    } catch (error: any) {
-      alert(`Lỗi kết nối: ${error.message}`);
+      else { const err = await res.json(); toast.error("Lỗi", err.error || res.statusText); }
+    } catch (e: any) { toast.error("Lỗi kết nối", e.message); }
+  };
+
+  const [deletingWh, setDeletingWh] = useState<Warehouse | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const confirmDelete = async () => {
+    if (!deletingWh) return;
+    try {
+      setIsDeleting(true);
+      const res = await fetch(`/api/logistics/warehouses/${deletingWh.id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        toast.success("Thành công", "Đã xoá kho thành công");
+        await fetchWarehouses();
+        setDeletingWh(null);
+      } else {
+        const err = await res.json();
+        toast.error("Lỗi", err.error || "Không thể xoá kho");
+      }
+    } catch (e: any) {
+      toast.error("Lỗi kết nối", e.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
+  const activeCount = warehouses.filter(w => w.isActive).length;
+  const hasLayout = warehouses.filter(w => w.layoutJson).length;
+
   return (
-    <div className="d-flex flex-column gap-3">
-      {/* ── Compact Header with Add Button ── */}
-      <div className="d-flex justify-content-end mb-2">
-        <button 
-          className="btn btn-primary rounded-pill px-4 fw-bold d-flex align-items-center gap-2 shadow-sm"
-          onClick={() => setIsModalOpen(true)}
-          style={{ height: 38, fontSize: 13 }}
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+      {/* ── Top bar ── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {/* Summary pills */}
+        <div style={{ display: "flex", gap: 10 }}>
+          {[
+            { label: "Tổng số kho", value: warehouses.length, icon: "bi-building", color: "#3b82f6" },
+            { label: "Đang hoạt động", value: activeCount, icon: "bi-check-circle", color: "#10b981" },
+            { label: "Có sơ đồ layout", value: hasLayout, icon: "bi-map", color: "#8b5cf6" },
+          ].map(s => (
+            <div key={s.label} style={{
+              display: "flex", alignItems: "center", gap: 8,
+              background: "var(--card)", border: "1px solid var(--border)",
+              borderRadius: 12, padding: "7px 14px",
+            }}>
+              <i className={`bi ${s.icon}`} style={{ fontSize: 14, color: s.color }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>{s.value}</span>
+              <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Add button */}
+        <button
+          onClick={() => {
+            setEditingWh(null);
+            setFormData({ code: "", name: "", address: "", type: "storage", manager: "" });
+            setIsModalOpen(true);
+          }}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "9px 20px", borderRadius: 12, border: "none", cursor: "pointer",
+            background: "linear-gradient(135deg, #3b82f6, #6366f1)",
+            color: "#fff", fontSize: 13, fontWeight: 700,
+            boxShadow: "0 4px 14px rgba(59,130,246,0.35)",
+            transition: "all 0.2s",
+          }}
         >
-          <i className="bi bi-plus-circle" />
+          <i className="bi bi-plus-circle-fill" style={{ fontSize: 15 }} />
           Thêm kho mới
         </button>
       </div>
 
       {/* ── Warehouse Grid ── */}
       {loading ? (
-        <div className="text-center p-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
+        <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, border: "3px solid #3b82f6", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Đang tải danh sách kho...</span>
           </div>
         </div>
+      ) : warehouses.length === 0 ? (
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          padding: "80px 20px", gap: 16,
+          border: "2px dashed var(--border)", borderRadius: 20,
+          background: "var(--card)",
+        }}>
+          <div style={{ width: 72, height: 72, borderRadius: 20, background: "rgba(59,130,246,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <i className="bi bi-building-add" style={{ fontSize: 32, color: "#3b82f6" }} />
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--foreground)" }}>Chưa có kho hàng nào</p>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted-foreground)" }}>Thêm kho đầu tiên để bắt đầu quản lý hệ thống</p>
+          </div>
+          <button onClick={() => setIsModalOpen(true)} style={{
+            padding: "10px 24px", borderRadius: 12, border: "none", cursor: "pointer",
+            background: "linear-gradient(135deg, #3b82f6, #6366f1)", color: "#fff",
+            fontSize: 13, fontWeight: 700,
+          }}>
+            <i className="bi bi-plus-circle-fill me-2" />Thêm kho ngay
+          </button>
+        </div>
       ) : (
-        <div className="row g-3">
-          {warehouses.map((wh) => (
-            <div key={wh.id} className="col-md-6 col-lg-4 col-xl-3">
-              <div className="app-card h-100 p-0 overflow-hidden" style={{ borderRadius: 16 }}>
-                {/* Header */}
-                <div className="p-3 bg-light border-bottom d-flex align-items-start justify-content-between">
-                  <div className="d-flex align-items-center gap-2">
-                    <div className="rounded-3 bg-white border d-flex align-items-center justify-content-center" style={{ width: 36, height: 36 }}>
-                      <i className="bi bi-building text-primary fs-5" />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          {warehouses.map(wh => {
+            const cfg = getTypeCfg(wh);
+            const isHovered = hoveredCard === wh.id;
+            const hasLayoutData = !!wh.layoutJson;
+
+            return (
+              <div
+                key={wh.id}
+                onMouseEnter={() => setHoveredCard(wh.id)}
+                onMouseLeave={() => setHoveredCard(null)}
+                style={{
+                  background: "var(--card)",
+                  border: `1px solid ${isHovered ? cfg.color : "var(--border)"}`,
+                  borderRadius: 18,
+                  overflow: "hidden",
+                  transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
+                  transform: isHovered ? "translateY(-4px)" : "translateY(0)",
+                  boxShadow: isHovered ? `0 12px 28px ${cfg.color}22` : "0 1px 4px rgba(0,0,0,0.04)",
+                  cursor: "default",
+                }}
+              >
+                {/* Colour accent strip */}
+                <div style={{ height: 4, background: cfg.gradient }} />
+
+                {/* Card header */}
+                <div style={{ padding: "16px 16px 12px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 13,
+                      background: cfg.bg,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0,
+                      transition: "transform 0.2s",
+                      transform: isHovered ? "scale(1.08)" : "scale(1)",
+                    }}>
+                      <i className={`bi ${cfg.icon}`} style={{ fontSize: 20, color: cfg.color }} />
                     </div>
                     <div style={{ minWidth: 0 }}>
-                      <div className="fw-bold text-dark text-truncate" style={{ fontSize: 13 }} title={wh.name}>{wh.name}</div>
-                      <div className="badge bg-primary-subtle text-primary border-primary-subtle" style={{ fontSize: 9 }}>
-                        {wh.code}
+                      <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {wh.name}
+                      </p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 6,
+                          background: cfg.bg, color: cfg.color, letterSpacing: 0.3,
+                        }}>{wh.code}</span>
+                        <span style={{
+                          fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 6,
+                          background: cfg.bg, color: cfg.color,
+                        }}>{cfg.label}</span>
                       </div>
                     </div>
                   </div>
+
+                  {/* Dropdown */}
                   <div className="dropdown">
-                    <button className="btn btn-link p-0 text-muted" data-bs-toggle="dropdown">
-                      <i className="bi bi-three-dots-vertical" />
+                    <button
+                      className="btn p-0"
+                      data-bs-toggle="dropdown"
+                      style={{ width: 28, height: 28, borderRadius: 8, background: "var(--muted)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", fontSize: 13 }}
+                    >
+                      <i className="bi bi-three-dots" />
                     </button>
-                    <ul className="dropdown-menu dropdown-menu-end shadow-sm border-0" style={{ fontSize: 13 }}>
-                      <li><a className="dropdown-item py-2" href="#"><i className="bi bi-pencil me-2" /> Chỉnh sửa</a></li>
-                      <li><a className="dropdown-item py-2" href="#"><i className="bi bi-map me-2" /> Sơ đồ layout</a></li>
-                      <li><hr className="dropdown-divider" /></li>
-                      <li><a className="dropdown-item py-2 text-danger" href="#"><i className="bi bi-trash me-2" /> Xoá kho</a></li>
+                    <ul className="dropdown-menu dropdown-menu-end border-0 shadow" style={{ fontSize: 12, borderRadius: 12, minWidth: 160 }}>
+                      <li>
+                        <button
+                          className="dropdown-item py-2 d-flex align-items-center gap-2"
+                          onClick={() => handleStartEdit(wh)}
+                        >
+                          <i className="bi bi-pencil" style={{ color: "#3b82f6" }} /> Chỉnh sửa
+                        </button>
+                      </li>
+                      <li>
+                        <button className="dropdown-item py-2 d-flex align-items-center gap-2" onClick={() => setEditingLayoutWh(wh)}>
+                          <i className="bi bi-map" style={{ color: "#8b5cf6" }} /> Sơ đồ layout
+                        </button>
+                      </li>
+                      <li><hr className="dropdown-divider my-1" /></li>
+                      <li>
+                        <button 
+                          className="dropdown-item py-2 d-flex align-items-center gap-2 text-danger" 
+                          onClick={() => setDeletingWh(wh)}
+                        >
+                          <i className="bi bi-trash" /> Xoá kho
+                        </button>
+                      </li>
                     </ul>
                   </div>
                 </div>
 
-                {/* Info Body */}
-                <div className="p-3 flex-grow-1 d-flex flex-column gap-2">
-                  <div className="d-flex align-items-start gap-2">
-                    <i className="bi bi-geo-alt text-muted small" />
-                    <div className="small text-muted text-truncate-2" style={{ fontSize: 11, minHeight: 32 }}>{wh.address || "Chưa cập nhật địa chỉ"}</div>
+                {/* Body */}
+                <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                    <i className="bi bi-geo-alt" style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 1, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.5 }}>
+                      {wh.address || "Chưa cập nhật địa chỉ"}
+                    </span>
                   </div>
-                  
-                  <div className="d-flex align-items-center gap-2">
-                    <i className="bi bi-person-badge text-muted small" />
-                    <div className="small" style={{ fontSize: 11 }}>Quản lý: <span className="fw-medium text-dark">{wh.managerId || "N/A"}</span></div>
-                  </div>
-
-                  <div className="mt-auto pt-2 border-top d-flex align-items-center justify-content-between">
-                    <div className="d-flex align-items-center gap-1">
-                       <span className={`badge ${wh.isActive ? 'bg-success' : 'bg-secondary'} rounded-circle p-1`} />
-                       <span className="text-muted" style={{ fontSize: 10 }}>{wh.isActive ? 'Active' : 'Inactive'}</span>
-                    </div>
-                    <button 
-                      className="btn btn-link p-0 text-primary fw-bold text-decoration-none" 
-                      style={{ fontSize: 11 }}
-                      onClick={() => setEditingLayoutWh(wh)}
-                    >
-                      Layout <i className="bi bi-arrow-right" />
-                    </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <i className="bi bi-person-badge" style={{ fontSize: 13, color: "var(--muted-foreground)", flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
+                      Phụ trách: <strong style={{ color: "var(--foreground)" }}>{wh.managerId || "Chưa phân công"}</strong>
+                    </span>
                   </div>
                 </div>
-              </div>
-            </div>
-          ))}
 
-          {/* Empty State */}
-          {!loading && warehouses.length === 0 && (
-            <div className="col-12">
-              <div className="app-card text-center p-5 border-dashed" style={{ opacity: 0.7 }}>
-                <i className="bi bi-building-add fs-1 text-muted d-block mb-3" />
-                <h5>Chưa có kho hàng nào</h5>
-                <p className="text-muted small">Bắt đầu bằng cách thêm kho hàng đầu tiên vào hệ thống.</p>
-                <button className="btn btn-primary rounded-pill px-4 mt-2" onClick={() => setIsModalOpen(true)}>
-                  Thêm ngay
-                </button>
+                {/* Footer */}
+                <div style={{
+                  margin: "0 16px 14px",
+                  padding: "10px 14px",
+                  borderRadius: 12,
+                  background: "var(--background)",
+                  border: "1px solid var(--border)",
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{
+                      width: 8, height: 8, borderRadius: "50%",
+                      background: wh.isActive ? "#10b981" : "#94a3b8",
+                      boxShadow: wh.isActive ? "0 0 6px rgba(16,185,129,0.5)" : "none",
+                    }} />
+                    <span style={{ fontSize: 11, fontWeight: 600, color: wh.isActive ? "#10b981" : "var(--muted-foreground)" }}>
+                      {wh.isActive ? "Đang hoạt động" : "Tạm dừng"}
+                    </span>
+                    {hasLayoutData && (
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "#8b5cf6", background: "rgba(139,92,246,0.1)", padding: "1px 7px", borderRadius: 6, marginLeft: 4 }}>
+                        <i className="bi bi-map-fill me-1" />Có layout
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setEditingLayoutWh(wh)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      padding: "4px 12px", borderRadius: 8, border: `1px solid ${cfg.color}`,
+                      background: cfg.bg, color: cfg.color,
+                      fontSize: 11, fontWeight: 700, cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    Sơ đồ <i className="bi bi-arrow-right-short" style={{ fontSize: 14 }} />
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })}
         </div>
       )}
 
       {/* ── Layout Editor Modal ── */}
       {editingLayoutWh && (
-        <WarehouseLayoutModal 
+        <WarehouseLayoutModal
           warehouse={editingLayoutWh}
           onClose={() => setEditingLayoutWh(null)}
           onSave={handleSaveLayout}
@@ -221,102 +386,209 @@ export function WarehouseSetup() {
 
       {/* ── Modal Add Warehouse ── */}
       {isModalOpen && (
-        <div className="modal fade show d-block" style={{ background: "rgba(0,0,0,0.5)" }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: 24 }}>
-              <div className="modal-header border-0 px-4 pt-4">
-                <h5 className="modal-title fw-bold">Thiết lập kho mới</h5>
-                <button type="button" className="btn-close" onClick={() => setIsModalOpen(false)} />
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{
+            background: "var(--card)", borderRadius: 24, width: "100%", maxWidth: 520,
+            border: "1px solid var(--border)",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
+            overflow: "hidden",
+            animation: "fadeInScale 0.2s ease",
+          }}>
+            {/* Modal header */}
+            <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 11, background: "rgba(59,130,246,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <i className="bi bi-building-add" style={{ fontSize: 18, color: "#3b82f6" }} />
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--foreground)" }}>
+                    {editingWh ? "Chỉnh sửa thông tin kho" : "Thêm kho mới"}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>
+                    {editingWh ? "Cập nhật thông tin chi tiết của kho" : "Điền thông tin để thiết lập kho hàng"}
+                  </p>
+                </div>
               </div>
-              <div className="modal-body p-4">
-                <form id="warehouseForm" onSubmit={handleSubmit} className="d-flex flex-column gap-3">
-                  <div className="row g-3">
-                    <div className="col-md-6">
-                      <label className="form-label small fw-bold text-muted uppercase" style={{ fontSize: 11 }}>Mã kho</label>
-                      <input 
-                        type="text" 
-                        className="form-control rounded-3" 
-                        placeholder="VD: KHO-HCM-01"
-                        value={formData.code}
-                        onChange={(e) => setFormData({...formData, code: e.target.value})}
-                        required
+              <button
+                onClick={handleCloseModal}
+                style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid var(--border)", background: "var(--muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", fontSize: 16 }}
+              >
+                <i className="bi bi-x" />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <form id="warehouseForm" onSubmit={handleSubmit}>
+              <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+
+                {/* Mã kho + Tên kho */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  {[
+                    { label: "Mã kho", key: "code", placeholder: "VD: KHO-HN-01", required: true },
+                    { label: "Tên kho", key: "name", placeholder: "VD: Kho Tổng Hà Nội", required: true },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                        {f.label}{f.required && <span style={{ color: "#ef4444" }}> *</span>}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={f.placeholder}
+                        value={(formData as any)[f.key]}
+                        onChange={e => setFormData({ ...formData, [f.key]: e.target.value })}
+                        required={f.required}
+                        style={{
+                          width: "100%", padding: "9px 12px", borderRadius: 10, fontSize: 13,
+                          border: "1px solid var(--border)", background: "var(--background)",
+                          color: "var(--foreground)", outline: "none", boxSizing: "border-box",
+                        }}
                       />
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label small fw-bold text-muted uppercase" style={{ fontSize: 11 }}>Tên kho</label>
-                      <input 
-                        type="text" 
-                        className="form-control rounded-3" 
-                        placeholder="VD: Kho Tổng TP.HCM"
-                        value={formData.name}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        required
-                      />
-                    </div>
+                  ))}
+                </div>
+
+                {/* Địa chỉ */}
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Địa chỉ</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Nhập địa chỉ chi tiết..."
+                    value={formData.address}
+                    onChange={e => setFormData({ ...formData, address: e.target.value })}
+                    style={{
+                      width: "100%", padding: "9px 12px", borderRadius: 10, fontSize: 13,
+                      border: "1px solid var(--border)", background: "var(--background)",
+                      color: "var(--foreground)", outline: "none", resize: "none", boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+
+                {/* Loại kho + Người phụ trách */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Loại kho</label>
+                    <select
+                      value={formData.type}
+                      onChange={e => setFormData({ ...formData, type: e.target.value })}
+                      style={{
+                        width: "100%", padding: "9px 12px", borderRadius: 10, fontSize: 13,
+                        border: "1px solid var(--border)", background: "var(--background)",
+                        color: "var(--foreground)", outline: "none", cursor: "pointer",
+                      }}
+                    >
+                      <option value="storage">🏭 Kho lưu trữ</option>
+                      <option value="showroom">🏪 Showroom</option>
+                      <option value="transit">🔄 Trạm trung chuyển</option>
+                    </select>
                   </div>
                   <div>
-                    <label className="form-label small fw-bold text-muted uppercase" style={{ fontSize: 11 }}>Địa chỉ</label>
-                    <textarea 
-                      className="form-control rounded-3" 
-                      rows={2} 
-                      placeholder="Nhập địa chỉ chi tiết..."
-                      value={formData.address}
-                      onChange={(e) => setFormData({...formData, address: e.target.value})}
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Người phụ trách</label>
+                    <input
+                      type="text"
+                      placeholder="Họ và tên..."
+                      value={formData.manager}
+                      onChange={e => setFormData({ ...formData, manager: e.target.value })}
+                      style={{
+                        width: "100%", padding: "9px 12px", borderRadius: 10, fontSize: 13,
+                        border: "1px solid var(--border)", background: "var(--background)",
+                        color: "var(--foreground)", outline: "none", boxSizing: "border-box",
+                      }}
                     />
                   </div>
-                  <div className="row g-3">
-                    <div className="col-md-6">
-                      <label className="form-label small fw-bold text-muted uppercase" style={{ fontSize: 11 }}>Loại kho</label>
-                      <select 
-                        className="form-select rounded-3"
-                        value={formData.type}
-                        onChange={(e) => setFormData({...formData, type: e.target.value})}
-                      >
-                        <option value="storage">Kho lưu trữ</option>
-                        <option value="showroom">Showroom</option>
-                        <option value="transit">Trạm trung chuyển</option>
-                      </select>
-                    </div>
-                    <div className="col-md-6">
-                      <label className="form-label small fw-bold text-muted uppercase" style={{ fontSize: 11 }}>Người phụ trách</label>
-                      <input 
-                        type="text" 
-                        className="form-control rounded-3" 
-                        placeholder="Họ và tên..."
-                        value={formData.manager}
-                        onChange={(e) => setFormData({...formData, manager: e.target.value})}
-                      />
-                    </div>
+                </div>
+
+                {/* Upload layout */}
+                <div style={{
+                  padding: "14px 16px", borderRadius: 12,
+                  border: "1.5px dashed var(--border)", background: "var(--background)",
+                  display: "flex", alignItems: "center", gap: 12,
+                }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(59,130,246,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <i className="bi bi-cloud-upload" style={{ fontSize: 16, color: "#3b82f6" }} />
                   </div>
-                  
-                  <div className="mt-3 p-3 bg-light rounded-3 border border-dashed text-center">
-                    <i className="bi bi-cloud-upload fs-4 text-primary d-block mb-1" />
-                    <span className="small text-muted">Tải lên sơ đồ Layout (SVG/PNG/JPG)</span>
-                    <input type="file" className="d-none" id="layoutUpload" />
-                    <label htmlFor="layoutUpload" className="btn btn-sm btn-white border rounded-pill px-3 ms-2 mt-2" style={{ cursor: "pointer" }}>Chọn file</label>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}>Tải lên sơ đồ layout</p>
+                    <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>SVG / PNG / JPG – Tuỳ chọn</p>
                   </div>
-                </form>
+                  <label htmlFor="layoutUpload" style={{
+                    padding: "6px 14px", borderRadius: 8,
+                    border: "1px solid var(--border)", background: "var(--card)",
+                    fontSize: 11, fontWeight: 600, cursor: "pointer", color: "var(--foreground)",
+                  }}>
+                    Chọn file
+                  </label>
+                  <input type="file" id="layoutUpload" className="d-none" />
+                </div>
               </div>
-              <div className="modal-footer border-0 p-4 pt-0">
-                <button type="button" className="btn btn-light rounded-pill px-4" onClick={() => setIsModalOpen(false)} disabled={saving}>Huỷ bỏ</button>
-                <button 
-                  type="submit" 
-                  form="warehouseForm" 
-                  className="btn btn-primary rounded-pill px-4 fw-bold"
+
+              {/* Modal footer */}
+              <div style={{ padding: "14px 24px 20px", display: "flex", justifyContent: "flex-end", gap: 10, borderTop: "1px solid var(--border)" }}>
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
                   disabled={saving}
+                  style={{
+                    padding: "9px 20px", borderRadius: 10, border: "1px solid var(--border)",
+                    background: "var(--muted)", color: "var(--foreground)",
+                    fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  Huỷ bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={{
+                    padding: "9px 22px", borderRadius: 10, border: "none",
+                    background: saving ? "#94a3b8" : "linear-gradient(135deg, #3b82f6, #6366f1)",
+                    color: "#fff", fontSize: 13, fontWeight: 700,
+                    cursor: saving ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", gap: 8,
+                    boxShadow: saving ? "none" : "0 4px 14px rgba(59,130,246,0.3)",
+                    transition: "all 0.2s",
+                  }}
                 >
                   {saving ? (
                     <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      <span style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spin 0.7s linear infinite" }} />
                       Đang lưu...
                     </>
-                  ) : "Lưu thông tin"}
+                  ) : (
+                    <>
+                      <i className="bi bi-check2-circle" />
+                      Lưu thông tin
+                    </>
+                  )}
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
+
+      {/* ── Confirm Delete Warehouse ── */}
+      <ConfirmDialog
+        open={!!deletingWh}
+        title={`Xoá kho "${deletingWh?.name}"?`}
+        message={
+          <>
+            Bạn có chắc chắn muốn xoá kho <strong>{deletingWh?.name}</strong>?
+            <br />
+            Hành động này không thể hoàn tác.
+          </>
+        }
+        confirmLabel="Xoá kho"
+        cancelLabel="Huỷ"
+        variant="danger"
+        loading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeletingWh(null)}
+      />
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+      `}</style>
     </div>
   );
 }

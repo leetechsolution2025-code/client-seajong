@@ -43,6 +43,7 @@ export const TrainingRequestOffcanvas = ({ isOpen, onClose, data, onApprove, onR
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 1040, backdropFilter: "blur(2px)" }}
           />
           <motion.div
+            className="app-custom-drawer"
             initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             style={{ 

@@ -1,15 +1,17 @@
 "use client";
 import React from "react";
-import { CurrencyInput }       from "@/components/ui/CurrencyInput";
-import { useToast }            from "@/components/ui/Toast";
-import { ConfirmDialog }       from "@/components/ui/ConfirmDialog";
+import { useSession } from "next-auth/react";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
+import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PhieuNhapKhoPreview } from "./PhieuNhapKhoPreview";
-import { genDocCode }          from "@/lib/genDocCode";
+import { LichSuNhapKhoOffcanvas } from "./LichSuNhapKhoOffcanvas";
+import { genDocCode } from "@/lib/genDocCode";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Warehouse { id: string; code: string | null; name: string; isActive: boolean; }
 interface ItemSuggestion { id: string; code: string | null; tenHang: string; donVi: string | null; giaNhap: number; }
-interface POSuggestion   { id: string; code: string | null; supplier?: { name: string } | null; ngayDat?: string | null; trangThai: string; }
+interface POSuggestion { id: string; code: string | null; supplier?: { name: string } | null; ngayDat?: string | null; trangThai: string; }
 interface POItem {
   id: string;
   inventoryItemId?: string | null;
@@ -21,25 +23,25 @@ interface POItem {
 }
 
 interface StockLine {
-  id:              string;
-  item:            ItemSuggestion | null;
-  itemSearch:      string;
-  suggestions:     ItemSuggestion[];
-  showSugg:        boolean;
-  soLuong:         number; // theo chứng từ
-  soLuongThucTe:   number; // thực tế nhập
-  donGia:          number;
-  viTriHang:       string;
-  viTriCot:        string;
-  viTriTang:       string;
-  ghiChu:          string;
+  id: string;
+  item: ItemSuggestion | null;
+  itemSearch: string;
+  suggestions: ItemSuggestion[];
+  showSugg: boolean;
+  soLuong: number; // theo chứng từ
+  soLuongThucTe: number; // thực tế nhập
+  donGia: number;
+  viTriHang: string;
+  viTriCot: string;
+  viTriTang: string;
+  ghiChu: string;
 }
 
 interface NhapKhoModalProps { onClose: () => void; onSaved: () => void; }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const uid     = () => Math.random().toString(36).slice(2);
-const fmtVnd  = (n: number) => n > 0 ? n.toLocaleString("vi-VN") + " ₫" : "—";
+const uid = () => Math.random().toString(36).slice(2);
+const fmtVnd = (n: number) => n > 0 ? n.toLocaleString("vi-VN") + " ₫" : "—";
 const emptyLine = (): StockLine => ({
   id: uid(), item: null, itemSearch: "", suggestions: [], showSugg: false,
   soLuong: 1, soLuongThucTe: 1, donGia: 0, viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
@@ -60,31 +62,43 @@ const CSS: Record<string, React.CSSProperties> = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
+  const { data: session } = useSession();
   const [mode, setMode] = React.useState<"manual" | "po">("manual");
 
   // Header fields
-  const [soChungTu, setSoChungTu]         = React.useState(() => genDocCode("PN"));
-  const [ngayNhap, setNgayNhap]           = React.useState(() => new Date().toISOString().slice(0,10));
-  const [lockDate, setLockDate]           = React.useState(true); // khoá ngày nhập vào hôm nay
+  const [soChungTu, setSoChungTu] = React.useState(() => {
+    const d = new Date();
+    const yyyymmdd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+    return `PNH-${yyyymmdd}-001`;
+  });
+  const [ngayNhap, setNgayNhap] = React.useState(() => new Date().toISOString().slice(0, 10));
+  const [lockDate, setLockDate] = React.useState(true); // khoá ngày nhập vào hôm nay
   const [toWarehouseId, setToWarehouseId] = React.useState("");
   const [nguoiThucHien, setNguoiThucHien] = React.useState("");
-  const [lyDo, setLyDo]                   = React.useState("Nhập kho hàng hoá");
-  const [ghiChu, setGhiChu]               = React.useState("");
+  const [lyDo, setLyDo] = React.useState("Nhập kho hàng hoá");
+  const [ghiChu, setGhiChu] = React.useState("");
+
+  React.useEffect(() => {
+    if (session?.user?.name && !nguoiThucHien) {
+      setNguoiThucHien(session.user.name);
+    }
+  }, [session, nguoiThucHien]);
 
   // PO mode
-  const [poList, setPoList]         = React.useState<POSuggestion[]>([]);
-  const [poLoading, setPoLoading]   = React.useState(false);
+  const [poList, setPoList] = React.useState<POSuggestion[]>([]);
+  const [poLoading, setPoLoading] = React.useState(false);
   const [selectedPO, setSelectedPO] = React.useState<POSuggestion | null>(null);
 
   const toast = useToast();
 
   // Data
-  const [warehouses, setWarehouses]   = React.useState<Warehouse[]>([]);
-  const [lines, setLines]             = React.useState<StockLine[]>([emptyLine()]);
-  const [saving, setSaving]           = React.useState(false);
-  const [success, setSuccess]         = React.useState(false);
+  const [warehouses, setWarehouses] = React.useState<Warehouse[]>([]);
+  const [lines, setLines] = React.useState<StockLine[]>([emptyLine()]);
+  const [saving, setSaving] = React.useState(false);
+  const [success, setSuccess] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [showPreview, setShowPreview] = React.useState(false);
+  const [showLichSu, setShowLichSu]   = React.useState(false);
 
   // Fetch warehouses
   React.useEffect(() => {
@@ -93,7 +107,14 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
         const active = Array.isArray(d) ? d.filter(w => w.isActive) : [];
         setWarehouses(active);
         if (active.length === 1) setToWarehouseId(active[0].id);
-      }).catch(() => {});
+      }).catch(() => { });
+
+    fetch("/api/plan-finance/stock-movements/next-code?type=nhap")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.nextCode) setSoChungTu(d.nextCode);
+      })
+      .catch(() => {});
   }, []);
 
   // ESC close
@@ -108,7 +129,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
     if (mode !== "po") return;
     setPoLoading(true);
     setSelectedPO(null);
-    fetch("/api/plan-finance/purchasing?trangThai=da-nhan-hang&page=1")
+    fetch("/api/plan-finance/purchasing?trangThai=received&limit=100")
       .then(r => r.json())
       .then(d => setPoList(Array.isArray(d.items) ? d.items : []))
       .catch(() => setPoList([]))
@@ -123,7 +144,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
     if (!po) return;
     setPoLoading(true);
     try {
-      const res  = await fetch(`/api/plan-finance/purchasing/${po.id}`);
+      const res = await fetch(`/api/plan-finance/purchasing/${po.id}`);
       const full = await res.json();
       if (Array.isArray(full.items) && full.items.length > 0) {
         setLines(full.items.map((it: POItem) => ({
@@ -162,7 +183,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
     clearTimeout(searchTimers.current[lineId]);
     searchTimers.current[lineId] = setTimeout(async () => {
       try {
-        const res  = await fetch(`/api/plan-finance/inventory/search?q=${encodeURIComponent(q)}&limit=8`);
+        const res = await fetch(`/api/plan-finance/inventory/search?q=${encodeURIComponent(q)}&limit=8`);
         const data: ItemSuggestion[] = await res.json();
         setLines(ls => ls.map(l => l.id === lineId ? { ...l, suggestions: Array.isArray(data) ? data : [] } : l));
       } catch { /* ignore */ }
@@ -185,14 +206,14 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
       return updated;
     }));
 
-  const addLine    = () => setLines(ls => [...ls, emptyLine()]);
+  const addLine = () => setLines(ls => [...ls, emptyLine()]);
   const removeLine = (lineId: string) =>
     setLines(ls => ls.length > 1 ? ls.filter(l => l.id !== lineId) : ls);
 
   // ── Totals ─────────────────────────────────────────────────────────────────
-  const validLines  = lines.filter(l => l.item && (l.soLuongThucTe ?? l.soLuong) > 0);
-  const tongSL      = validLines.reduce((s, l) => s + (l.soLuongThucTe ?? l.soLuong), 0);
-  const tongTien    = validLines.reduce((s, l) => s + (l.soLuongThucTe ?? l.soLuong) * l.donGia, 0);
+  const validLines = lines.filter(l => l.item && (l.soLuongThucTe ?? l.soLuong) > 0);
+  const tongSL = validLines.reduce((s, l) => s + (l.soLuongThucTe ?? l.soLuong), 0);
+  const tongTien = validLines.reduce((s, l) => s + (l.soLuongThucTe ?? l.soLuong) * l.donGia, 0);
 
   // ── Save (có kiểm tra vị trí kho) ───────────────────────────────────────────
   const doSave = async () => {
@@ -202,18 +223,18 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           toWarehouseId,
-          soChungTu:       soChungTu      || undefined,
+          soChungTu: soChungTu || undefined,
           purchaseOrderId: selectedPO?.id || undefined,
           lyDo: lyDo || undefined, nguoiThucHien: nguoiThucHien || undefined,
           lines: validLines.map(l => ({
             inventoryItemId: l.item!.id,
-            soLuong:   l.soLuongThucTe ?? l.soLuong,
+            soLuong: l.soLuongThucTe ?? l.soLuong,
             soLuongCT: l.soLuong,
-            donGia:    l.donGia    || undefined,
+            donGia: l.donGia || undefined,
             viTriHang: l.viTriHang || undefined,
-            viTriCot:  l.viTriCot  || undefined,
+            viTriCot: l.viTriCot || undefined,
             viTriTang: l.viTriTang || undefined,
-            ghiChu:    l.ghiChu   || undefined,
+            ghiChu: l.ghiChu || undefined,
           })),
         }),
       });
@@ -249,8 +270,8 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
 
         {/* Mode toggle */}
         <div style={{ marginLeft: 16, display: "flex", background: "var(--muted)", padding: 3, borderRadius: 9, gap: 2 }}>
-          {([ { val: "manual" as const, label: "Nhập thủ công", icon: "bi-pencil" },
-              { val: "po"     as const, label: "Theo đơn mua (PO)", icon: "bi-file-earmark-text" }]).map(m => (
+          {([{ val: "manual" as const, label: "Nhập thủ công", icon: "bi-pencil" },
+          { val: "po" as const, label: "Theo đơn mua", icon: "bi-file-earmark-text" }]).map(m => (
             <button key={m.val} onClick={() => setMode(m.val)} style={{
               display: "flex", alignItems: "center", gap: 5,
               padding: "5px 14px", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
@@ -288,9 +309,9 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
                   transition: "all 0.15s",
                 }}
               >
-                <option value="">-- Chọn đơn mua hàng (PO) --</option>
+                <option value="">Chọn đơn mua hàng</option>
                 {poList.length === 0 && (
-                  <option disabled value="">Không có PO "Đã nhận hàng"</option>
+                  <option disabled value="">Không có đơn hàng</option>
                 )}
                 {poList.map(po => (
                   <option key={po.id} value={po.id}>
@@ -315,35 +336,39 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
             </button>
           )}
           {!success && (() => {
-              const canSave = !saving
-                && validLines.length > 0
-                && !(mode === "po" && !selectedPO);
-              return (
-                <button
-                  onClick={handleSave}
-                  disabled={!canSave}
-                  title={
-                    mode === "po" && !selectedPO ? "Vui lòng chọn đơn mua hàng (PO)" :
+            const canSave = !saving
+              && validLines.length > 0
+              && !(mode === "po" && !selectedPO);
+            return (
+              <button
+                onClick={handleSave}
+                disabled={!canSave}
+                title={
+                  mode === "po" && !selectedPO ? "Vui lòng chọn đơn mua hàng" :
                     validLines.length === 0 ? "Chưa có hàng hoá nào trong bảng" : undefined
-                  }
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    padding: "7px 20px", border: "none", borderRadius: 8,
-                    background: canSave ? "#10b981" : "var(--muted)",
-                    color: canSave ? "#fff" : "var(--muted-foreground)",
-                    fontSize: 13, fontWeight: 700,
-                    cursor: canSave ? "pointer" : "not-allowed",
-                    opacity: canSave ? 1 : 0.6,
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {saving
-                    ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} />
-                    : <i className="bi bi-check2-all" style={{ fontSize: 14 }} />}
-                  Xác nhận nhập kho
-                </button>
-              );
-            })()}
+                }
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "7px 20px", border: "none", borderRadius: 8,
+                  background: canSave ? "#10b981" : "var(--muted)",
+                  color: canSave ? "#fff" : "var(--muted-foreground)",
+                  fontSize: 13, fontWeight: 700,
+                  cursor: canSave ? "pointer" : "not-allowed",
+                  opacity: canSave ? 1 : 0.6,
+                  transition: "all 0.15s",
+                }}
+              >
+                {saving
+                  ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} />
+                  : <i className="bi bi-check2-all" style={{ fontSize: 14 }} />}
+                Xác nhận
+              </button>
+            );
+          })()}
+
+          <button onClick={() => setShowLichSu(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderWidth: "1.5px", borderStyle: "solid", borderColor: "var(--border)", background: "var(--muted)", color: "var(--foreground)", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}>
+            <i className="bi bi-clock-history" style={{ fontSize: 14 }} /> Lịch sử
+          </button>
 
           <button onClick={onClose} style={{ width: 34, height: 34, borderWidth: "1px", borderStyle: "solid", borderColor: "var(--border)", background: "var(--muted)", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
             <i className="bi bi-x" style={{ fontSize: 18 }} />
@@ -403,8 +428,8 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
                 <input
                   type="date"
                   value={ngayNhap}
-                  min={lockDate ? new Date().toISOString().slice(0,10) : undefined}
-                  max={lockDate ? new Date().toISOString().slice(0,10) : undefined}
+                  min={lockDate ? new Date().toISOString().slice(0, 10) : undefined}
+                  max={lockDate ? new Date().toISOString().slice(0, 10) : undefined}
                   onChange={e => !lockDate && setNgayNhap(e.target.value)}
                   readOnly={lockDate}
                   style={{
@@ -453,9 +478,9 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
                 disabled={success}
                 style={{ ...CSS.input, appearance: "none", borderColor: toWarehouseId ? "rgba(16,185,129,0.5)" : "var(--border)", opacity: success ? 0.65 : 1, cursor: success ? "not-allowed" : "pointer" }}
               >
-                <option value="">-- Chọn kho --</option>
+                <option value="">Chọn kho</option>
                 {warehouses.map(w => (
-                  <option key={w.id} value={w.id}>{w.name}{w.code ? ` (${w.code})` : ""}</option>
+                  <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>
             </div>
@@ -635,19 +660,22 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
           lyDo={lyDo || undefined}
           nguoiThucHien={nguoiThucHien || undefined}
           lines={validLines.map(l => ({
-            tenHang:   l.item!.tenHang,
-            maSku:     l.item!.code,
-            donVi:     l.item!.donVi,
+            tenHang: l.item!.tenHang,
+            maSku: l.item!.code,
+            donVi: l.item!.donVi,
             soLuongCT: l.soLuong,
-            soLuong:   l.soLuongThucTe ?? l.soLuong,
-            donGia:    l.donGia,
+            soLuong: l.soLuongThucTe ?? l.soLuong,
+            donGia: l.donGia,
             viTriHang: l.viTriHang || undefined,
-            viTriCot:  l.viTriCot  || undefined,
+            viTriCot: l.viTriCot || undefined,
             viTriTang: l.viTriTang || undefined,
-            ghiChu:    l.ghiChu   || undefined,
+            ghiChu: l.ghiChu || undefined,
           }))}
           onClose={() => setShowPreview(false)}
         />
+      )}
+      {showLichSu && (
+        <LichSuNhapKhoOffcanvas onClose={() => setShowLichSu(false)} />
       )}
     </div>
   );
@@ -658,10 +686,10 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
   line: StockLine; idx: number;
   onItemSearch: (q: string) => void;
   onSelectItem: (item: ItemSuggestion) => void;
-  onUpdate:     <K extends keyof StockLine>(key: K, val: StockLine[K]) => void;
-  onRemove:     () => void;
-  canRemove:    boolean;
-  locked?:      boolean;
+  onUpdate: <K extends keyof StockLine>(key: K, val: StockLine[K]) => void;
+  onRemove: () => void;
+  canRemove: boolean;
+  locked?: boolean;
 }) {
   const cellInput: React.CSSProperties = {
     width: "100%", padding: "6px 8px", borderWidth: 1, borderStyle: "solid", borderColor: "var(--border)",
@@ -681,7 +709,7 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
       alignItems: "center",
       background: line.item ? "var(--background)" : `color-mix(in srgb, var(--muted) 20%, var(--background))`,
     }}>
-      <div style={{ textAlign: "center", fontSize: 11.5, color: "var(--muted-foreground)", fontWeight: 600 }}>{idx+1}</div>
+      <div style={{ textAlign: "center", fontSize: 11.5, color: "var(--muted-foreground)", fontWeight: 600 }}>{idx + 1}</div>
 
       {/* Item search */}
       <div style={{ position: "relative" }}>
@@ -713,7 +741,7 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
       <input
         type="number" min={0}
         value={line.soLuong}
-        onChange={e => !locked && onUpdate("soLuong", Math.max(0, parseFloat(e.target.value)||0))}
+        onChange={e => !locked && onUpdate("soLuong", Math.max(0, parseFloat(e.target.value) || 0))}
         readOnly={locked}
         style={{ ...cellInput, textAlign: "center", background: locked ? "var(--muted)" : "color-mix(in srgb, var(--muted) 60%, var(--background))", color: "var(--muted-foreground)" }}
         title="Số lượng theo chứng từ"
@@ -723,7 +751,7 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
       <input
         type="number" min={0}
         value={line.soLuongThucTe ?? line.soLuong}
-        onChange={e => !locked && onUpdate("soLuongThucTe", Math.max(0, parseFloat(e.target.value)||0))}
+        onChange={e => !locked && onUpdate("soLuongThucTe", Math.max(0, parseFloat(e.target.value) || 0))}
         readOnly={locked}
         style={{
           ...cellInput, textAlign: "center",
@@ -736,7 +764,7 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
 
       {/* Vị trí kho */}
       <input placeholder="Hàng" value={line.viTriHang} onChange={e => !locked && onUpdate("viTriHang", e.target.value)} readOnly={locked} style={{ ...cellInput, textAlign: "center" }} title="Hàng" />
-      <input placeholder="Cột"  value={line.viTriCot}  onChange={e => !locked && onUpdate("viTriCot",  e.target.value)} readOnly={locked} style={{ ...cellInput, textAlign: "center" }} title="Cột" />
+      <input placeholder="Cột" value={line.viTriCot} onChange={e => !locked && onUpdate("viTriCot", e.target.value)} readOnly={locked} style={{ ...cellInput, textAlign: "center" }} title="Cột" />
       <input placeholder="Tầng" value={line.viTriTang} onChange={e => !locked && onUpdate("viTriTang", e.target.value)} readOnly={locked} style={{ ...cellInput, textAlign: "center" }} title="Tầng" />
 
       {/* Đơn giá */}

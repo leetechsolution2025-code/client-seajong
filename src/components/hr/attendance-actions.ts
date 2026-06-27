@@ -83,14 +83,6 @@ export async function getAttendanceData(month: number, year: number) {
     });
 
     const extractTimeFromRequest = (request: any, field: "startDate" | "endDate") => {
-      const dateObj = request[field] ? new Date(request[field]) : null;
-      if (dateObj && !isNaN(dateObj.getTime())) {
-        const hours = dateObj.getHours();
-        const minutes = dateObj.getMinutes();
-        if (hours !== 0 || minutes !== 0) {
-          return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-        }
-      }
       if (request.details) {
         try {
           const parsed = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
@@ -103,6 +95,14 @@ export async function getAttendanceData(month: number, year: number) {
             const match = request.details.match(/(\d{2}):(\d{2})/);
             if (match) return `${match[1]}:${match[2]}`;
           }
+        }
+      }
+      const dateObj = request[field] ? new Date(request[field]) : null;
+      if (dateObj && !isNaN(dateObj.getTime())) {
+        const hours = dateObj.getHours();
+        const minutes = dateObj.getMinutes();
+        if (hours !== 0 || minutes !== 0) {
+          return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
         }
       }
       return null;
@@ -146,11 +146,6 @@ export async function getAttendanceData(month: number, year: number) {
         const now = new Date();
         now.setHours(23, 59, 59, 999);
 
-        // Nếu là ngày trong tương lai -> Không tính công, để trống
-        if (day > now) {
-          return null;
-        }
-
         // Kiểm tra ngày lễ (Ưu tiên hàng đầu)
         const isHoliday = holidays.some((h: any) => {
           const hStart = new Date(h.startDate);
@@ -160,10 +155,6 @@ export async function getAttendanceData(month: number, year: number) {
           return day >= hStart && day <= hEnd;
         });
 
-        if (isHoliday) {
-          return { code: "L", workday: 1.0, violationMinutes: 0 };
-        }
-
         // 2. Kiểm tra đơn nghỉ phép đã duyệt
         const leaveReq = leaveRequests.find((l: any) => 
           ["leave", "LEAVE", "business-trip", "work", "unpaid_leave"].includes(l.type) &&
@@ -171,6 +162,15 @@ export async function getAttendanceData(month: number, year: number) {
           day >= new Date(l.startDate!) && 
           day <= new Date(l.endDate!)
         );
+
+        // Nếu là ngày trong tương lai và không có đơn nghỉ hay ngày lễ -> Không tính công, để trống
+        if (day > now && !isHoliday && !leaveReq) {
+          return null;
+        }
+
+        if (isHoliday) {
+          return { code: "L", workday: 1.0, violationMinutes: 0 };
+        }
 
         const lateReq = leaveRequests.find((l: any) => 
           l.type === "late" &&
@@ -212,6 +212,21 @@ export async function getAttendanceData(month: number, year: number) {
           a.employeeId === emp.id && format(new Date(a.date), "yyyy-MM-dd") === dateStr
         );
 
+        let leaveStatus = null;
+        if (leaveReq) {
+          leaveStatus = "P";
+          if (leaveReq.details) {
+            try {
+              const parsed = typeof leaveReq.details === "string" ? JSON.parse(leaveReq.details) : leaveReq.details;
+              if (parsed.leaveType === "Nghỉ không lương") {
+                leaveStatus = "KL";
+              } else if (parsed.leaveType === "Nghỉ ốm có BHXH") {
+                leaveStatus = "BHXH";
+              }
+            } catch (e) {}
+          }
+        }
+
         // Chuẩn bị dữ liệu để tính toán bằng hàm dùng chung
         const dayAttendance = {
           date: day,
@@ -219,7 +234,7 @@ export async function getAttendanceData(month: number, year: number) {
           checkOutMorning: att?.checkOutMorning ? new Date(att.checkOutMorning) : null,
           checkInAfternoon: att?.checkInAfternoon ? new Date(att.checkInAfternoon) : null,
           checkOutAfternoon: att?.checkOutAfternoon ? new Date(att.checkOutAfternoon) : null,
-          status: isHoliday ? "L" : (leaveReq ? "P" : (att?.status || null)),
+          status: isHoliday ? "L" : (leaveStatus || (att?.status || null)),
           isPermission: att?.isPermission || !!lateReq || !!earlyReq,
           requestedInMorning,
           requestedInAfternoon,
@@ -233,6 +248,8 @@ export async function getAttendanceData(month: number, year: number) {
         let code = null;
         if (result.status === "L") code = "L";
         else if (result.status === "P") code = "P";
+        else if (result.status === "KL") code = "KL";
+        else if (result.status === "BHXH") code = "BHXH";
         else if (result.status === "Sun") code = "CN";
         else if (result.status === "INSUFFICIENT") code = "ERR";
         else if (result.violationMinutes > rules.late.allowance) {
@@ -243,7 +260,7 @@ export async function getAttendanceData(month: number, year: number) {
 
         return {
           code,
-          workday: result.workPoints,
+          workday: day > now ? 0 : result.workPoints,
           otHours: result.otHours,
           violationMinutes: result.violationMinutes,
           registeredLunch: att?.registeredLunch || false,
@@ -275,7 +292,7 @@ export async function getAttendanceData(month: number, year: number) {
         emps.forEach(emp => {
           const status = emp.attendance[todayIndex]?.code;
           if (["T2", "T3", "T4", "T5", "T6", "T7", "OK", "WARN", "ERR"].includes(status)) presentToday++;
-          else if (status === "P") leaveToday++;
+          else if (["P", "KL", "BHXH"].includes(status)) leaveToday++;
           else if (status === "-") absentToday++;
         });
       }
@@ -293,8 +310,14 @@ export async function getAttendanceData(month: number, year: number) {
     });
 
 
+    const payrollRecord = await prisma.payroll.findFirst({
+      where: { thang: month, nam: year }
+    });
+    const isAccountingApproved = payrollRecord ? payrollRecord.trangThai === "Kế toán đã duyệt" : false;
+
     return {
       departments: departmentList,
+      isAccountingApproved,
       stats: {
         totalEmployees,
         presentToday,
