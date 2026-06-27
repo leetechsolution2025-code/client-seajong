@@ -3,7 +3,7 @@
 # Cấu hình Deploy cho dự án: Công ty cổ phần Seajong Faucet Việt Nam
 # =============================================================
 
-APP_NAME="client-seajong"
+APP_NAME="seajong"
 PORT=3092
 DOMAIN="seajong.leetech.vn"
 
