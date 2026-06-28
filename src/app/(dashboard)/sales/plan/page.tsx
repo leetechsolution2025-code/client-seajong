@@ -214,9 +214,6 @@ export default function SalesPlanPage() {
           [field]: cleanValue
         }
       };
-      if (field === "chinhThuc" || field === "lapKe") {
-        return recalculateChinhThucChain(nextTargets);
-      }
       return nextTargets;
     });
   };
@@ -2066,18 +2063,14 @@ export default function SalesPlanPage() {
                             <input
                               type="text"
                               className="form-control text-end fw-semibold px-1"
-                              value={monthlyTargets[selectedMonth]?.chinhThuc ? monthlyTargets[selectedMonth].chinhThuc.toLocaleString("vi-VN") : (selectedMonth >= 2 ? "0" : "")}
+                              value={monthlyTargets[selectedMonth]?.chinhThuc ? monthlyTargets[selectedMonth].chinhThuc.toLocaleString("vi-VN") : ""}
                               onChange={(e) => handleMonthlyTargetChange(selectedMonth, "chinhThuc", e.target.value)}
                               style={{
                                 fontSize: 12.5,
                                 height: "32px",
-                                borderRadius: 0,
-                                backgroundColor: selectedMonth >= 2 ? "rgba(108, 117, 125, 0.08)" : undefined,
-                                color: selectedMonth >= 2 ? "var(--muted-foreground)" : undefined,
-                                cursor: selectedMonth >= 2 ? "not-allowed" : "text"
+                                borderRadius: 0
                               }}
                               placeholder="0"
-                              disabled={selectedMonth >= 2}
                             />
                             <span className="input-group-text text-secondary px-1 justify-content-center" style={{ fontSize: 11, width: "42px", borderRadius: "0 8px 8px 0" }}>đại lý</span>
                           </div>
