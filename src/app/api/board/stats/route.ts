@@ -143,9 +143,9 @@ export async function GET(req: NextRequest) {
 
     payrolls.forEach(p => {
       const pDate = new Date(p.createdAt);
-      yearlyPayrollTotal += (p.thucLinh || p.luongCoBan || 0);
+      yearlyPayrollTotal += (p.tongChiPhiCty || p.luongThucNhan || p.luongCoBan || 0);
       if (pDate.getMonth() + 1 === currentMonth) {
-        monthlyPayrollTotal += (p.thucLinh || p.luongCoBan || 0);
+        monthlyPayrollTotal += (p.tongChiPhiCty || p.luongThucNhan || p.luongCoBan || 0);
       }
     });
 
