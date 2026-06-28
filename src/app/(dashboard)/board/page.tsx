@@ -5,6 +5,7 @@ import { SplitLayoutPage } from "@/components/layout/SplitLayoutPage";
 import { KPICard } from "@/components/ui/KPICard";
 import { YearAreaChart } from "@/components/ui/charts/YearAreaChart";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { useToast } from "@/components/ui/Toast";
 
 // ── Mock data ──────────────────────────────────────────────────────────────
 const KPI_CARDS = [
@@ -901,6 +902,8 @@ export default function BoardPage() {
     return val.toLocaleString("vi-VN") + " đ";
   };
 
+  const { warning } = useToast();
+
   useEffect(() => {
     setIsLoadingStats(true);
     fetch("/api/board/stats")
@@ -908,13 +911,20 @@ export default function BoardPage() {
       .then(res => {
         if (res.success) {
           setDbStats(res);
+          if (!res.hasRealData) {
+            warning(
+              "Chú ý kết nối cơ sở dữ liệu",
+              "Hệ thống đang kết nối dữ liệu thực tế từ cơ sở dữ liệu. Hiện chưa có phát sinh giao dịch/đơn hàng nào, số liệu hiển thị đang là 0.",
+              8000
+            );
+          }
         }
         setIsLoadingStats(false);
       })
       .catch(() => {
         setIsLoadingStats(false);
       });
-  }, []);
+  }, [warning]);
 
   const analyze = async () => {
     setAiStatus("loading");
@@ -996,14 +1006,6 @@ export default function BoardPage() {
     <>
     <AiDetailOffcanvas open={showDetail} onClose={() => setShowDetail(false)} />
     <div className="w-100 h-100 d-flex flex-column">
-      {dbStats && !dbStats.hasRealData && (
-        <div className="alert alert-warning border-0 rounded-3 shadow-sm mx-4 mt-3 mb-0 d-flex align-items-center gap-2" style={{ padding: "10px 16px" }}>
-          <i className="bi bi-exclamation-triangle-fill text-warning" style={{ fontSize: 16 }} />
-          <div style={{ fontSize: 12.5, fontWeight: 500, color: "#664d03" }}>
-            <strong>Chú ý:</strong> Hệ thống đang kết nối dữ liệu thực tế từ cơ sở dữ liệu. Hiện chưa có phát sinh giao dịch/đơn hàng nào, số liệu hiển thị đang là 0. Bạn có thể tạo đơn hàng hoặc phiếu chi để cập nhật báo cáo.
-          </div>
-        </div>
-      )}
       <SplitLayoutPage
         title="Ban Giám đốc"
         description="Board of Directors · Điều hành & chiến lược tổ chức"
