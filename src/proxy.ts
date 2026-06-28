@@ -25,14 +25,16 @@ export const config = {
   matcher: [
     "/company/:path*",
     "/my/:path*",
-    "/finance/:path*",
-    "/board/:path*",
     "/hr/:path*",
+    "/finance/:path*",
+    "/admin_ops/:path*",
+    "/board/:path*",
     "/sales/:path*",
     "/marketing/:path*",
     "/cs/:path*",
     "/logistics/:path*",
     "/purchase/:path*",
     "/production/:path*",
+    "/security/:path*",
   ],
 };

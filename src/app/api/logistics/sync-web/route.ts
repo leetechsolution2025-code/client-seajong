@@ -103,6 +103,22 @@ async function performDeepSync(logId: string) {
     const webProducts = await prisma.seajongProduct.findMany({ include: { categories: true } });
     await (prisma as any).logisticsSyncLog.update({ where: { id: logId }, data: { message: "GĐ2: Đang nhập kho hàng...", total: webProducts.length, current: 0 } });
     
+    const rootCat = await prisma.inventoryCategory.findFirst({
+      where: { code: "SP_VESINH" }
+    });
+    const tbvsCat = await prisma.inventoryCategory.findFirst({
+      where: { code: "TBVS" }
+    });
+    const tbnbCat = await prisma.inventoryCategory.findFirst({
+      where: { code: "TBNB" }
+    });
+    const thanhPhamWh = await prisma.warehouse.findFirst({
+      where: { code: "KHO-THANHPHAM" }
+    });
+    const phuKienWh = await prisma.warehouse.findFirst({
+      where: { code: "KHO-PHUKIEN" }
+    });
+
     let count = 0;
     for (const wp of webProducts) {
       let specs: any = {};
@@ -136,10 +152,36 @@ async function performDeepSync(logId: string) {
       
       const catName = selectedCat?.name || "Hàng hóa";
       const catCode = `${prefix}-${selectedCat?.id || "GEN"}`;
+      
+      const existingCat = await prisma.inventoryCategory.findUnique({
+        where: { name: catName }
+      });
+      
+      let parentCategory = tbvsCat;
+      const catNameLower = catName.toLowerCase();
+      if (
+        catNameLower.includes("bếp") || 
+        catNameLower.includes("chén") || 
+        catNameLower.includes("bát") || 
+        catNameLower.includes("hút mùi")
+      ) {
+        parentCategory = tbnbCat;
+      }
+
+      const parentId = existingCat?.parentId || (parentCategory ? parentCategory.id : (rootCat ? rootCat.id : null));
+
+      let finalCatCode = catCode;
+      const codeConflict = await prisma.inventoryCategory.findFirst({
+        where: { code: catCode, name: { not: catName } }
+      });
+      if (codeConflict) {
+        finalCatCode = `${catCode}-${selectedCat?.id || Math.floor(Math.random() * 1000)}`;
+      }
+
       const invCat = await prisma.inventoryCategory.upsert({
         where: { name: catName },
-        create: { name: catName, code: catCode } as any,
-        update: { code: catCode } as any,
+        create: { name: catName, code: finalCatCode, parentId } as any,
+        update: { code: finalCatCode, parentId } as any,
       });
 
       const modelIdentifier = model || wp.slug.substring(0, 15).toUpperCase();
@@ -176,14 +218,12 @@ async function performDeepSync(logId: string) {
         const skuMatch = await prisma.inventoryItem.findUnique({ where: { code: finalSKU } });
         if (skuMatch) itemData.code = `${finalSKU}-${wp.id}`;
         finalItem = await prisma.inventoryItem.create({
-          data: { ...itemData, donVi: "Cái", soLuong: 0, trangThai: "het-hang" } as any
+          data: { ...itemData, donVi: "cái", soLuong: 0, trangThai: "het-hang" } as any
         });
       }
 
       // GÁN VÀO KHO TƯƠNG ỨNG
-      const KHO_CHINH = "cmoip699s0000i4almoh1zuqs";
-      const KHO_PHU_KIEN = "cmoit7ttx0000i4514gkqzm1k";
-      const targetWarehouseId = prefix === "PK" ? KHO_PHU_KIEN : KHO_CHINH;
+      const targetWarehouseId = (prefix === "PK" ? phuKienWh?.id : thanhPhamWh?.id) || thanhPhamWh?.id || "";
 
       await (prisma as any).inventoryStock.upsert({
         where: {

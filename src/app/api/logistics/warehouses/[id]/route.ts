@@ -45,6 +45,16 @@ export async function PATCH(req: Request, props: { params: Promise<any> }) {
       return NextResponse.json({ error: "Missing ID" }, { status: 400 });
     }
 
+    const wh = await prisma.warehouse.findUnique({ where: { id } });
+    if (wh && ["KHO-THANHPHAM", "KHO-PHUKIEN", "KHO-LOI"].includes(wh.code || "")) {
+      if (body.code && body.code !== wh.code) {
+        return NextResponse.json({ error: "Không thể thay đổi mã của kho hàng mặc định." }, { status: 400 });
+      }
+      if (body.type && body.type !== wh.type) {
+        return NextResponse.json({ error: "Không thể thay đổi loại của kho hàng mặc định." }, { status: 400 });
+      }
+    }
+
     const updated = await prisma.warehouse.update({
       where: { id },
       data: body,
@@ -68,6 +78,11 @@ export async function DELETE(req: Request, props: { params: Promise<any> }) {
 
     if (!id) {
       return NextResponse.json({ error: "Missing ID" }, { status: 400 });
+    }
+
+    const wh = await prisma.warehouse.findUnique({ where: { id } });
+    if (wh && ["KHO-THANHPHAM", "KHO-PHUKIEN", "KHO-LOI"].includes(wh.code || "")) {
+      return NextResponse.json({ error: "Không thể xoá kho hàng mặc định của hệ thống." }, { status: 400 });
     }
 
     // Kiểm tra tồn kho > 0 (Hàng hóa)

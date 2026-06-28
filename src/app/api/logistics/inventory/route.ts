@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // Hàm đệ quy để lấy toàn bộ ID danh mục con
@@ -50,24 +52,49 @@ export async function GET(req: Request) {
     const limit = parseInt(searchParams.get("limit") || "15");
     const skip = (page - 1) * limit;
 
-    // Đọc active_industry_code để lọc
-    const cookieHeader = req.headers.get("cookie") || "";
-    let activeIndustryCode = cookieHeader
-      .split("; ")
-      .find(row => row.startsWith("active_industry_code="))
-      ?.split("=")[1];
+    const session = await getServerSession(authOptions);
+    let activeIndustryCode = "wood_door";
 
-    if (!activeIndustryCode) {
+    if (session) {
+      const user = await prisma.user.findFirst({
+        where: { email: session.user.email || "" },
+        include: { client: { include: { industry: true } } }
+      });
+
+      if (user?.role === "SUPERADMIN") {
+        const cookieHeader = req.headers.get("cookie") || "";
+        const cookieCode = cookieHeader
+          .split("; ")
+          .find(row => row.startsWith("active_industry_code="))
+          ?.split("=")[1];
+        
+        if (cookieCode) {
+          activeIndustryCode = cookieCode;
+        } else {
+          const firstClient = await prisma.client.findFirst({
+            include: { industry: true }
+          });
+          if (firstClient?.industry) {
+            activeIndustryCode = firstClient.industry.code;
+          }
+        }
+      } else if (user?.client?.industry) {
+        activeIndustryCode = user.client.industry.code;
+      } else {
+        const client = await prisma.client.findFirst({
+          include: { industry: true }
+        });
+        if (client?.industry) {
+          activeIndustryCode = client.industry.code;
+        }
+      }
+    } else {
       const client = await prisma.client.findFirst({
         include: { industry: true }
       });
       if (client?.industry) {
         activeIndustryCode = client.industry.code;
       }
-    }
-
-    if (!activeIndustryCode) {
-      activeIndustryCode = "wood_door";
     }
 
     const industry = await prisma.industry.findUnique({
@@ -173,8 +200,8 @@ export async function GET(req: Request) {
         orderBy: { updatedAt: "desc" },
       }) : Promise.resolve([]),
 
-      // Chỉ lấy MaterialItem nếu là kho MATERIAL hoặc xem tất cả
-      (warehouseType === "MATERIAL" || warehouseType === "ALL") ? (prisma as any).materialItem.findMany({
+      // Chỉ lấy MaterialItem nếu là kho MATERIAL
+      warehouseType === "MATERIAL" ? (prisma as any).materialItem.findMany({
         where: {
           ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
           ...(search && {
@@ -193,7 +220,7 @@ export async function GET(req: Request) {
       }) : Promise.resolve([]),
 
       warehouseType !== "MATERIAL" ? prisma.inventoryItem.count({ where }) : Promise.resolve(0),
-      (warehouseType === "MATERIAL" || warehouseType === "ALL") ? (prisma as any).materialItem.count({
+      warehouseType === "MATERIAL" ? (prisma as any).materialItem.count({
         where: {
           ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
           ...(search && {
@@ -306,6 +333,18 @@ export async function POST(req: Request) {
 
     if (!tenHang) return NextResponse.json({ error: "Thiếu tên hàng hoá" }, { status: 400 });
 
+    if (code) {
+      const duplicateItem = await prisma.inventoryItem.findUnique({
+        where: { code }
+      });
+      const duplicateMaterial = await (prisma as any).materialItem.findUnique({
+        where: { code }
+      });
+      if (duplicateItem || duplicateMaterial) {
+        return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
+      }
+    }
+
     // Kiểm tra xem categoryId thuộc về InventoryCategory hay Category
     const isInventoryCategory = categoryId ? await prisma.inventoryCategory.findUnique({
       where: { id: categoryId }
@@ -320,7 +359,7 @@ export async function POST(req: Request) {
           categoryId,
           brand: brand || "Seajong",
           model: kieuDang || "",
-          donVi: donVi || "Cái",
+          donVi: donVi || "cái",
           soLuongMin: Number(soLuongMin) || 0,
           giaNhap: Number(giaNhap) || 0,
           giaBan: Number(giaBan) || 0,
@@ -356,7 +395,7 @@ export async function POST(req: Request) {
           code,
           categoryId: categoryId || null,
           brand: brand || "Seajong",
-          unit: donVi || "Cái",
+          unit: donVi || "cái",
           minStock: Number(soLuongMin) || 0,
           price: Number(giaNhap) || 0,
           giaBan: Number(giaBan) || 0,
@@ -400,6 +439,18 @@ export async function PUT(req: Request) {
 
     if (!id) return NextResponse.json({ error: "Thiếu ID hàng hoá" }, { status: 400 });
 
+    if (code) {
+      const duplicateItem = await prisma.inventoryItem.findFirst({
+        where: { code, id: { not: id } }
+      });
+      const duplicateMaterial = await (prisma as any).materialItem.findFirst({
+        where: { code, id: { not: id } }
+      });
+      if (duplicateItem || duplicateMaterial) {
+        return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
+      }
+    }
+
     if (source === "inventory") {
       // Cập nhật InventoryItem (Hàng hoá từ website)
       const updated = await prisma.inventoryItem.update({
@@ -432,7 +483,7 @@ export async function PUT(req: Request) {
           code,
           categoryId: categoryId || null,
           brand: brand || "Seajong",
-          unit: donVi || "Cái",
+          unit: donVi || "cái",
           minStock: Number(soLuongMin) || 0,
           price: Number(giaNhap) || 0,
           giaBan: Number(giaBan) || 0,

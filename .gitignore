@@ -53,11 +53,3 @@ next-env.d.ts
 
 # Scratch directory for temporary/debug scripts
 /scratch/
-
-# Agent scratch files
-/find_plans.ts
-/prisma/*.txt
-/recover_edits_output.txt
-/scratch_*.ts
-/*.mp3
-

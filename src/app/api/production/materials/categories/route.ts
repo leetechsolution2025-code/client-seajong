@@ -20,25 +20,39 @@ export async function GET(req: Request) {
       if (wh) warehouseType = (wh as any).type;
     }
 
-    // Đọc cookie active_industry_code từ request headers
-    const cookieHeader = req.headers.get("cookie") || "";
-    let activeIndustryCode = cookieHeader
-      .split("; ")
-      .find(row => row.startsWith("active_industry_code="))
-      ?.split("=")[1];
+    const user = await prisma.user.findFirst({
+      where: { email: session.user.email || "" },
+      include: { client: { include: { industry: true } } }
+    });
 
-    if (!activeIndustryCode) {
+    let activeIndustryCode = "wood_door";
+    
+    if (user?.role === "SUPERADMIN") {
+      const cookieHeader = req.headers.get("cookie") || "";
+      const cookieCode = cookieHeader
+        .split("; ")
+        .find(row => row.startsWith("active_industry_code="))
+        ?.split("=")[1];
+      
+      if (cookieCode) {
+        activeIndustryCode = cookieCode;
+      } else {
+        const firstClient = await prisma.client.findFirst({
+          include: { industry: true }
+        });
+        if (firstClient?.industry) {
+          activeIndustryCode = firstClient.industry.code;
+        }
+      }
+    } else if (user?.client?.industry) {
+      activeIndustryCode = user.client.industry.code;
+    } else {
       const client = await prisma.client.findFirst({
         include: { industry: true }
       });
       if (client?.industry) {
         activeIndustryCode = client.industry.code;
       }
-    }
-
-    // Mặc định nếu chưa có cookie là wood_door
-    if (!activeIndustryCode) {
-      activeIndustryCode = "wood_door";
     }
 
     let allCategories: any[] = [];

@@ -281,39 +281,49 @@ export function WarehouseSetup() {
                   </div>
 
                   {/* Dropdown */}
-                  <div className="dropdown">
-                    <button
-                      className="btn p-0"
-                      data-bs-toggle="dropdown"
-                      style={{ width: 28, height: 28, borderRadius: 8, background: "var(--muted)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", fontSize: 13 }}
-                    >
-                      <i className="bi bi-three-dots" />
-                    </button>
-                    <ul className="dropdown-menu dropdown-menu-end border-0 shadow" style={{ fontSize: 12, borderRadius: 12, minWidth: 160 }}>
-                      <li>
+                  {(() => {
+                    const isSystemWh = ["KHO-THANHPHAM", "KHO-PHUKIEN", "KHO-LOI"].includes(wh.code || "");
+                    return (
+                      <div className="dropdown">
                         <button
-                          className="dropdown-item py-2 d-flex align-items-center gap-2"
-                          onClick={() => handleStartEdit(wh)}
+                          className="btn p-0"
+                          data-bs-toggle="dropdown"
+                          style={{ width: 28, height: 28, borderRadius: 8, background: "var(--muted)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", fontSize: 13 }}
                         >
-                          <i className="bi bi-pencil" style={{ color: "#3b82f6" }} /> Chỉnh sửa
+                          <i className="bi bi-three-dots" />
                         </button>
-                      </li>
-                      <li>
-                        <button className="dropdown-item py-2 d-flex align-items-center gap-2" onClick={() => setEditingLayoutWh(wh)}>
-                          <i className="bi bi-map" style={{ color: "#8b5cf6" }} /> Sơ đồ layout
-                        </button>
-                      </li>
-                      <li><hr className="dropdown-divider my-1" /></li>
-                      <li>
-                        <button 
-                          className="dropdown-item py-2 d-flex align-items-center gap-2 text-danger" 
-                          onClick={() => setDeletingWh(wh)}
-                        >
-                          <i className="bi bi-trash" /> Xoá kho
-                        </button>
-                      </li>
-                    </ul>
-                  </div>
+                        <ul className="dropdown-menu dropdown-menu-end border-0 shadow" style={{ fontSize: 12, borderRadius: 12, minWidth: 180 }}>
+                          <li>
+                            <button
+                              className="dropdown-item py-2 d-flex align-items-center gap-2"
+                              onClick={() => !isSystemWh && handleStartEdit(wh)}
+                              disabled={isSystemWh}
+                              style={{ opacity: isSystemWh ? 0.5 : 1, cursor: isSystemWh ? "not-allowed" : "pointer" }}
+                            >
+                              <i className="bi bi-pencil" style={{ color: isSystemWh ? "#94a3b8" : "#3b82f6" }} /> 
+                              {isSystemWh ? "Kho mặc định (Khoá)" : "Chỉnh sửa thông tin"}
+                            </button>
+                          </li>
+                          <li>
+                            <button className="dropdown-item py-2 d-flex align-items-center gap-2" onClick={() => setEditingLayoutWh(wh)}>
+                              <i className="bi bi-map" style={{ color: "#8b5cf6" }} /> Sơ đồ layout
+                            </button>
+                          </li>
+                          <li><hr className="dropdown-divider my-1" /></li>
+                          <li>
+                            <button 
+                              className="dropdown-item py-2 d-flex align-items-center gap-2 text-danger" 
+                              onClick={() => !isSystemWh && setDeletingWh(wh)}
+                              disabled={isSystemWh}
+                              style={{ opacity: isSystemWh ? 0.5 : 1, cursor: isSystemWh ? "not-allowed" : "pointer" }}
+                            >
+                              <i className="bi bi-trash" /> Xoá kho
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Body */}

@@ -7,6 +7,7 @@ import { AddLogisticsProductModal } from "./AddLogisticsProductModal";
 import { LogisticsItemDetailOffcanvas } from "./LogisticsItemDetailOffcanvas";
 import { TreeFilterSelect, TreeOption } from "@/components/ui/TreeFilterSelect";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { SectionTitle } from "@/components/ui/SectionTitle";
 
 interface Category {
   id: string;
@@ -19,6 +20,7 @@ interface Warehouse {
   id: string;
   name: string;
   code?: string;
+  type?: string;
 }
 
 interface InventoryItem {
@@ -156,12 +158,13 @@ export function LogisticsInventory() {
       if (search) params.append("search", search);
       if (filterCategory) params.append("categoryId", filterCategory);
       if (filterWarehouse) params.append("warehouseId", filterWarehouse);
-      params.append("page", page.toString());
+      params.append("page", "1");
+      params.append("limit", "1000");
       
-      const res = await fetch(`/api/logistics/inventory?${params}`);
+      const res = await fetch(`/api/logistics/inventory?${params}`, { cache: "no-store" });
       const data = await res.json();
       setItems(data.items || []);
-      setTotalPages(data.totalPages || 1);
+      setTotalPages(1);
       setFilteredCount(data.total || 0);
       // Nếu không có search/filter, cập nhật luôn tổng số hàng hóa
       if (!search && !filterCategory && !filterWarehouse) {
@@ -171,7 +174,7 @@ export function LogisticsInventory() {
         const totalParams = new URLSearchParams();
         if (filterWarehouse) totalParams.append("warehouseId", filterWarehouse);
         totalParams.append("limit", "1");
-        const totalRes = await fetch(`/api/logistics/inventory?${totalParams}`);
+        const totalRes = await fetch(`/api/logistics/inventory?${totalParams}`, { cache: "no-store" });
         const totalData = await totalRes.json();
         setTotalItems(totalData.total || 0);
       }
@@ -247,7 +250,8 @@ export function LogisticsInventory() {
   };
 
   const selectedWarehouse = warehouses.find(w => w.id === filterWarehouse);
-  const isMaterialWarehouse = !!selectedWarehouse && (selectedWarehouse.code === "KVP" || selectedWarehouse.name.toLowerCase().includes("vật tư"));
+  const isMaterialWarehouse = !!selectedWarehouse && (selectedWarehouse.code === "KVP" || selectedWarehouse.code === "KHO-PHUKIEN" || selectedWarehouse.name.toLowerCase().includes("vật tư"));
+  const isDefectWarehouse = !!selectedWarehouse && (selectedWarehouse.code === "KHO-LOI" || selectedWarehouse.type === "DEFECT");
 
   const categoryOptions: TreeOption[] = categories.map(c => ({
     label: c.name,
@@ -258,9 +262,21 @@ export function LogisticsInventory() {
 
   return (
     <div className="d-flex flex-column gap-3" style={{ height: "100%" }}>
+      <div className="d-flex align-items-center justify-content-between mb-0">
+        <h6 
+          className="mb-0 fw-bold text-uppercase d-flex align-items-center gap-2" 
+          style={{ color: "var(--muted-foreground)", fontSize: 11, letterSpacing: "0.05em", lineHeight: 1 }}
+        >
+          <i className="bi bi-boxes" style={{ fontSize: 13 }} />
+          Danh mục hàng hoá
+          <span className="badge bg-danger rounded-pill ms-2" style={{ fontSize: "9px", fontWeight: "bold", padding: "3px 7px", textTransform: "none", letterSpacing: "0.1px" }}>
+            Tổng số: {items.length} sản phẩm
+          </span>
+        </h6>
+      </div>
       {/* Search and Filter */}
 
-      <div className="d-flex align-items-center gap-3 mb-4">
+      <div className="d-flex align-items-center gap-3 mb-2">
         <div className="position-relative flex-grow-1">
           <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
           <input 
@@ -309,9 +325,17 @@ export function LogisticsInventory() {
         )}
 
         <button 
-          className="btn btn-primary rounded-pill px-4 fw-bold" 
-          style={{ fontSize: 13, height: 40 }}
-          onClick={() => setIsAddModalOpen(true)}
+          className="btn rounded-pill px-3.5 fw-bold text-white" 
+          style={{ 
+            fontSize: 12, 
+            height: 34, 
+            backgroundColor: isDefectWarehouse ? "#94a3b8" : "#011F58", 
+            borderColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
+            cursor: isDefectWarehouse ? "not-allowed" : "pointer",
+            opacity: isDefectWarehouse ? 0.65 : 1
+          }}
+          onClick={() => !isDefectWarehouse && setIsAddModalOpen(true)}
+          disabled={isDefectWarehouse}
         >
           <i className="bi bi-plus-lg me-2" />
           Thêm hàng hóa
@@ -368,10 +392,10 @@ export function LogisticsInventory() {
 
       {/* Table */}
       <div className="app-card overflow-hidden flex-grow-1 d-flex flex-column" style={{ borderRadius: 16, minHeight: 0 }}>
-        <div className="table-responsive flex-grow-1" style={{ overflowY: "auto" }}>
+        <div className="table-responsive flex-grow-1" style={{ overflowY: "auto", maxHeight: "calc(100vh - 290px)", minHeight: "350px" }}>
           <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
             <thead className="bg-light" style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--card)" }}>
-              <tr style={{ height: 40 }}>
+              <tr style={{ height: 36 }}>
                 <th className="ps-4 border-0" style={{ width: 40 }}>
                   <input 
                     type="checkbox" 
@@ -386,26 +410,25 @@ export function LogisticsInventory() {
                     }}
                   />
                 </th>
-                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Sản phẩm</th>
-                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Model / Màu</th>
-                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Danh mục</th>
-                <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>ĐVT</th>
-                <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Tồn kho</th>
-                <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Trạng thái</th>
-                <th className="pe-4 border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Thao tác</th>
+                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "45%", minWidth: "250px" }}>Sản phẩm</th>
+                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "20%", minWidth: "140px" }}>Model / Màu</th>
+                <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "70px" }}>ĐVT</th>
+                <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px" }}>Tồn kho</th>
+                <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px" }}>Trạng thái</th>
+                <th className="pe-4 border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "110px", minWidth: "110px" }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-5">
+                  <td colSpan={7} className="text-center py-5">
                     <div className="spinner-border spinner-border-sm text-primary me-2" />
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-5 text-muted">
+                  <td colSpan={7} className="text-center py-5 text-muted">
                     <i className="bi bi-inbox fs-2 d-block mb-2 opacity-25" />
                     Không tìm thấy hàng hóa nào
                   </td>
@@ -414,7 +437,7 @@ export function LogisticsInventory() {
                 items.map(item => (
                   <tr 
                     key={item.id} 
-                    style={{ height: 58, cursor: "pointer" }}
+                    style={{ height: 48, cursor: "pointer" }}
                     onClick={() => setSelectedItem(item)}
                   >
                     <td className="ps-4" onClick={(e) => e.stopPropagation()} style={{ width: 40 }}>
@@ -432,7 +455,7 @@ export function LogisticsInventory() {
                       />
                     </td>
                     <td>
-                      <div className="d-flex align-items-center gap-3">
+                      <div className="d-flex align-items-center gap-3" style={{ minWidth: 0 }}>
                         <div 
                           style={{ 
                             width: 38, height: 38, borderRadius: 8, 
@@ -453,23 +476,32 @@ export function LogisticsInventory() {
                             </div>
                           )}
                         </div>
-                        <div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
                           <div className="d-flex align-items-center gap-2">
-                            <div className="fw-bold text-foreground">{item.tenHang}</div>
+                            <div 
+                              className="fw-bold text-foreground text-truncate" 
+                              style={{ maxWidth: "340px" }}
+                              title={item.tenHang}
+                            >
+                              {item.tenHang}
+                            </div>
                             {item.createdAt && syncLog?.startedAt && (new Date(item.createdAt).getTime() >= new Date(syncLog.startedAt).getTime() - 5000) && (
                               <span 
                                 className="badge bg-success" 
                                 style={{ 
                                   fontSize: 9, padding: "2px 6px", borderRadius: 4, 
                                   textTransform: "uppercase", letterSpacing: "0.02em",
-                                  boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)"
+                                  boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)",
+                                  flexShrink: 0
                                 }}
                               >
                                 Mới
                               </span>
                             )}
                           </div>
-                          <div className="text-muted" style={{ fontSize: 11, fontFamily: "monospace" }}>{item.code || "N/A"}</div>
+                          <div className="text-muted text-truncate" style={{ fontSize: 11 }} title={(item as any).categoryName || item.category?.name || "Chưa phân loại"}>
+                            {(item as any).categoryName || item.category?.name || "Chưa phân loại"}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -480,11 +512,6 @@ export function LogisticsInventory() {
                           <div className="text-muted" style={{ fontSize: 11 }}>{item.color} {item.version && `(${item.version})`}</div>
                         </div>
                       ) : "—"}
-                    </td>
-                    <td>
-                      <span className="badge bg-secondary-subtle text-secondary rounded-pill border border-secondary border-opacity-10">
-                        {(item as any).categoryName || item.category?.name || "Chưa phân loại"}
-                      </span>
                     </td>
                     <td className="text-center" style={{ color: "var(--foreground)" }}>{item.donVi || "—"}</td>
                     <td className="text-end fw-bold" style={{ color: "var(--foreground)" }}>
@@ -499,17 +526,19 @@ export function LogisticsInventory() {
                         <span className="badge bg-danger-subtle text-danger border border-danger border-opacity-20 rounded-pill">Hết hàng</span>
                       )}
                     </td>
-                    <td className="pe-4 text-end">
-                      <button className="btn btn-icon btn-sm rounded-circle me-1" title="Chi tiết">
-                        <i className="bi bi-eye text-primary" />
-                      </button>
-                      <button 
-                        className="btn btn-icon btn-sm rounded-circle" 
-                        title="Sửa"
-                        onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}
-                      >
-                        <i className="bi bi-pencil text-muted" />
-                      </button>
+                    <td className="pe-4">
+                      <div className="d-flex align-items-center justify-content-end gap-1">
+                        <button className="btn btn-icon btn-sm rounded-circle" title="Chi tiết">
+                          <i className="bi bi-eye text-primary" />
+                        </button>
+                        <button 
+                          className="btn btn-icon btn-sm rounded-circle" 
+                          title="Sửa"
+                          onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}
+                        >
+                          <i className="bi bi-pencil text-muted" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -519,31 +548,7 @@ export function LogisticsInventory() {
         </div>
       </div>
 
-      {/* Pagination */}
-      <div className="d-flex justify-content-between align-items-center mt-2 px-2">
-        <div className="text-muted" style={{ fontSize: 12 }}>
-          Hiển thị <b>{items.length}</b> sản phẩm
-        </div>
-        <div className="d-flex gap-1">
-          <button 
-            className="btn btn-sm btn-light border-0 px-3 rounded-pill fw-bold" 
-            disabled={page === 1}
-            onClick={() => setPage(p => p - 1)}
-          >
-            Trước
-          </button>
-          <div className="d-flex align-items-center px-3 fw-bold" style={{ fontSize: 12 }}>
-            Trang {page} / {totalPages}
-          </div>
-          <button 
-            className="btn btn-sm btn-light border-0 px-3 rounded-pill fw-bold"
-            disabled={page === totalPages}
-            onClick={() => setPage(p => p + 1)}
-          >
-            Sau
-          </button>
-        </div>
-      </div>
+
     </div>
   );
 }

@@ -23,7 +23,14 @@ async function main() {
   const hashed = await bcrypt.hash(adminPassword, 12);
 
   // Seed industry if it exists
-  let industryRecord = null;
+  const indCode = 'sanitary';
+  const indName = 'Kinh doanh thiết bị phòng tắm, nhà bếp';
+  const indRootCat = 'VTSX_VESINH';
+  let industryRecord = await prisma.industry.upsert({
+    where: { code: indCode },
+    update: { name: indName, rootCategoryCode: indRootCat },
+    create: { code: indCode, name: indName, rootCategoryCode: indRootCat }
+  });
   
 
   // Đảm bảo Client record tồn tại (với logo và industryId)

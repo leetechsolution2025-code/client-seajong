@@ -345,6 +345,105 @@ export default function SalesPlanPage() {
     return row?.ratio || 0;
   };
 
+  const mapMasterDataToStates = (parsed: any, finalCostSales: number) => {
+    const totalRevenue = (Number(parsed.revenueAgent) || 0) + 
+                          (Number(parsed.revenueAgentDev) || 0) + 
+                          (Number(parsed.revenueTraditional) || 0) + 
+                          (Number(parsed.revenueEcommerce) || 0);
+
+    const mappedPlanRows = DEFAULT_PLAN_ROWS.map((row: PlanItemRow) => {
+      let cleanRow = { ...row };
+      if (cleanRow.isFullWidth) {
+        if (cleanRow.fullWidthContent?.toLowerCase().includes("định mức chi phí")) {
+          return {
+            ...cleanRow,
+            fullWidthContent: `II. Định mức chi phí (Ngân sách được phân bổ: ${finalCostSales.toLocaleString("vi-VN")} đ)`,
+            disableContentChange: true
+          };
+        }
+        return cleanRow;
+      }
+
+      if (cleanRow.stt === "1.1") cleanRow.target = Number(parsed.revenueAgent) || 0;
+      else if (cleanRow.stt === "1.2") cleanRow.target = Number(parsed.revenueAgentDev) || 0;
+      else if (cleanRow.stt === "1.3") cleanRow.target = Number(parsed.revenueTraditional) || 0;
+      else if (cleanRow.stt === "1.4") cleanRow.target = Number(parsed.revenueEcommerce) || 0;
+      else if (cleanRow.stt === "2.1") cleanRow.target = Number(parsed.c_biz_agentopen) || 0;
+      else if (cleanRow.stt === "2.2") cleanRow.target = 0;
+      else if (cleanRow.stt === "2.3") cleanRow.target = 0;
+      else if (cleanRow.stt === "2.4") cleanRow.target = 0;
+      else if (cleanRow.stt === "2.6") cleanRow.target = Number(parsed.c_biz_bonus) || 0;
+      else if (cleanRow.stt === "2.7") cleanRow.target = Number(parsed.c_biz_travel) || 0;
+      else if (cleanRow.stt === "2.8") cleanRow.target = 0;
+      else if (cleanRow.stt === "2.9") cleanRow.target = Number(parsed.c_biz_promo) || 0;
+
+      return cleanRow;
+    });
+
+    const mappedStaffRows = DEFAULT_STAFF_ROWS.map((row: StaffItemRow) => {
+      let cleanRow = { ...row };
+      if (cleanRow.isFullWidth) return cleanRow;
+      
+      if (cleanRow.stt === "2") {
+        const s = parsed.bizStaff?.find((item: any) => item.label?.includes("Trưởng phòng") || item.id === "biz_s1");
+        if (s) {
+          cleanRow.quantity = Number(s.qty) || 0;
+          cleanRow.basicSalary = Number(s.salary) || 0;
+        }
+      } else if (cleanRow.stt === "4") {
+        const s = parsed.bizStaff?.find((item: any) => item.label?.includes("Phó trưởng phòng") || item.id === "biz_s2");
+        if (s) {
+          cleanRow.quantity = Number(s.qty) || 0;
+          cleanRow.basicSalary = Number(s.salary) || 0;
+        }
+      } else if (cleanRow.stt === "3") {
+        const s = parsed.bizStaff?.find((item: any) => item.label?.includes("Admin") || item.id === "biz_s3");
+        if (s) {
+          cleanRow.quantity = Number(s.qty) || 0;
+          cleanRow.basicSalary = Number(s.salary) || 0;
+        }
+      } else if (cleanRow.stt === "8") {
+        const s = parsed.bizStaff?.find((item: any) => item.label?.includes("Ecom") || item.id === "biz_s4");
+        if (s) {
+          cleanRow.quantity = Number(s.qty) || 0;
+          cleanRow.basicSalary = Number(s.salary) || 0;
+        }
+      } else if (cleanRow.stt === "5") {
+        const s = parsed.bizStaff?.find((item: any) => item.label?.includes("Voriger") || item.id === "biz_s5");
+        if (s) {
+          cleanRow.quantity = Number(s.qty) || 0;
+          cleanRow.basicSalary = Number(s.salary) || 0;
+        }
+      } else if (cleanRow.stt === "7") {
+        const s = parsed.bizStaff?.find((item: any) => item.label?.includes("chăm sóc") || item.id === "biz_s6");
+        if (s) {
+          cleanRow.quantity = Number(s.qty) || 0;
+          cleanRow.basicSalary = Number(s.salary) || 0;
+        }
+      }
+
+      if (!cleanRow.isTotal) {
+        cleanRow.totalBudget = (cleanRow.basicSalary + (cleanRow.performanceSalary || 0) + (cleanRow.allowance || 0)) * cleanRow.quantity * 12;
+      }
+      return cleanRow;
+    });
+
+    const finalPlanRows = recalculatePlanRowsWithStaffTotal(mappedPlanRows, mappedStaffRows);
+    setPlanRows(finalPlanRows);
+    setStaffRows(mappedStaffRows);
+
+    const initialMonthlyTargets: Record<number, MonthlyTargetData> = {};
+    const avgRevenue = Math.round(totalRevenue / 12);
+    for (let m = 1; m <= 12; m++) {
+      initialMonthlyTargets[m] = {
+        chinhThuc: avgRevenue,
+        tiLe: 8.3,
+        yTuong: avgRevenue
+      };
+    }
+    setMonthlyTargets(recalculateChinhThucChain(initialMonthlyTargets));
+  };
+
   useEffect(() => {
     const fetchPlan = async () => {
       setIsLoading(true);
@@ -352,14 +451,18 @@ export default function SalesPlanPage() {
         // Fetch master plan to get approved cost budget
         const masterRes = await fetch(`/api/plan-finance/master-plan?year=${planYear}`, { cache: "no-store" });
         let finalCostSales = 0;
+        let masterPlanObj: any = null;
         if (masterRes.ok) {
           const masterData = await masterRes.json();
           if (masterData.plan && masterData.plan.planData) {
-            const parsed = JSON.parse(masterData.plan.planData);
-            const totalRevenue = (Number(parsed.revenueAgent) || 0) + (Number(parsed.revenueAgentDev) || 0) + (Number(parsed.revenueTraditional) || 0) + (Number(parsed.revenueEcommerce) || 0);
-            finalCostSales = parsed.isCalculateByRevenue 
-              ? Math.round(totalRevenue * (Number(parsed.costSalesPercent) || 0) / 100)
-              : (Number(parsed.costSales) || 0);
+            masterPlanObj = JSON.parse(masterData.plan.planData);
+            const totalRevenue = (Number(masterPlanObj.revenueAgent) || 0) + 
+                                  (Number(masterPlanObj.revenueAgentDev) || 0) + 
+                                  (Number(masterPlanObj.revenueTraditional) || 0) + 
+                                  (Number(masterPlanObj.revenueEcommerce) || 0);
+            finalCostSales = masterPlanObj.isCalculateByRevenue 
+              ? Math.round(totalRevenue * (Number(masterPlanObj.costSalesPercent) || 0) / 100)
+              : (Number(masterPlanObj.costSales) || 0);
           }
         }
         setMasterCostSales(finalCostSales);
@@ -403,35 +506,41 @@ export default function SalesPlanPage() {
             setMonthlyTargets(getInitialMonthlyTargets());
           }
         } else if (res.status === 404) {
-          let currentPlanRows = DEFAULT_PLAN_ROWS.map((row: PlanItemRow) => {
-            let cleanRow = { ...row };
-            if (!cleanRow.isFullWidth) {
-              cleanRow.target = 0;
-              cleanRow.ratio = 0;
-            }
-            if (cleanRow.isFullWidth && cleanRow.fullWidthContent?.toLowerCase().includes("định mức chi phí")) {
+          if (masterPlanObj) {
+            // Pre-populate from Master Plan
+            mapMasterDataToStates(masterPlanObj, finalCostSales);
+          } else {
+            // No saved sales plan and no master plan data
+            let currentPlanRows = DEFAULT_PLAN_ROWS.map((row: PlanItemRow) => {
+              let cleanRow = { ...row };
+              if (!cleanRow.isFullWidth) {
+                cleanRow.target = 0;
+                cleanRow.ratio = 0;
+              }
+              if (cleanRow.isFullWidth && cleanRow.fullWidthContent?.toLowerCase().includes("định mức chi phí")) {
+                return {
+                  ...cleanRow,
+                  fullWidthContent: `II. Định mức chi phí (Ngân sách được phân bổ: ${finalCostSales.toLocaleString("vi-VN")} đ)`,
+                  disableContentChange: true
+                };
+              }
+              return cleanRow;
+            });
+            let zeroedStaffRows = DEFAULT_STAFF_ROWS.map((row: StaffItemRow) => {
+              if (row.isFullWidth) return row;
               return {
-                ...cleanRow,
-                fullWidthContent: `II. Định mức chi phí (Ngân sách được phân bổ: ${finalCostSales.toLocaleString("vi-VN")} đ)`,
-                disableContentChange: true
+                ...row,
+                basicSalary: 0,
+                performanceSalary: 0,
+                allowance: 0,
+                quantity: 0,
+                totalBudget: 0
               };
-            }
-            return cleanRow;
-          });
-          let zeroedStaffRows = DEFAULT_STAFF_ROWS.map((row: StaffItemRow) => {
-            if (row.isFullWidth) return row;
-            return {
-              ...row,
-              basicSalary: 0,
-              performanceSalary: 0,
-              allowance: 0,
-              quantity: 0,
-              totalBudget: 0
-            };
-          });
-          setPlanRows(currentPlanRows);
-          setStaffRows(zeroedStaffRows);
-          setMonthlyTargets(getInitialMonthlyTargets());
+            });
+            setPlanRows(currentPlanRows);
+            setStaffRows(zeroedStaffRows);
+            setMonthlyTargets(getInitialMonthlyTargets());
+          }
         } else {
           toast.error("Lỗi", "Không thể tải kế hoạch năm.");
         }
@@ -445,6 +554,40 @@ export default function SalesPlanPage() {
 
     fetchPlan();
   }, [planYear]);
+
+  const handleSyncFromMasterPlan = async () => {
+    setIsLoading(true);
+    try {
+      const masterRes = await fetch(`/api/plan-finance/master-plan?year=${planYear}`, { cache: "no-store" });
+      if (!masterRes.ok) {
+        toast.error("Lỗi", "Không thể tải dữ liệu từ Master Plan.");
+        return;
+      }
+      
+      const masterData = await masterRes.json();
+      if (!masterData.plan || !masterData.plan.planData) {
+        toast.error("Thông báo", "Chưa có dữ liệu lập kế hoạch Master Plan cho năm này.");
+        return;
+      }
+
+      const parsed = JSON.parse(masterData.plan.planData);
+      const totalRevenue = (Number(parsed.revenueAgent) || 0) + 
+                            (Number(parsed.revenueAgentDev) || 0) + 
+                            (Number(parsed.revenueTraditional) || 0) + 
+                            (Number(parsed.revenueEcommerce) || 0);
+      const finalCostSales = parsed.isCalculateByRevenue 
+        ? Math.round(totalRevenue * (Number(parsed.costSalesPercent) || 0) / 100)
+        : (Number(parsed.costSales) || 0);
+
+      mapMasterDataToStates(parsed, finalCostSales);
+      toast.success("Thành công", "Đã cập nhật dữ liệu chỉ tiêu từ Master Plan.");
+    } catch (err) {
+      console.error("Sync from Master Plan error:", err);
+      toast.error("Lỗi", "Không thể đồng bộ dữ liệu từ Master Plan.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     setPlanRows(prev => recalculatePlanRowsWithStaffTotal(prev, staffRows));
@@ -1547,6 +1690,17 @@ export default function SalesPlanPage() {
                             Chỉnh sửa
                           </label>
                         </div>
+                        {isEditMode && (
+                          <button
+                            onClick={handleSyncFromMasterPlan}
+                            className="btn btn-outline-primary btn-sm rounded-3 px-3 fw-semibold d-flex align-items-center gap-1.5 transition"
+                            style={{ height: "30px", fontSize: 12 }}
+                            type="button"
+                          >
+                            <i className="bi bi-arrow-repeat" />
+                            Cập nhật từ Master Plan
+                          </button>
+                        )}
                         <button
                           onClick={handleSave}
                           className="btn btn-emerald btn-sm rounded-3 px-3 fw-semibold d-flex align-items-center gap-1.5 transition"

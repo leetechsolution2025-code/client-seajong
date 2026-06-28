@@ -62,11 +62,19 @@ grep -q "GEMINI_API_KEYS=\"KEY_1" .env && err "Chưa điền GEMINI_API_KEYS tro
 log "File .env hợp lệ"
 
 # ── Pull code mới nhất ───────────────────────────────────────
-info "Kéo code mới từ Git..."
-# Reset package-lock.json để tránh conflict khi npm install đã thay đổi nó
-git checkout -- package-lock.json 2>/dev/null || true
-git pull --rebase
-log "Code đã cập nhật ($(git log -1 --format='%h %s'))"
+if [ "${SKIP_GIT}" = "1" ]; then
+    info "Bỏ qua kéo code từ Git (sử dụng mã nguồn đồng bộ qua rsync)..."
+elif [ -d ".git" ]; then
+    info "Phát hiện Git repository. Kéo code mới từ Git..."
+    # Tránh lỗi "dubious ownership" trên VPS
+    git config --global --add safe.directory "${APP_DIR}" 2>/dev/null || true
+    # Reset package-lock.json để tránh conflict khi npm install đã thay đổi nó
+    git checkout -- package-lock.json 2>/dev/null || true
+    git pull --rebase
+    log "Code đã cập nhật ($(git log -1 --format='%h %s'))"
+else
+    warn "Không phát hiện Git repository. Bỏ qua git pull, sử dụng mã nguồn hiện có."
+fi
 
 # ── Cài dependencies ─────────────────────────────────────────
 info "Cài npm dependencies..."

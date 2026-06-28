@@ -1,0 +1,206 @@
+Found 1939 log entries.
+
+===========================================
+Step 1764 - Tool: replace_file_content
+Description: "Disable fetch cache on sales plan and master plan GET fetch calls by passing { cache: 'no-store' } to prevent stale data."
+Instruction: "Add cache: 'no-store' fetch options in fetchPlan function."
+StartLine: 356, EndLine: 360
+TargetContent:
+"        const res = await fetch(`/api/sales/plan?year=${planYear}`);\n        const masterRes = await fetch(`/api/plan-finance/master-plan?year=${planYear}`);"
+ReplacementContent:
+"        const res = await fetch(`/api/sales/plan?year=${planYear}`, { cache: \"no-store\" });\n        const masterRes = await fetch(`/api/plan-finance/master-plan?year=${planYear}`, { cache: \"no-store\" });"
+
+===========================================
+Step 1706 - Tool: multi_replace_file_content
+Description: "Rename 'Chi phí KM bán hàng' to 'Chi phí khuyến mại bán hàng' in DEFAULT_PLAN_ROWS and fetchPlan mapping to update existing DB entries on load."
+Instruction: "Modify DEFAULT_PLAN_ROWS and fetchPlan mapping logic to rename row 2.9 to 'Chi phí khuyến mại bán hàng'."
+  --- Chunk 1 (Start: 72, End: 73) ---
+  TargetContent:
+  { stt: "2.9", item: "Chi phí KM bán hàng", target: 600000000, ratio: 4.6, note: "Quà tặng khuyến mại, giảm giá trực tiếp" }
+  ReplacementContent:
+  { stt: "2.9", item: "Chi phí khuyến mại bán hàng", target: 600000000, ratio: 4.6, note: "Quà tặng khuyến mại, giảm giá trực tiếp" }
+  --- Chunk 2 (Start: 452, End: 455) ---
+  TargetContent:
+        setPlanRows(currentPlanRows);
+        setStaffRows(currentStaffRows);
+        setMonthlyTargets(currentMonthlyTargets);
+  ReplacementContent:
+        // Rename "Chi phí KM bán hàng" to "Chi phí khuyến mại bán hàng" for row 2.9
+        currentPlanRows = currentPlanRows.map(row => {
+          if (row.stt === "2.9" && row.item === "Chi phí KM bán hàng") {
+            return { ...row, item: "Chi phí khuyến mại bán hàng" };
+          }
+          return row;
+        });
+
+        setPlanRows(currentPlanRows);
+        setStaffRows(currentStaffRows);
+        setMonthlyTargets(currentMonthlyTargets);
+
+===========================================
+Step 1694 - Tool: multi_replace_file_content
+Description: "Add masterCostSales state, calculate it on fetch, show pulsing red indicator dot and turn text red if total cost exceeds allocated budget, and define CSS pulse-danger keyframes."
+Instruction: "Modify SalesPlanPage component in sales/plan/page.tsx to declare masterCostSales, set it on plan load, display budget alarm styles inside column target cells, and define CSS pulse animations."
+  Error parsing chunks: Unterminated string in JSON at position 2072 (line 1 column 2073)
+
+===========================================
+Step 1676 - Tool: replace_file_content
+Description: "Rename Section II master plan cost label from '(Ngân sách kinh doanh từ Master Plan' to 'Ngân sách được phân bổ'."
+Instruction: "Modify the text appended to 'II. Định mức chi phí' header row."
+StartLine: 427, EndLine: 436
+TargetContent:
+"          currentPlanRows = currentPlanRows.map(row => {\n            if (row.isFullWidth && row.fullWidthContent?.toLowerCase().includes(\"định mức chi phí\")) {\n              return {\n                ...row,\n                fullWidthContent: `II. Định mức chi phí (Ngân sách kinh doanh từ Master Plan: ${finalCostSales.toLocaleString(\"vi-VN\")} đ)`,\n                disableContentChange: true\n              };\n            }\n            return row;\n          });"
+ReplacementContent:
+"          currentPlanRows = currentPlanRows.map(row => {\n            if (row.isFullWidth && row.fullWidthContent?.toLowerCase().includes(\"định mức chi phí\")) {\n              return {\n                ...row,\n                fullWidthContent: `II. Định mức chi phí (Ngân sách được phân bổ: ${finalCostSales.toLocaleString(\"vi-VN\")} đ)`,\n                disableContentChange: true\n              };\n            }\n            return row;\n          });"
+
+===========================================
+Step 1668 - Tool: multi_replace_file_content
+Description: "Retrieve Sales Cost (finalCostSales) from Masterplan and display it next to the \"Định mức chi phí\" Section II title header."
+Instruction: "Update DEFAULT_PLAN_ROWS and fetchPlan to dynamically retrieve and append the Master Plan business budget to Section II's header row."
+  Error parsing chunks: Unterminated string in JSON at position 2045 (line 1 column 2046)
+
+===========================================
+Step 1648 - Tool: replace_file_content
+Description: "Disable the \"Thêm phòng ban\" button and style it with a lock icon and not-allowed cursor to indicate it is locked."
+Instruction: "Modify \"Thêm phòng ban\" button to be disabled with a lock icon."
+StartLine: 1528, EndLine: 1540
+TargetContent:
+"                      isEditMode && (\n                        <button\n                          onClick={handleAddDepartment}\n                          className=\"btn btn-outline-emerald btn-sm rounded-3 px-2.5 fw-semibold d-flex align-items-center justify-content-center gap-1 transition\"\n                          style={{ fontSize: 12, height: \"30px\" }}\n                        >\n                          <i className=\"bi bi-plus-lg\" />\n                          Thêm phòng ban\n                        </button>\n                      )"
+ReplacementContent:
+"                      isEditMode && (\n                        <button\n                          disabled\n                          className=\"btn btn-outline-secondary btn-sm rounded-3 px-2.5 fw-semibold d-flex align-items-center justify-content-center gap-1\"\n                          style={{ fontSize: 12, height: \"30px\", cursor: \"not-allowed\", opacity: 0.6 }}\n                          title=\"Cơ cấu phòng ban đã được cố định\"\n                        >\n                          <i className=\"bi bi-lock-fill\" />\n                          Thêm phòng ban\n                        </button>\n                      )"
+
+===========================================
+Step 1638 - Tool: multi_replace_file_content
+Description: "Make matching of Section I \"Mục tiêu doanh thu\" case-insensitive to correctly identify the header row and disable the add button."
+Instruction: "Update includes check to be case-insensitive using toLowerCase() in fetchPlan and handleAddChildRow."
+  --- Chunk 1 (Start: 386, End: 393) ---
+  TargetContent:
+        // Apply disableAdd & disableContentChange flags to the first section header row
+        currentPlanRows = currentPlanRows.map(row => {
+          if (row.isFullWidth && row.fullWidthContent?.includes("I. Mục tiêu doanh thu")) {
+            return { ...row, disableAdd: true, disableContentChange: true };
+          }
+          return row;
+        });
+  ReplacementContent:
+        // Apply disableAdd & disableContentChange flags to the first section header row
+        currentPlanRows = currentPlanRows.map(row => {
+          if (row.isFullWidth && row.fullWidthContent?.toLowerCase().includes("mục tiêu doanh thu")) {
+            return { ...row, disableAdd: true, disableContentChange: true };
+          }
+          return row;
+        });
+  --- Chunk 2 (Start: 603, End: 609) ---
+  TargetContent:
+  const handleAddChildRow = (row: PlanItemRow, index: number) => {
+    const isRevenue = row.fullWidthContent?.includes("I. Mục tiêu doanh thu");
+    if (isRevenue) {
+      toast.error("Lỗi", "Mục tiêu doanh thu được đồng bộ từ Masterplan, không thể thêm mới.");
+      return;
+    }
+    const sectionPrefix = isRevenue ? "1." : "2.";
+  ReplacementContent:
+  const handleAddChildRow = (row: PlanItemRow, index: number) => {
+    const isRevenue = row.fullWidthContent?.toLowerCase().includes("mục tiêu doanh thu");
+    if (isRevenue) {
+      toast.error("Lỗi", "Mục tiêu doanh thu được đồng bộ từ Masterplan, không thể thêm mới.");
+      return;
+    }
+    const sectionPrefix = isRevenue ? "1." : "2.";
+
+===========================================
+Step 1620 - Tool: multi_replace_file_content
+Description: "Sync revenue target values from Master Plan, block Section I modifications, and display values as labels rather than inputs in sales/plan/page.tsx."
+Instruction: "Update PlanItemRow definition, DEFAULT_PLAN_ROWS, handleAddChildRow check, columns render function, and fetchPlan logic to load Master Plan data."
+  Error parsing chunks: Unterminated string in JSON at position 2061 (line 1 column 2062)
+
+===========================================
+Step 1568 - Tool: multi_replace_file_content
+Description: "Reduce column widths, cell padding and minWidth of the staff structure table to prevent layout overflow and horizontal scrollbar on standard desktop screens."
+Instruction: "Modify staffColumns definitions, renderStaffHeader cell styles, Table minWidth prop, and compact-plan-table cell padding CSS in sales/plan/page.tsx."
+  Error parsing chunks: Unterminated string in JSON at position 2055 (line 1 column 2056)
+
+===========================================
+Step 1530 - Tool: replace_file_content
+Description: "Reduce minWidth of yearly plan Table from 750 to 550."
+Instruction: "Change minWidth={750} to minWidth={550} on yearly plan Table to fit smaller desktop screens."
+StartLine: 1423, EndLine: 1435
+TargetContent:
+"                  <div className=\"bg-white compact-plan-table\">\n                    <Table\n                      rows={planRows}\n                      columns={columns}\n                      striped={true}\n                      compact={true}\n                      fontSize={13}\n                      minWidth={750}"
+ReplacementContent:
+"                  <div className=\"bg-white compact-plan-table\">\n                    <Table\n                      rows={planRows}\n                      columns={columns}\n                      striped={true}\n                      compact={true}\n                      fontSize={13}\n                      minWidth={550}"
+
+===========================================
+Step 1526 - Tool: replace_file_content
+Description: "Reduce yearly plan table columns and minWidth to fit standard laptop/desktop screens without scrollbars."
+Instruction: "Update yearly plan table columns (columns array) width values to STT: 45px, Target: 130px, Ratio: 120px, and Delete: 35px."
+StartLine: 825, EndLine: 926
+TargetContent:
+"  const columns: TableColumn<PlanItemRow>[] = [\n    {\n      header: \"STT\",\n      width: \"70px\",\n      align: \"center\",\n      render: (row) => (\n        <span className={`fw-bold ${row.isTotal ? \"text-dark\" : \"text-secondary\"}`}>\n          {row.stt}\n        </span>\n      )\n    },\n    {\n      header: \"Khoản mục\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        const showRatioKee = row.stt && [\"2.1\", \"2.2\", \"2.3\", \"2.4\"].includes(row.stt.toString());\n        let ratioKeeText = \"\";\n        if (showRatioKee) {\n          const targetRow12 = planRows.find(r => r.stt === \"1.2\")?.target || 0;\n          const currentTarget = row.target || 0;\n          const ratioKee = targetRow12 > 0 ? (currentTarget / targetRow12) * 100 : 0;\n          ratioKeeText = `Tỷ lệ trên doanh thu lắp kệ: ${ratioKee.toFixed(1)}%`;\n        }\n\n        return (\n          <div className=\"d-flex flex-column gap-0.5\">\n            <input\n              type=\"text\"\n              value={row.item || \"\"}\n              onChange={(e) => !isTotal && handleCellChange(idx, \"item\", e.target.value)}\n              readOnly={!isEditMode || isTotal}\n              className={`form-control form-control-sm border-0 bg-transparent px-0 text-dark ${isTotal ? \"fw-bold\" : \"fw-medium\"}`}\n              style={{ fontSize: 13, pointerEvents: (!isEditMode || isTotal) ? \"none\" : \"auto\", height: \"20px\" }}\n            />\n            {showRatioKee && (\n              <span className=\"text-secondary\" style={{ fontSize: 10.5, marginTop: \"-2px\" }}>\n                {ratioKeeText}\n              </span>\n            )}\n          </div>\n        );\n      }\n    },\n    {\n      header: \"Mục tiêu năm (đ)\",\n      width: \"170px\",\n      align: \"right\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        const isRow25 = row.stt === \"2.5\";\n        return (\n          <input\n            type=\"text\"\n            data-target-input=\"t
+<truncated 1970 bytes>
+ReplacementContent:
+"  const columns: TableColumn<PlanItemRow>[] = [\n    {\n      header: \"STT\",\n      width: \"45px\",\n      align: \"center\",\n      render: (row) => (\n        <span className={`fw-bold ${row.isTotal ? \"text-dark\" : \"text-secondary\"}`}>\n          {row.stt}\n        </span>\n      )\n    },\n    {\n      header: \"Khoản mục\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        const showRatioKee = row.stt && [\"2.1\", \"2.2\", \"2.3\", \"2.4\"].includes(row.stt.toString());\n        let ratioKeeText = \"\";\n        if (showRatioKee) {\n          const targetRow12 = planRows.find(r => r.stt === \"1.2\")?.target || 0;\n          const currentTarget = row.target || 0;\n          const ratioKee = targetRow12 > 0 ? (currentTarget / targetRow12) * 100 : 0;\n          ratioKeeText = `Tỷ lệ trên doanh thu lắp kệ: ${ratioKee.toFixed(1)}%`;\n        }\n\n        return (\n          <div className=\"d-flex flex-column gap-0.5\">\n            <input\n              type=\"text\"\n              value={row.item || \"\"}\n              onChange={(e) => !isTotal && handleCellChange(idx, \"item\", e.target.value)}\n              readOnly={!isEditMode || isTotal}\n              className={`form-control form-control-sm border-0 bg-transparent px-0 text-dark ${isTotal ? \"fw-bold\" : \"fw-medium\"}`}\n              style={{ fontSize: 13, pointerEvents: (!isEditMode || isTotal) ? \"none\" : \"auto\", height: \"20px\" }}\n            />\n            {showRatioKee && (\n              <span className=\"text-secondary\" style={{ fontSize: 10.5, marginTop: \"-2px\" }}>\n                {ratioKeeText}\n              </span>\n            )}\n          </div>\n        );\n      }\n    },\n    {\n      header: \"Mục tiêu năm (đ)\",\n      width: \"130px\",\n      align: \"right\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        const isRow25 = row.stt === \"2.5\";\n        return (\n          <input\n            type=\"text\"\n            data-target-input=\"t
+<truncated 1970 bytes>
+
+===========================================
+Step 1520 - Tool: replace_file_content
+Description: "Restore handleStaffCellChange and replace staffColumns/renderStaffHeader with corrected compact widths."
+Instruction: "Clean up syntax error and duplicate header codes, restore handleStaffCellChange, and replace staffColumns and renderStaffHeader with compact widths."
+StartLine: 928, EndLine: 1127
+TargetContent:
+"  const handleStaffCellChange = (index: number, field: keyof StaffItemRow, val: string) => {\n    setStaffRows(prev => {\n      const updated = [...prev];\n      const row = { ...updated[index] };\n\n      if (field === \"role\") {\n        row.role = val;\n      } else {\n        const numVal = Number(val.replace(/\\D/g, \"\"));\n        row[field] = numVal as any;\n      }\n\n      // Calculate totalBudget for this row if not a total row or full width header\n      if (!row.isTo  const staffColumns: TableColumn<StaffItemRow>[] = [\n    {\n      header: \"STT\",\n      width: \"45px\",\n      align: \"center\",\n      render: (row) => (\n        <span className={`fw-bold ${row.isTotal ? \"text-dark\" : \"text-secondary\"}`}>\n          {row.isTotal ? null : row.stt}\n        </span>\n      )\n    },\n    {\n      header: \"Phòng ban và vị trí\",\n      width: \"150px\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        if (isTotal) return null;\n        return (\n          <input\n            type=\"text\"\n            value={row.role || \"\"}\n            onChange={(e) => !isTotal && handleStaffCellChange(idx, \"role\", e.target.value)}\n            readOnly={!isEditMode || isTotal}\n            className={`form-control form-control-sm border-0 bg-transparent px-0 text-dark fw-medium`}\n            style={{ fontSize: 13, pointerEvents: !isEditMode ? \"none\" : \"auto\" }}\n          />\n        );\n      }\n    },\n    {\n      header: \"Lương cơ bản (đ)\",\n      width: \"95px\",\n      align: \"right\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        return isTotal ? null : (\n          <input\n            type=\"text\"\n            value={(row.basicSalary || 0).toLocaleString(\"vi-VN\")}\n            onChange={(e) => handleStaffCellChange(idx, \"basicSalary\", e.target.value)}\n            readOnly={!isEditMode}\n            className=\"form-control form-control-sm border-0 bg-transparent px-0 text-end text-dark fw-medium\"\n            st
+<truncated 5874 bytes>
+ReplacementContent:
+"  const handleStaffCellChange = (index: number, field: keyof StaffItemRow, val: string) => {\n    setStaffRows(prev => {\n      const updated = [...prev];\n      const row = { ...updated[index] };\n\n      if (field === \"role\") {\n        row.role = val;\n      } else {\n        const numVal = Number(val.replace(/\\D/g, \"\"));\n        row[field] = numVal as any;\n      }\n\n      // Calculate totalBudget for this row if not a total row or full width header\n      if (!row.isTotal && !row.isFullWidth) {\n        const basic = row.basicSalary || 0;\n        const perf = row.performanceSalary || 0;\n        const allow = row.allowance || 0;\n        const qty = row.quantity || 0;\n        row.totalBudget = (basic + perf + allow) * qty * 12;\n      }\n\n      updated[index] = row;\n\n      // Recalculate Grand Total\n      const subItems = updated.filter(r => !r.isTotal && !r.isFullWidth);\n      const totalQty = subItems.reduce((sum, r) => sum + (r.quantity || 0), 0);\n      const totalBgt = subItems.reduce((sum, r) => sum + (r.totalBudget || 0), 0);\n\n      return updated.map(r => {\n        if (r.isTotal) {\n          return { ...r, quantity: totalQty, totalBudget: totalBgt };\n        }\n        return r;\n      });\n    });\n  };\n\n  const staffColumns: TableColumn<StaffItemRow>[] = [\n    {\n      header: \"STT\",\n      width: \"45px\",\n      align: \"center\",\n      render: (row) => (\n        <span className={`fw-bold ${row.isTotal ? \"text-dark\" : \"text-secondary\"}`}>\n          {row.isTotal ? null : row.stt}\n        </span>\n      )\n    },\n    {\n      header: \"Phòng ban và vị trí\",\n      width: \"150px\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        if (isTotal) return null;\n        return (\n          <input\n            type=\"text\"\n            value={row.role || \"\"}\n            onChange={(e) => !isTotal && handleStaffCellChange(idx, \"role\", e.target.value)}\n            readOnly={!isEditMode || isTotal}\n            className={`form-contro
+<truncated 5788 bytes>
+
+===========================================
+Step 1512 - Tool: replace_file_content
+Description: "Adjust column widths of staffColumns and renderStaffHeader to fit the screen without horizontal scrolling."
+Instruction: "Update staffColumns and renderStaffHeader widths to compact values (STT: 45px, Role: 150px, Basic: 95px, Performance: 95px, Allowance: 90px, Qty: 65px, Budget: 110px, Delete: 35px)."
+StartLine: 965, EndLine: 1139
+TargetContent:
+"  const staffColumns: TableColumn<StaffItemRow>[] = [\n    {\n      header: \"STT\",\n      width: \"45px\",\n      align: \"center\",\n      render: (row) => (\n        <span className={`fw-bold ${row.isTotal ? \"text-dark\" : \"text-secondary\"}`}>\n          {row.isTotal ? null : row.stt}\n        </span>\n      )\n    },\n    {\n      header: \"Phòng ban và vị trí\",\n      width: \"180px\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        if (isTotal) return null;\n        return (\n          <input\n            type=\"text\"\n            value={row.role || \"\"}\n            onChange={(e) => !isTotal && handleStaffCellChange(idx, \"role\", e.target.value)}\n            readOnly={!isEditMode || isTotal}\n            className={`form-control form-control-sm border-0 bg-transparent px-0 text-dark fw-medium`}\n            style={{ fontSize: 13, pointerEvents: !isEditMode ? \"none\" : \"auto\" }}\n          />\n        );\n      }\n    },\n    {\n      header: \"Lương cơ bản (đ)\",\n      width: \"125px\",\n      align: \"right\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        return isTotal ? null : (\n          <input\n            type=\"text\"\n            value={(row.basicSalary || 0).toLocaleString(\"vi-VN\")}\n            onChange={(e) => handleStaffCellChange(idx, \"basicSalary\", e.target.value)}\n            readOnly={!isEditMode}\n            className=\"form-control form-control-sm border-0 bg-transparent px-0 text-end text-dark fw-medium\"\n            style={{ fontSize: 13, pointerEvents: !isEditMode ? \"none\" : \"auto\" }}\n          />\n        );\n      }\n    },\n    {\n      header: \"Lương hiệu suất (đ)\",\n      width: \"125px\",\n      align: \"right\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        return isTotal ? null : (\n          <input\n            type=\"text\"\n            value={(row.performanceSalary || 0).toLocaleString(\"vi-VN\")}\n            onChange={(e) => handleSta
+<truncated 4535 bytes>
+ReplacementContent:
+"  const staffColumns: TableColumn<StaffItemRow>[] = [\n    {\n      header: \"STT\",\n      width: \"45px\",\n      align: \"center\",\n      render: (row) => (\n        <span className={`fw-bold ${row.isTotal ? \"text-dark\" : \"text-secondary\"}`}>\n          {row.isTotal ? null : row.stt}\n        </span>\n      )\n    },\n    {\n      header: \"Phòng ban và vị trí\",\n      width: \"150px\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        if (isTotal) return null;\n        return (\n          <input\n            type=\"text\"\n            value={row.role || \"\"}\n            onChange={(e) => !isTotal && handleStaffCellChange(idx, \"role\", e.target.value)}\n            readOnly={!isEditMode || isTotal}\n            className={`form-control form-control-sm border-0 bg-transparent px-0 text-dark fw-medium`}\n            style={{ fontSize: 13, pointerEvents: !isEditMode ? \"none\" : \"auto\" }}\n          />\n        );\n      }\n    },\n    {\n      header: \"Lương cơ bản (đ)\",\n      width: \"95px\",\n      align: \"right\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        return isTotal ? null : (\n          <input\n            type=\"text\"\n            value={(row.basicSalary || 0).toLocaleString(\"vi-VN\")}\n            onChange={(e) => handleStaffCellChange(idx, \"basicSalary\", e.target.value)}\n            readOnly={!isEditMode}\n            className=\"form-control form-control-sm border-0 bg-transparent px-0 text-end text-dark fw-medium\"\n            style={{ fontSize: 13, pointerEvents: !isEditMode ? \"none\" : \"auto\" }}\n          />\n        );\n      }\n    },\n    {\n      header: \"Lương hiệu suất (đ)\",\n      width: \"95px\",\n      align: \"right\",\n      render: (row, idx) => {\n        const isTotal = row.isTotal;\n        return isTotal ? null : (\n          <input\n            type=\"text\"\n            value={(row.performanceSalary || 0).toLocaleString(\"vi-VN\")}\n            onChange={(e) => handleStaff
+<truncated 4529 bytes>
+
+===========================================
+Step 1496 - Tool: multi_replace_file_content
+Description: "Reduce the width of the 'Phòng ban và vị trí' column and adjust the minWidth of the staff table in sales/plan/page.tsx."
+Instruction: "In sales/plan/page.tsx, change the width of the 'Phòng ban và vị trí' column from '250px' to '180px', and reduce the Table's minWidth from 1000 to 930."
+  --- Chunk 1 (Start: 975, End: 980) ---
+  TargetContent:
+    {
+      header: "Phòng ban và vị trí",
+      width: "250px",
+  ReplacementContent:
+    {
+      header: "Phòng ban và vị trí",
+      width: "180px",
+  --- Chunk 2 (Start: 1455, End: 1468) ---
+  TargetContent:
+                  <div className="bg-white compact-plan-table">
+                    <Table
+                      rows={staffRows}
+                      columns={staffColumns}
+                      striped={true}
+                      compact={true}
+                      fontSize={13}
+                      minWidth={1000}
+  ReplacementContent:
+                  <div className="bg-white compact-plan-table">
+                    <Table
+                      rows={staffRows}
+                      columns={staffColumns}
+                      striped={true}
+                      compact={true}
+                      fontSize={13}
+                      minWidth={930}
+
+===========================================
+Step 1490 - Tool: multi_replace_file_content
+Description: "Fix overflow and add min-width to sales planning tables to support horizontal scroll on mobile."
+Instruction: "In sales/plan/page.tsx, add minWidth to yearly plan, staff, and monthly revenue tables, and fix the compact-plan-table CSS class to allow overflow-x scrollbars on mobile."
+  Error parsing chunks: Unterminated string in JSON at position 2072 (line 1 column 2073)

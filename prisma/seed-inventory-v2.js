@@ -6,15 +6,17 @@ async function main() {
 
   // 1. Tạo các Kho hàng (bao gồm cả kho hàng lỗi ảo)
   const warehouses = [
-    { code: 'KHO-CHINH', name: 'Kho hàng chính (Hà Nội)', address: 'Phú Diễn, Bắc Từ Liêm, Hà Nội', isVirtual: false },
-    { code: 'KHO-DAIMO',  name: 'Kho Seajong Đại Mỗ', address: 'Đại Mỗ, Nam Từ Liêm, Hà Nội', isVirtual: false },
-    { code: 'KHO-LOI',    name: 'Kho hàng lỗi/Thu hồi', address: 'Khu vực cách ly kỹ thuật', isVirtual: true },
+    { id: 'cmoip699s0000i4almoh1zuqs', code: 'KHO-CHINH', name: 'Kho hàng chính (Hà Nội)', address: 'Phú Diễn, Bắc Từ Liêm, Hà Nội', type: 'PRODUCT', isVirtual: false },
+    { id: 'cmoit7ttx0000i4514gkqzm1k', code: 'KVP', name: 'Kho vật tư và phụ kiện', address: 'Khu vực lưu trữ vật tư', type: 'MATERIAL', isVirtual: false },
+    { id: 'cmoip699x0002i4al9g3nkwir', code: 'KHO-LOI', name: 'Kho hàng lỗi và hàng thu hồi', address: 'Khu vực cách ly kỹ thuật', type: 'DEFECT', isVirtual: false },
+    { id: 'cmq0s26fg0000goaespwzfn2w', code: 'KHO-THANHPHAM', name: 'Kho thành phẩm', address: 'Cụm 4, Xã Sơn Đồng, Thành phố Hà Nội, Việt Nam', type: 'PRODUCT', isVirtual: false },
+    { code: 'KHO-DAIMO',  name: 'Kho Seajong Đại Mỗ', address: 'Đại Mỗ, Nam Từ Liêm, Hà Nội', type: 'PRODUCT', isVirtual: false },
   ];
 
   for (const w of warehouses) {
     await prisma.warehouse.upsert({
       where: { code: w.code },
-      update: { name: w.name, address: w.address, isVirtual: w.isVirtual },
+      update: { name: w.name, address: w.address, isVirtual: w.isVirtual, type: w.type },
       create: w,
     });
   }
@@ -40,8 +42,8 @@ async function main() {
 
   const categories = [
     // Cấp 1
-    { code: 'TBVS', name: 'Thiết bị vệ sinh', parentCode: null },
-    { code: 'TBNB', name: 'Thiết bị nhà bếp', parentCode: null },
+    { code: 'TBVS', name: 'Thiết bị vệ sinh', parentCode: 'SP_VESINH' },
+    { code: 'TBNB', name: 'Thiết bị nhà bếp', parentCode: 'SP_VESINH' },
     { code: 'VTNL', name: 'Vật tư & Nguyên liệu', parentCode: null },
     
     // Cấp 2 - Thiết bị vệ sinh
