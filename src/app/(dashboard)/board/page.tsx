@@ -566,7 +566,7 @@ function FourPillarsDashboard({ stats }: { stats: any }) {
       value: stats.pillars.finance.overdueDebts >= 1e6 ? `${(stats.pillars.finance.overdueDebts / 1e6).toFixed(0)} triệu` : `${stats.pillars.finance.overdueDebts.toLocaleString("vi-VN")} đ`, 
       sub: "Tổng các khoản nợ đã quá hạn thanh toán", 
       progress: stats.pillars.finance.overdueDebts > 0 ? 40 : 100, 
-      trend: stats.pillars.finance.overdueDebts > 0 ? "warning" : "down" 
+      trend: stats.pillars.finance.overdueDebts > 0 ? "up" : "down" 
     },
     { 
       name: "Chỉ số sức khoẻ dòng tiền", 
