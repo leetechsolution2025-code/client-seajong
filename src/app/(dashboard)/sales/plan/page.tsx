@@ -423,7 +423,7 @@ export default function SalesPlanPage() {
       }
 
       if (!cleanRow.isTotal) {
-        cleanRow.totalBudget = (cleanRow.basicSalary + (cleanRow.performanceSalary || 0) + (cleanRow.allowance || 0)) * cleanRow.quantity * 12;
+        cleanRow.totalBudget = ((cleanRow.basicSalary || 0) + (cleanRow.performanceSalary || 0) + (cleanRow.allowance || 0)) * cleanRow.quantity * 12;
       }
       return cleanRow;
     });
