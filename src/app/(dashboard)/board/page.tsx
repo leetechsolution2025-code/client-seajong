@@ -911,7 +911,10 @@ export default function BoardPage() {
       .then(res => {
         if (res.success) {
           setDbStats(res);
-          if (!res.hasRealData) {
+          
+          const alreadyNotified = sessionStorage.getItem("board_db_empty_notified");
+          if (!res.hasRealData && !alreadyNotified) {
+            sessionStorage.setItem("board_db_empty_notified", "true");
             warning(
               "Chú ý kết nối cơ sở dữ liệu",
               "Hệ thống đang kết nối dữ liệu thực tế từ cơ sở dữ liệu. Hiện chưa có phát sinh giao dịch/đơn hàng nào, số liệu hiển thị đang là 0.",
