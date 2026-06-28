@@ -515,7 +515,7 @@ function FourPillarsDashboard({ stats }: { stats: any }) {
     { num: 4, title: "Vận hành", icon: "bi-gear-fill", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
   ];
 
-  const commercialMetrics = stats ? [
+  const commercialMetrics: Metric[] = stats ? [
     { 
       name: "Doanh thu tổng", 
       value: `${stats.pillars.commercial.revenueProgress}%`, 
@@ -546,7 +546,7 @@ function FourPillarsDashboard({ stats }: { stats: any }) {
     }
   ] : PILLARS_DATA[0].metrics;
 
-  const financeMetrics = stats ? [
+  const financeMetrics: Metric[] = stats ? [
     { 
       name: "Dòng tiền thuần tháng", 
       value: stats.pillars.finance.cashFlow >= 0 ? `+${(stats.pillars.finance.cashFlow / 1e6).toFixed(0)} triệu` : `${(stats.pillars.finance.cashFlow / 1e6).toFixed(0)} triệu`, 
@@ -577,7 +577,7 @@ function FourPillarsDashboard({ stats }: { stats: any }) {
     }
   ] : PILLARS_DATA[1].metrics;
 
-  const hrMetrics = stats ? [
+  const hrMetrics: Metric[] = stats ? [
     { 
       name: "Doanh thu / Nhân sự", 
       value: stats.pillars.hr.revenuePerFTE >= 1e6 ? `${(stats.pillars.hr.revenuePerFTE / 1e6).toFixed(0)} triệu` : `${stats.pillars.hr.revenuePerFTE.toLocaleString("vi-VN")} đ`, 
