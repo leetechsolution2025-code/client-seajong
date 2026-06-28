@@ -439,7 +439,16 @@ export default function SalesPlanPage() {
         chinhThuc: avgRevenue,
         lapKe: avgRevenue,
         layHangLe: 0,
-        revenueRows: []
+        revenueRows: [
+          { stt: "seajong", item: "SEAJONG", value: 0, isHeader: true },
+          { stt: "1.1", item: "Đại lý lắp kệ", value: 0 },
+          { stt: "1.2", item: "Đại lý chính thức", value: 0 },
+          { stt: "1.3", item: "Đại lý lấy hàng lẻ", value: 0 },
+          { stt: "voriger", item: "VORIGER", value: 0, isHeader: true },
+          { stt: "2.1", item: "Shopee", value: 0 },
+          { stt: "2.2", item: "B2B đại lý", value: 0 },
+          { stt: "2.3", item: "Khách ngoài", value: 0 },
+        ]
       };
     }
     setMonthlyTargets(recalculateChinhThucChain(initialMonthlyTargets));
