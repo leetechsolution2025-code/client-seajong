@@ -202,7 +202,7 @@ export async function GET(req: NextRequest) {
     });
     payrolls.forEach(p => {
       const m = new Date(p.createdAt).getMonth();
-      const val = (p.thucLinh || p.luongCoBan || 0);
+      const val = (p.tongChiPhiCty || p.luongThucNhan || p.luongCoBan || 0);
       monthlyCostArray[m] += val;
       monthlyCashFlowArray[m] -= val;
     });
