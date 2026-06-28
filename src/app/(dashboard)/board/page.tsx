@@ -505,7 +505,7 @@ const PILLARS_DATA: Pillar[] = [
   }
 ];
 
-function FourPillarsDashboard() {
+function FourPillarsDashboard({ stats }: { stats: any }) {
   const [currentStep, setCurrentStep] = useState<number>(1);
 
   const steps = [
@@ -515,7 +515,112 @@ function FourPillarsDashboard() {
     { num: 4, title: "Vận hành", icon: "bi-gear-fill", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
   ];
 
-  const activePillar = PILLARS_DATA[currentStep - 1];
+  const commercialMetrics = stats ? [
+    { 
+      name: "Doanh thu tổng", 
+      value: `${stats.pillars.commercial.revenueProgress}%`, 
+      sub: `${(stats.pillars.commercial.revenueActual / 1e9).toFixed(2)} tỷ / ${(stats.pillars.commercial.revenueTarget / 1e9).toFixed(2)} tỷ mục tiêu`, 
+      progress: stats.pillars.commercial.revenueProgress, 
+      trend: stats.pillars.commercial.revenueProgress >= 90 ? "up" : "neutral" 
+    },
+    { 
+      name: "Tỷ lệ thắng thầu", 
+      value: `${stats.pillars.commercial.winRate}%`, 
+      sub: `${stats.pillars.commercial.wonCount}/${stats.pillars.commercial.totalQuotations} cơ hội chuyển đổi báo giá`, 
+      progress: stats.pillars.commercial.winRate, 
+      trend: "up" 
+    },
+    { 
+      name: "Giá trị đơn hàng (AOV)", 
+      value: stats.pillars.commercial.aov >= 1e6 ? `${(stats.pillars.commercial.aov / 1e6).toFixed(0)} triệu` : `${stats.pillars.commercial.aov.toLocaleString("vi-VN")} đ`, 
+      sub: "Bình quân các đơn hàng đã tạo", 
+      progress: stats.pillars.commercial.aov > 0 ? 80 : 0, 
+      trend: "up" 
+    },
+    { 
+      name: "Khách hàng trong DB", 
+      value: `${stats.pillars.commercial.customersCount} đối tác`, 
+      sub: "Tổng số khách hàng trong hệ thống CRM", 
+      progress: stats.pillars.commercial.customersCount > 0 ? 90 : 0, 
+      trend: "neutral" 
+    }
+  ] : PILLARS_DATA[0].metrics;
+
+  const financeMetrics = stats ? [
+    { 
+      name: "Dòng tiền thuần tháng", 
+      value: stats.pillars.finance.cashFlow >= 0 ? `+${(stats.pillars.finance.cashFlow / 1e6).toFixed(0)} triệu` : `${(stats.pillars.finance.cashFlow / 1e6).toFixed(0)} triệu`, 
+      sub: "Thu thực tế trừ chi thực tế tháng", 
+      progress: stats.pillars.finance.cashFlow >= 0 ? 85 : 30, 
+      trend: stats.pillars.finance.cashFlow >= 0 ? "up" : "down" 
+    },
+    { 
+      name: "Biên LN gộp (S.phẩm)", 
+      value: "35.0%", 
+      sub: "Định mức biên lợi nhuận gộp mục tiêu", 
+      progress: 70, 
+      trend: "up" 
+    },
+    { 
+      name: "Nợ quá hạn", 
+      value: stats.pillars.finance.overdueDebts >= 1e6 ? `${(stats.pillars.finance.overdueDebts / 1e6).toFixed(0)} triệu` : `${stats.pillars.finance.overdueDebts.toLocaleString("vi-VN")} đ`, 
+      sub: "Tổng các khoản nợ đã quá hạn thanh toán", 
+      progress: stats.pillars.finance.overdueDebts > 0 ? 40 : 100, 
+      trend: stats.pillars.finance.overdueDebts > 0 ? "warning" : "down" 
+    },
+    { 
+      name: "Chỉ số sức khoẻ dòng tiền", 
+      value: `${stats.cashFlowScore}/100`, 
+      sub: stats.cashFlowScore >= 70 ? "Trạng thái dòng tiền tốt" : "Cần chú ý dòng tiền", 
+      progress: stats.cashFlowScore, 
+      trend: "neutral" 
+    }
+  ] : PILLARS_DATA[1].metrics;
+
+  const hrMetrics = stats ? [
+    { 
+      name: "Doanh thu / Nhân sự", 
+      value: stats.pillars.hr.revenuePerFTE >= 1e6 ? `${(stats.pillars.hr.revenuePerFTE / 1e6).toFixed(0)} triệu` : `${stats.pillars.hr.revenuePerFTE.toLocaleString("vi-VN")} đ`, 
+      sub: "Năng suất bình quân mỗi nhân viên", 
+      progress: stats.pillars.hr.revenuePerFTE > 0 ? 75 : 0, 
+      trend: "up" 
+    },
+    { 
+      name: "Doanh số / Sales Rep", 
+      value: stats.pillars.hr.salesPerRep >= 1e6 ? `${(stats.pillars.hr.salesPerRep / 1e6).toFixed(0)} triệu` : `${stats.pillars.hr.salesPerRep.toLocaleString("vi-VN")} đ`, 
+      sub: "Doanh số bình quân nhân viên Sales", 
+      progress: stats.pillars.hr.salesPerRep > 0 ? 80 : 0, 
+      trend: "up" 
+    },
+    { 
+      name: "Tỷ lệ biến động key", 
+      value: "0.0%", 
+      sub: "Tỷ lệ nhân sự chủ chốt nghỉ việc", 
+      progress: 100, 
+      trend: "down" 
+    },
+    { 
+      name: "Hiệu suất nhân sự", 
+      value: "95%", 
+      sub: "Tỷ lệ chấm công đúng giờ", 
+      progress: 95, 
+      trend: "neutral" 
+    }
+  ] : PILLARS_DATA[2].metrics;
+
+  const operationsMetrics = PILLARS_DATA[3].metrics;
+
+  const getDynamicMetrics = (stepNum: number) => {
+    if (stepNum === 1) return commercialMetrics;
+    if (stepNum === 2) return financeMetrics;
+    if (stepNum === 3) return hrMetrics;
+    return operationsMetrics;
+  };
+
+  const activePillar = {
+    ...PILLARS_DATA[currentStep - 1],
+    metrics: getDynamicMetrics(currentStep)
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -781,15 +886,61 @@ export default function BoardPage() {
   const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "done" | "error">("loading");
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [aiErrMsg, setAiErrMsg] = useState("");
+  const [dbStats, setDbStats] = useState<any>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+
+  // Helper to format money
+  const formatMoney = (val: number) => {
+    if (val === 0) return "0 đ";
+    if (Math.abs(val) >= 1e9) {
+      return (val / 1e9).toFixed(1) + " tỷ";
+    }
+    if (Math.abs(val) >= 1e6) {
+      return (val / 1e6).toFixed(1) + " triệu";
+    }
+    return val.toLocaleString("vi-VN") + " đ";
+  };
+
+  useEffect(() => {
+    setIsLoadingStats(true);
+    fetch("/api/board/stats")
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          setDbStats(res);
+        }
+        setIsLoadingStats(false);
+      })
+      .catch(() => {
+        setIsLoadingStats(false);
+      });
+  }, []);
 
   const analyze = async () => {
     setAiStatus("loading");
     setAiResult(null);
     try {
+      const payload = dbStats ? {
+        doanhThuNam: formatMoney(dbStats.kpis.yearlyRevenue),
+        doanhThuThang: formatMoney(dbStats.kpis.monthlyRevenue),
+        tongChiPhi: formatMoney(dbStats.kpis.yearlyCost),
+        loiNhuan: formatMoney(dbStats.kpis.yearlyProfit),
+        cashFlowScore: dbStats.cashFlowScore,
+        months: dbStats.chartSeries[0].data.map((rev: any, idx: number) => {
+          if (idx + 1 > dbStats.kpis.costAccumulatedMonth) return null;
+          return {
+            month: `Tháng ${idx + 1}`,
+            revenue: rev || 0,
+            cost: dbStats.chartSeries[1].data[idx] || 0,
+            cashFlow: dbStats.chartSeries[2].data[idx] || 0
+          };
+        }).filter(Boolean)
+      } : AI_PAYLOAD;
+
       const res = await fetch("/api/board/ai-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(AI_PAYLOAD),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -801,51 +952,114 @@ export default function BoardPage() {
     }
   };
 
-  useEffect(() => { analyze(); }, []);
+  useEffect(() => {
+    if (!isLoadingStats) {
+      analyze();
+    }
+  }, [isLoadingStats, dbStats]);
+
+  const dynamicKpiCards = dbStats ? [
+    {
+      label: "Doanh thu năm",
+      value: formatMoney(dbStats.kpis.yearlyRevenue),
+      icon: "bi-bar-chart-line-fill",
+      accent: "#8b5cf6",
+      subtitle: dbStats.kpis.revenueTrend >= 0 ? `+${dbStats.kpis.revenueTrend}% so tháng trước` : `${dbStats.kpis.revenueTrend}% so tháng trước`,
+    },
+    {
+      label: "Doanh thu tháng",
+      value: formatMoney(dbStats.kpis.monthlyRevenue),
+      icon: "bi-cash-coin",
+      accent: "#3b82f6",
+      subtitle: `Tháng ${dbStats.kpis.costAccumulatedMonth}/${new Date().getFullYear()}`,
+    },
+    {
+      label: "Tổng chi phí năm",
+      value: formatMoney(dbStats.kpis.yearlyCost),
+      icon: "bi-arrow-up-circle-fill",
+      accent: "#ef4444",
+      subtitle: `Lũy kế đến tháng ${dbStats.kpis.costAccumulatedMonth}/${new Date().getFullYear()}`,
+    },
+    {
+      label: "Lợi nhuận năm",
+      value: formatMoney(dbStats.kpis.yearlyProfit),
+      icon: "bi-graph-up-arrow",
+      accent: "#10b981",
+      subtitle: `Lũy kế đến tháng ${dbStats.kpis.costAccumulatedMonth}/${new Date().getFullYear()}`,
+    },
+  ] : KPI_CARDS;
+
+  const currentCashFlowScore = dbStats ? dbStats.cashFlowScore : CASH_FLOW_SCORE;
+  const currentChartSeries = dbStats ? dbStats.chartSeries : REVENUE_COST_SERIES;
 
   return (
     <>
     <AiDetailOffcanvas open={showDetail} onClose={() => setShowDetail(false)} />
-    <SplitLayoutPage
-      title="Ban Giám đốc"
-      description="Board of Directors · Điều hành & chiến lược tổ chức"
-      icon="bi-building"
-      color="violet"
-      mobileActiveTab={mobileTab}
-      // ── Cột trái (5/12) ───────────────────────────────────────────────
-      leftTopContent={
-        <div>
-          <MobileTabSwitcher activeTab={mobileTab} onChange={setMobileTab} />
-          <div className="row g-3">
-            {KPI_CARDS.map((kpi) => (
-              <KPICard
-                key={kpi.label}
-                label={kpi.label}
-                value={kpi.value}
-                icon={kpi.icon}
-                accent={kpi.accent}
-                subtitle={kpi.subtitle}
-                colClass="col-6"
-              />
-            ))}
+    <div className="w-100 h-100 d-flex flex-column">
+      {dbStats && !dbStats.hasRealData && (
+        <div className="alert alert-warning border-0 rounded-3 shadow-sm mx-4 mt-3 mb-0 d-flex align-items-center gap-2" style={{ padding: "10px 16px" }}>
+          <i className="bi bi-exclamation-triangle-fill text-warning" style={{ fontSize: 16 }} />
+          <div style={{ fontSize: 12.5, fontWeight: 500, color: "#664d03" }}>
+            <strong>Chú ý:</strong> Hệ thống đang kết nối dữ liệu thực tế từ cơ sở dữ liệu. Hiện chưa có phát sinh giao dịch/đơn hàng nào, số liệu hiển thị đang là 0. Bạn có thể tạo đơn hàng hoặc phiếu chi để cập nhật báo cáo.
           </div>
         </div>
-      }
-      leftContent={<FourPillarsDashboard />}
-      // ── Cột phải (7/12) ──────────────────────────────────────────────
-      rightContent={
-        <div className="p-4 flex-1 d-flex flex-column" style={{ overflowY: "auto", minHeight: 0 }}>
-          <MobileTabSwitcher activeTab={mobileTab} onChange={setMobileTab} />
-          <SectionTitle title="Diễn biến doanh thu và chi phí" className="mb-3" />
-          <YearAreaChart series={REVENUE_COST_SERIES} height={240} showLegend />
-          <SectionTitle
-            title="Trạng thái tài chính"
-            className="mt-4 mb-3"
-            action={
-              <div className="d-flex align-items-center gap-2">
-                {(aiStatus === "done" || aiStatus === "error") && (
+      )}
+      <SplitLayoutPage
+        title="Ban Giám đốc"
+        description="Board of Directors · Điều hành & chiến lược tổ chức"
+        icon="bi-building"
+        color="violet"
+        mobileActiveTab={mobileTab}
+        // ── Cột trái (5/12) ───────────────────────────────────────────────
+        leftTopContent={
+          <div>
+            <MobileTabSwitcher activeTab={mobileTab} onChange={setMobileTab} />
+            <div className="row g-3">
+              {dynamicKpiCards.map((kpi) => (
+                <KPICard
+                  key={kpi.label}
+                  label={kpi.label}
+                  value={kpi.value}
+                  icon={kpi.icon}
+                  accent={kpi.accent}
+                  subtitle={kpi.subtitle}
+                  colClass="col-6"
+                />
+              ))}
+            </div>
+          </div>
+        }
+        leftContent={<FourPillarsDashboard stats={dbStats} />}
+        // ── Cột phải (7/12) ──────────────────────────────────────────────
+        rightContent={
+          <div className="p-4 flex-1 d-flex flex-column" style={{ overflowY: "auto", minHeight: 0 }}>
+            <MobileTabSwitcher activeTab={mobileTab} onChange={setMobileTab} />
+            <SectionTitle title="Diễn biến doanh thu và chi phí" className="mb-3" />
+            <YearAreaChart series={currentChartSeries} height={240} showLegend />
+            <SectionTitle
+              title="Trạng thái tài chính"
+              className="mt-4 mb-3"
+              action={
+                <div className="d-flex align-items-center gap-2">
+                  {(aiStatus === "done" || aiStatus === "error") && (
+                    <button
+                      onClick={analyze}
+                      style={{
+                        background: "none", border: "1px solid var(--border)",
+                        borderRadius: 8, padding: "3px 10px",
+                        fontSize: 12.5, fontWeight: 600, color: "var(--muted-foreground)",
+                        cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
+                        transition: "all 0.15s",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "#8b5cf6"; e.currentTarget.style.borderColor = "#8b5cf6"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted-foreground)"; e.currentTarget.style.borderColor = "var(--border)"; }}
+                    >
+                      <i className="bi bi-arrow-clockwise" style={{ fontSize: 12 }} />
+                      Phân tích lại
+                    </button>
+                  )}
                   <button
-                    onClick={analyze}
+                    onClick={() => setShowDetail(true)}
                     style={{
                       background: "none", border: "1px solid var(--border)",
                       borderRadius: 8, padding: "3px 10px",
@@ -856,39 +1070,24 @@ export default function BoardPage() {
                     onMouseEnter={(e) => { e.currentTarget.style.color = "#8b5cf6"; e.currentTarget.style.borderColor = "#8b5cf6"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted-foreground)"; e.currentTarget.style.borderColor = "var(--border)"; }}
                   >
-                    <i className="bi bi-arrow-clockwise" style={{ fontSize: 12 }} />
-                    Phân tích lại
+                    <i className="bi bi-stars" style={{ fontSize: 12 }} />
+                    Chi tiết
                   </button>
-                )}
-                <button
-                  onClick={() => setShowDetail(true)}
-                  style={{
-                    background: "none", border: "1px solid var(--border)",
-                    borderRadius: 8, padding: "3px 10px",
-                    fontSize: 12.5, fontWeight: 600, color: "var(--muted-foreground)",
-                    cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "#8b5cf6"; e.currentTarget.style.borderColor = "#8b5cf6"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted-foreground)"; e.currentTarget.style.borderColor = "var(--border)"; }}
-                >
-                  <i className="bi bi-stars" style={{ fontSize: 12 }} />
-                  Chi tiết
-                </button>
-              </div>
-            }
-          />
-          <CashFlowHealth score={CASH_FLOW_SCORE} />
-          <AiAnalysis 
-            status={aiStatus}
-            result={aiResult}
-            errMsg={aiErrMsg}
-            analyze={analyze}
-            setStatus={setAiStatus}
-          />
-        </div>
-      }
-    />
+                </div>
+              }
+            />
+            <CashFlowHealth score={currentCashFlowScore} />
+            <AiAnalysis 
+              status={aiStatus}
+              result={aiResult}
+              errMsg={aiErrMsg}
+              analyze={analyze}
+              setStatus={setAiStatus}
+            />
+          </div>
+        }
+      />
+    </div>
     </>
   );
 }
