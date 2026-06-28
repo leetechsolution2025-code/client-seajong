@@ -437,8 +437,9 @@ export default function SalesPlanPage() {
     for (let m = 1; m <= 12; m++) {
       initialMonthlyTargets[m] = {
         chinhThuc: avgRevenue,
-        tiLe: 8.3,
-        yTuong: avgRevenue
+        lapKe: avgRevenue,
+        layHangLe: 0,
+        revenueRows: []
       };
     }
     setMonthlyTargets(recalculateChinhThucChain(initialMonthlyTargets));
