@@ -215,7 +215,7 @@ export default function SalesPage() {
     dataLabels: { enabled: false },
     stroke: { curve: "smooth", width: 2 },
     xaxis: {
-      categories: monthlyTrends.map(t => t.month),
+      categories: monthlyTrends.map(t => t.month.replace("Tháng ", "T")),
       labels: { style: { colors: "#64748b", fontSize: "11px" } },
       axisBorder: { show: false },
       axisTicks: { show: false },
