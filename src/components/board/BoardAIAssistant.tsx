@@ -75,6 +75,95 @@ export function BoardAIAssistant() {
   const [isLoadingVoices, setIsLoadingVoices] = useState(false);
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Drag-and-drop position offset for the floating button (FAB)
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragStartRef = useRef<{ clientX: number; clientY: number; offsetX: number; offsetY: number } | null>(null);
+  const hasMovedRef = useRef<boolean>(false);
+
+  const handleStart = (clientX: number, clientY: number) => {
+    dragStartRef.current = {
+      clientX,
+      clientY,
+      offsetX: offset.x,
+      offsetY: offset.y
+    };
+    hasMovedRef.current = false;
+  };
+
+  const handleMove = (clientX: number, clientY: number) => {
+    if (!dragStartRef.current) return;
+    const dx = clientX - dragStartRef.current.clientX;
+    const dy = clientY - dragStartRef.current.clientY;
+
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      hasMovedRef.current = true;
+    }
+
+    let newOffsetX = dragStartRef.current.offsetX - dx;
+    let newOffsetY = dragStartRef.current.offsetY - dy;
+
+    // Apply viewport boundaries
+    if (typeof window !== "undefined") {
+      const padding = 24;
+      const btnSize = 56;
+      
+      const maxOffsetX = window.innerWidth - btnSize - padding * 2;
+      const minOffsetX = 0;
+      const maxOffsetY = window.innerHeight - btnSize - padding * 2;
+      const minOffsetY = 0;
+
+      newOffsetX = Math.max(minOffsetX, Math.min(maxOffsetX, newOffsetX));
+      newOffsetY = Math.max(minOffsetY, Math.min(maxOffsetY, newOffsetY));
+    }
+
+    setOffset({ x: newOffsetX, y: newOffsetY });
+  };
+
+  const handleEnd = () => {
+    if (!dragStartRef.current) return;
+    dragStartRef.current = null;
+    if (!hasMovedRef.current) {
+      setOpen(true);
+    }
+  };
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    handleStart(e.clientX, e.clientY);
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      handleMove(moveEvent.clientX, moveEvent.clientY);
+    };
+
+    const onMouseUp = () => {
+      handleEnd();
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    handleStart(touch.clientX, touch.clientY);
+
+    const onTouchMove = (moveEvent: TouchEvent) => {
+      const moveTouch = moveEvent.touches[0];
+      handleMove(moveTouch.clientX, moveTouch.clientY);
+    };
+
+    const onTouchEnd = () => {
+      handleEnd();
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+
+    document.addEventListener("touchmove", onTouchMove, { passive: true });
+    document.addEventListener("touchend", onTouchEnd);
+  };
+
   const fetchVoicesFromApi = async (key: string) => {
     if (!key || !key.trim()) return;
     setIsLoadingVoices(true);
@@ -619,17 +708,23 @@ export function BoardAIAssistant() {
       {/* Floating button — chỉ hiện khi chat đóng */}
       {!open && (
         <button
-          onClick={() => setOpen(true)}
+          onMouseDown={onMouseDown}
+          onTouchStart={onTouchStart}
           className="ai-fab ai-fab-pulse"
           title="Trợ lý AI Ban Giám đốc"
           style={{
-            position: "fixed", bottom: 24, right: 24, zIndex: 1200,
+            position: "fixed", 
+            bottom: 24 + offset.y, 
+            right: 24 + offset.x, 
+            zIndex: 1200,
             width: 56, height: 56, borderRadius: "50%", border: "none",
             background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT2})`,
             color: "#fff", cursor: "pointer", fontSize: 24,
             display: "flex", alignItems: "center", justifyContent: "center",
             boxShadow: "0 6px 24px rgba(99,102,241,0.45)",
             transition: "transform 0.2s, opacity 0.2s",
+            userSelect: "none",
+            touchAction: "none"
           }}
         >🤖</button>
       )}

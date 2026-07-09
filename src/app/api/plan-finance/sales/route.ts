@@ -112,21 +112,41 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { code, customerId, ngayDat, ngayGiao, trangThai, tongTien, daThanhToan, keToanDuyet, ghiChu, nguoiPhuTrach } = body;
+    const { code, customerId, ngayDat, ngayGiao, trangThai, tongTien, daThanhToan, keToanDuyet, ghiChu, nguoiPhuTrach, items } = body;
 
-    const item = await prisma.saleOrder.create({
-      data: {
-        code, trangThai: trangThai ?? "draft",
-        tongTien:    parseFloat(tongTien    ?? 0),
-        daThanhToan: parseFloat(daThanhToan ?? 0),
-        keToanDuyet: keToanDuyet ?? "pending",
-        ghiChu, nguoiPhuTrach,
-        ...(customerId && { customerId }),
-        ...(ngayDat    && { ngayDat: new Date(ngayDat) }),
-        ...(ngayGiao   && { ngayGiao: new Date(ngayGiao) }),
-      },
+    const fullOrder = await prisma.$transaction(async (tx) => {
+      const order = await tx.saleOrder.create({
+        data: {
+          code, trangThai: trangThai ?? "draft",
+          tongTien:    parseFloat(tongTien    ?? 0),
+          daThanhToan: parseFloat(daThanhToan ?? 0),
+          keToanDuyet: keToanDuyet ?? "pending",
+          ghiChu, nguoiPhuTrach,
+          ...(customerId && { customerId }),
+          ...(ngayDat    && { ngayDat: new Date(ngayDat) }),
+          ...(ngayGiao   && { ngayGiao: new Date(ngayGiao) }),
+        },
+      });
+
+      if (items && Array.isArray(items) && items.length > 0) {
+        const orderItems = items.map((it: any) => ({
+          saleOrderId: order.id,
+          inventoryItemId: it.inventoryItemId || null,
+          tenHang: it.tenHang || "",
+          soLuong: parseFloat(it.soLuong ?? 1),
+          donGia: parseFloat(it.donGia ?? 0),
+          thanhTien: parseFloat(it.soLuong ?? 1) * parseFloat(it.donGia ?? 0),
+        }));
+        await tx.saleOrderItem.createMany({ data: orderItems });
+      }
+
+      return tx.saleOrder.findUnique({
+        where: { id: order.id },
+        include: { saleOrderItems: true },
+      });
     });
-    return NextResponse.json(item, { status: 201 });
+
+    return NextResponse.json(fullOrder, { status: 201 });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: msg }, { status: 500 });

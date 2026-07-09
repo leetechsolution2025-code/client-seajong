@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
     pageId: conn.pageId,
     pageName: conn.pageName,
     appId: conn.appId,
+    appSecret: conn.appSecret,
     webhookActive: conn.webhookActive,
     expiresAt: conn.expiresAt,
   });

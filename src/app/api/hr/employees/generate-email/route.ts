@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       .replace(/[^a-zA-Z0-9]/g, "")
       .toLowerCase();
 
-    const domain = "leetech.vn";
+    const domain = "seajong.com";
     let email = `${baseSlug}@${domain}`;
     let counter = 1;
 

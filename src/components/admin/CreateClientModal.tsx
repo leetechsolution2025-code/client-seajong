@@ -287,7 +287,7 @@ export function CreateClientModal({
                     onChange={(e) => setForm({ ...form, shortName: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}
                     placeholder="xyz-tech"
                     style={{ ...inputStyle, flex: 1, fontFamily: "monospace" }} />
-                  <span style={{ fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>.vn</span>
+                  <span style={{ fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>.com</span>
                 </div>
               </div>
               <div style={{ flex: 1 }}>
@@ -316,7 +316,7 @@ export function CreateClientModal({
                 <label style={labelStyle}>Email liên hệ</label>
                 <input type="email" value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="contact@company.vn" style={inputStyle} />
+                  placeholder="contact@company.com" style={inputStyle} />
               </div>
             </div>
 

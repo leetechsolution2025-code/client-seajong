@@ -38,6 +38,10 @@ fi
 SSH_USER="${SSH_USER:-root}"
 SSH_DIR="${SSH_DIR:-/root/${APP_NAME}}"
 
+# SSH options: buộc dùng key, tắt hỏi password
+SSH_KEY="${HOME}/.ssh/id_ed25519"
+SSH_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=no -o PasswordAuthentication=no -o BatchMode=yes"
+
 info "Bắt đầu cập nhật lên máy chủ ${SSH_USER}@${SSH_HOST}..."
 info "Thư mục cài đặt trên máy chủ: ${SSH_DIR}"
 
@@ -59,12 +63,12 @@ rsync -avz --delete \
     --exclude="public/client-logo*" \
     --exclude="public/logo*" \
     --exclude="package-lock.json" \
-    -e ssh . "${SSH_USER}@${SSH_HOST}:${SSH_DIR}/"
+    -e "ssh ${SSH_OPTS}" . "${SSH_USER}@${SSH_HOST}:${SSH_DIR}/"
 
 log "Mã nguồn đã đồng bộ thành công lên máy chủ!"
 
 # ── Chạy kịch bản deploy trên VPS qua SSH ───────────────────
 info "Đang chạy kịch bản cập nhật và restart trên máy chủ..."
-ssh -t "${SSH_USER}@${SSH_HOST}" "SKIP_GIT=1 bash ${SSH_DIR}/scripts/deploy.sh"
+ssh ${SSH_OPTS} -t "${SSH_USER}@${SSH_HOST}" "SKIP_GIT=1 bash ${SSH_DIR}/scripts/deploy.sh"
 
 log "Cập nhật ứng dụng lên máy chủ thành công!"

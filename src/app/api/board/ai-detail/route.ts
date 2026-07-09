@@ -31,21 +31,27 @@ async function generateWithFallback(prompt: string): Promise<string> {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { doanhThuNam, doanhThuThang, tongChiPhi, loiNhuan, cashFlowScore, months } = body;
+    const { doanhThuNam, doanhThuThang, tongChiPhi, loiNhuan, cashFlowScore, months, mucTieuNam } = body;
+
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
 
     const prompt = `
-Bạn là chuyên gia tài chính cấp cao. Hãy phân tích toàn diện và chi tiết tình trạng hoạt động sản xuất kinh doanh của doanh nghiệp dựa trên số liệu sau.
+Bạn là chuyên gia tài chính cấp cao. Hãy phân tích TỔNG THỂ bức tranh tài chính và hoạt động kinh doanh lũy kế của doanh nghiệp trong năm nay (tính đến hiện tại).
+ĐẶC BIỆT LƯU Ý: Hãy đánh giá bức tranh toàn cảnh của cả năm, xem xét tổng doanh thu năm, tổng chi phí năm và tiến độ hoàn thành so với mục tiêu năm đã đề ra.
 
-📊 SỐ LIỆU THÁNG 3/2026 (lũy kế từ đầu năm đến tháng 3):
-- Doanh thu năm: ${doanhThuNam}
-- Doanh thu tháng 3: ${doanhThuThang}
-- Tổng chi phí năm: ${tongChiPhi}
-- Lợi nhuận năm: ${loiNhuan}
+📊 SỐ LIỆU TỔNG THỂ (Lũy kế từ đầu năm đến tháng ${currentMonth}/${currentYear}):
+- Tổng doanh thu đạt được (từ đầu năm): ${doanhThuNam}
+- Mục tiêu doanh thu năm: ${mucTieuNam}
+- Doanh thu riêng trong tháng ${currentMonth}: ${doanhThuThang}
+- Tổng chi phí (từ đầu năm): ${tongChiPhi}
+- Lợi nhuận (từ đầu năm): ${loiNhuan}
 - Chỉ số sức khoẻ dòng tiền: ${cashFlowScore}/100
 
-📈 DIỄN BIẾN 3 THÁNG ĐẦU NĂM:
+📈 DIỄN BIẾN ${currentMonth} THÁNG ĐẦU NĂM:
 ${months.map((m: { month: string; revenue: number; cost: number; cashFlow: number }) =>
-  `- ${m.month}: Doanh thu ${m.revenue} tỷ | Chi phí ${m.cost} tỷ | Dòng tiền ${m.cashFlow} tỷ`
+  `- ${m.month}: Doanh thu ${m.revenue} | Chi phí ${m.cost} | Dòng tiền ${m.cashFlow}`
 ).join("\n")}
 
 Hãy cung cấp đánh giá chi tiết theo định dạng JSON sau (không kèm markdown, chỉ JSON thuần):

@@ -10,13 +10,14 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { code, tenDinhMuc, inventoryItemId, vatTu = [] } = body;
+    const { code, tenDinhMuc, manufacturedProductId, vatTu = [] } = body;
 
     // Tạo định mức mới
     const dm = await prisma.dinhMuc.create({
       data: {
         code,
         tenDinhMuc,
+        manufacturedProductId: manufacturedProductId || null,
         vatTu: {
           create: vatTu.map((v: any) => ({
             materialId: v.materialId || null,
@@ -28,14 +29,6 @@ export async function POST(req: NextRequest) {
         }
       }
     });
-
-    // Liên kết định mức với sản phẩm
-    if (inventoryItemId) {
-      await prisma.inventoryItem.update({
-        where: { id: inventoryItemId },
-        data: { dinhMucId: dm.id }
-      });
-    }
 
     return NextResponse.json(dm, { status: 201 });
   } catch (e: any) {

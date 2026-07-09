@@ -47,6 +47,7 @@ export async function upsertCampaign(data: {
  */
 export async function saveLead(data: {
   campaignExternalId: string;
+  campaignName?: string;
   externalId?: string;
   fullName?: string;
   email?: string;
@@ -56,12 +57,13 @@ export async function saveLead(data: {
   source?: string;
   medium?: string;
   adId?: string;
+  createdAt?: string;
 }) {
   const campaign = await (prisma as any).marketingCampaign.findUnique({
     where: { externalId: data.campaignExternalId },
   });
 
-  const { campaignExternalId, ...cleanData } = data;
+  const { campaignExternalId, campaignName, ...cleanData } = data;
 
   if (!campaign) {
     console.warn(`[MarketingSync] Không tìm thấy Campaign: ${campaignExternalId}. Đang tạo campaign tạm...`);
@@ -69,7 +71,7 @@ export async function saveLead(data: {
     const fallbackCampaign = await (prisma as any).marketingCampaign.create({
       data: {
         externalId: campaignExternalId,
-        name: `Chiến dịch tự động (${campaignExternalId})`,
+        name: data.campaignName || `Chiến dịch tự động (${campaignExternalId})`,
         platform: "facebook",
         status: "active"
       }
@@ -79,6 +81,7 @@ export async function saveLead(data: {
         ...cleanData,
         campaignId: fallbackCampaign.id,
         status: data.status || "new",
+        ...(data.createdAt && { createdAt: new Date(data.createdAt) })
       },
     });
   }
@@ -92,11 +95,13 @@ export async function saveLead(data: {
         phone: data.phone,
         formValues: data.formValues,
         status: data.status || "new",
+        ...(data.createdAt && { createdAt: new Date(data.createdAt) })
       },
       create: {
         ...cleanData,
         campaignId: campaign.id,
         status: data.status || "new",
+        ...(data.createdAt && { createdAt: new Date(data.createdAt) })
       },
     });
   }
@@ -106,6 +111,7 @@ export async function saveLead(data: {
         ...cleanData,
         campaignId: campaign.id,
         status: data.status || "new",
+        ...(data.createdAt && { createdAt: new Date(data.createdAt) })
       },
     });
   }
@@ -161,4 +167,73 @@ export async function syncTiktok(token: string) {
 
 export async function syncGoogle(token: string) {
   return { success: true, count: 0, note: "Chờ triển khai API Google Ads chính thức" };
+}
+
+/**
+ * Lưu báo cáo hiệu quả (Insights) hàng ngày của chiến dịch
+ */
+export async function saveInsight(data: {
+  campaignExternalId: string;
+  campaignName?: string;
+  date: string;
+  platform: string;
+  spend?: number;
+  impressions?: number;
+  reach?: number;
+  clicks?: number;
+  likes?: number;
+}) {
+  let campaign = await (prisma as any).marketingCampaign.findUnique({
+    where: { externalId: data.campaignExternalId },
+  });
+
+  if (!campaign) {
+    campaign = await (prisma as any).marketingCampaign.create({
+      data: {
+        externalId: data.campaignExternalId,
+        name: data.campaignName || `Campaign ${data.campaignExternalId}`,
+        platform: data.platform,
+        status: "active"
+      }
+    });
+  }
+
+  // Upsert insight by campaignId and date
+  // Since we don't have a unique constraint on (campaignId, date), we will findFirst and then update or create
+  const parsedDate = new Date(data.date);
+  // Reset time to 00:00:00 to match by date
+  parsedDate.setUTCHours(0,0,0,0);
+
+  const existingInsight = await (prisma as any).marketingInsight.findFirst({
+    where: {
+      campaignId: campaign.id,
+      date: parsedDate
+    }
+  });
+
+  if (existingInsight) {
+    return await (prisma as any).marketingInsight.update({
+      where: { id: existingInsight.id },
+      data: {
+        spend: data.spend !== undefined ? data.spend : existingInsight.spend,
+        impressions: data.impressions !== undefined ? data.impressions : existingInsight.impressions,
+        reach: data.reach !== undefined ? data.reach : existingInsight.reach,
+        clicks: data.clicks !== undefined ? data.clicks : existingInsight.clicks,
+        likes: data.likes !== undefined ? data.likes : existingInsight.likes,
+      }
+    });
+  } else {
+    return await (prisma as any).marketingInsight.create({
+      data: {
+        campaignId: campaign.id,
+        date: parsedDate,
+        platform: data.platform,
+        spend: data.spend || 0,
+        impressions: data.impressions || 0,
+        reach: data.reach || 0,
+        clicks: data.clicks || 0,
+        likes: data.likes || 0,
+      }
+    });
+  }
 }

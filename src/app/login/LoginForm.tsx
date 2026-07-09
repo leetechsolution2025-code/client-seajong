@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { normalizeImgSrc } from "@/lib/utils/image";
 
@@ -15,6 +15,7 @@ interface CompanyInfo {
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("Pass@123");
@@ -24,6 +25,11 @@ export default function LoginForm() {
   const [company, setCompany] = useState<CompanyInfo>({});
   const [industries, setIndustries] = useState<any[]>([]);
   const [selectedIndustry, setSelectedIndustry] = useState("");
+
+  // Lấy callbackUrl từ URL params (do middleware tạo ra khi chặn /admin, /dashboard...)
+  const callbackUrl = searchParams.get("callbackUrl");
+
+
 
   // Fetch thông tin công ty để hiển thị logo & tên động (không hardcode)
   useEffect(() => {
@@ -62,9 +68,6 @@ export default function LoginForm() {
       setError("Email hoặc mật khẩu không đúng.");
     }
   }, [searchParams]);
-
-  // Lấy callbackUrl từ URL params (do middleware tạo ra khi chặn /admin, /dashboard...)
-  const callbackUrl = searchParams.get("callbackUrl");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -148,7 +151,7 @@ export default function LoginForm() {
           <form onSubmit={handleSubmit} noValidate className="login-form">
 
             {/* Industry Switcher (Dev/Test) */}
-            {!process.env.NEXT_PUBLIC_CLIENT_SHORT_NAME && industries.length > 0 && (
+            {company.shortName === "leetech" && industries.length > 0 && (
               <div className="login-field">
                 <label htmlFor="login-industry" className="login-label">Ngành nghề hoạt động (Dev/Test)</label>
                 <div className="login-input-wrap" style={{ position: "relative" }}>

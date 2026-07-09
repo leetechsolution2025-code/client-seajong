@@ -1133,7 +1133,9 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
     const cfg  = TYPE_CFG[selected.type]         ?? TYPE_CFG.info;
     const aud  = AUDIENCE_CFG[selected.audienceType] ?? AUDIENCE_CFG.all;
     const prio = PRIORITY_CFG[selected.priority]  ?? PRIORITY_CFG.normal;
-    const senderInitials  = getInitials(selected.createdByName || "Hệ thống");
+    const isSystemReport = selected?.title.includes("Báo cáo hiệu suất");
+    const senderName = isSystemReport ? "Hệ thống báo cáo tự động" : (selected.createdByName || "Hệ thống");
+    const senderInitials  = getInitials(senderName);
     const isOwner = currentUserId && selected.createdById === currentUserId;
     return (
       <div style={{
@@ -1217,11 +1219,11 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 15, fontWeight: 800,
             }}>
-              {senderInitials}
+              {isSystemReport ? <i className="bi bi-gear-fill" style={{ fontSize: 20 }} /> : senderInitials}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
-                {selected.createdByName}
+                {senderName}
               </div>
               <div style={{ fontSize: 11.5, color: "var(--muted-foreground)", marginTop: 1 }}>
                 {[selected.createdByPos, selected.createdByDept].filter(Boolean).join(" · ") || "Hệ thống"}

@@ -23,18 +23,14 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/company/:path*",
-    "/my/:path*",
-    "/hr/:path*",
-    "/finance/:path*",
-    "/admin_ops/:path*",
-    "/board/:path*",
-    "/sales/:path*",
-    "/marketing/:path*",
-    "/cs/:path*",
-    "/logistics/:path*",
-    "/purchase/:path*",
-    "/production/:path*",
-    "/security/:path*",
+    /*
+     * Chặn TẤT CẢ các đường dẫn, NGOẠI TRỪ:
+     * - api: (để không chặn các webhook, public api)
+     * - _next/static, _next/image: (các file build của Next.js)
+     * - favicon.ico: (icon web)
+     * - login: (trang đăng nhập)
+     * - Các định dạng file tĩnh (svg, png, jpg, jpeg, gif, webp)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|login|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

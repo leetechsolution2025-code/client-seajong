@@ -181,13 +181,6 @@ export async function GET(req: Request) {
       };
     }
 
-    if (search) {
-      where.OR = [
-        { tenHang: { contains: search } },
-        { code: { contains: search } },
-        { model: { contains: search } },
-      ];
-    }
 
     const [invItems, matItems, invTotal, matTotal] = await Promise.all([
       // Chỉ lấy InventoryItem nếu không phải là kho MATERIAL (bao gồm PRODUCT và DEFECT)
@@ -200,17 +193,11 @@ export async function GET(req: Request) {
         orderBy: { updatedAt: "desc" },
       }) : Promise.resolve([]),
 
-      // Chỉ lấy MaterialItem nếu là kho MATERIAL
-      warehouseType === "MATERIAL" ? (prisma as any).materialItem.findMany({
+      // Chỉ lấy MaterialItem nếu là kho MATERIAL hoặc ALL
+      warehouseType === "MATERIAL" || warehouseType === "ALL" ? (prisma as any).materialItem.findMany({
         where: {
           ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
-          ...(search && {
-            OR: [
-              { name: { contains: search } },
-              { code: { contains: search } },
-              { spec: { contains: search } },
-            ]
-          })
+
         },
         include: {
           category: { select: { id: true, name: true } },
@@ -220,15 +207,10 @@ export async function GET(req: Request) {
       }) : Promise.resolve([]),
 
       warehouseType !== "MATERIAL" ? prisma.inventoryItem.count({ where }) : Promise.resolve(0),
-      warehouseType === "MATERIAL" ? (prisma as any).materialItem.count({
+      warehouseType === "MATERIAL" || warehouseType === "ALL" ? (prisma as any).materialItem.count({
         where: {
           ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
-          ...(search && {
-            OR: [
-              { name: { contains: search } },
-              { code: { contains: search } },
-            ]
-          })
+
         }
       }) : Promise.resolve(0),
     ]);
@@ -302,9 +284,26 @@ export async function GET(req: Request) {
     // Sort combined
     allItemsWithStock.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
 
+
+    const removeAccents = (str: string) => {
+      return str ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : '';
+    };
+
+    let filteredItems = allItemsWithStock;
+    if (search) {
+      const searchNormalized = removeAccents(search);
+      filteredItems = allItemsWithStock.filter(item => {
+        const nameNorm = removeAccents(item.tenHang);
+        const codeNorm = removeAccents(item.code);
+        const modelNorm = removeAccents(item.model);
+        return nameNorm.includes(searchNormalized) || codeNorm.includes(searchNormalized) || modelNorm.includes(searchNormalized);
+      });
+    }
+
     // Paginate manually
-    const total = invTotal + matTotal;
-    const paginated = allItemsWithStock.slice(skip, skip + limit);
+    const total = search ? filteredItems.length : invTotal + matTotal;
+    const paginated = filteredItems.slice(skip, skip + limit);
+
 
     return NextResponse.json({
       items: paginated,

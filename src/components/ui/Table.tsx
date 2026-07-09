@@ -192,7 +192,7 @@ export function Table<T>({
                     key={i}
                     className="text-uppercase"
                     style={{
-                      padding: compact ? "6px 14px" : "9px 14px",
+                      padding: compact ? "8px 12px" : "9px 14px",
                       textAlign: col.align ?? "left",
                       fontSize: 11,
                       fontWeight: 700,
@@ -255,7 +255,7 @@ export function Table<T>({
                       <td 
                         colSpan={columns.length} 
                         style={{ 
-                          padding: compact ? "6px 14px" : "10px 14px", 
+                          padding: compact ? "8px 12px" : "10px 14px", 
                           fontWeight: 700,
                           fontSize: 12,
                           color: "var(--primary)",
@@ -382,7 +382,7 @@ export function Table<T>({
                               cellClassName ? cellClassName(row, col, idx) : undefined
                             )}
                             style={{
-                              padding: compact ? "6px 14px" : "11px 14px",
+                              padding: compact ? "8px 12px" : "11px 14px",
                               verticalAlign: "middle",
                               textAlign: col.align ?? "left",
                               borderBottom: borderless ? "none" : "1px solid var(--border)",

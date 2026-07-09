@@ -9,7 +9,7 @@ const PAGE_SIZE = 100;
 
 type MaterialItemWithRelations = Prisma.MaterialItemGetPayload<{
   include: {
-    category: { select: { name: true } };
+    category: { select: { id: true, name: true } };
     stocks: { select: { soLuong: true; soLuongMin: true } };
   };
 }>;
@@ -27,9 +27,73 @@ export async function GET(req: NextRequest) {
 
     const searchNorm = removeVietnameseTones(search);
 
-    const where: any = {
-      ...(categoryId && { categoryId }),
-    };
+    // Filter by active industry
+    const user = await prisma.user.findFirst({
+      where: { email: session.user?.email || "" },
+      include: { client: { include: { industry: true } } }
+    });
+
+    let activeIndustryCode = "wood_door";
+    if (user?.role === "SUPERADMIN") {
+      const cookieHeader = req.headers.get("cookie") || "";
+      const cookieCode = cookieHeader
+        .split("; ")
+        .find(row => row.startsWith("active_industry_code="))
+        ?.split("=")[1];
+      
+      if (cookieCode) {
+        activeIndustryCode = cookieCode;
+      } else {
+        const firstClient = await prisma.client.findFirst({
+          include: { industry: true }
+        });
+        if (firstClient?.industry) {
+          activeIndustryCode = firstClient.industry.code;
+        }
+      }
+    } else if (user?.client?.industry) {
+      activeIndustryCode = user.client.industry.code;
+    } else {
+      const client = await prisma.client.findFirst({
+        include: { industry: true }
+      });
+      if (client?.industry) {
+        activeIndustryCode = client.industry.code;
+      }
+    }
+
+    const industry = await prisma.industry.findUnique({
+      where: { code: activeIndustryCode }
+    });
+
+    let validCategoryIds: string[] | null = null;
+    if (industry) {
+      const allCategories = await prisma.category.findMany({
+        where: { type: "vat_tu_san_xuat", isActive: true },
+        select: { id: true, parentId: true, code: true }
+      });
+
+      const rootCategory = allCategories.find(c => c.code === industry.rootCategoryCode);
+      if (rootCategory) {
+        const getDescendants = (parentId: string) => {
+          const children = allCategories.filter(c => c.parentId === parentId);
+          let ids = children.map(c => c.id);
+          for (const child of children) {
+            ids = ids.concat(getDescendants(child.id));
+          }
+          return ids;
+        };
+        validCategoryIds = [rootCategory.id, ...getDescendants(rootCategory.id)];
+      }
+    }
+
+    const where: any = {};
+    
+    if (categoryId) {
+      where.categoryId = categoryId;
+    } else if (validCategoryIds) {
+      where.categoryId = { in: validCategoryIds };
+    }
 
     if (warehouseId) {
       where.stocks = {
@@ -43,7 +107,7 @@ export async function GET(req: NextRequest) {
       take: search ? 1000 : PAGE_SIZE,
       skip: search ? 0 : (page - 1) * PAGE_SIZE,
       include: {
-        category: { select: { name: true } },
+        category: { select: { id: true, name: true } },
         stocks: warehouseId 
           ? { where: { warehouseId }, select: { soLuong: true, soLuongMin: true } }
           : { select: { soLuong: true, soLuongMin: true } },

@@ -22,9 +22,10 @@ interface Props {
   /** Ẩn nhãn trục Y để mở rộng biểu đồ */
   hideYAxis?: boolean;
   unit?: string;
+  exactTooltip?: boolean;
 }
 
-export function YearAreaChart({ series, height = 360, showLegend, hideYAxis, unit = "₫" }: Props) {
+export function YearAreaChart({ series, height = 360, showLegend, hideYAxis = true, unit = "₫", exactTooltip = false }: Props) {
   const colors = series.map((s) => s.color);
   const maxVal = Math.max(
     ...series.flatMap((s) => s.data.filter((v): v is number => v !== null)),
@@ -114,6 +115,10 @@ export function YearAreaChart({ series, height = 360, showLegend, hideYAxis, uni
       borderColor: "var(--border)",
       strokeDashArray: 0,
       xaxis: { lines: { show: false } },
+      padding: {
+        left: hideYAxis ? 15 : -12,
+        right: 0,
+      }
     },
     tooltip: {
       theme: "dark",
@@ -121,10 +126,14 @@ export function YearAreaChart({ series, height = 360, showLegend, hideYAxis, uni
       intersect: false,
       x: { show: true },
       y: {
-        formatter: (v) =>
-          v >= 1_000_000
+        formatter: (v) => {
+          if (exactTooltip) {
+            return `${Number(v).toLocaleString("vi-VN")} ${unit}`.trim();
+          }
+          return v >= 1_000_000
             ? `${(v / 1_000_000).toFixed(1)}M ${unit}`.trim()
-            : `${Math.round(v).toLocaleString("vi-VN")}${unit ? " " + unit : ""}`,
+            : `${Number.isInteger(v) ? v.toLocaleString("vi-VN") : v.toFixed(2).replace(/\.00$/, "")}${unit ? " " + unit : ""}`;
+        }
       },
       marker: { 
         show: true,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sj_generateSKU } from "@/lib/sku-generator";
+import * as cheerio from "cheerio";
 
 const WP_BASE = "https://seajong.com/wp-json/wp/v2";
 
@@ -81,12 +82,84 @@ async function performDeepSync(logId: string) {
 
         const imageUrl = p._embedded?.["wp:featuredmedia"]?.[0]?.source_url || null;
 
+        // --- Web Scraping for Promotions & Policies ---
+        let scrapedPromotions: string[] = [];
+        let scrapedPolicies: string[] = [];
+        let scrapedPriceHtml: string | null = null;
+        let scrapedVariations: any[] = [];
+        let scrapedVariationData: string | null = null;
+        try {
+          const htmlRes = await fetch(p.link, { cache: "no-store" });
+          const htmlText = await htmlRes.text();
+          const $ = cheerio.load(htmlText);
+          
+          // Scrape Policies (Vận chuyển, bảo hành...)
+          $(".box-uu-dai-new ul li").each((_, el) => {
+             const text = $(el).text().trim();
+             if (text) scrapedPolicies.push(text);
+          });
+          if (scrapedPolicies.length === 0) {
+            $("p:has(img[src*='hj.png'])").each((_, el) => {
+              const text = $(el).text().trim();
+              if (text) scrapedPolicies.push(text);
+            });
+          }
+
+          // Scrape Promotions (Khuyến mãi)
+          const khuyenmaiEl = $("*:contains('Khuyến mãi')").last();
+          if (khuyenmaiEl.length) {
+            const ul = khuyenmaiEl.parent().nextAll("ul").first();
+            if (ul.length > 0) {
+               ul.find("li").each((_, el) => {
+                  const text = $(el).text().trim();
+                  if (text) scrapedPromotions.push(text);
+               });
+            } else {
+               khuyenmaiEl.parent().parent().find("ul").first().find("li").each((_, el) => {
+                 const text = $(el).text().trim();
+                 if (text) scrapedPromotions.push(text);
+               });
+            }
+          }
+
+          // Scrape Price and Variations
+          scrapedPriceHtml = $("p.price").first().text().trim() || null;
+          
+          const varForm = $("form.variations_form").first();
+          if (varForm.length > 0) {
+            varForm.find("table.variations select").each((_, select) => {
+              const nameAttr = $(select).attr("name") || "";
+              const options: string[] = [];
+              $(select).find("option").each((_, opt) => {
+                const val = $(opt).text().trim();
+                if (val && val !== "Choose an option" && val !== "Chọn một tùy chọn") options.push(val);
+              });
+              if (options.length > 0) {
+                const name = nameAttr.replace("attribute_", "").replace("pa_", "");
+                // label is usually in the preceding th or by for=name
+                let label = varForm.find(`label[for='${name}']`).text().trim();
+                if (!label) label = name;
+                scrapedVariations.push({ name: label, key: nameAttr, options });
+              }
+            });
+            const varDataAttr = varForm.attr("data-product_variations");
+            if (varDataAttr) scrapedVariationData = varDataAttr;
+          }
+        } catch (e) {
+          console.error("Scrape error for", p.link, e);
+        }
+
         const productData = {
           slug: p.slug, url: p.link, name: (p.title?.rendered || "").replace(/<[^>]+>/g, "").trim(),
           excerpt: (p.excerpt?.rendered || "").replace(/<[^>]+>/g, "").substring(0, 500),
           description: html.replace(/<[^>]+>/g, " ").substring(0, 2000),
           specs: JSON.stringify(specs),
           imageUrl,
+          promotions: JSON.stringify(scrapedPromotions),
+          policies: JSON.stringify(scrapedPolicies),
+          priceHtml: scrapedPriceHtml,
+          variations: JSON.stringify(scrapedVariations),
+          variationData: scrapedVariationData,
           updatedAt: new Date(p.modified), syncedAt: new Date(),
         };
         await prisma.seajongProduct.upsert({ where: { id: p.id }, create: { id: p.id, ...productData }, update: productData });
@@ -112,11 +185,8 @@ async function performDeepSync(logId: string) {
     const tbnbCat = await prisma.inventoryCategory.findFirst({
       where: { code: "TBNB" }
     });
-    const thanhPhamWh = await prisma.warehouse.findFirst({
-      where: { code: "KHO-THANHPHAM" }
-    });
-    const phuKienWh = await prisma.warehouse.findFirst({
-      where: { code: "KHO-PHUKIEN" }
+    const hangHoaWh = await prisma.warehouse.findFirst({
+      where: { code: "KHO-CHINH" }
     });
 
     let count = 0;
@@ -199,47 +269,104 @@ async function performDeepSync(logId: string) {
         tenHang: wp.name, code: finalSKU, webProductId: wp.id,
         categoryId: invCat.id, brand: specs["Thương hiệu"] || "Seajong",
         model, color, version, imageUrl: (wp as any).imageUrl,
-        thongSoKyThuat: wp.description, updatedAt: new Date()
+        thongSoKyThuat: wp.description, updatedAt: new Date(),
+        giaBan: wp.price || 0
       };
 
-      // TÌM KIẾM THEO WEB ID (1-1)
-      const existingByWebId = await prisma.inventoryItem.findFirst({
-        where: { webProductId: wp.id } as any
-      });
+      // XỬ LÝ BIẾN THỂ (SeajongProductVariation)
+      let parsedVariations = [];
+      try {
+        if (wp.variationData) parsedVariations = JSON.parse(wp.variationData);
+      } catch(e) {}
 
-      let finalItem: any;
-      if (existingByWebId) {
-        const skuConflict = await prisma.inventoryItem.findFirst({
-          where: { code: itemData.code, id: { not: existingByWebId.id } } as any
-        });
-        if (skuConflict) itemData.code = `${finalSKU}-${wp.id}`;
-        finalItem = await prisma.inventoryItem.update({ where: { id: existingByWebId.id }, data: itemData as any });
-      } else {
-        const skuMatch = await prisma.inventoryItem.findUnique({ where: { code: finalSKU } });
-        if (skuMatch) itemData.code = `${finalSKU}-${wp.id}`;
-        finalItem = await prisma.inventoryItem.create({
-          data: { ...itemData, donVi: "cái", soLuong: 0, trangThai: "het-hang" } as any
+      // Đồng bộ vào bảng con SeajongProductVariation
+      for (const vData of parsedVariations) {
+        await (prisma as any).seajongProductVariation.upsert({
+          where: { variationId: vData.variation_id },
+          create: {
+            variationId: vData.variation_id,
+            productId: wp.id,
+            sku: vData.sku || `${finalSKU}-${vData.variation_id}`,
+            price: vData.display_price || 0,
+            attributes: JSON.stringify(vData.attributes || {}),
+            imageUrl: vData.image?.url || null
+          },
+          update: {
+            sku: vData.sku || `${finalSKU}-${vData.variation_id}`,
+            price: vData.display_price || 0,
+            attributes: JSON.stringify(vData.attributes || {}),
+            imageUrl: vData.image?.url || null
+          }
         });
       }
 
-      // GÁN VÀO KHO TƯƠNG ỨNG
-      const targetWarehouseId = (prefix === "PK" ? phuKienWh?.id : thanhPhamWh?.id) || thanhPhamWh?.id || "";
+      // Tạo InventoryItem cho từng biến thể (hoặc 1 cho SP gốc nếu không có)
+      const variationsToSync = parsedVariations.length > 0 ? parsedVariations : [null];
+      
+      for (const vData of variationsToSync) {
+        let vSku = finalSKU;
+        let vItemData = { ...itemData };
+        
+        if (vData) {
+          vSku = vData.sku || `${finalSKU}-${vData.variation_id}`;
+          vItemData.code = vSku;
+          vItemData.webVariationId = vData.variation_id;
+          vItemData.giaBan = vData.display_price || vItemData.giaBan;
+          vItemData.imageUrl = vData.image?.url || vItemData.imageUrl;
+          
+          // Trích xuất màu sắc, version từ attributes nếu có thể
+          const attrs = vData.attributes || {};
+          const vColor = attrs['attribute_mau-sac'] || attrs['attribute_mau'] || vItemData.color;
+          vItemData.color = vColor;
+        }
 
-      await (prisma as any).inventoryStock.upsert({
-        where: {
-          inventoryItemId_warehouseId: {
-            inventoryItemId: finalItem.id,
-            warehouseId: targetWarehouseId
-          }
-        },
-        create: {
-          inventoryItemId: finalItem.id,
-          warehouseId: targetWarehouseId,
-          soLuong: 0,
-          viTriHang: "Chờ sắp xếp"
-        },
-        update: {} // Giữ nguyên số lượng hiện có nếu đã có
-      });
+        // TÌM KIẾM
+        let existingItem = null;
+        if (vData) {
+          existingItem = await prisma.inventoryItem.findFirst({
+            where: { webVariationId: vData.variation_id } as any
+          });
+        } else {
+          existingItem = await prisma.inventoryItem.findFirst({
+            where: { webProductId: wp.id, webVariationId: null } as any
+          });
+        }
+
+        let finalItem: any;
+        if (existingItem) {
+          const skuConflict = await prisma.inventoryItem.findFirst({
+            where: { code: vItemData.code, id: { not: existingItem.id } } as any
+          });
+          if (skuConflict) vItemData.code = `${vSku}-${wp.id}${vData ? '-' + vData.variation_id : ''}`;
+          finalItem = await prisma.inventoryItem.update({ where: { id: existingItem.id }, data: vItemData as any });
+        } else {
+          const skuMatch = await prisma.inventoryItem.findUnique({ where: { code: vSku } });
+          if (skuMatch) vItemData.code = `${vSku}-${wp.id}${vData ? '-' + vData.variation_id : ''}`;
+          finalItem = await prisma.inventoryItem.create({
+            data: { ...vItemData, donVi: "cái", soLuong: 0, trangThai: "het-hang" } as any
+          });
+        }
+
+        // GÁN VÀO KHO TƯƠNG ỨNG
+        const targetWarehouseId = hangHoaWh?.id || "";
+        if (targetWarehouseId) {
+          await (prisma as any).inventoryStock.upsert({
+            where: {
+              inventoryItemId_warehouseId: {
+                inventoryItemId: finalItem.id,
+                warehouseId: targetWarehouseId
+              }
+            },
+            create: {
+              inventoryItemId: finalItem.id,
+              warehouseId: targetWarehouseId,
+              soLuong: 0,
+              viTriHang: "Chờ sắp xếp"
+            },
+            update: {} // Giữ nguyên số lượng hiện có nếu đã có
+          });
+        }
+      }
 
       count++;
       if (count % 5 === 0) {

@@ -9,6 +9,7 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TabBar, TabItem } from "@/components/plan-finance/dung_chung/TabBar";
 import CreateEmployeeModal from "@/components/hr/CreateEmployeeModal";
+import { useToast } from "@/components/ui/Toast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Employee {
@@ -97,6 +98,14 @@ function workYears(d?: string | null) {
   const y = (Date.now() - new Date(d).getTime()) / (365.25 * 86400000);
   return y < 1 ? `${Math.floor(y * 12)} tháng` : `${y.toFixed(1)} năm`;
 }
+
+const getPositionName = (code: string) => {
+  if (!code) return "Chưa xác định";
+  if (code === "vtr-20260401-8730-eauc") return "Giám đốc";
+  if (code === "vtr-20260401-1964-sbmg") return "Trưởng phòng";
+  if (code.startsWith("vtr-")) return "Nhân viên";
+  return code;
+};
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 function SectionHeader({ title, icon }: { title: string; icon: string }) {
@@ -210,7 +219,7 @@ function AlertDrawer({ type, items, onClose }: {
     noContract: {
       icon: "bi-file-earmark-x", color: "#8b5cf6", bg: "rgba(139,92,246,0.08)",
       title: "Chưa ký hợp đồng",
-      renderSub: e => e.position,
+      renderSub: e => getPositionName(e.position),
     },
     birthday: {
       icon: "bi-cake2-fill", color: "#ec4899", bg: "rgba(236,72,153,0.08)",
@@ -304,7 +313,7 @@ function AlertDrawer({ type, items, onClose }: {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--foreground)",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.fullName}</p>
-                <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>{e.departmentName} · {e.position}</p>
+                <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>{e.departmentName} · {getPositionName(e.position)}</p>
                 <p style={{ margin: 0, fontSize: 11, color: cfg.color, fontWeight: 600, marginTop: 1 }}>{cfg.renderSub(e)}</p>
               </div>
               {cfg.renderRight?.(e)}
@@ -319,6 +328,7 @@ function AlertDrawer({ type, items, onClose }: {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BoardHrPage() {
+  const toast = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "leaders" | "alerts">("overview");
@@ -370,7 +380,7 @@ export default function BoardHrPage() {
   const filteredEmps = useMemo(() => {
     const q = empSearch.toLowerCase();
     return employees.filter(e =>
-      (!q || e.fullName.toLowerCase().includes(q) || e.position.toLowerCase().includes(q)) &&
+      (!q || e.fullName.toLowerCase().includes(q) || getPositionName(e.position).toLowerCase().includes(q)) &&
       (!empDept   || e.departmentCode === empDept) &&
       (!empStatus || e.status === empStatus)
     );
@@ -502,7 +512,7 @@ export default function BoardHrPage() {
           <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {emp.fullName}
           </p>
-          <p style={{ margin: "2px 0 4px", fontSize: 12, color: "var(--muted-foreground)" }}>{emp.position} · {emp.departmentName}</p>
+          <p style={{ margin: "2px 0 4px", fontSize: 12, color: "var(--muted-foreground)" }}>{getPositionName(emp.position)} · {emp.departmentName}</p>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             {empLevel && (
               <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99,
@@ -642,7 +652,7 @@ export default function BoardHrPage() {
                     <Avatar name={e.fullName} size={34} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.fullName}</p>
-                      <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>{e.departmentName} · {e.position}</p>
+                      <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>{e.departmentName} · {getPositionName(e.position)}</p>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 99, background: scfg.bg, color: scfg.text }}>
@@ -680,7 +690,7 @@ export default function BoardHrPage() {
                       {isDirector ? "Giám đốc" : "Trưởng phòng"}
                     </span>
                   </div>
-                  <p style={{ margin: 0, fontSize: 11.5, color: "var(--muted-foreground)" }}>{e.departmentName} · {e.position}</p>
+                  <p style={{ margin: 0, fontSize: 11.5, color: "var(--muted-foreground)" }}>{e.departmentName} · {getPositionName(e.position)}</p>
                   <p style={{ margin: 0, fontSize: 10.5, color: "var(--muted-foreground)", fontFamily: "monospace" }}>{e.workEmail}</p>
                 </div>
                 {workYears(e.startDate) && (
@@ -782,14 +792,17 @@ export default function BoardHrPage() {
     setDeleteLoading(true);
     try {
       const res = await fetch(`/api/hr/employees/${selectedEmp.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Lỗi khi xoá nhân viên");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Lỗi khi xoá nhân viên");
+      }
       
       const updatedList = employees.filter(e => e.id !== selectedEmp.id);
       setEmployees(updatedList);
       setSelectedEmp(updatedList[0] || null);
-    } catch (e) {
-      console.error(e);
-      alert("Không thể xoá nhân viên này.");
+      toast.success("Đã xoá nhân viên thành công");
+    } catch (e: any) {
+      toast.error(e.message || "Không thể xoá nhân viên này.");
     } finally {
       setDeleteLoading(false);
       setShowDeleteConfirm(false);
@@ -817,7 +830,7 @@ export default function BoardHrPage() {
 
     departmentCode: selectedEmp.departmentCode,
     departmentName: selectedEmp.departmentName,
-    position:       selectedEmp.position,
+    position:       getPositionName(selectedEmp.position),
     level:          selectedEmp.level,
     manager:        selectedEmp.manager ?? "",
     employeeType:   selectedEmp.employeeType ?? "official",

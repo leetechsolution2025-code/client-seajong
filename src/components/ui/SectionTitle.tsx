@@ -1,7 +1,7 @@
 import React, { ReactNode } from "react";
 
 interface SectionTitleProps {
-  title: string;
+  title: ReactNode;
   icon?: string;
   className?: string;
   style?: React.CSSProperties;

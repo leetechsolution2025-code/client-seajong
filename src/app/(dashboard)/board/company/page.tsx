@@ -281,9 +281,9 @@ export default function CompanyPage() {
               </p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <Field label="Số điện thoại" icon="bi-telephone" value={current.phone} onChange={set("phone")} placeholder="028 1234 5678" readOnly={!editing} />
-                <Field label="Email" icon="bi-envelope" value={current.email} onChange={set("email")} placeholder="info@company.vn" type="email" readOnly={!editing} />
+                <Field label="Email" icon="bi-envelope" value={current.email} onChange={set("email")} placeholder="info@company.com" type="email" readOnly={!editing} />
                 <div style={{ gridColumn: "1 / -1" }}>
-                  <Field label="Website" icon="bi-globe" value={current.website} onChange={set("website")} placeholder="https://company.vn" readOnly={!editing} />
+                  <Field label="Website" icon="bi-globe" value={current.website} onChange={set("website")} placeholder="https://company.com" readOnly={!editing} />
                 </div>
               </div>
             </div>

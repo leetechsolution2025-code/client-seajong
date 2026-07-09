@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
+import { TaoDonHangModal } from "./TaoDonHangModal";
 
 export interface OrderDetail {
   id: string;
@@ -65,10 +66,11 @@ function fmtDate(d: string | null | undefined) {
 export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
   const toast = useToast();
 
   // Modals state
-  const [showEdit, setShowEdit] = useState(false);
+  const [showFullEdit, setShowFullEdit] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
 
@@ -109,48 +111,55 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
     }
   }, [order]);
 
+  useEffect(() => {
+    fetch("/api/company")
+      .then(r => r.json())
+      .then(d => setCompanyInfo(d))
+      .catch(console.error);
+  }, []);
+
   if (!orderId) return null;
 
   const fmt = (n: number) => n.toLocaleString("vi-VN");
   const conNo = order ? Math.max(0, order.tongTien - order.daThanhToan) : 0;
 
-  const acctSt = order ? (ACCT_STATUS_CFG[order.keToanDuyet] ?? { label: order.keToanDuyet, color: "#6b7280", icon: "bi-circle", bg: "rgba(0,0,0,0.05)" }) : { label: "", color: "", icon: "", bg: "" };
+  const acctSt = order ? (ACCT_STATUS_CFG[order.keToanDuyet] ?? { label: order.keToanDuyet, color: "#94a3b8", bg: "rgba(148,163,184,0.1)", icon: "bi-circle" }) : null;
   const khoSt = order ? (KHO_STATUS_CFG[order.trangThaiKho] ?? { label: order.trangThaiKho, color: "#6b7280", icon: "bi-circle", bg: "rgba(0,0,0,0.05)" }) : { label: "", color: "", icon: "", bg: "" };
   const orderSt = order ? (ORDER_STATUS_CFG[order.trangThai] ?? { label: order.trangThai, color: "#3b82f6", icon: "bi-activity", bg: "rgba(59,130,246,0.1)" }) : { label: "", color: "", icon: "", bg: "" };
 
-  const handleSaveEdit = async () => {
-    if (!orderId) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/plan-finance/sales/${orderId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ngayGiao: editNgayGiao || null,
-          daThanhToan: editDaThanhToan,
-          trangThai: editTrangThai,
-          ghiChu: editGhiChu,
-        }),
-      });
-      if (!res.ok) throw new Error("Cập nhật thất bại");
-      
-      setOrder(prev => prev ? {
-        ...prev,
-        ngayGiao: editNgayGiao || null,
-        daThanhToan: editDaThanhToan,
-        trangThai: editTrangThai,
-        ghiChu: editGhiChu,
-      } : null);
-
-      toast.success("Thành công", "Cập nhật đơn hàng thành công!");
-      setShowEdit(false);
-      onSaved?.();
-    } catch (err) {
-      toast.error("Lỗi", "Không thể cập nhật đơn hàng.");
-    } finally {
-      setSaving(false);
+  const parseGuestInfo = (ghiChu: string | null) => {
+    let name = "", phone = "", address = "";
+    if (!ghiChu) return { name, phone, address };
+    const guestMatch = ghiChu.match(/\[GuestInfo:(.*?)\]/);
+    if (guestMatch) {
+      try {
+        const parsed = JSON.parse(guestMatch[1]);
+        name = parsed.name || name;
+        phone = parsed.dienThoai || phone;
+        address = parsed.address || address;
+      } catch (e) {}
     }
+    const lines = ghiChu.split("\n");
+    for (const line of lines) {
+      if (line.startsWith("Tên khách hàng: ")) name = line.replace("Tên khách hàng: ", "");
+      if (line.startsWith("Số điện thoại: ")) phone = line.replace("Số điện thoại: ", "");
+      if (line.startsWith("Địa chỉ giao hàng: ")) address = line.replace("Địa chỉ giao hàng: ", "");
+    }
+    return { name, phone, address };
   };
+
+  const displayCustomer = {
+    name: order?.customer?.name || "Khách vãng lai",
+    dienThoai: order?.customer?.dienThoai || "",
+    address: order?.customer?.address || "",
+  };
+  
+  if (order?.ghiChu) {
+    const parsed = parseGuestInfo(order.ghiChu);
+    if (parsed.name) displayCustomer.name = parsed.name;
+    if (parsed.phone) displayCustomer.dienThoai = parsed.phone;
+    if (parsed.address) displayCustomer.address = parsed.address;
+  }
 
   const handleDeleteOrder = async () => {
     if (!orderId) return;
@@ -214,24 +223,22 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
           ) : order ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {/* Customer Box */}
-              {order.customer && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px 16px", background: "color-mix(in srgb, var(--primary) 6%, transparent)", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)" }}>
-                  <p style={{ margin: 0, fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--primary)", letterSpacing: "0.02em" }}>Khách hàng mua hàng</p>
-                  <div>
-                    <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: "var(--foreground)" }}>{order.customer.name}</p>
-                    {order.customer.address && (
-                      <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--muted-foreground)" }}>
-                        <i className="bi bi-geo-alt" style={{ marginRight: 5 }} />{order.customer.address}
-                      </p>
-                    )}
-                    {order.customer.dienThoai && (
-                      <p style={{ margin: 0, fontSize: 12, color: "var(--muted-foreground)" }}>
-                        <i className="bi bi-telephone" style={{ marginRight: 5 }} />{order.customer.dienThoai}
-                      </p>
-                    )}
-                  </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px 16px", background: "color-mix(in srgb, var(--primary) 6%, transparent)", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)" }}>
+                <p style={{ margin: 0, fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--primary)", letterSpacing: "0.02em" }}>Khách hàng mua hàng</p>
+                <div>
+                  <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: "var(--foreground)" }}>{displayCustomer.name}</p>
+                  {displayCustomer.address && (
+                    <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--muted-foreground)" }}>
+                      <i className="bi bi-geo-alt" style={{ marginRight: 5 }} />{displayCustomer.address}
+                    </p>
+                  )}
+                  {displayCustomer.dienThoai && (
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--muted-foreground)" }}>
+                      <i className="bi bi-telephone" style={{ marginRight: 5 }} />{displayCustomer.dienThoai}
+                    </p>
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* Status Section */}
               <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -373,7 +380,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <button
-                onClick={() => setShowEdit(true)}
+                onClick={() => setShowFullEdit(true)}
                 style={{
                   padding: "8px 16px",
                   borderRadius: 8,
@@ -417,71 +424,21 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
       </div>
 
       {/* Modals & Dialogs */}
-      {showEdit && (
-        <>
-          <div style={{ position: "fixed", inset: 0, zIndex: 1200, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(3px)" }} />
-          <div style={{
-            position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
-            zIndex: 1201, width: 420, background: "var(--card)",
-            borderRadius: 16, boxShadow: "0 24px 60px rgba(0,0,0,0.3)",
-            border: "1px solid var(--border)", overflow: "hidden",
-            display: "flex", flexDirection: "column"
-          }}>
-            {/* Header */}
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>Sửa thông tin đơn hàng</p>
-              <button onClick={() => setShowEdit(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--muted-foreground)", lineHeight: 1 }}>×</button>
-            </div>
-
-            {/* Body */}
-            <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Ngày giao hàng</label>
-                <input type="date" value={editNgayGiao} onChange={e => setEditNgayGiao(e.target.value)}
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, boxSizing: "border-box" }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Số tiền đã thanh toán (₫)</label>
-                <input type="number" value={editDaThanhToan} onChange={e => setEditDaThanhToan(parseFloat(e.target.value) || 0)}
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, boxSizing: "border-box" }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Trạng thái đơn hàng</label>
-                <select value={editTrangThai} onChange={e => setEditTrangThai(e.target.value)}
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, boxSizing: "border-box" }}
-                >
-                  <option value="active">Đang thực hiện</option>
-                  <option value="completed">Hoàn thành</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Ghi chú đơn hàng</label>
-                <textarea value={editGhiChu} onChange={e => setEditGhiChu(e.target.value)}
-                  placeholder="Ghi chú thêm về đơn hàng..."
-                  rows={3}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }}
-                />
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={() => setShowEdit(false)}
-                style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--muted)", color: "var(--foreground)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-              >Huỷ</button>
-              <button onClick={handleSaveEdit} disabled={saving}
-                style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "var(--primary)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                {saving ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 0.8s linear infinite" }} /> : <i className="bi bi-check2" />}Lưu thay đổi
-              </button>
-            </div>
-          </div>
-        </>
+      {showFullEdit && order && (
+        <TaoDonHangModal
+          open={showFullEdit}
+          onClose={() => setShowFullEdit(false)}
+          customer={order.customer as any}
+          editOrder={order}
+          onSaved={() => {
+            setShowFullEdit(false);
+            if (onSaved) onSaved();
+            fetch(`/api/plan-finance/sales/${orderId}`)
+              .then(res => res.json())
+              .then(data => setOrder(data));
+          }}
+          type={!order.customer ? "retail" : "agency"}
+        />
       )}
 
       {showConfirmDelete && (
@@ -539,18 +496,23 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
             </button>
           }
           document={
-            <div className="pdf-cover-page" style={{ padding: "50px 60px", width: "100%", fontFamily: "'Montserrat', 'Open Sans', Arial, sans-serif" }}>
+            <div className="pdf-cover-page" style={{ padding: "50px 60px", fontFamily: "'Roboto Condensed', 'Arial Narrow', sans-serif" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 30 }}>
                 {/* Logo + Company Info */}
                 <div style={{ display: "flex", gap: 16, maxWidth: "55%" }}>
-                  <div style={{ width: 80, height: 80, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#3b82f6" }}>
-                    <i className="bi bi-house-door-fill" style={{ fontSize: 40 }} />
-                    <span style={{ fontSize: 8, fontWeight: 800 }}>SEAJONG FAUCET</span>
-                  </div>
-                  <div>
-                    <h1 style={{ margin: "0 0 6px 0", fontSize: 13, fontWeight: 900, color: "#3b82f6", textTransform: "uppercase" }}>CÔNG TY CỔ PHẦN SEAJONG FAUCET VIỆT NAM</h1>
-                    <p style={{ margin: "0 0 4px 0", fontSize: 9, color: "#1e293b" }}><strong>Địa chỉ:</strong> Khu công nghiệp Tân Quang, Văn Lâm, Hưng Yên</p>
-                    <p style={{ margin: "0 0 4px 0", fontSize: 9, color: "#1e293b" }}><strong>SĐT:</strong> 0988 888 888</p>
+                  {companyInfo?.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={companyInfo.logoUrl} alt="Logo" style={{ width: 80, height: 80, objectFit: "contain", flexShrink: 0 }} />
+                  ) : (
+                    <div style={{ width: 80, height: 80, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#3b82f6" }}>
+                      <i className="bi bi-building" style={{ fontSize: 40 }} />
+                    </div>
+                  )}
+                  <div style={{ lineHeight: 1.3 }}>
+                    <h1 style={{ margin: "0 0 2px 0", fontSize: 13, fontWeight: 900, color: "#3b82f6", textTransform: "uppercase" }}>{companyInfo?.name || "Đang tải thông tin..."}</h1>
+                    {companyInfo?.address && <p style={{ margin: "0 0 1px 0", fontSize: 9, color: "#1e293b" }}><strong>Địa chỉ:</strong> {companyInfo.address}</p>}
+                    {companyInfo?.phone && <p style={{ margin: "0 0 1px 0", fontSize: 9, color: "#1e293b" }}><strong>SĐT:</strong> {companyInfo.phone}</p>}
+                    {companyInfo?.slogan && <p style={{ margin: 0, fontSize: 9, color: "#64748b" }}>{companyInfo.slogan}</p>}
                   </div>
                 </div>
 
@@ -564,22 +526,23 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
 
               {/* Customer Box */}
               <div style={{ marginBottom: 20 }}>
+                 <h3 style={{ margin: "0 0 6px 0", fontSize: 13, fontWeight: 800, color: "#1e293b", textTransform: "uppercase" }}>Thông tin khách hàng</h3>
                  <table style={{ fontSize: 12, color: "#1e293b", width: "100%", lineHeight: 1.8 }}>
                    <tbody>
                      <tr>
-                       <td style={{ width: 100, fontWeight: 600 }}>Khách hàng:</td>
-                       <td><strong>{order.customer?.name || "Khách vãng lai"}</strong></td>
+                       <td style={{ width: 110, fontWeight: 600 }}>Tên khách hàng:</td>
+                       <td colSpan={displayCustomer.dienThoai ? 1 : 3}><strong style={{ textTransform: "uppercase" }}>{displayCustomer.name}</strong></td>
+                       {displayCustomer.dienThoai && (
+                         <>
+                           <td style={{ width: 110, fontWeight: 600, textAlign: "right", paddingRight: 12 }}>Số điện thoại:</td>
+                           <td>{displayCustomer.dienThoai}</td>
+                         </>
+                       )}
                      </tr>
-                     {order.customer?.dienThoai && (
-                       <tr>
-                         <td style={{ fontWeight: 600 }}>Số điện thoại:</td>
-                         <td>{order.customer.dienThoai}</td>
-                       </tr>
-                     )}
-                     {order.customer?.address && (
+                     {displayCustomer.address && (
                        <tr>
                          <td style={{ fontWeight: 600 }}>Địa chỉ:</td>
-                         <td>{order.customer.address}</td>
+                         <td colSpan={3}>{displayCustomer.address}</td>
                        </tr>
                      )}
                    </tbody>
@@ -592,7 +555,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                   <thead>
                     <tr>
                       <th style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", width: 40, background: "#f8fafc", color: "var(--foreground)" }}>STT</th>
-                      <th style={{ border: "1px solid #1e293b", padding: "8px 12px", textAlign: "left", background: "#f8fafc", color: "var(--foreground)" }}>Tên sản phẩm, dịch vụ</th>
+                      <th style={{ border: "1px solid #1e293b", padding: "8px 12px", textAlign: "left", background: "#f8fafc", color: "var(--foreground)" }}>Tên hàng hoá, dịch vụ</th>
                       <th style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", width: 60, background: "#f8fafc", color: "var(--foreground)" }}>ĐVT</th>
                       <th style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", width: 60, background: "#f8fafc", color: "var(--foreground)" }}>Số lượng</th>
                       <th style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "right", width: 95, background: "#f8fafc", color: "var(--foreground)" }}>Đơn giá (đ)</th>
@@ -602,12 +565,26 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                   <tbody>
                     {order.items.map((line: any, idx: number) => (
                       <tr key={idx}>
-                        <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center" }}>{idx + 1}</td>
-                        <td style={{ border: "1px solid #1e293b", padding: "8px 12px" }}>{line.tenHang}</td>
-                        <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center" }}>{line.donVi || "cái"}</td>
-                        <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center" }}>{line.soLuong}</td>
-                        <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "right" }}>{line.donGia.toLocaleString("vi-VN")}</td>
-                        <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{line.thanhTien.toLocaleString("vi-VN")}</td>
+                        <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", verticalAlign: "middle" }}>{idx + 1}</td>
+                        <td style={{ border: "1px solid #1e293b", padding: "8px 12px", verticalAlign: "middle" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            {line.inventoryItem?.imageUrl ? (
+                              <img src={line.inventoryItem.imageUrl} alt={line.tenHang} style={{ width: 50, height: 50, objectFit: "contain", borderRadius: 6, border: "1px solid #e2e8f0" }} />
+                            ) : (
+                              <div style={{ width: 50, height: 50, background: "#f1f5f9", borderRadius: 6, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", color: "#cbd5e1" }}>
+                                <i className="bi bi-image" style={{ fontSize: 18 }} />
+                              </div>
+                            )}
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: "#1e293b" }}>{line.tenHang}</div>
+                              {line.inventoryItem?.code && <div style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace" }}>Mã: {line.inventoryItem.code}</div>}
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", verticalAlign: "middle" }}>{line.donVi || "cái"}</td>
+                        <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", verticalAlign: "middle" }}>{line.soLuong}</td>
+                        <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "right", verticalAlign: "middle" }}>{line.donGia.toLocaleString("vi-VN")}</td>
+                        <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "right", fontWeight: 700, verticalAlign: "middle" }}>{line.thanhTien.toLocaleString("vi-VN")}</td>
                       </tr>
                     ))}
                   </tbody>

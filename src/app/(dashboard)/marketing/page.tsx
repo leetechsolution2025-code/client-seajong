@@ -190,8 +190,8 @@ function ConnectAdsOffcanvas({
       const resp = await fetch(`/api/facebook/status?platform=${realPlatform}`);
       const data = await resp.json();
       setStatuses(p => ({ ...p, [platform]: data }));
-      if (data.appId) {
-        setConfigs(p => ({ ...p, [platform]: { ...p[platform], appId: data.appId } }));
+      if (data.appId || data.appSecret) {
+        setConfigs(p => ({ ...p, [platform]: { appId: data.appId || "", appSecret: data.appSecret || "" } }));
       }
     } catch {
       setStatuses(p => ({ ...p, [platform]: { connected: false } }));
@@ -712,7 +712,7 @@ export default function MarketingPage() {
   // Update leadSeries and chartDates when activeFeedIndex or range changes
   useEffect(() => {
     if (fbCampaigns.length === 0) return;
-    const activeCamps = fbCampaigns.filter(c => c.status === "ACTIVE");
+    const activeCamps = fbCampaigns.filter(c => c.status?.toUpperCase() === "ACTIVE");
     if (activeCamps.length === 0) return;
     const c = activeCamps[Math.min(activeFeedIndex, activeCamps.length - 1)];
     if (!c) return;
@@ -731,7 +731,8 @@ export default function MarketingPage() {
     setChartDates(dataSlice.map(d => d.date_start));
     setLeadSeries([
       { name: "Lượt tiếp cận", data: dataSlice.map(d => parseInt(d.reach || "0")) },
-      { name: "Lượt tương tác", data: dataSlice.map(d => parseInt(d.clicks || "0")) },
+      { name: "Lượt tương tác (Clicks)", data: dataSlice.map(d => parseInt(d.clicks || "0")) },
+      { name: "Lượt thích (Likes)", data: dataSlice.map(d => parseInt(d.likes || "0")) },
       { name: "Khách hàng tiềm năng (Leads)", data: dataSlice.map(d => {
           const lAct = d.actions?.find((a: any) => a.action_type === "lead");
           return parseInt(lAct?.value || d.leads || "0");
@@ -997,7 +998,7 @@ export default function MarketingPage() {
 
         {/* QUICK SUMMARY CARDS — Dữ liệu thực từ Facebook */}
         {(() => {
-          const totalActive = fbCampaigns.filter(c => c.status === "ACTIVE").length;
+          const totalActive = fbCampaigns.filter(c => c.status?.toUpperCase() === "ACTIVE").length;
           const totalLeads = fbCampaigns.reduce((sum, c) => {
             const days = (c as any).insights?.data || [];
             return sum + days.reduce((s: number, d: any) => s + (parseFloat(d.leads || "0")), 0);

@@ -88,6 +88,25 @@ export default function OmnichannelPage() {
     }
   };
 
+  const handleDeleteOrder = async (id: string) => {
+    try {
+      const res = await fetch("/api/sales/omnichannel/orders", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+      if (res.ok) {
+        setSelectedOrder(null);
+        fetchOrders();
+      } else {
+        alert("Có lỗi xảy ra khi xoá đơn hàng.");
+      }
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      alert("Có lỗi xảy ra khi xoá đơn hàng.");
+    }
+  };
+
   const handleTransfer = async () => {
     if (selectedIds.length === 0) return;
     try {
@@ -383,6 +402,7 @@ export default function OmnichannelPage() {
         order={selectedOrder} 
         onClose={() => setSelectedOrder(null)} 
         onUpdateStatus={handleUpdateStatus}
+        onDelete={handleDeleteOrder}
       />
     </StandardPage>
   );

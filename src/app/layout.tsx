@@ -27,8 +27,8 @@ export default function RootLayout({
       <body className={`${robotoCondensed.variable} antialiased`} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
-          enableSystem
+          defaultTheme="light"
+          forcedTheme="light"
           disableTransitionOnChange
         >
           <AuthProvider>

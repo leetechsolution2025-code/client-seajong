@@ -1,6 +1,9 @@
 "use client";
 import React, { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { SearchInput } from "@/components/ui/SearchInput";
 
 type Employee = {
   id: string; code: string; fullName: string; workEmail: string;
@@ -71,7 +74,7 @@ function EmployeeForm({
 
   const FIELDS: { label: string; key: keyof FormState; placeholder: string; type?: string; required?: boolean; editDisabled?: boolean }[] = [
     { label: "Họ và tên",    key: "fullName",  placeholder: "Nguyễn Văn A",     required: true },
-    { label: "Email công ty", key: "workEmail", placeholder: "vana@company.vn",  type: "email", required: true, editDisabled: true },
+    { label: "Email công ty", key: "workEmail", placeholder: "vana@company.com",  type: "email", required: true, editDisabled: true },
     ...(!isEdit ? [{ label: "Mật khẩu", key: "password" as keyof FormState, placeholder: "Pass@123" }] : []),
     { label: "Số điện thoại", key: "phone",    placeholder: "0901 234 567" },
     { label: "Chức vụ",       key: "position", placeholder: "Nhân viên kinh doanh", required: true },
@@ -282,7 +285,7 @@ export default function EmployeesPage() {
     if (addEmailManual) return;
     const domain = company.shortName ?? "company";
     const username = nameToUsername(addForm.fullName);
-    setAddForm(f => ({ ...f, workEmail: username ? `${username}@${domain}.vn` : "" }));
+    setAddForm(f => ({ ...f, workEmail: username ? `${username}@${domain}.com` : "" }));
   }, [addForm.fullName, company.shortName, addEmailManual]);
 
   const filtered = employees.filter(e =>
@@ -396,8 +399,12 @@ export default function EmployeesPage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm kiếm nhân viên..."
-            style={{ ...inputStyle, width: 220 }} onFocus={onFocusInput} onBlur={onBlurInput} />
+          <SearchInput 
+            value={search} 
+            onChange={setSearch} 
+            placeholder="Tìm kiếm nhân viên..."
+            style={{ width: 220 }} 
+          />
           <button onClick={() => { setShowAdd(true); setAddForm(EMPTY_FORM); setAddEmailManual(false); setAddError(""); }}
             style={{ padding: "9px 18px", border: "none", borderRadius: "var(--radius)", background: "var(--primary)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
             <i className="bi bi-person-plus" /> Thêm nhân viên

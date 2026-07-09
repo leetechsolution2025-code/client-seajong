@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import { SearchInput } from "@/components/ui/SearchInput";
 
 interface Department {
   id: string; code: string; nameVi: string; nameEn: string;
@@ -13,7 +14,7 @@ const GROUP_LABELS: Record<string, string> = {
   business: "Kinh doanh", support: "Vận hành / Hỗ trợ",
 };
 
-const EMPTY_FORM = { code: "", nameVi: "", nameEn: "", group: "core", icon: "", description: "", sortOrder: "0" };
+const EMPTY_FORM = { code: "", nameVi: "", nameEn: "", group: "core", icon: "", description: "", sortOrder: "0", isActive: true };
 
 export default function DepartmentsClient() {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -53,7 +54,7 @@ export default function DepartmentsClient() {
   function openAdd() { setForm(EMPTY_FORM); setError(""); setModal("add"); }
   function openEdit(d: Department) {
     setSelected(d);
-    setForm({ code: d.code, nameVi: d.nameVi, nameEn: d.nameEn, group: d.group, icon: d.icon || "", description: d.description || "", sortOrder: String(d.sortOrder) });
+    setForm({ code: d.code, nameVi: d.nameVi, nameEn: d.nameEn, group: d.group, icon: d.icon || "", description: d.description || "", sortOrder: String(d.sortOrder), isActive: d.isActive });
     setError(""); setModal("edit");
   }
   function openDelete(d: Department) { setSelected(d); setModal("delete"); }
@@ -103,11 +104,13 @@ export default function DepartmentsClient() {
 
       {/* ── Toolbar ── */}
       <div className="app-card p-3 d-flex flex-wrap gap-3 align-items-center">
-        <div className="position-relative flex-grow-1" style={{ minWidth: 220 }}>
-          <i className="bi bi-search position-absolute" style={{ left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)", fontSize: 13, pointerEvents: "none" }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm tên, mã phòng ban..."
-            className="app-input w-100" style={{ paddingLeft: 36, paddingRight: 14, paddingTop: 8, paddingBottom: 8, fontSize: 13 }} />
-        </div>
+        <SearchInput 
+          value={search} 
+          onChange={setSearch} 
+          placeholder="Tìm tên, mã phòng ban..." 
+          className="border-0 bg-white" 
+          style={{ width: 250 }} 
+        />
         <select value={groupFilter} onChange={e => setGroupFilter(e.target.value)} className="app-input" style={{ padding: "8px 32px 8px 12px", fontSize: 13 }}>
           <option value="all">Tất cả nhóm</option>
           {Object.entries(GROUP_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -246,6 +249,18 @@ export default function DepartmentsClient() {
                 <label style={labelStyle}>Mô tả</label>
                 <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={2}
                   placeholder="Chức năng của phòng ban..." style={{ ...inputStyle, resize: "vertical" }} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                <input
+                  type="checkbox"
+                  id="isActiveToggle"
+                  checked={form.isActive}
+                  onChange={e => setForm({ ...form, isActive: e.target.checked })}
+                  style={{ width: 16, height: 16, accentColor: "var(--primary)", cursor: "pointer" }}
+                />
+                <label htmlFor="isActiveToggle" style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", cursor: "pointer", margin: 0 }}>
+                  Cho phép hoạt động (hiển thị trên toàn hệ thống)
+                </label>
               </div>
             </div>
             <div className="d-flex justify-content-end gap-2 mt-4">

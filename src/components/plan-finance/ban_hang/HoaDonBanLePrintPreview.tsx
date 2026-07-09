@@ -35,6 +35,40 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
   const [chiPhiKhac, setChiPhiKhac] = useState(0);
   const [donTrang, setDonTrang] = useState(false);
 
+  const parseGuestInfo = (ghiChu: string | null) => {
+    let name = "", phone = "", address = "";
+    if (!ghiChu) return { name, phone, address };
+    const guestMatch = ghiChu.match(/\[GuestInfo:(.*?)\]/);
+    if (guestMatch) {
+      try {
+        const parsed = JSON.parse(guestMatch[1]);
+        name = parsed.name || name;
+        phone = parsed.dienThoai || phone;
+        address = parsed.address || address;
+      } catch (e) {}
+    }
+    const lines = ghiChu.split("\n");
+    for (const line of lines) {
+      if (line.startsWith("Tên khách hàng: ")) name = line.replace("Tên khách hàng: ", "");
+      if (line.startsWith("Số điện thoại: ")) phone = line.replace("Số điện thoại: ", "");
+      if (line.startsWith("Địa chỉ giao hàng: ")) address = line.replace("Địa chỉ giao hàng: ", "");
+    }
+    return { name, phone, address };
+  };
+
+  const displayCustomer = {
+    name: invoiceData.custName || "Khách vãng lai",
+    dienThoai: invoiceData.custPhone || "",
+    address: invoiceData.custAddress || "",
+  };
+  
+  if (invoiceData.note) {
+    const parsed = parseGuestInfo(invoiceData.note);
+    if (parsed.name) displayCustomer.name = parsed.name;
+    if (parsed.phone) displayCustomer.dienThoai = parsed.phone;
+    if (parsed.address) displayCustomer.address = parsed.address;
+  }
+
   // Toggles
   const [showWeight, setShowWeight] = useState(true);
   const [showPrice, setShowPrice] = useState(true);
@@ -44,11 +78,11 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
 
   useEffect(() => {
     if (open) {
-      setKhachHang(invoiceData.custName || "");
-      setDiaChi(invoiceData.custAddress || "");
-      setNguoiNhan(invoiceData.custName || "");
-      setPhone(invoiceData.custPhone || "");
-      setDiaChiNhan(invoiceData.custAddress || "");
+      setKhachHang(displayCustomer.name || "");
+      setDiaChi(displayCustomer.address || "");
+      setNguoiNhan(displayCustomer.name || "");
+      setPhone(displayCustomer.dienThoai || "");
+      setDiaChiNhan(displayCustomer.address || "");
       setChiPhiKhac(0);
       setDonTrang(false);
       
@@ -82,7 +116,7 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
   return (
     <PrintPreviewModal
       title="Hoá đơn bán lẻ"
-      subtitle={`${invoiceData.date.toLocaleDateString("vi-VN", { day: 'numeric', month: 'long', year: 'numeric' })} • ${paymentMethodLabel} • ${invoiceData.custName || "Khách lẻ"}`}
+      subtitle={`${invoiceData.date.toLocaleDateString("vi-VN", { day: 'numeric', month: 'long', year: 'numeric' })} • ${paymentMethodLabel} • ${displayCustomer.name || "Khách lẻ"}`}
       onClose={onClose}
       printOrientation="portrait"
       actions={
@@ -157,7 +191,7 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
         </>
       }
       document={
-        <div className="pdf-cover-page" style={{ padding: donTrang ? "30px 40px" : "50px 60px", width: "100%", fontFamily: "'Montserrat', 'Open Sans', Arial, sans-serif" }}>
+        <div className="pdf-cover-page" style={{ padding: donTrang ? "30px 40px" : "50px 60px", fontFamily: "'Roboto Condensed', 'Arial Narrow', sans-serif" }}>
           
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 30 }}>
             {/* Logo + Company Info (Left) */}
@@ -166,16 +200,15 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={companyInfo.logoUrl} alt="Logo" style={{ width: 80, height: 80, objectFit: "contain", flexShrink: 0 }} />
               ) : (
-                <div style={{ width: 80, height: 80, flexShrink: 0, /* mock design from screenshot */ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#0088cc" }}>
-                  <i className="bi bi-house-door-fill" style={{ fontSize: 40 }} />
-                  <span style={{ fontSize: 8, fontWeight: 800 }}>HAO NHAI HD</span>
+                <div style={{ width: 80, height: 80, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#0088cc" }}>
+                  <i className="bi bi-building" style={{ fontSize: 40 }} />
                 </div>
               )}
-              <div>
-                <h1 style={{ margin: "0 0 6px 0", fontSize: 13, fontWeight: 900, color: "#0088cc", textTransform: "uppercase" }}>{companyInfo?.name || "CÔNG TY TNHH MTV SẢN XUẤT VÀ THƯƠNG MẠI HÀO NHÀI HD"}</h1>
-                <p style={{ margin: "0 0 4px 0", fontSize: 9, color: "#1e293b" }}><strong>Địa chỉ:</strong> {companyInfo?.address || "Thôn Ngọc Lập, xã Hải Hưng, TP. Hải Phòng"}</p>
-                <p style={{ margin: "0 0 4px 0", fontSize: 9, color: "#1e293b" }}><strong>SĐT:</strong> {companyInfo?.phone || "0963533596"}</p>
-                <p style={{ margin: 0, fontSize: 9, color: "#0088cc", textTransform: "uppercase", fontWeight: 700 }}>CHUYÊN: <span style={{ fontWeight: 400, color: "#64748b" }}>{companyInfo?.slogan || "Tôn xốp 3 lớp — vách ngăn — sàn desk — sóng ngói — xà gồ thép hộp — trần nhựa nano — thép hình các loại"}</span></p>
+              <div style={{ lineHeight: 1.3 }}>
+                <h1 style={{ margin: "0 0 2px 0", fontSize: 13, fontWeight: 900, color: "#0088cc", textTransform: "uppercase" }}>{companyInfo?.name || "Đang tải thông tin..."}</h1>
+                {companyInfo?.address && <p style={{ margin: "0 0 1px 0", fontSize: 9, color: "#1e293b" }}><strong>Địa chỉ:</strong> {companyInfo.address}</p>}
+                {companyInfo?.phone && <p style={{ margin: "0 0 1px 0", fontSize: 9, color: "#1e293b" }}><strong>SĐT:</strong> {companyInfo.phone}</p>}
+                {companyInfo?.slogan && <p style={{ margin: 0, fontSize: 9, color: "#64748b" }}>{companyInfo.slogan}</p>}
               </div>
             </div>
 
@@ -190,23 +223,24 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
           </div>
 
           {/* Customer Info Box */}
-          <div style={{ marginBottom: donTrang ? 12 : 20 }}>
-             <table style={{ fontSize: 12, color: "#1e293b", width: "100%", lineHeight: 1.8 }}>
+            <div style={{ marginBottom: 20 }}>
+               <h3 style={{ margin: "0 0 6px 0", fontSize: 13, fontWeight: 800, color: "#1e293b", textTransform: "uppercase" }}>Thông tin khách hàng</h3>
+               <table style={{ fontSize: 12, color: "#1e293b", width: "100%", lineHeight: 1.8 }}>
                <tbody>
-                 <tr>
-                   <td style={{ width: 100, fontWeight: 600 }}>Khách hàng:</td>
-                   <td colSpan={3}><strong style={{ textTransform: "uppercase" }}>{khachHang || "...................................................................."}</strong></td>
-                 </tr>
-                 <tr>
-                   <td style={{ fontWeight: 600 }}>Địa chỉ:</td>
-                   <td colSpan={3}>{diaChi || "..........................................................................................................................."}</td>
-                 </tr>
-                 <tr>
-                   <td style={{ fontWeight: 600 }}>Người nhận hàng:</td>
-                   <td style={{ width: "40%" }}><strong style={{ textTransform: "uppercase" }}>{nguoiNhan || "............................"}</strong></td>
-                   <td style={{ width: 120, textAlign: "right", paddingRight: 16 }}>Số điện thoại:</td>
-                   <td><strong>{phone || "............................"}</strong></td>
-                 </tr>
+                  <tr>
+                    <td style={{ width: 110, fontWeight: 600 }}>Tên khách hàng:</td>
+                    <td><strong style={{ textTransform: "uppercase" }}>{khachHang || "............................................"}</strong></td>
+                    <td style={{ width: 110, fontWeight: 600, textAlign: "right", paddingRight: 12 }}>Số điện thoại:</td>
+                    <td><strong>{phone || "............................"}</strong></td>
+                  </tr>
+                  <tr>
+                    <td style={{ fontWeight: 600 }}>Địa chỉ:</td>
+                    <td colSpan={3}>{diaChi || "..........................................................................................................................."}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ fontWeight: 600 }}>Người nhận hàng:</td>
+                    <td colSpan={3}><strong>{nguoiNhan || "...................................................................."}</strong></td>
+                  </tr>
                  <tr>
                    <td style={{ fontWeight: 600 }}>Địa chỉ nhận hàng:</td>
                    <td colSpan={3}>{diaChiNhan || "..........................................................................................................................."}</td>
@@ -220,7 +254,7 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
             <thead>
               <tr>
                 <th style={{ border: "1px solid #1e293b", padding: donTrang ? "4px" : "8px 6px", textAlign: "center", width: 40, background: "#f8fafc" }}>STT</th>
-                <th style={{ border: "1px solid #1e293b", padding: donTrang ? "4px" : "8px 12px", textAlign: "center", background: "#f8fafc" }}>Tên hàng hoá, dịch vụ</th>
+                <th style={{ border: "1px solid #1e293b", padding: donTrang ? "4px" : "8px 12px", textAlign: "left", background: "#f8fafc" }}>Tên hàng hoá, dịch vụ</th>
                 <th style={{ border: "1px solid #1e293b", padding: donTrang ? "4px" : "8px 6px", textAlign: "center", width: 60, background: "#f8fafc" }}>Đơn vị</th>
                 <th style={{ border: "1px solid #1e293b", padding: donTrang ? "4px" : "8px 6px", textAlign: "center", width: 60, background: "#f8fafc" }}>Số<br/>lượng</th>
                 {showWeight && <th style={{ border: "1px solid #1e293b", padding: donTrang ? "4px" : "8px 6px", textAlign: "center", width: 75, background: "#f8fafc" }}>Trọng lượng<br/><span style={{ fontSize: 10, fontWeight: 400 }}>(kg)</span></th>}
@@ -231,10 +265,24 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
             <tbody>
               {invoiceData.lines.map((line, idx) => (
                 <tr key={idx}>
-                  <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 6px", textAlign: "center" }}>{idx + 1}</td>
-                  <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 12px" }}>{line.name}</td>
-                  <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 6px", textAlign: "center" }}>{line.dvt}</td>
-                  <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 6px", textAlign: "center" }}>{line.qty}</td>
+                  <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 6px", textAlign: "center", verticalAlign: "middle" }}>{idx + 1}</td>
+                  <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 12px", verticalAlign: "middle" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      {line.hinhAnh ? (
+                        <img src={line.hinhAnh} alt={line.name} style={{ width: 50, height: 50, objectFit: "contain", borderRadius: 6, border: "1px solid #e2e8f0" }} />
+                      ) : (
+                        <div style={{ width: 50, height: 50, background: "#f1f5f9", borderRadius: 6, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", color: "#cbd5e1" }}>
+                          <i className="bi bi-image" style={{ fontSize: 18 }} />
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: "#1e293b" }}>{line.name}</div>
+                        {(line as any).code && <div style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace" }}>Mã: {(line as any).code}</div>}
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 6px", textAlign: "center", verticalAlign: "middle" }}>{line.dvt}</td>
+                  <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 6px", textAlign: "center", verticalAlign: "middle" }}>{line.qty}</td>
                   {showWeight && <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 6px", textAlign: "right" }}>-</td>}
                   {showPrice && <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 6px", textAlign: "right" }}>{line.donGia === 0 ? "0" : line.donGia.toLocaleString("vi-VN")}</td>}
                   {showTotal && <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 6px", textAlign: "right", fontWeight: 700 }}>{(line.donGia * line.qty) === 0 ? "0" : (line.donGia * line.qty).toLocaleString("vi-VN")}</td>}

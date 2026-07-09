@@ -55,13 +55,14 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
           {children}
         </div>
 
-        {/* Bottom Toolbar Area */}
-        {bottomToolbar && (
-          <div className="border-top flex-shrink-0 bg-light/30 px-3 py-1">
-            {bottomToolbar}
-          </div>
-        )}
       </div>
+
+      {/* Bottom Toolbar Area */}
+      {bottomToolbar && (
+        <div className="border-top flex-shrink-0 bg-light/30 px-3 py-2">
+          {bottomToolbar}
+        </div>
+      )}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;

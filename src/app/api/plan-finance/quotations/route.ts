@@ -302,6 +302,14 @@ export async function POST(req: NextRequest) {
             trangThaiKho: insufficientItems.length > 0 ? "out_of_stock" : "in_stock",
             ghiChu: q.ghiChu,
             nguoiPhuTrach: q.nguoiPhuTrachId ? String(q.nguoiPhuTrachId) : undefined,
+            saleOrderItems: {
+              create: (Array.isArray(items) ? items : []).map((it: any) => ({
+                tenHang: it.tenHang ?? "",
+                soLuong: parseFloat(String(it.soLuong ?? 1)),
+                donGia: parseFloat(String(it.donGia ?? 0)),
+                thanhTien: parseFloat(String(it.thanhTien ?? 0)),
+              }))
+            }
           }
         });
 

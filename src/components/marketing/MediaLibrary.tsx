@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { SearchInput } from "@/components/ui/SearchInput";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Folder {
@@ -1032,11 +1033,12 @@ export default function MediaLibrary({ mode="full", onSelect, filterType="" }: M
           {/* Row 2: Search, Filter, Actions */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", width: "100%" }}>
             {/* Search */}
-            <div style={{position:"relative",flex: isMobile ? 1 : "none", width: isMobile ? "auto" : 180, minWidth: 100, order: isPhone ? 4 : 1}}>
-              <i className="bi bi-search" style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",color:"var(--muted-foreground)",fontSize:11}} />
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Tìm..."
-                style={{paddingLeft:28,paddingRight:8,height:30,borderRadius:7,border:"1px solid var(--border)",background:"var(--muted)",color:"var(--foreground)",fontSize:12,width:"100%"}} />
-            </div>
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Tìm..."
+              style={{ flex: isMobile ? 1 : "none", width: isMobile ? "auto" : 180, minWidth: 100, order: isPhone ? 4 : 1 }}
+            />
             {/* Filter */}
             <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}
               style={{height:30,borderRadius:7,border:"1px solid var(--border)",background:"var(--muted)",color:"var(--foreground)",fontSize:12,padding:"0 8px",flex: isPhone ? 1 : "none", order: 2}}>

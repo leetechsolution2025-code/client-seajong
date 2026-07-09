@@ -420,7 +420,7 @@ function Step1({ form, set, branches, branchesLoading }: {
             <Field label="Email cá nhân">
               <Input type="email" value={form.personalEmail} onChange={v => set("personalEmail", v)} placeholder="name@gmail.com" />
             </Field>
-            <Field label="Email công ty (Email đăng nhập)" required hint={`Định dạng gợi ý: ho.ten@${form.workEmail?.split("@")[1] || "leetech.vn"}`}>
+            <Field label="Email công ty (Email đăng nhập)" required hint={`Định dạng gợi ý: ho.ten@${form.workEmail?.split("@")[1] || "seajong.com"}`}>
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 <i className="bi bi-envelope-at-fill" style={{ fontSize: 12, flexShrink: 0, color: "var(--primary)" }} />
                 <input
@@ -1059,7 +1059,7 @@ export default function CreateEmployeeModal({ onClose, onCreated, departments, i
   const [branchesLoading, setBranchesLoading] = useState(true);
   const [createdAccount, setCreatedAccount] = useState<{ email: string; tempPassword: string } | null>(null);
 
-  const [emailDomain, setEmailDomain] = useState("company.vn");
+  const [emailDomain, setEmailDomain] = useState("company.com");
   const [depts, setDepts] = useState<DeptOption[]>([]);
   const [positions, setPositions] = useState<{ code: string; name: string }[]>([]);
   const [levels, setLevels] = useState<{ code: string; name: string; sortOrder: number }[]>([]);
@@ -1080,7 +1080,7 @@ export default function CreateEmployeeModal({ onClose, onCreated, departments, i
         ]);
 
         const company = await companyRes.json();
-        if (company?.shortName) setEmailDomain(`${company.shortName}.vn`);
+        if (company?.shortName) setEmailDomain(`${company.shortName}.com`);
 
         const d = await deptsRes.json();
         setDepts(d.departments ?? []);

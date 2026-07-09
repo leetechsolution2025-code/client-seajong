@@ -31,9 +31,10 @@ interface ShopeeOrderDetailOffcanvasProps {
   order: OrderDetail | null;
   onClose: () => void;
   onUpdateStatus: (id: string, status: string) => Promise<void>;
+  onDelete?: (id: string) => Promise<void> | void;
 }
 
-export function ShopeeOrderDetailOffcanvas({ order, onClose, onUpdateStatus }: ShopeeOrderDetailOffcanvasProps) {
+export function ShopeeOrderDetailOffcanvas({ order, onClose, onUpdateStatus, onDelete }: ShopeeOrderDetailOffcanvasProps) {
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -188,6 +189,22 @@ export function ShopeeOrderDetailOffcanvas({ order, onClose, onUpdateStatus }: S
           </div>
 
           <div className="p-3 border-top bg-white d-flex gap-2 justify-content-end sticky-bottom shadow-sm">
+            {onDelete && (
+              <BrandButton 
+                variant="outline" 
+                onClick={() => {
+                  if (confirm("Bạn có chắc chắn muốn xoá đơn hàng này?")) {
+                    onDelete(order.id);
+                  }
+                }} 
+                style={{ fontSize: 13, height: 38, borderColor: "#dc3545", color: "#dc3545" }} 
+                className="px-4 me-auto" 
+                disabled={loading}
+              >
+                Xoá
+              </BrandButton>
+            )}
+            
             <BrandButton variant="outline" onClick={onClose} style={{ fontSize: 13, height: 38 }} className="px-4" disabled={loading}>
               Đóng
             </BrandButton>

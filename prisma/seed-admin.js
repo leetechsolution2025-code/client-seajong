@@ -3,7 +3,7 @@
  * Tạo tài khoản Admin doanh nghiệp duy nhất.
  * Doanh nghiệp dùng tài khoản này để đăng nhập lần đầu.
  *
- * Email:    admin@seajong.vn
+ * Email:    admin@seajong.com
  * Password: Admin@123
  */
 const { PrismaClient } = require('@prisma/client');
@@ -13,7 +13,7 @@ const prisma = new PrismaClient();
 async function main() {
   const clientShortName = process.env.CLIENT_SHORT_NAME || 'seajong';
   const clientName = process.env.CLIENT_NAME || 'Công ty cổ phần Seajong Faucet Việt Nam';
-  const adminEmail = 'admin@seajong.vn';
+  const adminEmail = 'admin@seajong.com';
   const adminPassword = 'Admin@123';
   // Logo đã được copy vào public/ khi export — chỉ cần lưu path tĩnh vào DB
   const logoUrl = '/logo.png';
@@ -23,13 +23,16 @@ async function main() {
   const hashed = await bcrypt.hash(adminPassword, 12);
 
   // Seed industry if it exists
-  const indCode = 'sanitary';
-  const indName = 'Kinh doanh thiết bị phòng tắm, nhà bếp';
-  const indRootCat = 'VTSX_VESINH';
-  let industryRecord = await prisma.industry.upsert({
-    where: { code: indCode },
-    update: { name: indName, rootCategoryCode: indRootCat },
-    create: { code: indCode, name: indName, rootCategoryCode: indRootCat }
+  let industryRecord = null;
+  
+  industryRecord = await prisma.industry.upsert({
+    where: { code: "sanitary" },
+    update: { name: "Kinh doanh thiết bị phòng tắm, nhà bếp", rootCategoryCode: "VTSX_VESINH" },
+    create: {
+      code: "sanitary",
+      name: "Kinh doanh thiết bị phòng tắm, nhà bếp",
+      rootCategoryCode: "VTSX_VESINH"
+    }
   });
   
 

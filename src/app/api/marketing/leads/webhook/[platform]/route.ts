@@ -41,9 +41,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pla
         email: body.email,
         phone: body.phone,
         campaignExternalId: body.campaignExternalId,
+        campaignName: body.campaignName,
         externalId: body.externalId,
         formValues: JSON.stringify(body),
-        source: body.source || `${platform}_direct`
+        source: body.source || `${platform}_direct`,
+        createdAt: body.createdAt
       });
       return NextResponse.json({ success: true, message: "Direct lead saved" });
     }

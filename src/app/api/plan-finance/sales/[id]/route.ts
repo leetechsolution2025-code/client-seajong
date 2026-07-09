@@ -36,6 +36,11 @@ export async function GET(
       where: { id },
       include: {
         customer: { select: { id: true, name: true, dienThoai: true, address: true } },
+        saleOrderItems: {
+          include: {
+            inventoryItem: { select: { imageUrl: true, code: true } }
+          }
+        },
       },
     });
 
@@ -91,17 +96,39 @@ export async function GET(
 
     // Fetch items from the corresponding won quotation
     let orderItems: any[] = [];
-    if (order.customerId) {
+    
+    if (order.saleOrderItems && order.saleOrderItems.length > 0) {
+      orderItems = order.saleOrderItems;
+    } else {
+      // Fallback to Quotation
       const quotation = await prisma.quotation.findFirst({
-        where: {
+        where: order.customerId ? {
           customerId: order.customerId,
           thanhTien: order.tongTien,
           trangThai: "won"
+        } : {
+          thanhTien: order.tongTien,
+          ghiChu: order.ghiChu,
+          trangThai: "won"
         },
-        include: { items: { orderBy: { sortOrder: "asc" } } }
+        include: { items: { orderBy: { sortOrder: "asc" } } },
+        orderBy: { createdAt: "desc" }
       });
       if (quotation && quotation.items) {
         orderItems = quotation.items;
+      }
+    }
+
+    // Fallback: Populate missing inventoryItem details by matching tenHang
+    for (const item of orderItems) {
+      if (!item.inventoryItem && item.tenHang) {
+        const invItem = await prisma.inventoryItem.findFirst({
+          where: { tenHang: item.tenHang },
+          select: { imageUrl: true, code: true }
+        });
+        if (invItem) {
+          item.inventoryItem = invItem;
+        }
       }
     }
 
@@ -140,7 +167,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { keToanDuyet, decision, ngayGiao, daThanhToan, trangThai, ghiChu } = body;
+    const { keToanDuyet, decision, ngayGiao, daThanhToan, trangThai, ghiChu, tongTien, items } = body;
 
     if (keToanDuyet !== undefined && !["pending", "approved", "rejected"].includes(keToanDuyet)) {
       return NextResponse.json({ error: "Trạng thái duyệt không hợp lệ" }, { status: 400 });
@@ -166,8 +193,24 @@ export async function PATCH(
           ...(daThanhToan !== undefined && { daThanhToan: parseFloat(String(daThanhToan)) }),
           ...(trangThai !== undefined && { trangThai }),
           ...(ghiChu !== undefined && { ghiChu }),
+          ...(tongTien !== undefined && { tongTien: parseFloat(String(tongTien)) }),
         } as any,
       });
+
+      if (Array.isArray(items)) {
+        await tx.saleOrderItem.deleteMany({ where: { saleOrderId: id } });
+        if (items.length > 0) {
+          await tx.saleOrderItem.createMany({
+            data: items.map((it: any) => ({
+              saleOrderId: id,
+              tenHang: it.tenHang ?? "",
+              soLuong: parseFloat(String(it.soLuong ?? 1)),
+              donGia: parseFloat(String(it.donGia ?? 0)),
+              thanhTien: parseFloat(String(it.thanhTien ?? 0)),
+            }))
+          });
+        }
+      }
 
       // Cập nhật Debt liên quan nếu daThanhToan thay đổi và Debt tồn tại
       if (daThanhToan !== undefined) {

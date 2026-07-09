@@ -124,9 +124,20 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const { id } = await params;
+
+    // Check employee status first
+    const employee = await db.employee.findUnique({ where: { id } });
+    if (!employee) return NextResponse.json({ error: "Không tìm thấy nhân viên" }, { status: 404 });
+    
+    if (employee.status !== "resigned") {
+      return NextResponse.json({ 
+        error: "Chỉ có thể xoá vĩnh viễn nhân viên khi ở trạng thái 'Đã nghỉ việc'. Vui lòng gạt công tắc 'Cho nghỉ việc' trước khi thực hiện hành động này." 
+      }, { status: 400 });
+    }
+
     await db.employee.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi hệ thống: " + err.message }, { status: 500 });
   }
 }

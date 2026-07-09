@@ -116,7 +116,7 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
               <motion.span
                 initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: "auto" }}
                 exit={{ opacity: 0, width: 0 }} transition={{ duration: 0.15 }}
-                style={{ fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", flexGrow: 1, textAlign: "left", fontWeight: 500 }}
+                style={{ fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", flexGrow: 1, textAlign: "left", fontWeight: isGroupActive ? 600 : 400 }}
               >
                 {group.label}
               </motion.span>
@@ -176,7 +176,7 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
                           transition: "all 0.15s",
                         }} />
                       </span>
-                      <span style={{ fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500, flex: 1 }}>
+                      <span style={{ fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: active ? 600 : 400, flex: 1 }}>
                         {item.name}
                       </span>
                       {isLocked && <i className="bi bi-lock-fill text-muted flex-shrink-0" style={{ fontSize: 13 }} />}
@@ -235,7 +235,7 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
                   <motion.span
                     initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: "auto" }}
                     exit={{ opacity: 0, width: 0 }} transition={{ duration: 0.15 }}
-                    style={{ fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", flexGrow: 1, textAlign: "left", fontWeight: 500 }}
+                    style={{ fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", flexGrow: 1, textAlign: "left", fontWeight: isLuuTruActive ? 600 : 400 }}
                   >
                     Lưu trữ
                   </motion.span>
@@ -277,7 +277,7 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
                               transition: "all 0.15s",
                             }} />
                           </span>
-                          <span style={{ fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500, flex: 1 }}>
+                          <span style={{ fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: active ? 600 : 400, flex: 1 }}>
                             Thư viện tài liệu
                           </span>
                         </Link>
@@ -302,7 +302,7 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
                               transition: "all 0.15s",
                             }} />
                           </span>
-                          <span style={{ fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500, flex: 1 }}>
+                          <span style={{ fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: active ? 600 : 400, flex: 1 }}>
                             Nội dung cuộc họp
                           </span>
                         </Link>
@@ -316,6 +316,38 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
         );
       })()}
 
+
+      {/* ── Kho hàng ── */}
+      {(() => {
+        const isLogistics = pathname.startsWith("/logistics");
+        const isMarketing = pathname.startsWith("/marketing");
+        if (isLogistics || isMarketing) return null; // Ẩn chức năng Kho hàng trong bộ phận kho và marketing
+
+        const isSales = pathname.startsWith("/sales");
+        const isKhoHangActive = isSales && pathname.includes("/inventory");
+        const href = isSales ? "/sales/inventory" : "/logistics";
+        
+        return (
+          <Link
+            href={href}
+            onClick={onMenuSelect}
+            className={`si-item d-flex align-items-center gap-2 px-3 py-2 mb-1 text-decoration-none${isKhoHangActive ? " active" : ""}`}
+          >
+            <i className="bi bi-boxes flex-shrink-0" style={{ fontSize: 16 }} />
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.span
+                  initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }} transition={{ duration: 0.15 }}
+                  style={{ fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", fontWeight: isKhoHangActive ? 600 : 400 }}
+                >
+                  Kho hàng
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </Link>
+        );
+      })()}
 
 
       {/* ── Accordion groups ── */}

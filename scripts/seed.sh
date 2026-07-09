@@ -40,6 +40,7 @@ SKIP_FILES=(
     "seed-all.js"          # conflict shortName với seed-admin.js
     "copy-logo-to-child.js" # Requires CLI arguments
     "fix-client-shortname.js" # Maintenance script
+    "clean_warehouses.ts"  # Do not run automatically
 )
 
 should_skip() {

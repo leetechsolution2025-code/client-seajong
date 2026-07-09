@@ -163,14 +163,46 @@ export function LogisticsItemDetailOffcanvas({ item, open, onClose, onEdit, onDe
                 <Layers size={16} className="text-primary" />
                 <h6 className="fw-bold mb-0 text-uppercase" style={{ fontSize: 12, letterSpacing: "0.05em" }}>Thông số & Ghi chú</h6>
               </div>
-              <div className="bg-light rounded-4 p-3 border">
-                <div className="mb-3">
-                  <p className="text-muted small mb-1" style={{ fontSize: 11 }}>Thông số kỹ thuật:</p>
-                  <p className="mb-0 small" style={{ whiteSpace: "pre-wrap" }}>{item.thongSoKyThuat || "Chưa có thông số chi tiết"}</p>
+              <div className="d-flex flex-column gap-3">
+                <div className="bg-light rounded-4 p-3 border">
+                  <p className="text-muted fw-bold mb-2 text-uppercase" style={{ fontSize: 10, letterSpacing: "0.05em" }}>Thông số kỹ thuật</p>
+                  {item.thongSoKyThuat ? (
+                    <div 
+                      className="custom-scrollbar text-foreground"
+                      style={{
+                        maxHeight: 220,
+                        overflowY: "auto",
+                        whiteSpace: "pre-wrap",
+                        lineHeight: 1.6,
+                        fontSize: 12,
+                        paddingRight: 8,
+                        textAlign: "justify"
+                      }}
+                    >
+                      {item.thongSoKyThuat
+                        .replace(/(\s\d+\.)/g, '\n\n$1')
+                        .replace(/(\s-\s)/g, '\n$1')
+                        .replace(/(Kích thước[:\s])/gi, '\n\n$1')
+                        .trim()
+                      }
+                    </div>
+                  ) : (
+                    <p className="mb-0 small text-muted fst-italic">Chưa có thông số chi tiết</p>
+                  )}
                 </div>
-                <div>
-                  <p className="text-muted small mb-1" style={{ fontSize: 11 }}>Ghi chú nội bộ:</p>
-                  <p className="mb-0 small text-muted italic" style={{ fontSize: 12 }}>{item.ghiChu || "Không có ghi chú"}</p>
+
+                <div className="bg-warning-subtle text-warning-emphasis rounded-4 p-3 border border-warning border-opacity-25">
+                  <div className="d-flex gap-2">
+                    <Info size={14} className="mt-1 flex-shrink-0 text-warning" />
+                    <div>
+                      <p className="fw-bold mb-1 text-warning text-uppercase" style={{ fontSize: 10, letterSpacing: "0.05em" }}>Ghi chú nội bộ</p>
+                      {item.ghiChu ? (
+                        <p className="mb-0" style={{ fontSize: 12, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{item.ghiChu}</p>
+                      ) : (
+                        <p className="mb-0 fst-italic opacity-75" style={{ fontSize: 12 }}>Không có ghi chú</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>

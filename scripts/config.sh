@@ -4,7 +4,7 @@
 # =============================================================
 
 APP_NAME="client-seajong"
-PORT=3214
+PORT=3348
 DOMAIN="seajong.leetech.vn"
 
 # Nginx config path

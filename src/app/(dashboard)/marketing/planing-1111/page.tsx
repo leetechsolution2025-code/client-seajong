@@ -1118,7 +1118,7 @@ const PlanPrintDocument: React.FC<PlanPrintDocumentProps> = ({
               <div style={{ fontSize: "8px", fontWeight: 700, color: "#93c5fd", letterSpacing: "0.5px" }}>THÔNG TIN LIÊN HỆ</div>
               <div style={{ fontSize: "13px", fontWeight: 700, marginTop: "2px" }}>0969309489 | 1900 633 862</div>
               <div style={{ fontSize: "8.5px", color: "#bfdbfe", marginTop: "2px" }}>
-                Email: contact@company.vn &nbsp;|&nbsp; Website: www.company.vn
+                Email: contact@company.com &nbsp;|&nbsp; Website: www.company.com
               </div>
             </div>
             <div style={{ textAlign: "right", maxWidth: "250px", fontSize: "8.5px", color: "#e2e8f0", lineHeight: "1.3" }}>
@@ -4529,13 +4529,7 @@ export default function Planing1111Page() {
     };
   };
 
-  const baseStaffConfigs = [
-    { id: "mkt_s1", label: "Trưởng phòng", defaultSalary: 35000000, defaultQty: 1 },
-    { id: "mkt_s2", label: "SEO", defaultSalary: 15000000, defaultQty: 4 },
-    { id: "mkt_s3", label: "Design", defaultSalary: 15000000, defaultQty: 5 },
-    { id: "mkt_s4", label: "Content Media", defaultSalary: 12000000, defaultQty: 6 },
-    { id: "mkt_s5", label: "Editor video", defaultSalary: 12000000, defaultQty: 4 },
-  ];
+  const baseStaffConfigs: { id: string, label: string, defaultSalary: number, defaultQty: number }[] = [];
 
   const staffList = baseStaffConfigs
     .filter(cfg => !deletedBaseStaffIds.includes(cfg.id))

@@ -8,6 +8,7 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false })
 
 interface DashboardData {
   summary: {
+    totalSales: number;
     totalRevenue: number;
     targetRevenue: number;
     totalOrdersCount: number;
@@ -18,7 +19,12 @@ interface DashboardData {
   monthlyTrends: {
     month: string;
     target: number;
-    actual: number | null;
+    actualSales: number | null;
+    actualRevenue: number | null;
+  }[];
+  categoryBreakdown?: {
+    name: string;
+    value: number;
   }[];
   recentOrders: {
     id: string;
@@ -150,12 +156,13 @@ export default function SalesPage() {
   }
 
   // Fallbacks
-  const summary = data?.summary || { totalRevenue: 0, targetRevenue: 0, totalOrdersCount: 0, totalDebt: 0, customersCount: 0, dealersCount: 0 };
-  const apiTrends = data?.monthlyTrends || Array.from({ length: 12 }, (_, i) => ({ month: `Tháng ${i + 1}`, target: 0, actual: (i + 1) > (new Date().getMonth() + 1) ? null : 0 }));
+  const summary = data?.summary || { totalSales: 0, totalRevenue: 0, targetRevenue: 0, totalOrdersCount: 0, totalDebt: 0, customersCount: 0, dealersCount: 0 };
+  const apiTrends = data?.monthlyTrends || Array.from({ length: 12 }, (_, i) => ({ month: `Tháng ${i + 1}`, target: 0, actualSales: (i + 1) > (new Date().getMonth() + 1) ? null : 0, actualRevenue: (i + 1) > (new Date().getMonth() + 1) ? null : 0 }));
   const recentOrders = data?.recentOrders || [];
   const recentCare = data?.recentCare || [];
 
   const targetRevenue = summary.targetRevenue > 0 ? summary.targetRevenue : 4500000000;
+  const totalSales = summary.totalSales;
   const totalRevenue = summary.totalRevenue;
 
   const monthlyTrends = apiTrends.map((t, idx) => {
@@ -165,28 +172,31 @@ export default function SalesPage() {
     return {
       month: t.month,
       target: targetVal,
-      actual: t.actual,
-      achievement: (t.actual !== null && targetVal > 0) ? Math.round((t.actual / targetVal) * 100) : 0
+      actualSales: t.actualSales,
+      actualRevenue: t.actualRevenue,
+      achievement: (t.actualSales !== null && targetVal > 0) ? Math.round((t.actualSales / targetVal) * 100) : 0
     };
   });
 
-  const avgOrderVal = summary.totalOrdersCount > 0 ? Math.round(totalRevenue / summary.totalOrdersCount) : 0;
+  const avgOrderVal = summary.totalOrdersCount > 0 ? Math.round(totalSales / summary.totalOrdersCount) : 0;
 
   const now = new Date();
   const currentMonthIdx = now.getMonth(); // 0-11
   const currentYear = now.getFullYear();
-  const currentMonthTrend = monthlyTrends[currentMonthIdx] || { target: 0, actual: 0 };
-  const currentMonthRevenue = currentMonthTrend.actual ?? 0;
+  const currentMonthTrend = monthlyTrends[currentMonthIdx] || { target: 0, actualSales: 0, actualRevenue: 0 };
+  const currentMonthSales = currentMonthTrend.actualSales ?? 0;
+  const currentMonthRevenue = currentMonthTrend.actualRevenue ?? 0;
   const currentMonthTarget = currentMonthTrend.target;
   const mmYYYY = `${String(currentMonthIdx + 1).padStart(2, "0")}-${currentYear}`;
 
-  const currentMonthLabel = `Doanh thu tháng | ${mmYYYY}`;
+  const currentMonthSalesLabel = `Doanh số tháng | ${mmYYYY}`;
   const currentMonthDealersLabel = `Phát triển đại lý | ${mmYYYY}`;
 
   // Chart setup
   const chartSeries = [
     { name: "Doanh số mục tiêu", data: monthlyTrends.map(t => t.target), color: "#f59e0b" },
-    { name: "Doanh số thực tế", data: monthlyTrends.map(t => t.actual), color: "#10b981" }
+    { name: "Doanh số thực tế", data: monthlyTrends.map(t => t.actualSales), color: "#003087" },
+    { name: "Doanh thu", data: monthlyTrends.map(t => t.actualRevenue), color: "#10b981" }
   ];
 
   const apexOptions: ApexCharts.ApexOptions = {
@@ -231,15 +241,17 @@ export default function SalesPage() {
     },
   };
 
+  const categoryBreakdown = data?.categoryBreakdown || [
+    { name: "Thiết bị vệ sinh", value: totalSales > 0 ? Math.round(totalSales * 0.42) : 1890000000 },
+    { name: "Sen vòi Seajong", value: totalSales > 0 ? Math.round(totalSales * 0.28) : 1260000000 },
+    { name: "Phụ kiện phòng tắm", value: totalSales > 0 ? Math.round(totalSales * 0.15) : 675000000 },
+    { name: "Thiết bị nhà bếp", value: totalSales > 0 ? Math.round(totalSales * 0.10) : 450000000 },
+    { name: "Khác", value: totalSales > 0 ? Math.round(totalSales * 0.05) : 225000000 },
+  ];
+
   const categoriesData = {
-    labels: ["Thiết bị vệ sinh", "Sen vòi Seajong", "Phụ kiện phòng tắm", "Thiết bị nhà bếp", "Thiết bị khác"],
-    series: [
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.42) : 1890000000,
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.28) : 1260000000,
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.15) : 675000000,
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.10) : 450000000,
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.05) : 225000000,
-    ]
+    labels: categoryBreakdown.map(c => c.name),
+    series: categoryBreakdown.map(c => c.value)
   };
 
   const categoryPieOptions: ApexCharts.ApexOptions = {
@@ -264,12 +276,12 @@ export default function SalesPage() {
             show: true,
             total: {
               show: true,
-              label: "Tổng doanh thu",
+              label: "Tổng doanh số",
               fontSize: "11px",
               color: "#64748b",
               formatter: () => {
-                if (totalRevenue >= 1000000000) return `${(totalRevenue / 1000000000).toFixed(2)} Tỷ`;
-                return `${(totalRevenue / 1000000).toFixed(0)} Tr`;
+                if (totalSales >= 1000000000) return `${(totalSales / 1000000000).toFixed(2)} Tỷ`;
+                return `${(totalSales / 1000000).toFixed(0)} Tr`;
               }
             }
           }
@@ -311,20 +323,19 @@ export default function SalesPage() {
         {/* ── KPI Row ── */}
         <div className="sales-kpi-grid">
           <KpiCard
+            label="Tổng doanh số"
+            value={`${totalSales.toLocaleString("vi-VN")} đ`}
+            sub={totalSales > 0 ? `Tỷ lệ thu hồi: ${Math.round(totalRevenue / totalSales * 100)}%` : "Chưa có dữ liệu"}
+            icon="bi-bar-chart-line"
+            color="#003087"
+          />
+          <KpiCard
             label="Tổng doanh thu"
             value={`${totalRevenue.toLocaleString("vi-VN")} đ`}
             sub={`Chỉ tiêu năm: ${targetRevenue.toLocaleString("vi-VN")} đ`}
             icon="bi-cash-coin"
-            color="#003087"
-            progress={{ cur: totalRevenue, max: targetRevenue }}
-          />
-          <KpiCard
-            label={currentMonthLabel}
-            value={`${currentMonthRevenue.toLocaleString("vi-VN")} đ`}
-            sub={`Chỉ tiêu tháng: ${currentMonthTarget.toLocaleString("vi-VN")} đ`}
-            icon="bi-calendar-event"
             color="#10b981"
-            progress={{ cur: currentMonthRevenue, max: currentMonthTarget }}
+            progress={{ cur: totalRevenue, max: targetRevenue }}
           />
           <KpiCard
             label="Giao dịch phát sinh"
@@ -349,10 +360,10 @@ export default function SalesPage() {
             <div className="mb-2">
               <span className="fw-bold text-dark d-block" style={{ fontSize: 13.5 }}>
                 <i className="bi bi-activity text-emerald me-2" />
-                Xu hướng doanh số năm mới (Mục tiêu vs Thực tế)
+                Xu hướng doanh số & doanh thu (Mục tiêu vs Thực tế)
               </span>
               <span className="text-muted" style={{ fontSize: 11 }}>
-                Biểu đồ diện tích so sánh chỉ tiêu kế hoạch tháng với doanh số thực thu từ đơn hàng
+                Biểu đồ diện tích so sánh chỉ tiêu kế hoạch tháng với doanh số và doanh thu thực tế
               </span>
             </div>
             <div style={{ flex: 1, minHeight: 280 }}>

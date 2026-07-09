@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import * as cheerio from "cheerio";
 
 const WP_BASE = "https://seajong.com/wp-json/wp/v2";
 const PER_PAGE = 100;
@@ -212,6 +213,70 @@ async function syncAll(logId: string) {
             price = extractPrice(html);
           }
 
+
+          // --- Web Scraping for Promotions, Policies & Variations ---
+          let scrapedPromotions: string[] = [];
+          let scrapedPolicies: string[] = [];
+          let scrapedPriceHtml: string | null = null;
+          let scrapedVariations: any[] = [];
+          let scrapedVariationData: string | null = null;
+          try {
+            const htmlRes = await fetch(p.link, { cache: "no-store" });
+            const htmlText = await htmlRes.text();
+            const $ = cheerio.load(htmlText);
+            
+            $(".box-uu-dai-new ul li").each((_, el) => {
+               const text = $(el).text().trim();
+               if (text) scrapedPolicies.push(text);
+            });
+            if (scrapedPolicies.length === 0) {
+              $("p:has(img[src*='hj.png'])").each((_, el) => {
+                const text = $(el).text().trim();
+                if (text) scrapedPolicies.push(text);
+              });
+            }
+
+            const khuyenmaiEl = $("*:contains('Khuyến mãi')").last();
+            if (khuyenmaiEl.length) {
+              const ul = khuyenmaiEl.parent().nextAll("ul").first();
+              if (ul.length > 0) {
+                 ul.find("li").each((_, el) => {
+                    const text = $(el).text().trim();
+                    if (text) scrapedPromotions.push(text);
+                 });
+              } else {
+                 khuyenmaiEl.parent().parent().find("ul").first().find("li").each((_, el) => {
+                   const text = $(el).text().trim();
+                   if (text) scrapedPromotions.push(text);
+                 });
+              }
+            }
+
+            scrapedPriceHtml = $("p.price").first().text().trim() || null;
+            
+            const varForm = $("form.variations_form").first();
+            if (varForm.length > 0) {
+              varForm.find("table.variations select").each((_, select) => {
+                const nameAttr = $(select).attr("name") || "";
+                const options: string[] = [];
+                $(select).find("option").each((_, opt) => {
+                  const val = $(opt).text().trim();
+                  if (val && val !== "Choose an option" && val !== "Chọn một tùy chọn") options.push(val);
+                });
+                if (options.length > 0) {
+                  const name = nameAttr.replace("attribute_", "").replace("pa_", "");
+                  let label = varForm.find(`label[for='${name}']`).text().trim();
+                  if (!label) label = name;
+                  scrapedVariations.push({ name: label, key: nameAttr, options });
+                }
+              });
+              const varDataAttr = varForm.attr("data-product_variations");
+              if (varDataAttr) scrapedVariationData = varDataAttr;
+            }
+          } catch (e) {
+            console.error("Scrape error for", p.link, e);
+          }
+
           const productData = {
             slug:        p.slug,
             url:         p.link,
@@ -220,6 +285,11 @@ async function syncAll(logId: string) {
             description: stripHtml(html).substring(0, 2000),
             images:      JSON.stringify(images),
             specs:       JSON.stringify(specs),
+            promotions:  JSON.stringify(scrapedPromotions),
+            policies:    JSON.stringify(scrapedPolicies),
+            priceHtml:   scrapedPriceHtml,
+            variations:  JSON.stringify(scrapedVariations),
+            variationData: scrapedVariationData,
             price:       price,
             updatedAt:   new Date(p.modified),
             syncedAt:    new Date(),
@@ -316,12 +386,8 @@ async function importToLogistics() {
     const tbnbCat = await prisma.inventoryCategory.findFirst({
       where: { code: "TBNB" }
     });
-    const thanhPhamWh = await prisma.warehouse.findFirst({
-      where: { code: "KHO-THANHPHAM" }
-    });
-    const phuKienWh = await prisma.warehouse.findFirst({
-      where: { code: "KHO-PHUKIEN" }
-    });
+    const hangHoaWh = await prisma.warehouse.findFirst({ where: { code: "KHO-CHINH" } });
+    
 
     const webProducts = await prisma.seajongProduct.findMany({
       include: { categories: true }
@@ -426,7 +492,7 @@ async function importToLogistics() {
         });
       }
 
-      const targetWarehouseId = (prefix === "PK" ? phuKienWh?.id : thanhPhamWh?.id) || thanhPhamWh?.id || "";
+      const targetWarehouseId = hangHoaWh?.id || "";
 
       await (prisma as any).inventoryStock.upsert({
         where: {

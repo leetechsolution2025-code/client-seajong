@@ -115,8 +115,12 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Check email trùng trong bảng User ─────────────────────────────────────
-  const existingUser = await prisma.user.findUnique({ where: { email: workEmail }, select: { id: true } });
-  if (existingUser) {
+  const existingUser = await prisma.user.findUnique({ 
+    where: { email: workEmail }, 
+    include: { employee: true } 
+  });
+  
+  if (existingUser && existingUser.employee) {
     return NextResponse.json({ error: `Email công ty "${workEmail}" đã được dùng bởi tài khoản khác` }, { status: 409 });
   }
 
@@ -150,8 +154,8 @@ export async function POST(req: NextRequest) {
   try {
     // ── Tạo User + Employee trong 1 transaction ────────────────────────────
     const { employee } = await prisma.$transaction(async (tx) => {
-      // 1. Tạo User account
-      const user = await tx.user.create({
+      // 1. Dùng lại User cũ hoặc tạo User account mới
+      const user = existingUser || await tx.user.create({
         data: {
           email: workEmail,
           password: hashedPassword,

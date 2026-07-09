@@ -48,7 +48,19 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Load dữ liệu thực tế từ DB ──────────────────────────────────────────
-    const [customers, quotations, contracts, retailInvoices, careHistories] = await Promise.all([
+    const [
+      customers, 
+      quotations, 
+      contracts, 
+      retailInvoices, 
+      careHistories,
+      assets,
+      debts,
+      expenses,
+      inventoryItems,
+      marketingCampaigns,
+      categories
+    ] = await Promise.all([
       prisma.customer.findMany({ select: { id: true, nguon: true, nhom: true } }),
       prisma.quotation.findMany({ select: { trangThai: true, thanhTien: true, tongTien: true, createdAt: true } }),
       prisma.contract.findMany({ select: { trangThai: true, giaTriHopDong: true, daThanhToan: true, ngayKetThuc: true } }),
@@ -58,6 +70,12 @@ export async function POST(req: NextRequest) {
         orderBy: { ngayChamSoc: "desc" },
         take: 20,
       }),
+      prisma.asset.findMany({ select: { giaTriMua: true, giaTriConLai: true, trangThai: true } }),
+      prisma.debt.findMany({ select: { type: true, amount: true, paidAmount: true, status: true } }),
+      prisma.expense.findMany({ select: { soTien: true, trangThai: true } }),
+      prisma.inventoryItem.findMany({ select: { soLuong: true, soLuongMin: true, giaNhap: true } }),
+      prisma.marketingCampaign.findMany({ select: { spent: true, budget: true, status: true, platform: true } }),
+      prisma.category.findMany({ where: { type: "nen_tang" }, select: { name: true } })
     ]);
 
     // ── Tổng hợp số liệu ────────────────────────────────────────────────────
@@ -81,6 +99,34 @@ export async function POST(req: NextRequest) {
     const carePositive     = careHistories.filter(h => h.thaiDo === "tich-cuc").length;
     const careNegative     = careHistories.filter(h => h.thaiDo === "tieu-cuc").length;
 
+    // 🧳 1. Tài sản cố định (Assets)
+    const assetCount = assets.length;
+    const totalAssetCost = assets.reduce((s, a) => s + a.giaTriMua, 0);
+    const assetRemainingValue = assets.reduce((s, a) => s + a.giaTriConLai, 0);
+
+    // 💸 2. Công nợ & Vay (Debts & Loans)
+    const receivables = debts.filter(d => d.type === "RECEIVABLE" || d.type === "phai-thu");
+    const payables = debts.filter(d => d.type === "PAYABLE" || d.type === "phai-tra");
+    const loans = debts.filter(d => d.type === "LOAN");
+    const totalReceivable = receivables.reduce((s, d) => s + (d.amount - d.paidAmount), 0);
+    const totalPayable = payables.reduce((s, d) => s + (d.amount - d.paidAmount), 0);
+    const totalLoan = loans.reduce((s, d) => s + (d.amount - d.paidAmount), 0);
+
+    // 📉 3. Chi phí hoạt động (Expenses)
+    const totalExpenses = expenses.reduce((s, e) => s + e.soTien, 0);
+    const paidExpenses = expenses.filter(e => e.trangThai === "paid").reduce((s, e) => s + e.soTien, 0);
+
+    // 📦 4. Kho & Tồn kho (Inventory)
+    const totalSKUs = inventoryItems.length;
+    const inventoryValuation = inventoryItems.reduce((s, item) => s + (item.soLuong * item.giaNhap), 0);
+    const alertSKUs = inventoryItems.filter(item => item.soLuong <= item.soLuongMin).length;
+
+    // 📣 5. Kênh & Chiến dịch Marketing (Marketing)
+    const platformCount = categories.length;
+    const campaignCount = marketingCampaigns.length;
+    const totalMarketingSpent = marketingCampaigns.reduce((s, c) => s + c.spent, 0);
+    const activeCampaigns = marketingCampaigns.filter(c => c.status === "Active").length;
+
     // Snapshot lịch sử gần nhất
     // @ts-expect-error — stale TS server cache
     const snapshots = await prisma.monthlySalesSnapshot.findMany({
@@ -93,32 +139,49 @@ export async function POST(req: NextRequest) {
       : "  Chưa có dữ liệu lịch sử";
 
     // ── Xây dựng prompt ─────────────────────────────────────────────────────
-    const systemContext = `Bạn là trợ lý AI thông minh của Ban Giám đốc doanh nghiệp. Bạn có quyền truy cập dữ liệu kinh doanh thực tế và hỗ trợ Ban Giám đốc phân tích, ra quyết định.
+    const systemContext = `Bạn là trợ lý AI thông minh toàn quyền của Ban Giám đốc doanh nghiệp. Bạn được cấp quyền tối cao truy cập và phân tích TOÀN BỘ dữ liệu vận hành, tài chính, nhân sự, kho bãi và kinh doanh của hệ thống.
 
 PHONG CÁCH TRẢ LỜI:
-- Ngắn gọn, đi thẳng vào vấn đề — tối đa 120 từ mỗi câu trả lời
+- Ngắn gọn, đi thẳng vào vấn đề — tối đa 150 từ mỗi câu trả lời
 - Dùng tiếng Việt tự nhiên, lịch sự, không dùng ngôn ngữ quá trang trọng
 - Luôn nêu con số cụ thể từ dữ liệu khi trả lời
 - Khi liệt kê nhiều điểm: dùng "* **Tiêu đề:** nội dung" cho mỗi mục (markdown bullet)
 - Không dùng tiêu đề lớn (#, ##) — chỉ dùng **in đậm** cho từ khóa quan trọng
-- Nếu câu hỏi không liên quan đến kinh doanh, lịch sự từ chối và gợi ý câu hỏi phù hợp
 
-DỮ LIỆU KINH DOANH HIỆN TẠI:
-📊 Tổng quan:
+DỮ LIỆU VẬN HÀNH TOÀN HỆ THỐNG:
+📊 Báo cáo Kinh doanh & Bán lẻ:
 - Khách hàng: ${totalCustomers} khách
 - Báo giá: ${quotations.length} tổng | ${quotationWon} thắng (win rate ${winRate}%) | ${quotationLost} thua | ${quotationActive} đang chờ
+- Hợp đồng: ${contracts.length} tổng | ${contractActive} đang chạy | ${contractDone} hoàn thành | ${contractOverdue} trễ hạn
+- Giá trị hợp đồng: ${fmtM(contractValue)} | Đã thu: ${fmtM(contractPaid)} | Công nợ hợp đồng: ${fmtM(contractDebt)} (${debtRate}%)
+- Bán lẻ: ${retailInvoices.length} hóa đơn | Doanh thu bán lẻ: ${fmtM(retailRevenue)} | Nợ bán lẻ: ${fmtM(retailDebt)}
 
-📄 Hợp đồng:
-- ${contracts.length} hợp đồng tổng | ${contractActive} đang thực hiện | ${contractDone} hoàn thành | ${contractOverdue} chậm/quá hạn
-- Tổng giá trị: ${fmtM(contractValue)} | Đã thu: ${fmtM(contractPaid)} | Công nợ: ${fmtM(contractDebt)} (${debtRate}%)
+🧳 Tài sản cố định:
+- Tổng số tài sản: ${assetCount} tài sản
+- Tổng nguyên giá: ${fmtM(totalAssetCost)} | Giá trị còn lại: ${fmtM(assetRemainingValue)} | Khấu hao lũy kế: ${fmtM(totalAssetCost - assetRemainingValue)}
 
-🧾 Bán lẻ:
-- ${retailInvoices.length} hóa đơn | Doanh thu: ${fmtM(retailRevenue)} | Công nợ: ${fmtM(retailDebt)}
+💸 Công nợ & Các khoản vay:
+- Phải thu khách hàng: ${fmtM(totalReceivable)}
+- Phải trả nhà cung cấp: ${fmtM(totalPayable)}
+- Dư nợ vay ngân hàng: ${fmtM(totalLoan)}
+
+📉 Chi phí vận hành:
+- Tổng chi phí phát sinh: ${fmtM(totalExpenses)} | Đã chi trả: ${fmtM(paidExpenses)} | Chờ thanh toán: ${fmtM(totalExpenses - paidExpenses)}
+
+📦 Kho bãi & Tồn kho:
+- Danh mục sản phẩm: ${totalSKUs} SKU
+- Tổng giá trị hàng tồn kho: ${fmtM(inventoryValuation)}
+- Cảnh báo tồn kho an toàn: ${alertSKUs} SKU cần nhập gấp
+
+📣 Hoạt động Marketing:
+- Số kênh truyền thông (DB Platforms): ${platformCount} kênh
+- Tổng số chiến dịch: ${campaignCount} chiến dịch | Đang chạy: ${activeCampaigns}
+- Tổng chi phí thực chi: ${fmtM(totalMarketingSpent)}
 
 💬 Chăm sóc khách hàng (20 lần chăm sóc gần nhất):
 - Tích cực: ${carePositive} | Tiêu cực: ${careNegative} | Trung lập/do dự: ${careHistories.length - carePositive - careNegative}
 
-📅 Lịch sử 3 tháng gần nhất:
+📅 Doanh thu lịch sử 3 tháng gần nhất:
 ${snapshotText}`;
 
     // Xây dựng conversation turns

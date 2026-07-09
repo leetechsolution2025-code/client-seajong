@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { SplitLayoutPage } from "@/components/layout/SplitLayoutPage";
 import { KPICard } from "@/components/ui/KPICard";
 import { YearAreaChart } from "@/components/ui/charts/YearAreaChart";
@@ -120,19 +120,7 @@ function CashFlowHealth({ score }: { score: number }) {
   );
 }
 
-// ── AI Analysis payload (mock — sau nối API thật) ─────────────────────────
-const AI_PAYLOAD = {
-  doanhThuNam: "38.6 tỷ VNĐ",
-  doanhThuThang: "4.2 tỷ VNĐ",
-  tongChiPhi: "29.4 tỷ VNĐ",
-  loiNhuan: "9.2 tỷ VNĐ",
-  cashFlowScore: 68,
-  months: [
-    { month: "Tháng 1", revenue: 2.8, cost: 2.1, cashFlow: 0.5 },
-    { month: "Tháng 2", revenue: 3.1, cost: 2.4, cashFlow: 0.6 },
-    { month: "Tháng 3", revenue: 4.2, cost: 3.3, cashFlow: 0.7 },
-  ],
-};
+// No mock payload anymore
 
 type AiInsight = { type: "positive" | "warning" | "negative"; text: string };
 type AiResult = { rating: string; summary: string; insights: AiInsight[]; recommendation: string };
@@ -244,6 +232,13 @@ function AiAnalysis({ status, result, errMsg, analyze, setStatus }: AiAnalysisPr
   );
 }
 
+// Helper format
+const formatMoney = (val: number) => {
+  if (val >= 1e9) return `${(val / 1e9).toFixed(2)} tỷ`;
+  if (val >= 1e6) return `${(val / 1e6).toFixed(1)} triệu`;
+  return `${val.toLocaleString("vi-VN")} đ`;
+};
+
 // ── AI Detail types ──────────────────────────────────────────────────────
 type DetailSection = { danhGia: "tốt" | "cần chú ý" | "nguy hiểm"; nhanXet: string };
 type AiDetailResult = {
@@ -292,7 +287,7 @@ function ListBlock({ title, icon, color, items }: { title: string; icon: string;
   );
 }
 
-function AiDetailOffcanvas({ open, onClose }: { open: boolean; onClose: () => void }) {
+function AiDetailOffcanvas({ open, onClose, payload }: { open: boolean; onClose: () => void; payload: any }) {
   const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
   const [result, setResult] = useState<AiDetailResult | null>(null);
   const [errMsg, setErrMsg] = useState("");
@@ -308,12 +303,13 @@ function AiDetailOffcanvas({ open, onClose }: { open: boolean; onClose: () => vo
   }, []);
 
   const fetchDetail = useCallback(async () => {
+    if (!payload) return;
     setStatus("loading");
     try {
       const res = await fetch("/api/board/ai-detail", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(AI_PAYLOAD),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -323,7 +319,7 @@ function AiDetailOffcanvas({ open, onClose }: { open: boolean; onClose: () => vo
       setErrMsg(String(e));
       setStatus("error");
     }
-  }, []);
+  }, [payload]);
 
   useEffect(() => { if (open) fetchDetail(); }, [open, fetchDetail]);
 
@@ -447,10 +443,10 @@ const PILLARS_DATA: Pillar[] = [
     color: "#8b5cf6",
     axis: "commercial",
     metrics: [
-      { name: "Doanh thu tổng", value: "92%", sub: "3.86 tỷ / 4.2 tỷ mục tiêu tháng", progress: 92, trend: "up", trendValue: "+3.2%" },
-      { name: "Tỷ lệ thắng thầu", value: "68%", sub: "42/62 cơ hội chuyển đổi dự án", progress: 68, trend: "up", trendValue: "+2.5%" },
-      { name: "Giá trị đơn hàng (AOV)", value: "320 triệu", sub: "Tăng từ 280 triệu quý trước", progress: 75, trend: "up", trendValue: "+14%" },
-      { name: "Khách hàng mua lại", value: "84%", sub: "120 đại lý & chủ đầu tư cốt lõi", progress: 84, trend: "neutral" }
+      { name: "Doanh thu tháng", value: "--", sub: "Doanh thu / Mục tiêu tháng", progress: 0, trend: "neutral" },
+      { name: "Tỷ lệ báo giá thành công", value: "--", sub: "Cơ hội chuyển đổi báo giá", progress: 0, trend: "neutral" },
+      { name: "Giá trị đơn hàng (AOV)", value: "--", sub: "Bình quân các đơn hàng đã tạo", progress: 0, trend: "neutral" },
+      { name: "Khách hàng mua lại", value: "--", sub: "Tổng số khách hàng trong hệ thống CRM", progress: 0, trend: "neutral" }
     ]
   },
   {
@@ -464,10 +460,10 @@ const PILLARS_DATA: Pillar[] = [
     color: "#3b82f6",
     axis: "commercial",
     metrics: [
-      { name: "Dòng tiền thuần", value: "+850 triệu", sub: "Đảm bảo thanh toán lô nhập khẩu mới", progress: 80, trend: "up", trendValue: "+120tr" },
-      { name: "Biên LN gộp (S.phẩm)", value: "31.5%", sub: "Vệ sinh: 35% | Thiết bị bếp: 28%", progress: 63, trend: "up", trendValue: "+0.8%" },
-      { name: "Nợ quá hạn & DSO", value: "1.2 tỷ / 42 ngày", sub: "DSO giảm 3 ngày so với T2/2026", progress: 42, trend: "down", trendValue: "-3 ngày" },
-      { name: "ROE / ROI lô hàng", value: "18.5%", sub: "Lợi nhuận ròng trên vốn tự có", progress: 78, trend: "up", trendValue: "+1.5%" }
+      { name: "Dòng tiền thuần", value: "--", sub: "Thu thực tế trừ chi thực tế tháng", progress: 0, trend: "neutral" },
+      { name: "Biên lợi nhuận gộp", value: "--", sub: "Định mức biên lợi nhuận gộp mục tiêu", progress: 0, trend: "neutral" },
+      { name: "Nợ quá hạn & DSO", value: "--", sub: "Tổng các khoản nợ đã quá hạn thanh toán", progress: 0, trend: "neutral" },
+      { name: "Chỉ số sức khoẻ dòng tiền", value: "--", sub: "Trạng thái dòng tiền", progress: 0, trend: "neutral" }
     ]
   },
   {
@@ -481,10 +477,10 @@ const PILLARS_DATA: Pillar[] = [
     color: "#10b981",
     axis: "technical",
     metrics: [
-      { name: "Doanh thu / FTE", value: "120 triệu", sub: "Năng suất bình quân mỗi nhân viên", progress: 70, trend: "up", trendValue: "+4%" },
-      { name: "Doanh số / Sales Rep", value: "250 triệu", sub: "Doanh số bình quân nhân viên Sales", progress: 83, trend: "up", trendValue: "+6%" },
-      { name: "Hiệu suất kỹ thuật", value: "78%", sub: "Tỷ lệ thời gian đi lắp ráp/bảo hành", progress: 78, trend: "up", trendValue: "+2%" },
-      { name: "Tỷ lệ biến động key", value: "4.2%", sub: "Nghỉ việc của KS có chứng chỉ hãng", progress: 95, trend: "down", trendValue: "-1.1%" }
+      { name: "Doanh thu / Nhân sự", value: "--", sub: "Năng suất bình quân mỗi nhân viên", progress: 0, trend: "neutral" },
+      { name: "Doanh số / Sales Rep", value: "--", sub: "Doanh số bình quân nhân viên Sales", progress: 0, trend: "neutral" },
+      { name: "Biến động nhân sự chủ chốt", value: "--", sub: "Tỷ lệ nhân sự chủ chốt nghỉ việc", progress: 0, trend: "neutral" },
+      { name: "Hiệu suất nhân sự", value: "--", sub: "Tỷ lệ chấm công đúng giờ", progress: 0, trend: "neutral" }
     ]
   },
   {
@@ -498,16 +494,17 @@ const PILLARS_DATA: Pillar[] = [
     color: "#f59e0b",
     axis: "technical",
     metrics: [
-      { name: "Tỷ lệ OTIF", value: "92%", sub: "Giao lắp đúng hạn & đủ số lượng", progress: 92, trend: "up", trendValue: "+1.5%" },
-      { name: "Vòng quay / Tuổi kho", value: "4.5 vòng", sub: "Hàng tồn kho trung bình < 90 ngày", progress: 68, trend: "up", trendValue: "+0.3" },
-      { name: "Tỷ lệ lỗi lắp ráp", value: "1.8%", sub: "Lỗi cài đặt/cấu hình tại công trường", progress: 18, trend: "down", trendValue: "-0.7%" },
-      { name: "Lead Time (LTTR)", value: "4.5 giờ", sub: "Thời gian trung bình xử lý sự cố", progress: 85, trend: "down", trendValue: "-0.5h" }
+      { name: "Tỷ lệ OTIF", value: "--", sub: "Giao lắp đúng hạn & đủ số lượng", progress: 0, trend: "neutral" },
+      { name: "Vòng quay / Tuổi kho", value: "--", sub: "Hàng tồn kho trung bình < 90 ngày", progress: 0, trend: "neutral" },
+      { name: "Tỷ lệ lỗi lắp ráp", value: "--", sub: "Lỗi cài đặt/cấu hình tại công trường", progress: 0, trend: "neutral" },
+      { name: "Lead Time (LTTR)", value: "--", sub: "Thời gian trung bình xử lý sự cố", progress: 0, trend: "neutral" }
     ]
   }
 ];
 
 function FourPillarsDashboard({ stats }: { stats: any }) {
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const [timeFrame, setTimeFrame] = useState<"month" | "year">("month");
 
   const steps = [
     { num: 1, title: "Kinh doanh", icon: "bi-megaphone-fill", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.08)" },
@@ -516,51 +513,59 @@ function FourPillarsDashboard({ stats }: { stats: any }) {
     { num: 4, title: "Vận hành", icon: "bi-gear-fill", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.08)" },
   ];
 
+  const now = new Date();
+  const expectedProgress = (now.getDate() / new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()) * 100;
+
   const commercialMetrics: Metric[] = stats ? [
     { 
-      name: "Doanh thu tổng", 
-      value: `${stats.pillars.commercial.revenueProgress}%`, 
-      sub: `${(stats.pillars.commercial.revenueActual / 1e9).toFixed(2)} tỷ / ${(stats.pillars.commercial.revenueTarget / 1e9).toFixed(2)} tỷ mục tiêu`, 
-      progress: stats.pillars.commercial.revenueProgress, 
-      trend: stats.pillars.commercial.revenueProgress >= 90 ? "up" : "neutral" 
+      name: "Doanh thu", 
+      value: `${timeFrame === "month" ? stats.pillars.commercial.revenueProgress : stats.pillars.commercial.revenueYearlyProgress}%`, 
+      sub: `${formatMoney(timeFrame === "month" ? stats.pillars.commercial.revenueActual : stats.pillars.commercial.revenueYearlyActual)} / ${formatMoney(timeFrame === "month" ? stats.pillars.commercial.revenueTarget : stats.pillars.commercial.revenueYearlyTarget)} mục tiêu`, 
+      progress: timeFrame === "month" ? stats.pillars.commercial.revenueProgress : stats.pillars.commercial.revenueYearlyProgress, 
+      trend: (timeFrame === "month" ? stats.pillars.commercial.revenueProgress : stats.pillars.commercial.revenueYearlyProgress) < expectedProgress ? "down" : "up",
+      trendValue: (timeFrame === "month" ? stats.pillars.commercial.revenueProgress : stats.pillars.commercial.revenueYearlyProgress) >= 100 ? "Vượt chỉ tiêu" : ((timeFrame === "month" ? stats.pillars.commercial.revenueProgress : stats.pillars.commercial.revenueYearlyProgress) < expectedProgress ? "Chậm tiến độ" : "Đạt tiến độ")
     },
     { 
-      name: "Tỷ lệ thắng thầu", 
-      value: `${stats.pillars.commercial.winRate}%`, 
-      sub: `${stats.pillars.commercial.wonCount}/${stats.pillars.commercial.totalQuotations} cơ hội chuyển đổi báo giá`, 
-      progress: stats.pillars.commercial.winRate, 
+      name: "Tỷ lệ báo giá thành công", 
+      value: `${timeFrame === "month" ? stats.pillars.commercial.monthlyWinRate : stats.pillars.commercial.winRate}%`, 
+      sub: `${timeFrame === "month" ? stats.pillars.commercial.monthlyWonCount : stats.pillars.commercial.wonCount}/${timeFrame === "month" ? stats.pillars.commercial.monthlyTotalQuotations : stats.pillars.commercial.totalQuotations} cơ hội báo giá`, 
+      progress: timeFrame === "month" ? stats.pillars.commercial.monthlyWinRate : stats.pillars.commercial.winRate, 
       trend: "up" 
     },
     { 
       name: "Giá trị đơn hàng (AOV)", 
-      value: stats.pillars.commercial.aov >= 1e6 ? `${(stats.pillars.commercial.aov / 1e6).toFixed(0)} triệu` : `${stats.pillars.commercial.aov.toLocaleString("vi-VN")} đ`, 
-      sub: "Bình quân các đơn hàng đã tạo", 
-      progress: stats.pillars.commercial.aov > 0 ? 80 : 0, 
+      value: (timeFrame === "month" ? stats.pillars.commercial.monthlyAov : stats.pillars.commercial.aov) >= 1e6 
+        ? `${((timeFrame === "month" ? stats.pillars.commercial.monthlyAov : stats.pillars.commercial.aov) / 1e6).toFixed(0)} triệu` 
+        : `${(timeFrame === "month" ? stats.pillars.commercial.monthlyAov : stats.pillars.commercial.aov).toLocaleString("vi-VN")} đ`, 
+      sub: "Bình quân các đơn hàng", 
+      progress: (timeFrame === "month" ? stats.pillars.commercial.monthlyAov : stats.pillars.commercial.aov) > 0 ? 80 : 0, 
       trend: "up" 
     },
     { 
-      name: "Khách hàng trong DB", 
-      value: `${stats.pillars.commercial.customersCount} đối tác`, 
-      sub: "Tổng số khách hàng trong hệ thống CRM", 
-      progress: stats.pillars.commercial.customersCount > 0 ? 90 : 0, 
+      name: "Phát triển đại lý", 
+      value: `${timeFrame === "month" ? stats.pillars.commercial.monthlyCustomersCount : stats.pillars.commercial.yearlyCustomersCount} đối tác`, 
+      sub: "Đại lý / đối tác phát triển mới", 
+      progress: (timeFrame === "month" ? stats.pillars.commercial.monthlyCustomersCount : stats.pillars.commercial.yearlyCustomersCount) > 0 ? 90 : 0, 
       trend: "neutral" 
     }
   ] : PILLARS_DATA[0].metrics;
 
   const financeMetrics: Metric[] = stats ? [
     { 
-      name: "Dòng tiền thuần tháng", 
-      value: stats.pillars.finance.cashFlow >= 0 ? `+${(stats.pillars.finance.cashFlow / 1e6).toFixed(0)} triệu` : `${(stats.pillars.finance.cashFlow / 1e6).toFixed(0)} triệu`, 
-      sub: "Thu thực tế trừ chi thực tế tháng", 
-      progress: stats.pillars.finance.cashFlow >= 0 ? 85 : 30, 
-      trend: stats.pillars.finance.cashFlow >= 0 ? "up" : "down" 
+      name: "Dòng tiền thuần", 
+      value: (timeFrame === "month" ? stats.pillars.finance.cashFlow : (stats.kpis.yearlyRevenue - stats.kpis.yearlyCost)) >= 0 
+        ? `+${Math.abs((timeFrame === "month" ? stats.pillars.finance.cashFlow : (stats.kpis.yearlyRevenue - stats.kpis.yearlyCost)) / 1e6).toFixed(0)} triệu` 
+        : `${((timeFrame === "month" ? stats.pillars.finance.cashFlow : (stats.kpis.yearlyRevenue - stats.kpis.yearlyCost)) / 1e6).toFixed(0)} triệu`, 
+      sub: "Thu thực tế trừ chi thực tế", 
+      progress: (timeFrame === "month" ? stats.pillars.finance.cashFlow : (stats.kpis.yearlyRevenue - stats.kpis.yearlyCost)) >= 0 ? 85 : 30, 
+      trend: (timeFrame === "month" ? stats.pillars.finance.cashFlow : (stats.kpis.yearlyRevenue - stats.kpis.yearlyCost)) >= 0 ? "up" : "down" 
     },
     { 
-      name: "Biên LN gộp (S.phẩm)", 
-      value: "35.0%", 
+      name: "Biên lợi nhuận gộp", 
+      value: "--", 
       sub: "Định mức biên lợi nhuận gộp mục tiêu", 
-      progress: 70, 
-      trend: "up" 
+      progress: 0, 
+      trend: "neutral" 
     },
     { 
       name: "Nợ quá hạn", 
@@ -581,35 +586,44 @@ function FourPillarsDashboard({ stats }: { stats: any }) {
   const hrMetrics: Metric[] = stats ? [
     { 
       name: "Doanh thu / Nhân sự", 
-      value: stats.pillars.hr.revenuePerFTE >= 1e6 ? `${(stats.pillars.hr.revenuePerFTE / 1e6).toFixed(0)} triệu` : `${stats.pillars.hr.revenuePerFTE.toLocaleString("vi-VN")} đ`, 
+      value: (timeFrame === "month" ? stats.pillars.hr.revenuePerFTE : stats.pillars.hr.yearlyRevenuePerFTE) >= 1e6 
+        ? `${((timeFrame === "month" ? stats.pillars.hr.revenuePerFTE : stats.pillars.hr.yearlyRevenuePerFTE) / 1e6).toFixed(0)} triệu` 
+        : `${(timeFrame === "month" ? stats.pillars.hr.revenuePerFTE : stats.pillars.hr.yearlyRevenuePerFTE).toLocaleString("vi-VN")} đ`, 
       sub: "Năng suất bình quân mỗi nhân viên", 
-      progress: stats.pillars.hr.revenuePerFTE > 0 ? 75 : 0, 
+      progress: (timeFrame === "month" ? stats.pillars.hr.revenuePerFTE : stats.pillars.hr.yearlyRevenuePerFTE) > 0 ? 75 : 0, 
       trend: "up" 
     },
     { 
       name: "Doanh số / Sales Rep", 
-      value: stats.pillars.hr.salesPerRep >= 1e6 ? `${(stats.pillars.hr.salesPerRep / 1e6).toFixed(0)} triệu` : `${stats.pillars.hr.salesPerRep.toLocaleString("vi-VN")} đ`, 
+      value: (timeFrame === "month" ? stats.pillars.hr.salesPerRep : stats.pillars.hr.yearlySalesPerRep) >= 1e6 
+        ? `${((timeFrame === "month" ? stats.pillars.hr.salesPerRep : stats.pillars.hr.yearlySalesPerRep) / 1e6).toFixed(0)} triệu` 
+        : `${(timeFrame === "month" ? stats.pillars.hr.salesPerRep : stats.pillars.hr.yearlySalesPerRep).toLocaleString("vi-VN")} đ`, 
       sub: "Doanh số bình quân nhân viên Sales", 
-      progress: stats.pillars.hr.salesPerRep > 0 ? 80 : 0, 
+      progress: (timeFrame === "month" ? stats.pillars.hr.salesPerRep : stats.pillars.hr.yearlySalesPerRep) > 0 ? 80 : 0, 
       trend: "up" 
     },
     { 
-      name: "Tỷ lệ biến động key", 
-      value: "0.0%", 
+      name: "Biến động nhân sự chủ chốt", 
+      value: `${timeFrame === "month" ? stats.pillars.hr.monthlyTurnoverRate : stats.pillars.hr.yearlyTurnoverRate}%`, 
       sub: "Tỷ lệ nhân sự chủ chốt nghỉ việc", 
-      progress: 100, 
-      trend: "down" 
+      progress: timeFrame === "month" ? stats.pillars.hr.monthlyTurnoverRate : stats.pillars.hr.yearlyTurnoverRate, 
+      trend: (timeFrame === "month" ? stats.pillars.hr.monthlyTurnoverRate : stats.pillars.hr.yearlyTurnoverRate) > 5 ? "up" : "down" 
     },
     { 
       name: "Hiệu suất nhân sự", 
-      value: "95%", 
+      value: `${stats.pillars.hr.onTimeRate}%`, 
       sub: "Tỷ lệ chấm công đúng giờ", 
-      progress: 95, 
-      trend: "neutral" 
+      progress: stats.pillars.hr.onTimeRate, 
+      trend: stats.pillars.hr.onTimeRate >= 95 ? "up" : "down" 
     }
   ] : PILLARS_DATA[2].metrics;
 
-  const operationsMetrics = PILLARS_DATA[3].metrics;
+  const operationsMetrics: Metric[] = stats ? [
+    { name: "Tỷ lệ OTIF", value: "--", sub: "Giao lắp đúng hạn & đủ số lượng", progress: 0, trend: "neutral" },
+    { name: "Vòng quay / Tuổi kho", value: "--", sub: "Hàng tồn kho trung bình < 90 ngày", progress: 0, trend: "neutral" },
+    { name: "Tỷ lệ lỗi lắp ráp", value: "--", sub: "Lỗi cài đặt/cấu hình tại công trường", progress: 0, trend: "neutral" },
+    { name: "Lead Time (LTTR)", value: "--", sub: "Thời gian trung bình xử lý sự cố", progress: 0, trend: "neutral" }
+  ] : PILLARS_DATA[3].metrics;
 
   const getDynamicMetrics = (stepNum: number) => {
     if (stepNum === 1) return commercialMetrics;
@@ -618,8 +632,52 @@ function FourPillarsDashboard({ stats }: { stats: any }) {
     return operationsMetrics;
   };
 
+  const activePillarBase = PILLARS_DATA[currentStep - 1];
+  let dynamicStatus = activePillarBase.status;
+  let dynamicStatusColor = activePillarBase.statusColor;
+  let dynamicStatusBg = activePillarBase.statusBg;
+
+  if (stats) {
+    if (currentStep === 1) { // Kinh doanh
+      const progressToUse = timeFrame === "month" ? stats.pillars.commercial.revenueProgress : stats.pillars.commercial.revenueYearlyProgress;
+      if (progressToUse >= expectedProgress) {
+        dynamicStatus = "Tăng trưởng tốt";
+        dynamicStatusColor = "#10b981"; // green
+        dynamicStatusBg = "rgba(16, 185, 129, 0.08)";
+      } else {
+        dynamicStatus = "Chậm tiến độ";
+        dynamicStatusColor = "#ef4444"; // red
+        dynamicStatusBg = "rgba(239, 68, 68, 0.08)";
+      }
+    } else if (currentStep === 2) { // Tài chính
+      const cashFlowToUse = timeFrame === "month" ? stats.pillars.finance.cashFlow : (stats.kpis.yearlyRevenue - stats.kpis.yearlyCost);
+      if (cashFlowToUse >= 0) {
+        dynamicStatus = "Ổn định";
+        dynamicStatusColor = "#10b981";
+        dynamicStatusBg = "rgba(16, 185, 129, 0.08)";
+      } else {
+        dynamicStatus = "Thiếu hụt";
+        dynamicStatusColor = "#ef4444";
+        dynamicStatusBg = "rgba(239, 68, 68, 0.08)";
+      }
+    } else if (currentStep === 3) { // Nhân sự
+      if (stats.pillars.hr.onTimeRate >= 90) {
+        dynamicStatus = "Đạt hiệu quả";
+        dynamicStatusColor = "#10b981";
+        dynamicStatusBg = "rgba(16, 185, 129, 0.08)";
+      } else {
+        dynamicStatus = "Cần cải thiện";
+        dynamicStatusColor = "#f59e0b"; // orange
+        dynamicStatusBg = "rgba(245, 158, 11, 0.08)";
+      }
+    }
+  }
+
   const activePillar = {
-    ...PILLARS_DATA[currentStep - 1],
+    ...activePillarBase,
+    status: dynamicStatus,
+    statusColor: dynamicStatusColor,
+    statusBg: dynamicStatusBg,
     metrics: getDynamicMetrics(currentStep)
   };
 
@@ -642,9 +700,22 @@ function FourPillarsDashboard({ stats }: { stats: any }) {
           icon="bi-grid-fill"
           className="mb-4"
           action={
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", background: "var(--background)", padding: "3px 8px", borderRadius: 6, border: "1px solid var(--border)" }}>
-              T3/2026
-            </span>
+            <div className="d-flex" style={{ background: "var(--border)", padding: 3, borderRadius: 6 }}>
+              <button
+                className={`btn btn-sm ${timeFrame === "month" ? "btn-light fw-bold shadow-sm" : "text-muted border-0"}`}
+                style={{ fontSize: 12, padding: "2px 12px", border: timeFrame === "month" ? "1px solid rgba(0,0,0,0.05)" : "none", borderRadius: 4 }}
+                onClick={() => setTimeFrame("month")}
+              >
+                Tháng
+              </button>
+              <button
+                className={`btn btn-sm ${timeFrame === "year" ? "btn-light fw-bold shadow-sm" : "text-muted border-0"}`}
+                style={{ fontSize: 12, padding: "2px 12px", border: timeFrame === "year" ? "1px solid rgba(0,0,0,0.05)" : "none", borderRadius: 4 }}
+                onClick={() => setTimeFrame("year")}
+              >
+                Năm
+              </button>
+            </div>
           }
         />
 
@@ -719,8 +790,8 @@ function FourPillarsDashboard({ stats }: { stats: any }) {
                   width: 30,
                   height: 30,
                   borderRadius: 8,
-                  background: activePillar.statusBg,
-                  color: activePillar.statusColor,
+                  background: `rgba(${activePillar.color === '#8b5cf6' ? '139, 92, 246' : activePillar.color === '#3b82f6' ? '59, 130, 246' : activePillar.color === '#10b981' ? '16, 185, 129' : '245, 158, 11'}, 0.08)`,
+                  color: activePillar.color,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -929,26 +1000,33 @@ export default function BoardPage() {
       });
   }, [warning]);
 
+  const dynamicAiPayload = useMemo(() => {
+    if (!dbStats) return null;
+    return {
+      doanhThuNam: formatMoney(dbStats.kpis.yearlyRevenue),
+      mucTieuNam: formatMoney((dbStats.pillars?.commercial?.revenueTarget || 0) * 12),
+      doanhThuThang: formatMoney(dbStats.kpis.monthlyRevenue),
+      tongChiPhi: formatMoney(dbStats.kpis.yearlyCost),
+      loiNhuan: formatMoney(dbStats.kpis.yearlyProfit),
+      cashFlowScore: dbStats.cashFlowScore,
+      months: dbStats.chartSeries[0].data.map((rev: any, idx: number) => {
+        if (idx + 1 > dbStats.kpis.costAccumulatedMonth) return null;
+        return {
+          month: `Tháng ${idx + 1}`,
+          revenue: rev || 0,
+          cost: dbStats.chartSeries[1].data[idx] || 0,
+          cashFlow: dbStats.chartSeries[2].data[idx] || 0
+        };
+      }).filter(Boolean)
+    };
+  }, [dbStats]);
+
   const analyze = async () => {
+    if (!dynamicAiPayload) return;
     setAiStatus("loading");
     setAiResult(null);
     try {
-      const payload = dbStats ? {
-        doanhThuNam: formatMoney(dbStats.kpis.yearlyRevenue),
-        doanhThuThang: formatMoney(dbStats.kpis.monthlyRevenue),
-        tongChiPhi: formatMoney(dbStats.kpis.yearlyCost),
-        loiNhuan: formatMoney(dbStats.kpis.yearlyProfit),
-        cashFlowScore: dbStats.cashFlowScore,
-        months: dbStats.chartSeries[0].data.map((rev: any, idx: number) => {
-          if (idx + 1 > dbStats.kpis.costAccumulatedMonth) return null;
-          return {
-            month: `Tháng ${idx + 1}`,
-            revenue: rev || 0,
-            cost: dbStats.chartSeries[1].data[idx] || 0,
-            cashFlow: dbStats.chartSeries[2].data[idx] || 0
-          };
-        }).filter(Boolean)
-      } : AI_PAYLOAD;
+      const payload = dynamicAiPayload;
 
       const res = await fetch("/api/board/ai-analysis", {
         method: "POST",
@@ -959,6 +1037,9 @@ export default function BoardPage() {
       if (!json.success) throw new Error(json.error);
       setAiResult(json.data);
       setAiStatus("done");
+      
+      const today = new Date().toISOString().split("T")[0];
+      localStorage.setItem(`ai_analysis_${today}`, JSON.stringify(json.data));
     } catch (e) {
       setAiErrMsg(String(e));
       setAiStatus("error");
@@ -967,8 +1048,20 @@ export default function BoardPage() {
 
   useEffect(() => {
     if (!isLoadingStats) {
+      const today = new Date().toISOString().split("T")[0];
+      const cached = localStorage.getItem(`ai_analysis_${today}`);
+      if (cached) {
+        try {
+          setAiResult(JSON.parse(cached));
+          setAiStatus("done");
+          return;
+        } catch (e) {
+          console.error("Cache parsing error", e);
+        }
+      }
       analyze();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoadingStats, dbStats]);
 
   const dynamicKpiCards = dbStats ? [
@@ -1007,7 +1100,7 @@ export default function BoardPage() {
 
   return (
     <>
-    <AiDetailOffcanvas open={showDetail} onClose={() => setShowDetail(false)} />
+    <AiDetailOffcanvas open={showDetail} onClose={() => setShowDetail(false)} payload={dynamicAiPayload} />
     <div className="w-100 h-100 d-flex flex-column">
       <SplitLayoutPage
         title="Ban Giám đốc"
@@ -1040,7 +1133,7 @@ export default function BoardPage() {
           <div className="p-4 flex-1 d-flex flex-column" style={{ overflowY: "auto", minHeight: 0 }}>
             <MobileTabSwitcher activeTab={mobileTab} onChange={setMobileTab} />
             <SectionTitle title="Diễn biến doanh thu và chi phí" className="mb-3" />
-            <YearAreaChart series={currentChartSeries} height={240} showLegend />
+            <YearAreaChart series={currentChartSeries} height={240} showLegend unit="đ" exactTooltip={true} />
             <SectionTitle
               title="Trạng thái tài chính"
               className="mt-4 mb-3"

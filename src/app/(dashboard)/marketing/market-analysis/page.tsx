@@ -267,7 +267,7 @@ export default function MarketAnalysisPage() {
 
       {/* ── Macro Indicators ── */}
       <div className="market-indicators-grid" style={{ marginBottom: 12 }}>
-        <div className="card border-0 shadow-sm p-2.5 d-flex flex-row align-items-center gap-3" style={{ background: "var(--card)", borderRadius: 12 }}>
+        <div className="card border-0 shadow-sm d-flex flex-row align-items-center" style={{ padding: "16px 18px", gap: 16, background: "var(--card)", borderRadius: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(99, 102, 241, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <i className="bi bi-bank" style={{ fontSize: 18, color: "#6366f1" }} />
           </div>
@@ -278,7 +278,7 @@ export default function MarketAnalysisPage() {
           </div>
         </div>
 
-        <div className="card border-0 shadow-sm p-2.5 d-flex flex-row align-items-center gap-3" style={{ background: "var(--card)", borderRadius: 12 }}>
+        <div className="card border-0 shadow-sm d-flex flex-row align-items-center" style={{ padding: "16px 18px", gap: 16, background: "var(--card)", borderRadius: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(16, 185, 129, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <i className="bi bi-graph-up-arrow" style={{ fontSize: 18, color: "#10b981" }} />
           </div>
@@ -289,7 +289,7 @@ export default function MarketAnalysisPage() {
           </div>
         </div>
 
-        <div className="card border-0 shadow-sm p-2.5 d-flex flex-row align-items-center gap-3" style={{ background: "var(--card)", borderRadius: 12 }}>
+        <div className="card border-0 shadow-sm d-flex flex-row align-items-center" style={{ padding: "16px 18px", gap: 16, background: "var(--card)", borderRadius: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(245, 158, 11, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <i className="bi bi-currency-exchange" style={{ fontSize: 18, color: "#f59e0b" }} />
           </div>
@@ -306,7 +306,7 @@ export default function MarketAnalysisPage() {
           </div>
         </div>
 
-        <div className="card border-0 shadow-sm p-2.5 d-flex flex-row align-items-center gap-3" style={{ background: "var(--card)", borderRadius: 12 }}>
+        <div className="card border-0 shadow-sm d-flex flex-row align-items-center" style={{ padding: "16px 18px", gap: 16, background: "var(--card)", borderRadius: 12 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(99, 102, 241, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <i className="bi bi-people" style={{ fontSize: 18, color: "#6366f1" }} />
           </div>
@@ -1045,7 +1045,7 @@ export default function MarketAnalysisPage() {
         }
         .market-indicators-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 16px;
         }
         .market-analysis-layout {
@@ -1077,7 +1077,7 @@ export default function MarketAnalysisPage() {
             padding-right: 20px !important;
           }
           .market-indicators-grid {
-            grid-template-columns: 1fr 1fr !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             gap: 12px !important;
             margin-top: 20px !important; /* Increase top margin on iPad */
             margin-bottom: 16px !important;
@@ -1126,7 +1126,7 @@ export default function MarketAnalysisPage() {
         }
         @media (max-width: 640px) {
           .market-indicators-grid {
-            grid-template-columns: 1fr !important;
+            grid-template-columns: minmax(0, 1fr) !important;
           }
         }
       `}} />

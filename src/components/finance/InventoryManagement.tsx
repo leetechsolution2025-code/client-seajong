@@ -71,8 +71,12 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
   const fetchStats = async () => {
     try {
       const selectedWH = warehouses.find(w => w.value === warehouseId);
-      const isMaterial = selectedWH?.type === "MATERIAL";
-      const apiPath = isMaterial ? "/api/production/materials/stats" : "/api/finance/inventory/stats";
+      const whType = selectedWH?.type || "SEAJONG";
+      let apiPath = "/api/logistics/seajong-inventory/stats";
+      if (whType === "MATERIAL") apiPath = "/api/production/materials/stats";
+      else if (whType === "PRODUCT") apiPath = "/api/production/manufactured-products/stats";
+      else if (whType === "DEFECT") apiPath = "/api/logistics/defects/stats";
+      else if (whType === "PRODUCT_SYNC") apiPath = "/api/finance/inventory/stats";
 
       const params = new URLSearchParams({
         mode,
@@ -91,8 +95,12 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
   const fetchCategories = async () => {
     try {
       const selectedWH = warehouses.find(w => w.value === warehouseId);
-      const isMaterial = selectedWH?.type === "MATERIAL";
-      const apiPath = isMaterial ? "/api/production/materials/categories" : "/api/finance/inventory/categories";
+      const whType = selectedWH?.type || "SEAJONG";
+      let apiPath = "/api/logistics/seajong-inventory/categories";
+      if (whType === "MATERIAL") apiPath = "/api/production/materials/categories";
+      else if (whType === "PRODUCT") apiPath = "/api/production/manufactured-products/categories";
+      else if (whType === "DEFECT") apiPath = "/api/logistics/defects/categories";
+      else if (whType === "PRODUCT_SYNC") apiPath = "/api/finance/inventory/categories";
 
       const res = await fetch(apiPath);
       const data = await res.json();
@@ -111,8 +119,16 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
     try {
       const res = await fetch("/api/finance/warehouses");
       const data = await res.json();
-      setWarehouses(data.map((w: any) => ({ label: w.name, value: w.id, type: w.type })));
+      const mapped = data.map((w: any) => ({ label: w.name, value: w.id, type: w.type }));
+      setWarehouses(mapped);
       setWarehouseCount(data.length);
+      
+      if (!warehouseId) {
+        if (mode === "production") {
+          const productWh = mapped.find((w: any) => w.type === "PRODUCT");
+          if (productWh) setWarehouseId(productWh.value);
+        }
+      }
     } catch (err) {
       console.error("Fetch warehouses error:", err);
     }
@@ -122,8 +138,12 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
     setLoading(true);
     try {
       const selectedWH = warehouses.find(w => w.value === warehouseId);
-      const isMaterial = selectedWH?.type === "MATERIAL";
-      const apiPath = isMaterial ? "/api/production/materials" : "/api/finance/inventory";
+      const whType = selectedWH?.type || "SEAJONG";
+      let apiPath = "/api/logistics/seajong-inventory";
+      if (whType === "MATERIAL") apiPath = "/api/production/materials";
+      else if (whType === "PRODUCT") apiPath = "/api/production/manufactured-products";
+      else if (whType === "DEFECT") apiPath = "/api/logistics/defects";
+      else if (whType === "PRODUCT_SYNC") apiPath = "/api/finance/inventory";
 
       const params = new URLSearchParams({
         page: page.toString(),
@@ -219,7 +239,11 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
   };
 
   const selectedWH = warehouses.find(w => w.value === warehouseId);
-  const isMaterial = selectedWH?.type === "MATERIAL";
+  const whType = selectedWH?.type || "SEAJONG";
+  const isMaterial = whType === "MATERIAL";
+  const isProduct = whType === "PRODUCT";
+  const isDefect = whType === "DEFECT";
+  const isSeajong = whType === "SEAJONG";
 
   const columns: TableColumn<InventoryItem | any>[] = [
     {
@@ -235,7 +259,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
       )
     },
     {
-      header: isMaterial ? "Vật tư / Nhóm" : "Hàng hoá / Loại",
+      header: isMaterial ? "Vật tư / Nhóm" : (isProduct ? "Thành phẩm / Loại" : (isDefect ? "Hàng lỗi" : "Hàng hoá / Loại")),
       render: (row) => (
         <div className="d-flex align-items-center gap-3">
           <div 
@@ -249,7 +273,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
             )}
           </div>
           <div className="d-flex flex-column">
-            <span className="fw-semibold text-dark lh-1 mb-1" style={{ fontSize: 12.5 }}>{row.tenHang}</span>
+            <span className="fw-semibold text-dark lh-1 mb-1" style={{ fontSize: 12.5 }}>{row.tenHang || row.name}</span>
             <div className="d-flex align-items-center gap-2">
               <small className="text-primary fw-medium" style={{ fontSize: 10, letterSpacing: 0.5 }}>{row.code || "SKU-AUTO"}</small>
               <span className="text-muted" style={{ fontSize: 10 }}>•</span>
@@ -268,30 +292,36 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
       header: isMaterial ? "Thông số" : "ĐVT",
       width: isMaterial ? 150 : 80,
       align: isMaterial ? "left" : "center",
-      render: (row) => <span className="text-muted small">{isMaterial ? row.spec : (row.donVi || "cái")}</span>
+      render: (row) => <span className="text-muted small">{isMaterial ? row.spec : (row.donVi || row.unit || "cái")}</span>
     },
     {
       header: "Tồn kho",
       width: 100,
       align: "right",
-      render: (row) => (
-        <span className={cn(
-          "fw-bold",
-          row.soLuong <= 0 ? "text-danger" : "text-dark"
-        )}>
-          {row.soLuong.toLocaleString("vi-VN")}
-        </span>
-      )
+      render: (row) => {
+        const soLuong = row.soLuong || 0;
+        return (
+          <span className={cn(
+            "fw-bold",
+            soLuong <= 0 ? "text-danger" : "text-dark"
+          )}>
+            {soLuong.toLocaleString("vi-VN")}
+          </span>
+        );
+      }
     },
     {
-        header: isMaterial ? "Đơn giá nhập" : (mode === "production" ? "Giá bán (đồng)" : "Đơn giá nhập"),
+        header: isMaterial ? "Đơn giá nhập" : (isProduct ? "Giá thành" : (mode === "production" ? "Giá bán (đồng)" : "Đơn giá nhập")),
         width: 140,
         align: "right",
-        render: (row) => (
-          <span className="fw-medium text-dark">
-            {(isMaterial ? row.giaNhap : (mode === "production" ? row.giaBan : row.giaNhap)).toLocaleString("vi-VN")}
-          </span>
-        )
+        render: (row) => {
+          const price = isMaterial ? row.giaNhap : (isProduct ? row.costPrice : (mode === "production" ? row.giaBan : row.giaNhap));
+          return (
+            <span className="fw-medium text-dark">
+              {(price || 0).toLocaleString("vi-VN")}
+            </span>
+          );
+        }
     },
     {
       header: "Trạng thái",

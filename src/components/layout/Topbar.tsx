@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { AccountSettingsModal } from "./AccountSettingsModal";
 import { NotificationOffcanvas } from "./NotificationOffcanvas";
 import { MessageOffcanvas } from "./MessageOffcanvas";
@@ -12,6 +11,7 @@ import { EmployeeAvatar } from "@/components/hr/EmployeeAvatar";
 import { useSearchParams } from "next/navigation";
 import { normalizeImgSrc } from "@/lib/utils/image";
 import { useToast } from "@/components/ui/Toast";
+import { CalculatorModal } from "./CalculatorModal";
 
 interface TopbarProps {
   onToggleSidebar: () => void;
@@ -52,6 +52,7 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
   const [msgOpen,   setMsgOpen]         = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
   const [unreadCount,    setUnreadCount]    = useState(0);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
   const [logoLoadError,  setLogoLoadError]  = useState(false);
@@ -173,6 +174,18 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
     }
   }, [searchParams]);
 
+  /* ── Phím tắt F2 để mở/đóng Máy tính ── */
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if (e.key === "F2") {
+        e.preventDefault();
+        setCalcOpen(prev => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
+  }, []);
+
   /* ── Session info ── */
   const rawUserName       = session?.user?.name || session?.user?.email || "Khách";
   const userRole          = session?.user?.role || "";
@@ -232,7 +245,7 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
         <div style={{ width: 1, height: 26, background: "var(--border)", opacity: 0.6, flexShrink: 0, margin: "0 4px" }} />
 
         {/* Brand */}
-        <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {/* Logo box */}
           <div className="topbar-logo-box">
             {clientLogoUrl && !logoLoadError ? (
@@ -261,20 +274,27 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
               <span className="topbar-brand-sub">{company.industryName}</span>
             )}
           </div>
-        </Link>
+        </div>
       </div>
 
       {/* ── RIGHT ── */}
       <div className="d-flex align-items-center gap-1">
 
-        {/* Theme toggle */}
-        <div style={{
-          width: 38, height: 38,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          borderRadius: 10,
-        }}>
-          <ThemeToggle />
-        </div>
+        {/* Calculator */}
+        <button
+          title="Máy tính"
+          onClick={() => setCalcOpen(true)}
+          style={{
+            width: 38, height: 38,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            borderRadius: 10, border: "none", background: "transparent",
+            color: "var(--muted-foreground)", cursor: "pointer", transition: "background 0.15s",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = "var(--muted)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+        >
+          <i className="bi bi-calculator" style={{ fontSize: 18 }} />
+        </button>
 
         {/* Notification */}
         <button
@@ -440,6 +460,11 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
       <AccountSettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+      />
+
+      <CalculatorModal 
+        isOpen={calcOpen}
+        onClose={() => setCalcOpen(false)}
       />
 
       <NotificationOffcanvas

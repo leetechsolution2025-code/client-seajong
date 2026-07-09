@@ -8,6 +8,8 @@ import { LogisticsItemDetailOffcanvas } from "./LogisticsItemDetailOffcanvas";
 import { TreeFilterSelect, TreeOption } from "@/components/ui/TreeFilterSelect";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { ProductDrawer } from "@/components/marketing/ProductDrawer";
+import { SearchInput } from "@/components/ui/SearchInput";
 
 interface Category {
   id: string;
@@ -36,6 +38,7 @@ interface InventoryItem {
   soLuongMin: number;
   trangThai: string;
   webProductId: number | null;
+  webVariationId?: number | null;
   imageUrl: string | null;
   updatedAt: string | null;
   createdAt: string | null;
@@ -43,7 +46,7 @@ interface InventoryItem {
   source?: string;
 }
 
-export function LogisticsInventory() {
+export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, hideActions }: { defaultWarehouseNameMatch?: string, hideAddButton?: boolean, hideActions?: boolean } = {}) {
   const toast = useToast();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -65,6 +68,8 @@ export function LogisticsInventory() {
   const [syncLog, setSyncLog] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [fullWebProduct, setFullWebProduct] = useState<any>(null);
+  const [fetchingWebProduct, setFetchingWebProduct] = useState(false);
 
   const handleDeleteItem = async () => {
     if (!deletingItem) return;
@@ -90,6 +95,22 @@ export function LogisticsInventory() {
   useEffect(() => {
     setSelectedIds([]);
   }, [items]);
+
+  useEffect(() => {
+    if (hideActions && selectedItem?.webProductId) {
+      setFetchingWebProduct(true);
+      fetch(`/api/seajong/products/${selectedItem.webProductId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data.error) setFullWebProduct(data);
+          else setFullWebProduct(null);
+        })
+        .catch(() => setFullWebProduct(null))
+        .finally(() => setFetchingWebProduct(false));
+    } else {
+      setFullWebProduct(null);
+    }
+  }, [selectedItem, hideActions]);
 
   const handleBulkDelete = async () => {
     setDeleting(true);
@@ -145,7 +166,15 @@ export function LogisticsInventory() {
     try {
       const res = await fetch("/api/logistics/warehouses");
       const data = await res.json();
-      setWarehouses(Array.isArray(data) ? data : []);
+      const wList = Array.isArray(data) ? data : [];
+      setWarehouses(wList);
+
+      if (defaultWarehouseNameMatch && wList.length > 0) {
+        const match = wList.find(w => w.name.toLowerCase().includes(defaultWarehouseNameMatch.toLowerCase()));
+        if (match) {
+          setFilterWarehouse(match.id);
+        }
+      }
     } catch (error) {
       console.error("Fetch warehouses error:", error);
     }
@@ -230,7 +259,51 @@ export function LogisticsInventory() {
         }
       }
     }, 2000);
-    return () => clearInterval(interval);
+    
+  // group items before rendering
+  const groupedItems = React.useMemo(() => {
+    const groups: Record<string, InventoryItem[]> = {};
+    const standalone: InventoryItem[] = [];
+    
+    items.forEach(item => {
+      if (item.webProductId && item.webVariationId) {
+        if (!groups[item.webProductId]) groups[item.webProductId] = [];
+        groups[item.webProductId].push(item);
+      } else {
+        standalone.push(item);
+      }
+    });
+    
+    const result: { type: 'parent' | 'standalone', data: any, children?: InventoryItem[] }[] = [];
+    
+    // Add standalone items
+    standalone.forEach(item => {
+      // If there's a standalone item that happens to be the parent of some variations (maybe because webVariationId is null), we should group it
+      if (groups[item.webProductId || ""]) {
+        result.push({ type: 'parent', data: item, children: groups[item.webProductId || ""] });
+        delete groups[item.webProductId || ""];
+      } else {
+        result.push({ type: 'standalone', data: item });
+      }
+    });
+    
+    // Add remaining grouped items where parent might not be in the current page
+    Object.keys(groups).forEach(webProductId => {
+      const children = groups[webProductId];
+      // Create a fake parent from the first child
+      const fakeParent = { ...children[0], tenHang: children[0].tenHang.split(" - ")[0], id: "parent-" + webProductId, soLuong: children.reduce((a,b)=>a+b.soLuong, 0) };
+      result.push({ type: 'parent', data: fakeParent, children });
+    });
+    
+    return result;
+  }, [items]);
+
+  const [expandedParents, setExpandedParents] = React.useState<Record<string, boolean>>({});
+  const toggleExpand = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setExpandedParents(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+return () => clearInterval(interval);
   }, [syncing]);
 
   const handleSingleSync = async (itemId: string) => {
@@ -277,17 +350,13 @@ export function LogisticsInventory() {
       {/* Search and Filter */}
 
       <div className="d-flex align-items-center gap-3 mb-2">
-        <div className="position-relative flex-grow-1">
-          <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
-          <input 
-            type="text" 
-            className="form-control border-0 shadow-sm rounded-pill ps-5 pe-4"
-            style={{ height: 40, background: "var(--card)", color: "var(--foreground)", fontSize: 13, border: "1px solid var(--border)" }}
-            placeholder="Tìm theo tên, mã SKU hoặc Model..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Tìm theo tên, mã SKU hoặc Model..."
+          className="flex-grow-1"
+          style={{ height: 40 }}
+        />
 
         <select 
           className="form-select border-0 shadow-sm rounded-pill px-4"
@@ -324,22 +393,24 @@ export function LogisticsInventory() {
           </button>
         )}
 
-        <button 
-          className="btn rounded-pill px-3.5 fw-bold text-white" 
-          style={{ 
-            fontSize: 12, 
-            height: 34, 
-            backgroundColor: isDefectWarehouse ? "#94a3b8" : "#011F58", 
-            borderColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
-            cursor: isDefectWarehouse ? "not-allowed" : "pointer",
-            opacity: isDefectWarehouse ? 0.65 : 1
-          }}
-          onClick={() => !isDefectWarehouse && setIsAddModalOpen(true)}
-          disabled={isDefectWarehouse}
-        >
-          <i className="bi bi-plus-lg me-2" />
-          Thêm hàng hóa
-        </button>
+        {!hideAddButton && (
+          <button 
+            className="btn rounded-pill px-3.5 fw-bold text-white" 
+            style={{ 
+              fontSize: 12, 
+              height: 34, 
+              backgroundColor: isDefectWarehouse ? "#94a3b8" : "#011F58", 
+              borderColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
+              cursor: isDefectWarehouse ? "not-allowed" : "pointer",
+              opacity: isDefectWarehouse ? 0.65 : 1
+            }}
+            onClick={() => !isDefectWarehouse && setIsAddModalOpen(true)}
+            disabled={isDefectWarehouse}
+          >
+            <i className="bi bi-plus-lg me-2" />
+            Thêm hàng hóa
+          </button>
+        )}
       </div>
 
       <AddLogisticsProductModal 
@@ -354,18 +425,55 @@ export function LogisticsInventory() {
         editItem={editingItem}
       />
 
-      <LogisticsItemDetailOffcanvas 
-        item={selectedItem as any} 
-        open={!!selectedItem} 
-        onClose={() => setSelectedItem(null)} 
-        onEdit={(item) => {
-          setSelectedItem(null);
-          setEditingItem(item as any);
-        }}
-        onDelete={(item) => {
-          setDeletingItem(item);
-        }}
-      />
+      {hideActions && selectedItem ? (
+        fetchingWebProduct ? (
+          <div className="offcanvas offcanvas-end show" style={{ width: 600, visibility: "visible" }}>
+            <div className="offcanvas-header border-bottom p-3">
+              <h5 className="offcanvas-title fw-bold">Thông tin sản phẩm</h5>
+              <button type="button" className="btn-close shadow-none" onClick={() => setSelectedItem(null)}></button>
+            </div>
+            <div className="offcanvas-body d-flex align-items-center justify-content-center">
+              <div className="spinner-border text-primary" />
+            </div>
+          </div>
+        ) : (
+          <ProductDrawer 
+            p={fullWebProduct || {
+              id: Number(selectedItem.webProductId) || 0,
+              name: selectedItem.tenHang,
+              slug: "",
+              url: "",
+              excerpt: "",
+              description: "",
+              images: selectedItem.imageUrl ? [selectedItem.imageUrl] : [],
+              specs: {
+                "Mã sản phẩm": selectedItem.code || "",
+                "Kiểu dáng": selectedItem.model || "",
+                "Thương hiệu": selectedItem.brand || "",
+              },
+              price: 0,
+              categories: [],
+              updatedAt: selectedItem.updatedAt || "",
+            }}
+            cats={[]}
+            isSalesMode={hideActions}
+            onClose={() => setSelectedItem(null)}
+          />
+        )
+      ) : (
+        <LogisticsItemDetailOffcanvas 
+          item={selectedItem as any} 
+          open={!!selectedItem && !hideActions} 
+          onClose={() => setSelectedItem(null)} 
+          onEdit={hideActions ? undefined : (item) => {
+            setSelectedItem(null);
+            setEditingItem(item as any);
+          }}
+          onDelete={hideActions ? undefined : (item) => {
+            setDeletingItem(item);
+          }}
+        />
+      )}
 
       <ConfirmDialog
         open={!!deletingItem}
@@ -415,20 +523,20 @@ export function LogisticsInventory() {
                 <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "70px" }}>ĐVT</th>
                 <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px" }}>Tồn kho</th>
                 <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px" }}>Trạng thái</th>
-                <th className="pe-4 border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "110px", minWidth: "110px" }}>Thao tác</th>
+                {hideActions ? null : <th className="pe-4 border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "110px", minWidth: "110px" }}>Thao tác</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-5">
+                  <td colSpan={hideActions ? 6 : 7} className="text-center py-5">
                     <div className="spinner-border spinner-border-sm text-primary me-2" />
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-5 text-muted">
+                  <td colSpan={hideActions ? 6 : 7} className="text-center py-5 text-muted">
                     <i className="bi bi-inbox fs-2 d-block mb-2 opacity-25" />
                     Không tìm thấy hàng hóa nào
                   </td>
@@ -526,20 +634,22 @@ export function LogisticsInventory() {
                         <span className="badge bg-danger-subtle text-danger border border-danger border-opacity-20 rounded-pill">Hết hàng</span>
                       )}
                     </td>
-                    <td className="pe-4">
-                      <div className="d-flex align-items-center justify-content-end gap-1">
-                        <button className="btn btn-icon btn-sm rounded-circle" title="Chi tiết">
-                          <i className="bi bi-eye text-primary" />
-                        </button>
-                        <button 
-                          className="btn btn-icon btn-sm rounded-circle" 
-                          title="Sửa"
-                          onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}
-                        >
-                          <i className="bi bi-pencil text-muted" />
-                        </button>
-                      </div>
-                    </td>
+                    {!hideActions && (
+                      <td className="pe-4">
+                        <div className="d-flex align-items-center justify-content-end gap-1">
+                          <button className="btn btn-icon btn-sm rounded-circle" title="Chi tiết">
+                            <i className="bi bi-eye text-primary" />
+                          </button>
+                          <button 
+                            className="btn btn-icon btn-sm rounded-circle" 
+                            title="Sửa"
+                            onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}
+                          >
+                            <i className="bi bi-pencil text-muted" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

@@ -80,7 +80,7 @@ export default function BranchesPage() {
             <div><p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)" }}>Tên chi nhánh *</p><Input value={form.name} onChange={set("name")} placeholder="Chi nhánh Hà Nội" /></div>
             <div><p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)" }}>Tên viết tắt</p><Input value={form.shortName} onChange={set("shortName")} placeholder="HN" /></div>
             <div><p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)" }}>Điện thoại</p><Input value={form.phone} onChange={set("phone")} placeholder="024 XXXX XXXX" /></div>
-            <div><p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)" }}>Email</p><Input value={form.email} onChange={set("email")} placeholder="hanoi@company.vn" /></div>
+            <div><p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)" }}>Email</p><Input value={form.email} onChange={set("email")} placeholder="hanoi@company.com" /></div>
             <div style={{ gridColumn: "1/-1" }}><p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)" }}>Địa chỉ</p><Input value={form.address} onChange={set("address")} placeholder="123 Đường ABC, Hà Nội" /></div>
             <div><p style={{ margin: "0 0 5px", fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)" }}>Trạng thái</p>
               <select value={form.status} onChange={set("status")} style={{ ...inputStyle, cursor: "pointer" }}>

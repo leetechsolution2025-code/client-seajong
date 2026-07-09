@@ -1,7 +1,7 @@
 /**
  * seed-departments.js — Auto-generated for client: seajong
  * Chỉ chứa các phòng ban được chọn lúc export.
- * Tổng: 11 phòng ban.
+ * Tổng: 13 phòng ban.
  */
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
@@ -38,6 +38,14 @@ const departments = [
     "group": "core",
     "icon": "bi-clipboard2-check",
     "sortOrder": 14
+  },
+  {
+    "code": "banhang",
+    "nameVi": "Bán hàng",
+    "nameEn": "Sale",
+    "group": "core",
+    "icon": "bi-coin",
+    "sortOrder": 15
   },
   {
     "code": "sales",
@@ -78,6 +86,14 @@ const departments = [
     "group": "support",
     "icon": "bi-cart3",
     "sortOrder": 32
+  },
+  {
+    "code": "qa",
+    "nameVi": "Đảm bảo chất lượng",
+    "nameEn": "Quality Assurance",
+    "group": "support",
+    "icon": "bi-patch-check",
+    "sortOrder": 33
   },
   {
     "code": "production",

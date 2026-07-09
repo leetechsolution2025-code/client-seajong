@@ -1588,7 +1588,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
     if (suggestTimer.current) clearTimeout(suggestTimer.current);
     if (!query.trim() || query.length < 2) { setSuggest([]); return; }
     suggestTimer.current = setTimeout(() => {
-      fetch(`/api/plan-finance/inventory?search=${encodeURIComponent(query)}&page=1`)
+      fetch(`/api/logistics/inventory?search=${encodeURIComponent(query)}&limit=20`)
         .then(r => r.json()).then(d => { if (activeRowIdRef.current === rowId) setSuggest(d.items ?? []); }).catch(() => setSuggest([]));
     }, 300);
   }, []);
@@ -2694,11 +2694,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                             onBlur={e => { e.currentTarget.style.border = "1px solid var(--border)"; setTimeout(() => { if (activeRowIdRef.current === it.id) { setSuggest([]); setActiveRowIdSync(null); } }, 200); }}
                             style={{ width: "100%", padding: 6, border: "1px solid var(--border)", background: "#fff", outline: "none", borderRadius: 6, fontFamily: "inherit", fontSize: 13, color: "var(--foreground)", transition: "border-color 0.15s" }}
                           />
-                          {getProductCode(it) && (
-                            <span style={{ fontSize: 10, color: "var(--muted-foreground)", background: "rgba(0,0,0,0.06)", padding: "1px 5px", borderRadius: 4, fontFamily: "monospace", alignSelf: "flex-start" }}>
-                              Mã: {getProductCode(it)}
-                            </span>
-                          )}
+
                         </div>
                         {activeRowId === it.id && suggest.length > 0 && (
                           <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxHeight: 200, overflowY: "auto" }}>

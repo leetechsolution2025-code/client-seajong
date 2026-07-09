@@ -62,15 +62,13 @@ grep -q "GEMINI_API_KEYS=\"KEY_1" .env && err "Chưa điền GEMINI_API_KEYS tro
 log "File .env hợp lệ"
 
 # ── Pull code mới nhất ───────────────────────────────────────
-if [ "${SKIP_GIT}" = "1" ]; then
-    info "Bỏ qua kéo code từ Git (sử dụng mã nguồn đồng bộ qua rsync)..."
-elif [ -d ".git" ]; then
+if [ -d ".git" ]; then
     info "Phát hiện Git repository. Kéo code mới từ Git..."
-    # Tránh lỗi "dubious ownership" trên VPS
-    git config --global --add safe.directory "${APP_DIR}" 2>/dev/null || true
-    # Reset package-lock.json để tránh conflict khi npm install đã thay đổi nó
     git checkout -- package-lock.json 2>/dev/null || true
-    git pull --rebase
+    # Stash local modifications to prevent conflicts with git pull
+    git stash -u 2>/dev/null || true
+    git pull --rebase || warn "Không thể pull code từ Git, tiếp tục sử dụng mã nguồn rsync."
+    git stash pop 2>/dev/null || true
     log "Code đã cập nhật ($(git log -1 --format='%h %s'))"
 else
     warn "Không phát hiện Git repository. Bỏ qua git pull, sử dụng mã nguồn hiện có."
@@ -99,9 +97,9 @@ if [ -d "prisma/migrations" ]; then
     fi
     # Đồng bộ ép buộc để tạo các cột bị thiếu (nếu có) sau khi baseline
     info "Kiểm tra và vá các cột còn thiếu (db push)..."
-    npx prisma db push --accept-data-loss
+    npx prisma db push
 else
-    npx prisma db push --accept-data-loss
+    npx prisma db push
 fi
 log "Database đã migration và đồng bộ hoàn toàn"
 

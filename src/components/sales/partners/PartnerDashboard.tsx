@@ -2,6 +2,7 @@
 
 import React from "react";
 import { KPICard } from "@/components/ui/KPICard";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { YearAreaChart } from "@/components/ui/charts/YearAreaChart";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -227,10 +228,10 @@ export function PartnerDashboard() {
             className="mb-0"
             action={
               <div className="d-flex gap-2">
-                <div className="input-group input-group-sm" style={{ width: 250 }}>
-                  <span className="input-group-text bg-transparent border-end-0"><i className="bi bi-search" /></span>
-                  <input type="text" className="form-control border-start-0" placeholder="Tìm tên, mã, khu vực..." />
-                </div>
+                <SearchInput 
+                  placeholder="Tìm tên, mã, khu vực..." 
+                  style={{ width: 250 }} 
+                />
                 <button className="btn btn-sm btn-outline-secondary">
                   <i className="bi bi-filter" /> Lọc
                 </button>

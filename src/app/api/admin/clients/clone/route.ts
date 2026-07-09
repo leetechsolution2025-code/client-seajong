@@ -681,6 +681,11 @@ NGINX_CONF="/etc/nginx/sites-available/\${APP_NAME}"
 
 # Log file
 LOG_FILE="/var/log/deploy_\${APP_NAME}.log"
+
+# Cấu hình SSH để deploy từ máy cá nhân lên server (cho lệnh update.sh)
+SSH_HOST=""
+SSH_USER="root"
+SSH_DIR="/root/${client.shortName.toLowerCase()}"
 `;
       await fs.writeFile(path.join(exportPath, "scripts/config.sh"), configShContent);
       

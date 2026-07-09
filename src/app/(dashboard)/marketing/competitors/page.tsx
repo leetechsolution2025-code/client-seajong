@@ -287,10 +287,59 @@ export default function CompetitorsPage() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
                       
                       {/* Summary Section */}
-                      <div style={{ background: "rgba(var(--primary-rgb), 0.03)", padding: "14px 18px", borderRadius: 12, borderLeft: "4px solid var(--primary)" }}>
-                        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--foreground)", fontWeight: 500 }}>
-                          {selectedCompetitor.aiSummary || "Chưa có bản tóm tắt AI. Nhấn 'Phân tích AI' để bắt đầu thu thập dữ liệu."}
-                        </p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {(() => {
+                          const summary = selectedCompetitor.aiSummary;
+                          if (!summary) return (
+                            <div style={{ background: "rgba(var(--primary-rgb), 0.03)", padding: "14px 18px", borderRadius: 12, borderLeft: "4px solid var(--primary)" }}>
+                              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--foreground)", fontWeight: 500 }}>
+                                Chưa có bản tóm tắt AI. Nhấn 'Phân tích AI' để bắt đầu thu thập dữ liệu.
+                              </p>
+                            </div>
+                          );
+
+                          const compareKeyword = "SO SÁNH VỚI SEAJONG:";
+                          const compareIndex = summary.indexOf(compareKeyword);
+
+                          if (compareIndex !== -1) {
+                            const generalSummary = summary.substring(0, compareIndex).trim();
+                            const comparisonText = summary.substring(compareIndex + compareKeyword.length).trim();
+                            
+                            return (
+                              <>
+                                {generalSummary && (
+                                  <div style={{ background: "rgba(var(--primary-rgb), 0.03)", padding: "14px 18px", borderRadius: 12, borderLeft: "4px solid var(--primary)" }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                      {generalSummary.split('\\n').filter(p => p.trim()).map((p, i) => (
+                                        <p key={i} style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--foreground)", fontWeight: 500, textAlign: "justify" }}>{p.trim()}</p>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "16px 20px", borderRadius: 12, boxShadow: "0 4px 12px rgba(29, 78, 216, 0.05)" }}>
+                                  <h4 style={{ margin: "0 0 10px 0", fontSize: 13, fontWeight: 900, color: "#1d4ed8", display: "flex", alignItems: "center", gap: 8, textTransform: "uppercase" }}>
+                                    <i className="bi bi-boxes" style={{ fontSize: 16 }} /> So sánh trực tiếp với Seajong
+                                  </h4>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {comparisonText.split('\\n').filter(p => p.trim()).map((p, i) => (
+                                      <p key={i} style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#1e3a8a", fontWeight: 500, textAlign: "justify" }}>{p.trim()}</p>
+                                    ))}
+                                  </div>
+                                </div>
+                              </>
+                            );
+                          }
+
+                          return (
+                            <div style={{ background: "rgba(var(--primary-rgb), 0.03)", padding: "14px 18px", borderRadius: 12, borderLeft: "4px solid var(--primary)" }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {summary.split('\\n').filter(p => p.trim()).map((p, i) => (
+                                  <p key={i} style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--foreground)", fontWeight: 500, textAlign: "justify" }}>{p.trim()}</p>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Channel Activities Section */}
@@ -328,82 +377,94 @@ export default function CompetitorsPage() {
                       )}
 
                       {/* DOS & DON'TS (Strategy Suggestions) */}
-                      {strategy.dos && (
+                      {(strategy.dos?.length > 0 || strategy.donts?.length > 0) && (
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                          <div style={{ background: "#f0fdf4", border: "1px solid #dcfce7", borderRadius: 12, padding: 16 }}>
-                            <h5 style={{ margin: "0 0 12px 0", fontSize: 11, fontWeight: 900, color: "#166534", display: "flex", alignItems: "center", gap: 8 }}>
-                              <i className="bi bi-check-circle-fill" /> CHIẾN THUẬT NÊN LÀM
-                            </h5>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                              {strategy.dos.map((item: string, i: number) => (
-                                <div key={i} style={{ display: "flex", gap: 8, fontSize: 11, color: "#166534", lineHeight: 1.4 }}>
-                                  <span style={{ flexShrink: 0 }}>•</span>
-                                  <span>{item}</span>
-                                </div>
-                              ))}
+                          {strategy.dos?.length > 0 && (
+                            <div style={{ background: "#f0fdf4", border: "1px solid #dcfce7", borderRadius: 12, padding: 16 }}>
+                              <h5 style={{ margin: "0 0 12px 0", fontSize: 11, fontWeight: 900, color: "#166534", display: "flex", alignItems: "center", gap: 8 }}>
+                                <i className="bi bi-check-circle-fill" /> CHIẾN THUẬT NÊN LÀM
+                              </h5>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                {strategy.dos.map((item: string, i: number) => (
+                                  <div key={i} style={{ display: "flex", gap: 8, fontSize: 11, color: "#166534", lineHeight: 1.4 }}>
+                                    <span style={{ flexShrink: 0 }}>•</span>
+                                    <span>{item}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                          <div style={{ background: "#fef2f2", border: "1px solid #fee2e2", borderRadius: 12, padding: 16 }}>
-                            <h5 style={{ margin: "0 0 12px 0", fontSize: 11, fontWeight: 900, color: "#991b1b", display: "flex", alignItems: "center", gap: 8 }}>
-                              <i className="bi bi-x-circle-fill" /> SAI LẦM CẦN TRÁNH
-                            </h5>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                              {strategy.donts.map((item: string, i: number) => (
-                                <div key={i} style={{ display: "flex", gap: 8, fontSize: 11, color: "#991b1b", lineHeight: 1.4 }}>
-                                  <span style={{ flexShrink: 0 }}>•</span>
-                                  <span>{item}</span>
-                                </div>
-                              ))}
+                          )}
+                          {strategy.donts?.length > 0 && (
+                            <div style={{ background: "#fef2f2", border: "1px solid #fee2e2", borderRadius: 12, padding: 16 }}>
+                              <h5 style={{ margin: "0 0 12px 0", fontSize: 11, fontWeight: 900, color: "#991b1b", display: "flex", alignItems: "center", gap: 8 }}>
+                                <i className="bi bi-x-circle-fill" /> SAI LẦM CẦN TRÁNH
+                              </h5>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                {strategy.donts.map((item: string, i: number) => (
+                                  <div key={i} style={{ display: "flex", gap: 8, fontSize: 11, color: "#991b1b", lineHeight: 1.4 }}>
+                                    <span style={{ flexShrink: 0 }}>•</span>
+                                    <span>{item}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       )}
 
                       {/* SWOT Grid (FULL 4 BOXES) */}
-                      {swot.strengths && (
+                      {(swot.strengths?.length > 0 || swot.weaknesses?.length > 0 || swot.opportunities?.length > 0 || swot.threats?.length > 0) && (
                         <div>
                           <h4 style={{ fontSize: 11, fontWeight: 800, marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--muted-foreground)" }}>Phân tích SWOT</h4>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                             {/* Strengths */}
-                            <div style={{ background: "var(--muted)", padding: 12, borderRadius: 10 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--foreground)", marginBottom: 8 }}>
-                                <i className="bi bi-plus-circle-fill" style={{ fontSize: 10, color: "#16a34a" }} />
-                                <span style={{ fontSize: 10, fontWeight: 800 }}>ĐIỂM MẠNH</span>
+                            {swot.strengths?.length > 0 && (
+                              <div style={{ background: "var(--muted)", padding: 12, borderRadius: 10 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--foreground)", marginBottom: 8 }}>
+                                  <i className="bi bi-plus-circle-fill" style={{ fontSize: 10, color: "#16a34a" }} />
+                                  <span style={{ fontSize: 10, fontWeight: 800 }}>ĐIỂM MẠNH</span>
+                                </div>
+                                <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "var(--foreground)", display: "flex", flexDirection: "column", gap: 4 }}>
+                                  {swot.strengths.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                                </ul>
                               </div>
-                              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "var(--foreground)", display: "flex", flexDirection: "column", gap: 4 }}>
-                                {swot.strengths.map((s: string, i: number) => <li key={i}>{s}</li>)}
-                              </ul>
-                            </div>
+                            )}
                             {/* Weaknesses */}
-                            <div style={{ background: "var(--muted)", padding: 12, borderRadius: 10 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--foreground)", marginBottom: 8 }}>
-                                <i className="bi bi-dash-circle-fill" style={{ fontSize: 10, color: "#dc2626" }} />
-                                <span style={{ fontSize: 10, fontWeight: 800 }}>ĐIỂM YẾU</span>
+                            {swot.weaknesses?.length > 0 && (
+                              <div style={{ background: "var(--muted)", padding: 12, borderRadius: 10 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--foreground)", marginBottom: 8 }}>
+                                  <i className="bi bi-dash-circle-fill" style={{ fontSize: 10, color: "#dc2626" }} />
+                                  <span style={{ fontSize: 10, fontWeight: 800 }}>ĐIỂM YẾU</span>
+                                </div>
+                                <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "var(--foreground)", display: "flex", flexDirection: "column", gap: 4 }}>
+                                  {swot.weaknesses.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                                </ul>
                               </div>
-                              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "var(--foreground)", display: "flex", flexDirection: "column", gap: 4 }}>
-                                {swot.weaknesses.map((s: string, i: number) => <li key={i}>{s}</li>)}
-                              </ul>
-                            </div>
+                            )}
                             {/* Opportunities */}
-                            <div style={{ background: "var(--muted)", padding: 12, borderRadius: 10 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--foreground)", marginBottom: 8 }}>
-                                <i className="bi bi-lightbulb-fill" style={{ fontSize: 10, color: "#2563eb" }} />
-                                <span style={{ fontSize: 10, fontWeight: 800 }}>CƠ HỘI</span>
+                            {swot.opportunities?.length > 0 && (
+                              <div style={{ background: "var(--muted)", padding: 12, borderRadius: 10 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--foreground)", marginBottom: 8 }}>
+                                  <i className="bi bi-lightbulb-fill" style={{ fontSize: 10, color: "#2563eb" }} />
+                                  <span style={{ fontSize: 10, fontWeight: 800 }}>CƠ HỘI</span>
+                                </div>
+                                <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "var(--foreground)", display: "flex", flexDirection: "column", gap: 4 }}>
+                                  {swot.opportunities.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                                </ul>
                               </div>
-                              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "var(--foreground)", display: "flex", flexDirection: "column", gap: 4 }}>
-                                {swot.opportunities.map((s: string, i: number) => <li key={i}>{s}</li>)}
-                              </ul>
-                            </div>
+                            )}
                             {/* Threats */}
-                            <div style={{ background: "var(--muted)", padding: 12, borderRadius: 10 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--foreground)", marginBottom: 8 }}>
-                                <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 10, color: "#d97706" }} />
-                                <span style={{ fontSize: 10, fontWeight: 800 }}>THÁCH THỨC</span>
+                            {swot.threats?.length > 0 && (
+                              <div style={{ background: "var(--muted)", padding: 12, borderRadius: 10 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--foreground)", marginBottom: 8 }}>
+                                  <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 10, color: "#d97706" }} />
+                                  <span style={{ fontSize: 10, fontWeight: 800 }}>THÁCH THỨC</span>
+                                </div>
+                                <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "var(--foreground)", display: "flex", flexDirection: "column", gap: 4 }}>
+                                  {swot.threats.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                                </ul>
                               </div>
-                              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: "var(--foreground)", display: "flex", flexDirection: "column", gap: 4 }}>
-                                {swot.threats.map((s: string, i: number) => <li key={i}>{s}</li>)}
-                              </ul>
-                            </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -476,7 +537,7 @@ export default function CompetitorsPage() {
                 <button onClick={() => setIsAddOpen(false)} style={{ border: "none", cursor: "pointer", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: "var(--muted)", color: "var(--muted-foreground)" }}><i className="bi bi-x-lg" /></button>
               </div>
 
-              <form onSubmit={handleAddSubmit} style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: 20 }}>
+              <form id="competitor-form" onSubmit={handleAddSubmit} style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: 20 }}>
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, display: "block", color: "var(--muted-foreground)" }}>Tên thương hiệu / Đối thủ</label>
                   <input type="text" required placeholder="VD: Nội thất A-Home" value={newComp.name} onChange={e => setNewComp({...newComp, name: e.target.value})} style={{ width: "100%", height: 42, padding: "0 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--muted)", outline: "none" }} />
@@ -542,8 +603,8 @@ export default function CompetitorsPage() {
               </form>
 
               <div style={{ padding: "20px 24px", borderTop: "1px solid var(--border)", display: "flex", gap: 12, background: "var(--card)" }}>
-                <BrandButton variant="outline" onClick={() => setIsAddOpen(false)} style={{ flex: 1 }}>Hủy bỏ</BrandButton>
-                <BrandButton onClick={(e) => handleAddSubmit(e as any)} loading={isSubmitting} style={{ flex: 1 }}>{isEdit ? "Cập nhật" : "Lưu đối thủ"}</BrandButton>
+                <BrandButton variant="outline" type="button" onClick={() => setIsAddOpen(false)} style={{ flex: 1 }}>Hủy bỏ</BrandButton>
+                <BrandButton type="submit" form="competitor-form" loading={isSubmitting} style={{ flex: 1 }}>{isEdit ? "Cập nhật" : "Lưu đối thủ"}</BrandButton>
               </div>
             </motion.div>
           </>

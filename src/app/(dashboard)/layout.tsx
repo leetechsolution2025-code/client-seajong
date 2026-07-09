@@ -38,16 +38,12 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
       items: [
         { name: "Kinh doanh và Marketing", href: "/board/business-marketing" },
         { name: "Tài chính kế toán", href: "/board/finance-accounting" },
-        { name: "Hàng hoá trong kho", href: "/board/inventory" },
+        { name: "Nhân sự", href: "/board/hr" },
       ],
     },
     {
       key: "tasks", label: "Quản trị công việc", icon: "bi-kanban", flat: true,
       items: [{ name: "Quản trị công việc", href: "/board/tasks" }],
-    },
-    {
-      key: "hr", label: "Nhân sự", icon: "bi-people", flat: true,
-      items: [{ name: "Nhân sự", href: "/board/hr" }],
     },
     {
       key: "approvals", label: "Phê duyệt tài liệu", icon: "bi-check2-square", flat: true,

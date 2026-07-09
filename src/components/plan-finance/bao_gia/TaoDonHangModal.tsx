@@ -82,12 +82,13 @@ const FLabel = ({ text, required }: { text: string; required?: boolean }) => (
 );
 
 // ── Main TaoDonHangModal Component ──────────────────────────────────────────
-export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agency" }: {
+export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agency", editOrder }: {
   open: boolean;
   onClose: () => void;
   customer: CustomerRow | null;
   onSaved?: () => void;
   type?: string;
+  editOrder?: any;
 }) {
   const today = new Date();
   const fmtDate = (d: Date) => d.toISOString().split("T")[0];
@@ -97,6 +98,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     soPhieu: genDocCode("DH"),
     ngayLap: defaultNgayLap,
     ngayGiaoHang: defaultNgayLap,
+    tenNguoiNhan: "",
+    sdtNguoiNhan: "",
     diaChiGiaoHang: "",
     ghiChu: "",
     chietKhauTong: 0,
@@ -116,7 +119,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
   // Sync customer details when passed
   React.useEffect(() => {
-    if (customer) {
+    if (customer && !editOrder) {
       setCustInfo({
         id: customer.id || "",
         name: customer.name || "",
@@ -130,7 +133,72 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         diaChiGiaoHang: customer.address || "",
       }));
     }
-  }, [customer]);
+  }, [customer, editOrder]);
+
+  React.useEffect(() => {
+    if (open && editOrder) {
+      let rawGhiChu = editOrder.ghiChu || "";
+      let tenNguoiNhan = "";
+      let sdtNguoiNhan = "";
+      let diaChiGiaoHang = "";
+
+      const guestMatch = rawGhiChu.match(/\[GuestInfo:(.*?)\]/);
+      if (guestMatch) {
+        try {
+          const parsed = JSON.parse(guestMatch[1]);
+          tenNguoiNhan = parsed.name || tenNguoiNhan;
+          sdtNguoiNhan = parsed.dienThoai || sdtNguoiNhan;
+          diaChiGiaoHang = parsed.address || diaChiGiaoHang;
+          rawGhiChu = rawGhiChu.replace(/\[GuestInfo:.*?\]\n?/, "");
+        } catch(e) {}
+      }
+
+      const lines = rawGhiChu.split("\n");
+      const remainingLines = [];
+      for (const line of lines) {
+        if (line.startsWith("Tên khách hàng: ")) { tenNguoiNhan = line.replace("Tên khách hàng: ", ""); continue; }
+        if (line.startsWith("Số điện thoại: ")) { sdtNguoiNhan = line.replace("Số điện thoại: ", ""); continue; }
+        if (line.startsWith("Địa chỉ giao hàng: ")) { diaChiGiaoHang = line.replace("Địa chỉ giao hàng: ", ""); continue; }
+        remainingLines.push(line);
+      }
+      rawGhiChu = remainingLines.join("\n").trim();
+
+      setInfo(prev => ({
+        ...prev,
+        soPhieu: editOrder.code || editOrder.id,
+        ngayLap: editOrder.ngayDat ? new Date(editOrder.ngayDat).toISOString().split("T")[0] : prev.ngayLap,
+        ngayGiaoHang: editOrder.ngayGiao ? new Date(editOrder.ngayGiao).toISOString().split("T")[0] : prev.ngayGiaoHang,
+        ghiChu: rawGhiChu,
+        tenNguoiNhan,
+        sdtNguoiNhan,
+        diaChiGiaoHang
+      }));
+      if (editOrder.customer) {
+        setCustInfo({
+          id: editOrder.customer.id || "",
+          name: editOrder.customer.name || "",
+          dienThoai: editOrder.customer.dienThoai || "",
+          address: editOrder.customer.address || "",
+          nhom: editOrder.customer.nhom || "ca-nhan",
+          nguon: editOrder.customer.nguon || null,
+        });
+      }
+      if (editOrder.items && editOrder.items.length > 0) {
+        setItems(editOrder.items.map((it: any) => ({
+          id: nextId.current++,
+          ten: it.tenHang || "",
+          dvt: it.donVi || "cái",
+          soLuong: Number(it.soLuong) || 1,
+          donGia: Number(it.donGia) || 0,
+          ckPct: 0,
+          soLuongTon: null,
+          trangThaiKho: null,
+          inventoryId: null,
+          code: null
+        })));
+      }
+    }
+  }, [open, editOrder]);
 
   const [debtInfo, setDebtInfo] = React.useState<{ outstandingDebt: number; creditLimit: number } | null>(null);
   const [isCustomerNew, setIsCustomerNew] = React.useState(true);
@@ -188,7 +256,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       return;
     }
     suggestTimer.current = setTimeout(() => {
-      fetch(`/api/plan-finance/inventory?search=${encodeURIComponent(query)}&page=1`)
+      fetch(`/api/logistics/inventory?search=${encodeURIComponent(query)}&limit=20`)
         .then(r => r.json())
         .then(d => {
           if (activeRowIdRef.current === rowId) setSuggest(d.items ?? []);
@@ -263,6 +331,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       const finalCustomerId = custInfo.id;
       let finalGhiChu = [
         info.ghiChu,
+        info.tenNguoiNhan ? `Tên khách hàng: ${info.tenNguoiNhan}` : "",
+        info.sdtNguoiNhan ? `Số điện thoại: ${info.sdtNguoiNhan}` : "",
         info.diaChiGiaoHang ? `Địa chỉ giao hàng: ${info.diaChiGiaoHang}` : ""
       ].filter(Boolean).join("\n");
 
@@ -275,45 +345,64 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         finalGhiChu = `[GuestInfo:${JSON.stringify(guestInfo)}]\n` + finalGhiChu;
       }
 
-      // Payload matching quotations POST / API
-      const payload = {
-        code: info.soPhieu.trim(),
-        ngayBaoGia: info.ngayLap,
-        ngayHetHan: info.ngayGiaoHang, // Map expiration to delivery for orders
-        ngayGiaoHang: info.ngayGiaoHang,
-        trangThai: "won", // "won" state automatically triggers SaleOrder generation
-        uuTien: "medium",
-        tongTien: tamTinh,
-        discount: info.chietKhauTong,
-        vat: info.thue,
-        chiPhiThiCong: 0,
-        thanhTien: tongCong,
-        ghiChu: finalGhiChu,
-        quoteType: "Không có quầy kệ",
-        items: validItems.map((it, idx) => ({
-          tenHang: it.ten.trim(),
-          donVi: it.dvt || "cái",
-          soLuong: it.soLuong,
-          donGia: it.donGia,
-          thanhTien: thanhTien(it),
-          ghiChu: JSON.stringify({ code: it.code || "" }),
-          sortOrder: idx
-        })),
-        customerId: finalCustomerId || null,
-        type
-      };
+      if (editOrder) {
+        const updatePayload = {
+          ngayGiao: info.ngayGiaoHang,
+          ghiChu: finalGhiChu,
+          tongTien: tamTinh,
+          items: validItems.map((it, idx) => ({
+            tenHang: it.ten.trim(),
+            soLuong: it.soLuong,
+            donGia: it.donGia,
+            thanhTien: thanhTien(it)
+          }))
+        };
+        const res = await fetch(`/api/plan-finance/sales/${editOrder.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatePayload),
+        });
+        if (!res.ok) throw new Error((await res.json()).error ?? "Lỗi cập nhật");
+        toast.success("Cập nhật thành công", `Đơn hàng ${info.soPhieu} đã được lưu.`);
+      } else {
+        const payload = {
+          code: info.soPhieu.trim(),
+          ngayBaoGia: info.ngayLap,
+          ngayHetHan: info.ngayGiaoHang,
+          ngayGiaoHang: info.ngayGiaoHang,
+          trangThai: "won",
+          uuTien: "medium",
+          tongTien: tamTinh,
+          discount: info.chietKhauTong,
+          vat: info.thue,
+          chiPhiThiCong: 0,
+          thanhTien: tongCong,
+          ghiChu: finalGhiChu,
+          quoteType: "Không có quầy kệ",
+          items: validItems.map((it, idx) => ({
+            tenHang: it.ten.trim(),
+            donVi: it.dvt || "cái",
+            soLuong: it.soLuong,
+            donGia: it.donGia,
+            thanhTien: thanhTien(it),
+            ghiChu: JSON.stringify({ code: it.code || "" }),
+            sortOrder: idx
+          })),
+          customerId: finalCustomerId || null,
+          type
+        };
 
-      const res = await fetch("/api/plan-finance/quotations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+        const res = await fetch("/api/plan-finance/quotations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
 
-      if (!res.ok) {
-        throw new Error((await res.json()).error ?? "Lỗi tạo đơn hàng");
+        if (!res.ok) {
+          throw new Error((await res.json()).error ?? "Lỗi tạo đơn hàng");
+        }
+        toast.success("Tạo đơn hàng thành công", `Đơn hàng ${info.soPhieu} đã được lưu.`);
       }
-
-      toast.success("Tạo đơn hàng thành công", `Đơn hàng ${info.soPhieu} đã được lưu.`);
       if (onSaved) onSaved();
       onClose();
     } catch (err: any) {
@@ -387,7 +476,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           </div>
           <div>
             <p className="order-modal-header-title" style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#fff", letterSpacing: "0.01em" }}>
-              Lập đơn bán hàng (SO) - {type === "retail" ? "Bán lẻ" : "Đại lý"}
+              {editOrder ? "Cập nhật đơn bán hàng (SO)" : `Lập đơn bán hàng (SO) - ${type === "retail" ? "Bán lẻ" : "Đại lý"}`}
             </p>
           </div>
         </div>
@@ -397,7 +486,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
             {saving ? "Đang lưu..." : (
               <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <i className="bi bi-check-circle" />
-                Tạo đơn hàng
+                {editOrder ? "Cập nhật đơn" : "Tạo đơn hàng"}
               </span>
             )}
           </button>
@@ -480,7 +569,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                       </div>
                       <div>
                         <span style={{ fontSize: 9.5, color: "var(--muted-foreground)", display: "block", fontWeight: 600 }}>HẠN MỨC CÔNG NỢ</span>
-                        <strong style={{ fontSize: 11.5, color: "var(--primary)" }}>{debtInfo.creditLimit.toLocaleString("vi-VN")} ₫</strong>
+                        <strong style={{ fontSize: 11.5, color: "#var(--primary)" }}>{debtInfo.creditLimit.toLocaleString("vi-VN")} ₫</strong>
                       </div>
                     </div>
                   )}
@@ -521,6 +610,29 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                   </div>
                 </div>
               )}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <FLabel text="Tên khách hàng" />
+                <input
+                  type="text"
+                  placeholder="Nhập tên khách hàng..."
+                  value={info.tenNguoiNhan}
+                  onChange={e => setInfo(prev => ({ ...prev, tenNguoiNhan: e.target.value }))}
+                  style={inputSt}
+                />
+              </div>
+              <div>
+                <FLabel text="Số điện thoại" />
+                <input
+                  type="text"
+                  placeholder="Nhập số điện thoại..."
+                  value={info.sdtNguoiNhan}
+                  onChange={e => setInfo(prev => ({ ...prev, sdtNguoiNhan: e.target.value }))}
+                  style={inputSt}
+                />
+              </div>
             </div>
 
             <div>
@@ -639,11 +751,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                           onBlur={e => { e.currentTarget.style.border = "1px solid var(--border)"; setTimeout(() => { if (activeRowIdRef.current === it.id) { setSuggest([]); setActiveRowIdSync(null); } }, 200); }}
                           style={{ width: "100%", padding: 6, border: "1px solid var(--border)", background: "#fff", outline: "none", borderRadius: 6, fontFamily: "inherit", fontSize: 13, color: "var(--foreground)", transition: "border-color 0.15s" }}
                         />
-                        {getProductCode(it) && (
-                          <span style={{ fontSize: 10, color: "var(--muted-foreground)", background: "rgba(0,0,0,0.06)", padding: "1px 5px", borderRadius: 4, fontFamily: "monospace", alignSelf: "flex-start" }}>
-                            Mã: {getProductCode(it)}
-                          </span>
-                        )}
+
                       </div>
                       {activeRowId === it.id && suggest.length > 0 && (
                         <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxHeight: 200, overflowY: "auto" }}>

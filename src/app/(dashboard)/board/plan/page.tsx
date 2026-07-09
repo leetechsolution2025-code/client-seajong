@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import OemPlanView from "@/components/plan-finance/OemPlanView";
+
 import { StandardPage } from "@/components/layout/StandardPage";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
@@ -17,10 +19,10 @@ function renderMarkdown(text: string) {
   if (!text) return null;
   const lines = text.split("\n");
   const elements: React.ReactNode[] = [];
-  
+
   let inList = false;
   let listItems: { indent: number; text: string }[] = [];
-  
+
   let inTable = false;
   let tableHeaders: string[] = [];
   let tableRows: string[][] = [];
@@ -265,6 +267,11 @@ export default function BoardYearlyPlanPage() {
   const [aiResult, setAiResult] = useState<string>("");
   const [isFromCache, setIsFromCache] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const [activeTab, setActiveTab] = useState<"seajong" | "oem">("seajong");
+  const [oemYear, setOemYear] = useState<number>(2026);
+  const [oemCurrentStep, setOemCurrentStep] = useState<number>(1);
+  const [omProfit, setOmProfit] = useState(0);
+  const [omMargin, setOmMargin] = useState(0);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
 
   // --- States for Custom Dialogs ---
@@ -333,7 +340,7 @@ export default function BoardYearlyPlanPage() {
 
   const handleAiAnalysis = async (forceReanalyze = false) => {
     setIsAiModalOpen(true);
-    
+
     const payload = {
       year,
       revenueTraditional,
@@ -450,21 +457,27 @@ export default function BoardYearlyPlanPage() {
 
   // --- Step 1 state targets ---
   // Doanh thu
-  const [revenueAgent, setRevenueAgent] = useState<string>("20000000000"); // 20 tỷ
-  const [revenueAgentDev, setRevenueAgentDev] = useState<string>("10000000000"); // 10 tỷ
-  const [revenueTraditional, setRevenueTraditional] = useState<string>("15000000000"); // 15 tỷ
-  const [revenueEcommerce, setRevenueEcommerce] = useState<string>("5000000000"); // 5 tỷ
+  const [revenueAgent, setRevenueAgent] = useState<string>("0"); // 20 tỷ
+  const [revenueAgentDev, setRevenueAgentDev] = useState<string>("0"); // 10 tỷ
+  const [revenueTraditional, setRevenueTraditional] = useState<string>("0"); // 15 tỷ
+  const [revenueEcommerce, setRevenueEcommerce] = useState<string>("0"); // 5 tỷ
 
   // Chi phí
-  const [costSales, setCostSales] = useState<string>("15000000000"); // 15 tỷ
-  const [costMarketing, setCostMarketing] = useState<string>("10000000000"); // 10 tỷ
-  const [costOperations, setCostOperations] = useState<string>("10000000000"); // 10 tỷ
+  const [costSales, setCostSales] = useState<string>("0"); // 15 tỷ
+  const [costMarketing, setCostMarketing] = useState<string>("0"); // 10 tỷ
+  const [costFinanceHR, setCostFinanceHR] = useState<string>("0"); // 2 tỷ
+  const [costLogistics, setCostLogistics] = useState<string>("0"); // 3 tỷ
+  const [costOperations, setCostOperations] = useState<string>("0"); // 10 tỷ
 
   // Toggle calculate costs from revenue
   const [isCalculateByRevenue, setIsCalculateByRevenue] = useState<boolean>(false);
   const [costSalesPercent, setCostSalesPercent] = useState<string>("30");
   const [costMarketingPercent, setCostMarketingPercent] = useState<string>("20");
+  const [costFinanceHRPercent, setCostFinanceHRPercent] = useState<string>("4");
+  const [costLogisticsPercent, setCostLogisticsPercent] = useState<string>("6");
   const [costOperationsPercent, setCostOperationsPercent] = useState<string>("20");
+  const [revenueDeductionPercent, setRevenueDeductionPercent] = useState<string>("17");
+  const [cogsPercent, setCogsPercent] = useState<string>("47");
 
   // Nhân sự
   const [staffSales, setStaffSales] = useState<string>("40");
@@ -495,19 +508,32 @@ export default function BoardYearlyPlanPage() {
     { id: "mkt_1", label: "Chi phí Branding", val: "4000000000", pctVal: "8", checked: false },
     { id: "mkt_2", label: "Lương và thưởng hiệu suất", val: "3000000000", pctVal: "6", checked: false },
     { id: "mkt_3", label: "Công tác phí", val: "3000000000", pctVal: "6", checked: false },
+    { id: "mkt_4", label: "Chi phí bảo hiểm", val: "0", pctVal: "0", checked: false },
+  ]);
+
+  const [finCosts, setFinCosts] = useState<CustomCostItem[]>([
+    { id: "fin_1", label: "Lương nhân viên", val: "3000000000", pctVal: "1.5", checked: false },
+    { id: "fin_2", label: "Bảo hiểm", val: "500000000", pctVal: "0.5", checked: false },
+  ]);
+
+  const [logCosts, setLogCosts] = useState<CustomCostItem[]>([
+    { id: "log_1", label: "Lương nhân viên", val: "2000000000", pctVal: "1.5", checked: false },
+    { id: "log_2", label: "Bảo hiểm", val: "500000000", pctVal: "0.5", checked: false },
   ]);
 
   const [opsCosts, setOpsCosts] = useState<CustomCostItem[]>([
-    { id: "ops_1", label: "Lương và thưởng của bộ phận kho", val: "2000000000", pctVal: "4", checked: false },
-    { id: "ops_2", label: "Thuê kho bãi", val: "3000000000", pctVal: "6", checked: false },
-    { id: "ops_3", label: "Điện nước", val: "1000000000", pctVal: "2", checked: false },
-    { id: "ops_4", label: "Văn phòng phẩm và phúc lợi", val: "500000000", pctVal: "1", checked: false },
-    { id: "ops_5", label: "Khấu hao", val: "1500000000", pctVal: "3", checked: false },
-    { id: "ops_6", label: "Tuyển dụng và đào tạo", val: "200000000", pctVal: "0.4", checked: false },
-    { id: "ops_7", label: "Chăm sóc khách hàng", val: "500000000", pctVal: "1", checked: false },
-    { id: "ops_8", label: "Vận chuyển và hậu cần", val: "800000000", pctVal: "1.6", checked: false },
-    { id: "ops_9", label: "Chi phí giảm giá hàng tồn kho", val: "300000000", pctVal: "0.6", checked: false },
-    { id: "ops_10", label: "Chi phí rủi ro nợ khó đòi", val: "200000000", pctVal: "0.4", checked: false },
+    { id: "ops_1", label: "Thuê kho bãi và showroom", val: "2000000000", pctVal: "4", checked: false },
+    { id: "ops_2", label: "Chi phí điện nước", val: "1000000000", pctVal: "2", checked: false },
+    { id: "ops_3", label: "Văn phòng phẩm", val: "500000000", pctVal: "1", checked: false },
+    { id: "ops_4", label: "Thưởng lễ tết, du lịch", val: "1000000000", pctVal: "2", checked: false },
+    { id: "ops_5", label: "Khấu hao công cụ, dụng cụ và chi phí trả trước", val: "500000000", pctVal: "1", checked: false },
+    { id: "ops_6", label: "Khấu hao công cụ, dụng cụ tại đại lý", val: "500000000", pctVal: "1", checked: false },
+    { id: "ops_7", label: "Khấu hao tài sản cố định", val: "500000000", pctVal: "1", checked: false },
+    { id: "ops_8", label: "Lãi vay", val: "500000000", pctVal: "1", checked: false },
+    { id: "ops_9", label: "Chi phí tuyển dụng, đào tạo", val: "200000000", pctVal: "0.4", checked: false },
+    { id: "ops_10", label: "Chi phí vận chuyển, hậu cần", val: "800000000", pctVal: "1.6", checked: false },
+    { id: "ops_11", label: "Chi phí giảm giá hàng tồn kho", val: "300000000", pctVal: "0.6", checked: false },
+    { id: "ops_12", label: "Chi phí rủi ro nợ khó đòi", val: "200000000", pctVal: "0.4", checked: false },
   ]);
 
   const [miscCosts, setMiscCosts] = useState<CustomCostItem[]>([
@@ -547,6 +573,8 @@ export default function BoardYearlyPlanPage() {
   const c_mkt_events_pct = getCostPct(mktCosts, "mkt_2", "6");
   const c_mkt_print = getCostVal(mktCosts, "mkt_3", "3000000000");
   const c_mkt_print_pct = getCostPct(mktCosts, "mkt_3", "6");
+  const c_mkt_insurance = getCostVal(mktCosts, "mkt_4", "0");
+  const c_mkt_insurance_pct = getCostPct(mktCosts, "mkt_4", "0");
 
   const c_ops_salary = getCostVal(opsCosts, "ops_1", "2000000000");
   const c_ops_salary_pct = getCostPct(opsCosts, "ops_1", "4");
@@ -573,51 +601,51 @@ export default function BoardYearlyPlanPage() {
   const c_misc_pct = getCostPct(miscCosts, "misc_1", "4");
 
   // Setter stubs để tránh compile errors trong loadPlan logic cũ
-  const set_c_biz_agentopen = (v: any) => {};
-  const set_c_biz_salary = (v: any) => {};
-  const set_c_biz_insurance = (v: any) => {};
-  const set_c_biz_bonus = (v: any) => {};
-  const set_c_biz_travel = (v: any) => {};
-  const set_c_biz_promo = (v: any) => {};
-  const set_c_biz_agentopen_pct = (v: any) => {};
-  const set_c_biz_salary_pct = (v: any) => {};
-  const set_c_biz_insurance_pct = (v: any) => {};
-  const set_c_biz_bonus_pct = (v: any) => {};
-  const set_c_biz_travel_pct = (v: any) => {};
-  const set_c_biz_promo_pct = (v: any) => {};
+  const set_c_biz_agentopen = (v: any) => { };
+  const set_c_biz_salary = (v: any) => { };
+  const set_c_biz_insurance = (v: any) => { };
+  const set_c_biz_bonus = (v: any) => { };
+  const set_c_biz_travel = (v: any) => { };
+  const set_c_biz_promo = (v: any) => { };
+  const set_c_biz_agentopen_pct = (v: any) => { };
+  const set_c_biz_salary_pct = (v: any) => { };
+  const set_c_biz_insurance_pct = (v: any) => { };
+  const set_c_biz_bonus_pct = (v: any) => { };
+  const set_c_biz_travel_pct = (v: any) => { };
+  const set_c_biz_promo_pct = (v: any) => { };
 
-  const set_c_mkt_ads = (v: any) => {};
-  const set_c_mkt_events = (v: any) => {};
-  const set_c_mkt_print = (v: any) => {};
-  const set_c_mkt_ads_pct = (v: any) => {};
-  const set_c_mkt_events_pct = (v: any) => {};
-  const set_c_mkt_print_pct = (v: any) => {};
+  const set_c_mkt_ads = (v: any) => { };
+  const set_c_mkt_events = (v: any) => { };
+  const set_c_mkt_print = (v: any) => { };
+  const set_c_mkt_ads_pct = (v: any) => { };
+  const set_c_mkt_events_pct = (v: any) => { };
+  const set_c_mkt_print_pct = (v: any) => { };
 
-  const set_c_ops_salary = (v: any) => {};
-  const set_c_ops_rent = (v: any) => {};
-  const set_c_ops_utilities = (v: any) => {};
-  const set_c_ops_supplies = (v: any) => {};
-  const set_c_ops_depr = (v: any) => {};
-  const set_c_ops_recruit = (v: any) => {};
-  const set_c_ops_cs = (v: any) => {};
-  const set_c_ops_logistics = (v: any) => {};
-  const set_c_ops_inv_writeoff = (v: any) => {};
-  const set_c_ops_bad_debt = (v: any) => {};
-  const set_c_ops_salary_pct = (v: any) => {};
-  const set_c_ops_rent_pct = (v: any) => {};
-  const set_c_ops_utilities_pct = (v: any) => {};
-  const set_c_ops_supplies_pct = (v: any) => {};
-  const set_c_ops_depr_pct = (v: any) => {};
-  const set_c_ops_recruit_pct = (v: any) => {};
-  const set_c_ops_cs_pct = (v: any) => {};
-  const set_c_ops_logistics_pct = (v: any) => {};
-  const set_c_ops_inv_writeoff_pct = (v: any) => {};
-  const set_c_ops_bad_debt_pct = (v: any) => {};
+  const set_c_ops_salary = (v: any) => { };
+  const set_c_ops_rent = (v: any) => { };
+  const set_c_ops_utilities = (v: any) => { };
+  const set_c_ops_supplies = (v: any) => { };
+  const set_c_ops_depr = (v: any) => { };
+  const set_c_ops_recruit = (v: any) => { };
+  const set_c_ops_cs = (v: any) => { };
+  const set_c_ops_logistics = (v: any) => { };
+  const set_c_ops_inv_writeoff = (v: any) => { };
+  const set_c_ops_bad_debt = (v: any) => { };
+  const set_c_ops_salary_pct = (v: any) => { };
+  const set_c_ops_rent_pct = (v: any) => { };
+  const set_c_ops_utilities_pct = (v: any) => { };
+  const set_c_ops_supplies_pct = (v: any) => { };
+  const set_c_ops_depr_pct = (v: any) => { };
+  const set_c_ops_recruit_pct = (v: any) => { };
+  const set_c_ops_cs_pct = (v: any) => { };
+  const set_c_ops_logistics_pct = (v: any) => { };
+  const set_c_ops_inv_writeoff_pct = (v: any) => { };
+  const set_c_ops_bad_debt_pct = (v: any) => { };
 
-  const set_c_misc = (v: any) => {};
-  const set_c_misc_pct = (v: any) => {};
+  const set_c_misc = (v: any) => { };
+  const set_c_misc_pct = (v: any) => { };
 
-  const [c_fin_salary, set_c_fin_salary] = useState<string>("3000000000"); // Lương HC-NS
+  const [c_fin_salary, set_c_fin_salary] = useState<string>("0"); // Lương HC-NS
   const [c_fin_salary_pct, set_c_fin_salary_pct] = useState<string>("6");
 
   const [s4Notes, setS4Notes] = useState<{ [key: string]: string }>({
@@ -753,60 +781,62 @@ export default function BoardYearlyPlanPage() {
   const s3_fin_4_inc = getStaffSalary(finStaff, "fin_s4", "18000000");
 
   // Dummy setters for load compatibility
-  const set_s3_biz_1 = (v: any) => {};
-  const set_s3_biz_2 = (v: any) => {};
-  const set_s3_biz_3 = (v: any) => {};
-  const set_s3_biz_4 = (v: any) => {};
-  const set_s3_biz_5 = (v: any) => {};
-  const set_s3_biz_6 = (v: any) => {};
-  const set_s3_biz_1_inc = (v: any) => {};
-  const set_s3_biz_2_inc = (v: any) => {};
-  const set_s3_biz_3_inc = (v: any) => {};
-  const set_s3_biz_4_inc = (v: any) => {};
-  const set_s3_biz_5_inc = (v: any) => {};
-  const set_s3_biz_6_inc = (v: any) => {};
+  const set_s3_biz_1 = (v: any) => { };
+  const set_s3_biz_2 = (v: any) => { };
+  const set_s3_biz_3 = (v: any) => { };
+  const set_s3_biz_4 = (v: any) => { };
+  const set_s3_biz_5 = (v: any) => { };
+  const set_s3_biz_6 = (v: any) => { };
+  const set_s3_biz_1_inc = (v: any) => { };
+  const set_s3_biz_2_inc = (v: any) => { };
+  const set_s3_biz_3_inc = (v: any) => { };
+  const set_s3_biz_4_inc = (v: any) => { };
+  const set_s3_biz_5_inc = (v: any) => { };
+  const set_s3_biz_6_inc = (v: any) => { };
 
-  const set_s3_mkt_1 = (v: any) => {};
-  const set_s3_mkt_2 = (v: any) => {};
-  const set_s3_mkt_3 = (v: any) => {};
-  const set_s3_mkt_4 = (v: any) => {};
-  const set_s3_mkt_5 = (v: any) => {};
-  const set_s3_mkt_1_inc = (v: any) => {};
-  const set_s3_mkt_2_inc = (v: any) => {};
-  const set_s3_mkt_3_inc = (v: any) => {};
-  const set_s3_mkt_4_inc = (v: any) => {};
-  const set_s3_mkt_5_inc = (v: any) => {};
+  const set_s3_mkt_1 = (v: any) => { };
+  const set_s3_mkt_2 = (v: any) => { };
+  const set_s3_mkt_3 = (v: any) => { };
+  const set_s3_mkt_4 = (v: any) => { };
+  const set_s3_mkt_5 = (v: any) => { };
+  const set_s3_mkt_1_inc = (v: any) => { };
+  const set_s3_mkt_2_inc = (v: any) => { };
+  const set_s3_mkt_3_inc = (v: any) => { };
+  const set_s3_mkt_4_inc = (v: any) => { };
+  const set_s3_mkt_5_inc = (v: any) => { };
 
-  const set_s3_log_1 = (v: any) => {};
-  const set_s3_log_2 = (v: any) => {};
-  const set_s3_log_3 = (v: any) => {};
-  const set_s3_log_1_inc = (v: any) => {};
-  const set_s3_log_2_inc = (v: any) => {};
-  const set_s3_log_3_inc = (v: any) => {};
+  const set_s3_log_1 = (v: any) => { };
+  const set_s3_log_2 = (v: any) => { };
+  const set_s3_log_3 = (v: any) => { };
+  const set_s3_log_1_inc = (v: any) => { };
+  const set_s3_log_2_inc = (v: any) => { };
+  const set_s3_log_3_inc = (v: any) => { };
 
-  const set_s3_cs_1 = (v: any) => {};
-  const set_s3_cs_2 = (v: any) => {};
-  const set_s3_cs_3 = (v: any) => {};
-  const set_s3_cs_1_inc = (v: any) => {};
-  const set_s3_cs_2_inc = (v: any) => {};
-  const set_s3_cs_3_inc = (v: any) => {};
+  const set_s3_cs_1 = (v: any) => { };
+  const set_s3_cs_2 = (v: any) => { };
+  const set_s3_cs_3 = (v: any) => { };
+  const set_s3_cs_1_inc = (v: any) => { };
+  const set_s3_cs_2_inc = (v: any) => { };
+  const set_s3_cs_3_inc = (v: any) => { };
 
-  const set_s3_fin_1 = (v: any) => {};
-  const set_s3_fin_2 = (v: any) => {};
-  const set_s3_fin_3 = (v: any) => {};
-  const set_s3_fin_4 = (v: any) => {};
-  const set_s3_fin_1_inc = (v: any) => {};
-  const set_s3_fin_2_inc = (v: any) => {};
-  const set_s3_fin_3_inc = (v: any) => {};
-  const set_s3_fin_4_inc = (v: any) => {};
+  const set_s3_fin_1 = (v: any) => { };
+  const set_s3_fin_2 = (v: any) => { };
+  const set_s3_fin_3 = (v: any) => { };
+  const set_s3_fin_4 = (v: any) => { };
+  const set_s3_fin_1_inc = (v: any) => { };
+  const set_s3_fin_2_inc = (v: any) => { };
+  const set_s3_fin_3_inc = (v: any) => { };
+  const set_s3_fin_4_inc = (v: any) => { };
 
   const totalRevenue = (Number(revenueAgent) || 0) + (Number(revenueAgentDev) || 0) + (Number(revenueTraditional) || 0) + (Number(revenueEcommerce) || 0);
 
   const finalCostSales = isCalculateByRevenue ? Math.round(totalRevenue * (Number(costSalesPercent) || 0) / 100) : (Number(costSales) || 0);
   const finalCostMarketing = isCalculateByRevenue ? Math.round(totalRevenue * (Number(costMarketingPercent) || 0) / 100) : (Number(costMarketing) || 0);
+  const finalCostFinanceHR = isCalculateByRevenue ? Math.round(totalRevenue * (Number(costFinanceHRPercent) || 0) / 100) : (Number(costFinanceHR) || 0);
+  const finalCostLogistics = isCalculateByRevenue ? Math.round(totalRevenue * (Number(costLogisticsPercent) || 0) / 100) : (Number(costLogistics) || 0);
   const finalCostOperations = isCalculateByRevenue ? Math.round(totalRevenue * (Number(costOperationsPercent) || 0) / 100) : (Number(costOperations) || 0);
 
-  const totalCost = finalCostSales + finalCostMarketing + finalCostOperations;
+  const totalCost = finalCostSales + finalCostMarketing + finalCostFinanceHR + finalCostLogistics + finalCostOperations;
   const totalStaff = (Number(staffSales) || 0) + (Number(staffMarketing) || 0) + (Number(staffLogistics) || 0) + (Number(staffCustomerService) || 0) + (Number(staffFinanceHR) || 0);
   const totalProfit = totalRevenue - totalCost;
   const grossMargin = totalRevenue > 0 ? ((totalRevenue - finalCostSales) / totalRevenue) * 100 : 0;
@@ -854,80 +884,29 @@ export default function BoardYearlyPlanPage() {
 
   const step2BizTotal = calcCompGroupTotal(bizCosts);
   const step2MktTotal = calcCompGroupTotal(mktCosts);
+  const step2FinTotal = calcCompGroupTotal(finCosts);
+  const step2LogTotal = calcCompGroupTotal(logCosts);
   const step2OpsTotal = calcCompGroupTotal(opsCosts);
   const step2MiscTotal = calcCompGroupTotal(miscCosts);
-  const totalStep2 = step2BizTotal + step2MktTotal + step2OpsTotal + step2MiscTotal;
+  const totalStep2 = step2BizTotal + step2MktTotal + step2FinTotal + step2LogTotal + step2OpsTotal + step2MiscTotal;
 
   // --- Step 3 Calculations (Component Level) ---
-  const v_biz_1 = Number(s3_biz_1) || 0;
-  const v_biz_2 = Number(s3_biz_2) || 0;
-  const v_biz_3 = Number(s3_biz_3) || 0;
-  const v_biz_4 = Number(s3_biz_4) || 0;
-  const v_biz_5 = Number(s3_biz_5) || 0;
-  const v_biz_6 = Number(s3_biz_6) || 0;
+  const calcStaffTotal = (arr: CustomStaffItem[]) => arr.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  const calcStaffFund = (arr: CustomStaffItem[]) => arr.reduce((sum, item) => sum + (Number(item.qty) || 0) * (Number(item.salary) || 0), 0) * 12;
 
-  const v_mkt_1 = Number(s3_mkt_1) || 0;
-  const v_mkt_2 = Number(s3_mkt_2) || 0;
-  const v_mkt_3 = Number(s3_mkt_3) || 0;
-  const v_mkt_4 = Number(s3_mkt_4) || 0;
-  const v_mkt_5 = Number(s3_mkt_5) || 0;
-
-  const v_log_1 = Number(s3_log_1) || 0;
-  const v_log_2 = Number(s3_log_2) || 0;
-  const v_log_3 = Number(s3_log_3) || 0;
-
-  const v_cs_1 = Number(s3_cs_1) || 0;
-  const v_cs_2 = Number(s3_cs_2) || 0;
-  const v_cs_3 = Number(s3_cs_3) || 0;
-
-  const v_fin_1 = Number(s3_fin_1) || 0;
-  const v_fin_2 = Number(s3_fin_2) || 0;
-  const v_fin_3 = Number(s3_fin_3) || 0;
-  const v_fin_4 = Number(s3_fin_4) || 0;
-
-  const grpBiz = v_biz_1 + v_biz_2 + v_biz_3 + v_biz_4 + v_biz_5 + v_biz_6;
-  const grpMkt = v_mkt_1 + v_mkt_2 + v_mkt_3 + v_mkt_4 + v_mkt_5;
-  const grpLog = v_log_1 + v_log_2 + v_log_3;
-  const grpCS = v_cs_1 + v_cs_2 + v_cs_3;
-  const grpFin = v_fin_1 + v_fin_2 + v_fin_3 + v_fin_4;
+  const grpBiz = calcStaffTotal(bizStaff);
+  const grpMkt = calcStaffTotal(mktStaff);
+  const grpLog = calcStaffTotal(logStaff);
+  const grpCS = calcStaffTotal(csStaff);
+  const grpFin = calcStaffTotal(finStaff);
 
   const totalStep3 = grpBiz + grpMkt + grpLog + grpCS + grpFin;
 
-  const fundBiz = (
-    v_biz_1 * (Number(s3_biz_1_inc) || 0) +
-    v_biz_2 * (Number(s3_biz_2_inc) || 0) +
-    v_biz_3 * (Number(s3_biz_3_inc) || 0) +
-    v_biz_4 * (Number(s3_biz_4_inc) || 0) +
-    v_biz_5 * (Number(s3_biz_5_inc) || 0) +
-    v_biz_6 * (Number(s3_biz_6_inc) || 0)
-  ) * 12;
-
-  const fundMkt = (
-    v_mkt_1 * (Number(s3_mkt_1_inc) || 0) +
-    v_mkt_2 * (Number(s3_mkt_2_inc) || 0) +
-    v_mkt_3 * (Number(s3_mkt_3_inc) || 0) +
-    v_mkt_4 * (Number(s3_mkt_4_inc) || 0) +
-    v_mkt_5 * (Number(s3_mkt_5_inc) || 0)
-  ) * 12;
-
-  const fundLog = (
-    v_log_1 * (Number(s3_log_1_inc) || 0) +
-    v_log_2 * (Number(s3_log_2_inc) || 0) +
-    v_log_3 * (Number(s3_log_3_inc) || 0)
-  ) * 12;
-
-  const fundCS = (
-    v_cs_1 * (Number(s3_cs_1_inc) || 0) +
-    v_cs_2 * (Number(s3_cs_2_inc) || 0) +
-    v_cs_3 * (Number(s3_cs_3_inc) || 0)
-  ) * 12;
-
-  const fundFin = (
-    v_fin_1 * (Number(s3_fin_1_inc) || 0) +
-    v_fin_2 * (Number(s3_fin_2_inc) || 0) +
-    v_fin_3 * (Number(s3_fin_3_inc) || 0) +
-    v_fin_4 * (Number(s3_fin_4_inc) || 0)
-  ) * 12;
+  const fundBiz = calcStaffFund(bizStaff);
+  const fundMkt = calcStaffFund(mktStaff);
+  const fundLog = calcStaffFund(logStaff);
+  const fundCS = calcStaffFund(csStaff);
+  const fundFin = calcStaffFund(finStaff);
 
   const limitBiz = s2_calcByRev ? Math.round(totalRevenue * (Number(c_biz_salary_pct) || 0) / 100) : (Number(c_biz_salary) || 0);
   const limitMkt = s2_calcByRev ? Math.round(totalRevenue * (Number(c_mkt_events_pct) || 0) / 100) : (Number(c_mkt_events) || 0);
@@ -940,9 +919,9 @@ export default function BoardYearlyPlanPage() {
 
   // --- Step 4 calculations promoted to component top level ---
   const valGrossRevenue = totalRevenue;
-  const valDeductions = Math.round(valGrossRevenue * 0.15) + Math.round(valGrossRevenue * 0.02);
+  const valDeductions = Math.round(valGrossRevenue * (Number(revenueDeductionPercent) || 0) / 100);
   const valNetRevenue = valGrossRevenue - valDeductions;
-  const valCOGS = Math.round(valNetRevenue * 0.47);
+  const valCOGS = Math.round(valNetRevenue * (Number(cogsPercent) || 0) / 100);
   const valGrossProfit = valNetRevenue - valCOGS;
   const valFinRevenue = Number(s4_finRevenue) || 0;
   const valFinCost = Number(s4_finCost) || 0;
@@ -1006,12 +985,18 @@ export default function BoardYearlyPlanPage() {
 
           if (state.costSales !== undefined) setCostSales(state.costSales);
           if (state.costMarketing !== undefined) setCostMarketing(state.costMarketing);
+          if (state.costFinanceHR !== undefined) setCostFinanceHR(state.costFinanceHR);
+          if (state.costLogistics !== undefined) setCostLogistics(state.costLogistics);
           if (state.costOperations !== undefined) setCostOperations(state.costOperations);
 
           if (state.isCalculateByRevenue !== undefined) setIsCalculateByRevenue(state.isCalculateByRevenue);
           if (state.costSalesPercent !== undefined) setCostSalesPercent(state.costSalesPercent);
           if (state.costMarketingPercent !== undefined) setCostMarketingPercent(state.costMarketingPercent);
+          if (state.costFinanceHRPercent !== undefined) setCostFinanceHRPercent(state.costFinanceHRPercent);
+          if (state.costLogisticsPercent !== undefined) setCostLogisticsPercent(state.costLogisticsPercent);
           if (state.costOperationsPercent !== undefined) setCostOperationsPercent(state.costOperationsPercent);
+          setRevenueDeductionPercent(state.revenueDeductionPercent ?? "17");
+          setCogsPercent(state.cogsPercent ?? "47");
           if (state.staffSales !== undefined) setStaffSales(state.staffSales);
           if (state.staffMarketing !== undefined) setStaffMarketing(state.staffMarketing);
           if (state.staffLogistics !== undefined) setStaffLogistics(state.staffLogistics);
@@ -1040,6 +1025,34 @@ export default function BoardYearlyPlanPage() {
               { id: "mkt_1", label: "Chi phí Branding", val: state.c_mkt_ads || "4000000000", pctVal: state.c_mkt_ads_pct || "8", checked: false },
               { id: "mkt_2", label: "Lương và thưởng hiệu suất", val: state.c_mkt_events || "3000000000", pctVal: state.c_mkt_events_pct || "6", checked: false },
               { id: "mkt_3", label: "Công tác phí", val: state.c_mkt_print || "3000000000", pctVal: state.c_mkt_print_pct || "6", checked: false },
+              { id: "mkt_4", label: "Chi phí bảo hiểm", val: state.c_mkt_insurance || "0", pctVal: state.c_mkt_insurance_pct || "0", checked: false },
+            ]);
+          }
+
+          if (state.finCosts !== undefined) {
+            setFinCosts(state.finCosts);
+          } else {
+            setFinCosts([
+              { id: "fin_1", label: "Lương nhân viên", val: "3000000000", pctVal: "1.5", checked: false },
+              { id: "fin_2", label: "Bảo hiểm", val: "500000000", pctVal: "0.5", checked: false },
+            ]);
+          }
+
+          if (state.finCosts !== undefined) {
+            setFinCosts(state.finCosts);
+          } else {
+            setFinCosts([
+              { id: "fin_1", label: "Lương nhân viên", val: "3000000000", pctVal: "1.5", checked: false },
+              { id: "fin_2", label: "Bảo hiểm", val: "500000000", pctVal: "0.5", checked: false },
+            ]);
+          }
+
+          if (state.logCosts !== undefined) {
+            setLogCosts(state.logCosts);
+          } else {
+            setLogCosts([
+              { id: "log_1", label: "Lương nhân viên", val: "2000000000", pctVal: "1.5", checked: false },
+              { id: "log_2", label: "Bảo hiểm", val: "500000000", pctVal: "0.5", checked: false },
             ]);
           }
 
@@ -1047,16 +1060,18 @@ export default function BoardYearlyPlanPage() {
             setOpsCosts(state.opsCosts);
           } else {
             setOpsCosts([
-              { id: "ops_1", label: "Lương và thưởng của bộ phận kho", val: state.c_ops_salary || "2000000000", pctVal: state.c_ops_salary_pct || "4", checked: false },
-              { id: "ops_2", label: "Thuê kho bãi", val: state.c_ops_rent || "3000000000", pctVal: state.c_ops_rent_pct || "6", checked: false },
-              { id: "ops_3", label: "Điện nước", val: state.c_ops_utilities || "1000000000", pctVal: state.c_ops_utilities_pct || "2", checked: false },
-              { id: "ops_4", label: "Văn phòng phẩm và phúc lợi", val: state.c_ops_supplies || "500000000", pctVal: state.c_ops_supplies_pct || "1", checked: false },
-              { id: "ops_5", label: "Khấu hao", val: state.c_ops_depr || "1500000000", pctVal: state.c_ops_depr_pct || "3", checked: false },
-              { id: "ops_6", label: "Tuyển dụng và đào tạo", val: state.c_ops_recruit || "200000000", pctVal: state.c_ops_recruit_pct || "0.4", checked: false },
-              { id: "ops_7", label: "Chăm sóc khách hàng", val: state.c_ops_cs || "500000000", pctVal: state.c_ops_cs_pct || "1", checked: false },
-              { id: "ops_8", label: "Vận chuyển và hậu cần", val: state.c_ops_logistics || "800000000", pctVal: state.c_ops_logistics_pct || "1.6", checked: false },
-              { id: "ops_9", label: "Chi phí giảm giá hàng tồn kho", val: state.c_ops_inv_writeoff || "300000000", pctVal: state.c_ops_inv_writeoff_pct || "0.6", checked: false },
-              { id: "ops_10", label: "Chi phí rủi ro nợ khó đòi", val: state.c_ops_bad_debt || "200000000", pctVal: state.c_ops_bad_debt_pct || "0.4", checked: false },
+              { id: "ops_1", label: "Thuê kho bãi và showroom", val: state.c_ops_salary || "2000000000", pctVal: state.c_ops_salary_pct || "4", checked: false },
+              { id: "ops_2", label: "Chi phí điện nước", val: state.c_ops_rent || "1000000000", pctVal: state.c_ops_rent_pct || "2", checked: false },
+              { id: "ops_3", label: "Văn phòng phẩm", val: state.c_ops_utilities || "500000000", pctVal: state.c_ops_utilities_pct || "1", checked: false },
+              { id: "ops_4", label: "Thưởng lễ tết, du lịch", val: state.c_ops_supplies || "1000000000", pctVal: state.c_ops_supplies_pct || "2", checked: false },
+              { id: "ops_5", label: "Khấu hao công cụ, dụng cụ và chi phí trả trước", val: state.c_ops_depr || "500000000", pctVal: state.c_ops_depr_pct || "1", checked: false },
+              { id: "ops_6", label: "Khấu hao công cụ, dụng cụ tại đại lý", val: state.c_ops_recruit || "500000000", pctVal: state.c_ops_recruit_pct || "1", checked: false },
+              { id: "ops_7", label: "Khấu hao tài sản cố định", val: state.c_ops_cs || "500000000", pctVal: state.c_ops_cs_pct || "1", checked: false },
+              { id: "ops_8", label: "Lãi vay", val: state.c_ops_logistics || "500000000", pctVal: state.c_ops_logistics_pct || "1", checked: false },
+              { id: "ops_9", label: "Chi phí tuyển dụng, đào tạo", val: state.c_ops_inv_writeoff || "200000000", pctVal: state.c_ops_inv_writeoff_pct || "0.4", checked: false },
+              { id: "ops_10", label: "Chi phí vận chuyển, hậu cần", val: state.c_ops_bad_debt || "800000000", pctVal: state.c_ops_bad_debt_pct || "1.6", checked: false },
+              { id: "ops_11", label: "Chi phí giảm giá hàng tồn kho", val: "300000000", pctVal: "0.6", checked: false },
+              { id: "ops_12", label: "Chi phí rủi ro nợ khó đòi", val: "200000000", pctVal: "0.4", checked: false },
             ]);
           }
 
@@ -1133,19 +1148,25 @@ export default function BoardYearlyPlanPage() {
           if (state.s4_otherCost !== undefined) set_s4_otherCost(state.s4_otherCost);
         } else {
           // Reset states to default values if plan not found in DB
-          setRevenueAgent("20000000000");
-          setRevenueAgentDev("10000000000");
-          setRevenueTraditional("15000000000");
-          setRevenueEcommerce("5000000000");
+          setRevenueAgent("0");
+          setRevenueAgentDev("0");
+          setRevenueTraditional("0");
+          setRevenueEcommerce("0");
 
-          setCostSales("15000000000");
-          setCostMarketing("10000000000");
-          setCostOperations("10000000000");
+          setCostSales("0");
+          setCostMarketing("0");
+          setCostFinanceHR("0");
+          setCostLogistics("0");
+          setCostOperations("0");
 
           setIsCalculateByRevenue(false);
           setCostSalesPercent("30");
           setCostMarketingPercent("20");
+          setCostFinanceHRPercent("4");
+          setCostLogisticsPercent("6");
           setCostOperationsPercent("20");
+          setRevenueDeductionPercent("17");
+          setCogsPercent("47");
 
           setStaffSales("40");
           setStaffMarketing("20");
@@ -1168,19 +1189,27 @@ export default function BoardYearlyPlanPage() {
             { id: "mkt_1", label: "Chi phí Branding", val: "4000000000", pctVal: "8", checked: false },
             { id: "mkt_2", label: "Lương và thưởng hiệu suất", val: "3000000000", pctVal: "6", checked: false },
             { id: "mkt_3", label: "Công tác phí", val: "3000000000", pctVal: "6", checked: false },
+            { id: "mkt_4", label: "Chi phí bảo hiểm", val: "0", pctVal: "0", checked: false },
+          ]);
+
+          setLogCosts([
+            { id: "log_1", label: "Lương nhân viên", val: "2000000000", pctVal: "1.5", checked: false },
+            { id: "log_2", label: "Bảo hiểm", val: "500000000", pctVal: "0.5", checked: false },
           ]);
 
           setOpsCosts([
-            { id: "ops_1", label: "Lương và thưởng của bộ phận kho", val: "2000000000", pctVal: "4", checked: false },
-            { id: "ops_2", label: "Thuê kho bãi", val: "3000000000", pctVal: "6", checked: false },
-            { id: "ops_3", label: "Điện nước", val: "1000000000", pctVal: "2", checked: false },
-            { id: "ops_4", label: "Văn phòng phẩm và phúc lợi", val: "500000000", pctVal: "1", checked: false },
-            { id: "ops_5", label: "Khấu hao", val: "1500000000", pctVal: "3", checked: false },
-            { id: "ops_6", label: "Tuyển dụng và đào tạo", val: "200000000", pctVal: "0.4", checked: false },
-            { id: "ops_7", label: "Chăm sóc khách hàng", val: "500000000", pctVal: "1", checked: false },
-            { id: "ops_8", label: "Vận chuyển và hậu cần", val: "800000000", pctVal: "1.6", checked: false },
-            { id: "ops_9", label: "Chi phí giảm giá hàng tồn kho", val: "300000000", pctVal: "0.6", checked: false },
-            { id: "ops_10", label: "Chi phí rủi ro nợ khó đòi", val: "200000000", pctVal: "0.4", checked: false },
+            { id: "ops_1", label: "Thuê kho bãi và showroom", val: "2000000000", pctVal: "4", checked: false },
+            { id: "ops_2", label: "Chi phí điện nước", val: "1000000000", pctVal: "2", checked: false },
+            { id: "ops_3", label: "Văn phòng phẩm", val: "500000000", pctVal: "1", checked: false },
+            { id: "ops_4", label: "Thưởng lễ tết, du lịch", val: "1000000000", pctVal: "2", checked: false },
+            { id: "ops_5", label: "Khấu hao công cụ, dụng cụ và chi phí trả trước", val: "500000000", pctVal: "1", checked: false },
+            { id: "ops_6", label: "Khấu hao công cụ, dụng cụ tại đại lý", val: "500000000", pctVal: "1", checked: false },
+            { id: "ops_7", label: "Khấu hao tài sản cố định", val: "500000000", pctVal: "1", checked: false },
+            { id: "ops_8", label: "Lãi vay", val: "500000000", pctVal: "1", checked: false },
+            { id: "ops_9", label: "Chi phí tuyển dụng, đào tạo", val: "200000000", pctVal: "0.4", checked: false },
+            { id: "ops_10", label: "Chi phí vận chuyển, hậu cần", val: "800000000", pctVal: "1.6", checked: false },
+            { id: "ops_11", label: "Chi phí giảm giá hàng tồn kho", val: "300000000", pctVal: "0.6", checked: false },
+            { id: "ops_12", label: "Chi phí rủi ro nợ khó đòi", val: "200000000", pctVal: "0.4", checked: false },
           ]);
 
           setMiscCosts([
@@ -1262,19 +1291,19 @@ export default function BoardYearlyPlanPage() {
     const planObj = {
       // Step 1
       revenueAgent, revenueAgentDev, revenueTraditional, revenueEcommerce,
-      costSales, costMarketing, costOperations,
-      isCalculateByRevenue, costSalesPercent, costMarketingPercent, costOperationsPercent,
+      costSales, costMarketing, costFinanceHR, costLogistics, costOperations,
+      isCalculateByRevenue, costSalesPercent, costMarketingPercent, costFinanceHRPercent, costLogisticsPercent, costOperationsPercent, revenueDeductionPercent, cogsPercent,
       staffSales, staffMarketing, staffLogistics, staffCustomerService, staffFinanceHR,
       // Step 2
       s2_calcByRev,
       c_biz_agentopen, c_biz_salary, c_biz_insurance, c_biz_bonus, c_biz_travel, c_biz_promo,
       c_biz_agentopen_pct, c_biz_salary_pct, c_biz_insurance_pct, c_biz_bonus_pct, c_biz_travel_pct, c_biz_promo_pct,
-      c_mkt_ads, c_mkt_events, c_mkt_print,
-      c_mkt_ads_pct, c_mkt_events_pct, c_mkt_print_pct,
+      c_mkt_ads, c_mkt_events, c_mkt_print, c_mkt_insurance,
+      c_mkt_ads_pct, c_mkt_events_pct, c_mkt_print_pct, c_mkt_insurance_pct,
       c_ops_salary, c_ops_rent, c_ops_utilities, c_ops_supplies, c_ops_depr, c_ops_recruit, c_ops_cs, c_ops_logistics, c_ops_inv_writeoff, c_ops_bad_debt,
       c_ops_salary_pct, c_ops_rent_pct, c_ops_utilities_pct, c_ops_supplies_pct, c_ops_depr_pct, c_ops_recruit_pct, c_ops_cs_pct, c_ops_logistics_pct, c_ops_inv_writeoff_pct, c_ops_bad_debt_pct,
       c_misc, c_misc_pct, c_fin_salary, c_fin_salary_pct,
-      bizCosts, mktCosts, opsCosts, miscCosts,
+      bizCosts, mktCosts, finCosts, logCosts, opsCosts, miscCosts,
       bizStaff, mktStaff, logStaff, csStaff, finStaff,
       // Step 3
       s3_biz_1, s3_biz_2, s3_biz_3, s3_biz_4, s3_biz_5, s3_biz_6,
@@ -1325,6 +1354,79 @@ export default function BoardYearlyPlanPage() {
     return Number(val).toLocaleString("vi-VN");
   };
 
+  const handleToggleStep1CalcByRev = (checked: boolean) => {
+    if (totalRevenue > 0) {
+      if (checked) {
+        // VND to %
+        setCostSalesPercent(Number(((Number(costSales) || 0) / totalRevenue * 100).toFixed(2)).toString());
+        setCostMarketingPercent(Number(((Number(costMarketing) || 0) / totalRevenue * 100).toFixed(2)).toString());
+        setCostFinanceHRPercent(Number(((Number(costFinanceHR) || 0) / totalRevenue * 100).toFixed(2)).toString());
+        setCostLogisticsPercent(Number(((Number(costLogistics) || 0) / totalRevenue * 100).toFixed(2)).toString());
+        setCostOperationsPercent(Number(((Number(costOperations) || 0) / totalRevenue * 100).toFixed(2)).toString());
+      } else {
+        // % to VND
+        setCostSales(Math.round(totalRevenue * (Number(costSalesPercent) || 0) / 100).toString());
+        setCostMarketing(Math.round(totalRevenue * (Number(costMarketingPercent) || 0) / 100).toString());
+        setCostFinanceHR(Math.round(totalRevenue * (Number(costFinanceHRPercent) || 0) / 100).toString());
+        setCostLogistics(Math.round(totalRevenue * (Number(costLogisticsPercent) || 0) / 100).toString());
+        setCostOperations(Math.round(totalRevenue * (Number(costOperationsPercent) || 0) / 100).toString());
+      }
+    }
+    setIsCalculateByRevenue(checked);
+  };
+
+  const handleToggleStep2CalcByRev = (checked: boolean) => {
+    if (totalRevenue > 0) {
+      const convertCosts = (costs: CustomCostItem[]) => {
+        return costs.map(item => {
+          if (checked) {
+            // VND to %
+            const pct = Number(((Number(item.val) || 0) / totalRevenue * 100).toFixed(2)).toString();
+            return { ...item, pctVal: pct };
+          } else {
+            // % to VND
+            const val = Math.round(totalRevenue * (Number(item.pctVal) || 0) / 100).toString();
+            return { ...item, val };
+          }
+        });
+      };
+
+      setBizCosts(prev => convertCosts(prev));
+      setMktCosts(prev => convertCosts(prev));
+      setFinCosts(prev => convertCosts(prev));
+      setLogCosts(prev => convertCosts(prev));
+      setOpsCosts(prev => convertCosts(prev));
+      setMiscCosts(prev => convertCosts(prev));
+    }
+    setS2_calcByRev(checked);
+  };
+
+  const handlePercentKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const inputs = Array.from(document.querySelectorAll('.percent-input-field:not(:disabled)')) as HTMLInputElement[];
+      const index = inputs.indexOf(e.currentTarget);
+      if (index > -1) {
+        const nextIndex = (index + 1) % inputs.length;
+        inputs[nextIndex].focus();
+        inputs[nextIndex].select();
+      }
+    }
+  };
+
+  const handleMoneyKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const inputs = Array.from(document.querySelectorAll('.money-input-field:not(:disabled)')) as HTMLInputElement[];
+      const index = inputs.indexOf(e.currentTarget);
+      if (index > -1) {
+        const nextIndex = (index + 1) % inputs.length;
+        inputs[nextIndex].focus();
+        inputs[nextIndex].select();
+      }
+    }
+  };
+
   return (
     <StandardPage
       title="Lập kế hoạch tổng thể năm"
@@ -1333,412 +1435,311 @@ export default function BoardYearlyPlanPage() {
       color="violet"
       useCard={false}
     >
-      <WorkflowCard
+
+      {activeTab === "seajong" && (
+        <WorkflowCard
         stepper={
-          <ModernStepper
-            steps={steps}
-            currentStep={currentStep}
-            onStepChange={setCurrentStep}
-            paddingX={0}
-            paddingY={12}
-          />
+          <div className="d-flex flex-column">
+            <div>
+              <ModernStepper
+                steps={steps}
+                currentStep={currentStep}
+                onStepChange={setCurrentStep}
+                paddingX={0}
+                paddingY={12}
+              />
+            </div>
+            <div className="d-flex flex-column flex-xl-row align-items-start align-items-xl-center justify-content-between p-0 m-0 bg-light gap-3 gap-xl-0 overflow-hidden">
+              <div className="d-flex align-items-center gap-2 mt-1">
+                <button
+                  type="button"
+                  className="btn btn-sm px-3 fw-bold transition-all btn-primary shadow-sm"
+                  onClick={() => setActiveTab("seajong")}
+                  style={{ borderRadius: 6, padding: "2px 10px", fontSize: 12 }}
+                >
+                  SEAJONG
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm px-3 fw-bold transition-all btn-outline-secondary"
+                  onClick={() => setActiveTab("oem")}
+                  style={{ borderRadius: 6, padding: "2px 10px", fontSize: 12 }}
+                >
+                  OEM
+                </button>
+              </div>
+
+              <div className="d-flex flex-wrap align-items-center row-gap-1 column-gap-3 pb-1 pb-xl-0" style={{ fontSize: 13 }}>
+                <div className="d-flex flex-wrap align-items-center gap-1 transition-all">
+                  <span className="fw-bold text-dark text-nowrap">SEAJONG:</span>
+                  <span className="text-muted text-nowrap">Lợi nhuận</span>
+                  <span className="fw-bold text-success text-nowrap">{valOperatingProfit.toLocaleString("vi-VN")} đ</span>
+                  <span className="text-muted d-none d-md-inline">-</span>
+                  <span className="text-muted text-nowrap">Biên lợi nhuận hoạt động</span>
+                  <span className="fw-bold text-primary text-nowrap">{operatingProfitMargin.toFixed(1)}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
         }
       >
         {currentStep === 1 ? (
-          /* STEP 1: CHỈ TIÊU CƠ BẢN */
-          <div className="container-fluid px-3 pb-3">
-            <div className="row g-4">
+            /* STEP 1: CHỈ TIÊU CƠ BẢN */
+            <div className="container-fluid px-3 pb-3">
+              <div className="row g-4">
 
-              {/* Column 1: Năm kế hoạch */}
-              <div className="col-12 col-lg-4">
-                <div className="card h-100 border rounded-4 overflow-hidden">
-                  <div className="card-header bg-light border-bottom p-3">
-                    <SectionTitle title="Năm kế hoạch" icon="bi-calendar3" className="mb-0" />
-                  </div>
-                  <div className="card-body p-3 d-flex flex-column gap-3">
-                    <div>
-                      <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Chọn năm lập kế hoạch</label>
-                      <div className="d-flex align-items-center gap-1" style={{ height: 38 }}>
-                        <select
-                          className="form-select fw-bold flex-grow-1 h-100"
-                          value={year}
-                          onChange={(e) => setYear(Number(e.target.value))}
-                          style={{ fontSize: 14 }}
-                        >
-                          <option value={2025}>Năm 2025</option>
-                          <option value={2026}>Năm 2026</option>
-                          <option value={2027}>Năm 2027</option>
-                        </select>
-                        <button
-                          type="button"
-                          title="Lưu kế hoạch"
-                          onClick={handleSavePlan}
-                          style={{
-                            flexShrink: 0,
-                            width: 36, height: 38,
-                            border: "1px solid #dee2e6",
-                            borderRadius: 8,
-                            background: "#fff",
-                            color: "#0d6efd",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            cursor: "pointer",
-                            transition: "background 0.15s, border-color 0.15s",
-                            fontSize: 15,
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = "#e7f1ff"; e.currentTarget.style.borderColor = "#0d6efd"; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#dee2e6"; }}
-                        >
-                          <i className="bi bi-floppy" />
-                        </button>
-                        <button
-                          type="button"
-                          title="In kế hoạch"
-                          onClick={() => setIsPrintOpen(true)}
-                          style={{
-                            flexShrink: 0,
-                            width: 36, height: 38,
-                            border: "1px solid #dee2e6",
-                            borderRadius: 8,
-                            background: "#fff",
-                            color: "#6c757d",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            cursor: "pointer",
-                            transition: "background 0.15s, border-color 0.15s, color 0.15s",
-                            fontSize: 15,
-                            marginRight: 6
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = "#f0f0f0"; e.currentTarget.style.borderColor = "#adb5bd"; e.currentTarget.style.color = "#343a40"; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#dee2e6"; e.currentTarget.style.color = "#6c757d"; }}
-                        >
-                          <i className="bi bi-printer" />
-                        </button>
-                        <button
-                          type="button"
-                          title="Phân tích AI"
-                          onClick={() => handleAiAnalysis()}
-                          style={{
-                            flexShrink: 0,
-                            width: 36, height: 38,
-                            border: "1px solid #6d28d9",
-                            borderRadius: 8,
-                            background: "#6d28d9",
-                            color: "#fff",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            cursor: "pointer",
-                            transition: "all 0.15s ease",
-                            fontSize: 15,
-                            boxShadow: "0 4px 6px -1px rgba(109, 40, 217, 0.2)"
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = "#5b21b6"; e.currentTarget.style.borderColor = "#5b21b6"; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = "#6d28d9"; e.currentTarget.style.borderColor = "#6d28d9"; }}
-                        >
-                          <i className="bi bi-cpu-fill" />
-                        </button>
+                {/* Column 1: Năm kế hoạch */}
+                <div className="col-12 col-lg-4">
+                  <div className="card h-100 border rounded-4 overflow-hidden">
+                    <div className="card-header bg-light border-bottom p-3">
+                      <SectionTitle title="Năm kế hoạch" icon="bi-calendar3" className="mb-0" />
+                    </div>
+                    <div className="card-body p-3 d-flex flex-column gap-3">
+                      <div>
+                        <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Chọn năm lập kế hoạch</label>
+                        <div className="d-flex align-items-center gap-1" style={{ height: 38 }}>
+                          <select
+                            className="form-select fw-bold flex-grow-1 h-100"
+                            value={year}
+                            onChange={(e) => setYear(Number(e.target.value))}
+                            style={{ fontSize: 14 }}
+                          >
+                            <option value={2025}>Năm 2025</option>
+                            <option value={2026}>Năm 2026</option>
+                            <option value={2027}>Năm 2027</option>
+                          </select>
+                          <button
+                            type="button"
+                            title="Lưu kế hoạch"
+                            onClick={handleSavePlan}
+                            style={{
+                              flexShrink: 0,
+                              width: 36, height: 38,
+                              border: "1px solid #dee2e6",
+                              borderRadius: 8,
+                              background: "#fff",
+                              color: "#0d6efd",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              cursor: "pointer",
+                              transition: "background 0.15s, border-color 0.15s",
+                              fontSize: 15,
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = "#e7f1ff"; e.currentTarget.style.borderColor = "#0d6efd"; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#dee2e6"; }}
+                          >
+                            <i className="bi bi-floppy" />
+                          </button>
+                          <button
+                            type="button"
+                            title="In kế hoạch"
+                            onClick={() => setIsPrintOpen(true)}
+                            style={{
+                              flexShrink: 0,
+                              width: 36, height: 38,
+                              border: "1px solid #dee2e6",
+                              borderRadius: 8,
+                              background: "#fff",
+                              color: "#6c757d",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              cursor: "pointer",
+                              transition: "background 0.15s, border-color 0.15s, color 0.15s",
+                              fontSize: 15,
+                              marginRight: 6
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = "#f0f0f0"; e.currentTarget.style.borderColor = "#adb5bd"; e.currentTarget.style.color = "#343a40"; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#dee2e6"; e.currentTarget.style.color = "#6c757d"; }}
+                          >
+                            <i className="bi bi-printer" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Phân tích AI"
+                            onClick={() => handleAiAnalysis()}
+                            style={{
+                              flexShrink: 0,
+                              width: 36, height: 38,
+                              border: "1px solid #6d28d9",
+                              borderRadius: 8,
+                              background: "#6d28d9",
+                              color: "#fff",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
+                              fontSize: 15,
+                              boxShadow: "0 4px 6px -1px rgba(109, 40, 217, 0.2)"
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = "#5b21b6"; e.currentTarget.style.borderColor = "#5b21b6"; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "#6d28d9"; e.currentTarget.style.borderColor = "#6d28d9"; }}
+                          >
+                            <i className="bi bi-cpu-fill" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="d-flex flex-column gap-2">
+
+                        {/* Tổng Lợi Nhuận */}
+                        <div className="py-2 px-3 rounded-3" style={{
+                          backgroundColor: valTotalProfit >= 0 ? "rgba(16, 185, 129, 0.05)" : "rgba(239, 68, 68, 0.05)",
+                          border: valTotalProfit >= 0 ? "1px solid rgba(16, 185, 129, 0.15)" : "1px solid rgba(239, 68, 68, 0.15)"
+                        }}>
+                          <label className="fw-extrabold mb-1" style={{
+                            fontSize: 11.5,
+                            letterSpacing: "0.03em",
+                            fontWeight: 800,
+                            color: valTotalProfit >= 0 ? "#10b981" : "#ef4444"
+                          }}>TỔNG LỢI NHUẬN</label>
+                          <h4 className="fw-black mb-0" style={{
+                            fontWeight: 900,
+                            color: valTotalProfit >= 0 ? "#10b981" : "#ef4444",
+                            fontSize: 20
+                          }}>
+                            {valTotalProfit.toLocaleString("vi-VN")} <span style={{ fontSize: 14, fontWeight: 700 }}>đ</span>
+                          </h4>
+                        </div>
+
+                        {/* Biên Lợi Nhuận */}
+                        <div className="py-2 px-3 rounded-3" style={{
+                          backgroundColor: "rgba(59, 130, 246, 0.05)",
+                          border: "1px solid rgba(59, 130, 246, 0.15)"
+                        }}>
+                          <label className="fw-extrabold mb-1" style={{
+                            fontSize: 11.5,
+                            letterSpacing: "0.03em",
+                            fontWeight: 800,
+                            color: "#3b82f6"
+                          }}>BIÊN LỢI NHUẬN GỐP</label>
+                          <h4 className="fw-black mb-0" style={{
+                            fontWeight: 900,
+                            color: "#3b82f6",
+                            fontSize: 20
+                          }}>
+                            {grossProfitMargin.toFixed(1)} <span style={{ fontSize: 14, fontWeight: 700 }}>%</span>
+                          </h4>
+                        </div>
+
+                        {/* Biên Lợi Nhuận Hoạt Động */}
+                        <div className="py-2 px-3 rounded-3" style={{
+                          backgroundColor: "rgba(139, 92, 246, 0.05)",
+                          border: "1px solid rgba(139, 92, 246, 0.15)"
+                        }}>
+                          <label className="fw-extrabold mb-1" style={{
+                            fontSize: 11.5,
+                            letterSpacing: "0.03em",
+                            fontWeight: 800,
+                            color: "#8b5cf6"
+                          }}>BIÊN LỢI NHUẬN HOẠT ĐỘNG</label>
+                          <h4 className="fw-black mb-0" style={{
+                            fontWeight: 900,
+                            color: "#8b5cf6",
+                            fontSize: 20
+                          }}>
+                            {operatingProfitMargin.toFixed(1)} <span style={{ fontSize: 14, fontWeight: 700 }}>%</span>
+                          </h4>
+                        </div>
+
                       </div>
                     </div>
+                  </div>
+                </div>
 
-                    <hr className="my-1 opacity-50" />
+                {/* Column 2: Doanh Thu */}
+                <div className="col-12 col-lg-4">
+                  <div className="card h-100 border rounded-4 overflow-hidden">
+                    <div className="card-header bg-light border-bottom p-3">
+                      <SectionTitle title="Chỉ tiêu Doanh thu" icon="bi-graph-up" className="mb-0" />
+                    </div>
 
-                    <div className="d-flex flex-column gap-3">
-
-                      {/* Tổng Lợi Nhuận */}
-                      <div className="p-3 rounded-3" style={{
-                        backgroundColor: valTotalProfit >= 0 ? "rgba(16, 185, 129, 0.05)" : "rgba(239, 68, 68, 0.05)",
-                        border: valTotalProfit >= 0 ? "1px solid rgba(16, 185, 129, 0.15)" : "1px solid rgba(239, 68, 68, 0.15)"
-                      }}>
-                        <label className="fw-extrabold mb-1" style={{
-                          fontSize: 11,
-                          letterSpacing: "0.03em",
-                          fontWeight: 800,
-                          color: valTotalProfit >= 0 ? "#10b981" : "#ef4444"
-                        }}>TỔNG LỢI NHUẬN</label>
-                        <h4 className="fw-black mb-0" style={{
-                          fontWeight: 900,
-                          color: valTotalProfit >= 0 ? "#10b981" : "#ef4444"
-                        }}>
-                          {valTotalProfit.toLocaleString("vi-VN")} <span style={{ fontSize: 16, fontWeight: 700 }}>đ</span>
+                    <div className="card-body p-3 d-flex flex-column gap-3">
+                      {/* Tổng Doanh Thu */}
+                      <div className="py-2 px-3 rounded-3" style={{ backgroundColor: "rgba(0, 0, 139, 0.05)", border: "1px solid rgba(0, 0, 139, 0.15)" }}>
+                        <label className="fw-extrabold mb-1" style={{ fontSize: 11.5, letterSpacing: "0.03em", fontWeight: 800, color: "darkblue" }}>TỔNG DOANH THU</label>
+                        <h4 className="fw-black mb-0" style={{ fontWeight: 900, color: "darkblue", fontSize: 20 }}>
+                          {totalRevenue.toLocaleString("vi-VN")} <span style={{ fontSize: 14, fontWeight: 700, color: "darkblue" }}>đ</span>
                         </h4>
                       </div>
 
-                      {/* Biên Lợi Nhuận */}
-                      <div className="p-3 rounded-3" style={{
-                        backgroundColor: "rgba(59, 130, 246, 0.05)",
-                        border: "1px solid rgba(59, 130, 246, 0.15)"
-                      }}>
-                        <label className="fw-extrabold mb-1" style={{
-                          fontSize: 11,
-                          letterSpacing: "0.03em",
-                          fontWeight: 800,
-                          color: "#3b82f6"
-                        }}>BIÊN LỢI NHUẬN GỐP</label>
-                        <h4 className="fw-black mb-0" style={{
-                          fontWeight: 900,
-                          color: "#3b82f6"
-                        }}>
-                          {grossProfitMargin.toFixed(1)} <span style={{ fontSize: 16, fontWeight: 700 }}>%</span>
-                        </h4>
+                      {/* Doanh thu từ đại lý */}
+                      <div>
+                        <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Doanh thu từ đại lý</label>
+                        <div className="input-group input-group-sm">
+                          <input
+                            type="text"
+                            className="form-control fw-bold money-input-field"
+                            value={formatVNDInput(revenueAgent)}
+                            onChange={handleNumericChange(setRevenueAgent)}
+                            onKeyDown={handleMoneyKeyDown}
+                          />
+                          <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                          <span className="input-group-text bg-light text-primary fw-bold" style={{ minWidth: 65, justifyContent: "center" }}>
+                            {totalRevenue > 0 ? ((Number(revenueAgent) || 0) / totalRevenue * 100).toFixed(1) : "0.0"}%
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Biên Lợi Nhuận Hoạt Động */}
-                      <div className="p-3 rounded-3" style={{
-                        backgroundColor: "rgba(139, 92, 246, 0.05)",
-                        border: "1px solid rgba(139, 92, 246, 0.15)"
-                      }}>
-                        <label className="fw-extrabold mb-1" style={{
-                          fontSize: 11,
-                          letterSpacing: "0.03em",
-                          fontWeight: 800,
-                          color: "#8b5cf6"
-                        }}>BIÊN LỢI NHUẬN HOẠT ĐỘNG</label>
-                        <h4 className="fw-black mb-0" style={{
-                          fontWeight: 900,
-                          color: "#8b5cf6"
-                        }}>
-                          {operatingProfitMargin.toFixed(1)} <span style={{ fontSize: 16, fontWeight: 700 }}>%</span>
-                        </h4>
+                      {/* Doanh thu từ phát triển đại lý */}
+                      <div>
+                        <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Doanh thu từ phát triển đại lý</label>
+                        <div className="input-group input-group-sm">
+                          <input
+                            type="text"
+                            className="form-control fw-bold money-input-field"
+                            value={formatVNDInput(revenueAgentDev)}
+                            onChange={handleNumericChange(setRevenueAgentDev)}
+                            onKeyDown={handleMoneyKeyDown}
+                          />
+                          <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                          <span className="input-group-text bg-light text-primary fw-bold" style={{ minWidth: 65, justifyContent: "center" }}>
+                            {totalRevenue > 0 ? ((Number(revenueAgentDev) || 0) / totalRevenue * 100).toFixed(1) : "0.0"}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Doanh thu bán hàng truyền thống */}
+                      <div>
+                        <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Doanh thu bán hàng truyền thống</label>
+                        <div className="input-group input-group-sm">
+                          <input
+                            type="text"
+                            className="form-control fw-bold money-input-field"
+                            value={formatVNDInput(revenueTraditional)}
+                            onChange={handleNumericChange(setRevenueTraditional)}
+                            onKeyDown={handleMoneyKeyDown}
+                          />
+                          <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                          <span className="input-group-text bg-light text-primary fw-bold" style={{ minWidth: 65, justifyContent: "center" }}>
+                            {totalRevenue > 0 ? ((Number(revenueTraditional) || 0) / totalRevenue * 100).toFixed(1) : "0.0"}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Doanh thu bán hàng trên sàn thương mại */}
+                      <div>
+                        <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Doanh thu bán hàng trên sàn thương mại</label>
+                        <div className="input-group input-group-sm">
+                          <input
+                            type="text"
+                            className="form-control fw-bold money-input-field"
+                            value={formatVNDInput(revenueEcommerce)}
+                            onChange={handleNumericChange(setRevenueEcommerce)}
+                            onKeyDown={handleMoneyKeyDown}
+                          />
+                          <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                          <span className="input-group-text bg-light text-primary fw-bold" style={{ minWidth: 65, justifyContent: "center" }}>
+                            {totalRevenue > 0 ? ((Number(revenueEcommerce) || 0) / totalRevenue * 100).toFixed(1) : "0.0"}%
+                          </span>
+                        </div>
                       </div>
 
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Column 2: Doanh Thu */}
-              <div className="col-12 col-lg-4">
-                <div className="card h-100 border rounded-4 overflow-hidden">
-                  <div className="card-header bg-light border-bottom p-3">
-                    <SectionTitle title="Chỉ tiêu Doanh thu" icon="bi-graph-up" className="mb-0" />
-                  </div>
-
-                  <div className="card-body p-3 d-flex flex-column gap-3">
-                    {/* Tổng Doanh Thu */}
-                    <div className="p-3 rounded-3" style={{ backgroundColor: "rgba(0, 0, 139, 0.05)", border: "1px solid rgba(0, 0, 139, 0.15)" }}>
-                      <label className="fw-extrabold mb-1" style={{ fontSize: 12, letterSpacing: "0.03em", fontWeight: 800, color: "darkblue" }}>TỔNG DOANH THU</label>
-                      <h4 className="fw-black mb-0" style={{ fontWeight: 900, color: "darkblue" }}>
-                        {totalRevenue.toLocaleString("vi-VN")} <span style={{ fontSize: 16, fontWeight: 700, color: "darkblue" }}>đ</span>
-                      </h4>
-                    </div>
-
-                    {/* Doanh thu từ đại lý */}
-                    <div>
-                      <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Doanh thu từ đại lý</label>
-                      <div className="input-group input-group-sm">
-                        <input
-                          type="text"
-                          className="form-control fw-bold"
-                          value={formatVNDInput(revenueAgent)}
-                          onChange={handleNumericChange(setRevenueAgent)}
-                        />
-                        <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
-                        <span className="input-group-text bg-light text-primary fw-bold" style={{ minWidth: 65, justifyContent: "center" }}>
-                          {totalRevenue > 0 ? ((Number(revenueAgent) || 0) / totalRevenue * 100).toFixed(1) : "0.0"}%
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Doanh thu từ phát triển đại lý */}
-                    <div>
-                      <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Doanh thu từ phát triển đại lý</label>
-                      <div className="input-group input-group-sm">
-                        <input
-                          type="text"
-                          className="form-control fw-bold"
-                          value={formatVNDInput(revenueAgentDev)}
-                          onChange={handleNumericChange(setRevenueAgentDev)}
-                        />
-                        <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
-                        <span className="input-group-text bg-light text-primary fw-bold" style={{ minWidth: 65, justifyContent: "center" }}>
-                          {totalRevenue > 0 ? ((Number(revenueAgentDev) || 0) / totalRevenue * 100).toFixed(1) : "0.0"}%
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Doanh thu bán hàng truyền thống */}
-                    <div>
-                      <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Doanh thu bán hàng truyền thống</label>
-                      <div className="input-group input-group-sm">
-                        <input
-                          type="text"
-                          className="form-control fw-bold"
-                          value={formatVNDInput(revenueTraditional)}
-                          onChange={handleNumericChange(setRevenueTraditional)}
-                        />
-                        <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
-                        <span className="input-group-text bg-light text-primary fw-bold" style={{ minWidth: 65, justifyContent: "center" }}>
-                          {totalRevenue > 0 ? ((Number(revenueTraditional) || 0) / totalRevenue * 100).toFixed(1) : "0.0"}%
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Doanh thu bán hàng trên sàn thương mại */}
-                    <div>
-                      <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Doanh thu bán hàng trên sàn thương mại</label>
-                      <div className="input-group input-group-sm">
-                        <input
-                          type="text"
-                          className="form-control fw-bold"
-                          value={formatVNDInput(revenueEcommerce)}
-                          onChange={handleNumericChange(setRevenueEcommerce)}
-                        />
-                        <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
-                        <span className="input-group-text bg-light text-primary fw-bold" style={{ minWidth: 65, justifyContent: "center" }}>
-                          {totalRevenue > 0 ? ((Number(revenueEcommerce) || 0) / totalRevenue * 100).toFixed(1) : "0.0"}%
-                        </span>
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-              </div>
-
-              {/* Column 3: Chi Phí */}
-              <div className="col-12 col-lg-4">
-                <div className="card h-100 border rounded-4 overflow-hidden">
-                  <div className="card-header bg-light border-bottom p-3">
-                    <SectionTitle title="Định mức Chi phí" icon="bi-cash-coin" className="mb-0" />
-                  </div>
-
-                  <div className="card-body p-3 d-flex flex-column gap-3">
-                    {/* Định Mức Tổng Chi Phí */}
-                    <div className="p-3 rounded-3 bg-danger-subtle/30 border border-danger/20">
-                      <label className="text-danger fw-extrabold mb-1" style={{ fontSize: 12, letterSpacing: "0.03em", fontWeight: 800 }}>ĐỊNH MỨC TỔNG CHI PHÍ</label>
-                      <h4 className="fw-black text-danger mb-0" style={{ fontWeight: 900 }}>
-                        {totalCost.toLocaleString("vi-VN")} <span style={{ fontSize: 16, fontWeight: 700 }}>đ</span>
-                      </h4>
-                    </div>
-
-                    {/* Công tác kinh doanh */}
-                    <div>
-                      <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Công tác kinh doanh</label>
-                      <div className="input-group input-group-sm">
-                        {isCalculateByRevenue ? (
-                          <>
-                            {/* % DT ở đầu */}
-                            <input
-                              type="text"
-                              className="form-control fw-bold text-danger text-center"
-                              style={{ maxWidth: 50 }}
-                              value={costSalesPercent}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(/[^0-9.]/g, "");
-                                setCostSalesPercent(raw);
-                              }}
-                              placeholder="0.0"
-                            />
-                            <span className="input-group-text bg-light text-danger fw-bold" style={{ fontSize: 10, paddingLeft: 6, paddingRight: 4, minWidth: 75, justifyContent: "flex-start" }}>% doanh thu</span>
-
-                            {/* Ô giá trị chi phí bị khóa */}
-                            <input
-                              type="text"
-                              className="form-control fw-bold"
-                              value={formatVNDInput(finalCostSales.toString())}
-                              disabled
-                            />
-                            <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
-                          </>
-                        ) : (
-                          <>
-                            <input
-                              type="text"
-                              className="form-control fw-bold"
-                              value={formatVNDInput(costSales)}
-                              onChange={handleNumericChange(setCostSales)}
-                            />
-                            <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Công tác Marketing */}
-                    <div>
-                      <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Công tác Marketing</label>
-                      <div className="input-group input-group-sm">
-                        {isCalculateByRevenue ? (
-                          <>
-                            {/* % DT ở đầu */}
-                            <input
-                              type="text"
-                              className="form-control fw-bold text-danger text-center"
-                              style={{ maxWidth: 50 }}
-                              value={costMarketingPercent}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(/[^0-9.]/g, "");
-                                setCostMarketingPercent(raw);
-                              }}
-                              placeholder="0.0"
-                            />
-                            <span className="input-group-text bg-light text-danger fw-bold" style={{ fontSize: 10, paddingLeft: 6, paddingRight: 4, minWidth: 75, justifyContent: "flex-start" }}>% doanh thu</span>
-
-                            {/* Ô giá trị chi phí bị khóa */}
-                            <input
-                              type="text"
-                              className="form-control fw-bold"
-                              value={formatVNDInput(finalCostMarketing.toString())}
-                              disabled
-                            />
-                            <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
-                          </>
-                        ) : (
-                          <>
-                            <input
-                              type="text"
-                              className="form-control fw-bold"
-                              value={formatVNDInput(costMarketing)}
-                              onChange={handleNumericChange(setCostMarketing)}
-                            />
-                            <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Công tác vận hành hệ thống */}
-                    <div>
-                      <label className="form-label text-muted fw-semibold mb-1" style={{ fontSize: 12 }}>Công tác vận hành hệ thống</label>
-                      <div className="input-group input-group-sm">
-                        {isCalculateByRevenue ? (
-                          <>
-                            {/* % DT ở đầu */}
-                            <input
-                              type="text"
-                              className="form-control fw-bold text-danger text-center"
-                              style={{ maxWidth: 50 }}
-                              value={costOperationsPercent}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(/[^0-9.]/g, "");
-                                setCostOperationsPercent(raw);
-                              }}
-                              placeholder="0.0"
-                            />
-                            <span className="input-group-text bg-light text-danger fw-bold" style={{ fontSize: 10, paddingLeft: 6, paddingRight: 4, minWidth: 75, justifyContent: "flex-start" }}>% doanh thu</span>
-
-                            {/* Ô giá trị chi phí bị khóa */}
-                            <input
-                              type="text"
-                              className="form-control fw-bold"
-                              value={formatVNDInput(finalCostOperations.toString())}
-                              disabled
-                            />
-                            <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
-                          </>
-                        ) : (
-                          <>
-                            <input
-                              type="text"
-                              className="form-control fw-bold"
-                              value={formatVNDInput(costOperations)}
-                              onChange={handleNumericChange(setCostOperations)}
-                            />
-                            <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <hr className="my-1 opacity-50" />
-
-                    <div className="d-flex align-items-center gap-2 mt-2 px-1">
+                {/* Column 3: Chi Phí */}
+                <div className="col-12 col-lg-4">
+                  <div className="card h-100 border rounded-4 overflow-hidden">
+                    <div className="card-header bg-light border-bottom px-3 d-flex align-items-center justify-content-between" style={{ paddingTop: 10, paddingBottom: 10 }}>
+                      <SectionTitle title="Định mức Chi phí" icon="bi-cash-coin" className="mb-0" />
                       <div className="form-check form-switch mb-0 d-flex align-items-center gap-2">
                         <input
                           className="form-check-input ms-0"
@@ -1746,866 +1747,1260 @@ export default function BoardYearlyPlanPage() {
                           role="switch"
                           id="calcByRevenueSwitch"
                           checked={isCalculateByRevenue}
-                          onChange={(e) => setIsCalculateByRevenue(e.target.checked)}
+                          onChange={(e) => handleToggleStep1CalcByRev(e.target.checked)}
                           style={{ cursor: "pointer" }}
                         />
-                        <label className="form-check-label fw-semibold text-dark mb-0" htmlFor="calcByRevenueSwitch" style={{ fontSize: 12.5, cursor: "pointer" }}>
+                        <label className="form-check-label fw-semibold text-dark mb-0" htmlFor="calcByRevenueSwitch" style={{ fontSize: 12, cursor: "pointer" }}>
                           Tính theo doanh thu
                         </label>
                       </div>
                     </div>
 
+                    <div className="card-body p-3 d-flex flex-column gap-1">
+                      {/* Định Mức Tổng Chi Phí */}
+                      <div className="py-2 px-3 rounded-3 bg-danger-subtle/30 border border-danger/20">
+                        <label className="text-danger fw-extrabold mb-1" style={{ fontSize: 11.5, letterSpacing: "0.03em", fontWeight: 800 }}>ĐỊNH MỨC TỔNG CHI PHÍ</label>
+                        <h4 className="fw-black text-danger mb-0" style={{ fontWeight: 900, fontSize: 20 }}>
+                          {totalCost.toLocaleString("vi-VN")} <span style={{ fontSize: 14, fontWeight: 700 }}>đ</span>
+                        </h4>
+                      </div>
+
+                      <div className="row g-2">
+                        {/* Khấu trừ doanh thu */}
+                        <div className="col-6">
+                          <label className="form-label text-muted fw-semibold mb-0" style={{ fontSize: 12, marginBottom: 1 }}>Khấu trừ doanh thu</label>
+                          <div className="input-group input-group-sm">
+                            <input
+                              type="text"
+                              className="form-control fw-bold percent-input-field"
+                              value={revenueDeductionPercent}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                setRevenueDeductionPercent(raw);
+                              }}
+                              onKeyDown={handlePercentKeyDown}
+                            />
+                            <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>%</span>
+                          </div>
+                        </div>
+
+                        {/* Giá bán hàng */}
+                        <div className="col-6">
+                          <label className="form-label text-muted fw-semibold mb-0" style={{ fontSize: 12, marginBottom: 1 }}>Giá bán hàng</label>
+                          <div className="input-group input-group-sm">
+                            <input
+                              type="text"
+                              className="form-control fw-bold percent-input-field"
+                              value={cogsPercent}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                setCogsPercent(raw);
+                              }}
+                              onKeyDown={handlePercentKeyDown}
+                            />
+                            <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>%</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Công tác kinh doanh */}
+                      <div>
+                        <label className="form-label text-muted fw-semibold mb-0" style={{ fontSize: 12, marginBottom: 1 }}>Công tác kinh doanh</label>
+                        <div className="input-group input-group-sm">
+                          {isCalculateByRevenue ? (
+                            <>
+                              {/* % DT ở đầu */}
+                              <input
+                                type="text"
+                                className="form-control fw-bold text-danger text-center percent-input-field"
+                                style={{ maxWidth: 50 }}
+                                value={costSalesPercent}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                  setCostSalesPercent(raw);
+                                }}
+                                onKeyDown={handlePercentKeyDown}
+                                placeholder="0.0"
+                              />
+                              <span className="input-group-text bg-light text-danger fw-bold" style={{ fontSize: 10, paddingLeft: 6, paddingRight: 4, minWidth: 75, justifyContent: "flex-start" }}>% doanh thu</span>
+
+                              {/* Ô giá trị chi phí bị khóa */}
+                              <input
+                                type="text"
+                                className="form-control fw-bold"
+                                value={formatVNDInput(finalCostSales.toString())}
+                                disabled
+                              />
+                              <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                            </>
+                          ) : (
+                            <>
+                              <input
+                                type="text"
+                                className="form-control fw-bold money-input-field"
+                                value={formatVNDInput(costSales)}
+                                onChange={handleNumericChange(setCostSales)}
+                                onKeyDown={handleMoneyKeyDown}
+                              />
+                              <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Công tác Marketing */}
+                      <div>
+                        <label className="form-label text-muted fw-semibold mb-0" style={{ fontSize: 12, marginBottom: 1 }}>Công tác Marketing</label>
+                        <div className="input-group input-group-sm">
+                          {isCalculateByRevenue ? (
+                            <>
+                              {/* % DT ở đầu */}
+                              <input
+                                type="text"
+                                className="form-control fw-bold text-danger text-center percent-input-field"
+                                style={{ maxWidth: 50 }}
+                                value={costMarketingPercent}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                  setCostMarketingPercent(raw);
+                                }}
+                                onKeyDown={handlePercentKeyDown}
+                                placeholder="0.0"
+                              />
+                              <span className="input-group-text bg-light text-danger fw-bold" style={{ fontSize: 10, paddingLeft: 6, paddingRight: 4, minWidth: 75, justifyContent: "flex-start" }}>% doanh thu</span>
+
+                              {/* Ô giá trị chi phí bị khóa */}
+                              <input
+                                type="text"
+                                className="form-control fw-bold"
+                                value={formatVNDInput(finalCostMarketing.toString())}
+                                disabled
+                              />
+                              <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                            </>
+                          ) : (
+                            <>
+                              <input
+                                type="text"
+                                className="form-control fw-bold money-input-field"
+                                value={formatVNDInput(costMarketing)}
+                                onChange={handleNumericChange(setCostMarketing)}
+                                onKeyDown={handleMoneyKeyDown}
+                              />
+                              <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Kế toán và nhân sự */}
+                      <div>
+                        <label className="form-label text-muted fw-semibold mb-0" style={{ fontSize: 12, marginBottom: 1 }}>Kế toán và nhân sự</label>
+                        <div className="input-group input-group-sm">
+                          {isCalculateByRevenue ? (
+                            <>
+                              {/* % DT ở đầu */}
+                              <input
+                                type="text"
+                                className="form-control fw-bold text-danger text-center percent-input-field"
+                                style={{ maxWidth: 50 }}
+                                value={costFinanceHRPercent}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                  setCostFinanceHRPercent(raw);
+                                }}
+                                onKeyDown={handlePercentKeyDown}
+                                placeholder="0.0"
+                              />
+                              <span className="input-group-text bg-light text-danger fw-bold" style={{ fontSize: 10, paddingLeft: 6, paddingRight: 4, minWidth: 75, justifyContent: "flex-start" }}>% doanh thu</span>
+
+                              {/* Ô giá trị chi phí bị khóa */}
+                              <input
+                                type="text"
+                                className="form-control fw-bold"
+                                value={formatVNDInput(finalCostFinanceHR.toString())}
+                                disabled
+                              />
+                              <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                            </>
+                          ) : (
+                            <>
+                              <input
+                                type="text"
+                                className="form-control fw-bold money-input-field"
+                                value={formatVNDInput(costFinanceHR)}
+                                onChange={handleNumericChange(setCostFinanceHR)}
+                                onKeyDown={handleMoneyKeyDown}
+                              />
+                              <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Kho vận */}
+                      <div>
+                        <label className="form-label text-muted fw-semibold mb-0" style={{ fontSize: 12, marginBottom: 1 }}>Kho vận</label>
+                        <div className="input-group input-group-sm">
+                          {isCalculateByRevenue ? (
+                            <>
+                              {/* % DT ở đầu */}
+                              <input
+                                type="text"
+                                className="form-control fw-bold text-danger text-center percent-input-field"
+                                style={{ maxWidth: 50 }}
+                                value={costLogisticsPercent}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                  setCostLogisticsPercent(raw);
+                                }}
+                                onKeyDown={handlePercentKeyDown}
+                                placeholder="0.0"
+                              />
+                              <span className="input-group-text bg-light text-danger fw-bold" style={{ fontSize: 10, paddingLeft: 6, paddingRight: 4, minWidth: 75, justifyContent: "flex-start" }}>% doanh thu</span>
+
+                              {/* Ô giá trị chi phí bị khóa */}
+                              <input
+                                type="text"
+                                className="form-control fw-bold"
+                                value={formatVNDInput(finalCostLogistics.toString())}
+                                disabled
+                              />
+                              <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                            </>
+                          ) : (
+                            <>
+                              <input
+                                type="text"
+                                className="form-control fw-bold money-input-field"
+                                value={formatVNDInput(costLogistics)}
+                                onChange={handleNumericChange(setCostLogistics)}
+                                onKeyDown={handleMoneyKeyDown}
+                              />
+                              <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Công tác vận hành hệ thống */}
+                      <div>
+                        <label className="form-label text-muted fw-semibold mb-0" style={{ fontSize: 12, marginBottom: 1 }}>Công tác vận hành hệ thống</label>
+                        <div className="input-group input-group-sm">
+                          {isCalculateByRevenue ? (
+                            <>
+                              {/* % DT ở đầu */}
+                              <input
+                                type="text"
+                                className="form-control fw-bold text-danger text-center percent-input-field"
+                                style={{ maxWidth: 50 }}
+                                value={costOperationsPercent}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                  setCostOperationsPercent(raw);
+                                }}
+                                onKeyDown={handlePercentKeyDown}
+                                placeholder="0.0"
+                              />
+                              <span className="input-group-text bg-light text-danger fw-bold" style={{ fontSize: 10, paddingLeft: 6, paddingRight: 4, minWidth: 75, justifyContent: "flex-start" }}>% doanh thu</span>
+
+                              {/* Ô giá trị chi phí bị khóa */}
+                              <input
+                                type="text"
+                                className="form-control fw-bold"
+                                value={formatVNDInput(finalCostOperations.toString())}
+                                disabled
+                              />
+                              <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                            </>
+                          ) : (
+                            <>
+                              <input
+                                type="text"
+                                className="form-control fw-bold money-input-field"
+                                value={formatVNDInput(costOperations)}
+                                onChange={handleNumericChange(setCostOperations)}
+                                onKeyDown={handleMoneyKeyDown}
+                              />
+                              <span className="input-group-text fw-semibold" style={{ minWidth: 32, justifyContent: "center" }}>đ</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Space padding */}
+                      <div className="pb-1" />
+
+                    </div>
                   </div>
                 </div>
-              </div>
 
+              </div>
             </div>
-          </div>
-        ) : currentStep === 2 ? (
-          /* STEP 2: CHI PHÍ */
-          (() => {
-            const calcGroupTotal = (arr: CustomCostItem[]) => {
-              return arr.reduce((sum, item) => {
-                const val = s2_calcByRev
+          ) : currentStep === 2 ? (
+            /* STEP 2: CHI PHÍ */
+            (() => {
+              const calcGroupTotal = (arr: CustomCostItem[]) => {
+                return arr.reduce((sum, item) => {
+                  const val = s2_calcByRev
+                    ? Math.round(totalRevenue * (Number(item.pctVal) || 0) / 100)
+                    : (Number(item.val) || 0);
+                  return sum + val;
+                }, 0);
+              };
+
+              const grpBiz = calcGroupTotal(bizCosts);
+              const grpMkt = calcGroupTotal(mktCosts);
+              const grpFinCost = calcGroupTotal(finCosts);
+              const grpLogCost = calcGroupTotal(logCosts);
+              const grpOps = calcGroupTotal(opsCosts);
+              const grpMisc = calcGroupTotal(miscCosts);
+              const totalStep2 = grpBiz + grpMkt + grpFinCost + grpLogCost + grpOps + grpMisc;
+
+              const hasCheckedCosts = [
+                ...bizCosts,
+                ...mktCosts,
+                ...finCosts,
+                ...logCosts,
+                ...opsCosts,
+                ...miscCosts
+              ].some(item => item.checked);
+
+              const handleDeleteCheckedCosts = () => {
+                setCostConfirmOpen(true);
+              };
+
+              const pct = (v: number) => totalStep2 > 0 ? (v / totalStep2 * 100).toFixed(1) : "0.0";
+              const pctRev = (v: number) => totalRevenue > 0 ? (v / totalRevenue * 100).toFixed(1) : "0.0";
+              const fmt = (v: string) => { if (!v) return ""; return Number(v).toLocaleString("vi-VN"); };
+              const fmtNum = (n: number) => n.toLocaleString("vi-VN");
+              const numChg = (set: React.Dispatch<React.SetStateAction<string>>) =>
+                (e: React.ChangeEvent<HTMLInputElement>) => set(e.target.value.replace(/\D/g, ""));
+              const pctChg = (set: React.Dispatch<React.SetStateAction<string>>) =>
+                (e: React.ChangeEvent<HTMLInputElement>) => set(e.target.value.replace(/[^0-9.]/g, ""));
+
+              // Hàm thêm khoản mục chi phí động
+              const handleAddCostItem = (
+                setCostList: React.Dispatch<React.SetStateAction<CustomCostItem[]>>,
+                prefix: string
+              ) => {
+                triggerAddCostItem(setCostList, prefix);
+              };
+
+              // Row renderer: hiển thị checkbox ở đầu và các ô nhập liệu
+              const renderCostRow = (
+                item: CustomCostItem,
+                setCostList: React.Dispatch<React.SetStateAction<CustomCostItem[]>>
+              ) => {
+                const toggleChecked = () => {
+                  setCostList(prev => prev.map(i => i.id === item.id ? { ...i, checked: !i.checked } : i));
+                };
+
+                const updateVal = (newVal: string) => {
+                  setCostList(prev => prev.map(i => i.id === item.id ? { ...i, val: newVal } : i));
+                };
+
+                const updatePct = (newPct: string) => {
+                  setCostList(prev => prev.map(i => i.id === item.id ? { ...i, pctVal: newPct } : i));
+                };
+
+                const finalVal = s2_calcByRev
                   ? Math.round(totalRevenue * (Number(item.pctVal) || 0) / 100)
                   : (Number(item.val) || 0);
-                return sum + val;
-              }, 0);
-            };
 
-            const grpBiz = calcGroupTotal(bizCosts);
-            const grpMkt = calcGroupTotal(mktCosts);
-            const grpOps = calcGroupTotal(opsCosts);
-            const grpMisc = calcGroupTotal(miscCosts);
-            const totalStep2 = grpBiz + grpMkt + grpOps + grpMisc;
+                const displayVal = finalVal;
 
-            const hasCheckedCosts = [
-              ...bizCosts,
-              ...mktCosts,
-              ...opsCosts,
-              ...miscCosts
-            ].some(item => item.checked);
-
-            const handleDeleteCheckedCosts = () => {
-              setCostConfirmOpen(true);
-            };
-
-            const pct = (v: number) => totalStep2 > 0 ? (v / totalStep2 * 100).toFixed(1) : "0.0";
-            const pctRev = (v: number) => totalRevenue > 0 ? (v / totalRevenue * 100).toFixed(1) : "0.0";
-            const fmt = (v: string) => { if (!v) return ""; return Number(v).toLocaleString("vi-VN"); };
-            const fmtNum = (n: number) => n.toLocaleString("vi-VN");
-            const numChg = (set: React.Dispatch<React.SetStateAction<string>>) =>
-              (e: React.ChangeEvent<HTMLInputElement>) => set(e.target.value.replace(/\D/g, ""));
-            const pctChg = (set: React.Dispatch<React.SetStateAction<string>>) =>
-              (e: React.ChangeEvent<HTMLInputElement>) => set(e.target.value.replace(/[^0-9.]/g, ""));
-
-            // Hàm thêm khoản mục chi phí động
-            const handleAddCostItem = (
-              setCostList: React.Dispatch<React.SetStateAction<CustomCostItem[]>>,
-              prefix: string
-            ) => {
-              triggerAddCostItem(setCostList, prefix);
-            };
-
-            // Row renderer: hiển thị checkbox ở đầu và các ô nhập liệu
-            const renderCostRow = (
-              item: CustomCostItem,
-              setCostList: React.Dispatch<React.SetStateAction<CustomCostItem[]>>
-            ) => {
-              const toggleChecked = () => {
-                setCostList(prev => prev.map(i => i.id === item.id ? { ...i, checked: !i.checked } : i));
+                return (
+                  <div key={item.id} className="d-flex align-items-center gap-2 mb-1 ps-3">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      checked={item.checked}
+                      onChange={toggleChecked}
+                      style={{ cursor: "pointer", width: 14, height: 14, flexShrink: 0 }}
+                    />
+                    <span className="text-muted flex-grow-1" style={{ fontSize: 12 }}>
+                      {item.label}
+                    </span>
+                    <div className="input-group input-group-sm" style={{ maxWidth: s2_calcByRev ? 280 : 210 }}>
+                      {s2_calcByRev && (
+                        <>
+                          <input
+                            type="text"
+                            className="form-control fw-bold text-danger text-center percent-input-field"
+                            style={{ maxWidth: 50 }}
+                            value={item.pctVal}
+                            onChange={(e) => updatePct(e.target.value.replace(/[^0-9.]/g, ""))}
+                            onKeyDown={handlePercentKeyDown}
+                            placeholder="0.0"
+                          />
+                          <span
+                            className="input-group-text bg-light text-danger fw-bold"
+                            style={{ fontSize: 10, paddingLeft: 6, paddingRight: 4, minWidth: 75, justifyContent: "flex-start" }}
+                          >% doanh thu</span>
+                          <input
+                            type="text"
+                            className="form-control fw-bold text-end"
+                            value={displayVal.toLocaleString("vi-VN")}
+                            disabled
+                          />
+                        </>
+                      )}
+                      {!s2_calcByRev && (
+                        <input
+                          type="text"
+                          className="form-control fw-bold text-end money-input-field"
+                          value={Number(item.val).toLocaleString("vi-VN")}
+                          onChange={(e) => updateVal(e.target.value.replace(/\D/g, ""))}
+                          onKeyDown={handleMoneyKeyDown}
+                        />
+                      )}
+                      <span className="input-group-text" style={{ fontSize: 11 }}>đ</span>
+                    </div>
+                  </div>
+                );
               };
 
-              const updateVal = (newVal: string) => {
-                setCostList(prev => prev.map(i => i.id === item.id ? { ...i, val: newVal } : i));
-              };
-
-              const updatePct = (newPct: string) => {
-                setCostList(prev => prev.map(i => i.id === item.id ? { ...i, pctVal: newPct } : i));
-              };
-
-              const finalVal = s2_calcByRev
-                ? Math.round(totalRevenue * (Number(item.pctVal) || 0) / 100)
-                : (Number(item.val) || 0);
-
-              const displayVal = finalVal;
+              const groups = [
+                { label: "Kinh doanh", color: "#3b82f6", total: grpBiz },
+                { label: "Marketing", color: "#8b5cf6", total: grpMkt },
+                { label: "Kế toán và Nhân sự", color: "#10b981", total: grpFinCost },
+                { label: "Bộ phận kho", color: "#6366f1", total: grpLogCost },
+                { label: "Vận hành hệ thống", color: "#f59e0b", total: grpOps },
+                { label: "Khác", color: "#ef4444", total: grpMisc },
+              ];
 
               return (
-                <div key={item.id} className="d-flex align-items-center gap-2 mb-1 ps-3">
-                  <input
-                    type="checkbox"
-                    className="form-check-input"
-                    checked={item.checked}
-                    onChange={toggleChecked}
-                    style={{ cursor: "pointer", width: 14, height: 14, flexShrink: 0 }}
-                  />
-                  <span className="text-muted flex-grow-1" style={{ fontSize: 12 }}>
-                    {item.label}
-                  </span>
-                  <div className="input-group input-group-sm" style={{ maxWidth: s2_calcByRev ? 280 : 210 }}>
-                    {s2_calcByRev && (
-                      <>
-                        <input
-                          type="text"
-                          className="form-control fw-bold text-danger text-center"
-                          style={{ maxWidth: 50 }}
-                          value={item.pctVal}
-                          onChange={(e) => updatePct(e.target.value.replace(/[^0-9.]/g, ""))}
-                          placeholder="0.0"
-                        />
-                        <span
-                          className="input-group-text bg-light text-danger fw-bold"
-                          style={{ fontSize: 10, paddingLeft: 6, paddingRight: 4, minWidth: 75, justifyContent: "flex-start" }}
-                        >% doanh thu</span>
-                        <input
-                          type="text"
-                          className="form-control fw-bold text-end"
-                          value={displayVal.toLocaleString("vi-VN")}
-                          disabled
-                        />
-                      </>
-                    )}
-                    {!s2_calcByRev && (
-                      <input
-                        type="text"
-                        className="form-control fw-bold text-end"
-                        value={Number(item.val).toLocaleString("vi-VN")}
-                        onChange={(e) => updateVal(e.target.value.replace(/\D/g, ""))}
-                      />
-                    )}
-                    <span className="input-group-text" style={{ fontSize: 11 }}>đ</span>
+                <div className="container-fluid px-3 pb-3">
+                  <style>{`
+                  @keyframes blinkRedDot {
+                    0% { opacity: 0.3; transform: scale(0.95); }
+                    50% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 8px #ef4444; }
+                    100% { opacity: 0.3; transform: scale(0.95); }
+                  }
+                  .blinking-red-dot {
+                    width: 9px;
+                    height: 9px;
+                    background-color: #ef4444;
+                    border-radius: 50%;
+                    display: inline-block;
+                    animation: blinkRedDot 1.4s infinite ease-in-out;
+                  }
+                `}</style>
+                  <div className="d-flex" style={{ gap: 0, flexDirection: isMobileOrTablet ? "column" : "row", height: isMobileOrTablet ? "auto" : 530 }}>
+
+                    {/* LEFT – 7 phần */}
+                    <div className="d-flex flex-column" style={{ flex: isMobileOrTablet ? "none" : 7, paddingRight: isMobileOrTablet ? 0 : 20, height: isMobileOrTablet ? "auto" : "100%" }}>
+                      <div className="d-flex align-items-center justify-content-between mb-3 flex-shrink-0">
+                        <div className="d-flex align-items-center gap-3">
+                          <SectionTitle title="Chi tiết định mức chi phí" icon="bi-list-ul" className="mb-0" />
+                          <button
+                            type="button"
+                            title="Lưu kế hoạch"
+                            className="ms-2"
+                            onClick={handleSavePlan}
+                            style={{
+                              flexShrink: 0,
+                              width: 36, height: 36,
+                              border: "1px solid #dee2e6",
+                              borderRadius: 8,
+                              background: "#fff",
+                              color: "#0d6efd",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              cursor: "pointer",
+                              transition: "background 0.15s, border-color 0.15s",
+                              fontSize: 15,
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = "#e7f1ff"; e.currentTarget.style.borderColor = "#0d6efd"; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#dee2e6"; }}
+                          >
+                            <i className="bi bi-floppy" />
+                          </button>
+                          {hasCheckedCosts && (
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-sm d-flex align-items-center gap-1 py-1"
+                              onClick={handleDeleteCheckedCosts}
+                              style={{ fontSize: 12, borderRadius: 6 }}
+                            >
+                              <i className="bi bi-trash"></i> Xoá đã chọn
+                            </button>
+                          )}
+                        </div>
+                        <div className="form-check form-switch mb-0 d-flex align-items-center gap-2">
+                          <input
+                            className="form-check-input ms-0"
+                            type="checkbox"
+                            role="switch"
+                            id="s2CalcByRevenueSwitch"
+                            checked={s2_calcByRev}
+                            onChange={(e) => handleToggleStep2CalcByRev(e.target.checked)}
+                            style={{ cursor: "pointer" }}
+                          />
+                          <label className="form-check-label fw-semibold text-dark mb-0" htmlFor="s2CalcByRevenueSwitch" style={{ fontSize: 12.5, cursor: "pointer" }}>
+                            Tính theo doanh thu
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Cost Sections */}
+                      <div className="d-flex flex-column gap-4" style={{ flexGrow: 1, overflowY: "auto", paddingRight: 5 }}>
+                        {/* Phòng Kinh doanh */}
+                        <div>
+                          <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                            <div className="fw-bold text-primary d-flex align-items-center gap-2 text-uppercase" style={{ fontSize: 13.5 }}>
+                              <i className="bi bi-briefcase"></i> Phòng Kinh doanh
+                            </div>
+                            <div className="d-flex align-items-center gap-2">
+                              {grpBiz > finalCostSales && (
+                                <span className="blinking-red-dot" title="Vượt định mức chi phí" />
+                              )}
+                              <span className="badge fw-bold" style={{ fontSize: 11, color: grpBiz > finalCostSales ? "#ef4444" : "#3b82f6", background: grpBiz > finalCostSales ? "rgba(239, 68, 68, 0.1)" : "rgba(59, 130, 246, 0.1)" }}>
+                                Tổng: {grpBiz.toLocaleString("vi-VN")} đ / Định mức: {finalCostSales.toLocaleString("vi-VN")} đ
+                              </span>
+                            </div>
+                          </div>
+                          <div className="d-flex flex-column gap-1">
+                            {bizCosts.map(item => renderCostRow(item, setBizCosts))}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-link btn-sm text-primary text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
+                            onClick={() => handleAddCostItem(setBizCosts, "biz")}
+                            style={{ fontSize: 12, fontWeight: 600 }}
+                          >
+                            <i className="bi bi-plus-circle"></i> Thêm khoản mục
+                          </button>
+                        </div>
+
+                        {/* Phòng Marketing */}
+                        <div>
+                          <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                            <div className="fw-bold d-flex align-items-center gap-2 text-uppercase" style={{ fontSize: 13.5, color: "#8b5cf6" }}>
+                              <i className="bi bi-megaphone"></i> Phòng Marketing
+                            </div>
+                            <div className="d-flex align-items-center gap-2">
+                              {grpMkt > finalCostMarketing && (
+                                <span className="blinking-red-dot" title="Vượt định mức chi phí" />
+                              )}
+                              <span className="badge fw-bold" style={{ fontSize: 11, color: grpMkt > finalCostMarketing ? "#ef4444" : "#8b5cf6", background: grpMkt > finalCostMarketing ? "rgba(239, 68, 68, 0.1)" : "rgba(139, 92, 246, 0.1)" }}>
+                                Tổng: {grpMkt.toLocaleString("vi-VN")} đ / Định mức: {finalCostMarketing.toLocaleString("vi-VN")} đ
+                              </span>
+                            </div>
+                          </div>
+                          <div className="d-flex flex-column gap-1">
+                            {mktCosts.map(item => renderCostRow(item, setMktCosts))}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
+                            onClick={() => handleAddCostItem(setMktCosts, "mkt")}
+                            style={{ fontSize: 12, fontWeight: 600, color: "#8b5cf6" }}
+                          >
+                            <i className="bi bi-plus-circle"></i> Thêm khoản mục
+                          </button>
+                        </div>
+
+                        {/* Kế toán và Nhân sự */}
+                        <div>
+                          <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                            <div className="fw-bold d-flex align-items-center gap-2 text-uppercase" style={{ fontSize: 13.5, color: "#10b981" }}>
+                              <i className="bi bi-person-workspace"></i> Kế toán và Nhân sự
+                            </div>
+                            <div className="d-flex align-items-center gap-2">
+                              {grpFinCost > finalCostFinanceHR && (
+                                <span className="blinking-red-dot" title="Vượt định mức chi phí" />
+                              )}
+                              <span className="badge fw-bold" style={{ fontSize: 11, color: grpFinCost > finalCostFinanceHR ? "#ef4444" : "#10b981", background: grpFinCost > finalCostFinanceHR ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)" }}>
+                                Tổng: {grpFinCost.toLocaleString("vi-VN")} đ / Định mức: {finalCostFinanceHR.toLocaleString("vi-VN")} đ
+                              </span>
+                            </div>
+                          </div>
+                          <div className="d-flex flex-column gap-1">
+                            {finCosts.map(item => renderCostRow(item, setFinCosts))}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
+                            onClick={() => handleAddCostItem(setFinCosts, "fin")}
+                            style={{ fontSize: 12, fontWeight: 600, color: "#10b981" }}
+                          >
+                            <i className="bi bi-plus-circle"></i> Thêm khoản mục
+                          </button>
+                        </div>
+
+                        {/* Bộ phận kho */}
+                        <div>
+                          <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                            <div className="fw-bold d-flex align-items-center gap-2 text-uppercase" style={{ fontSize: 13.5, color: "#6366f1" }}>
+                              <i className="bi bi-box-seam"></i> Bộ phận kho
+                            </div>
+                            <div className="d-flex align-items-center gap-2">
+                              {grpLogCost > finalCostLogistics && (
+                                <span className="blinking-red-dot" title="Vượt định mức chi phí" />
+                              )}
+                              <span className="badge fw-bold" style={{ fontSize: 11, color: grpLogCost > finalCostLogistics ? "#ef4444" : "#6366f1", background: grpLogCost > finalCostLogistics ? "rgba(239, 68, 68, 0.1)" : "rgba(99, 102, 241, 0.1)" }}>
+                                Tổng: {grpLogCost.toLocaleString("vi-VN")} đ / Định mức: {finalCostLogistics.toLocaleString("vi-VN")} đ
+                              </span>
+                            </div>
+                          </div>
+                          <div className="d-flex flex-column gap-1">
+                            {logCosts.map(item => renderCostRow(item, setLogCosts))}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
+                            onClick={() => handleAddCostItem(setLogCosts, "log")}
+                            style={{ fontSize: 12, fontWeight: 600, color: "#6366f1" }}
+                          >
+                            <i className="bi bi-plus-circle"></i> Thêm khoản mục
+                          </button>
+                        </div>
+
+                        {/* Vận hành hệ thống */}
+                        <div>
+                          <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                            <div className="fw-bold d-flex align-items-center gap-2 text-uppercase" style={{ fontSize: 13.5, color: "#f59e0b" }}>
+                              <i className="bi bi-gear"></i> Vận hành hệ thống
+                            </div>
+                            <div className="d-flex align-items-center gap-2">
+                              {grpOps > finalCostOperations && (
+                                <span className="blinking-red-dot" title="Vượt định mức chi phí" />
+                              )}
+                              <span className="badge fw-bold" style={{ fontSize: 11, color: grpOps > finalCostOperations ? "#ef4444" : "#f59e0b", background: grpOps > finalCostOperations ? "rgba(239, 68, 68, 0.1)" : "rgba(245, 158, 11, 0.1)" }}>
+                                Tổng: {grpOps.toLocaleString("vi-VN")} đ / Định mức: {finalCostOperations.toLocaleString("vi-VN")} đ
+                              </span>
+                            </div>
+                          </div>
+                          <div className="d-flex flex-column gap-1">
+                            {opsCosts.map(item => renderCostRow(item, setOpsCosts))}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
+                            onClick={() => handleAddCostItem(setOpsCosts, "ops")}
+                            style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b" }}
+                          >
+                            <i className="bi bi-plus-circle"></i> Thêm khoản mục
+                          </button>
+                        </div>
+
+                        {/* Chi phí Khác */}
+                        <div>
+                          <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
+                            <div className="fw-bold d-flex align-items-center gap-2" style={{ fontSize: 13.5, color: "#ef4444" }}>
+                              <i className="bi bi-info-circle"></i> Chi phí Khác
+                            </div>
+                            <span className="badge fw-bold" style={{ fontSize: 11, color: "#ef4444", background: "rgba(239, 68, 68, 0.1)" }}>
+                              Tổng: {grpMisc.toLocaleString("vi-VN")} đ
+                            </span>
+                          </div>
+                          <div className="d-flex flex-column gap-1">
+                            {miscCosts.map(item => renderCostRow(item, setMiscCosts))}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
+                            onClick={() => handleAddCostItem(setMiscCosts, "misc")}
+                            style={{ fontSize: 12, fontWeight: 600, color: "#ef4444" }}
+                          >
+                            <i className="bi bi-plus-circle"></i> Thêm khoản mục
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* VERTICAL DIVIDER */}
+                    {!isMobileOrTablet && <div style={{ width: 1, background: "#dee2e6", flexShrink: 0, margin: "0 4px" }} />}
+
+                    {/* RIGHT – 5 phần */}
+                    <div style={{ flex: isMobileOrTablet ? "none" : 5, paddingLeft: isMobileOrTablet ? 0 : 20, height: isMobileOrTablet ? "auto" : "100%", overflow: isMobileOrTablet ? "visible" : "hidden", marginTop: isMobileOrTablet ? 30 : 0 }}>
+                      <SectionTitle title="Tổng quan chi phí" icon="bi-pie-chart" className="mb-3" />
+
+                      <div className="p-3 rounded-3 mb-3" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)" }}>
+                        <div className="text-danger fw-bold mb-1" style={{ fontSize: 11, letterSpacing: "0.04em" }}>TỔNG CHI PHÍ</div>
+                        <div style={{ fontSize: 22, color: "#ef4444", fontWeight: 900 }}>{totalStep2.toLocaleString("vi-VN")} <span style={{ fontSize: 14, fontWeight: 700 }}>đ</span></div>
+                        <div className="text-muted mt-1" style={{ fontSize: 11, lineHeight: "1.4" }}>
+                          Tổng các chi phí chi tiết hiện chiếm <strong className="text-dark">{totalCost > 0 ? (totalStep2 / totalCost * 100).toFixed(1) : "0.0"}%</strong> định mức chi phí năm và chiếm <strong className="text-dark">{totalRevenue > 0 ? (totalStep2 / totalRevenue * 100).toFixed(1) : "0.0"}%</strong> tổng doanh thu năm
+                        </div>
+                      </div>
+
+                      <div className="mb-2" style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", letterSpacing: "0.04em" }}>PHÂN BỔ THEO PHÒNG BAN</div>
+                      <div className="d-flex flex-column gap-2">
+                        {groups.map(g => (
+                          <div key={g.label}>
+                            <div className="d-flex justify-content-between mb-1">
+                              <span style={{ fontSize: 12, fontWeight: 600 }}>{g.label}</span>
+                              <span style={{ fontSize: 12, color: g.color, fontWeight: 700 }}>{pct(g.total)}%</span>
+                            </div>
+                            <div style={{ height: 6, borderRadius: 4, background: "#f1f5f9" }}>
+                              <div style={{ height: "100%", borderRadius: 4, background: g.color, width: `${pct(g.total)}%`, transition: "width 0.4s" }} />
+                            </div>
+                            <div className="text-muted mt-1" style={{ fontSize: 10 }}>{g.total.toLocaleString("vi-VN")} đ &nbsp;·&nbsp; {pctRev(g.total)}% tổng doanh thu năm</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                   </div>
                 </div>
               );
-            };
+            })()
+          ) : currentStep === 3 ? (
+            /* STEP 3: NHÂN SỰ */
+            (() => {
+              const handleAddStaffItem = (
+                setStaffList: React.Dispatch<React.SetStateAction<CustomStaffItem[]>>,
+                prefix: string
+              ) => {
+                triggerAddStaffItem(setStaffList, prefix);
+              };
 
-            const groups = [
-              { label: "Kinh doanh", color: "#3b82f6", total: grpBiz },
-              { label: "Marketing", color: "#8b5cf6", total: grpMkt },
-              { label: "Vận hành", color: "#f59e0b", total: grpOps },
-              { label: "Khác", color: "#ef4444", total: grpMisc },
-            ];
+              const hasCheckedStaff = [
+                ...bizStaff,
+                ...mktStaff,
+                ...logStaff,
+                ...csStaff,
+                ...finStaff
+              ].some(item => item.checked);
 
-            return (
-              <div className="container-fluid px-3 pb-3">
-                <div className="d-flex" style={{ gap: 0, flexDirection: isMobileOrTablet ? "column" : "row", height: isMobileOrTablet ? "auto" : 530 }}>
+              const handleDeleteCheckedStaff = () => {
+                setStaffConfirmOpen(true);
+              };
 
-                  {/* LEFT – 7 phần */}
-                  <div className="d-flex flex-column" style={{ flex: isMobileOrTablet ? "none" : 7, paddingRight: isMobileOrTablet ? 0 : 20, height: isMobileOrTablet ? "auto" : "100%" }}>
-                    <div className="d-flex align-items-center justify-content-between mb-3 flex-shrink-0">
-                      <div className="d-flex align-items-center gap-3">
-                        <SectionTitle title="Chi tiết định mức chi phí" icon="bi-list-ul" className="mb-0" />
-                        {hasCheckedCosts && (
+              const pct = (v: number) => totalStep3 > 0 ? (v / totalStep3 * 100).toFixed(1) : "0.0";
+              const pctTarget = (v: number) => totalStaff > 0 ? (v / totalStaff * 100).toFixed(1) : "0.0";
+              const pctRev = (fund: number) => totalRevenue > 0 ? (fund / totalRevenue * 100).toFixed(1) : "0.0";
+
+              const renderStaffRow = (
+                item: CustomStaffItem,
+                setStaffList: React.Dispatch<React.SetStateAction<CustomStaffItem[]>>
+              ) => {
+                const toggleChecked = () => {
+                  setStaffList(prev => prev.map(i => i.id === item.id ? { ...i, checked: !i.checked } : i));
+                };
+
+                const updateQty = (newQty: string) => {
+                  setStaffList(prev => prev.map(i => i.id === item.id ? { ...i, qty: newQty } : i));
+                };
+
+                const updateSalary = (newSalary: string) => {
+                  setStaffList(prev => prev.map(i => i.id === item.id ? { ...i, salary: newSalary } : i));
+                };
+
+                return (
+                  <div key={item.id} className="d-flex align-items-center gap-2 mb-1 ps-3">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      checked={item.checked}
+                      onChange={toggleChecked}
+                      style={{ cursor: "pointer", width: 14, height: 14, flexShrink: 0 }}
+                    />
+                    <span className="text-muted flex-grow-1" style={{ fontSize: 12 }}>
+                      {item.label}
+                    </span>
+                    <div className="input-group input-group-sm" style={{ maxWidth: 210 }}>
+                      <input
+                        type="text"
+                        className="form-control text-end fw-semibold text-primary money-input-field"
+                        value={formatVNDInput(item.salary)}
+                        onChange={(e) => updateSalary(e.target.value.replace(/\D/g, ""))}
+                        onKeyDown={handleMoneyKeyDown}
+                        placeholder="Thu nhập"
+                      />
+                      <input
+                        type="text"
+                        className="form-control text-center fw-bold text-dark"
+                        style={{ maxWidth: 55 }}
+                        value={item.qty}
+                        onChange={(e) => updateQty(e.target.value.replace(/\D/g, ""))}
+                      />
+                      <span className="input-group-text text-muted" style={{ fontSize: 11, fontFamily: "var(--font-roboto-condensed), 'Roboto Condensed', sans-serif" }}>người</span>
+                    </div>
+                  </div>
+                );
+              };
+
+              const groups = [
+                { label: "Kinh doanh", color: "#3b82f6", total: grpBiz },
+                { label: "Marketing", color: "#8b5cf6", total: grpMkt },
+                { label: "Kho vận", color: "#f59e0b", total: grpLog },
+                { label: "CSKH", color: "#10b981", total: grpCS },
+                { label: "Tài chính & Nhân sự", color: "#6c757d", total: grpFin },
+              ];
+
+              return (
+                <div className="container-fluid px-3 pb-3">
+                  <div className="d-flex" style={{ gap: 0, flexDirection: isMobileOrTablet ? "column" : "row", height: isMobileOrTablet ? "auto" : 530 }}>
+
+                    {/* LEFT – 7 phần */}
+                    <div className="d-flex flex-column" style={{ flex: isMobileOrTablet ? "none" : 7, paddingRight: isMobileOrTablet ? 0 : 20, height: isMobileOrTablet ? "auto" : "100%" }}>
+                      <div className="d-flex align-items-center justify-content-between mb-3 flex-shrink-0">
+                        <div className="d-flex align-items-center gap-3">
+                          <SectionTitle title="Chi tiết định biên nhân sự" icon="bi-people" className="mb-0" />
                           <button
                             type="button"
-                            className="btn btn-danger btn-sm d-flex align-items-center gap-1 py-1"
-                            onClick={handleDeleteCheckedCosts}
+                            title="Lưu kế hoạch"
+                            className="ms-2"
+                            onClick={handleSavePlan}
+                            style={{
+                              flexShrink: 0,
+                              width: 36, height: 36,
+                              border: "1px solid #dee2e6",
+                              borderRadius: 8,
+                              background: "#fff",
+                              color: "#0d6efd",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              cursor: "pointer",
+                              transition: "background 0.15s, border-color 0.15s",
+                              fontSize: 15,
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = "#e7f1ff"; e.currentTarget.style.borderColor = "#0d6efd"; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#dee2e6"; }}
+                          >
+                            <i className="bi bi-floppy"></i>
+                          </button>
+                        </div>
+                        {hasCheckedStaff && (
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm d-flex align-items-center gap-1 py-1 animate__animated animate__fadeIn"
+                            onClick={handleDeleteCheckedStaff}
                             style={{ fontSize: 12, borderRadius: 6 }}
                           >
                             <i className="bi bi-trash"></i> Xoá đã chọn
                           </button>
                         )}
                       </div>
-                      <div className="form-check form-switch mb-0 d-flex align-items-center gap-2">
-                        <input
-                          className="form-check-input ms-0"
-                          type="checkbox"
-                          role="switch"
-                          id="s2CalcByRevenueSwitch"
-                          checked={s2_calcByRev}
-                          onChange={(e) => setS2_calcByRev(e.target.checked)}
-                          style={{ cursor: "pointer" }}
-                        />
-                        <label className="form-check-label fw-semibold text-dark mb-0" htmlFor="s2CalcByRevenueSwitch" style={{ fontSize: 12.5, cursor: "pointer" }}>
-                          Tính theo doanh thu
-                        </label>
+
+                      {/* Scrollable list container */}
+                      <div style={{ flexGrow: 1, overflowY: "auto", paddingRight: 5 }}>
+                        {/* Nhóm 1: Kinh doanh */}
+                        <div className="mb-2">
+                          <div className="d-flex align-items-center gap-2 mb-1">
+                            <span className="rounded-circle d-inline-block" style={{ width: 8, height: 8, background: "#3b82f6", flexShrink: 0 }} />
+                            <span className="fw-bold text-primary" style={{ fontSize: 12 }}>PHÒNG KINH DOANH</span>
+                            <span className="ms-auto fw-bold text-primary" style={{ fontSize: 12 }}>{grpBiz.toLocaleString("vi-VN")} người | {fundBiz.toLocaleString("vi-VN")} đồng</span>
+                          </div>
+                          <div className="text-muted mb-2 ps-3" style={{ fontSize: 11, lineHeight: "1.4" }}>
+                            Tổng nhân sự <strong>{grpBiz}</strong> người, chiếm <strong>{pct(grpBiz)}%</strong> tổng số nhân viên. Quỹ lương <strong>{fundBiz.toLocaleString("vi-VN")}</strong> đồng, chiếm <strong>{limitBiz > 0 ? (fundBiz / limitBiz * 100).toFixed(1) : "0.0"}%</strong> so với định mức chi phí lương của phòng và chiếm <strong>{pctRev(fundBiz)}%</strong> tổng doanh thu
+                          </div>
+                          {bizStaff.map(item => renderStaffRow(item, setBizStaff))}
+                          <button
+                            type="button"
+                            className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
+                            onClick={() => handleAddStaffItem(setBizStaff, "biz")}
+                            style={{ fontSize: 12, fontWeight: 600, color: "#3b82f6" }}
+                          >
+                            <i className="bi bi-plus-circle"></i> Thêm định biên
+                          </button>
+                        </div>
+
+                        {/* Nhóm 2: Marketing */}
+                        <div className="mb-2">
+                          <div className="d-flex align-items-center gap-2 mb-1">
+                            <span className="rounded-circle d-inline-block" style={{ width: 8, height: 8, background: "#8b5cf6", flexShrink: 0 }} />
+                            <span className="fw-bold" style={{ fontSize: 12, color: "#8b5cf6" }}>PHÒNG MARKETING</span>
+                            <span className="ms-auto fw-bold" style={{ fontSize: 12, color: "#8b5cf6" }}>{grpMkt.toLocaleString("vi-VN")} người | {fundMkt.toLocaleString("vi-VN")} đồng</span>
+                          </div>
+                          <div className="text-muted mb-2 ps-3" style={{ fontSize: 11, lineHeight: "1.4" }}>
+                            Tổng nhân sự <strong>{grpMkt}</strong> người, chiếm <strong>{pct(grpMkt)}%</strong> tổng số nhân viên. Quỹ lương <strong>{fundMkt.toLocaleString("vi-VN")}</strong> đồng, chiếm <strong>{limitMkt > 0 ? (fundMkt / limitMkt * 100).toFixed(1) : "0.0"}%</strong> so với định mức chi phí lương của phòng và chiếm <strong>{pctRev(fundMkt)}%</strong> tổng doanh thu
+                          </div>
+                          {mktStaff.map(item => renderStaffRow(item, setMktStaff))}
+                          <button
+                            type="button"
+                            className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
+                            onClick={() => handleAddStaffItem(setMktStaff, "mkt")}
+                            style={{ fontSize: 12, fontWeight: 600, color: "#8b5cf6" }}
+                          >
+                            <i className="bi bi-plus-circle"></i> Thêm định biên
+                          </button>
+                        </div>
+
+                        {/* Nhóm 3: Kho vận */}
+                        <div className="mb-2">
+                          <div className="d-flex align-items-center gap-2 mb-1">
+                            <span className="rounded-circle d-inline-block" style={{ width: 8, height: 8, background: "#f59e0b", flexShrink: 0 }} />
+                            <span className="fw-bold" style={{ fontSize: 12, color: "#f59e0b" }}>BỘ PHẬN KHO VẬN</span>
+                            <span className="ms-auto fw-bold" style={{ fontSize: 12, color: "#f59e0b" }}>{grpLog.toLocaleString("vi-VN")} người | {fundLog.toLocaleString("vi-VN")} đồng</span>
+                          </div>
+                          <div className="text-muted mb-2 ps-3" style={{ fontSize: 11, lineHeight: "1.4" }}>
+                            Tổng nhân sự <strong>{grpLog}</strong> người, chiếm <strong>{pct(grpLog)}%</strong> tổng số nhân viên. Quỹ lương <strong>{fundLog.toLocaleString("vi-VN")}</strong> đồng, chiếm <strong>{limitLog > 0 ? (fundLog / limitLog * 100).toFixed(1) : "0.0"}%</strong> so với định mức chi phí lương của phòng và chiếm <strong>{pctRev(fundLog)}%</strong> tổng doanh thu
+                          </div>
+                          {logStaff.map(item => renderStaffRow(item, setLogStaff))}
+                          <button
+                            type="button"
+                            className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
+                            onClick={() => handleAddStaffItem(setLogStaff, "log")}
+                            style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b" }}
+                          >
+                            <i className="bi bi-plus-circle"></i> Thêm định biên
+                          </button>
+                        </div>
+
+                        {/* Nhóm 4: CSKH */}
+                        <div className="mb-2">
+                          <div className="d-flex align-items-center gap-2 mb-1">
+                            <span className="rounded-circle d-inline-block" style={{ width: 8, height: 8, background: "#10b981", flexShrink: 0 }} />
+                            <span className="fw-bold" style={{ fontSize: 12, color: "#10b981" }}>BỘ PHẬN CHĂM SÓC KHÁCH HÀNG</span>
+                            <span className="ms-auto fw-bold" style={{ fontSize: 12, color: "#10b981" }}>{grpCS.toLocaleString("vi-VN")} người | {fundCS.toLocaleString("vi-VN")} đồng</span>
+                          </div>
+                          <div className="text-muted mb-2 ps-3" style={{ fontSize: 11, lineHeight: "1.4" }}>
+                            Tổng nhân sự <strong>{grpCS}</strong> người, chiếm <strong>{pct(grpCS)}%</strong> tổng số nhân viên. Quỹ lương <strong>{fundCS.toLocaleString("vi-VN")}</strong> đồng, chiếm <strong>{limitCS > 0 ? (fundCS / limitCS * 100).toFixed(1) : "0.0"}%</strong> so với định mức chi phí lương của phòng và chiếm <strong>{pctRev(fundCS)}%</strong> tổng doanh thu
+                          </div>
+                          {csStaff.map(item => renderStaffRow(item, setCsStaff))}
+                          <button
+                            type="button"
+                            className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
+                            onClick={() => handleAddStaffItem(setCsStaff, "cs")}
+                            style={{ fontSize: 12, fontWeight: 600, color: "#10b981" }}
+                          >
+                            <i className="bi bi-plus-circle"></i> Thêm định biên
+                          </button>
+                        </div>
+
+                        {/* Nhóm 5: HC-NS */}
+                        <div className="mb-2">
+                          <div className="d-flex align-items-center gap-2 mb-1">
+                            <span className="rounded-circle d-inline-block" style={{ width: 8, height: 8, background: "#6c757d", flexShrink: 0 }} />
+                            <span className="fw-bold" style={{ fontSize: 12, color: "#6c757d" }}>PHÒNG TÀI CHÍNH & NHÂN SỰ</span>
+                            <span className="ms-auto fw-bold" style={{ fontSize: 12, color: "#6c757d" }}>{grpFin.toLocaleString("vi-VN")} người | {fundFin.toLocaleString("vi-VN")} đồng</span>
+                          </div>
+                          <div className="text-muted mb-2 ps-3" style={{ fontSize: 11, lineHeight: "1.4" }}>
+                            Tổng nhân sự <strong>{grpFin}</strong> người, chiếm <strong>{pct(grpFin)}%</strong> tổng số nhân viên. Quỹ lương <strong>{fundFin.toLocaleString("vi-VN")}</strong> đồng, chiếm <strong>{limitFin > 0 ? (fundFin / limitFin * 100).toFixed(1) : "0.0"}%</strong> so với định mức chi phí lương của phòng và chiếm <strong>{pctRev(fundFin)}%</strong> tổng doanh thu
+                          </div>
+                          {finStaff.map(item => renderStaffRow(item, setFinStaff))}
+                          <button
+                            type="button"
+                            className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
+                            onClick={() => handleAddStaffItem(setFinStaff, "fin")}
+                            style={{ fontSize: 12, fontWeight: 600, color: "#6c757d" }}
+                          >
+                            <i className="bi bi-plus-circle"></i> Thêm định biên
+                          </button>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Cost Sections */}
-                    <div className="d-flex flex-column gap-4" style={{ flexGrow: 1, overflowY: "auto", paddingRight: 5 }}>
-                      {/* Phòng Kinh doanh */}
-                      <div>
-                        <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
-                          <div className="fw-bold text-primary d-flex align-items-center gap-2" style={{ fontSize: 13.5 }}>
-                            <i className="bi bi-briefcase"></i> Phòng Kinh doanh
-                          </div>
-                          <span className="badge fw-bold" style={{ fontSize: 11, color: "#3b82f6", background: "rgba(59, 130, 246, 0.1)" }}>
-                            Tổng: {grpBiz.toLocaleString("vi-VN")} đ
-                          </span>
+                    {/* VERTICAL DIVIDER */}
+                    {!isMobileOrTablet && <div style={{ width: 1, background: "#dee2e6", flexShrink: 0, margin: "0 4px" }} />}
+
+                    {/* RIGHT – 5 phần */}
+                    <div style={{ flex: isMobileOrTablet ? "none" : 5, paddingLeft: isMobileOrTablet ? 0 : 20, height: isMobileOrTablet ? "auto" : "100%", overflow: isMobileOrTablet ? "visible" : "hidden", marginTop: isMobileOrTablet ? 30 : 0 }}>
+                      <SectionTitle title="Tổng quan nhân sự" icon="bi-pie-chart" className="mb-3" />
+
+                      <div className="p-3 rounded-3 mb-3" style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}>
+                        <div className="text-primary fw-bold mb-1" style={{ fontSize: 11, letterSpacing: "0.04em" }}>TỔNG QUỸ LƯƠNG</div>
+                        <div style={{ fontSize: 22, color: "#3b82f6", fontWeight: 900 }}>{grandTotalFund.toLocaleString("vi-VN")} <span style={{ fontSize: 14, fontWeight: 700 }}>đ</span></div>
+                        <div className="text-muted mt-1" style={{ fontSize: 11, lineHeight: "1.4" }}>
+                          Tổng quỹ lương năm <strong>{year}</strong> là <strong>{grandTotalFund.toLocaleString("vi-VN")}</strong> đồng cho <strong>{totalStep3}</strong> nhân viên toàn hệ thống, đạt <strong>{grandTotalLimit > 0 ? (grandTotalFund / grandTotalLimit * 100).toFixed(1) : "0.0"}%</strong> tổng chi phí lương và chiếm <strong>{totalRevenue > 0 ? (grandTotalFund / totalRevenue * 100).toFixed(1) : "0.0"}%</strong> tổng doanh thu
                         </div>
-                        <div className="d-flex flex-column gap-1">
-                          {bizCosts.map(item => renderCostRow(item, setBizCosts))}
-                        </div>
-                        <button
-                          type="button"
-                          className="btn btn-link btn-sm text-primary text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
-                          onClick={() => handleAddCostItem(setBizCosts, "biz")}
-                          style={{ fontSize: 12, fontWeight: 600 }}
-                        >
-                          <i className="bi bi-plus-circle"></i> Thêm khoản mục
-                        </button>
                       </div>
 
-                      {/* Phòng Marketing */}
-                      <div>
-                        <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
-                          <div className="fw-bold d-flex align-items-center gap-2" style={{ fontSize: 13.5, color: "#8b5cf6" }}>
-                            <i className="bi bi-megaphone"></i> Phòng Marketing
+                      <div className="mb-2" style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", letterSpacing: "0.04em" }}>PHÂN BỔ THEO PHÒNG BAN</div>
+                      <div className="d-flex flex-column gap-2">
+                        {groups.map(g => (
+                          <div key={g.label}>
+                            <div className="d-flex justify-content-between mb-1">
+                              <span style={{ fontSize: 12, fontWeight: 600 }}>{g.label}</span>
+                              <span style={{ fontSize: 12, color: g.color, fontWeight: 700 }}>{pct(g.total)}%</span>
+                            </div>
+                            <div style={{ height: 6, borderRadius: 4, background: "#f1f5f9" }}>
+                              <div style={{ height: "100%", borderRadius: 4, background: g.color, width: `${pct(g.total)}%`, transition: "width 0.4s" }} />
+                            </div>
+                            <div className="text-muted mt-1" style={{ fontSize: 10 }}>{g.total.toLocaleString("vi-VN")} người &nbsp;·&nbsp; {pctTarget(g.total)}% định biên mục tiêu</div>
                           </div>
-                          <span className="badge fw-bold" style={{ fontSize: 11, color: "#8b5cf6", background: "rgba(139, 92, 246, 0.1)" }}>
-                            Tổng: {grpMkt.toLocaleString("vi-VN")} đ
-                          </span>
-                        </div>
-                        <div className="d-flex flex-column gap-1">
-                          {mktCosts.map(item => renderCostRow(item, setMktCosts))}
-                        </div>
-                        <button
-                          type="button"
-                          className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
-                          onClick={() => handleAddCostItem(setMktCosts, "mkt")}
-                          style={{ fontSize: 12, fontWeight: 600, color: "#8b5cf6" }}
-                        >
-                          <i className="bi bi-plus-circle"></i> Thêm khoản mục
-                        </button>
-                      </div>
-
-                      {/* Phòng Vận hành */}
-                      <div>
-                        <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
-                          <div className="fw-bold d-flex align-items-center gap-2" style={{ fontSize: 13.5, color: "#f59e0b" }}>
-                            <i className="bi bi-gear"></i> Phòng Vận hành
-                          </div>
-                          <span className="badge fw-bold" style={{ fontSize: 11, color: "#f59e0b", background: "rgba(245, 158, 11, 0.1)" }}>
-                            Tổng: {grpOps.toLocaleString("vi-VN")} đ
-                          </span>
-                        </div>
-                        <div className="d-flex flex-column gap-1">
-                          {opsCosts.map(item => renderCostRow(item, setOpsCosts))}
-                        </div>
-                        <button
-                          type="button"
-                          className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
-                          onClick={() => handleAddCostItem(setOpsCosts, "ops")}
-                          style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b" }}
-                        >
-                          <i className="bi bi-plus-circle"></i> Thêm khoản mục
-                        </button>
-                      </div>
-
-                      {/* Chi phí Khác */}
-                      <div>
-                        <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-2">
-                          <div className="fw-bold d-flex align-items-center gap-2" style={{ fontSize: 13.5, color: "#ef4444" }}>
-                            <i className="bi bi-info-circle"></i> Chi phí Khác
-                          </div>
-                          <span className="badge fw-bold" style={{ fontSize: 11, color: "#ef4444", background: "rgba(239, 68, 68, 0.1)" }}>
-                            Tổng: {grpMisc.toLocaleString("vi-VN")} đ
-                          </span>
-                        </div>
-                        <div className="d-flex flex-column gap-1">
-                          {miscCosts.map(item => renderCostRow(item, setMiscCosts))}
-                        </div>
-                        <button
-                          type="button"
-                          className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
-                          onClick={() => handleAddCostItem(setMiscCosts, "misc")}
-                          style={{ fontSize: 12, fontWeight: 600, color: "#ef4444" }}
-                        >
-                          <i className="bi bi-plus-circle"></i> Thêm khoản mục
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* VERTICAL DIVIDER */}
-                  {!isMobileOrTablet && <div style={{ width: 1, background: "#dee2e6", flexShrink: 0, margin: "0 4px" }} />}
-
-                  {/* RIGHT – 5 phần */}
-                  <div style={{ flex: isMobileOrTablet ? "none" : 5, paddingLeft: isMobileOrTablet ? 0 : 20, height: isMobileOrTablet ? "auto" : "100%", overflow: isMobileOrTablet ? "visible" : "hidden", marginTop: isMobileOrTablet ? 30 : 0 }}>
-                    <SectionTitle title="Tổng quan chi phí" icon="bi-pie-chart" className="mb-3" />
-
-                    <div className="p-3 rounded-3 mb-3" style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)" }}>
-                      <div className="text-danger fw-bold mb-1" style={{ fontSize: 11, letterSpacing: "0.04em" }}>TỔNG CHI PHÍ</div>
-                      <div style={{ fontSize: 22, color: "#ef4444", fontWeight: 900 }}>{totalStep2.toLocaleString("vi-VN")} <span style={{ fontSize: 14, fontWeight: 700 }}>đ</span></div>
-                      <div className="text-muted mt-1" style={{ fontSize: 11, lineHeight: "1.4" }}>
-                        Tổng các chi phí chi tiết hiện chiếm <strong className="text-dark">{totalCost > 0 ? (totalStep2 / totalCost * 100).toFixed(1) : "0.0"}%</strong> định mức chi phí năm và chiếm <strong className="text-dark">{totalRevenue > 0 ? (totalStep2 / totalRevenue * 100).toFixed(1) : "0.0"}%</strong> tổng doanh thu năm
+                        ))}
                       </div>
                     </div>
 
-                    <div className="mb-2" style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", letterSpacing: "0.04em" }}>PHÂN BỔ THEO PHÒNG BAN</div>
-                    <div className="d-flex flex-column gap-2">
-                      {groups.map(g => (
-                        <div key={g.label}>
-                          <div className="d-flex justify-content-between mb-1">
-                            <span style={{ fontSize: 12, fontWeight: 600 }}>{g.label}</span>
-                            <span style={{ fontSize: 12, color: g.color, fontWeight: 700 }}>{pct(g.total)}%</span>
-                          </div>
-                          <div style={{ height: 6, borderRadius: 4, background: "#f1f5f9" }}>
-                            <div style={{ height: "100%", borderRadius: 4, background: g.color, width: `${pct(g.total)}%`, transition: "width 0.4s" }} />
-                          </div>
-                          <div className="text-muted mt-1" style={{ fontSize: 10 }}>{g.total.toLocaleString("vi-VN")} đ &nbsp;·&nbsp; {pctRev(g.total)}% tổng doanh thu năm</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            );
-          })()
-        ) : currentStep === 3 ? (
-          /* STEP 3: NHÂN SỰ */
-          (() => {
-            const handleAddStaffItem = (
-              setStaffList: React.Dispatch<React.SetStateAction<CustomStaffItem[]>>,
-              prefix: string
-            ) => {
-              triggerAddStaffItem(setStaffList, prefix);
-            };
-
-            const v_biz_1 = Number(s3_biz_1) || 0;
-            const v_biz_2 = Number(s3_biz_2) || 0;
-            const v_biz_3 = Number(s3_biz_3) || 0;
-            const v_biz_4 = Number(s3_biz_4) || 0;
-            const v_biz_5 = Number(s3_biz_5) || 0;
-            const v_biz_6 = Number(s3_biz_6) || 0;
-
-            const v_mkt_1 = Number(s3_mkt_1) || 0;
-            const v_mkt_2 = Number(s3_mkt_2) || 0;
-            const v_mkt_3 = Number(s3_mkt_3) || 0;
-            const v_mkt_4 = Number(s3_mkt_4) || 0;
-            const v_mkt_5 = Number(s3_mkt_5) || 0;
-
-            const v_log_1 = Number(s3_log_1) || 0;
-            const v_log_2 = Number(s3_log_2) || 0;
-            const v_log_3 = Number(s3_log_3) || 0;
-
-            const v_cs_1 = Number(s3_cs_1) || 0;
-            const v_cs_2 = Number(s3_cs_2) || 0;
-            const v_cs_3 = Number(s3_cs_3) || 0;
-
-            const v_fin_1 = Number(s3_fin_1) || 0;
-            const v_fin_2 = Number(s3_fin_2) || 0;
-            const v_fin_3 = Number(s3_fin_3) || 0;
-            const v_fin_4 = Number(s3_fin_4) || 0;
-
-            const grpBiz = v_biz_1 + v_biz_2 + v_biz_3 + v_biz_4 + v_biz_5 + v_biz_6;
-            const grpMkt = v_mkt_1 + v_mkt_2 + v_mkt_3 + v_mkt_4 + v_mkt_5;
-            const grpLog = v_log_1 + v_log_2 + v_log_3;
-            const grpCS = v_cs_1 + v_cs_2 + v_cs_3;
-            const grpFin = v_fin_1 + v_fin_2 + v_fin_3 + v_fin_4;
-
-            const totalStep3 = grpBiz + grpMkt + grpLog + grpCS + grpFin;
-
-            const hasCheckedStaff = [
-              ...bizStaff,
-              ...mktStaff,
-              ...logStaff,
-              ...csStaff,
-              ...finStaff
-            ].some(item => item.checked);
-
-            const handleDeleteCheckedStaff = () => {
-              setStaffConfirmOpen(true);
-            };
-
-            const fundBiz = (
-              v_biz_1 * (Number(s3_biz_1_inc) || 0) +
-              v_biz_2 * (Number(s3_biz_2_inc) || 0) +
-              v_biz_3 * (Number(s3_biz_3_inc) || 0) +
-              v_biz_4 * (Number(s3_biz_4_inc) || 0) +
-              v_biz_5 * (Number(s3_biz_5_inc) || 0) +
-              v_biz_6 * (Number(s3_biz_6_inc) || 0)
-            ) * 12;
-
-            const fundMkt = (
-              v_mkt_1 * (Number(s3_mkt_1_inc) || 0) +
-              v_mkt_2 * (Number(s3_mkt_2_inc) || 0) +
-              v_mkt_3 * (Number(s3_mkt_3_inc) || 0) +
-              v_mkt_4 * (Number(s3_mkt_4_inc) || 0) +
-              v_mkt_5 * (Number(s3_mkt_5_inc) || 0)
-            ) * 12;
-
-            const fundLog = (
-              v_log_1 * (Number(s3_log_1_inc) || 0) +
-              v_log_2 * (Number(s3_log_2_inc) || 0) +
-              v_log_3 * (Number(s3_log_3_inc) || 0)
-            ) * 12;
-
-            const fundCS = (
-              v_cs_1 * (Number(s3_cs_1_inc) || 0) +
-              v_cs_2 * (Number(s3_cs_2_inc) || 0) +
-              v_cs_3 * (Number(s3_cs_3_inc) || 0)
-            ) * 12;
-
-            const fundFin = (
-              v_fin_1 * (Number(s3_fin_1_inc) || 0) +
-              v_fin_2 * (Number(s3_fin_2_inc) || 0) +
-              v_fin_3 * (Number(s3_fin_3_inc) || 0) +
-              v_fin_4 * (Number(s3_fin_4_inc) || 0)
-            ) * 12;
-
-            const limitBiz = s2_calcByRev ? Math.round(totalRevenue * (Number(c_biz_salary_pct) || 0) / 100) : (Number(c_biz_salary) || 0);
-            const limitMkt = s2_calcByRev ? Math.round(totalRevenue * (Number(c_mkt_events_pct) || 0) / 100) : (Number(c_mkt_events) || 0);
-            const limitLog = s2_calcByRev ? Math.round(totalRevenue * (Number(c_ops_salary_pct) || 0) / 100) : (Number(c_ops_salary) || 0);
-            const limitCS = s2_calcByRev ? Math.round(totalRevenue * (Number(c_ops_cs_pct) || 0) / 100) : (Number(c_ops_cs) || 0);
-            const limitFin = s2_calcByRev ? Math.round(totalRevenue * (Number(c_fin_salary_pct) || 0) / 100) : (Number(c_fin_salary) || 0);
-
-            const grandTotalFund = fundBiz + fundMkt + fundLog + fundCS + fundFin;
-            const grandTotalLimit = limitBiz + limitMkt + limitLog + limitCS + limitFin;
-
-            const pct = (v: number) => totalStep3 > 0 ? (v / totalStep3 * 100).toFixed(1) : "0.0";
-            const pctTarget = (v: number) => totalStaff > 0 ? (v / totalStaff * 100).toFixed(1) : "0.0";
-            const pctRev = (fund: number) => totalRevenue > 0 ? (fund / totalRevenue * 100).toFixed(1) : "0.0";
-
-            const renderStaffRow = (
-              item: CustomStaffItem,
-              setStaffList: React.Dispatch<React.SetStateAction<CustomStaffItem[]>>
-            ) => {
-              const toggleChecked = () => {
-                setStaffList(prev => prev.map(i => i.id === item.id ? { ...i, checked: !i.checked } : i));
-              };
-
-              const updateQty = (newQty: string) => {
-                setStaffList(prev => prev.map(i => i.id === item.id ? { ...i, qty: newQty } : i));
-              };
-
-              const updateSalary = (newSalary: string) => {
-                setStaffList(prev => prev.map(i => i.id === item.id ? { ...i, salary: newSalary } : i));
-              };
-
-              return (
-                <div key={item.id} className="d-flex align-items-center gap-2 mb-1 ps-3">
-                  <input
-                    type="checkbox"
-                    className="form-check-input"
-                    checked={item.checked}
-                    onChange={toggleChecked}
-                    style={{ cursor: "pointer", width: 14, height: 14, flexShrink: 0 }}
-                  />
-                  <span className="text-muted flex-grow-1" style={{ fontSize: 12 }}>
-                    {item.label}
-                  </span>
-                  <div className="input-group input-group-sm" style={{ maxWidth: 210 }}>
-                    <input
-                      type="text"
-                      className="form-control text-end fw-semibold text-primary"
-                      value={formatVNDInput(item.salary)}
-                      onChange={(e) => updateSalary(e.target.value.replace(/\D/g, ""))}
-                      placeholder="Thu nhập"
-                    />
-                    <input
-                      type="text"
-                      className="form-control text-center fw-bold text-dark"
-                      style={{ maxWidth: 55 }}
-                      value={item.qty}
-                      onChange={(e) => updateQty(e.target.value.replace(/\D/g, ""))}
-                    />
-                    <span className="input-group-text text-muted" style={{ fontSize: 11, fontFamily: "var(--font-roboto-condensed), 'Roboto Condensed', sans-serif" }}>người</span>
                   </div>
                 </div>
               );
-            };
+            })()
+          ) : (
+            /* STEP 4: LỢI NHUẬN */
+            (() => {
+              const formattedGrossProfitMargin = grossProfitMargin.toFixed(1);
+              const formattedOperatingProfitMargin = operatingProfitMargin.toFixed(1);
 
-            const groups = [
-              { label: "Kinh doanh", color: "#3b82f6", total: grpBiz },
-              { label: "Marketing", color: "#8b5cf6", total: grpMkt },
-              { label: "Kho vận", color: "#f59e0b", total: grpLog },
-              { label: "CSKH", color: "#10b981", total: grpCS },
-              { label: "Tài chính & Nhân sự", color: "#6c757d", total: grpFin },
-            ];
+              const profitRows = [
+                {
+                  id: "1",
+                  stt: "1",
+                  label: "Doanh thu bán hàng và cung cấp dịch vụ",
+                  unit: "đồng",
+                  value: valGrossRevenue,
+                  type: "calculated",
+                  isBold: true,
+                },
+                {
+                  id: "2",
+                  stt: "2",
+                  label: "Các khoản giảm trừ doanh thu",
+                  unit: "đồng",
+                  value: valDeductions,
+                  type: "calculated",
+                  isBold: false,
+                },
+                {
+                  id: "3",
+                  stt: "3",
+                  label: "Doanh thu thuần về bán hàng và cung cấp dịch vụ",
+                  unit: "đồng",
+                  value: valNetRevenue,
+                  type: "calculated",
+                  isBold: true,
+                  isSubtotal: true,
+                },
+                {
+                  id: "4",
+                  stt: "4",
+                  label: "Giá vốn bán hàng",
+                  unit: "đồng",
+                  value: valCOGS,
+                  type: "calculated",
+                  isBold: false,
+                },
+                {
+                  id: "5",
+                  stt: "5",
+                  label: "Lợi nhuận gộp về bán hàng và cung cấp dịch vụ",
+                  unit: "đồng",
+                  value: valGrossProfit,
+                  type: "calculated",
+                  isBold: true,
+                  isSubtotal: true,
+                },
+                {
+                  id: "6",
+                  stt: "6",
+                  label: "Doanh thu hoạt động tài chính",
+                  unit: "đồng",
+                  value: valFinRevenue,
+                  type: "calculated",
+                  isBold: false,
+                },
+                {
+                  id: "7",
+                  stt: "7",
+                  label: "Chi phí tài chính",
+                  unit: "đồng",
+                  value: valFinCost,
+                  type: "calculated",
+                  isBold: false,
+                },
+                {
+                  id: "8",
+                  stt: "8",
+                  label: "Chi phí quản lý vận hành",
+                  unit: "đồng",
+                  value: valOperatingExpenses,
+                  type: "calculated",
+                  isBold: false,
+                },
+                {
+                  id: "9",
+                  stt: "9",
+                  label: "Lợi nhuận thuần từ hoạt động kinh doanh",
+                  unit: "đồng",
+                  value: valOperatingProfit,
+                  type: "calculated",
+                  isBold: true,
+                  isSubtotal: true,
+                },
+                {
+                  id: "10",
+                  stt: "10",
+                  label: "Thu nhập khác",
+                  unit: "đồng",
+                  value: valOtherIncome,
+                  type: "calculated",
+                  isBold: false,
+                },
+                {
+                  id: "11",
+                  stt: "11",
+                  label: "Chi phí khác",
+                  unit: "đồng",
+                  value: valOtherCost,
+                  type: "calculated",
+                  isBold: false,
+                },
+                {
+                  id: "12",
+                  stt: "12",
+                  label: "Lợi nhuận khác",
+                  unit: "đồng",
+                  value: valOtherProfit,
+                  type: "calculated",
+                  isBold: true,
+                },
+                {
+                  id: "13",
+                  stt: "13",
+                  label: "Tổng lợi nhuận trước thuế kế hoạch",
+                  unit: "đồng",
+                  value: valTotalProfit,
+                  type: "calculated",
+                  isBold: true,
+                  isFinal: true,
+                },
+                {
+                  id: "14",
+                  stt: "14",
+                  label: "Biên lợi nhuận gộp",
+                  unit: "%",
+                  value: formattedGrossProfitMargin,
+                  type: "percentage",
+                  isBold: true,
+                },
+                {
+                  id: "15",
+                  stt: "15",
+                  label: "Biên lợi nhuận hoạt động",
+                  unit: "%",
+                  value: formattedOperatingProfitMargin,
+                  type: "percentage",
+                  isBold: true,
+                },
+              ];
 
-            return (
-              <div className="container-fluid px-3 pb-3">
-                <div className="d-flex" style={{ gap: 0, flexDirection: isMobileOrTablet ? "column" : "row", height: isMobileOrTablet ? "auto" : 530 }}>
+              return (
+                <div className="container-fluid px-3 pb-3">
+                  <SectionTitle title="Kế hoạch lợi nhuận & Hiệu quả hoạt động (ROI)" icon="bi-trophy" className="mb-2" />
 
-                  {/* LEFT – 7 phần */}
-                  <div className="d-flex flex-column" style={{ flex: isMobileOrTablet ? "none" : 7, paddingRight: isMobileOrTablet ? 0 : 20, height: isMobileOrTablet ? "auto" : "100%" }}>
-                    <div className="d-flex align-items-center justify-content-between mb-3 flex-shrink-0">
-                      <SectionTitle title="Chi tiết định biên nhân sự" icon="bi-people" className="mb-0" />
-                      {hasCheckedStaff && (
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm d-flex align-items-center gap-1 py-1 animate__animated animate__fadeIn"
-                          onClick={handleDeleteCheckedStaff}
-                          style={{ fontSize: 12, borderRadius: 6 }}
-                        >
-                          <i className="bi bi-trash"></i> Xoá đã chọn
-                        </button>
-                      )}
-                    </div>
+                  <div className="table-responsive rounded-3 border">
+                    <table className="table align-middle mb-0" style={{ fontSize: 13 }}>
+                      <thead className="table-light text-secondary fw-bold text-uppercase position-sticky top-0" style={{ borderBottom: "2px solid #dee2e6", zIndex: 1 }}>
+                        <tr>
+                          <th className="text-center" style={{ width: 60, padding: "6px 8px" }}>STT</th>
+                          <th style={{ minWidth: 250, padding: "6px 8px" }}>Hạng mục - Chỉ tiêu</th>
+                          <th className="text-center" style={{ width: 100, padding: "6px 8px" }}>Đơn vị</th>
+                          <th className="text-end" style={{ width: 220, padding: "6px 8px" }}>Giá trị</th>
+                          <th style={{ minWidth: 300, padding: "6px 8px" }}>Ghi chú</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {profitRows.map((row) => {
+                          const isHighlight = row.isFinal;
+                          const isSubtotal = row.isSubtotal;
 
-                    {/* Scrollable list container */}
-                    <div style={{ flexGrow: 1, overflowY: "auto", paddingRight: 5 }}>
-                    {/* Nhóm 1: Kinh doanh */}
-                    <div className="mb-2">
-                      <div className="d-flex align-items-center gap-2 mb-1">
-                        <span className="rounded-circle d-inline-block" style={{ width: 8, height: 8, background: "#3b82f6", flexShrink: 0 }} />
-                        <span className="fw-bold text-primary" style={{ fontSize: 12 }}>PHÒNG KINH DOANH</span>
-                        <span className="ms-auto fw-bold text-primary" style={{ fontSize: 12 }}>{grpBiz.toLocaleString("vi-VN")} người | {fundBiz.toLocaleString("vi-VN")} đồng</span>
-                      </div>
-                      <div className="text-muted mb-2 ps-3" style={{ fontSize: 11, lineHeight: "1.4" }}>
-                        Tổng nhân sự <strong>{grpBiz}</strong> người, chiếm <strong>{pct(grpBiz)}%</strong> tổng số nhân viên. Quỹ lương <strong>{fundBiz.toLocaleString("vi-VN")}</strong> đồng, chiếm <strong>{limitBiz > 0 ? (fundBiz / limitBiz * 100).toFixed(1) : "0.0"}%</strong> so với định mức chi phí lương của phòng và chiếm <strong>{pctRev(fundBiz)}%</strong> tổng doanh thu
-                      </div>
-                      {bizStaff.map(item => renderStaffRow(item, setBizStaff))}
-                      <button
-                        type="button"
-                        className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
-                        onClick={() => handleAddStaffItem(setBizStaff, "biz")}
-                        style={{ fontSize: 12, fontWeight: 600, color: "#3b82f6" }}
-                      >
-                        <i className="bi bi-plus-circle"></i> Thêm định biên
-                      </button>
-                    </div>
+                          let rowBg = "";
+                          let rowColor = "";
 
-                    {/* Nhóm 2: Marketing */}
-                    <div className="mb-2">
-                      <div className="d-flex align-items-center gap-2 mb-1">
-                        <span className="rounded-circle d-inline-block" style={{ width: 8, height: 8, background: "#8b5cf6", flexShrink: 0 }} />
-                        <span className="fw-bold" style={{ fontSize: 12, color: "#8b5cf6" }}>PHÒNG MARKETING</span>
-                        <span className="ms-auto fw-bold" style={{ fontSize: 12, color: "#8b5cf6" }}>{grpMkt.toLocaleString("vi-VN")} người | {fundMkt.toLocaleString("vi-VN")} đồng</span>
-                      </div>
-                      <div className="text-muted mb-2 ps-3" style={{ fontSize: 11, lineHeight: "1.4" }}>
-                        Tổng nhân sự <strong>{grpMkt}</strong> người, chiếm <strong>{pct(grpMkt)}%</strong> tổng số nhân viên. Quỹ lương <strong>{fundMkt.toLocaleString("vi-VN")}</strong> đồng, chiếm <strong>{limitMkt > 0 ? (fundMkt / limitMkt * 100).toFixed(1) : "0.0"}%</strong> so với định mức chi phí lương của phòng và chiếm <strong>{pctRev(fundMkt)}%</strong> tổng doanh thu
-                      </div>
-                      {mktStaff.map(item => renderStaffRow(item, setMktStaff))}
-                      <button
-                        type="button"
-                        className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
-                        onClick={() => handleAddStaffItem(setMktStaff, "mkt")}
-                        style={{ fontSize: 12, fontWeight: 600, color: "#8b5cf6" }}
-                      >
-                        <i className="bi bi-plus-circle"></i> Thêm định biên
-                      </button>
-                    </div>
+                          if (isHighlight) {
+                            rowBg = valTotalProfit >= 0 ? "rgba(25, 135, 84, 0.08)" : "rgba(220, 53, 69, 0.08)";
+                            rowColor = valTotalProfit >= 0 ? "#198754" : "#dc3545";
+                          } else if (isSubtotal) {
+                            rowBg = "#f8fafc";
+                            rowColor = "#0f172a";
+                          }
 
-                    {/* Nhóm 3: Kho vận */}
-                    <div className="mb-2">
-                      <div className="d-flex align-items-center gap-2 mb-1">
-                        <span className="rounded-circle d-inline-block" style={{ width: 8, height: 8, background: "#f59e0b", flexShrink: 0 }} />
-                        <span className="fw-bold" style={{ fontSize: 12, color: "#f59e0b" }}>BỘ PHẬN KHO VẬN</span>
-                        <span className="ms-auto fw-bold" style={{ fontSize: 12, color: "#f59e0b" }}>{grpLog.toLocaleString("vi-VN")} người | {fundLog.toLocaleString("vi-VN")} đồng</span>
-                      </div>
-                      <div className="text-muted mb-2 ps-3" style={{ fontSize: 11, lineHeight: "1.4" }}>
-                        Tổng nhân sự <strong>{grpLog}</strong> người, chiếm <strong>{pct(grpLog)}%</strong> tổng số nhân viên. Quỹ lương <strong>{fundLog.toLocaleString("vi-VN")}</strong> đồng, chiếm <strong>{limitLog > 0 ? (fundLog / limitLog * 100).toFixed(1) : "0.0"}%</strong> so với định mức chi phí lương của phòng và chiếm <strong>{pctRev(fundLog)}%</strong> tổng doanh thu
-                      </div>
-                      {logStaff.map(item => renderStaffRow(item, setLogStaff))}
-                      <button
-                        type="button"
-                        className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
-                        onClick={() => handleAddStaffItem(setLogStaff, "log")}
-                        style={{ fontSize: 12, fontWeight: 600, color: "#f59e0b" }}
-                      >
-                        <i className="bi bi-plus-circle"></i> Thêm định biên
-                      </button>
-                    </div>
+                          const rowStyle = (isHighlight || isSubtotal) ? {
+                            backgroundColor: rowBg,
+                            color: rowColor,
+                          } : {};
 
-                    {/* Nhóm 4: CSKH */}
-                    <div className="mb-2">
-                      <div className="d-flex align-items-center gap-2 mb-1">
-                        <span className="rounded-circle d-inline-block" style={{ width: 8, height: 8, background: "#10b981", flexShrink: 0 }} />
-                        <span className="fw-bold" style={{ fontSize: 12, color: "#10b981" }}>BỘ PHẬN CHĂM SÓC KHÁCH HÀNG</span>
-                        <span className="ms-auto fw-bold" style={{ fontSize: 12, color: "#10b981" }}>{grpCS.toLocaleString("vi-VN")} người | {fundCS.toLocaleString("vi-VN")} đồng</span>
-                      </div>
-                      <div className="text-muted mb-2 ps-3" style={{ fontSize: 11, lineHeight: "1.4" }}>
-                        Tổng nhân sự <strong>{grpCS}</strong> người, chiếm <strong>{pct(grpCS)}%</strong> tổng số nhân viên. Quỹ lương <strong>{fundCS.toLocaleString("vi-VN")}</strong> đồng, chiếm <strong>{limitCS > 0 ? (fundCS / limitCS * 100).toFixed(1) : "0.0"}%</strong> so với định mức chi phí lương của phòng và chiếm <strong>{pctRev(fundCS)}%</strong> tổng doanh thu
-                      </div>
-                      {csStaff.map(item => renderStaffRow(item, setCsStaff))}
-                      <button
-                        type="button"
-                        className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
-                        onClick={() => handleAddStaffItem(setCsStaff, "cs")}
-                        style={{ fontSize: 12, fontWeight: 600, color: "#10b981" }}
-                      >
-                        <i className="bi bi-plus-circle"></i> Thêm định biên
-                      </button>
-                    </div>
+                          const textClass = row.isBold ? "fw-bold" : "";
 
-                    {/* Nhóm 5: HC-NS */}
-                    <div className="mb-2">
-                      <div className="d-flex align-items-center gap-2 mb-1">
-                        <span className="rounded-circle d-inline-block" style={{ width: 8, height: 8, background: "#6c757d", flexShrink: 0 }} />
-                        <span className="fw-bold" style={{ fontSize: 12, color: "#6c757d" }}>PHÒNG TÀI CHÍNH & NHÂN SỰ</span>
-                        <span className="ms-auto fw-bold" style={{ fontSize: 12, color: "#6c757d" }}>{grpFin.toLocaleString("vi-VN")} người | {fundFin.toLocaleString("vi-VN")} đồng</span>
-                      </div>
-                      <div className="text-muted mb-2 ps-3" style={{ fontSize: 11, lineHeight: "1.4" }}>
-                        Tổng nhân sự <strong>{grpFin}</strong> người, chiếm <strong>{pct(grpFin)}%</strong> tổng số nhân viên. Quỹ lương <strong>{fundFin.toLocaleString("vi-VN")}</strong> đồng, chiếm <strong>{limitFin > 0 ? (fundFin / limitFin * 100).toFixed(1) : "0.0"}%</strong> so với định mức chi phí lương của phòng và chiếm <strong>{pctRev(fundFin)}%</strong> tổng doanh thu
-                      </div>
-                      {finStaff.map(item => renderStaffRow(item, setFinStaff))}
-                      <button
-                        type="button"
-                        className="btn btn-link btn-sm text-decoration-none d-flex align-items-center gap-1 mt-2 ps-3"
-                        onClick={() => handleAddStaffItem(setFinStaff, "fin")}
-                        style={{ fontSize: 12, fontWeight: 600, color: "#6c757d" }}
-                      >
-                        <i className="bi bi-plus-circle"></i> Thêm định biên
-                      </button>
-                    </div>
+                          return (
+                            <tr key={row.id} style={rowStyle}>
+                              <td className="text-center fw-semibold text-muted" style={{ padding: "4px 8px" }}>{row.stt}</td>
+                              <td className={`${textClass}`} style={{ padding: "4px 8px" }}>
+                                {row.label}
+                              </td>
+                              <td className="text-center text-muted" style={{ padding: "4px 8px", fontSize: 12.5 }}>
+                                {row.unit}
+                              </td>
+                              <td className={`text-end ${textClass}`} style={{ padding: "4px 8px", fontSize: row.isBold ? 13.5 : 12.5 }}>
+                                {row.type === "percentage" ? (
+                                  <span>{row.value}</span>
+                                ) : (
+                                  <span style={{ fontFamily: "var(--font-roboto-condensed), 'Roboto Condensed', sans-serif" }}>
+                                    {typeof row.value === "number" ? row.value.toLocaleString("vi-VN") : row.value}
+                                  </span>
+                                )}
+                              </td>
+                              <td style={{ padding: "4px 8px" }}>
+                                <input
+                                  type="text"
+                                  className="form-control form-control-sm bg-transparent border-0 px-1 py-0 text-muted"
+                                  style={{ fontSize: 12, height: 22 }}
+                                  value={s4Notes[row.id] || ""}
+                                  onChange={(e) => handleS4NoteChange(row.id, e.target.value)}
+                                  placeholder="Nhập ghi chú chỉ tiêu..."
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
+              );
+            })()
+          )}
 
-                  {/* VERTICAL DIVIDER */}
-                  {!isMobileOrTablet && <div style={{ width: 1, background: "#dee2e6", flexShrink: 0, margin: "0 4px" }} />}
-
-                  {/* RIGHT – 5 phần */}
-                  <div style={{ flex: isMobileOrTablet ? "none" : 5, paddingLeft: isMobileOrTablet ? 0 : 20, height: isMobileOrTablet ? "auto" : "100%", overflow: isMobileOrTablet ? "visible" : "hidden", marginTop: isMobileOrTablet ? 30 : 0 }}>
-                    <SectionTitle title="Tổng quan nhân sự" icon="bi-pie-chart" className="mb-3" />
-
-                    <div className="p-3 rounded-3 mb-3" style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}>
-                      <div className="text-primary fw-bold mb-1" style={{ fontSize: 11, letterSpacing: "0.04em" }}>TỔNG QUỸ LƯƠNG</div>
-                      <div style={{ fontSize: 22, color: "#3b82f6", fontWeight: 900 }}>{grandTotalFund.toLocaleString("vi-VN")} <span style={{ fontSize: 14, fontWeight: 700 }}>đ</span></div>
-                      <div className="text-muted mt-1" style={{ fontSize: 11, lineHeight: "1.4" }}>
-                        Tổng quỹ lương năm <strong>{year}</strong> là <strong>{grandTotalFund.toLocaleString("vi-VN")}</strong> đồng cho <strong>{totalStep3}</strong> nhân viên toàn hệ thống, đạt <strong>{grandTotalLimit > 0 ? (grandTotalFund / grandTotalLimit * 100).toFixed(1) : "0.0"}%</strong> tổng chi phí lương và chiếm <strong>{totalRevenue > 0 ? (grandTotalFund / totalRevenue * 100).toFixed(1) : "0.0"}%</strong> tổng doanh thu
-                      </div>
-                    </div>
-
-                    <div className="mb-2" style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", letterSpacing: "0.04em" }}>PHÂN BỔ THEO PHÒNG BAN</div>
-                    <div className="d-flex flex-column gap-2">
-                      {groups.map(g => (
-                        <div key={g.label}>
-                          <div className="d-flex justify-content-between mb-1">
-                            <span style={{ fontSize: 12, fontWeight: 600 }}>{g.label}</span>
-                            <span style={{ fontSize: 12, color: g.color, fontWeight: 700 }}>{pct(g.total)}%</span>
-                          </div>
-                          <div style={{ height: 6, borderRadius: 4, background: "#f1f5f9" }}>
-                            <div style={{ height: "100%", borderRadius: 4, background: g.color, width: `${pct(g.total)}%`, transition: "width 0.4s" }} />
-                          </div>
-                          <div className="text-muted mt-1" style={{ fontSize: 10 }}>{g.total.toLocaleString("vi-VN")} người &nbsp;·&nbsp; {pctTarget(g.total)}% định biên mục tiêu</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            );
-          })()
-        ) : (
-          /* STEP 4: LỢI NHUẬN */
-          (() => {
-            const formattedGrossProfitMargin = grossProfitMargin.toFixed(1);
-            const formattedOperatingProfitMargin = operatingProfitMargin.toFixed(1);
-
-            const profitRows = [
-              {
-                id: "1",
-                stt: "1",
-                label: "Doanh thu bán hàng và cung cấp dịch vụ",
-                unit: "đồng",
-                value: valGrossRevenue,
-                type: "calculated",
-                isBold: true,
-              },
-              {
-                id: "2",
-                stt: "2",
-                label: "Các khoản giảm trừ doanh thu",
-                unit: "đồng",
-                value: valDeductions,
-                type: "calculated",
-                isBold: false,
-              },
-              {
-                id: "3",
-                stt: "3",
-                label: "Doanh thu thuần về bán hàng và cung cấp dịch vụ",
-                unit: "đồng",
-                value: valNetRevenue,
-                type: "calculated",
-                isBold: true,
-                isSubtotal: true,
-              },
-              {
-                id: "4",
-                stt: "4",
-                label: "Giá vốn bán hàng",
-                unit: "đồng",
-                value: valCOGS,
-                type: "calculated",
-                isBold: false,
-              },
-              {
-                id: "5",
-                stt: "5",
-                label: "Lợi nhuận gộp về bán hàng và cung cấp dịch vụ",
-                unit: "đồng",
-                value: valGrossProfit,
-                type: "calculated",
-                isBold: true,
-                isSubtotal: true,
-              },
-              {
-                id: "6",
-                stt: "6",
-                label: "Doanh thu hoạt động tài chính",
-                unit: "đồng",
-                value: valFinRevenue,
-                type: "calculated",
-                isBold: false,
-              },
-              {
-                id: "7",
-                stt: "7",
-                label: "Chi phí tài chính",
-                unit: "đồng",
-                value: valFinCost,
-                type: "calculated",
-                isBold: false,
-              },
-              {
-                id: "8",
-                stt: "8",
-                label: "Chi phí quản lý vận hành",
-                unit: "đồng",
-                value: valOperatingExpenses,
-                type: "calculated",
-                isBold: false,
-              },
-              {
-                id: "9",
-                stt: "9",
-                label: "Lợi nhuận thuần từ hoạt động kinh doanh",
-                unit: "đồng",
-                value: valOperatingProfit,
-                type: "calculated",
-                isBold: true,
-                isSubtotal: true,
-              },
-              {
-                id: "10",
-                stt: "10",
-                label: "Thu nhập khác",
-                unit: "đồng",
-                value: valOtherIncome,
-                type: "calculated",
-                isBold: false,
-              },
-              {
-                id: "11",
-                stt: "11",
-                label: "Chi phí khác",
-                unit: "đồng",
-                value: valOtherCost,
-                type: "calculated",
-                isBold: false,
-              },
-              {
-                id: "12",
-                stt: "12",
-                label: "Lợi nhuận khác",
-                unit: "đồng",
-                value: valOtherProfit,
-                type: "calculated",
-                isBold: true,
-              },
-              {
-                id: "13",
-                stt: "13",
-                label: "Tổng lợi nhuận trước thuế kế hoạch",
-                unit: "đồng",
-                value: valTotalProfit,
-                type: "calculated",
-                isBold: true,
-                isFinal: true,
-              },
-              {
-                id: "14",
-                stt: "14",
-                label: "Biên lợi nhuận gộp",
-                unit: "%",
-                value: formattedGrossProfitMargin,
-                type: "percentage",
-                isBold: true,
-              },
-              {
-                id: "15",
-                stt: "15",
-                label: "Biên lợi nhuận hoạt động",
-                unit: "%",
-                value: formattedOperatingProfitMargin,
-                type: "percentage",
-                isBold: true,
-              },
-            ];
-
-            return (
-              <div className="container-fluid px-3 pb-3">
-                <SectionTitle title="Kế hoạch lợi nhuận & Hiệu quả hoạt động (ROI)" icon="bi-trophy" className="mb-2" />
-
-                <div className="table-responsive rounded-3 border">
-                  <table className="table align-middle mb-0" style={{ fontSize: 13 }}>
-                    <thead className="table-light text-secondary fw-bold" style={{ borderBottom: "2px solid #dee2e6" }}>
-                      <tr>
-                        <th className="text-center" style={{ width: 60, padding: "6px 8px" }}>STT</th>
-                        <th style={{ minWidth: 250, padding: "6px 8px" }}>Hạng mục - Chỉ tiêu</th>
-                        <th className="text-center" style={{ width: 100, padding: "6px 8px" }}>Đơn vị</th>
-                        <th className="text-end" style={{ width: 220, padding: "6px 8px" }}>Giá trị</th>
-                        <th style={{ minWidth: 300, padding: "6px 8px" }}>Ghi chú</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {profitRows.map((row) => {
-                        const isHighlight = row.isFinal;
-                        const isSubtotal = row.isSubtotal;
-
-                        let rowBg = "";
-                        let rowColor = "";
-
-                        if (isHighlight) {
-                          rowBg = valTotalProfit >= 0 ? "rgba(25, 135, 84, 0.08)" : "rgba(220, 53, 69, 0.08)";
-                          rowColor = valTotalProfit >= 0 ? "#198754" : "#dc3545";
-                        } else if (isSubtotal) {
-                          rowBg = "#f8fafc";
-                          rowColor = "#0f172a";
-                        }
-
-                        const rowStyle = (isHighlight || isSubtotal) ? {
-                          backgroundColor: rowBg,
-                          color: rowColor,
-                        } : {};
-
-                        const textClass = row.isBold ? "fw-bold" : "";
-
-                        return (
-                          <tr key={row.id} style={rowStyle}>
-                            <td className="text-center fw-semibold text-muted" style={{ padding: "4px 8px" }}>{row.stt}</td>
-                            <td className={`${textClass}`} style={{ padding: "4px 8px" }}>
-                              {row.label}
-                            </td>
-                            <td className="text-center text-muted" style={{ padding: "4px 8px", fontSize: 12.5 }}>
-                              {row.unit}
-                            </td>
-                            <td className={`text-end ${textClass}`} style={{ padding: "4px 8px", fontSize: row.isBold ? 13.5 : 12.5 }}>
-                              {row.type === "percentage" ? (
-                                <span>{row.value}</span>
-                              ) : (
-                                <span style={{ fontFamily: "var(--font-roboto-condensed), 'Roboto Condensed', sans-serif" }}>
-                                  {typeof row.value === "number" ? row.value.toLocaleString("vi-VN") : row.value}
-                                </span>
-                              )}
-                            </td>
-                            <td style={{ padding: "4px 8px" }}>
-                              <input
-                                type="text"
-                                className="form-control form-control-sm bg-transparent border-0 px-1 py-0 text-muted"
-                                style={{ fontSize: 12, height: 22 }}
-                                value={s4Notes[row.id] || ""}
-                                onChange={(e) => handleS4NoteChange(row.id, e.target.value)}
-                                placeholder="Nhập ghi chú chỉ tiêu..."
-                              />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })()
-        )}
       </WorkflowCard>
+      )}
+
+      {activeTab === "oem" && (
+        <WorkflowCard
+          stepper={
+            <div className="d-flex flex-column">
+              <div>
+                <ModernStepper
+                  steps={steps}
+                  currentStep={oemCurrentStep}
+                  onStepChange={setOemCurrentStep}
+                  paddingX={0}
+                  paddingY={12}
+                />
+              </div>
+              <div className="d-flex flex-column flex-xl-row align-items-start align-items-xl-center justify-content-between p-0 m-0 bg-light gap-3 gap-xl-0 overflow-hidden">
+                <div className="d-flex align-items-center gap-2 mt-1">
+                  <button
+                    type="button"
+                    className="btn btn-sm px-3 fw-bold transition-all btn-outline-secondary"
+                    onClick={() => setActiveTab("seajong")}
+                    style={{ borderRadius: 6, padding: "2px 10px", fontSize: 12 }}
+                  >
+                    SEAJONG
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm px-3 fw-bold transition-all btn-primary shadow-sm"
+                    onClick={() => setActiveTab("oem")}
+                    style={{ borderRadius: 6, padding: "2px 10px", fontSize: 12 }}
+                  >
+                    OEM
+                  </button>
+                </div>
+
+                <div className="d-flex flex-wrap align-items-center row-gap-1 column-gap-3 pb-1 pb-xl-0" style={{ fontSize: 13 }}>
+                  <div className="d-flex flex-wrap align-items-center gap-1 transition-all">
+                    <span className="fw-bold text-dark text-nowrap">OEM:</span>
+                    <span className="text-muted text-nowrap">Lợi nhuận</span>
+                    <span className="fw-bold text-success text-nowrap">{omProfit.toLocaleString("vi-VN")} đ</span>
+                    <span className="text-muted d-none d-md-inline">-</span>
+                    <span className="text-muted text-nowrap">Biên lợi nhuận hoạt động</span>
+                    <span className="fw-bold text-primary text-nowrap">{omMargin.toFixed(1)}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        >
+          <OemPlanView
+            currentStep={oemCurrentStep}
+            year={oemYear}
+            onProfitChange={(profit, margin) => { setOmProfit(profit); setOmMargin(margin); }}
+          />
+        </WorkflowCard>
+      )}
       {isPrintOpen && (() => {
         const getCostValForPrint = (item: CustomCostItem) => {
           return s2_calcByRev
@@ -2616,32 +3011,18 @@ export default function BoardYearlyPlanPage() {
         const printCostItems = [
           ...bizCosts.map(item => ({ group: "Phòng Kinh doanh", name: item.label, val: getCostValForPrint(item) })),
           ...mktCosts.map(item => ({ group: "Phòng Marketing", name: item.label, val: getCostValForPrint(item) })),
-          ...opsCosts.map(item => ({ group: "Phòng Vận hành", name: item.label, val: getCostValForPrint(item) })),
+          ...finCosts.map(item => ({ group: "Kế toán và Nhân sự", name: item.label, val: getCostValForPrint(item) })),
+          ...logCosts.map(item => ({ group: "Bộ phận kho", name: item.label, val: getCostValForPrint(item) })),
+          ...opsCosts.map(item => ({ group: "Vận hành hệ thống", name: item.label, val: getCostValForPrint(item) })),
           ...miscCosts.map(item => ({ group: "Chi phí khác", name: item.label, val: getCostValForPrint(item) }))
         ];
 
         const printStaffItems = [
-          { group: "Phòng Kinh doanh", name: "Trưởng phòng", qty: v_biz_1, inc: Number(s3_biz_1_inc) || 0 },
-          { group: "Phòng Kinh doanh", name: "Phó trưởng phòng", qty: v_biz_2, inc: Number(s3_biz_2_inc) || 0 },
-          { group: "Phòng Kinh doanh", name: "Sale Admin", qty: v_biz_3, inc: Number(s3_biz_3_inc) || 0 },
-          { group: "Phòng Kinh doanh", name: "Sale Ecom & CSKH", qty: v_biz_4, inc: Number(s3_biz_4_inc) || 0 },
-          { group: "Phòng Kinh doanh", name: "Sale Voriger & Seajong", qty: v_biz_5, inc: Number(s3_biz_5_inc) || 0 },
-          { group: "Phòng Kinh doanh", name: "Sale chăm sóc", qty: v_biz_6, inc: Number(s3_biz_6_inc) || 0 },
-          { group: "Phòng Marketing", name: "Trưởng phòng", qty: v_mkt_1, inc: Number(s3_mkt_1_inc) || 0 },
-          { group: "Phòng Marketing", name: "SEO", qty: v_mkt_2, inc: Number(s3_mkt_2_inc) || 0 },
-          { group: "Phòng Marketing", name: "Design", qty: v_mkt_3, inc: Number(s3_mkt_3_inc) || 0 },
-          { group: "Phòng Marketing", name: "Content Media", qty: v_mkt_4, inc: Number(s3_mkt_4_inc) || 0 },
-          { group: "Phòng Marketing", name: "Editor video", qty: v_mkt_5, inc: Number(s3_mkt_5_inc) || 0 },
-          { group: "Phòng Kho vận", name: "Điều phối", qty: v_log_1, inc: Number(s3_log_1_inc) || 0 },
-          { group: "Phòng Kho vận", name: "Thủ kho", qty: v_log_2, inc: Number(s3_log_2_inc) || 0 },
-          { group: "Phòng Kho vận", name: "Nhân viên kho", qty: v_log_3, inc: Number(s3_log_3_inc) || 0 },
-          { group: "Phòng CSKH", name: "Quảng cáo", qty: v_cs_1, inc: Number(s3_cs_1_inc) || 0 },
-          { group: "Phòng CSKH", name: "Bảo hành", qty: v_cs_2, inc: Number(s3_cs_2_inc) || 0 },
-          { group: "Phòng CSKH", name: "Chăm sóc khách hàng", qty: v_cs_3, inc: Number(s3_cs_3_inc) || 0 },
-          { group: "Phòng TC-NS", name: "Trợ lý vận hành", qty: v_fin_1, inc: Number(s3_fin_1_inc) || 0 },
-          { group: "Phòng TC-NS", name: "Nhân sự", qty: v_fin_2, inc: Number(s3_fin_2_inc) || 0 },
-          { group: "Phòng TC-NS", name: "Kế toán tổng hợp", qty: v_fin_3, inc: Number(s3_fin_3_inc) || 0 },
-          { group: "Phòng TC-NS", name: "Kế toán quản trị & thuế", qty: v_fin_4, inc: Number(s3_fin_4_inc) || 0 }
+          ...bizStaff.map(item => ({ group: "Phòng Kinh doanh", name: item.label, qty: Number(item.qty) || 0, inc: Number(item.salary) || 0 })),
+          ...mktStaff.map(item => ({ group: "Phòng Marketing", name: item.label, qty: Number(item.qty) || 0, inc: Number(item.salary) || 0 })),
+          ...logStaff.map(item => ({ group: "Kho vận", name: item.label, qty: Number(item.qty) || 0, inc: Number(item.salary) || 0 })),
+          ...csStaff.map(item => ({ group: "CSKH", name: item.label, qty: Number(item.qty) || 0, inc: Number(item.salary) || 0 })),
+          ...finStaff.map(item => ({ group: "Tài chính & Nhân sự", name: item.label, qty: Number(item.qty) || 0, inc: Number(item.salary) || 0 }))
         ];
 
         const printProfitRows = [
@@ -3332,7 +3713,7 @@ export default function BoardYearlyPlanPage() {
                         </div>
                         <span style={{ fontSize: "10px", color: "#64748b" }}>Trang 03</span>
                       </div>
-                      
+
                       <div style={{ fontSize: "11.5px", lineHeight: "1.6", color: "#334155" }}>
                         {renderMarkdown(aiResult)}
                       </div>
@@ -3389,11 +3770,11 @@ export default function BoardYearlyPlanPage() {
                     Thẩm định kế hoạch
                   </h4>
                   <p style={{ margin: "2px 0 0 0", fontSize: "11.5px", color: "#94a3b8" }}>
-                     CEO 30 năm KN | CFO | Chuyên gia Chiến lược | Quản trị Vận hành | Chuyên gia KPI | Nhà đầu tư M&A
+                    CEO 30 năm KN | CFO | Chuyên gia Chiến lược | Quản trị Vận hành | Chuyên gia KPI | Nhà đầu tư M&A
                   </p>
                 </div>
               </div>
-              
+
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 {aiResult && !isAiLoading && (
                   <button
@@ -3948,6 +4329,8 @@ export default function BoardYearlyPlanPage() {
         onConfirm={() => {
           setBizCosts(prev => prev.filter(i => !i.checked));
           setMktCosts(prev => prev.filter(i => !i.checked));
+          setFinCosts(prev => prev.filter(i => !i.checked));
+          setLogCosts(prev => prev.filter(i => !i.checked));
           setOpsCosts(prev => prev.filter(i => !i.checked));
           setMiscCosts(prev => prev.filter(i => !i.checked));
           setCostConfirmOpen(false);

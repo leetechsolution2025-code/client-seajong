@@ -1025,9 +1025,9 @@ button, input, select, textarea, optgroup, option {
 
 /* ===== TOPBAR — chuẩn lại logo + tên ===== */
 .app-topbar .topbar-logo-box {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 110px;
+  height: 46px;
+  border-radius: 8px;
   overflow: hidden;
   border: none;
   background: transparent;
@@ -1928,6 +1928,19 @@ select.app-input {
 .apexcharts-zoom-rect,
 .apexcharts-selection-rect {
   display: none !important;
+}
+
+/* Tooltip values right alignment */
+.apexcharts-tooltip-y-group {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  min-width: 150px;
+}
+.apexcharts-tooltip-text-y-value {
+  margin-left: 20px !important;
+  text-align: right !important;
+  flex: 1;
 }
 
 /* ================================================================

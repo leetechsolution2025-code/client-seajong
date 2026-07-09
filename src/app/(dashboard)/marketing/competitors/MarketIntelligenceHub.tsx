@@ -363,8 +363,8 @@ export default function MarketIntelligenceHub() {
                     <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: "18px", fontWeight: 700, margin: "2px 0 0 0" }}>{companyInfo?.phone || "+84 900 123 456"}</div>
                   </div>
                   <div style={{ width: "30%", position: "relative", zIndex: 2 }}>
-                    <div style={{ fontSize: "10px", opacity: 0.9 }}>Email: {companyInfo?.email || "contact@company.vn"}</div>
-                    <div style={{ fontSize: "10px", opacity: 0.9, marginTop: "6px" }}>Website: {companyInfo?.website || "www.company.vn"}</div>
+                    <div style={{ fontSize: "10px", opacity: 0.9 }}>Email: {companyInfo?.email || "contact@company.com"}</div>
+                    <div style={{ fontSize: "10px", opacity: 0.9, marginTop: "6px" }}>Website: {companyInfo?.website || "www.company.com"}</div>
                   </div>
                   <div style={{ width: "35%", position: "relative", zIndex: 2, paddingLeft: "24px" }}>
                     <div style={{ fontSize: "10px", opacity: 0.9 }}>Địa chỉ: {companyInfo?.address || "Hà Nội, Việt Nam"}</div>

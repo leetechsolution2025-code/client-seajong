@@ -331,8 +331,8 @@ export default function AssetsPage() {
         <div className="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column overflow-hidden">
           
           {/* ── Toolbar ── */}
-          <div className="d-flex align-items-center justify-content-between mb-3 gap-3">
-            <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 800 }}>
+          <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+            <div className="d-flex align-items-center gap-3 flex-grow-1">
               <FilterSelect 
                 options={CATEGORY_OPTIONS} 
                 value={category} 
@@ -351,6 +351,7 @@ export default function AssetsPage() {
                 value={searchTerm} 
                 onChange={setSearchTerm} 
                 placeholder="Tìm tên, mã tài sản..." 
+                className="flex-grow-1"
               />
             </div>
             
@@ -380,6 +381,7 @@ export default function AssetsPage() {
               columns={columns} 
               loading={loading}
               emptyText="Không tìm thấy tài sản nào phù hợp"
+              wrapperStyle={{ minHeight: 300 }}
             />
           </div>
 

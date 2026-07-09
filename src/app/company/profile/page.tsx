@@ -139,8 +139,8 @@ export default function CompanyProfilePage() {
           <Card icon="bi-telephone" title="Thông tin liên hệ" color="#0ea5e9">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
               <Field label="Số điện thoại"><Input value={form.phone} onChange={set("phone")} placeholder="0901 234 567" type="tel" /></Field>
-              <Field label="Email"><Input value={form.email} onChange={set("email")} placeholder="info@company.vn" type="email" /></Field>
-              <Field label="Website"><Input value={form.website} onChange={set("website")} placeholder="https://company.vn" /></Field>
+              <Field label="Email"><Input value={form.email} onChange={set("email")} placeholder="info@company.com" type="email" /></Field>
+              <Field label="Website"><Input value={form.website} onChange={set("website")} placeholder="https://company.com" /></Field>
             </div>
           </Card>
 

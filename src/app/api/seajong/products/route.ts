@@ -12,26 +12,47 @@ export async function GET(req: NextRequest) {
 
   // Build where clause
   const where: any = {};
-  if (search) {
-    where.OR = [
-      { name:    { contains: search } },
-      { excerpt: { contains: search } },
-    ];
-  }
   if (catId) {
     where.categories = { some: { id: parseInt(catId) } };
   }
 
-  const [total, products] = await Promise.all([
-    prisma.seajongProduct.count({ where }),
-    prisma.seajongProduct.findMany({
+  let total = 0;
+  let products = [];
+
+  const removeAccents = (str: string) => {
+    return str ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : '';
+  };
+
+  if (search) {
+    // If search is provided, we fetch all matching the category, and filter in-memory.
+    // This is required because SQLite does not support case-insensitive Unicode search or accent-insensitive search.
+    const allProducts = await prisma.seajongProduct.findMany({
       where,
-      skip,
-      take: perPage,
       orderBy: { updatedAt: "desc" },
       include: { categories: { select: { id: true, name: true } } },
-    }),
-  ]);
+    });
+
+    const searchNormalized = removeAccents(search);
+    const filtered = allProducts.filter(p => {
+      const nameNorm = removeAccents(p.name);
+      const excerptNorm = removeAccents(p.excerpt);
+      return nameNorm.includes(searchNormalized) || excerptNorm.includes(searchNormalized);
+    });
+
+    total = filtered.length;
+    products = filtered.slice(skip, skip + perPage);
+  } else {
+    [total, products] = await Promise.all([
+      prisma.seajongProduct.count({ where }),
+      prisma.seajongProduct.findMany({
+        where,
+        skip,
+        take: perPage,
+        orderBy: { updatedAt: "desc" },
+        include: { categories: { select: { id: true, name: true } } },
+      }),
+    ]);
+  }
 
   const mapped = products.map(p => ({
     id:          p.id,

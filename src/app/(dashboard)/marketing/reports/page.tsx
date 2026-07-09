@@ -316,8 +316,8 @@ export default function ReportsPage() {
                     <div style={{ fontSize: "18px", fontWeight: 700 }}>{companyInfo?.phone || "024 3333 8888"}</div>
                   </div>
                   <div style={{ width: "30%", position: "relative", zIndex: 2 }}>
-                    <div style={{ fontSize: "10px" }}>Email: {companyInfo?.email || "marketing@seajong.vn"}</div>
-                    <div style={{ fontSize: "10px", marginTop: "4px" }}>Web: {companyInfo?.website || "www.seajong.vn"}</div>
+                    <div style={{ fontSize: "10px" }}>Email: {companyInfo?.email || "marketing@seajong.com"}</div>
+                    <div style={{ fontSize: "10px", marginTop: "4px" }}>Web: {companyInfo?.website || "www.seajong.com"}</div>
                   </div>
                   <div style={{ width: "35%", position: "relative", zIndex: 2, paddingLeft: "24px", fontSize: "10px" }}>
                     {companyInfo?.address || "Hà Nội, Việt Nam"}

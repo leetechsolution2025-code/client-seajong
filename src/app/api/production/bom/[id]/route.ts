@@ -31,11 +31,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         mi.spec        AS mi_spec,
         mi.thongSoKyThuat AS mi_thongSoKyThuat,
         mi.imageUrl    AS mi_imageUrl,
+        mi.categoryId  AS mi_categoryId,
+        mi.price       AS mi_price,
         ic.name        AS mi_categoryName
       FROM DinhMuc dm
       LEFT JOIN DinhMucVatTu dv ON dv.dinhMucId = dm.id
       LEFT JOIN MaterialItem mi ON mi.id = dv.materialId
-      LEFT JOIN InventoryCategory ic ON ic.id = mi.categoryId
+      LEFT JOIN Category ic ON ic.id = mi.categoryId
       WHERE dm.id = ${id}
       ORDER BY dv.id ASC
     `;
@@ -64,11 +66,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             tenHang: r.mi_name,
             code: r.mi_code,
             donVi: r.mi_unit,
+            price: r.mi_price,
             material: r.mi_material,
             spec: r.mi_spec,
             thongSoKyThuat: r.mi_thongSoKyThuat,
             imageUrl: r.mi_imageUrl,
-            category: r.mi_categoryName ? { name: r.mi_categoryName } : null
+            category: r.mi_categoryName ? { id: r.mi_categoryId, name: r.mi_categoryName } : null
           } : null
         }))
     };
@@ -120,6 +123,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // UPDATE ManufacturedProduct is removed because DinhMuc now references ManufacturedProduct, and deleting DinhMuc handles it.
     await prisma.$executeRaw`DELETE FROM DinhMucVatTu WHERE dinhMucId = ${id}`;
     await prisma.$executeRaw`DELETE FROM DinhMuc WHERE id = ${id}`;
     return NextResponse.json({ ok: true });

@@ -32,7 +32,7 @@ export async function GET(request: Request) {
       
       if (asset.soThangKhauHao && asset.soThangKhauHao > 0 && asset.ngayBatDauKhauHao) {
         const start = new Date(asset.ngayBatDauKhauHao);
-        const monthsDiff = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+        const monthsDiff = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()) + 1;
         
         if (monthsDiff > 0) {
           const depreciationPerMonth = asset.giaTriMua / asset.soThangKhauHao;
