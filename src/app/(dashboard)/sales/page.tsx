@@ -194,9 +194,8 @@ export default function SalesPage() {
 
   // Chart setup
   const chartSeries = [
-    { name: "Doanh số mục tiêu", data: monthlyTrends.map(t => t.target), color: "#f59e0b" },
-    { name: "Doanh số thực tế", data: monthlyTrends.map(t => t.actualSales), color: "#003087" },
-    { name: "Doanh thu", data: monthlyTrends.map(t => t.actualRevenue), color: "#10b981" }
+    { name: "Doanh thu mục tiêu", data: monthlyTrends.map(t => t.target), color: "#f59e0b" },
+    { name: "Doanh thu thực tế", data: monthlyTrends.map(t => t.actualRevenue), color: "#10b981" }
   ];
 
   const apexOptions: ApexCharts.ApexOptions = {
@@ -360,10 +359,10 @@ export default function SalesPage() {
             <div className="mb-2">
               <span className="fw-bold text-dark d-block" style={{ fontSize: 13.5 }}>
                 <i className="bi bi-activity text-emerald me-2" />
-                Xu hướng doanh số & doanh thu (Mục tiêu vs Thực tế)
+                Xu hướng doanh thu (Mục tiêu vs Thực tế)
               </span>
               <span className="text-muted" style={{ fontSize: 11 }}>
-                Biểu đồ diện tích so sánh chỉ tiêu kế hoạch tháng với doanh số và doanh thu thực tế
+                Biểu đồ diện tích so sánh doanh thu mục tiêu kế hoạch tháng với doanh thu thực tế
               </span>
             </div>
             <div style={{ flex: 1, minHeight: 280 }}>
