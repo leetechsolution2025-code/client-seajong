@@ -126,7 +126,7 @@ function SyncPanel({ onSyncDone }: { onSyncDone: () => void }) {
     if (!confirm("Bạn có chắc chắn muốn huỷ tiến trình đồng bộ đang chạy?")) return;
     setSyncing(false);
     await fetch("/api/seajong/sync", { method: "DELETE" });
-    fetchSyncStatus();
+    fetchStatus();
   };
 
   const handleSync = async () => {
@@ -396,7 +396,7 @@ export default function MarketingProductsPage() {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => { fetchSyncStatus(); }, [fetchSyncStatus]);
+  useEffect(() => { fetchStatus(); }, [fetchSyncStatus]);
 
   // Auto-open modal if sync is running on load
   useEffect(() => { if (syncing) setShowSyncModal(true); }, [syncing]);
@@ -412,7 +412,7 @@ export default function MarketingProductsPage() {
     setShowSyncModal(true);
     setSyncing(true);
     await fetch("/api/seajong/sync", { method: "POST" });
-    fetchSyncStatus();
+    fetchStatus();
   };
 
   // Fetch categories once
