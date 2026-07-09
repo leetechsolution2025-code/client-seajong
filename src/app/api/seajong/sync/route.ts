@@ -127,6 +127,24 @@ export async function GET() {
 }
 
 // ── POST — kích hoạt đồng bộ ──────────────────────────────────────────────────
+
+export async function DELETE() {
+  try {
+    const log = await prisma.seajongSyncLog.findFirst({ orderBy: { startedAt: "desc" } });
+    if (log && log.status === "running") {
+      await prisma.seajongSyncLog.update({
+        where: { id: log.id },
+        data: { status: "error", message: "Đã huỷ bởi người dùng", finishedAt: new Date() }
+      });
+      return NextResponse.json({ success: true });
+    }
+    return NextResponse.json({ success: false, message: "Không có tiến trình nào đang chạy" });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ success: false, error: msg });
+  }
+}
+
 export async function POST() {
   // Tạo log entry
   const log = await prisma.seajongSyncLog.create({

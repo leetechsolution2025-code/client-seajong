@@ -121,6 +121,14 @@ function SyncPanel({ onSyncDone }: { onSyncDone: () => void }) {
     return () => clearInterval(t);
   }, [syncing, onSyncDone]);
 
+  
+  const handleCancelSync = async () => {
+    if (!confirm("Bạn có chắc chắn muốn huỷ tiến trình đồng bộ đang chạy?")) return;
+    setSyncing(false);
+    await fetch("/api/seajong/sync", { method: "DELETE" });
+    fetchSyncStatus();
+  };
+
   const handleSync = async () => {
     setSyncing(true);
     await fetch("/api/seajong/sync", { method: "POST" });
@@ -527,6 +535,20 @@ export default function MarketingProductsPage() {
               </p>
             </div>
           </div>
+          {isRunning && (
+            <button
+              onClick={handleCancelSync}
+              title="Huỷ đồng bộ"
+              style={{
+                width: 30, height: 30, borderRadius: 8,
+                border: "1.5px solid var(--border)", background: "transparent",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#ef4444", marginRight: 8
+              }}
+            >
+              <i className="bi bi-stop-circle" style={{ fontSize: 14 }} />
+            </button>
+          )}
           {!isRunning && (
             <button
               onClick={() => setShowSyncModal(false)}
@@ -610,6 +632,13 @@ export default function MarketingProductsPage() {
               {syncLog?.message || "Bắt đầu..."}
             </p>
           </div>
+
+          {variantCount > 0 && (
+            <div style={{ marginTop: 8, fontSize: 12, color: "var(--muted-foreground)", fontWeight: 500, paddingLeft: 14 }}>
+              Số hàng hoá có biến thể: <span style={{ color: "var(--foreground)", fontWeight: 700 }}>{variantCount}</span>
+            </div>
+          )}
+
 
           {/* Footer actions */}
           {!isRunning && (
