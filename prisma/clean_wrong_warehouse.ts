@@ -3,30 +3,11 @@ const prisma = new PrismaClient();
 
 async function main() {
   try {
-    const wrongWarehouse = await prisma.warehouse.findUnique({
+    const wrongWarehouse1 = await prisma.warehouse.findUnique({
       where: { code: "KHO-HANGHOA" }
     });
     
-    if (wrongWarehouse) {
-      // Find InventoryItems related to this warehouse
-      const count = await prisma.inventoryItem.count({
-        where: { warehouseId: wrongWarehouse.id }
-      });
-      
-      if (count > 0) {
-        // Move items to KHO-CHINH
-        const mainWarehouse = await prisma.warehouse.findUnique({
-          where: { code: "KHO-CHINH" }
-        });
-        if (mainWarehouse) {
-           await prisma.inventoryItem.updateMany({
-             where: { warehouseId: wrongWarehouse.id },
-             data: { warehouseId: mainWarehouse.id }
-           });
-           console.log(`Moved ${count} items from KHO-HANGHOA to KHO-CHINH`);
-        }
-      }
-      
+    if (wrongWarehouse1) {
       await prisma.warehouse.delete({
         where: { code: "KHO-HANGHOA" }
       });
@@ -34,6 +15,20 @@ async function main() {
     } else {
       console.log("No wrong KHO-HANGHOA warehouse found");
     }
+
+    const wrongWarehouse2 = await prisma.warehouse.findUnique({
+      where: { code: "KHO-PHUKIEN" }
+    });
+    
+    if (wrongWarehouse2) {
+      await prisma.warehouse.delete({
+        where: { code: "KHO-PHUKIEN" }
+      });
+      console.log("Deleted wrong warehouse KHO-PHUKIEN");
+    } else {
+      console.log("No wrong KHO-PHUKIEN warehouse found");
+    }
+
   } catch (error) {
     console.error("Error cleaning up warehouse:", error);
   }
