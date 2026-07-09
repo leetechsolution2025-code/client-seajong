@@ -121,14 +121,6 @@ function SyncPanel({ onSyncDone }: { onSyncDone: () => void }) {
     return () => clearInterval(t);
   }, [syncing, onSyncDone]);
 
-  
-  const handleCancelSync = async () => {
-    if (!confirm("Bạn có chắc chắn muốn huỷ tiến trình đồng bộ đang chạy?")) return;
-    setSyncing(false);
-    await fetch("/api/seajong/sync", { method: "DELETE" });
-    fetchStatus();
-  };
-
   const handleSync = async () => {
     setSyncing(true);
     await fetch("/api/seajong/sync", { method: "POST" });
@@ -368,6 +360,7 @@ export default function MarketingProductsPage() {
 
   // Sync state (inline, no SyncPanel component needed in toolbar)
   const [syncLog, setSyncLog]   = useState<SyncLog | null>(null);
+  const [variantCount, setVariantCount] = useState(0);
   const [syncing, setSyncing]   = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
 
@@ -392,11 +385,12 @@ export default function MarketingProductsPage() {
       if (!text) return;
       const d = JSON.parse(text);
       setSyncLog(d.log ?? null);
+      if (d.variantCount !== undefined) setVariantCount(d.variantCount);
       setSyncing(d.log?.status === "running");
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => { fetchStatus(); }, [fetchSyncStatus]);
+  useEffect(() => { fetchSyncStatus(); }, [fetchSyncStatus]);
 
   // Auto-open modal if sync is running on load
   useEffect(() => { if (syncing) setShowSyncModal(true); }, [syncing]);
@@ -408,11 +402,18 @@ export default function MarketingProductsPage() {
     return () => clearInterval(t);
   }, [syncing, fetchSyncStatus]);
 
+  const handleCancelSync = async () => {
+    if (!confirm("Bạn có chắc chắn muốn huỷ tiến trình đồng bộ đang chạy?")) return;
+    setSyncing(false);
+    await fetch("/api/seajong/sync", { method: "DELETE" });
+    fetchSyncStatus();
+  };
+
   const handleSync = async () => {
     setShowSyncModal(true);
     setSyncing(true);
     await fetch("/api/seajong/sync", { method: "POST" });
-    fetchStatus();
+    fetchSyncStatus();
   };
 
   // Fetch categories once
