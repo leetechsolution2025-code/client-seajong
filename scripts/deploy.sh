@@ -107,6 +107,9 @@ log "Database đã migration và đồng bộ hoàn toàn"
 info "Chạy seed database..."
 bash "${APP_DIR}/scripts/seed.sh"
 
+info "Chạy script sửa dữ liệu kho (KHO-CHINH và KHO-THANHPHAM)..."
+npx tsx prisma/fix_warehouses_after_clean.ts
+
 # ── Dừng app cũ trước khi build (tránh EADDRINUSE) ──────────
 info "Dừng app cũ trước khi build..."
 if pm2 list | grep -q "${APP_NAME}"; then
