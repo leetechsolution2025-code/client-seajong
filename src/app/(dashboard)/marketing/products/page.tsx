@@ -4,6 +4,14 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 import { ProductDrawer, Product, Category, SyncLog } from "@/components/marketing/ProductDrawer";
+
+type Pagination = {
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+};
+
 // ── ProductCard ────────────────────────────────────────────────────────────────
 function ProductCard({ p, cats, onClick }: { p: Product; cats: Category[]; onClick: () => void }) {
   const [imgError, setImgError] = useState(false);
