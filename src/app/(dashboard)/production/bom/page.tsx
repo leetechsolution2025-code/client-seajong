@@ -271,7 +271,7 @@ export default function BOMPage() {
     if (!bomData.id) return;
     setDeletingBom(true);
     try {
-      const res = await fetch(`/api/production/bom/${selectedProduct?.id || bomData?.id}`, {
+      const res = await fetch(`/api/production/manufactured-products/${selectedProduct.id}`, {
         method: "DELETE"
       });
       if (res.ok) {

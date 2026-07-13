@@ -57,3 +57,27 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
     return NextResponse.json({ error: e.message || "Internal error" }, { status: 500 });
   }
 }
+
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  try {
+    const params = await props.params;
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await req.json();
+    const { giaBan } = body;
+
+    if (giaBan !== undefined) {
+      // @ts-ignore
+      await prisma.manufacturedProduct.update({
+        where: { id: params.id },
+        data: { giaBan: Number(giaBan) } as any
+      });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    console.error("[PATCH /api/production/manufactured-products/[id]]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
+}

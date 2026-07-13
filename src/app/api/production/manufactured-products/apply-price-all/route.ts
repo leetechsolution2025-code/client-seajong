@@ -49,6 +49,11 @@ export async function POST(req: NextRequest) {
 
         // Cập nhật giá bán cho DinhMuc
         // @ts-ignore
+        await prisma.manufacturedProduct.update({
+          where: { id: product.id },
+          data: { giaBan: calculated } as any
+        });
+        
         await prisma.dinhMuc.update({
           where: { id: dinhMuc.id },
           data: { giaBan: calculated } as any
