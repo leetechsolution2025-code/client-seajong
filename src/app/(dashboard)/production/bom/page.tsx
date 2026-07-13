@@ -271,7 +271,7 @@ export default function BOMPage() {
     if (!bomData.id) return;
     setDeletingBom(true);
     try {
-      const res = await fetch(`/api/production/bom/${bomData.id}`, {
+      const res = await fetch(`/api/production/bom/${selectedProduct?.id || bomData?.id}`, {
         method: "DELETE"
       });
       if (res.ok) {
@@ -307,7 +307,7 @@ export default function BOMPage() {
     try {
       let res;
       if (bomData.id) {
-        res = await fetch(`/api/production/bom/${bomData.id}`, {
+        res = await fetch(`/api/production/bom/${selectedProduct?.id || bomData?.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(bomData)
@@ -565,22 +565,22 @@ export default function BOMPage() {
                 </div>
                 <button className="btn btn-success w-100" onClick={() => {
                   if (applyAllPrice) {
-                    toastInfo("Đang xử lý", "Đang tính toán và áp dụng cho tất cả...", { id: "apply-all" });
+                    toastInfo("Đang xử lý", "Đang tính toán và áp dụng cho tất cả...");
                     fetch("/api/production/manufactured-products/apply-price-all", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ marginPct: priceSetup.marginPct })
                     }).then(res => res.json()).then(data => {
                       if (data.success) {
-                        toastSuccess("Thành công", `Đã cập nhật giá bán cho ${data.updatedCount} sản phẩm`, { id: "apply-all" });
+                        toastSuccess("Thành công", `Đã cập nhật giá bán cho ${data.updatedCount} sản phẩm`);
                         fetchProducts();
                         setShowPriceOffcanvas(false);
                       } else {
-                        toastError("Lỗi", data.error || "Có lỗi xảy ra", { id: "apply-all" });
+                        toastError("Lỗi", data.error || "Có lỗi xảy ra");
                       }
                     }).catch(e => {
                       console.error(e);
-                      toastError("Lỗi", "Lỗi kết nối máy chủ", { id: "apply-all" });
+                      toastError("Lỗi", "Lỗi kết nối máy chủ");
                     });
                     return;
                   }
@@ -592,7 +592,7 @@ export default function BOMPage() {
                   })
                     .then(async res => {
                       if (res.ok) {
-                        setBomData((prev: any) => ({ ...prev, giaBan: priceSetup.finalPrice }));
+                        setSelectedProduct((prev: any) => prev ? { ...prev, giaBan: priceSetup.finalPrice } : prev);
                         fetchProducts(); // Refresh list to get updated giaBan
                         setShowPriceOffcanvas(false);
                         toastSuccess("Thành công", "Cập nhật giá bán thành công");
