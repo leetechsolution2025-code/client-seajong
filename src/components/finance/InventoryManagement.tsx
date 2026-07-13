@@ -38,7 +38,7 @@ interface Stats {
 
 interface InventoryManagementProps {
   allowAdd?: boolean;
-  mode?: "finance" | "production";
+  mode?: "finance" | "production" | "sales" | "cs" | "board";
 }
 
 export function InventoryManagement({ allowAdd = true, mode = "finance" }: InventoryManagementProps) {
@@ -57,6 +57,9 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [trangThai, setTrangThai] = useState("");
+
+  const isCS = mode === "cs";
+  const isSales = mode === "sales";
   const [warehouseId, setWarehouseId] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -244,7 +247,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
   const isDefect = whType === "DEFECT";
   const isSeajong = whType === "SEAJONG";
 
-  const columns: TableColumn<InventoryItem | any>[] = [
+  const rawColumns: TableColumn<InventoryItem | any>[] = [
     {
       header: <input type="checkbox" className="form-check-input" />,
       width: 40,
@@ -296,7 +299,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
     {
       header: "Tồn kho",
       width: 100,
-      align: "right",
+      align: "right" as const,
       render: (row) => {
         const soLuong = row.soLuong || 0;
         return (
@@ -310,11 +313,11 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
       }
     },
     {
-        header: isMaterial ? "Đơn giá nhập" : (isProduct ? "Giá thành" : (mode === "production" ? "Giá bán (đồng)" : "Đơn giá nhập")),
+        header: isMaterial ? "Đơn giá nhập" : (isProduct ? (isSales ? "Giá bán (đồng)" : "Giá thành") : (isSales ? "Giá bán (đồng)" : "Đơn giá nhập")),
         width: 140,
         align: "right",
         render: (row) => {
-          const price = isMaterial ? row.giaNhap : (isProduct ? row.costPrice : (mode === "production" ? row.giaBan : row.giaNhap));
+          const price = isMaterial ? row.giaNhap : (isProduct ? (isSales ? row.giaBan : row.costPrice) : (isSales ? row.giaBan : row.giaNhap));
           return (
             <span className="fw-medium text-dark">
               {(price || 0).toLocaleString("vi-VN")}
@@ -342,6 +345,8 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
       }
     }
   ];
+
+  const columns = isCS ? rawColumns.filter(c => !["Đơn giá nhập", "Giá thành", "Giá bán (đồng)"].includes(c.header as string)) : rawColumns;
 
   return (
     <div className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0, gap: "1rem" }}>
