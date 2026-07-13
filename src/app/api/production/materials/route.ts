@@ -141,7 +141,7 @@ export async function GET(req: NextRequest) {
         code: item.code,
         tenHang: item.name, // Mapping to UI expectation
         donVi: item.unit,
-        giaBan: 0,
+        giaBan: item.giaBan || 0,
         giaNhap: item.price,
         brand: item.brand,
         material: item.material,
