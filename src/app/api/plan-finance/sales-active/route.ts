@@ -25,9 +25,12 @@ export async function GET(_req: NextRequest) {
           customer: { select: { name: true } },
         },
       }),
-      // Đơn bán hàng đang thực hiện (trangThai = "active" hoặc "confirmed")
+      // Đơn bán hàng đang thực hiện và ĐÃ ĐƯỢC KẾ TOÁN DUYỆT
       prisma.saleOrder.findMany({
-        where: { trangThai: { in: ["active", "confirmed", "processing"] } },
+        where: { 
+          trangThai: { in: ["active", "confirmed", "processing"] },
+          keToanDuyet: "approved"
+        },
         orderBy: { createdAt: "desc" },
         take: 100,
         select: {

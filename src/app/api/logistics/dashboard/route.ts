@@ -315,7 +315,8 @@ export async function GET(req: NextRequest) {
       where: {
         trangThai: {
           in: ["draft", "confirmed"]
-        }
+        },
+        keToanDuyet: "approved"
       },
       include: {
         customer: true
