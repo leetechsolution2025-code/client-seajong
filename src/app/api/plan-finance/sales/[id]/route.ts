@@ -172,7 +172,7 @@ export async function GET(
               const neededMat = (vt.soLuong || 1) * missingQty;
               // Check stock in MaterialStock for KVP or general
               const matStock = await prisma.materialStock.aggregate({
-                where: { materialId: vt.materialId },
+                where: { materialId: vt.materialId || "" },
                 _sum: { soLuong: true }
               });
               const stockMat = matStock._sum.soLuong || 0;
@@ -228,7 +228,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { keToanDuyet, ngayGiao, ngayHoanThanhSanXuat, daThanhToan, trangThai, ghiChu, tongTien, productionItemIds = [] } = body;
+    const { keToanDuyet, decision, decisions, ngayGiao, ngayHoanThanhSanXuat, daThanhToan, trangThai, ghiChu, tongTien, items, productionItemIds = [] } = body;
 
     if (keToanDuyet !== undefined && !["pending", "approved", "rejected"].includes(keToanDuyet)) {
       return NextResponse.json({ error: "Trạng thái duyệt không hợp lệ" }, { status: 400 });
