@@ -497,7 +497,7 @@ export async function PATCH(
             await tx.saleOrder.update({ where: { id: order.id }, data: { trangThai: "in_production" } });
 
             // 0. Bóc tách BOM (Định mức)
-            const materialList: Array<{ tenVatTu: string, soLuong: number, donVi: string }> = [];
+            const materialList: Array<{ tenVatTu: string, soLuong: number, donVi: string, materialId?: string }> = [];
             for (const item of insufficientItems) {
               if (item.inventoryItemId) {
                 // Find DinhMuc linked to this InventoryItem
@@ -511,7 +511,8 @@ export async function PATCH(
                     materialList.push({
                       tenVatTu: vt.material?.name || vt.tenVatTu,
                       soLuong: reqQty,
-                      donVi: vt.material?.unit || vt.donViTinh || "cái"
+                      donVi: vt.material?.unit || vt.donViTinh || "cái",
+                      materialId: vt.materialId || undefined
                     });
                   }
                 }
@@ -526,11 +527,85 @@ export async function PATCH(
                 acc[curr.tenVatTu] = { ...curr };
               }
               return acc;
-            }, {} as Record<string, { tenVatTu: string, soLuong: number, donVi: string }>);
+            }, {} as Record<string, { tenVatTu: string, soLuong: number, donVi: string, materialId?: string }>);
             const finalMaterialList = Object.values(groupedMaterials);
             const materialDesc = finalMaterialList.length > 0
               ? `Vật tư cần xuất kho (KVP):\n` + finalMaterialList.map(m => `- ${m.tenVatTu}: ${m.soLuong} ${m.donVi}`).join("\n")
               : "Không tìm thấy định mức vật tư.";
+
+            // 0.1 Kiểm tra tồn kho vật tư và xác định số lượng thiếu
+            const missingMaterials: Array<{ tenVatTu: string, missingQty: number, donVi: string, materialId?: string }> = [];
+            if (finalMaterialList.length > 0) {
+              const materialIds = finalMaterialList.map(m => m.materialId).filter(Boolean) as string[];
+              const stocks = await tx.materialStock.findMany({
+                where: { materialId: { in: materialIds } },
+                select: { materialId: true, soLuong: true }
+              });
+              
+              // Map tồn kho tổng của từng vật tư
+              const stockMap = stocks.reduce((acc, curr) => {
+                acc[curr.materialId] = (acc[curr.materialId] || 0) + curr.soLuong;
+                return acc;
+              }, {} as Record<string, number>);
+
+              for (const m of finalMaterialList) {
+                const stockQty = m.materialId ? (stockMap[m.materialId] || 0) : 0;
+                if (stockQty < m.soLuong) {
+                  missingMaterials.push({
+                    tenVatTu: m.tenVatTu,
+                    missingQty: m.soLuong - stockQty,
+                    donVi: m.donVi,
+                    materialId: m.materialId
+                  });
+                }
+              }
+            }
+
+            // 0.2 Nếu thiếu vật tư, tự động sinh Yêu cầu mua hàng
+            if (missingMaterials.length > 0) {
+              const prCode = `YC-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.floor(1000 + Math.random() * 9000)}`;
+              const purchaseDesc = `Bổ sung vật tư cho đơn bán lẻ ${order.code}\n` + 
+                missingMaterials.map(m => `- ${m.tenVatTu}: ${m.missingQty} ${m.donVi}`).join("\n");
+              
+              const pr = await tx.purchaseRequest.create({
+                data: {
+                  code: prCode,
+                  nguoiYeuCau: "Hệ thống",
+                  donVi: "Kế toán / Hệ thống",
+                  lyDo: purchaseDesc,
+                  trangThai: "chua-xu-ly"
+                }
+              });
+
+              // Báo cho bộ phận mua hàng
+              const purchasingHead = await tx.employee.findFirst({
+                where: {
+                  status: "active",
+                  OR: [
+                    { departmentName: { contains: "Mua hàng" }, position: { contains: "Trưởng" } },
+                    { departmentCode: { contains: "purchase" }, position: { contains: "Trưởng" } }
+                  ]
+                },
+                select: { userId: true }
+              });
+
+              if (purchasingHead?.userId) {
+                const poNotif = await tx.notification.create({
+                  data: {
+                    title: `⚠️ Thiếu vật tư sản xuất cho đơn ${order.code}`,
+                    content: `Kho vật tư không đủ để sản xuất đơn hàng ${order.code}. Hệ thống đã tự động lập Yêu cầu mua hàng ${prCode} cho các vật tư còn thiếu. Vui lòng xử lý ngay.`,
+                    type: "warning",
+                    priority: "high",
+                    audienceType: "individual",
+                    audienceValue: purchasingHead.userId,
+                    createdById: session.user.id
+                  }
+                });
+                await tx.notificationRecipient.create({
+                  data: { notificationId: poNotif.id, userId: purchasingHead.userId, isRead: false }
+                });
+              }
+            }
 
             // 1. Tạo lệnh sản xuất (Task)
             const productionHead = await tx.employee.findFirst({
@@ -587,7 +662,7 @@ export async function PATCH(
               });
             }
 
-            // 3. Gửi thông báo cho Kho KVP để xuất vật tư phụ kiện
+            // 3. Gửi lệnh xuất Kho KVP cho thủ kho (Task + Notification)
             const storekeepers = await tx.employee.findMany({
               where: {
                 OR: [
@@ -602,6 +677,21 @@ export async function PATCH(
             const storekeeperUserIds = storekeepers.map(s => s.userId).filter(Boolean) as string[];
 
             if (storekeeperUserIds.length > 0 && finalMaterialList.length > 0) {
+              // Tạo một Task cho bộ phận Logistics để lấy vào Danh sách lệnh xuất nhập kho
+              const khoTask = await tx.task.create({
+                data: {
+                  title: `Lệnh xuất kho KVP cho đơn hàng ${order.code}`,
+                  description: `Yêu cầu xuất vật tư cho lệnh sản xuất đơn bán hàng ${order.code}.\n\n${materialDesc}`,
+                  assigneeId: storekeeperUserIds[0], // Gán tạm cho thủ kho đầu tiên
+                  creatorId: session.user.id,
+                  deptCode: "logistics",
+                  priority: "high",
+                  status: "pending",
+                  actualResult: JSON.stringify(finalMaterialList.map(m => ({ tenHang: m.tenVatTu, soLuong: m.soLuong, donVi: m.donVi }))),
+                  ...(dueDate && { dueDate })
+                }
+              });
+
               const notifKho = await tx.notification.create({
                 data: {
                   title: `🔧 Lệnh xuất Kho Vật tư phụ kiện (KVP) cho đơn ${order.code}`,

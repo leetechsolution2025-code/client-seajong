@@ -33,7 +33,7 @@ export default function LogisticsOverviewPage() {
             const rawId = d.code || d.id;
             const parts = rawId.split('-');
             const suffix = parts[parts.length - 1] || `${index}`;
-            const exportCode = `LXK-202607-${suffix}`;
+            const exportCode = d.type === "material-export" ? `LXK-VATTU-${suffix}` : `LXK-202607-${suffix}`;
             return { ...d, exportCode };
           });
           
@@ -104,6 +104,9 @@ export default function LogisticsOverviewPage() {
           const detail = await res.json();
           items = (detail.saleOrderItems ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.inventoryItem?.donVi }));
         }
+      } else if (row.type === "material-export") {
+        // Dữ liệu items đã có sẵn từ API sales-active
+        items = (row.items ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi }));
       }
       setOrderDetails(items);
     } catch (error) {

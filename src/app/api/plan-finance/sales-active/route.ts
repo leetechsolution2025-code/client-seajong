@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const [contracts, saleOrders, retailInvoices] = await Promise.all([
+    const [contracts, saleOrders, retailInvoices, materialTasks] = await Promise.all([
       // Hợp đồng đang thực hiện
       prisma.contract.findMany({
         where: { trangThai: "active" },
@@ -49,6 +49,20 @@ export async function GET(_req: NextRequest) {
           tongCong: true, tenKhach: true,
         },
       }),
+      // Lệnh xuất kho vật tư phụ kiện (Task)
+      prisma.task.findMany({
+        where: {
+          deptCode: "logistics",
+          status: "pending",
+          title: { contains: "Lệnh xuất kho KVP" }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        select: {
+          id: true, title: true, status: true,
+          actualResult: true, createdAt: true
+        }
+      }),
     ]);
 
     const result = [
@@ -79,6 +93,27 @@ export async function GET(_req: NextRequest) {
         tongTien:  inv.tongCong,
         trangThai: inv.trangThai,
       })),
+      ...materialTasks.map(t => {
+        let parsedItems = [];
+        try {
+          if (t.actualResult) parsedItems = JSON.parse(t.actualResult);
+        } catch(e) {}
+        
+        // Cố gắng trích xuất mã đơn từ title "Lệnh xuất kho KVP cho đơn hàng SO-..."
+        const orderCodeMatch = t.title.match(/cho đơn hàng (SO-\S+)/);
+        const orderCode = orderCodeMatch ? orderCodeMatch[1] : "KVP";
+
+        return {
+          id:        t.id,
+          code:      orderCode,
+          type:      "material-export" as const,
+          typeLabel: "Lệnh xuất kho KVP",
+          customer:  null,
+          tongTien:  null,
+          trangThai: t.status,
+          items:     parsedItems,
+        };
+      }),
     ];
 
     return NextResponse.json(result);
