@@ -36,6 +36,7 @@ export default function FinancePage() {
   const [showItemsOffcanvas, setShowItemsOffcanvas] = useState(false);
   const [orderDetails, setOrderDetails] = useState<any[]>([]);
   const [fetchingDetails, setFetchingDetails] = useState(false);
+  const [productionItemIds, setProductionItemIds] = useState<string[]>([]);
 
   const handleViewItems = async () => {
     if (!selectedOrder) return;
@@ -46,7 +47,10 @@ export default function FinancePage() {
       const res = await fetch(`/api/plan-finance/sales/${selectedOrder.id}`);
       if (res.ok) {
         const detail = await res.json();
-        setOrderDetails((detail.saleOrderItems ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.inventoryItem?.donVi })));
+        setOrderDetails(detail.items || []);
+        // Auto-check items that can be produced
+        const prodIds = (detail.items || []).filter((it: any) => it.missingQty > 0 && it.isManufactured && it.canProduce).map((it: any) => it.id);
+        setProductionItemIds(prodIds);
       } else {
         setOrderDetails([]);
       }
@@ -1031,22 +1035,6 @@ export default function FinancePage() {
                       </h6>
                     </div>
                     <div className="d-flex align-items-center gap-2">
-                      <button 
-                        className="btn btn-sm btn-success fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1"
-                        onClick={handleApprove}
-                        style={{ fontSize: "11.5px", border: "none" }}
-                      >
-                        <i className="bi bi-check-lg" />
-                        Duyệt
-                      </button>
-                      <button 
-                        className="btn btn-sm btn-danger fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1"
-                        onClick={handleReject}
-                        style={{ fontSize: "11.5px", border: "none" }}
-                      >
-                        <i className="bi bi-x-lg" />
-                        Từ chối
-                      </button>
                       <button 
                         className="btn btn-sm btn-primary fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1"
                         onClick={handleSubmitToDirector}

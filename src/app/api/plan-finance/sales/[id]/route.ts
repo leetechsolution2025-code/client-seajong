@@ -124,10 +124,71 @@ export async function GET(
       if (!item.inventoryItem && item.tenHang) {
         const invItem = await prisma.inventoryItem.findFirst({
           where: { tenHang: item.tenHang },
-          select: { imageUrl: true, code: true }
+          select: { imageUrl: true, code: true, soLuong: true, dinhMucId: true }
         });
         if (invItem) {
           item.inventoryItem = invItem;
+        }
+      }
+    }
+
+    // Tính toán số lượng thiếu và kiểm tra kho vật tư
+    for (const item of orderItems) {
+      const requiredQty = item.soLuong || 1;
+      const currentStock = item.inventoryItem?.soLuong || 0;
+      const missingQty = Math.max(0, requiredQty - currentStock);
+      
+      item.missingQty = missingQty;
+      item.canProduce = false;
+      
+      if (missingQty > 0) {
+        // Tìm BOM
+        let itemCode = null;
+        try {
+          if (item.ghiChu) {
+            const meta = JSON.parse(item.ghiChu);
+            if (meta.code) itemCode = meta.code;
+          }
+        } catch(e){}
+
+        let resolvedDinhMucId = item.inventoryItem?.dinhMucId || null;
+        if (!resolvedDinhMucId && itemCode) {
+          const dm = await prisma.dinhMuc.findFirst({ 
+            where: { OR: [ { code: `DM-${itemCode}` }, { code: itemCode } ] } 
+          });
+          if (dm) resolvedDinhMucId = dm.id;
+        }
+
+        if (resolvedDinhMucId) {
+          // Fetch BOM materials
+          const bom = await prisma.dinhMuc.findUnique({
+            where: { id: resolvedDinhMucId },
+            include: { vatTu: true }
+          });
+          
+          if (bom && bom.vatTu && bom.vatTu.length > 0) {
+            let hasEnoughMaterials = true;
+            for (const vt of bom.vatTu) {
+              const neededMat = (vt.soLuong || 1) * missingQty;
+              // Check stock in MaterialStock for KVP or general
+              const matStock = await prisma.materialStock.aggregate({
+                where: { materialId: vt.materialId },
+                _sum: { soLuong: true }
+              });
+              const stockMat = matStock._sum.soLuong || 0;
+              if (stockMat < neededMat) {
+                hasEnoughMaterials = false;
+                break;
+              }
+            }
+            item.canProduce = hasEnoughMaterials;
+            item.dinhMucId = resolvedDinhMucId;
+            item.isManufactured = true;
+          } else {
+            item.isManufactured = false;
+          }
+        } else {
+          item.isManufactured = false;
         }
       }
     }
@@ -167,7 +228,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { keToanDuyet, decision, decisions, ngayGiao, ngayHoanThanhSanXuat, daThanhToan, trangThai, ghiChu, tongTien, items } = body;
+    const { keToanDuyet, ngayGiao, ngayHoanThanhSanXuat, daThanhToan, trangThai, ghiChu, tongTien, productionItemIds = [] } = body;
 
     if (keToanDuyet !== undefined && !["pending", "approved", "rejected"].includes(keToanDuyet)) {
       return NextResponse.json({ error: "Trạng thái duyệt không hợp lệ" }, { status: 400 });
@@ -175,7 +236,7 @@ export async function PATCH(
 
     const order = await prisma.saleOrder.findUnique({
       where: { id },
-      include: { customer: true }
+      include: { customer: true, saleOrderItems: { include: { inventoryItem: true } } }
     });
 
     if (!order) {
@@ -415,23 +476,58 @@ export async function PATCH(
               
               if (availableStock < requiredQty) {
                 const missingQty = requiredQty - availableStock;
+                
+                // Parse ghiChu to find BOM code
+                let itemCode = null;
+                try {
+                  if (item.ghiChu) {
+                    const meta = JSON.parse(item.ghiChu);
+                    if (meta.code) itemCode = meta.code;
+                  }
+                } catch(e){}
+
+                let resolvedDinhMucId = invItem?.dinhMucId || null;
+                if (!resolvedDinhMucId && itemCode) {
+                  // Try to find DinhMuc by code DM-{itemCode} or just {itemCode}
+                  const dm = await tx.dinhMuc.findFirst({ 
+                    where: { 
+                      OR: [
+                        { code: `DM-${itemCode}` },
+                        { code: itemCode }
+                      ]
+                    } 
+                  });
+                  if (dm) resolvedDinhMucId = dm.id;
+                }
+
                 const record = {
                   inventoryItemId: invItem?.id || null,
                   tenHang: item.tenHang,
                   donVi: item.donVi,
                   missingQty,
                   donGia: item.donGia,
-                  dinhMucId: invItem?.dinhMucId
+                  dinhMucId: resolvedDinhMucId
                 };
                 
-                // KHO THÀNH PHẨM có định mức, KHO HÀNG HOÁ không có định mức
-                if (invItem?.dinhMucId) missingThanhPhamItems.push(record);
+                if (resolvedDinhMucId) missingThanhPhamItems.push(record);
                 else missingHangHoaItems.push(record);
               }
             }
           }
-
           const prItemsToCreate: any[] = [];
+
+          // XỬ LÝ MUA HÀNG CHO KHO HÀNG HOÁ
+          if (isPurchase) {
+            for (const item of missingHangHoaItems) {
+              prItemsToCreate.push({
+                inventoryItemId: item.inventoryItemId,
+                tenHang: item.tenHang,
+                soLuong: item.missingQty,
+                donVi: item.donVi || "cái",
+                ghiChu: `Mua thẳng hàng hoá thiếu cho đơn ${order.code}`
+              });
+            }
+          }
 
           // XỬ LÝ SẢN XUẤT CHO KHO THÀNH PHẨM
           if (isProduction && missingThanhPhamItems.length > 0) {
@@ -583,19 +679,6 @@ Các mặt hàng:
             }
           }
 
-          // XỬ LÝ MUA HÀNG CHO KHO HÀNG HOÁ
-          if (isPurchase) {
-            for (const item of missingHangHoaItems) {
-              prItemsToCreate.push({
-                inventoryItemId: item.inventoryItemId,
-                tenHang: item.tenHang,
-                soLuong: item.missingQty,
-                donVi: item.donVi || "cái",
-                ghiChu: `Mua thẳng hàng hoá thiếu cho đơn ${order.code}`
-              });
-            }
-          }
-
           // TẠO YÊU CẦU MUA HÀNG
           if (prItemsToCreate.length > 0) {
             if (!isProduction) {
@@ -714,6 +797,16 @@ export async function DELETE(
       if (order.code) {
         await tx.debt.deleteMany({
           where: { referenceId: order.code },
+        });
+
+        // Xoá yêu cầu mua hàng liên quan
+        await tx.purchaseRequest.deleteMany({
+          where: { lyDo: { contains: order.code } }
+        });
+        
+        // Xoá lệnh sản xuất / xuất kho KVP (Task) liên quan
+        await tx.task.deleteMany({
+          where: { title: { contains: order.code } }
         });
       }
       await tx.debt.deleteMany({
