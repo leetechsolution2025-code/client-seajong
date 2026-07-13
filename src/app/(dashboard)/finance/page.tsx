@@ -96,16 +96,16 @@ export default function FinancePage() {
         return {
           ...prev,
           [selectedOrder.id]: {
+            ...current,
             purchase: newValue,
-            production: newValue ? false : current.production,
           },
         };
       } else {
         return {
           ...prev,
           [selectedOrder.id]: {
+            ...current,
             production: newValue,
-            purchase: newValue ? false : current.purchase,
           },
         };
       }
@@ -121,7 +121,7 @@ export default function FinancePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           keToanDuyet: "approved",
-          decision: isLocked ? null : (isPurchase ? "purchase" : (isProduction ? "production" : null))
+          decisions: isLocked ? null : { purchase: isPurchase, production: isProduction }
         }),
       });
       if (!res.ok) throw new Error("Thao tác thất bại");
