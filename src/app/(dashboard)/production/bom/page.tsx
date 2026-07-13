@@ -5,11 +5,12 @@ import { StandardPage } from "@/components/layout/StandardPage";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { toast } from "react-hot-toast";
+import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 
 export default function BOMPage() {
+  const { success: toastSuccess, error: toastError, info: toastInfo } = useToast();
   const [products, setProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [search, setSearch] = useState("");
@@ -128,7 +129,7 @@ export default function BOMPage() {
 
   const handleSaveProduct = async () => {
     if (!newProduct.name.trim()) {
-      toast.error("Vui lòng nhập tên sản phẩm");
+      toastError("Lỗi", "Vui lòng nhập tên sản phẩm");
       return;
     }
     setSavingProduct(true);
@@ -142,17 +143,17 @@ export default function BOMPage() {
         body: JSON.stringify(newProduct)
       });
       if (res.ok) {
-        toast.success(editProductId ? "Cập nhật sản phẩm thành công" : "Thêm sản phẩm thành công");
+        toastSuccess("Thành công", editProductId ? "Cập nhật sản phẩm thành công" : "Thêm sản phẩm thành công");
         setShowAddProduct(false);
         resetProductForm();
         fetchProducts();
       } else {
         const error = await res.json();
-        toast.error(error.error || "Thất bại");
+        toastError("Lỗi", error.error || "Thất bại");
       }
     } catch (e) {
       console.error(e);
-      toast.error("Lỗi hệ thống");
+      toastError("Lỗi", "Lỗi hệ thống");
     } finally {
       setSavingProduct(false);
     }
@@ -166,7 +167,7 @@ export default function BOMPage() {
         method: "DELETE"
       });
       if (res.ok) {
-        toast.success("Đã xóa sản phẩm");
+        toastSuccess("Thành công", "Đã xóa sản phẩm");
         setShowAddProduct(false);
         setShowConfirmDelete(false);
         resetProductForm();
@@ -176,11 +177,11 @@ export default function BOMPage() {
         }
       } else {
         const errorData = await res.json();
-        toast.error(errorData.error || "Không thể xóa sản phẩm");
+        toastError("Lỗi", errorData.error || "Không thể xóa sản phẩm");
       }
     } catch (e) {
       console.error(e);
-      toast.error("Lỗi hệ thống");
+      toastError("Lỗi", "Lỗi hệ thống");
     } finally {
       setDeletingProduct(false);
     }
@@ -196,7 +197,7 @@ export default function BOMPage() {
       }
     } catch (e) {
       console.error(e);
-      toast.error("Không thể tải danh sách sản phẩm");
+      toastError("Lỗi", "Không thể tải danh sách sản phẩm");
     } finally {
       setLoadingProducts(false);
     }
@@ -238,11 +239,11 @@ export default function BOMPage() {
         const data = await res.json();
         setBomData(data);
       } else {
-        toast.error("Không tìm thấy định mức");
+        toastError("Lỗi", "Không tìm thấy định mức");
       }
     } catch (e) {
       console.error(e);
-      toast.error("Lỗi khi tải định mức");
+      toastError("Lỗi", "Lỗi khi tải định mức");
     } finally {
       setLoadingBom(false);
     }
@@ -274,7 +275,7 @@ export default function BOMPage() {
         method: "DELETE"
       });
       if (res.ok) {
-        toast.success("Đã xóa định mức");
+        toastSuccess("Thành công", "Đã xóa định mức");
         setShowConfirmDeleteBom(false);
         fetchProducts(); // Refresh list to update badge/list
 
@@ -290,11 +291,11 @@ export default function BOMPage() {
         }
       } else {
         const errorData = await res.json();
-        toast.error(errorData.error || "Không thể xóa định mức");
+        toastError("Lỗi", errorData.error || "Không thể xóa định mức");
       }
     } catch (e) {
       console.error(e);
-      toast.error("Lỗi hệ thống");
+      toastError("Lỗi", "Lỗi hệ thống");
     } finally {
       setDeletingBom(false);
     }
@@ -324,7 +325,7 @@ export default function BOMPage() {
 
       if (res.ok) {
         const savedBom = await res.json();
-        toast.success("Lưu định mức thành công");
+        toastSuccess("Thành công", "Lưu định mức thành công");
         fetchProducts(); // Refresh to update badge
 
         // Fetch new product info to update selectedProduct dinhMucId
@@ -338,11 +339,11 @@ export default function BOMPage() {
           }
         }
       } else {
-        toast.error("Lưu định mức thất bại");
+        toastError("Lỗi", "Lưu định mức thất bại");
       }
     } catch (e) {
       console.error(e);
-      toast.error("Lỗi hệ thống");
+      toastError("Lỗi", "Lỗi hệ thống");
     } finally {
       setSaving(false);
     }
@@ -367,7 +368,7 @@ export default function BOMPage() {
 
   const addMaterialLine = (material: any) => {
     if (bomData.vatTu.find((v: any) => v.materialId === material.id)) {
-      toast.error("Vật tư này đã có trong định mức");
+      toastError("Lỗi", "Vật tư này đã có trong định mức");
       return;
     }
     setBomData((prev: any) => ({
@@ -564,22 +565,22 @@ export default function BOMPage() {
                 </div>
                 <button className="btn btn-success w-100" onClick={() => {
                   if (applyAllPrice) {
-                    toast.loading("Đang tính toán và áp dụng cho tất cả...", { id: "apply-all" });
+                    toastInfo("Đang xử lý", "Đang tính toán và áp dụng cho tất cả...", { id: "apply-all" });
                     fetch("/api/production/manufactured-products/apply-price-all", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ marginPct: priceSetup.marginPct })
                     }).then(res => res.json()).then(data => {
                       if (data.success) {
-                        toast.success(`Đã cập nhật giá bán cho ${data.updatedCount} sản phẩm`, { id: "apply-all" });
+                        toastSuccess("Thành công", `Đã cập nhật giá bán cho ${data.updatedCount} sản phẩm`, { id: "apply-all" });
                         fetchProducts();
                         setShowPriceOffcanvas(false);
                       } else {
-                        toast.error(data.error || "Có lỗi xảy ra", { id: "apply-all" });
+                        toastError("Lỗi", data.error || "Có lỗi xảy ra", { id: "apply-all" });
                       }
                     }).catch(e => {
                       console.error(e);
-                      toast.error("Lỗi kết nối máy chủ", { id: "apply-all" });
+                      toastError("Lỗi", "Lỗi kết nối máy chủ", { id: "apply-all" });
                     });
                     return;
                   }
@@ -594,15 +595,15 @@ export default function BOMPage() {
                         setBomData((prev: any) => ({ ...prev, giaBan: priceSetup.finalPrice }));
                         fetchProducts(); // Refresh list to get updated giaBan
                         setShowPriceOffcanvas(false);
-                        toast.success("Cập nhật giá bán thành công");
+                        toastSuccess("Thành công", "Cập nhật giá bán thành công");
                       } else {
                         const data = await res.json().catch(() => ({}));
-                        toast.error(data.error || "Có lỗi xảy ra khi lưu giá bán");
+                        toastError("Lỗi", data.error || "Có lỗi xảy ra khi lưu giá bán");
                       }
                     })
                     .catch(e => {
                       console.error("Lưu giá bán lỗi:", e);
-                      toast.error("Lỗi kết nối máy chủ");
+                      toastError("Lỗi", "Lỗi kết nối máy chủ");
                     });
                 }}>
                   <i className="bi bi-check2-circle me-2"></i>
