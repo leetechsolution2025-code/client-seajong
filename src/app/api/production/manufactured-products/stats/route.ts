@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const categoryId  = searchParams.get("categoryId")  ?? "";
 
     const where: any = {};
-    if (categoryId) where.categoryId = categoryId;
+    if (categoryId) where.productCategoryId = categoryId;
 
     const total = await prisma.manufacturedProduct.count({ where });
     

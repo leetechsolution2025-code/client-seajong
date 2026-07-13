@@ -248,6 +248,23 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: ""
   });
 
+  const [showBomDetail, setShowBomDetail] = React.useState(false);
+  const [bomDetailData, setBomDetailData] = React.useState<any>(null);
+  const [loadingBom, setLoadingBom] = React.useState(false);
+
+  React.useEffect(() => {
+    if (showBomDetail && formItem.dinhMucId) {
+      setLoadingBom(true);
+      fetch(`/api/production/bom/${formItem.dinhMucId}`)
+        .then(res => res.json())
+        .then(data => setBomDetailData(data))
+        .catch(console.error)
+        .finally(() => setLoadingBom(false));
+    } else if (!showBomDetail) {
+      setBomDetailData(null);
+    }
+  }, [showBomDetail, formItem.dinhMucId]);
+
   const [suggest, setSuggest] = React.useState<any[]>([]);
   const [activeRowId, setActiveRowId] = React.useState<number | null>(null);
   const activeRowIdRef = React.useRef<number | null>(null);
@@ -265,10 +282,20 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       return;
     }
     suggestTimer.current = setTimeout(() => {
-      fetch(`/api/logistics/inventory?search=${encodeURIComponent(query)}&limit=20&includeManufactured=true`)
+      fetch(`/api/logistics/inventory?search=${encodeURIComponent(query)}&limit=20&includeManufactured=true&excludeMaterials=true`)
         .then(r => r.json())
         .then(d => {
-          if (activeRowIdRef.current === rowId) setSuggest(d.items ?? []);
+          if (activeRowIdRef.current === rowId) {
+            const filtered = (d.items ?? []).filter((item: any) => {
+              const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name) 
+                ? item.stocks[0].warehouse.name 
+                : (item.source === "manufactured" ? "Kho thành phẩm" 
+                   : item.source === "inventory" ? "Kho hàng hoá" 
+                   : item.source === "material" ? "Kho vật tư và phụ kiện" : "");
+              return khoTenStr.toLowerCase().includes("kho hàng hoá") || khoTenStr.toLowerCase().includes("kho thành phẩm");
+            });
+            setSuggest(filtered);
+          }
         })
         .catch(() => setSuggest([]));
     }, 300);
@@ -287,7 +314,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       ten: item.tenHang,
       khoTen: khoTenStr,
       dvt: item.donVi ?? "cái",
-      donGia: item.giaBan,
+      donGia: defaultDinhMuc ? (defaultDinhMuc.giaBan ?? item.giaBan) : item.giaBan,
       soLuongTon,
       trangThaiKho: item.trangThai,
       inventoryId: item.id,
@@ -570,17 +597,17 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Thông tin khách hàng</p>
               {customer ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.3 }}>{customer.name}</span>
-                  {customer.dienThoai && (
+                  <span style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.3, textTransform: "uppercase" }}>{info.tenNguoiNhan || customer.name}</span>
+                  {(info.sdtNguoiNhan || customer.dienThoai) && (
                     <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--muted-foreground)" }}>
                       <i className="bi bi-telephone-fill" style={{ fontSize: 10, color: "#10b981" }} />
-                      {customer.dienThoai}
+                      {info.sdtNguoiNhan || customer.dienThoai}
                     </div>
                   )}
-                  {customer.address && (
+                  {(info.diaChiGiaoHang || customer.address) && (
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
                       <i className="bi bi-geo-alt-fill" style={{ fontSize: 11, color: "#ef4444", marginTop: 2, flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.3 }}>{customer.address}</span>
+                      <span style={{ fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.3 }}>{info.diaChiGiaoHang || customer.address}</span>
                     </div>
                   )}
                   {debtInfo && (
@@ -614,7 +641,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         type="text"
                         placeholder="Nhập tên khách hàng..."
                         value={custInfo.name}
-                        onChange={e => setCustInfo(prev => ({ ...prev, name: e.target.value, id: "" }))}
+                        onChange={e => {
+                          const val = e.target.value.toUpperCase();
+                          setCustInfo(prev => ({ ...prev, name: val, id: "" }));
+                          setInfo(prev => ({ ...prev, tenNguoiNhan: val }));
+                        }}
                         style={{ ...inputSt, background: "#fff" }}
                       />
                     </div>
@@ -624,7 +655,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         type="text"
                         placeholder="Số điện thoại..."
                         value={custInfo.dienThoai}
-                        onChange={e => setCustInfo(prev => ({ ...prev, dienThoai: e.target.value }))}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setCustInfo(prev => ({ ...prev, dienThoai: val }));
+                          setInfo(prev => ({ ...prev, sdtNguoiNhan: val }));
+                        }}
                         style={{ ...inputSt, background: "#fff" }}
                       />
                     </div>
@@ -635,7 +670,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                       type="text"
                       placeholder="Nhập địa chỉ..."
                       value={custInfo.address}
-                      onChange={e => setCustInfo(prev => ({ ...prev, address: e.target.value }))}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setCustInfo(prev => ({ ...prev, address: val }));
+                        setInfo(prev => ({ ...prev, diaChiGiaoHang: val }));
+                      }}
                       style={{ ...inputSt, background: "#fff" }}
                     />
                   </div>
@@ -650,7 +689,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                   type="text"
                   placeholder="Nhập tên khách hàng..."
                   value={info.tenNguoiNhan}
-                  onChange={e => setInfo(prev => ({ ...prev, tenNguoiNhan: e.target.value }))}
+                  onChange={e => {
+                    const val = e.target.value.toUpperCase();
+                    setInfo(prev => ({ ...prev, tenNguoiNhan: val }));
+                    if (!customer) setCustInfo(prev => ({ ...prev, name: val, id: "" }));
+                  }}
                   style={inputSt}
                 />
               </div>
@@ -660,7 +703,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                   type="text"
                   placeholder="Nhập số điện thoại..."
                   value={info.sdtNguoiNhan}
-                  onChange={e => setInfo(prev => ({ ...prev, sdtNguoiNhan: e.target.value }))}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setInfo(prev => ({ ...prev, sdtNguoiNhan: val }));
+                    if (!customer) setCustInfo(prev => ({ ...prev, dienThoai: val }));
+                  }}
                   style={inputSt}
                 />
               </div>
@@ -672,7 +719,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 type="text"
                 placeholder="Nhập địa chỉ giao hàng chi tiết..."
                 value={info.diaChiGiaoHang}
-                onChange={e => setInfo(prev => ({ ...prev, diaChiGiaoHang: e.target.value }))}
+                onChange={e => {
+                  const val = e.target.value;
+                  setInfo(prev => ({ ...prev, diaChiGiaoHang: val }));
+                  if (!customer) setCustInfo(prev => ({ ...prev, address: val }));
+                }}
                 style={inputSt}
               />
             </div>
@@ -776,7 +827,12 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                     onChange={e => {
                       const dmId = e.target.value;
                       const dm = formItem.dinhMucs?.find(x => x.id === dmId);
-                      setFormItem(p => ({ ...p, dinhMucId: dmId, dinhMucTen: dm ? dm.tenDinhMuc : null }));
+                      setFormItem(p => ({ 
+                        ...p, 
+                        dinhMucId: dmId, 
+                        dinhMucTen: dm ? dm.tenDinhMuc : null,
+                        donGia: dm ? (dm.giaBan ?? 0) : p.donGia
+                      }));
                     }}
                     disabled={formItem.source === "inventory"}
                     style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: formItem.source === "inventory" ? "var(--muted)" : "#fff", outline: "none", fontFamily: "inherit", fontSize: 13, color: formItem.source === "inventory" ? "var(--muted-foreground)" : "var(--foreground)", cursor: formItem.source === "inventory" ? "not-allowed" : "default" }}
@@ -788,12 +844,24 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 </div>
                 <div style={{ flex: "2 1 240px" }}>
                   <FLabel text="Mô tả định mức" />
-                  <input
-                    value={formItem.dinhMucTen || ""}
-                    readOnly
-                    placeholder="Tự động hiển thị..."
-                    style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
-                  />
+                  <div className="d-flex gap-2">
+                    <input
+                      value={formItem.dinhMucTen || ""}
+                      readOnly
+                      placeholder="Tự động hiển thị..."
+                      style={{ flex: 1, padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
+                    />
+                    <button 
+                      type="button" 
+                      className="btn btn-light border" 
+                      onClick={() => setShowBomDetail(true)}
+                      disabled={!formItem.dinhMucId}
+                      style={{ padding: "7px 12px", borderRadius: 6 }}
+                      title="Xem chi tiết định mức"
+                    >
+                      <i className="bi bi-three-dots"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
               <div style={{ flex: "1 1 120px" }}>
@@ -896,6 +964,84 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           </div>
         </div>
       </div>
+
+      {showBomDetail && (
+        <>
+          <div className="offcanvas offcanvas-end show" tabIndex={-1} style={{ visibility: "visible", width: 400, zIndex: 1060 }}>
+            <div className="offcanvas-header border-bottom">
+              <h5 className="offcanvas-title fw-bold">Chi tiết định mức</h5>
+              <button type="button" className="btn-close" onClick={() => setShowBomDetail(false)}></button>
+            </div>
+            <div className="offcanvas-body p-0">
+              {loadingBom ? (
+                <div className="text-center p-5 text-muted d-flex flex-column align-items-center justify-content-center h-100">
+                  <div className="spinner-border text-primary mb-3" style={{ width: "2rem", height: "2rem" }}></div>
+                  <span style={{ fontSize: 14 }}>Đang tải dữ liệu định mức...</span>
+                </div>
+              ) : bomDetailData ? (
+                <div className="d-flex flex-column h-100 bg-light">
+                  <div className="p-4 bg-white" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <div className="d-flex align-items-center gap-2 mb-2">
+                      <span className="badge px-2 py-1" style={{ backgroundColor: "rgba(59, 130, 246, 0.1)", color: "#3b82f6", fontSize: 10, letterSpacing: 0.5, fontWeight: 700 }}>
+                        <i className="bi bi-diagram-3 me-1"></i> B.O.M
+                      </span>
+                    </div>
+                    <h5 className="mb-1 fw-bold" style={{ color: "var(--foreground)" }}>{bomDetailData.code}</h5>
+                    <p className="mb-0 text-muted" style={{ fontSize: 13 }}>{bomDetailData.tenDinhMuc}</p>
+                  </div>
+                  <div className="p-4 flex-grow-1" style={{ overflowY: "auto" }}>
+                    <div className="d-flex align-items-center justify-content-between mb-3">
+                      <p className="fw-bold mb-0 text-uppercase" style={{ fontSize: 11, letterSpacing: 0.5, color: "var(--muted-foreground)" }}>
+                        Thành phần nguyên vật liệu
+                      </p>
+                      <span className="badge bg-secondary bg-opacity-10 text-secondary rounded-pill">
+                        {bomDetailData.vatTu?.length || 0} mục
+                      </span>
+                    </div>
+                    
+                    {bomDetailData.vatTu?.length > 0 ? (
+                      <div className="d-flex flex-column gap-2">
+                        {bomDetailData.vatTu.map((vt: any, idx: number) => (
+                          <div key={idx} className="d-flex align-items-center justify-content-between p-3 bg-white" style={{ border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+                            <div className="d-flex align-items-center gap-3">
+                              <div className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 36, height: 36, background: "rgba(99, 102, 241, 0.1)", color: "#6366f1" }}>
+                                <i className="bi bi-box-seam" style={{ fontSize: 15 }}></i>
+                              </div>
+                              <div>
+                                <h6 className="mb-0 fw-semibold" style={{ fontSize: 13, color: "var(--foreground)" }}>
+                                  {vt.tenVatTu || vt.material?.name || vt.material?.tenHang}
+                                </h6>
+                                <span className="text-muted" style={{ fontSize: 11 }}>
+                                  Mã: {vt.material?.code || "---"}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-end ms-3 border-start ps-3 flex-shrink-0">
+                              <span className="fw-bold d-block text-primary" style={{ fontSize: 15 }}>{vt.soLuong}</span>
+                              <span className="text-muted text-uppercase" style={{ fontSize: 10, fontWeight: 600 }}>{vt.donViTinh || vt.material?.unit || vt.material?.donVi}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center p-4 bg-white rounded-3 border" style={{ borderStyle: "dashed !important" }}>
+                        <i className="bi bi-inboxes text-muted opacity-50 d-block mb-2" style={{ fontSize: 24 }}></i>
+                        <p className="small text-muted fst-italic mb-0">Định mức này chưa có thành phần vật tư.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center p-5 text-muted d-flex flex-column align-items-center h-100 justify-content-center">
+                  <i className="bi bi-exclamation-circle mb-2" style={{ fontSize: 24 }}></i>
+                  Không tải được dữ liệu định mức.
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="offcanvas-backdrop fade show" style={{ zIndex: 1050 }} onClick={() => setShowBomDetail(false)}></div>
+        </>
+      )}
     </div>
   );
 }

@@ -46,7 +46,7 @@ interface InventoryItem {
   source?: string;
 }
 
-export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, hideActions }: { defaultWarehouseNameMatch?: string, hideAddButton?: boolean, hideActions?: boolean } = {}) {
+export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, hideActions, compactMode }: { defaultWarehouseNameMatch?: string, hideAddButton?: boolean, hideActions?: boolean, compactMode?: boolean } = {}) {
   const toast = useToast();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -139,7 +139,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
 
   useEffect(() => {
     fetchCategories();
-  }, [filterWarehouse]);
+  }, [filterWarehouse, warehouses]);
 
   useEffect(() => {
     setPage(1);
@@ -151,9 +151,11 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
 
   const fetchCategories = async () => {
     try {
-      const url = filterWarehouse 
-        ? `/api/production/materials/categories?warehouseId=${filterWarehouse}`
-        : "/api/production/materials/categories";
+      let url = "/api/logistics/categories";
+      if (filterWarehouse) {
+        url += `?warehouseId=${filterWarehouse}`;
+      }
+        
       const res = await fetch(url);
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
@@ -326,12 +328,14 @@ return () => clearInterval(interval);
   const isMaterialWarehouse = !!selectedWarehouse && (selectedWarehouse.code === "KVP" || selectedWarehouse.code === "KHO-PHUKIEN" || selectedWarehouse.name.toLowerCase().includes("vật tư"));
   const isDefectWarehouse = !!selectedWarehouse && (selectedWarehouse.code === "KHO-LOI" || selectedWarehouse.type === "DEFECT");
 
-  const categoryOptions: TreeOption[] = categories.map(c => ({
-    label: c.name,
-    value: c.id,
-    isHeader: (c as any).isHeader,
-    level: (c as any).level
-  }));
+  const categoryOptions: TreeOption[] = categories
+    .filter(c => !((c as any).isHeader && (c as any).level === 0))
+    .map(c => ({
+      label: c.name,
+      value: c.id,
+      isHeader: (c as any).isHeader,
+      level: (c as any).level
+    }));
 
   return (
     <div className="d-flex flex-column gap-3" style={{ height: "100%" }}>
@@ -350,17 +354,9 @@ return () => clearInterval(interval);
       {/* Search and Filter */}
 
       <div className="d-flex align-items-center gap-3 mb-2">
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Tìm theo tên, mã SKU hoặc Model..."
-          className="flex-grow-1"
-          style={{ height: 40 }}
-        />
-
         <select 
-          className="form-select border-0 shadow-sm rounded-pill px-4"
-          style={{ width: "auto", fontSize: 13, height: 40, background: "var(--card)", color: "var(--foreground)", border: "1px solid var(--border)" }}
+          className="form-select border-0 shadow-sm rounded-pill px-4 text-truncate"
+          style={{ width: "160px", fontSize: 13, height: 40, background: "var(--card)", color: "var(--foreground)", border: "1px solid var(--border)" }}
           value={filterWarehouse}
           onChange={(e) => {
             setFilterWarehouse(e.target.value);
@@ -379,38 +375,16 @@ return () => clearInterval(interval);
           onChange={setFilterCategory}
           placeholder="Tất cả danh mục"
           className="rounded-pill shadow-sm"
-          width={220}
+          width={160}
         />
 
-        {selectedIds.length > 0 && (
-          <button 
-            className="btn btn-outline-danger rounded-pill px-4 fw-bold" 
-            style={{ fontSize: 13, height: 40 }}
-            onClick={() => setConfirmBulkDelete(true)}
-          >
-            <i className="bi bi-trash me-2" />
-            Xoá {selectedIds.length} đã chọn
-          </button>
-        )}
-
-        {!hideAddButton && (
-          <button 
-            className="btn rounded-pill px-3.5 fw-bold text-white" 
-            style={{ 
-              fontSize: 12, 
-              height: 34, 
-              backgroundColor: isDefectWarehouse ? "#94a3b8" : "#011F58", 
-              borderColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
-              cursor: isDefectWarehouse ? "not-allowed" : "pointer",
-              opacity: isDefectWarehouse ? 0.65 : 1
-            }}
-            onClick={() => !isDefectWarehouse && setIsAddModalOpen(true)}
-            disabled={isDefectWarehouse}
-          >
-            <i className="bi bi-plus-lg me-2" />
-            Thêm hàng hóa
-          </button>
-        )}
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Tìm theo tên, mã SKU hoặc Model..."
+          className="flex-grow-1"
+          style={{ height: 40 }}
+        />
       </div>
 
       <AddLogisticsProductModal 
@@ -504,7 +478,7 @@ return () => clearInterval(interval);
           <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
             <thead className="bg-light" style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--card)" }}>
               <tr style={{ height: 36 }}>
-                <th className="ps-4 border-0" style={{ width: 40 }}>
+                <th className="ps-3 border-0" style={{ width: "1%", whiteSpace: "nowrap" }}>
                   <input 
                     type="checkbox" 
                     className="form-check-input shadow-none"
@@ -518,11 +492,11 @@ return () => clearInterval(interval);
                     }}
                   />
                 </th>
-                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "30%", minWidth: "200px" }}>Sản phẩm</th>
-                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "15%", minWidth: "140px" }}>Danh mục</th>
-                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "20%", minWidth: "140px" }}>Model / Màu</th>
-                <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "70px" }}>ĐVT</th>
-                <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px" }}>Tồn kho</th>
+                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: compactMode ? "100%" : "30%", minWidth: "200px" }}>Sản phẩm</th>
+                {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "15%", minWidth: "140px" }}>Danh mục</th>}
+                {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "20%", minWidth: "140px" }}>Model / Màu</th>}
+                {!compactMode && <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "70px" }}>ĐVT</th>}
+                {!compactMode && <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px" }}>Tồn kho</th>}
                 <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px" }}>Trạng thái</th>
                 {hideActions ? null : <th className="pe-4 border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "110px", minWidth: "110px" }}>Thao tác</th>}
               </tr>
@@ -549,7 +523,7 @@ return () => clearInterval(interval);
                     style={{ height: 48, cursor: "pointer" }}
                     onClick={() => setSelectedItem(item)}
                   >
-                    <td className="ps-4" onClick={(e) => e.stopPropagation()} style={{ width: 40 }}>
+                    <td className="ps-3" onClick={(e) => e.stopPropagation()} style={{ width: "1%", whiteSpace: "nowrap" }}>
                       <input 
                         type="checkbox" 
                         className="form-check-input shadow-none"
@@ -611,23 +585,29 @@ return () => clearInterval(interval);
                         </div>
                       </div>
                     </td>
-                    <td>
-                      <span className="badge rounded-pill text-muted bg-light" style={{ fontSize: 11, fontWeight: 500, border: "1px solid var(--border)" }}>
-                        {(item as any).categoryName || item.category?.name || "Chưa phân loại"}
-                      </span>
-                    </td>
-                    <td style={{ color: "var(--foreground)" }}>
-                      {item.model ? (
-                        <div>
-                          <div className="fw-bold">{item.model}</div>
-                          <div className="text-muted" style={{ fontSize: 11 }}>{item.color} {item.version && `(${item.version})`}</div>
-                        </div>
-                      ) : "—"}
-                    </td>
-                    <td className="text-center" style={{ color: "var(--foreground)" }}>{item.donVi || "—"}</td>
-                    <td className="text-end fw-bold" style={{ color: "var(--foreground)" }}>
-                      {item.soLuong.toLocaleString("vi-VN")}
-                    </td>
+                    {!compactMode && (
+                      <td>
+                        <span className="badge rounded-pill text-muted bg-light" style={{ fontSize: 11, fontWeight: 500, border: "1px solid var(--border)" }}>
+                          {(item as any).categoryName || item.category?.name || "Chưa phân loại"}
+                        </span>
+                      </td>
+                    )}
+                    {!compactMode && (
+                      <td style={{ color: "var(--foreground)" }}>
+                        {item.model ? (
+                          <div>
+                            <div className="fw-bold">{item.model}</div>
+                            <div className="text-muted" style={{ fontSize: 11 }}>{item.color} {item.version && `(${item.version})`}</div>
+                          </div>
+                        ) : "—"}
+                      </td>
+                    )}
+                    {!compactMode && <td className="text-center" style={{ color: "var(--foreground)" }}>{item.donVi || "—"}</td>}
+                    {!compactMode && (
+                      <td className="text-end fw-bold" style={{ color: "var(--foreground)" }}>
+                        {item.soLuong.toLocaleString("vi-VN")}
+                      </td>
+                    )}
                     <td className="text-center">
                       {item.trangThai === "con-hang" ? (
                         <span className="badge bg-success-subtle text-success border border-success border-opacity-20 rounded-pill">Còn hàng</span>
@@ -659,6 +639,41 @@ return () => clearInterval(interval);
             </tbody>
           </table>
         </div>
+        
+        {/* Footer for Actions */}
+        {(!hideAddButton || selectedIds.length > 0) && (
+          <div className="bg-light border-top p-2 d-flex align-items-center justify-content-end gap-3" style={{ backgroundColor: "var(--card)" }}>
+            {selectedIds.length > 0 && (
+              <button 
+                className="btn btn-sm btn-outline-danger rounded-pill px-4 fw-bold" 
+                style={{ fontSize: 13, height: 32 }}
+                onClick={() => setConfirmBulkDelete(true)}
+              >
+                <i className="bi bi-trash me-2" />
+                Xoá {selectedIds.length} đã chọn
+              </button>
+            )}
+
+            {!hideAddButton && (
+              <button 
+                className="btn btn-sm rounded-pill px-4 fw-bold text-white" 
+                style={{ 
+                  fontSize: 13, 
+                  height: 32, 
+                  backgroundColor: isDefectWarehouse ? "#94a3b8" : "#011F58", 
+                  borderColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
+                  cursor: isDefectWarehouse ? "not-allowed" : "pointer",
+                  opacity: isDefectWarehouse ? 0.65 : 1
+                }}
+                onClick={() => !isDefectWarehouse && setIsAddModalOpen(true)}
+                disabled={isDefectWarehouse}
+              >
+                <i className="bi bi-plus-lg me-2" />
+                Thêm hàng hóa
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
 

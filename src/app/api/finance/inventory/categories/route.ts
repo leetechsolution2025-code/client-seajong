@@ -50,10 +50,11 @@ export async function GET(req: NextRequest) {
       const children = allCategories.filter(c => c.parentId === parentId);
       children.forEach(cat => {
         const isRootLevel = parentId === rootNode.id;
+        const hasChildren = allCategories.some(c => c.parentId === cat.id);
         result.push({
           id: cat.id,
           name: cat.name,
-          isHeader: isRootLevel && children.length > 0,
+          isHeader: isRootLevel && hasChildren,
           level: level
         });
         buildTree(cat.id, level + 1);

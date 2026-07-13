@@ -142,14 +142,7 @@ export function InventoryDetailOffcanvas({ show, onClose, item, isMaterial, onRe
           )}
         </div>
 
-        <div className="offcanvas-footer p-3 border-top bg-light text-center vstack gap-2">
-           <button
-             className="btn btn-primary btn-sm w-100 rounded-pill py-2 fw-medium shadow-sm"
-             onClick={() => setShowBOM(true)}
-           >
-             <i className="bi bi-diagram-3 me-2" /> Xây dựng định mức
-           </button>
-        </div>
+
       </div>
 
       {/* BOM Builder Fullscreen Modal */}

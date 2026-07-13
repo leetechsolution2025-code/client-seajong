@@ -163,8 +163,8 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
     const fetchCategories = async () => {
       try {
         const url = warehouseId
-          ? `/api/production/materials/categories?warehouseId=${warehouseId}`
-          : "/api/production/materials/categories";
+          ? `/api/logistics/categories?warehouseId=${warehouseId}`
+          : "/api/logistics/categories";
         const res = await fetch(url);
         const data = await res.json();
         setCategories(Array.isArray(data) ? data : []);

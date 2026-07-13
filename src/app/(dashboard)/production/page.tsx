@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { KPICard } from "@/components/ui/KPICard";
+import { ProductionOrderDetailOffcanvas } from "@/components/production/ProductionOrderDetailOffcanvas";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function SectionTitle({ title, icon, action }: { title: string; icon: string; action?: React.ReactNode }) {
@@ -41,8 +42,29 @@ function StatusBadge({ status }: { status: string }) {
 export default function ProductionDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [kpis, setKpis] = useState({ runningOrders: 0, todayProductionQty: 0, oee: 0, defectRate: 0 });
+
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
 
   useEffect(() => {
+    fetch("/api/production/dashboard/recent-orders")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setRecentOrders(data);
+        }
+      })
+      .catch(err => console.error("Error fetching recent orders:", err));
+
+    fetch("/api/production/dashboard/kpis")
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) setKpis(data);
+      })
+      .catch(err => console.error("Error fetching KPIs:", err));
+
     // Giả lập loading
     const timer = setTimeout(() => setLoading(false), 800);
     return () => clearTimeout(timer);
@@ -60,47 +82,47 @@ export default function ProductionDashboardPage() {
       <div className="row g-3 mb-3">
         <KPICard
           label="Lệnh sản xuất đang chạy"
-          value={loading ? "—" : "12"}
+          value={loading ? "—" : kpis.runningOrders.toString()}
           icon="bi-play-circle-fill"
           accent="#3b82f6"
-          subtitle="Tăng 2 lệnh so với hôm qua"
+          subtitle="Số lệnh đang trong tiến trình"
           colClass="col-6 col-lg-3"
         />
         <KPICard
           label="Sản lượng trong ngày"
-          value={loading ? "—" : "8,450"}
+          value={loading ? "—" : kpis.todayProductionQty.toLocaleString("vi-VN")}
           icon="bi-box-seam-fill"
           accent="#10b981"
           suffix=" SP"
-          subtitle="Đạt 85% kế hoạch ngày"
+          subtitle="Sản phẩm hoàn thành hôm nay"
           colClass="col-6 col-lg-3"
         />
         <KPICard
           label="Hiệu suất dây chuyền"
-          value={loading ? "—" : "94.2"}
+          value={loading ? "—" : (kpis.oee > 0 ? kpis.oee.toString() : "Chưa có DL")}
           icon="bi-lightning-charge-fill"
           accent="#f59e0b"
-          suffix="%"
+          suffix={kpis.oee > 0 ? "%" : ""}
           subtitle="OEE trung bình toàn nhà máy"
           colClass="col-6 col-lg-3"
         />
         <KPICard
           label="Tỉ lệ lỗi (NG)"
-          value={loading ? "—" : "0.85"}
+          value={loading ? "—" : (kpis.defectRate > 0 ? kpis.defectRate.toString() : "Chưa có DL")}
           icon="bi-exclamation-triangle-fill"
           accent="#ef4444"
-          suffix="%"
-          subtitle="Giảm 0.12% so với tuần trước"
+          suffix={kpis.defectRate > 0 ? "%" : ""}
+          subtitle="Ghi nhận từ các lệnh sản xuất"
           colClass="col-6 col-lg-3"
         />
       </div>
 
-      <div className="row g-3">
+      <div className="row g-3 flex-grow-1" style={{ minHeight: 0 }}>
         {/* ── Left Column: Orders & Progress ── */}
         <div className="col-12 col-xl-8 d-flex flex-column gap-3">
           
           {/* Recent Orders */}
-          <div className="bg-white rounded-4 shadow-sm border p-3 flex-grow-1">
+          <div className="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
             <SectionTitle 
               title="Lệnh sản xuất mới nhất" 
               icon="bi-file-earmark-text-fill" 
@@ -114,29 +136,35 @@ export default function ProductionDashboardPage() {
                 </button>
               }
             />
-            <div className="table-responsive">
+            <div className="table-responsive flex-grow-1 overflow-auto">
               <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
                 <thead className="table-light">
                   <tr>
                     <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>MÃ LỆNH</th>
-                    <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>SẢN PHẨM</th>
-                    <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>SỐ LƯỢNG</th>
+                    <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>NGÀY HOÀN THÀNH</th>
                     <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>TIẾN ĐỘ</th>
                     <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>TRẠNG THÁI</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { id: "PO-240508-01", name: "Board mạch A12", qty: 2000, progress: 75, status: "running" },
-                    { id: "PO-240508-02", name: "Vỏ nhôm tản nhiệt", qty: 5000, progress: 30, status: "running" },
-                    { id: "PO-240507-05", name: "Cáp kết nối chuẩn C", qty: 10000, progress: 100, status: "completed" },
-                    { id: "PO-240508-03", name: "Module Camera 4K", qty: 1200, progress: 0, status: "pending" },
-                    { id: "PO-240507-04", name: "Pin Lithium 5000mAh", qty: 3500, progress: 65, status: "running" },
-                  ].map((order) => (
-                    <tr key={order.id} style={{ cursor: "pointer" }}>
-                      <td className="fw-bold text-primary">{order.id}</td>
-                      <td>{order.name}</td>
-                      <td>{order.qty.toLocaleString("vi-VN")}</td>
+                  {recentOrders.length > 0 ? recentOrders.map((order) => (
+                    <tr 
+                      key={order.id} 
+                      style={{ cursor: "pointer" }}
+                      onClick={() => {
+                        setSelectedOrderId(order.id);
+                        setShowDetail(true);
+                      }}
+                    >
+                      <td>
+                        <div className="fw-bold text-primary">{order.id}</div>
+                        {order.name && (
+                          <div className="text-muted text-truncate mt-1" style={{ fontSize: 11, maxWidth: 200 }} title={order.name}>
+                            {order.name}
+                          </div>
+                        )}
+                      </td>
+                      <td>{order.ngayHoanThanh ? new Date(order.ngayHoanThanh).toLocaleDateString("vi-VN") : "Chưa xác định"}</td>
                       <td style={{ width: 140 }}>
                         <div className="d-flex align-items-center gap-2">
                           <div className="flex-grow-1" style={{ height: 6, borderRadius: 3, background: "var(--muted)", overflow: "hidden" }}>
@@ -154,44 +182,17 @@ export default function ProductionDashboardPage() {
                       </td>
                       <td><StatusBadge status={order.status} /></td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan={4} className="text-center py-4 text-muted">Chưa có lệnh sản xuất nào</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
-          {/* Production Lines Status */}
-          <div className="bg-white rounded-4 shadow-sm border p-3">
-            <SectionTitle title="Trạng thái dây chuyền" icon="bi-diagram-2-fill" />
-            <div className="row g-3">
-              {[
-                { name: "Dây chuyền SMT 01", status: "running", efficiency: 98, temp: 24.5 },
-                { name: "Dây chuyền SMT 02", status: "running", efficiency: 95, temp: 25.1 },
-                { name: "Dây chuyền Lắp ráp 01", status: "stopped", efficiency: 0, temp: 22.8 },
-                { name: "Dây chuyền Kiểm tra 01", status: "running", efficiency: 92, temp: 23.4 },
-              ].map((line) => (
-                <div key={line.name} className="col-12 col-md-6">
-                  <div className="p-3 rounded-3 border d-flex align-items-center gap-3 hover-shadow-sm transition-all" style={{ background: "var(--muted-subtle)" }}>
-                    <div className={`rounded-circle d-flex align-items-center justify-content-center flex-shrink-0`} 
-                         style={{ 
-                           width: 12, height: 12, 
-                           background: line.status === "running" ? "#10b981" : "#ef4444",
-                           boxShadow: line.status === "running" ? "0 0 8px #10b981" : "none"
-                         }} 
-                    />
-                    <div className="flex-grow-1">
-                      <div style={{ fontSize: 13, fontWeight: 700 }}>{line.name}</div>
-                      <div className="d-flex gap-3 mt-1" style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
-                        <span>Hiệu suất: <b className="text-dark">{line.efficiency}%</b></span>
-                        <span>Nhiệt độ: <b className="text-dark">{line.temp}°C</b></span>
-                      </div>
-                    </div>
-                    <i className="bi bi-chevron-right text-muted" style={{ fontSize: 12 }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+
         </div>
 
         {/* ── Right Column: Alerts & Shifts ── */}
@@ -210,52 +211,25 @@ export default function ProductionDashboardPage() {
             </div>
           </div>
 
-          {/* Active Shift */}
-          <div className="bg-white rounded-4 shadow-sm border p-3">
-            <SectionTitle title="Ca làm việc hiện tại" icon="bi-clock-fill" />
-            <div className="p-3 rounded-3 bg-primary text-white shadow-sm" style={{ background: "linear-gradient(135deg, #3b82f6, #2563eb)" }}>
-              <div className="d-flex justify-content-between align-items-start mb-2">
-                <div>
-                  <div style={{ fontSize: 12, opacity: 0.8 }}>Ca hành chính (Shift A)</div>
-                  <div style={{ fontSize: 18, fontWeight: 800 }}>08:00 - 17:00</div>
-                </div>
-                <span className="badge bg-white text-primary rounded-pill px-2" style={{ fontSize: 10, fontWeight: 700 }}>ĐANG DIỄN RA</span>
-              </div>
-              <div className="mt-3 pt-3 border-top border-white border-opacity-20" style={{ fontSize: 11 }}>
-                <div className="d-flex justify-content-between mb-1">
-                  <span>Trưởng ca:</span>
-                  <span className="fw-bold">Nguyễn Văn Sản</span>
-                </div>
-                <div className="d-flex justify-content-between">
-                  <span>Nhân sự hiện diện:</span>
-                  <span className="fw-bold">42 / 45</span>
-                </div>
-              </div>
-            </div>
-          </div>
+
 
           {/* Critical Alerts */}
-          <div className="bg-white rounded-4 shadow-sm border p-3">
+          <div className="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
             <SectionTitle title="Cảnh báo vận hành" icon="bi-bell-fill" />
-            <div className="d-flex flex-column gap-2">
-              {[
-                { type: "danger", msg: "Dây chuyền 03 dừng do thiếu NVL", time: "10 phút trước" },
-                { type: "warning", msg: "Nhiệt độ lò sấy 01 vượt ngưỡng", time: "25 phút trước" },
-                { type: "info", msg: "Bảo trì định kỳ máy dán chip 02", time: "1 giờ trước" },
-              ].map((alert, i) => (
-                <div key={i} className={`p-2 rounded-3 d-flex gap-3 align-items-start bg-${alert.type}-subtle text-${alert.type}`} style={{ fontSize: 12 }}>
-                  <i className={`bi bi-${alert.type === 'danger' ? 'x-circle' : alert.type === 'warning' ? 'exclamation-triangle' : 'info-circle'} mt-1`} />
-                  <div className="flex-grow-1">
-                    <div className="fw-bold">{alert.msg}</div>
-                    <div style={{ fontSize: 10, opacity: 0.7 }}>{alert.time}</div>
-                  </div>
-                </div>
-              ))}
+            <div className="d-flex flex-column gap-2 overflow-auto">
+              <div className="text-center py-4 text-muted" style={{ fontSize: 13 }}>
+                Chưa có cảnh báo nào
+              </div>
             </div>
           </div>
 
         </div>
       </div>
+      <ProductionOrderDetailOffcanvas 
+        orderId={selectedOrderId} 
+        show={showDetail} 
+        onHide={() => setShowDetail(false)} 
+      />
 
       <style jsx>{`
         .transition-all { transition: all 0.2s ease-in-out; }

@@ -120,8 +120,8 @@ export function TrangThaiTonKhoBadge({
             transition: "background 0.15s",
           }}
         >
-          <i className="bi bi-cart-plus" style={{ fontSize: 11 }} />
-          Tạo yêu cầu mua hàng
+          <i className="bi bi-megaphone" style={{ fontSize: 11 }} />
+          Báo cáo thiếu hàng
         </button>
       )}
     </>

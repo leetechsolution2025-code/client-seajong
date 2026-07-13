@@ -65,8 +65,8 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
   const fetchCategories = async () => {
     try {
       const url = filterWarehouse 
-        ? `/api/production/materials/categories?warehouseId=${filterWarehouse}`
-        : "/api/production/materials/categories";
+        ? `/api/logistics/categories?warehouseId=${filterWarehouse}`
+        : "/api/logistics/categories";
       const res = await fetch(url);
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);

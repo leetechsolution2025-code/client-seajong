@@ -404,6 +404,7 @@ model Category {
   children      Category[]     @relation("CategoryParent")
   dinhMucVatTus DinhMucVatTu[]
   materials     MaterialItem[]
+  manufacturedProducts ManufacturedProduct[] @relation("MfpProdCategory")
 
   @@unique([type, code])
   @@index([type])
@@ -925,13 +926,17 @@ model MaterialStock {
 }
 
 model ManufacturedProduct {
+  giaBan           Float?   @default(0)
   id               String   @id @default(cuid())
   code             String?  @unique
   name             String
   unit             String   @default("bộ")
   defaultWarehouse String?  @default("KHO-THANHPHAM")
-  categoryId       String?
+  categoryId       String? // Bỏ hoặc đổi tên sau
   category         InventoryCategory? @relation("MfpCategory", fields: [categoryId], references: [id])
+  
+  productCategoryId String?
+  productCategory   Category? @relation("MfpProdCategory", fields: [productCategoryId], references: [id])
   imageUrl         String?
   notes            String?
   createdAt        DateTime @default(now())
@@ -944,6 +949,7 @@ model DinhMuc {
   id         String          @id @default(cuid())
   code       String?         @unique
   tenDinhMuc String?
+  giaBan     Float           @default(0)
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
   vatTu      DinhMucVatTu[]

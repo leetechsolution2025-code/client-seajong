@@ -62,7 +62,9 @@ grep -q "GEMINI_API_KEYS=\"KEY_1" .env && err "Chưa điền GEMINI_API_KEYS tro
 log "File .env hợp lệ"
 
 # ── Pull code mới nhất ───────────────────────────────────────
-if [ -d ".git" ]; then
+if [ "${SKIP_GIT}" = "1" ]; then
+    info "Đã thiết lập SKIP_GIT=1. Bỏ qua kéo code từ Git."
+elif [ -d ".git" ]; then
     info "Phát hiện Git repository. Kéo code mới từ Git..."
     git checkout -- package-lock.json 2>/dev/null || true
     # Stash local modifications to prevent conflicts with git pull
@@ -102,6 +104,13 @@ else
     npx prisma db push
 fi
 log "Database đã migration và đồng bộ hoàn toàn"
+
+info "Chạy các tập lệnh chuyển đổi dữ liệu..."
+node scripts/migrate_mfp_categories.js || true
+node scripts/copy_sp_thanh_pham.js || true
+node scripts/delete_sp_vesinh.js || true
+node scripts/import_material_data.js || true
+log "Chuyển đổi dữ liệu hoàn tất"
 
 # ── Seed database (chỉ khi DB trống) ─────────────────────────
 info "Chạy seed database..."

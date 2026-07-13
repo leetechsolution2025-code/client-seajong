@@ -10,7 +10,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { code, name, categoryId, unit, defaultWarehouse, notes } = body;
+    const { code, name, categoryId, unit, defaultWarehouse, notes, giaBan } = body;
 
     if (!name?.trim()) {
       return NextResponse.json({ error: "Tên sản phẩm không được để trống" }, { status: 400 });
@@ -22,11 +22,12 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
       data: {
         code: code || undefined,
         name: name.trim(),
-        categoryId: categoryId || undefined,
+        productCategoryId: categoryId || undefined,
         unit: unit || "bộ",
         defaultWarehouse: defaultWarehouse || "KHO-THANHPHAM",
         notes: notes || undefined,
-      }
+        giaBan: giaBan !== undefined ? Number(giaBan) : undefined,
+      } as any
     });
 
     return NextResponse.json(item);

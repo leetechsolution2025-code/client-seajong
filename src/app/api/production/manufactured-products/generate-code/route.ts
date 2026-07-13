@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     if (!category) return NextResponse.json({ code: "" });
 
     // @ts-ignore
-    const count = await prisma.manufacturedProduct.count({ where: { categoryId } });
+    const count = await prisma.manufacturedProduct.count({ where: { productCategoryId: categoryId } });
     const stt = String(count + 1).padStart(3, '0');
     const timestamp = Date.now().toString().slice(-4);
     

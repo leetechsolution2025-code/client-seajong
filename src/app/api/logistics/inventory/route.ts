@@ -190,6 +190,7 @@ export async function GET(req: Request) {
     // Thay vào đó, nếu không có search (tải danh sách kho) thì không trả về ManufacturedProduct để tránh loãng dữ liệu.
     // Nếu có search (tìm kiếm gợi ý) thì trả về để lọc in-memory.
     const includeManufactured = searchParams.get("includeManufactured") === "true";
+    const excludeMaterials = searchParams.get("excludeMaterials") === "true";
 
     const [invItems, matItems, invTotal, matTotal, mfpItems, mfpTotal] = await Promise.all([
       // Chỉ lấy InventoryItem nếu không phải là kho MATERIAL (bao gồm PRODUCT và DEFECT)
@@ -202,8 +203,8 @@ export async function GET(req: Request) {
         orderBy: { updatedAt: "desc" },
       }) : Promise.resolve([]),
 
-      // Chỉ lấy MaterialItem nếu là kho MATERIAL hoặc ALL
-      warehouseType === "MATERIAL" || warehouseType === "ALL" ? (prisma as any).materialItem.findMany({
+      // Chỉ lấy MaterialItem nếu là kho MATERIAL hoặc ALL, và không bị cấm bởi excludeMaterials
+      !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "ALL") ? (prisma as any).materialItem.findMany({
         where: {
           ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
 
@@ -216,7 +217,7 @@ export async function GET(req: Request) {
       }) : Promise.resolve([]),
 
       warehouseType !== "MATERIAL" && warehouseCode !== "KHO-THANHPHAM" ? prisma.inventoryItem.count({ where }) : Promise.resolve(0),
-      warehouseType === "MATERIAL" || warehouseType === "ALL" ? (prisma as any).materialItem.count({
+      !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "ALL") ? (prisma as any).materialItem.count({
         where: {
           ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
 
@@ -226,15 +227,15 @@ export async function GET(req: Request) {
       warehouseType !== "MATERIAL" && (includeManufactured || warehouseCode === "KHO-THANHPHAM") ? prisma.manufacturedProduct.findMany({
         where: {
           ...mfpWhere,
-          ...(categoryId ? { categoryId } : {})
+          ...(categoryId ? { productCategoryId: categoryId } : {})
         },
-        include: { dinhMucs: true, category: true },
+        include: { dinhMucs: true, productCategory: true },
         orderBy: { updatedAt: "desc" }
       }) : Promise.resolve([]),
       warehouseType !== "MATERIAL" && (includeManufactured || warehouseCode === "KHO-THANHPHAM") ? prisma.manufacturedProduct.count({ 
         where: {
           ...mfpWhere,
-          ...(categoryId ? { categoryId } : {})
+          ...(categoryId ? { productCategoryId: categoryId } : {})
         }
       }) : Promise.resolve(0),
     ]);
@@ -272,21 +273,20 @@ export async function GET(req: Request) {
         chieuRong: it.chieuRong,
         chieuDay: it.chieuDay,
       })),
-      ...mfpItems.map((it: any) => ({
-        id: it.id,
-        tenHang: it.name,
-        code: it.code,
-        donVi: it.unit,
+      ...mfpItems.map((m: any) => ({
+        id: m.id,
+        tenHang: m.name,
+        code: m.code,
+        donVi: m.unit,
         giaNhap: 0,
-        giaBan: 0,
-        categoryId: it.categoryId,
-        category: it.category,
-        categoryName: it.category?.name,
+        giaBan: m.giaBan || 0,
+        categoryId: m.productCategoryId,
+        category: m.productCategory ? { id: m.productCategory.id, name: m.productCategory.name } : null,
         stocks: [],
-        dinhMucs: it.dinhMucs || [],
-        updatedAt: it.updatedAt,
+        dinhMucs: m.dinhMucs || [],
+        updatedAt: m.updatedAt,
         source: "manufactured",
-        imageUrl: it.imageUrl,
+        imageUrl: m.imageUrl,
       }))
     ];
 

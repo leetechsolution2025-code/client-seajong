@@ -70,7 +70,7 @@ export function TaoHoaDonBanLe({ open, onClose, onSaved }: Props) {
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
       setSearching(true);
-      fetch(`/api/logistics/inventory?search=${encodeURIComponent(productSearch)}&limit=30`)
+      fetch(`/api/logistics/inventory?search=${encodeURIComponent(productSearch)}&limit=30&includeManufactured=true&excludeMaterials=true`)
         .then(r => r.json())
         .then((d: any) => setInventoryResults(d.items || []))
         .catch(() => setInventoryResults([]))
@@ -87,7 +87,7 @@ export function TaoHoaDonBanLe({ open, onClose, onSaved }: Props) {
     setAmountGiven(""); setNote(""); setTrangThai("chua-xuat-hang"); setProductSearch(""); setSaving(false);
     _lineId = 1;
     setSearching(true);
-    fetch("/api/logistics/inventory?limit=30")
+    fetch("/api/logistics/inventory?limit=30&includeManufactured=true&excludeMaterials=true")
       .then(r => r.json())
       .then((d: any) => setInventoryResults(d.items || []))
       .catch(() => {})

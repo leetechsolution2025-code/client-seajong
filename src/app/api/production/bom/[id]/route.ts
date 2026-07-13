@@ -132,3 +132,27 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
+
+// PATCH /api/production/bom/[id] – Cập nhật thông tin lẻ của định mức (ví dụ: giaBan)
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await req.json();
+    const { giaBan } = body;
+
+    if (giaBan !== undefined) {
+      await prisma.$executeRaw`
+        UPDATE DinhMuc SET giaBan = ${giaBan}, updatedAt = CURRENT_TIMESTAMP
+        WHERE id = ${id}
+      `;
+    }
+
+    return NextResponse.json({ ok: true, id });
+  } catch (e) {
+    console.error("[PATCH /api/production/bom/:id]", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
+}

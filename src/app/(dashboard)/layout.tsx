@@ -509,12 +509,7 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
   "/production": {
     label: "Sản xuất", icon: "bi-tools",
     sections: [
-      {
-        group: "Điều hành sản xuất", items: [
-          { name: "Lệnh sản xuất", href: "/production/orders", icon: "bi-file-earmark-text" },
-          { name: "Dây chuyền", href: "/production/lines", icon: "bi-diagram-2" },
-        ]
-      },
+
       {
         group: "Xử lý hàng lỗi", flat: true, items: [
           { name: "Xử lý hàng lỗi", href: "/production/defects", icon: "bi-exclamation-octagon" },
@@ -524,7 +519,6 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
         group: "Hàng hoá", items: [
           { name: "Kho hàng", href: "/production/inventory", icon: "bi-box-seam" },
           { name: "Xây dựng định mức", href: "/production/bom", icon: "bi-list-check" },
-          { name: "Tính giá bán", href: "/production/pricing", icon: "bi-currency-dollar" },
         ]
       },
     ],

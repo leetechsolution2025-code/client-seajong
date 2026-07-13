@@ -119,8 +119,8 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
       setWebResults([]);
 
       const url = warehouseId 
-        ? `/api/production/materials/categories?warehouseId=${warehouseId}`
-        : "/api/production/materials/categories";
+        ? `/api/logistics/categories?warehouseId=${warehouseId}`
+        : "/api/logistics/categories";
       fetch(url)
         .then(r => r.json())
         .then(data => setCategories(Array.isArray(data) ? data : []))

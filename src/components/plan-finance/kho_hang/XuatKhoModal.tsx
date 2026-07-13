@@ -5,7 +5,7 @@ import { CurrencyInput }            from "@/components/ui/CurrencyInput";
 import { useToast }                  from "@/components/ui/Toast";
 import { ConfirmDialog }             from "@/components/ui/ConfirmDialog";
 import { PhieuXuatKhoPreview }       from "./PhieuXuatKhoPreview";
-import { TaoYeuCauMuaHangModal }     from "@/components/plan-finance/mua_hang/TaoYeuCauMuaHangModal";
+
 import { TrangThaiTonKhoBadge }      from "@/components/plan-finance/dung_chung/TrangThaiTonKhoBadge";
 import { genDocCode }                from "@/lib/genDocCode";
 import { LichSuXuatKhoOffcanvas }    from "./LichSuXuatKhoOffcanvas";
@@ -40,7 +40,7 @@ interface StockLine {
   error?:      string;
 }
 
-interface XuatKhoModalProps { onClose: () => void; onSaved: () => void; }
+interface XuatKhoModalProps { onClose: () => void; onSaved: () => void; initialMode?: "manual" | "so" | "wo"; initialSoId?: string; }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const uid       = () => Math.random().toString(36).slice(2);
@@ -65,11 +65,11 @@ const CSS: Record<string, React.CSSProperties> = {
 const GRID = "28px 1fr 60px 80px 80px 60px 60px 60px 110px 110px 32px";
 
 // ── Main Component ─────────────────────────────────────────────────────────────
-export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
+export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId }: XuatKhoModalProps) {
   const { data: session } = useSession();
   const toast = useToast();
 
-  const [mode, setMode]                 = React.useState<"manual" | "so" | "wo">("manual");
+  const [mode, setMode]                 = React.useState<"manual" | "so" | "wo">(initialMode || "manual");
   const [warehouses, setWarehouses]     = React.useState<Warehouse[]>([]);
   const [fromWarehouseId, setFromWarehouseId] = React.useState("");
   const [soChungTu, setSoChungTu]       = React.useState(() => {
@@ -120,6 +120,18 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
       .catch(() => {});
   }, []);
 
+  // Tự động chọn kho theo mode
+  React.useEffect(() => {
+    if (warehouses.length === 0) return;
+    if (mode === "so") {
+      const khoChinh = warehouses.find(w => w.code === "KHO-CHINH" || w.name.toLowerCase().includes("kho hàng hoá"));
+      if (khoChinh) setFromWarehouseId(khoChinh.id);
+    } else if (mode === "wo") {
+      const kvp = warehouses.find(w => w.code === "KVP" || w.name.toLowerCase().includes("vật tư"));
+      if (kvp) setFromWarehouseId(kvp.id);
+    }
+  }, [mode, warehouses]);
+
   // Fetch danh sách đơn bán hàng khi chuyển sang mode "so"
   React.useEffect(() => {
     if (mode !== "so") return;
@@ -131,7 +143,32 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
       .finally(() => setListLoading(false));
   }, [mode]);
 
+  // Fetch danh sách lệnh sản xuất khi chuyển sang mode "wo"
+  React.useEffect(() => {
+    if (mode !== "wo") return;
+    setListLoading(true); setSelectedWo(null);
+    fetch("/api/production/dashboard/recent-orders")
+      .then(r => r.json())
+      .then((d: any[]) => {
+        if (Array.isArray(d)) {
+          setWorkOrders(d.map(o => ({ id: o.id, code: o.id, tenLenhSX: o.name })));
+        } else {
+          setWorkOrders([]);
+        }
+      })
+      .catch(() => setWorkOrders([]))
+      .finally(() => setListLoading(false));
+  }, [mode]);
+
   // Auto-fill khi pick SO
+  const hasAutoSelected = React.useRef(false);
+  React.useEffect(() => {
+    if (initialMode === "so" && initialSoId && saleOrders.length > 0 && !hasAutoSelected.current) {
+      hasAutoSelected.current = true;
+      onSelectSo(initialSoId);
+    }
+  }, [initialMode, initialSoId, saleOrders]);
+
   const onSelectSo = (id: string) => {
     if (!id) { setSelectedSo(null); setLines([emptyLine()]); return; }
     const so = saleOrders.find(s => s.id === id) ?? null;
@@ -173,8 +210,20 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
           inventoryItemId: it.inventoryItemId,
           inventoryItem: it.inventoryItem ?? null,
         }));
+      } else if (so.type === "sale-order") {
+        // Đơn bán hàng
+        const res = await fetch(`/api/plan-finance/sales/${so.id}`);
+        if (!res.ok) return;
+        const detail = await res.json();
+        rawLines = (detail.saleOrderItems ?? []).map((it: { tenHang: string; donGia: number; soLuong: number; inventoryItemId: string | null; inventoryItem?: { id: string; code: string | null; tenHang: string; donVi: string | null; giaNhap: number } | null }) => ({
+          tenHang: it.tenHang,
+          donVi: null, // we don't have unit directly on SaleOrderItem, wait: inventoryItem has it?
+          soLuong: it.soLuong,
+          donGia: it.donGia,
+          inventoryItemId: it.inventoryItemId,
+          inventoryItem: it.inventoryItem ?? null,
+        }));
       }
-      // SaleOrder: không có items — giữ 1 dòng rỗng
 
       if (rawLines.length === 0) {
         setLines([emptyLine()]);
@@ -230,10 +279,72 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
 
   // Auto-fill khi pick WO
   const onSelectWo = (id: string) => {
-    if (!id) { setSelectedWo(null); return; }
+    if (!id) { setSelectedWo(null); setLines([emptyLine()]); return; }
     const wo = workOrders.find(w => w.id === id) ?? null;
     setSelectedWo(wo);
-    if (wo) setLyDo(`Xuất nguyên vật liệu theo lệnh sản xuất ${wo.code ?? wo.id}`);
+    if (wo) {
+      setLyDo(`Xuất nguyên vật liệu theo lệnh sản xuất ${wo.code ?? wo.id}`);
+      loadItemsFromWorkOrder(wo);
+    }
+  };
+
+  const loadItemsFromWorkOrder = async (wo: WorkOrderOption) => {
+    try {
+      const res = await fetch(`/api/production/orders/${wo.id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      
+      if (!data.materials || data.materials.length === 0) {
+        setLines([emptyLine()]);
+        return;
+      }
+
+      const rawLines = data.materials.map((mat: any) => ({
+        tenHang: mat.tenVatTu,
+        soLuong: mat.soLuong,
+        donGia: mat.donGia,
+      }));
+
+      const newLines: StockLine[] = rawLines.map((raw: any) => {
+        const l = emptyLine();
+        l.itemSearch = raw.tenHang;
+        l.soLuongYC  = raw.soLuong;
+        l.soLuong    = raw.soLuong;
+        l.donGia     = raw.donGia || 0;
+        return l;
+      });
+
+      setLines(newLines);
+
+      if (fromWarehouseId) {
+        rawLines.forEach((raw: any, idx: number) => {
+          if (!raw.tenHang) return;
+          const warehouseParam = `&warehouseId=${fromWarehouseId}`;
+          fetch(`/api/plan-finance/inventory/search?q=${encodeURIComponent(raw.tenHang)}&limit=5${warehouseParam}`)
+            .then(r => r.json())
+            .then((searchData) => {
+              if (!Array.isArray(searchData) || !searchData.length) return;
+              const found = searchData.find(d => d.tenHang.toLowerCase() === raw.tenHang.toLowerCase()) ?? searchData[0];
+              setLines(prev => prev.map((l, i) => {
+                if (i !== idx) return l;
+                return {
+                  ...l,
+                  item: {
+                    id: found.id, code: found.code, tenHang: found.tenHang,
+                    donVi: found.donVi, giaNhap: found.giaNhap,
+                  },
+                  itemSearch: found.tenHang,
+                  donGia: found.giaNhap || raw.donGia || 0,
+                  viTriHang: found.viTriHang ?? "",
+                  viTriCot: found.viTriCot ?? "",
+                  viTriTang: found.viTriTang ?? "",
+                  soLuongTon: found.soLuongTon ?? 0,
+                };
+              }));
+            }).catch(() => {});
+        });
+      }
+    } catch { /* ignore */ }
   };
 
   // ESC close
@@ -325,11 +436,12 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
   }, [fromWarehouseId]);
 
   // ── Totals + Realtime stock check ───────────────────────────────────────────
-  const validLines = lines.filter(l => l.item && l.soLuong > 0);
+  const validLines = lines.filter(l => l.itemSearch.trim() !== "" && l.soLuong > 0);
   const tongSL     = validLines.reduce((s, l) => s + l.soLuong, 0);
   const tongTien   = validLines.reduce((s, l) => s + l.soLuong * l.donGia, 0);
   // Nếu đã chọn kho: soLuongTon undefined = chưa có tồn = coi như 0 (thiếu hàng)
   const deficientLines = validLines.filter(l => {
+    if (!l.item) return true; // Hàng không tồn tại trong DB -> chắc chắn thiếu
     const ton = l.soLuongTon ?? (fromWarehouseId ? 0 : undefined);
     return ton !== undefined && l.soLuong > ton;
   });
@@ -337,11 +449,35 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
     validLines.length === 0 || !fromWarehouseId ? "unknown" :
     deficientLines.length > 0 ? "insufficient" : "ok";
 
-  // ── Mở modal Tạo yêu cầu mua hàng ────────────────────────────────────────────────
-  const [showPRModal, setShowPRModal] = React.useState(false);
-  const openPurchaseRequestModal = () => {
-    if (!deficientLines.length) return;
-    setShowPRModal(true);
+  // ── Báo cáo thiếu hàng ────────────────────────────────────────────────
+  const [reporting, setReporting] = React.useState(false);
+  const reportMissingItems = async () => {
+    if (!deficientLines.length || reporting) return;
+    setReporting(true);
+    try {
+      const res = await fetch("/api/plan-finance/inventory/report-missing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          soChungTu,
+          reference: mode === "so" ? selectedSo?.code : mode === "wo" ? selectedWo?.code : null,
+          items: deficientLines.map(l => ({
+            tenHang: l.item?.tenHang || l.itemSearch,
+            thieu: l.item ? (l.soLuong - (l.soLuongTon ?? 0)) : l.soLuong,
+            donVi: l.item?.donVi || "",
+          })),
+        }),
+      });
+      if (res.ok) {
+        toast.success("Đã báo cáo!", "Đã gửi thông báo thiếu hàng cho bộ phận Kế toán.", 3000);
+      } else {
+        toast.error("Lỗi", "Không thể gửi báo cáo.");
+      }
+    } catch (e) {
+      toast.error("Lỗi mạng", "Vui lòng thử lại.");
+    } finally {
+      setReporting(false);
+    }
   };
 
   // ── Save ────────────────────────────────────────────────────────────────────
@@ -530,41 +666,8 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
           </div>
         )}
 
-        {/* Actions */}
+        {/* Close Button Top Right */}
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-          {success && (
-            <button onClick={() => setShowPreview(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderWidth: "1.5px", borderStyle: "solid", borderColor: "#f59e0b", background: "rgba(245,158,11,0.1)", color: "#f59e0b", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}>
-              <i className="bi bi-printer" style={{ fontSize: 14 }} /> In phiếu xuất kho
-            </button>
-          )}
-          {!success && (() => {
-            const canSave = !saving && validLines.length > 0 && !!fromWarehouseId
-              && !(mode === "so" && !selectedSo)
-              && !(mode === "wo" && !selectedWo);
-            return (
-              <button onClick={handleSave} disabled={!canSave} title={
-                mode === "so" && !selectedSo ? "Vui lòng chọn đơn bán hàng" :
-                mode === "wo" && !selectedWo ? "Vui lòng chọn lệnh sản xuất" :
-                validLines.length === 0 ? "Chưa có hàng hoá" : undefined
-              } style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "7px 20px", border: "none", borderRadius: 8,
-                background: canSave ? "#f59e0b" : "var(--muted)",
-                color: canSave ? "#fff" : "var(--muted-foreground)",
-                fontSize: 13, fontWeight: 700,
-                cursor: canSave ? "pointer" : "not-allowed",
-                opacity: canSave ? 1 : 0.6, transition: "all 0.15s",
-              }}>
-                {saving
-                  ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} />
-                  : <i className="bi bi-check2-all" style={{ fontSize: 14 }} />}
-                Xác nhận
-              </button>
-            );
-          })()}
-          <button onClick={() => setShowLichSu(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderWidth: "1.5px", borderStyle: "solid", borderColor: "var(--border)", background: "var(--muted)", color: "var(--foreground)", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}>
-            <i className="bi bi-clock-history" style={{ fontSize: 14 }} /> Lịch sử
-          </button>
           <button onClick={onClose} style={{ width: 34, height: 34, borderWidth: "1px", borderStyle: "solid", borderColor: "var(--border)", background: "var(--muted)", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
             <i className="bi bi-x" style={{ fontSize: 18 }} />
           </button>
@@ -688,24 +791,24 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
             </span>
             {mode === "so" && selectedSo && (
               <span style={{ fontSize: 11, color: "#f59e0b", background: "rgba(245,158,11,0.1)", borderRadius: 20, padding: "2px 10px", fontWeight: 600 }}>
-                <i className="bi bi-link-45deg" /> Từ SO: {selectedSo.code}
+                <i className="bi bi-link-45deg" /> Từ SO: {selectedSo?.code}
               </span>
             )}
             {mode === "wo" && selectedWo && (
               <span style={{ fontSize: 11, color: "#6366f1", background: "rgba(99,102,241,0.1)", borderRadius: 20, padding: "2px 10px", fontWeight: 600 }}>
-                <i className="bi bi-link-45deg" /> Từ lệnh: {selectedWo.code}
+                <i className="bi bi-link-45deg" /> Từ lệnh: {selectedWo?.code}
               </span>
             )}
 
             {validLines.length > 0 && stockStatus !== "unknown" && (
               <TrangThaiTonKhoBadge
                 items={validLines.map(l => ({
-                  ten: l.item?.tenHang ?? "",
+                  ten: l.item?.tenHang ?? l.itemSearch,
                   soLuong: l.soLuong,
-                  soLuongTon: l.soLuongTon,
+                  soLuongTon: l.item ? l.soLuongTon : 0, // Không có trong DB = Tồn kho 0
                 }))}
                 showPurchaseRequest={!locked}
-                onCreatePR={openPurchaseRequestModal}
+                onCreatePR={reportMissingItems}
               />
             )}
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
@@ -777,6 +880,91 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
         </div>
       </div>
 
+      {/* ═══ BOTTOM STATUS BAR ═════════════════════════════════════════════════════════════ */}
+      <div style={{ flexShrink: 0, height: 60, borderTop: "1px solid var(--border)", background: "var(--card)", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {/* Status */}
+        {(() => {
+          const totalItemsCount = validLines.length;
+          const missingItemsCount = validLines.filter(l => l.soLuong > (l.soLuongTon || 0)).length;
+          
+          let stockStatusLabel = "";
+          let stockStatusColor = "";
+          let stockStatusIcon = "";
+          let stockStatusBg = "";
+          
+          if (totalItemsCount === 0) {
+            stockStatusLabel = "Chưa có hàng hoá cần xuất";
+            stockStatusColor = "var(--muted-foreground)";
+            stockStatusIcon = "bi-info-circle";
+            stockStatusBg = "transparent";
+          } else if (missingItemsCount === 0) {
+            stockStatusLabel = "Kho đã sẵn sàng xuất (Đủ hàng)";
+            stockStatusColor = "#10b981";
+            stockStatusIcon = "bi-check-circle-fill";
+            stockStatusBg = "rgba(16, 185, 129, 0.1)";
+          } else if (missingItemsCount === totalItemsCount) {
+            stockStatusLabel = "Kho thiếu toàn bộ hàng hoá";
+            stockStatusColor = "#ef4444";
+            stockStatusIcon = "bi-exclamation-octagon-fill";
+            stockStatusBg = "rgba(239, 68, 68, 0.1)";
+          } else {
+            stockStatusLabel = `Kho thiếu ${missingItemsCount}/${totalItemsCount} mặt hàng`;
+            stockStatusColor = "#f59e0b";
+            stockStatusIcon = "bi-exclamation-triangle-fill";
+            stockStatusBg = "rgba(245, 158, 11, 0.1)";
+          }
+
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 8, background: stockStatusBg, color: stockStatusColor, fontSize: 13.5, fontWeight: 700 }}>
+              <i className={`bi ${stockStatusIcon}`} style={{ fontSize: 16 }} />
+              {stockStatusLabel}
+            </div>
+          );
+        })()}
+
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button onClick={() => setShowLichSu(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", borderWidth: "1.5px", borderStyle: "solid", borderColor: "var(--border)", background: "var(--muted)", color: "var(--foreground)", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}>
+            <i className="bi bi-clock-history" style={{ fontSize: 14 }} /> Lịch sử
+          </button>
+          
+          {success && (
+            <button onClick={() => setShowPreview(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", borderWidth: "1.5px", borderStyle: "solid", borderColor: "#f59e0b", background: "rgba(245,158,11,0.1)", color: "#f59e0b", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}>
+              <i className="bi bi-printer" style={{ fontSize: 14 }} /> In phiếu xuất kho
+            </button>
+          )}
+          
+          {!success && (() => {
+            const missingItemsCount = validLines.filter(l => !l.item || l.soLuong > (l.soLuongTon || 0)).length;
+            const canSave = !saving && validLines.length > 0 && !!fromWarehouseId
+              && !(mode === "so" && !selectedSo)
+              && !(mode === "wo" && !selectedWo)
+              && missingItemsCount === 0;
+            return (
+              <button onClick={handleSave} disabled={!canSave} title={
+                mode === "so" && !selectedSo ? "Vui lòng chọn đơn bán hàng" :
+                mode === "wo" && !selectedWo ? "Vui lòng chọn lệnh sản xuất" :
+                validLines.length === 0 ? "Chưa có hàng hoá" :
+                missingItemsCount > 0 ? "Kho không đủ hàng" : undefined
+              } style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "8px 24px", border: "none", borderRadius: 8,
+                background: canSave ? "#f59e0b" : "var(--muted)",
+                color: canSave ? "#fff" : "var(--muted-foreground)",
+                fontSize: 13, fontWeight: 700,
+                cursor: canSave ? "pointer" : "not-allowed",
+                opacity: canSave ? 1 : 0.6, transition: "all 0.15s",
+              }}>
+                {saving
+                  ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} />
+                  : <i className="bi bi-check2-all" style={{ fontSize: 14 }} />}
+                Xác nhận
+              </button>
+            );
+          })()}
+        </div>
+      </div>
+
       {/* Confirm khi kho thiếu hàng */}
       <ConfirmDialog
         open={confirmOpen}
@@ -831,26 +1019,7 @@ export function XuatKhoModal({ onClose, onSaved }: XuatKhoModalProps) {
         />
       )}
 
-      {/* Tạo yêu cầu mua hàng — pre-filled với hàng thiếu tồn */}
-      {showPRModal && (
-        <TaoYeuCauMuaHangModal
-          onClose={() => setShowPRModal(false)}
-          onSaved={() => {
-            setShowPRModal(false);
-            toast.success("✅ Đã tạo yêu cầu mua hàng!", "Yêu cầu đã được gửi cho bộ phận mua hàng", 5000);
-          }}
-          initialData={{
-            nguoiYeuCau: nguoiThucHien || "",
-            lyDo: `Bổ sung hàng thiếu khi xuất kho ${soChungTu}`,
-            lines: deficientLines.map(l => ({
-              tenHang: l.item!.tenHang,
-              soLuong: Math.max(1, l.soLuong - (l.soLuongTon ?? 0)),
-              donVi:   l.item!.donVi ?? undefined,
-              ghiChu:  `Xuất ${soChungTu}: thiếu ${l.soLuong - (l.soLuongTon ?? 0)} ${l.item!.donVi ?? ""}`,
-            })),
-          }}
-        />
-      )}
+
       {showLichSu && (
         <LichSuXuatKhoOffcanvas onClose={() => setShowLichSu(false)} />
       )}
@@ -876,6 +1045,9 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
   };
   const thanhTien = line.soLuong * line.donGia;
   const hasError  = !!line.error;
+  const isNotFound = line.itemSearch.trim() !== "" && !line.item;
+  const isInsufficient = isNotFound || (line.item && line.soLuong > (line.soLuongTon ?? 0));
+  const missingLabel = isNotFound ? "Không tìm thấy trong kho" : `Thiếu ${(line.soLuong - (line.soLuongTon ?? 0)).toLocaleString("vi-VN")}`;
 
   return (
     <div style={{
@@ -896,11 +1068,13 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
           readOnly={locked}
           placeholder="Tìm hoặc nhập tên hàng..."
           style={{
-            ...cellInput, paddingRight: line.item ? 26 : 8,
-            borderColor: hasError ? "rgba(244,63,94,0.5)" : line.item ? "rgba(245,158,11,0.4)" : "var(--border)",
+            ...cellInput, paddingRight: isInsufficient ? 26 : 8,
+            borderColor: hasError ? "rgba(244,63,94,0.5)" : isInsufficient ? "rgba(244,63,94,0.4)" : "var(--border)",
           }}
         />
-        {line.item && !hasError && <i className="bi bi-check-circle-fill" style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#f59e0b", pointerEvents: "none" }} />}
+        {isInsufficient && !hasError && (
+          <i className="bi bi-exclamation-circle-fill" title={missingLabel} style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#f43f5e", pointerEvents: "auto", cursor: "help" }} />
+        )}
         {hasError && <p style={{ margin: "1px 0 0", fontSize: 10.5, color: "#f43f5e" }}>{line.error}</p>}
         {line.showSugg && line.suggestions.length > 0 && (
           <div style={{ position: "absolute", top: "calc(100% + 3px)", left: 0, right: 0, zIndex: 200, background: "var(--card)", borderWidth: 1, borderStyle: "solid", borderColor: "var(--border)", borderRadius: 7, boxShadow: "0 4px 14px rgba(0,0,0,0.12)", maxHeight: 180, overflowY: "auto" }}>

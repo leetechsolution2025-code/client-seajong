@@ -62,33 +62,21 @@ export async function GET(req: Request) {
     let allCategories: any[] = [];
     let rootCategoryId: string | null = null;
 
-    if (warehouseCode === "KHO-THANHPHAM") {
-      const rootCategory = await prisma.inventoryCategory.findFirst({
-        where: { code: "SP_THANH_PHAM", parentId: null, isActive: true }
-      });
-      if (rootCategory) {
-        rootCategoryId = rootCategory.id;
-      }
-      allCategories = await prisma.inventoryCategory.findMany({
-        where: { isActive: true },
-        orderBy: { sortOrder: "asc" }
-      });
-    } else if (warehouseType === "PRODUCT" || warehouseType === "DEFECT") {
+    if (warehouseCode === "KHO-THANHPHAM" || warehouseType === "PRODUCT" || warehouseType === "DEFECT") {
       const industryProductCodeMap: Record<string, string> = {
         "wood_door": "SP_GO",
         "sanitary": "SP_VESINH",
         "building_materials": "SP_VLXD"
       };
       const prodRootCode = industryProductCodeMap[activeIndustryCode] || "SP_GO";
-      const rootCategory = await prisma.inventoryCategory.findFirst({
-        where: { code: prodRootCode, parentId: null, isActive: true }
+      const rootCategory = await prisma.category.findFirst({
+        where: { code: prodRootCode, type: "danh_muc_thanh_pham", parentId: null, isActive: true }
       });
       if (rootCategory) {
         rootCategoryId = rootCategory.id;
       }
-
-      allCategories = await prisma.inventoryCategory.findMany({
-        where: { isActive: true },
+      allCategories = await prisma.category.findMany({
+        where: { type: "danh_muc_thanh_pham", isActive: true },
         orderBy: { sortOrder: "asc" }
       });
     } else {

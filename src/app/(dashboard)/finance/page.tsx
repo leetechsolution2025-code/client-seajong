@@ -33,6 +33,29 @@ export default function FinancePage() {
   const [orderPage, setOrderPage] = useState(1);
   const [ordersTotalPages, setOrdersTotalPages] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [showItemsOffcanvas, setShowItemsOffcanvas] = useState(false);
+  const [orderDetails, setOrderDetails] = useState<any[]>([]);
+  const [fetchingDetails, setFetchingDetails] = useState(false);
+
+  const handleViewItems = async () => {
+    if (!selectedOrder) return;
+    setShowItemsOffcanvas(true);
+    setFetchingDetails(true);
+    setOrderDetails([]);
+    try {
+      const res = await fetch(`/api/plan-finance/sales/${selectedOrder.id}`);
+      if (res.ok) {
+        const detail = await res.json();
+        setOrderDetails((detail.saleOrderItems ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.inventoryItem?.donVi })));
+      } else {
+        setOrderDetails([]);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setFetchingDetails(false);
+    }
+  };
 
   // States for Purchase Requests (step 2)
   const [requests, setRequests] = useState<any[]>([]);
@@ -1047,17 +1070,26 @@ export default function FinancePage() {
                         <div className="d-flex align-items-start gap-2">
                           <i className="bi bi-person text-muted mt-0.5" />
                           <div className="w-100">
-                            <div className="d-flex align-items-center gap-2 mb-1">
-                              <span className="fw-semibold text-dark">{selectedOrder.customer?.name || "Khách vãng lai"}</span>
-                              {(!selectedOrder.customer || selectedOrder.customer.id === null) && (
-                                <span 
-                                  className="badge bg-success bg-opacity-10 text-success fw-bold px-2 py-0.5 rounded-pill d-inline-flex align-items-center gap-1"
-                                  style={{ fontSize: "10px", border: "1px solid rgba(25, 135, 84, 0.2)" }}
-                                >
-                                  <i className="bi bi-plus-circle" style={{ fontSize: "9px" }} />
-                                  Khách vãng lai
-                                </span>
-                              )}
+                            <div className="d-flex align-items-center justify-content-between mb-1 w-100">
+                              <div className="d-flex align-items-center gap-2">
+                                <span className="fw-semibold text-dark">{selectedOrder.customer?.name || "Khách vãng lai"}</span>
+                                {(!selectedOrder.customer || selectedOrder.customer.id === null) && (
+                                  <span 
+                                    className="badge bg-success bg-opacity-10 text-success fw-bold px-2 py-0.5 rounded-pill d-inline-flex align-items-center gap-1"
+                                    style={{ fontSize: "10px", border: "1px solid rgba(25, 135, 84, 0.2)" }}
+                                  >
+                                    <i className="bi bi-plus-circle" style={{ fontSize: "9px" }} />
+                                    Khách vãng lai
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                className="btn btn-sm btn-outline-primary py-0 px-2 flex-shrink-0"
+                                style={{ fontSize: "11px", height: "24px" }}
+                                onClick={handleViewItems}
+                              >
+                                <i className="bi bi-box-seam me-1"></i> Xem hàng hoá
+                              </button>
                             </div>
                             {selectedOrder.customer?.dienThoai && (
                               <div className="text-muted small">{selectedOrder.customer.dienThoai}</div>
@@ -1158,9 +1190,39 @@ export default function FinancePage() {
                           <span className="fw-bold text-secondary text-uppercase d-block mb-1" style={{ fontSize: "10px", letterSpacing: "0.05em" }}>
                             Ghi chú
                           </span>
-                          <p className="text-muted bg-light p-2.5 rounded-3 mb-0" style={{ fontSize: "12.5px" }}>
-                            {selectedOrder.ghiChu}
-                          </p>
+                          <div className="text-muted bg-light p-3 rounded-3 mb-0" style={{ fontSize: "12.5px" }}>
+                            {(() => {
+                              const match = selectedOrder.ghiChu.match(/Tên khách hàng:\s*(.*?)\s*Số điện thoại:\s*(.*?)\s*Địa chỉ giao hàng:\s*(.*)/);
+                              if (match) {
+                                return (
+                                  <div className="d-flex flex-column gap-2">
+                                    <div className="d-flex align-items-start gap-2">
+                                      <i className="bi bi-person text-muted mt-0.5" style={{ fontSize: 13 }}></i>
+                                      <div>
+                                        <span className="text-muted d-block mb-0.5" style={{ fontSize: 10 }}>Tên khách hàng</span>
+                                        <span className="fw-medium text-dark">{match[1].trim()}</span>
+                                      </div>
+                                    </div>
+                                    <div className="d-flex align-items-start gap-2">
+                                      <i className="bi bi-telephone text-muted mt-0.5" style={{ fontSize: 13 }}></i>
+                                      <div>
+                                        <span className="text-muted d-block mb-0.5" style={{ fontSize: 10 }}>Số điện thoại</span>
+                                        <span className="fw-medium text-dark">{match[2].trim()}</span>
+                                      </div>
+                                    </div>
+                                    <div className="d-flex align-items-start gap-2">
+                                      <i className="bi bi-geo-alt text-muted mt-0.5" style={{ fontSize: 13 }}></i>
+                                      <div>
+                                        <span className="text-muted d-block mb-0.5" style={{ fontSize: 10 }}>Địa chỉ giao hàng</span>
+                                        <span className="fw-medium text-dark">{match[3].trim()}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{selectedOrder.ghiChu}</div>;
+                            })()}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1779,6 +1841,60 @@ export default function FinancePage() {
           </div>
         </div>
       </div>
+
+      {/* Items Offcanvas */}
+      {showItemsOffcanvas && (
+        <div className="offcanvas-backdrop fade show" onClick={() => setShowItemsOffcanvas(false)} style={{ zIndex: 1060 }}></div>
+      )}
+      <div 
+        className={`offcanvas offcanvas-end ${showItemsOffcanvas ? 'show' : ''}`} 
+        tabIndex={-1} 
+        style={{ width: 400, zIndex: 1065 }}
+      >
+        <div className="offcanvas-header border-bottom px-4 py-3 bg-light">
+          <div>
+            <h5 className="offcanvas-title fw-bold mb-1">Chi tiết hàng hoá</h5>
+            <div className="text-muted" style={{ fontSize: 13 }}>
+              {selectedOrder?.typeLabel} {selectedOrder?.code}
+            </div>
+          </div>
+          <button type="button" className="btn-close" onClick={() => setShowItemsOffcanvas(false)}></button>
+        </div>
+        <div className="offcanvas-body p-0 custom-scrollbar bg-white">
+          <div className="p-4">
+            {fetchingDetails ? (
+              <div className="text-center p-4 text-muted">
+                <div className="spinner-border spinner-border-sm me-2"></div>
+                Đang tải dữ liệu...
+              </div>
+            ) : orderDetails.length > 0 ? (
+              <div>
+                <Table
+                  rows={orderDetails}
+                  columns={[
+                    { header: "Sản phẩm", render: (row: any) => <span className="fw-medium text-dark">{row.name}</span>, width: "70%" },
+                    { header: "SL", render: (row: any) => <div className="text-end fw-bold text-primary">{row.qty} <span className="fw-normal text-muted" style={{ fontSize: 11 }}>{row.unit || "cái"}</span></div>, align: "right", width: "30%" }
+                  ]}
+                  fixedLayout={false}
+                  fontSize={12}
+                  wrapperClassName="border rounded-3"
+                  wrapperStyle={{ overflowX: "hidden" }}
+                />
+              </div>
+            ) : (
+              <div className="text-center p-4 text-muted border border-dashed rounded-3">
+                Không tìm thấy hàng hoá nào
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="offcanvas-footer p-3 border-top bg-light">
+          <button className="btn btn-secondary w-100" onClick={() => setShowItemsOffcanvas(false)}>
+            Đóng
+          </button>
+        </div>
+      </div>
+
     </StandardPage>
   );
 }

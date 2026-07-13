@@ -96,11 +96,10 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
     try {
       const selectedWH = warehouses.find(w => w.value === warehouseId);
       const whType = selectedWH?.type || "SEAJONG";
-      let apiPath = "/api/logistics/seajong-inventory/categories";
-      if (whType === "MATERIAL") apiPath = "/api/production/materials/categories";
-      else if (whType === "PRODUCT") apiPath = "/api/production/manufactured-products/categories";
-      else if (whType === "DEFECT") apiPath = "/api/logistics/defects/categories";
-      else if (whType === "PRODUCT_SYNC") apiPath = "/api/finance/inventory/categories";
+      let apiPath = "/api/logistics/categories";
+      if (warehouseId) {
+        apiPath += `?warehouseId=${warehouseId}`;
+      }
 
       const res = await fetch(apiPath);
       const data = await res.json();
@@ -328,7 +327,8 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
       width: 130,
       align: "center",
       render: (row) => {
-        const isOut = row.soLuong <= 0;
+        const soLuong = row.soLuong || 0;
+        const isOut = soLuong <= 0;
         const isLow = row.trangThai === "sap-het";
         return (
           <span className={cn(

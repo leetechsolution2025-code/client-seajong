@@ -15,11 +15,11 @@ export async function GET(req: NextRequest) {
     const page   = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
     const search = searchParams.get("search") ?? "";
 
-    const categoryId = searchParams.get("categoryId") ?? "";
+    const productCategoryId = searchParams.get("categoryId") ?? "";
     const searchNorm = removeVietnameseTones(search);
 
     const where: any = {};
-    if (categoryId) where.categoryId = categoryId;
+    if (productCategoryId) where.productCategoryId = productCategoryId;
 
     const rawItems = await prisma.manufacturedProduct.findMany({
       where,
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       take: search ? 1000 : PAGE_SIZE,
       skip: search ? 0 : (page - 1) * PAGE_SIZE,
       include: {
-        category: { select: { name: true } },
+        productCategory: { select: { name: true } },
         dinhMucs: { select: { id: true, code: true, tenDinhMuc: true } }
       }
     });
@@ -45,8 +45,14 @@ export async function GET(req: NextRequest) {
       ? filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
       : filtered;
 
+    const mappedItems = paginated.map((item: any) => ({
+      ...item,
+      categoryId: item.productCategoryId,
+      category: item.productCategory
+    }));
+
     return NextResponse.json({ 
-      items: paginated, 
+      items: mappedItems, 
       total, 
       page, 
       totalPages: Math.ceil(total / PAGE_SIZE) 
@@ -63,7 +69,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { code, name, categoryId, unit, defaultWarehouse, notes } = body;
+    const { code, name, productCategoryId, unit, defaultWarehouse, notes } = body;
 
     if (!name?.trim()) {
       return NextResponse.json({ error: "Tên sản phẩm không được để trống" }, { status: 400 });
@@ -73,7 +79,7 @@ export async function POST(req: NextRequest) {
       data: {
         code: code || undefined,
         name: name.trim(),
-        categoryId: categoryId || undefined,
+        productCategoryId: productCategoryId || undefined,
         unit: unit || "bộ",
         defaultWarehouse: defaultWarehouse || "KHO-THANHPHAM",
         notes: notes || undefined,
