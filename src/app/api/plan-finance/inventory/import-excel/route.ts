@@ -33,6 +33,7 @@ function parseVatTu(raw: string) {
     .map(s => {
       const parts = s.split("|");
       return {
+        materialId: undefined as string | undefined,
         tenVatTu:  (parts[0] ?? "").trim(),
         soLuong:   Math.max(0, Number(parts[1] ?? "1") || 1),
         donViTinh: (parts[2] ?? "").trim() || undefined,
