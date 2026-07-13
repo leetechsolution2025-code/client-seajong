@@ -179,10 +179,11 @@ export async function GET(req: Request) {
       where.categoryId = { in: industryProdCategoryIds };
     }
 
-    // DO NOT filter by physical stocks. The user explicitly requested to show the full catalog of items belonging to the warehouse type.
-    // if (warehouseId) {
-    //   where.stocks = { some: { warehouseId } };
-    // }
+    // DO NOT filter by physical stocks for normal warehouses to show the full catalog.
+    // BUT for DEFECT warehouses (Kho hàng lỗi), we ONLY show items that actually exist in this warehouse.
+    if (warehouseId && warehouseType === "DEFECT") {
+      where.stocks = { some: { warehouseId, soLuong: { gt: 0 } } };
+    }
 
     const mfpWhere: any = {};
     // Không lọc ManufacturedProduct theo categoryId vì nó dùng bảng Category khác với InventoryCategory
@@ -206,6 +207,7 @@ export async function GET(req: Request) {
       !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "DEFECT" || warehouseType === "ALL") ? (prisma as any).materialItem.findMany({
         where: {
           ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
+          ...(warehouseType === "DEFECT" && warehouseId ? { stocks: { some: { warehouseId, soLuong: { gt: 0 } } } } : {})
         },
         include: {
           category: { select: { id: true, name: true } },
@@ -218,11 +220,12 @@ export async function GET(req: Request) {
       !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "DEFECT" || warehouseType === "ALL") ? (prisma as any).materialItem.count({
         where: {
           ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
+          ...(warehouseType === "DEFECT" && warehouseId ? { stocks: { some: { warehouseId, soLuong: { gt: 0 } } } } : {})
         }
       }) : Promise.resolve(0),
 
       // PRODUCT (hoặc explicit includeManufactured) móc bảng ManufacturedProduct
-      warehouseType === "PRODUCT" || warehouseType === "ALL" || includeManufactured ? prisma.manufacturedProduct.findMany({
+      (warehouseType === "PRODUCT" || warehouseType === "ALL" || includeManufactured) && warehouseType !== "DEFECT" ? prisma.manufacturedProduct.findMany({
         where: {
           ...mfpWhere,
           ...(categoryId ? { productCategoryId: categoryId } : {})
@@ -230,7 +233,7 @@ export async function GET(req: Request) {
         include: { dinhMucs: true, productCategory: true },
         orderBy: { updatedAt: "desc" }
       }) : Promise.resolve([]),
-      warehouseType === "PRODUCT" || warehouseType === "ALL" || includeManufactured ? prisma.manufacturedProduct.count({ 
+      (warehouseType === "PRODUCT" || warehouseType === "ALL" || includeManufactured) && warehouseType !== "DEFECT" ? prisma.manufacturedProduct.count({ 
         where: {
           ...mfpWhere,
           ...(categoryId ? { productCategoryId: categoryId } : {})
