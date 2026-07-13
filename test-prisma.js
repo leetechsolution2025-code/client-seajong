@@ -1,13 +1,15 @@
-const { PrismaClient } = require('@prisma/client')
-const prisma = new PrismaClient()
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 async function main() {
-  const oemPlan = await prisma.oemMasterYearlyPlan.findFirst({
-    where: { year: 2026 }
-  })
-  if (oemPlan) {
-    console.log("Found OEM Plan Data length: ", oemPlan.planData.length);
-  } else {
-    console.log("No OEM Plan found for 2026");
+  try {
+    const orderId = 'DHBL-20260713-01';
+    let order = await prisma.saleOrder.findUnique({
+      where: { id: orderId },
+    });
+    console.log(order);
+  } catch (e) {
+    console.error("ERROR CAUGHT:");
+    console.error(e);
   }
 }
-main().catch(console.error).finally(() => prisma.$disconnect())
+main();

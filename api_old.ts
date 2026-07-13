@@ -179,10 +179,11 @@ export async function GET(req: Request) {
       where.categoryId = { in: industryProdCategoryIds };
     }
 
-    // DO NOT filter by physical stocks. The user explicitly requested to show the full catalog of items belonging to the warehouse type.
-    // if (warehouseId) {
-    //   where.stocks = { some: { warehouseId } };
-    // }
+    if (warehouseId) {
+      where.stocks = {
+        some: { warehouseId }
+      };
+    }
 
     const mfpWhere: any = {};
     // Không lọc ManufacturedProduct theo categoryId vì nó dùng bảng Category khác với InventoryCategory
@@ -192,8 +193,8 @@ export async function GET(req: Request) {
     const excludeMaterials = searchParams.get("excludeMaterials") === "true";
 
     const [invItems, matItems, invTotal, matTotal, mfpItems, mfpTotal] = await Promise.all([
-      // PRODUCT_SYNC (hoặc DEFECT / ALL) móc bảng InventoryItem
-      warehouseType === "PRODUCT_SYNC" || warehouseType === "DEFECT" || warehouseType === "ALL" ? prisma.inventoryItem.findMany({
+      // Chỉ lấy InventoryItem nếu không phải là kho MATERIAL (bao gồm PRODUCT và DEFECT)
+      warehouseType !== "MATERIAL" && warehouseCode !== "KHO-THANHPHAM" ? prisma.inventoryItem.findMany({
         where,
         include: {
           category: { select: { id: true, name: true } },
@@ -202,10 +203,11 @@ export async function GET(req: Request) {
         orderBy: { updatedAt: "desc" },
       }) : Promise.resolve([]),
 
-      // MATERIAL (hoặc DEFECT / ALL) móc bảng MaterialItem
-      !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "DEFECT" || warehouseType === "ALL") ? (prisma as any).materialItem.findMany({
+      // Chỉ lấy MaterialItem nếu là kho MATERIAL hoặc ALL, và không bị cấm bởi excludeMaterials
+      !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "ALL") ? (prisma as any).materialItem.findMany({
         where: {
           ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
+
         },
         include: {
           category: { select: { id: true, name: true } },
@@ -214,15 +216,15 @@ export async function GET(req: Request) {
         orderBy: { updatedAt: "desc" },
       }) : Promise.resolve([]),
 
-      warehouseType === "PRODUCT_SYNC" || warehouseType === "DEFECT" || warehouseType === "ALL" ? prisma.inventoryItem.count({ where }) : Promise.resolve(0),
-      !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "DEFECT" || warehouseType === "ALL") ? (prisma as any).materialItem.count({
+      warehouseType !== "MATERIAL" && warehouseCode !== "KHO-THANHPHAM" ? prisma.inventoryItem.count({ where }) : Promise.resolve(0),
+      !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "ALL") ? (prisma as any).materialItem.count({
         where: {
           ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
+
         }
       }) : Promise.resolve(0),
 
-      // PRODUCT (hoặc explicit includeManufactured) móc bảng ManufacturedProduct
-      warehouseType === "PRODUCT" || warehouseType === "ALL" || includeManufactured ? prisma.manufacturedProduct.findMany({
+      warehouseType !== "MATERIAL" && (includeManufactured || warehouseCode === "KHO-THANHPHAM") ? prisma.manufacturedProduct.findMany({
         where: {
           ...mfpWhere,
           ...(categoryId ? { productCategoryId: categoryId } : {})
@@ -230,7 +232,7 @@ export async function GET(req: Request) {
         include: { dinhMucs: true, productCategory: true },
         orderBy: { updatedAt: "desc" }
       }) : Promise.resolve([]),
-      warehouseType === "PRODUCT" || warehouseType === "ALL" || includeManufactured ? prisma.manufacturedProduct.count({ 
+      warehouseType !== "MATERIAL" && (includeManufactured || warehouseCode === "KHO-THANHPHAM") ? prisma.manufacturedProduct.count({ 
         where: {
           ...mfpWhere,
           ...(categoryId ? { productCategoryId: categoryId } : {})

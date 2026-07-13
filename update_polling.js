@@ -1,4 +1,6 @@
+const fs = require('fs');
 
+const code = `
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
@@ -6,7 +8,6 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { LogisticsInventory } from "@/components/logistics/inventory/LogisticsInventory";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Table, TableColumn } from "@/components/ui/Table";
-import { XuatKhoModal } from "@/components/plan-finance/kho_hang/XuatKhoModal";
 import { useToast } from "@/components/ui/Toast";
 
 export default function LogisticsOverviewPage() {
@@ -17,7 +18,6 @@ export default function LogisticsOverviewPage() {
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [orderDetails, setOrderDetails] = useState<any[]>([]);
   const [fetchingDetails, setFetchingDetails] = useState(false);
-  const [showXuatKhoModal, setShowXuatKhoModal] = useState(false);
   
   const toast = useToast();
   const prevOrderIds = useRef<Set<string>>(new Set());
@@ -32,21 +32,21 @@ export default function LogisticsOverviewPage() {
           const mapped = data.map((d: any, index: number) => {
             const rawId = d.code || d.id;
             const parts = rawId.split('-');
-            const suffix = parts[parts.length - 1] || `${index}`;
-            const exportCode = `LXK-202607-${suffix}`;
+            const suffix = parts[parts.length - 1] || \`\${index}\`;
+            const exportCode = \`LXK-202607-\${suffix}\`;
             return { ...d, exportCode };
           });
           
           if (!mounted) return;
 
           if (isPolling) {
-            const newIds = new Set<string>(mapped.map((m: any) => m.id as string));
+            const newIds = new Set(mapped.map((m: any) => m.id));
             if (prevOrderIds.current.size > 0) { // Only notify if it's not the initial load masquerading as polling
               const addedOrders = mapped.filter((m: any) => !prevOrderIds.current.has(m.id));
               if (addedOrders.length > 0) {
                 toast.info(
                   "Lệnh xuất kho mới", 
-                  `Kế toán vừa phê duyệt thêm ${addedOrders.length} lệnh xuất kho.`
+                  \`Kế toán vừa phê duyệt thêm \${addedOrders.length} lệnh xuất kho.\`
                 );
               }
             }
@@ -54,7 +54,7 @@ export default function LogisticsOverviewPage() {
             // Dùng JSON.stringify so sánh để tránh render lại nếu data không đổi (tuỳ chọn)
             setOrders(mapped);
           } else {
-            prevOrderIds.current = new Set<string>(mapped.map((m: any) => m.id as string));
+            prevOrderIds.current = new Set(mapped.map((m: any) => m.id));
             setOrders(mapped);
             setLoading(false);
           }
@@ -87,19 +87,19 @@ export default function LogisticsOverviewPage() {
     try {
       let items: any[] = [];
       if (row.type === "contract") {
-        const res = await fetch(`/api/plan-finance/contracts/${row.id}`);
+        const res = await fetch(\`/api/plan-finance/contracts/\${row.id}\`);
         if (res.ok) {
           const detail = await res.json();
           items = (detail.quotation?.items ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi }));
         }
       } else if (row.type === "retail-invoice") {
-        const res = await fetch(`/api/plan-finance/retail-invoices/${row.id}`);
+        const res = await fetch(\`/api/plan-finance/retail-invoices/\${row.id}\`);
         if (res.ok) {
           const detail = await res.json();
           items = (detail.items ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.dvt }));
         }
       } else if (row.type === "sale-order") {
-        const res = await fetch(`/api/plan-finance/sales/${row.id}`);
+        const res = await fetch(\`/api/plan-finance/sales/\${row.id}\`);
         if (res.ok) {
           const detail = await res.json();
           items = (detail.saleOrderItems ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.inventoryItem?.donVi }));
@@ -140,12 +140,17 @@ export default function LogisticsOverviewPage() {
                       header: "Mã lệnh", 
                       render: (row: any) => (
                         <div className="position-relative">
+                          {!readOrderIds.has(row.id) && (
+                            <span className="position-absolute top-0 start-0 translate-middle p-1 bg-danger border border-light rounded-circle" style={{ marginLeft: "-10px", marginTop: "10px" }}>
+                              <span className="visually-hidden">Mới</span>
+                            </span>
+                          )}
                           <div className="d-flex align-items-center gap-2 mb-1">
                             <div className="fw-bold text-primary">{row.exportCode}</div>
                             {!readOrderIds.has(row.id) && <span className="badge bg-danger rounded-pill" style={{ fontSize: 9, padding: "2px 6px" }}>Mới</span>}
                           </div>
                           <div className="text-muted text-truncate" style={{ fontSize: 12, maxWidth: 200 }}>
-                            {row.typeLabel} {row.code} {row.customer ? `- ${row.customer}` : ""}
+                            {row.typeLabel} {row.code} {row.customer ? \`- \${row.customer}\` : ""}
                           </div>
                         </div>
                       ),
@@ -175,7 +180,7 @@ export default function LogisticsOverviewPage() {
                           statusText = "Chờ xử lý";
                         }
 
-                        return <span className={`badge ${statusColor} rounded-pill`} style={{ fontSize: 10 }}>{statusText}</span>;
+                        return <span className={\`badge \${statusColor} rounded-pill\`} style={{ fontSize: 10 }}>{statusText}</span>;
                       }, 
                       width: "25%" 
                     }
@@ -209,7 +214,7 @@ export default function LogisticsOverviewPage() {
         <div className="offcanvas-backdrop fade show" onClick={() => setSelectedOrder(null)} style={{ zIndex: 1040 }}></div>
       )}
       <div 
-        className={`offcanvas offcanvas-end ${selectedOrder ? 'show' : ''}`} 
+        className={\`offcanvas offcanvas-end \${selectedOrder ? 'show' : ''}\`} 
         tabIndex={-1} 
         style={{ width: 400, zIndex: 1045 }}
       >
@@ -235,18 +240,15 @@ export default function LogisticsOverviewPage() {
                 Đang tải dữ liệu...
               </div>
             ) : orderDetails.length > 0 ? (
-              <div>
-                <Table
-                  rows={orderDetails}
-                  columns={[
-                    { header: "Sản phẩm", render: (row: any) => <span className="fw-medium text-dark">{row.name}</span>, width: "70%" },
-                    { header: "SL", render: (row: any) => <div className="text-end fw-bold text-primary">{row.qty} <span className="fw-normal text-muted" style={{ fontSize: 11 }}>{row.unit || "cái"}</span></div>, align: "right", width: "30%" }
-                  ]}
-                  fixedLayout={false}
-                  fontSize={12}
-                  wrapperClassName="border rounded-3"
-                  wrapperStyle={{ overflowX: "hidden" }}
-                />
+              <div className="d-flex flex-column gap-3">
+                {orderDetails.map((item, idx) => (
+                  <div key={idx} className="d-flex justify-content-between p-3 border rounded-3 bg-light">
+                    <div className="fw-medium text-dark">{item.name}</div>
+                    <div className="fw-bold text-primary text-end" style={{ minWidth: 60 }}>
+                      {item.qty} <span className="fw-normal text-muted" style={{ fontSize: 12 }}>{item.unit || "cái"}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="text-center p-4 text-muted border border-dashed rounded-3">
@@ -256,23 +258,15 @@ export default function LogisticsOverviewPage() {
           </div>
         </div>
         <div className="offcanvas-footer p-3 border-top bg-light">
-          <button className="btn btn-primary w-100" onClick={() => setShowXuatKhoModal(true)}>
-            Thực hiện
+          <button className="btn btn-primary w-100" onClick={() => setSelectedOrder(null)}>
+            Xác nhận
           </button>
         </div>
       </div>
 
-      {showXuatKhoModal && (
-        <XuatKhoModal 
-          initialMode="so"
-          initialSoId={selectedOrder?.id}
-          onClose={() => setShowXuatKhoModal(false)}
-          onSaved={() => {
-            setShowXuatKhoModal(false);
-            setSelectedOrder(null);
-          }}
-        />
-      )}
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/app/(dashboard)/logistics/page.tsx', code);

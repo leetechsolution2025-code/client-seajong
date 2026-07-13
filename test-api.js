@@ -1,10 +1,6 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-async function main() {
-  const t = await prisma.task.findFirst({ where: { status: 'done' } });
-  if (t) {
-    const u = await prisma.user.findUnique({ where: { id: t.assigneeId } });
-    console.log("Done task user name:", u ? u.name : null);
-  }
-}
-main().finally(() => prisma.$disconnect());
+const http = require('http');
+http.get('http://localhost:3000/api/production/orders/DHBL-20260713-01', (res) => {
+  let data = '';
+  res.on('data', chunk => data += chunk);
+  res.on('end', () => console.log(data));
+});

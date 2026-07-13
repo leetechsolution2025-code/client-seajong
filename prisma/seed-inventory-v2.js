@@ -6,7 +6,7 @@ async function main() {
 
   // 1. Tạo các Kho hàng (bao gồm cả kho hàng lỗi ảo)
   const warehouses = [
-    { id: 'cmoip699s0000i4almoh1zuqs', code: 'KHO-CHINH', name: 'Kho hàng hoá', address: 'Phú Diễn, Bắc Từ Liêm, Hà Nội', type: 'PRODUCT', isVirtual: false },
+    { id: 'cmoip699s0000i4almoh1zuqs', code: 'KHO-CHINH', name: 'Kho hàng hoá', address: 'Phú Diễn, Bắc Từ Liêm, Hà Nội', type: 'PRODUCT_SYNC', isVirtual: false },
     { id: 'cmoit7ttx0000i4514gkqzm1k', code: 'KVP', name: 'Kho vật tư và phụ kiện', address: 'Khu vực lưu trữ vật tư', type: 'MATERIAL', isVirtual: false },
     { id: 'cmoip699x0002i4al9g3nkwir', code: 'KHO-LOI', name: 'Kho hàng lỗi', address: 'Khu vực cách ly kỹ thuật', type: 'DEFECT', isVirtual: false },
     { id: 'cmq0s26fg0000goaespwzfn2w', code: 'KHO-THANHPHAM', name: 'Kho thành phẩm', address: 'Cụm 4, Xã Sơn Đồng, Thành phố Hà Nội, Việt Nam', type: 'PRODUCT', isVirtual: false },

@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 async function main() {
-  const item = await prisma.inventoryItem.findFirst({ where: { tenHang: 'Combo phòng tắm cao cấp Seajong – Refined Living' } });
-  console.log(item);
+  const whs = await prisma.warehouse.findMany();
+  console.log("Warehouses:", whs);
 }
 main().catch(console.error).finally(() => prisma.$disconnect());
