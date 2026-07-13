@@ -393,6 +393,13 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
 
             {/* Filters */}
             <div className="d-flex align-items-center gap-2 mb-3 flex-wrap">
+              <FilterSelect 
+                  options={warehouses}
+                  value={warehouseId}
+                  onChange={setWarehouseId}
+                  placeholder="Tất cả kho"
+                  width={200}
+              />
               <TreeFilterSelect 
                   options={categories}
                   value={categoryId}
@@ -419,13 +426,6 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
                     placeholder="Tìm theo tên, SKU..."
                 />
               </div>
-              <FilterSelect 
-                  options={warehouses}
-                  value={warehouseId}
-                  onChange={setWarehouseId}
-                  placeholder="Tất cả kho"
-                  width={200}
-              />
               {allowAdd && <BrandButton icon="bi-plus-lg" className="flex-shrink-0">Thêm hàng hoá</BrandButton>}
             </div>
 

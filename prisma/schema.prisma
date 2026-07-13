@@ -599,22 +599,23 @@ model SupplierCategory {
 }
 
 model SaleOrder {
-  id             String          @id @default(cuid())
-  code           String?         @unique
-  customerId     String?
-  ngayDat        DateTime?
-  ngayGiao       DateTime?
-  trangThai      String          @default("draft")
-  tongTien       Float           @default(0)
-  daThanhToan    Float           @default(0)
-  keToanDuyet    String          @default("pending") // "pending" | "approved" | "rejected"
-  trangThaiKho   String          @default("in_stock") // "in_stock" | "out_of_stock"
-  ghiChu         String?
-  nguoiPhuTrach  String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  customer       Customer?       @relation(fields: [customerId], references: [id])
-  saleOrderItems SaleOrderItem[]
+  id                   String          @id @default(cuid())
+  code                 String?         @unique
+  customerId           String?
+  ngayDat              DateTime?
+  ngayGiao             DateTime?
+  ngayHoanThanhSanXuat DateTime?
+  trangThai            String          @default("draft")
+  tongTien             Float           @default(0)
+  daThanhToan          Float           @default(0)
+  keToanDuyet          String          @default("pending") // "pending" | "approved" | "rejected"
+  trangThaiKho         String          @default("in_stock") // "in_stock" | "out_of_stock"
+  ghiChu               String?
+  nguoiPhuTrach        String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  customer             Customer?       @relation(fields: [customerId], references: [id])
+  saleOrderItems       SaleOrderItem[]
 
   @@index([trangThai])
   @@index([customerId])
@@ -816,6 +817,7 @@ model InventoryCategory {
   children  InventoryCategory[] @relation("InvCategoryParent")
   items     InventoryItem[]
   suppliers SupplierCategory[]
+  manufacturedProducts ManufacturedProduct[] @relation("MfpCategory")
 }
 
 model Warehouse {
@@ -927,8 +929,9 @@ model ManufacturedProduct {
   code             String?  @unique
   name             String
   unit             String   @default("bộ")
-  defaultWarehouse String?  @default("KTP")
+  defaultWarehouse String?  @default("KHO-THANHPHAM")
   categoryId       String?
+  category         InventoryCategory? @relation("MfpCategory", fields: [categoryId], references: [id])
   imageUrl         String?
   notes            String?
   createdAt        DateTime @default(now())

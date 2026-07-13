@@ -15,13 +15,19 @@ export async function GET(req: NextRequest) {
     const page   = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
     const search = searchParams.get("search") ?? "";
 
+    const categoryId = searchParams.get("categoryId") ?? "";
     const searchNorm = removeVietnameseTones(search);
 
+    const where: any = {};
+    if (categoryId) where.categoryId = categoryId;
+
     const rawItems = await prisma.manufacturedProduct.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       take: search ? 1000 : PAGE_SIZE,
       skip: search ? 0 : (page - 1) * PAGE_SIZE,
       include: {
+        category: { select: { name: true } },
         dinhMucs: { select: { id: true, code: true, tenDinhMuc: true } }
       }
     });
@@ -34,7 +40,7 @@ export async function GET(req: NextRequest) {
         })
       : rawItems;
 
-    const total = search ? filtered.length : await prisma.manufacturedProduct.count();
+    const total = search ? filtered.length : await prisma.manufacturedProduct.count({ where });
     const paginated = search
       ? filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
       : filtered;

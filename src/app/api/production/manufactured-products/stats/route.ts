@@ -8,7 +8,13 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const total = await prisma.manufacturedProduct.count();
+    const { searchParams } = new URL(req.url);
+    const categoryId  = searchParams.get("categoryId")  ?? "";
+
+    const where: any = {};
+    if (categoryId) where.categoryId = categoryId;
+
+    const total = await prisma.manufacturedProduct.count({ where });
     
     // Stub
     return NextResponse.json({

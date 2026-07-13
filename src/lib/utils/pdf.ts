@@ -443,7 +443,7 @@ async function paginateSinglePageContent(
  * This guarantees identical margins, widths, fonts, and custom branding rules
  * (e.g. headers, zebra stripe tables) regardless of screen style state.
  */
-function injectPDFStyles(clonedPage: HTMLElement, orientation: "portrait" | "landscape") {
+function injectPDFStyles(clonedPage: HTMLElement, orientation: "portrait" | "landscape", keepOriginalStyles: boolean = false) {
   const isLandscape = orientation === "landscape";
   const pagePadding = isLandscape ? "15mm 15mm 15mm 15mm" : "20mm 20mm 20mm 25mm";
   const pageWidth = isLandscape ? "297mm" : "210mm";
@@ -484,11 +484,13 @@ function injectPDFStyles(clonedPage: HTMLElement, orientation: "portrait" | "lan
       display: block !important;
       box-sizing: border-box !important;
     }
-
+    
+    ${keepOriginalStyles ? '' : `
     /* Force all text in the report document body to be printed in solid black */
     #pdf-temp-container .pdf-content-page * {
       color: #000000 !important;
     }
+    `}
 
     /* Tighten spacings and margins to eliminate massive empty gaps */
     #pdf-temp-container .pdf-content-page h5 {
@@ -560,6 +562,7 @@ export async function exportElementToPDF(
     marginLeft = 0,
     marginRight = 0,
     paginate = true,
+    keepOriginalStyles = false,
   } = options;
 
   const docEl = document.getElementById(elementId);
@@ -601,7 +604,7 @@ export async function exportElementToPDF(
     for (let i = 0; i < paginatedPages.length; i++) {
       const clonedPage = paginatedPages[i];
 
-      stripTableBackgrounds(clonedPage);
+      if (!keepOriginalStyles) stripTableBackgrounds(clonedPage);
 
       clonedPage.style.boxShadow = "none";
       clonedPage.style.margin = "0";
@@ -625,7 +628,7 @@ export async function exportElementToPDF(
         clonedPage.style.paddingLeft = clonedPage.style.paddingLeft || "25mm";
       }
 
-      injectPDFStyles(clonedPage, orientation);
+      injectPDFStyles(clonedPage, orientation, keepOriginalStyles);
 
       const tempContainer = document.createElement("div");
       tempContainer.id = "pdf-temp-container";
@@ -648,8 +651,7 @@ export async function exportElementToPDF(
         scale: scale,
         useCORS: true,
         logging: false,
-        width: isLandscape ? 1123 : 794,
-        height: isLandscape ? 794 : 1123
+        // width and height omitted to preserve aspect ratio
       });
 
       document.body.removeChild(tempContainer);
@@ -660,7 +662,9 @@ export async function exportElementToPDF(
         pdf.addPage("a4", orientation);
       }
 
-      pdf.addImage(imgData, "JPEG", 0, 0, pageWidthMm, pageHeightMm);
+      const imgWidth = pageWidthMm;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
     }
 
     pdf.save(filename.endsWith(".pdf") ? filename : `${filename}.pdf`);
@@ -677,8 +681,8 @@ export async function exportElementToPDF(
     clonedPage.style.setProperty("padding-top", "5mm", "important");
   }
 
-  stripTableBackgrounds(clonedPage);
-  injectPDFStyles(clonedPage, orientation);
+  if (!keepOriginalStyles) stripTableBackgrounds(clonedPage);
+  injectPDFStyles(clonedPage, orientation, keepOriginalStyles);
 
   const tempContainer = document.createElement("div");
   tempContainer.id = "pdf-temp-container";
@@ -734,6 +738,7 @@ export async function generatePDFBlob(
     marginLeft = 0,
     marginRight = 0,
     paginate = true,
+    keepOriginalStyles = false,
   } = options;
 
   const docEl = document.getElementById(elementId);
@@ -775,7 +780,7 @@ export async function generatePDFBlob(
     for (let i = 0; i < paginatedPages.length; i++) {
       const clonedPage = paginatedPages[i];
 
-      stripTableBackgrounds(clonedPage);
+      if (!keepOriginalStyles) stripTableBackgrounds(clonedPage);
 
       clonedPage.style.boxShadow = "none";
       clonedPage.style.margin = "0";
@@ -799,7 +804,7 @@ export async function generatePDFBlob(
         clonedPage.style.paddingLeft = clonedPage.style.paddingLeft || "25mm";
       }
 
-      injectPDFStyles(clonedPage, orientation);
+      injectPDFStyles(clonedPage, orientation, keepOriginalStyles);
 
       const tempContainer = document.createElement("div");
       tempContainer.id = "pdf-temp-container";
@@ -822,8 +827,7 @@ export async function generatePDFBlob(
         scale: scale,
         useCORS: true,
         logging: false,
-        width: isLandscape ? 1123 : 794,
-        height: isLandscape ? 794 : 1123
+        // width and height omitted to preserve aspect ratio
       });
 
       document.body.removeChild(tempContainer);
@@ -834,7 +838,9 @@ export async function generatePDFBlob(
         pdf.addPage("a4", orientation);
       }
 
-      pdf.addImage(imgData, "JPEG", 0, 0, pageWidthMm, pageHeightMm);
+      const imgWidth = pageWidthMm;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, "JPEG", 0, 0, imgWidth, imgHeight);
     }
 
     return pdf.output("blob");
@@ -850,8 +856,8 @@ export async function generatePDFBlob(
     clonedPage.style.setProperty("padding-top", "5mm", "important");
   }
 
-  stripTableBackgrounds(clonedPage);
-  injectPDFStyles(clonedPage, orientation);
+  if (!keepOriginalStyles) stripTableBackgrounds(clonedPage);
+  injectPDFStyles(clonedPage, orientation, keepOriginalStyles);
 
   const tempContainer = document.createElement("div");
   tempContainer.id = "pdf-temp-container";

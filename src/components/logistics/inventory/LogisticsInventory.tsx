@@ -518,7 +518,8 @@ return () => clearInterval(interval);
                     }}
                   />
                 </th>
-                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "45%", minWidth: "250px" }}>Sản phẩm</th>
+                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "30%", minWidth: "200px" }}>Sản phẩm</th>
+                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "15%", minWidth: "140px" }}>Danh mục</th>
                 <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "20%", minWidth: "140px" }}>Model / Màu</th>
                 <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "70px" }}>ĐVT</th>
                 <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px" }}>Tồn kho</th>
@@ -529,14 +530,14 @@ return () => clearInterval(interval);
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={hideActions ? 6 : 7} className="text-center py-5">
+                  <td colSpan={hideActions ? 7 : 8} className="text-center py-5">
                     <div className="spinner-border spinner-border-sm text-primary me-2" />
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={hideActions ? 6 : 7} className="text-center py-5 text-muted">
+                  <td colSpan={hideActions ? 7 : 8} className="text-center py-5 text-muted">
                     <i className="bi bi-inbox fs-2 d-block mb-2 opacity-25" />
                     Không tìm thấy hàng hóa nào
                   </td>
@@ -607,11 +608,13 @@ return () => clearInterval(interval);
                               </span>
                             )}
                           </div>
-                          <div className="text-muted text-truncate" style={{ fontSize: 11 }} title={(item as any).categoryName || item.category?.name || "Chưa phân loại"}>
-                            {(item as any).categoryName || item.category?.name || "Chưa phân loại"}
-                          </div>
                         </div>
                       </div>
+                    </td>
+                    <td>
+                      <span className="badge rounded-pill text-muted bg-light" style={{ fontSize: 11, fontWeight: 500, border: "1px solid var(--border)" }}>
+                        {(item as any).categoryName || item.category?.name || "Chưa phân loại"}
+                      </span>
                     </td>
                     <td style={{ color: "var(--foreground)" }}>
                       {item.model ? (

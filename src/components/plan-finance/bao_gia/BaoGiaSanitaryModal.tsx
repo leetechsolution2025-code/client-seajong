@@ -1369,6 +1369,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
   const [tyLeGiaDaiLy, setTyLeGiaDaiLy] = React.useState<number>(80);
   const [collapsedAreas, setCollapsedAreas] = React.useState<Record<string, boolean>>({});
   const [showDrawings, setShowDrawings] = React.useState(false);
+  const [saveCustomer, setSaveCustomer] = React.useState(false);
 
   const handleTyLeGiaDaiLyChange = (newRate: number) => {
     setTyLeGiaDaiLy(newRate);
@@ -1539,7 +1540,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
         ngayGiaoHang: tNgayLap,
         dieuKhoanTT: "",
         dieuKhoanGH: "",
-        ghiChu: getDefaultGhiChu(tNgayLap, tHieuLuc),
+        ghiChu: type === "retail" ? "" : getDefaultGhiChu(tNgayLap, tHieuLuc),
         chietKhauTong: 0,
         thue: 10,
         quoteType: isDirectOrder ? "Không có quầy kệ" : (type === "retail" ? "Không có quầy kệ" : "Có quầy kệ"),
@@ -1588,7 +1589,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
     if (suggestTimer.current) clearTimeout(suggestTimer.current);
     if (!query.trim() || query.length < 2) { setSuggest([]); return; }
     suggestTimer.current = setTimeout(() => {
-      fetch(`/api/logistics/inventory?search=${encodeURIComponent(query)}&limit=20`)
+      fetch(`/api/logistics/inventory?search=${encodeURIComponent(query)}&limit=20&includeManufactured=true`)
         .then(r => r.json()).then(d => { if (activeRowIdRef.current === rowId) setSuggest(d.items ?? []); }).catch(() => setSuggest([]));
     }, 300);
   }, []);

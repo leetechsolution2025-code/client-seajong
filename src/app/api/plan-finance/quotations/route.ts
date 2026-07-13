@@ -36,7 +36,8 @@ export async function GET(req: NextRequest) {
     const customerId = searchParams.get("customerId") ?? "";
     const type = searchParams.get("type") ?? "";
 
-    const where = {
+    const where: any = {
+      code: { startsWith: "BG" },
       ...(type && { type }),
       ...(customerId && { customerId }),
       ...(search && { OR: [{ code: { contains: search } }, { customer: { name: { contains: search } } }, { ghiChu: { contains: search } }] }),

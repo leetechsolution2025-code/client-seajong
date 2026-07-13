@@ -321,7 +321,8 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
       {(() => {
         const isLogistics = pathname.startsWith("/logistics");
         const isMarketing = pathname.startsWith("/marketing");
-        if (isLogistics || isMarketing) return null; // Ẩn chức năng Kho hàng trong bộ phận kho và marketing
+        const isProduction = pathname.startsWith("/production");
+        if (isLogistics || isMarketing || isProduction) return null; // Ẩn chức năng Kho hàng trong bộ phận kho, marketing, và sản xuất
 
         const isSales = pathname.startsWith("/sales");
         const isKhoHangActive = isSales && pathname.includes("/inventory");

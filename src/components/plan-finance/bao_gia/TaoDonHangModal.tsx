@@ -37,6 +37,11 @@ export type OrderItem = {
   inventoryId: string | null;
   imageUrl?: string | null;
   code?: string | null;
+  dinhMucs?: any[];
+  dinhMucId?: string | null;
+  dinhMucTen?: string | null;
+  khoTen?: string | null;
+  source?: string;
 };
 
 // Helper: number to words (VND)
@@ -194,7 +199,10 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           soLuongTon: null,
           trangThaiKho: null,
           inventoryId: null,
-          code: null
+          code: null,
+          khoTen: (() => {
+            try { return JSON.parse(it.ghiChu || "{}").khoTen || ""; } catch { return ""; }
+          })()
         })));
       }
     }
@@ -235,9 +243,10 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   const [saveError, setSaveError] = React.useState("");
 
   const nextId = React.useRef(1);
-  const [items, setItems] = React.useState<OrderItem[]>([
-    { id: nextId.current++, ten: "", dvt: "", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null },
-  ]);
+  const [items, setItems] = React.useState<OrderItem[]>([]);
+  const [formItem, setFormItem] = React.useState<OrderItem>({
+    id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: ""
+  });
 
   const [suggest, setSuggest] = React.useState<any[]>([]);
   const [activeRowId, setActiveRowId] = React.useState<number | null>(null);
@@ -256,7 +265,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       return;
     }
     suggestTimer.current = setTimeout(() => {
-      fetch(`/api/logistics/inventory?search=${encodeURIComponent(query)}&limit=20`)
+      fetch(`/api/logistics/inventory?search=${encodeURIComponent(query)}&limit=20&includeManufactured=true`)
         .then(r => r.json())
         .then(d => {
           if (activeRowIdRef.current === rowId) setSuggest(d.items ?? []);
@@ -267,17 +276,34 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
   const applySuggest = (rowId: number, item: any) => {
     const soLuongTon = item.soLuongThuc ?? item.soLuong;
-    setItems(r => r.map(x => x.id === rowId ? {
-      ...x,
+    const defaultDinhMuc = item.dinhMucs?.length > 0 ? item.dinhMucs[0] : null;
+    const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name) 
+      ? item.stocks[0].warehouse.name 
+      : (item.source === "manufactured" ? "Kho thành phẩm" 
+         : item.source === "inventory" ? "Kho hàng hoá" 
+         : item.source === "material" ? "Kho vật tư và phụ kiện" : "");
+
+    const updatePayload = {
       ten: item.tenHang,
+      khoTen: khoTenStr,
       dvt: item.donVi ?? "cái",
       donGia: item.giaBan,
       soLuongTon,
       trangThaiKho: item.trangThai,
       inventoryId: item.id,
       imageUrl: item.imageUrl || null,
-      code: item.code || null
-    } : x));
+      code: item.code || null,
+      dinhMucs: item.dinhMucs || [],
+      dinhMucId: defaultDinhMuc ? defaultDinhMuc.id : null,
+      dinhMucTen: defaultDinhMuc ? defaultDinhMuc.tenDinhMuc : null,
+      source: item.source
+    };
+
+    if (rowId === -1) {
+      setFormItem(x => ({ ...x, ...updatePayload }));
+    } else {
+      setItems(r => r.map(x => x.id === rowId ? { ...x, ...updatePayload } : x));
+    }
     setSuggest([]);
     setActiveRowIdSync(null);
   };
@@ -287,11 +313,16 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   };
 
   const addRow = () => {
-    setItems(r => [...r, { id: nextId.current++, ten: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null }]);
+    if (!formItem.ten.trim()) {
+      toast.error("Lỗi", "Vui lòng chọn hoặc nhập tên sản phẩm");
+      return;
+    }
+    setItems(r => [...r, { ...formItem, id: nextId.current++ }]);
+    setFormItem({ id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: "" });
   };
 
   const removeRow = (id: number) => {
-    setItems(r => r.length > 1 ? r.filter(x => x.id !== id) : [{ id: nextId.current++, ten: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null }]);
+    setItems(r => r.filter(x => x.id !== id));
   };
 
   const updateRow = (id: number, k: keyof OrderItem, val: any) => {
@@ -385,7 +416,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
             soLuong: it.soLuong,
             donGia: it.donGia,
             thanhTien: thanhTien(it),
-            ghiChu: JSON.stringify({ code: it.code || "" }),
+            ghiChu: JSON.stringify({ code: it.code || "", khoTen: it.khoTen || "" }),
             sortOrder: idx
           })),
           customerId: finalCustomerId || null,
@@ -696,22 +727,129 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
             </div>
           </div>
 
-          <div className="order-modal-table-container" style={{ flex: 1, overflowY: "auto", overflowX: "auto", padding: 20 }}>
+          <div className="order-modal-table-container" style={{ flex: 1, overflowY: "auto", overflowX: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Form nhập liệu */}
+            <div style={{ padding: 16, background: "rgba(59,130,246,0.04)", border: "1px dashed rgba(59,130,246,0.3)", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
+              <div style={{ flex: "1 1 100%", display: "flex", gap: 12 }}>
+                <div style={{ flex: "2 1 250px", position: "relative" }}>
+                  <FLabel text="Sản phẩm / Dịch vụ" required />
+                  <input
+                    value={formItem.ten}
+                    placeholder="Nhập tên hoặc mã SKU sản phẩm..."
+                    onChange={e => {
+                      const v = e.target.value;
+                      setFormItem(prev => ({ ...prev, ten: v }));
+                      if (!v) {
+                        setSuggest([]);
+                      } else {
+                        setActiveRowIdSync(-1);
+                        fetchSuggest(v, -1);
+                      }
+                    }}
+                    onFocus={e => { setActiveRowIdSync(-1); fetchSuggest(formItem.ten, -1); e.currentTarget.style.border = "1px solid var(--primary)"; }}
+                    onBlur={e => { e.currentTarget.style.border = "1px solid var(--border)"; setTimeout(() => { if (activeRowIdRef.current === -1) { setSuggest([]); setActiveRowIdSync(null); } }, 200); }}
+                    style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", background: "#fff", outline: "none", borderRadius: 6, fontFamily: "inherit", fontSize: 13, color: "var(--foreground)", transition: "border-color 0.15s" }}
+                  />
+                  {activeRowId === -1 && suggest.length > 0 && (
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
+                      {suggest.map(s => (
+                        <div key={s.id} onClick={() => applySuggest(-1, s)}
+                          onMouseEnter={e => e.currentTarget.style.background = "var(--muted)"}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                          style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, borderBottom: "1px solid var(--border)", transition: "background 0.1s" }}
+                        >
+                          <div style={{ fontWeight: 600 }}>{s.tenHang}</div>
+                          <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", gap: 8, marginTop: 2 }}>
+                            {s.code && <span style={{ fontFamily: "monospace", background: "var(--muted)", padding: "0 5px", borderRadius: 4 }}>{s.code}</span>}
+                            <span>Tồn: <b>{s.soLuongThuc ?? s.soLuong}</b> {s.donVi}</span>
+                            <span>Giá: <b>{s.giaBan.toLocaleString("vi-VN")} ₫</b></span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div style={{ flex: "1 1 110px", maxWidth: 180 }}>
+                  <FLabel text="Mã định mức" />
+                  <select
+                    value={formItem.dinhMucId || ""}
+                    onChange={e => {
+                      const dmId = e.target.value;
+                      const dm = formItem.dinhMucs?.find(x => x.id === dmId);
+                      setFormItem(p => ({ ...p, dinhMucId: dmId, dinhMucTen: dm ? dm.tenDinhMuc : null }));
+                    }}
+                    disabled={formItem.source === "inventory"}
+                    style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: formItem.source === "inventory" ? "var(--muted)" : "#fff", outline: "none", fontFamily: "inherit", fontSize: 13, color: formItem.source === "inventory" ? "var(--muted-foreground)" : "var(--foreground)", cursor: formItem.source === "inventory" ? "not-allowed" : "default" }}
+                  >
+                    {formItem.dinhMucs?.map((dm: any) => (
+                      <option key={dm.id} value={dm.id}>{dm.code}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ flex: "2 1 240px" }}>
+                  <FLabel text="Mô tả định mức" />
+                  <input
+                    value={formItem.dinhMucTen || ""}
+                    readOnly
+                    placeholder="Tự động hiển thị..."
+                    style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
+                  />
+                </div>
+              </div>
+              <div style={{ flex: "1 1 120px" }}>
+                <FLabel text="Tên kho" />
+                <input 
+                  value={formItem.khoTen || ""} 
+                  readOnly 
+                  placeholder="Tự động..."
+                  style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }} 
+                />
+              </div>
+              <div style={{ flex: "1 1 80px" }}>
+                <FLabel text="Đơn vị tính" />
+                <input value={formItem.dvt} onChange={e => setFormItem(p => ({ ...p, dvt: e.target.value }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "center", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+              </div>
+              <div style={{ flex: "1 1 90px" }}>
+                <FLabel text="Số lượng" required />
+                <input type="number" min={1} value={formItem.soLuong} onChange={e => setFormItem(p => ({ ...p, soLuong: Math.max(1, Number(e.target.value)) }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+              </div>
+              <div style={{ flex: "1 1 90px" }}>
+                <FLabel text="Chiết khấu (%)" />
+                <input type="number" min={0} max={100} value={formItem.ckPct} onChange={e => setFormItem(p => ({ ...p, ckPct: Math.max(0, Math.min(100, Number(e.target.value))) }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+              </div>
+              <div style={{ flex: "1 1 120px" }}>
+                <FLabel text="Đơn giá (đ)" />
+                <CurrencyInput
+                  value={formItem.donGia}
+                  onChange={v => setFormItem(p => ({ ...p, donGia: v }))}
+                  placeholder="0"
+                  style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }}
+                />
+              </div>
+              <div>
+                <button onClick={addRow} style={{ padding: "7px 14px", border: "none", background: "var(--primary)", color: "#fff", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, height: 33 }}>
+                  <i className="bi bi-plus-lg" /> Thêm
+                </button>
+              </div>
+            </div>
+
             <table className="order-modal-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "var(--muted)", textAlign: "left" }}>
                   <th style={{ padding: 10, width: 40 }}>#</th>
                   <th style={{ padding: 10 }}>Tên sản phẩm - Dịch vụ</th>
-                  <th style={{ padding: 10, width: 80, textAlign: "center" }}>ĐVT</th>
+                  <th style={{ padding: 10, width: 90, textAlign: "center" }}>Đơn vị tính</th>
                   <th style={{ padding: 10, width: 90, textAlign: "center" }}>Số lượng</th>
-                  <th style={{ padding: 10, width: 110, textAlign: "center" }}>CK (%)</th>
+                  <th style={{ padding: 10, width: 110, textAlign: "center" }}>Chiết khấu (%)</th>
                   <th style={{ padding: 10, width: 130, textAlign: "right" }}>Đơn giá (đ)</th>
                   <th style={{ padding: 10, width: 130, textAlign: "right" }}>Thành tiền (đ)</th>
                   <th style={{ padding: 10, width: 40 }} />
                 </tr>
               </thead>
               <tbody>
-                {items.map((it, idx) => (
+                {items.length === 0 ? (
+                  <tr><td colSpan={8} style={{ padding: 20, textAlign: "center", color: "var(--muted-foreground)" }}>Chưa có sản phẩm nào</td></tr>
+                ) : items.map((it, idx) => (
                   <tr key={it.id} style={{ borderBottom: "1px solid var(--border)" }}>
                     <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
                     <td style={{ padding: "6px 10px", position: "relative" }}>
@@ -729,66 +867,12 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         );
                         return null;
                       })()}
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        <input
-                          value={it.ten}
-                          placeholder="Nhập tên hoặc mã SKU sản phẩm..."
-                          onChange={e => {
-                            const v = e.target.value;
-                            if (!v) {
-                              setItems(r => r.map(x => x.id === it.id
-                                ? { ...x, ten: "", dvt: "cái", donGia: 0, ckPct: 0, soLuong: 1, soLuongTon: null, trangThaiKho: null, inventoryId: null }
-                                : x
-                              ));
-                              setSuggest([]);
-                            } else {
-                              updateRow(it.id, "ten", v);
-                              setActiveRowIdSync(it.id);
-                              fetchSuggest(v, it.id);
-                            }
-                          }}
-                          onFocus={e => { setActiveRowIdSync(it.id); fetchSuggest(it.ten, it.id); e.currentTarget.style.border = "1px solid var(--primary)"; }}
-                          onBlur={e => { e.currentTarget.style.border = "1px solid var(--border)"; setTimeout(() => { if (activeRowIdRef.current === it.id) { setSuggest([]); setActiveRowIdSync(null); } }, 200); }}
-                          style={{ width: "100%", padding: 6, border: "1px solid var(--border)", background: "#fff", outline: "none", borderRadius: 6, fontFamily: "inherit", fontSize: 13, color: "var(--foreground)", transition: "border-color 0.15s" }}
-                        />
-
-                      </div>
-                      {activeRowId === it.id && suggest.length > 0 && (
-                        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxHeight: 200, overflowY: "auto" }}>
-                          {suggest.map(s => (
-                            <div key={s.id} onClick={() => applySuggest(it.id, s)}
-                              onMouseEnter={e => e.currentTarget.style.background = "var(--muted)"}
-                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                              style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, borderBottom: "1px solid var(--border)", transition: "background 0.1s" }}
-                            >
-                              <div style={{ fontWeight: 600 }}>{s.tenHang}</div>
-                              <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", gap: 8, marginTop: 2 }}>
-                                {s.code && <span style={{ fontFamily: "monospace", background: "var(--muted)", padding: "0 5px", borderRadius: 4 }}>{s.code}</span>}
-                                <span>Tồn: <b>{s.soLuongThuc ?? s.soLuong}</b> {s.donVi}</span>
-                                <span>Giá: <b>{s.giaBan.toLocaleString("vi-VN")} ₫</b></span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{it.ten}</span>
                     </td>
-                    <td style={{ padding: 6 }}>
-                      <input value={it.dvt} onChange={e => updateRow(it.id, "dvt", e.target.value)} style={{ width: "100%", padding: 6, border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "center", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
-                    </td>
-                    <td style={{ padding: 6 }}>
-                      <input type="number" min={1} value={it.soLuong} onChange={e => updateRow(it.id, "soLuong", Math.max(1, Number(e.target.value)))} style={{ width: "100%", padding: 6, border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
-                    </td>
-                    <td style={{ padding: 6 }}>
-                      <input type="number" min={0} max={100} value={it.ckPct} onChange={e => updateRow(it.id, "ckPct", Math.max(0, Math.min(100, Number(e.target.value))))} style={{ width: "100%", padding: 6, border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
-                    </td>
-                    <td style={{ padding: 6 }}>
-                      <CurrencyInput
-                        value={it.donGia}
-                        onChange={v => updateRow(it.id, "donGia", v)}
-                        placeholder="0"
-                        style={{ width: "100%", padding: 6, border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }}
-                      />
-                    </td>
+                    <td style={{ padding: 6, textAlign: "center" }}>{it.dvt}</td>
+                    <td style={{ padding: 6, textAlign: "center" }}>{it.soLuong}</td>
+                    <td style={{ padding: 6, textAlign: "center" }}>{it.ckPct}</td>
+                    <td style={{ padding: 6, textAlign: "right" }}>{fmt(it.donGia)}</td>
                     <td style={{ padding: 6, textAlign: "right", fontWeight: 600 }}>{fmt(thanhTien(it))} đ</td>
                     <td style={{ padding: 6 }}>
                       <button onClick={() => removeRow(it.id)} style={{ padding: 4, background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>
@@ -799,7 +883,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 ))}
               </tbody>
             </table>
-            <button onClick={addRow} style={{ marginTop: 10, padding: "6px 14px", border: "1px solid var(--border)", background: "var(--card)", borderRadius: 6, cursor: "pointer", color: "var(--foreground)", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s" }} onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.color = "var(--primary)"; }} onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--foreground)"; }}><i className="bi bi-plus-lg" style={{ fontSize: 12 }} /> Thêm sản phẩm</button>
           </div>
 
           {/* Bottom summaries */}

@@ -167,7 +167,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { keToanDuyet, decision, ngayGiao, daThanhToan, trangThai, ghiChu, tongTien, items } = body;
+    const { keToanDuyet, decision, ngayGiao, ngayHoanThanhSanXuat, daThanhToan, trangThai, ghiChu, tongTien, items } = body;
 
     if (keToanDuyet !== undefined && !["pending", "approved", "rejected"].includes(keToanDuyet)) {
       return NextResponse.json({ error: "Trạng thái duyệt không hợp lệ" }, { status: 400 });
@@ -190,6 +190,7 @@ export async function PATCH(
         data: {
           ...(keToanDuyet !== undefined && { keToanDuyet }),
           ...(ngayGiao !== undefined && { ngayGiao: ngayGiao ? new Date(ngayGiao) : null }),
+          ...(ngayHoanThanhSanXuat !== undefined && { ngayHoanThanhSanXuat: ngayHoanThanhSanXuat ? new Date(ngayHoanThanhSanXuat) : null }),
           ...(daThanhToan !== undefined && { daThanhToan: parseFloat(String(daThanhToan)) }),
           ...(trangThai !== undefined && { trangThai }),
           ...(ghiChu !== undefined && { ghiChu }),
@@ -208,6 +209,85 @@ export async function PATCH(
               donGia: parseFloat(String(it.donGia ?? 0)),
               thanhTien: parseFloat(String(it.thanhTien ?? 0)),
             }))
+          });
+        }
+      }
+
+      // Thông báo khi bộ phận sản xuất hoàn thành (in_production -> approved)
+      if (trangThai === "approved" && order.trangThai === "in_production") {
+        const storekeepers = await tx.employee.findMany({
+          where: {
+            OR: [
+              { departmentName: { contains: "Kho" } },
+              { departmentCode: { contains: "logistics" } },
+              { position: { contains: "Thủ kho" } }
+            ],
+            userId: { not: null }
+          },
+          select: { userId: true }
+        });
+        const storekeeperUserIds = storekeepers.map(s => s.userId).filter(Boolean) as string[];
+
+        if (storekeeperUserIds.length > 0) {
+          const notif = await tx.notification.create({
+            data: {
+              title: `📦 Hàng lắp ráp đã xong, lệnh xuất kho cho đơn ${order.code}`,
+              content: `Bộ phận sản xuất đã hoàn thành lắp ráp cho đơn bán hàng ${order.code}. Vui lòng tiến hành xuất kho.`,
+              type: "info",
+              priority: "high",
+              audienceType: "group",
+              audienceValue: JSON.stringify(storekeeperUserIds),
+              createdById: session.user.id ?? "system"
+            }
+          });
+          await Promise.all(storekeeperUserIds.map(uid =>
+            tx.notificationRecipient.upsert({
+              where: { notificationId_userId: { notificationId: notif.id, userId: uid } },
+              update: {},
+              create: { notificationId: notif.id, userId: uid }
+            })
+          ));
+        }
+
+        // Notify Kinh doanh
+        if (order.nguoiPhuTrach) {
+          const notifKD = await tx.notification.create({
+            data: {
+              title: `✅ Sản xuất hoàn tất cho đơn ${order.code}`,
+              content: `Bộ phận sản xuất đã hoàn thành đơn hàng ${order.code} và đã gửi yêu cầu xuất kho cho Thủ kho.`,
+              type: "success",
+              priority: "normal",
+              audienceType: "individual",
+              audienceValue: order.nguoiPhuTrach,
+              createdById: session.user.id ?? "system"
+            }
+          });
+          await tx.notificationRecipient.upsert({
+            where: { notificationId_userId: { notificationId: notifKD.id, userId: order.nguoiPhuTrach } },
+            update: {},
+            create: { notificationId: notifKD.id, userId: order.nguoiPhuTrach }
+          });
+        }
+      }
+
+      // Thông báo khi thủ kho xuất hàng (-> shipped)
+      if (trangThai === "shipped" && order.trangThai !== "shipped") {
+        if (order.nguoiPhuTrach) {
+          const notifKD = await tx.notification.create({
+            data: {
+              title: `🚚 Đơn hàng ${order.code} đã được xuất kho`,
+              content: `Thủ kho đã xuất kho thành công cho đơn hàng ${order.code}. Đơn hàng đang trên đường giao.`,
+              type: "success",
+              priority: "normal",
+              audienceType: "individual",
+              audienceValue: order.nguoiPhuTrach,
+              createdById: session.user.id ?? "system"
+            }
+          });
+          await tx.notificationRecipient.upsert({
+            where: { notificationId_userId: { notificationId: notifKD.id, userId: order.nguoiPhuTrach } },
+            update: {},
+            create: { notificationId: notifKD.id, userId: order.nguoiPhuTrach }
           });
         }
       }
@@ -251,6 +331,9 @@ export async function PATCH(
         }
 
         if (order.trangThaiKho === "in_stock") {
+          // Chuyển trạng thái đơn hàng thành approved
+          await tx.saleOrder.update({ where: { id: order.id }, data: { trangThai: "approved" } });
+
           // 1. Gửi lệnh xuất kho cho thủ kho
           const storekeepers = await tx.employee.findMany({
             where: {
@@ -452,6 +535,45 @@ export async function PATCH(
               }
             }
           } else if (decision === "production") {
+            // Chuyển trạng thái đơn hàng thành in_production
+            await tx.saleOrder.update({ where: { id: order.id }, data: { trangThai: "in_production" } });
+
+            // 0. Bóc tách BOM (Định mức)
+            const materialList: Array<{ tenVatTu: string, soLuong: number, donVi: string }> = [];
+            for (const item of insufficientItems) {
+              if (item.inventoryItemId) {
+                // Find DinhMuc linked to this InventoryItem
+                const dinhMuc = await tx.dinhMuc.findFirst({
+                  where: { items: { some: { id: item.inventoryItemId } } },
+                  include: { vatTu: { include: { material: true } } }
+                });
+                if (dinhMuc && dinhMuc.vatTu) {
+                  for (const vt of dinhMuc.vatTu) {
+                    const reqQty = vt.soLuong * item.missingQty;
+                    materialList.push({
+                      tenVatTu: vt.material?.name || vt.tenVatTu,
+                      soLuong: reqQty,
+                      donVi: vt.material?.unit || vt.donViTinh || "cái"
+                    });
+                  }
+                }
+              }
+            }
+
+            // Gộp vật tư trùng lặp
+            const groupedMaterials = materialList.reduce((acc, curr) => {
+              if (acc[curr.tenVatTu]) {
+                acc[curr.tenVatTu].soLuong += curr.soLuong;
+              } else {
+                acc[curr.tenVatTu] = { ...curr };
+              }
+              return acc;
+            }, {} as Record<string, { tenVatTu: string, soLuong: number, donVi: string }>);
+            const finalMaterialList = Object.values(groupedMaterials);
+            const materialDesc = finalMaterialList.length > 0
+              ? `Vật tư cần xuất kho (KVP):\n` + finalMaterialList.map(m => `- ${m.tenVatTu}: ${m.soLuong} ${m.donVi}`).join("\n")
+              : "Không tìm thấy định mức vật tư.";
+
             // 1. Tạo lệnh sản xuất (Task)
             const productionHead = await tx.employee.findFirst({
               where: {
@@ -469,8 +591,10 @@ export async function PATCH(
             const assigneeId = productionHeadUserId ?? session.user.id;
 
             const descItems = insufficientItems.length > 0 
-              ? `Các mặt hàng thiếu: ${insufficientItems.map(i => `${i.tenHang} (thiếu ${i.missingQty} ${i.donVi})`).join(", ")}.`
+              ? `Các mặt hàng thiếu: ${insufficientItems.map(i => `${i.tenHang} (cần ${i.missingQty} ${i.donVi})`).join(", ")}.\n\n${materialDesc}`
               : "Không có mặt hàng thiếu.";
+
+            const dueDate = ngayHoanThanhSanXuat ? new Date(ngayHoanThanhSanXuat) : undefined;
 
             const task = await tx.task.create({
               data: {
@@ -480,7 +604,8 @@ export async function PATCH(
                 creatorId: session.user.id,
                 deptCode: "production",
                 priority: "high",
-                status: "pending"
+                status: "pending",
+                ...(dueDate && { dueDate })
               }
             });
 
@@ -489,7 +614,7 @@ export async function PATCH(
               const notif = await tx.notification.create({
                 data: {
                   title: `🏭 Yêu cầu sản xuất lắp ráp cho đơn hàng ${order.code}`,
-                  content: `Đơn bán hàng ${order.code} bị thiếu hàng và được chỉ định sản xuất lắp ráp. Đã tạo lệnh sản xuất: "${task.title}".`,
+                  content: `Đơn bán hàng ${order.code} bị thiếu hàng và được chỉ định sản xuất lắp ráp. Đã tạo lệnh sản xuất: "${task.title}".${dueDate ? ` Hạn hoàn thành: ${dueDate.toLocaleDateString('vi-VN')}` : ""}`,
                   type: "warning",
                   priority: "high",
                   audienceType: "individual",
@@ -497,8 +622,67 @@ export async function PATCH(
                   createdById: session.user.id
                 }
               });
-              await tx.notificationRecipient.create({
-                data: { notificationId: notif.id, userId: productionHeadUserId }
+              await tx.notificationRecipient.upsert({
+                where: { notificationId_userId: { notificationId: notif.id, userId: productionHeadUserId } },
+                update: {},
+                create: { notificationId: notif.id, userId: productionHeadUserId }
+              });
+            }
+
+            // 3. Gửi thông báo cho Kho KVP để xuất vật tư phụ kiện
+            const storekeepers = await tx.employee.findMany({
+              where: {
+                OR: [
+                  { departmentName: { contains: "Kho" } },
+                  { departmentCode: { contains: "logistics" } },
+                  { position: { contains: "Thủ kho" } }
+                ],
+                userId: { not: null }
+              },
+              select: { userId: true }
+            });
+            const storekeeperUserIds = storekeepers.map(s => s.userId).filter(Boolean) as string[];
+
+            if (storekeeperUserIds.length > 0 && finalMaterialList.length > 0) {
+              const notifKho = await tx.notification.create({
+                data: {
+                  title: `🔧 Lệnh xuất Kho Vật tư phụ kiện (KVP) cho đơn ${order.code}`,
+                  content: `Đơn bán hàng ${order.code} cần xuất vật tư cho bộ phận sản xuất.\n\n${materialDesc}`,
+                  type: "info",
+                  priority: "high",
+                  audienceType: "group",
+                  audienceValue: JSON.stringify(storekeeperUserIds),
+                  createdById: session.user.id
+                }
+              });
+              await Promise.all(
+                storekeeperUserIds.map(uid =>
+                  tx.notificationRecipient.upsert({
+                    where: { notificationId_userId: { notificationId: notifKho.id, userId: uid } },
+                    update: {},
+                    create: { notificationId: notifKho.id, userId: uid }
+                  })
+                )
+              );
+            }
+
+            // 4. Thông báo cho Kinh doanh (người phụ trách)
+            if (order.nguoiPhuTrach) {
+              const notifKD = await tx.notification.create({
+                data: {
+                  title: `✅ Đơn hàng ${order.code} đã được phê duyệt và chuyển sản xuất`,
+                  content: `Đơn bán hàng ${order.code} của khách hàng ${order.customer?.name ?? "Khách vãng lai"} đã được kế toán phê duyệt. Hệ thống đang chuyển lệnh cho sản xuất lắp ráp.`,
+                  type: "success",
+                  priority: "normal",
+                  audienceType: "individual",
+                  audienceValue: order.nguoiPhuTrach,
+                  createdById: session.user.id ?? "system"
+                }
+              });
+              await tx.notificationRecipient.upsert({
+                where: { notificationId_userId: { notificationId: notifKD.id, userId: order.nguoiPhuTrach } },
+                update: {},
+                create: { notificationId: notifKD.id, userId: order.nguoiPhuTrach }
               });
             }
           }

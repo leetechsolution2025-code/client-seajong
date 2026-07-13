@@ -24,7 +24,10 @@ export async function GET(req: NextRequest) {
     };
 
     if (warehouseId) {
-      where.stocks = { some: { warehouseId } };
+      where.OR = [
+        { stocks: { some: { warehouseId } } },
+        { stocks: { none: {} } }
+      ];
     }
 
     const [rawItems, categories] = await Promise.all([

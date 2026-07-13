@@ -158,12 +158,16 @@ export async function GET(req: Request) {
     const warehouseId = searchParams.get("warehouseId");
     // Xác định loại kho để lọc bảng dữ liệu tương ứng
     let warehouseType = "ALL";
+    let warehouseCode = "";
     if (warehouseId) {
       const wh = await prisma.warehouse.findUnique({
         where: { id: warehouseId },
-        select: { type: true }
+        select: { type: true, code: true }
       } as any);
-      if (wh) warehouseType = (wh as any).type;
+      if (wh) {
+        warehouseType = (wh as any).type;
+        warehouseCode = (wh as any).code || "";
+      }
     }
 
     const where: any = {};
@@ -181,10 +185,15 @@ export async function GET(req: Request) {
       };
     }
 
+    const mfpWhere: any = {};
+    // Không lọc ManufacturedProduct theo categoryId vì nó dùng bảng Category khác với InventoryCategory
+    // Thay vào đó, nếu không có search (tải danh sách kho) thì không trả về ManufacturedProduct để tránh loãng dữ liệu.
+    // Nếu có search (tìm kiếm gợi ý) thì trả về để lọc in-memory.
+    const includeManufactured = searchParams.get("includeManufactured") === "true";
 
-    const [invItems, matItems, invTotal, matTotal] = await Promise.all([
+    const [invItems, matItems, invTotal, matTotal, mfpItems, mfpTotal] = await Promise.all([
       // Chỉ lấy InventoryItem nếu không phải là kho MATERIAL (bao gồm PRODUCT và DEFECT)
-      warehouseType !== "MATERIAL" ? prisma.inventoryItem.findMany({
+      warehouseType !== "MATERIAL" && warehouseCode !== "KHO-THANHPHAM" ? prisma.inventoryItem.findMany({
         where,
         include: {
           category: { select: { id: true, name: true } },
@@ -206,11 +215,26 @@ export async function GET(req: Request) {
         orderBy: { updatedAt: "desc" },
       }) : Promise.resolve([]),
 
-      warehouseType !== "MATERIAL" ? prisma.inventoryItem.count({ where }) : Promise.resolve(0),
+      warehouseType !== "MATERIAL" && warehouseCode !== "KHO-THANHPHAM" ? prisma.inventoryItem.count({ where }) : Promise.resolve(0),
       warehouseType === "MATERIAL" || warehouseType === "ALL" ? (prisma as any).materialItem.count({
         where: {
           ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
 
+        }
+      }) : Promise.resolve(0),
+
+      warehouseType !== "MATERIAL" && (includeManufactured || warehouseCode === "KHO-THANHPHAM") ? prisma.manufacturedProduct.findMany({
+        where: {
+          ...mfpWhere,
+          ...(categoryId ? { categoryId } : {})
+        },
+        include: { dinhMucs: true, category: true },
+        orderBy: { updatedAt: "desc" }
+      }) : Promise.resolve([]),
+      warehouseType !== "MATERIAL" && (includeManufactured || warehouseCode === "KHO-THANHPHAM") ? prisma.manufacturedProduct.count({ 
+        where: {
+          ...mfpWhere,
+          ...(categoryId ? { categoryId } : {})
         }
       }) : Promise.resolve(0),
     ]);
@@ -247,15 +271,34 @@ export async function GET(req: Request) {
         chieuDai: it.chieuDai,
         chieuRong: it.chieuRong,
         chieuDay: it.chieuDay,
+      })),
+      ...mfpItems.map((it: any) => ({
+        id: it.id,
+        tenHang: it.name,
+        code: it.code,
+        donVi: it.unit,
+        giaNhap: 0,
+        giaBan: 0,
+        categoryId: it.categoryId,
+        category: it.category,
+        categoryName: it.category?.name,
+        stocks: [],
+        dinhMucs: it.dinhMucs || [],
+        updatedAt: it.updatedAt,
+        source: "manufactured",
+        imageUrl: it.imageUrl,
       }))
     ];
+
+    // Không deduplicate nữa, để các nguồn dữ liệu độc lập với nhau
+    const deduplicatedItems = allItems;
 
     // Compute total stats on allItems
     let tongGiaTri = 0;
     let hetHangCount = 0;
     let sapHetCount = 0;
 
-    const allItemsWithStock = allItems.map(item => {
+    const allItemsWithStock = deduplicatedItems.map(item => {
       const relevantStocks = warehouseId
         ? item.stocks.filter((s: any) => s.warehouseId === warehouseId)
         : item.stocks;
@@ -301,9 +344,8 @@ export async function GET(req: Request) {
     }
 
     // Paginate manually
-    const total = search ? filteredItems.length : invTotal + matTotal;
+    const total = search ? filteredItems.length : invTotal + matTotal + mfpTotal;
     const paginated = filteredItems.slice(skip, skip + limit);
-
 
     return NextResponse.json({
       items: paginated,

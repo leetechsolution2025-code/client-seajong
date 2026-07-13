@@ -12,12 +12,16 @@ export async function GET(req: Request) {
     const warehouseId = searchParams.get("warehouseId");
 
     let warehouseType = "MATERIAL"; // Default to material if no warehouse or material warehouse
+    let warehouseCode = "";
     if (warehouseId) {
       const wh = await prisma.warehouse.findUnique({ 
         where: { id: warehouseId }, 
-        select: { type: true } 
+        select: { type: true, code: true } 
       } as any);
-      if (wh) warehouseType = (wh as any).type;
+      if (wh) {
+        warehouseType = (wh as any).type;
+        warehouseCode = (wh as any).code || "";
+      }
     }
 
     const user = await prisma.user.findFirst({
@@ -58,8 +62,18 @@ export async function GET(req: Request) {
     let allCategories: any[] = [];
     let rootCategoryId: string | null = null;
 
-    // Kho hàng lỗi (DEFECT) cũng dùng bộ danh mục của hàng hóa (PRODUCT)
-    if (warehouseType === "PRODUCT" || warehouseType === "DEFECT") {
+    if (warehouseCode === "KHO-THANHPHAM") {
+      const rootCategory = await prisma.inventoryCategory.findFirst({
+        where: { code: "SP_THANH_PHAM", parentId: null, isActive: true }
+      });
+      if (rootCategory) {
+        rootCategoryId = rootCategory.id;
+      }
+      allCategories = await prisma.inventoryCategory.findMany({
+        where: { isActive: true },
+        orderBy: { sortOrder: "asc" }
+      });
+    } else if (warehouseType === "PRODUCT" || warehouseType === "DEFECT") {
       const industryProductCodeMap: Record<string, string> = {
         "wood_door": "SP_GO",
         "sanitary": "SP_VESINH",
