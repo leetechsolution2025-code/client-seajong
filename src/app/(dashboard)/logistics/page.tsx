@@ -55,6 +55,8 @@ export default function LogisticsOverviewPage() {
             setOrders(mapped);
           } else {
             prevOrderIds.current = new Set<string>(mapped.map((m: any) => m.id as string));
+            // Đánh dấu tất cả là đã đọc ở lần tải đầu tiên để ẩn chữ "Mới"
+            setReadOrderIds(new Set<string>(mapped.map((m: any) => m.id as string)));
             setOrders(mapped);
             setLoading(false);
           }

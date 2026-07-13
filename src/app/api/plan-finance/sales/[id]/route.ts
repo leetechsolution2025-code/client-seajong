@@ -578,32 +578,37 @@ export async function PATCH(
               });
 
               // Báo cho bộ phận mua hàng
-              const purchasingHead = await tx.employee.findFirst({
+              const purchasingEmployees = await tx.employee.findMany({
                 where: {
                   status: "active",
                   OR: [
-                    { departmentName: { contains: "Mua hàng" }, position: { contains: "Trưởng" } },
-                    { departmentCode: { contains: "purchase" }, position: { contains: "Trưởng" } }
+                    { departmentName: { contains: "Mua hàng" } },
+                    { departmentCode: { contains: "purchase" } }
                   ]
                 },
                 select: { userId: true }
               });
 
-              if (purchasingHead?.userId) {
+              if (purchasingEmployees.length > 0) {
+                const userIds = purchasingEmployees.map(e => e.userId).filter(Boolean) as string[];
                 const poNotif = await tx.notification.create({
                   data: {
                     title: `⚠️ Thiếu vật tư sản xuất cho đơn ${order.code}`,
                     content: `Kho vật tư không đủ để sản xuất đơn hàng ${order.code}. Hệ thống đã tự động lập Yêu cầu mua hàng ${prCode} cho các vật tư còn thiếu. Vui lòng xử lý ngay.`,
                     type: "warning",
                     priority: "high",
-                    audienceType: "individual",
-                    audienceValue: purchasingHead.userId,
+                    audienceType: "group",
+                    audienceValue: JSON.stringify(userIds),
                     createdById: session.user.id
                   }
                 });
-                await tx.notificationRecipient.create({
-                  data: { notificationId: poNotif.id, userId: purchasingHead.userId, isRead: false }
-                });
+                await Promise.all(
+                  userIds.map(uid =>
+                    tx.notificationRecipient.create({
+                      data: { notificationId: poNotif.id, userId: uid, isRead: false }
+                    })
+                  )
+                );
               }
             }
 
