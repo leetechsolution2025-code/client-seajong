@@ -324,9 +324,9 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
         const isProduction = pathname.startsWith("/production");
         if (isLogistics || isMarketing || isProduction) return null; // Ẩn chức năng Kho hàng trong bộ phận kho, marketing, và sản xuất
 
-        const isSales = pathname.startsWith("/sales");
-        const isKhoHangActive = isSales && pathname.includes("/inventory");
-        const href = isSales ? "/sales/inventory" : "/logistics";
+        const currentModule = pathname.split("/")[1] || "";
+        const isKhoHangActive = pathname.includes("/inventory");
+        const href = ["sales", "board", "cs", "finance", "plan_finance"].includes(currentModule) ? `/${currentModule}/inventory` : "/logistics";
         
         return (
           <Link
