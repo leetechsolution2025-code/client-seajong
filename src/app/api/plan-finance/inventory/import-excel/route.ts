@@ -196,6 +196,27 @@ export async function POST(req: NextRequest) {
         if (dmCode || dmVatTu) {
           const vatTuList = dmVatTu ? parseVatTu(dmVatTu) : [];
 
+          // Auto lookup or create MaterialItems for vatTuList
+          for (const v of vatTuList) {
+            let mat = await prisma.materialItem.findFirst({
+              where: { name: v.tenVatTu }
+            });
+            if (!mat) {
+              const defaultPrice = 10000 + (v.tenVatTu.length * 2000);
+              const giaBan = Math.round((defaultPrice * 1.2) / 1000) * 1000;
+              mat = await prisma.materialItem.create({
+                data: {
+                  name: v.tenVatTu,
+                  code: `AUTO-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+                  unit: v.donViTinh || "Cái",
+                  price: defaultPrice,
+                  giaBan: giaBan
+                }
+              });
+            }
+            v.materialId = mat.id;
+          }
+
           if (dmCode) {
             // Tìm định mức đã tồn tại theo code
             const existing = await prisma.dinhMuc.findUnique({ where: { code: dmCode } });
