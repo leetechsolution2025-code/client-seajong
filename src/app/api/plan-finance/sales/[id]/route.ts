@@ -490,49 +490,7 @@ export async function PATCH(
                 });
               }
 
-              // 2b. Gửi thông báo cho trưởng phòng tài chính - kế toán để duyệt
-              const accountingManagers = await tx.employee.findMany({
-                where: {
-                  status: "active",
-                  OR: [
-                    { departmentCode: "finance" },
-                    { departmentName: { contains: "Kế toán" } },
-                    { departmentName: { contains: "Tài chính" } }
-                  ],
-                  position: "vtr-20260401-1964-sbmg" // Trưởng phòng
-                },
-                select: { userId: true }
-              });
 
-              const validAcctUserIds = Array.from(
-                new Set(accountingManagers.map((m) => m.userId).filter(Boolean))
-              ) as string[];
-
-              if (validAcctUserIds.length > 0) {
-                const acctNotif = await tx.notification.create({
-                  data: {
-                    title: `Yêu cầu mua hàng mới cần duyệt: ${prCode}`,
-                    content: `Nhân viên **${session.user.name ?? "Hệ thống"}** thuộc bộ phận **Mua hàng** đã gửi một yêu cầu mua hàng mới: **${prCode}** (Lý do: Bổ sung hàng tồn kho do thiếu hàng cho đơn bán lẻ ${order.code}). Vui lòng xem xét và phê duyệt.`,
-                    type: "info",
-                    priority: "high",
-                    audienceType: validAcctUserIds.length > 1 ? "group" : "individual",
-                    audienceValue: validAcctUserIds.length > 1 ? JSON.stringify(validAcctUserIds) : validAcctUserIds[0],
-                    createdById: session.user.id
-                  }
-                });
-
-                await Promise.all(
-                  validAcctUserIds.map((userId) =>
-                    tx.notificationRecipient.create({
-                      data: {
-                        notificationId: acctNotif.id,
-                        userId: userId,
-                        isRead: false
-                      }
-                    })
-                  )
-                );
-              }
             }
           } else if (decision === "production") {
             // Chuyển trạng thái đơn hàng thành in_production
