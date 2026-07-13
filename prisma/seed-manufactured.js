@@ -3,32 +3,32 @@ const prisma = new PrismaClient();
 
 async function main() {
   const categories = [
-    { name: "Thiết bị vệ sinh", code: "TH_VESINH" },
-    { name: "Thiết bị nhà bếp", code: "TH_NHABEP" },
-    { name: "Sen vòi", code: "TH_SENVOI", parentCode: "TH_VESINH" },
-    { name: "Bồn cầu", code: "TH_BONCAU", parentCode: "TH_VESINH" },
-    { name: "Chậu rửa", code: "TH_CHAURUA", parentCode: "TH_VESINH" },
-    { name: "Bồn tắm", code: "TH_BONTAM", parentCode: "TH_VESINH" },
-    { name: "Phụ kiện vệ sinh", code: "TH_PKVESINH", parentCode: "TH_VESINH" },
-    { name: "Chậu rửa bát", code: "TH_CHAURUABAT", parentCode: "TH_NHABEP" },
-    { name: "Vòi rửa bát", code: "TH_VOIRUABAT", parentCode: "TH_NHABEP" },
-    { name: "Phụ kiện nhà bếp", code: "TH_PKNHABEP", parentCode: "TH_NHABEP" },
+    { name: "Vòi nước", code: "TP_1", sortOrder: 1 },
+    { name: "Sen tắm", code: "TP_2", sortOrder: 2 },
+    { name: "Phụ kiện phòng tắm", code: "TP_3", sortOrder: 3 },
+    { name: "Thiết bị khác", code: "TP_4", sortOrder: 4 },
+    { name: "Vòi xịt vệ sinh", code: "TP_5", sortOrder: 5 },
+    { name: "Bàn đá, Tủ chậu, Gương", code: "TP_6", sortOrder: 6 },
+    { name: "Chậu rửa bát, Chậu lavabo", code: "TP_7", sortOrder: 7 },
+    { name: "Linh kiện, Vật tư lắp ráp rời", code: "TP_8", sortOrder: 8 },
   ];
 
-  for (const cat of categories) {
-    let parentId = null;
-    if (cat.parentCode) {
-      const parent = await prisma.category.findFirst({ where: { code: cat.parentCode, type: 'danh_muc_thanh_pham' } });
-      if (parent) parentId = parent.id;
+  // Xoá các danh mục linh tinh mà tôi đã lỡ tạo trước đó
+  await prisma.category.deleteMany({
+    where: { 
+      type: 'danh_muc_thanh_pham',
+      code: { in: ['TH_VESINH', 'TH_NHABEP', 'TH_SENVOI', 'TH_BONCAU', 'TH_CHAURUA', 'TH_BONTAM', 'TH_PKVESINH', 'TH_CHAURUABAT', 'TH_VOIRUABAT', 'TH_PKNHABEP'] }
     }
-    
+  });
+
+  for (const cat of categories) {
     await prisma.category.upsert({
       where: { type_code: { type: 'danh_muc_thanh_pham', code: cat.code } },
-      update: { name: cat.name, parentId },
-      create: { type: 'danh_muc_thanh_pham', code: cat.code, name: cat.name, parentId }
+      update: { name: cat.name, sortOrder: cat.sortOrder },
+      create: { type: 'danh_muc_thanh_pham', code: cat.code, name: cat.name, sortOrder: cat.sortOrder }
     });
   }
-  console.log("Seeded danh_muc_thanh_pham successfully.");
+  console.log("Seeded danh_muc_thanh_pham successfully with EXACT 8 categories.");
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());
