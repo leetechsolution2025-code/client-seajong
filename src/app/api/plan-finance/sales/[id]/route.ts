@@ -465,7 +465,7 @@ export async function PATCH(
 
           // Phân loại các mặt hàng trong đơn
           for (const item of order.saleOrderItems) {
-            const invItem = await tx.inventoryItem.findFirst({ where: { id: item.inventoryItemId } });
+            const invItem = item.inventoryItemId ? await tx.inventoryItem.findFirst({ where: { id: item.inventoryItemId } }) : null;
             const availableStock = invItem ? invItem.soLuong : 0;
             const requiredQty = item.soLuong;
             
