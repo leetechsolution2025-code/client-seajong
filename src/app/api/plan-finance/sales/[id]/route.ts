@@ -152,11 +152,16 @@ export async function GET(
         } catch(e){}
 
         let resolvedDinhMucId = item.inventoryItem?.dinhMucId || null;
-        if (!resolvedDinhMucId && itemCode) {
-          const dm = await prisma.dinhMuc.findFirst({ 
-            where: { OR: [ { code: `DM-${itemCode}` }, { code: itemCode } ] } 
+        if (!resolvedDinhMucId) {
+          const mfp = await prisma.manufacturedProduct.findFirst({
+            where: { name: item.tenHang }
           });
-          if (dm) resolvedDinhMucId = dm.id;
+          if (mfp) {
+            const dm = await prisma.dinhMuc.findFirst({
+              where: { manufacturedProductId: mfp.id }
+            });
+            if (dm) resolvedDinhMucId = dm.id;
+          }
         }
 
         if (resolvedDinhMucId) {
@@ -482,14 +487,17 @@ export async function PATCH(
             // 2. Phần thiếu hụt
             if (availableStock < requiredQty) {
               const missingQty = requiredQty - availableStock;
-              
               let resolvedDinhMucId = invItem?.dinhMucId || null;
-              let itemCode = null;
-              if (!resolvedDinhMucId && itemCode) {
-                const dm = await tx.dinhMuc.findFirst({ 
-                  where: { OR: [{ code: `DM-${itemCode}` }, { code: itemCode }] } 
+              if (!resolvedDinhMucId) {
+                const mfp = await tx.manufacturedProduct.findFirst({
+                  where: { name: item.tenHang }
                 });
-                if (dm) resolvedDinhMucId = dm.id;
+                if (mfp) {
+                  const dm = await tx.dinhMuc.findFirst({
+                    where: { manufacturedProductId: mfp.id }
+                  });
+                  if (dm) resolvedDinhMucId = dm.id;
+                }
               }
 
               const record = {
