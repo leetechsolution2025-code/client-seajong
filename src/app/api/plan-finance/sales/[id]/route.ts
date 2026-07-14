@@ -705,12 +705,11 @@ export async function PATCH(
             const pr = await tx.purchaseRequest.create({
               data: {
                 code,
-                departmentCode: "finance",
-                departmentName: "Phòng Tài chính Kế toán",
-                requestedById: session.user.id,
-                requestedByName: session.user.name ?? "Tài chính Kế toán",
-                status: "pending",
-                reason: `Bổ sung hàng hoá/vật tư do thiếu cho đơn ${order.code}`,
+                nguoiYeuCau: session.user.name ?? "Tài chính Kế toán",
+                donVi: "Tài chính Kế toán",
+                createdById: session.user.id,
+                trangThai: "chua-xu-ly",
+                lyDo: `Bổ sung hàng hoá/vật tư do thiếu cho đơn ${order.code}`,
                 items: { create: prItemsToCreate }
               }
             });
