@@ -485,13 +485,6 @@ export async function PATCH(
               
               let resolvedDinhMucId = invItem?.dinhMucId || null;
               let itemCode = null;
-              try {
-                if (item.ghiChu) {
-                  const meta = JSON.parse(item.ghiChu);
-                  if (meta.code) itemCode = meta.code;
-                }
-              } catch(e){}
-
               if (!resolvedDinhMucId && itemCode) {
                 const dm = await tx.dinhMuc.findFirst({ 
                   where: { OR: [{ code: `DM-${itemCode}` }, { code: itemCode }] } 
