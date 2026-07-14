@@ -475,6 +475,7 @@ export async function PATCH(
           const prItemsToCreate: any[] = [];
           const extractedMaterials: any[] = [];
           const itemsToExport: any[] = [];
+          const missingThanhPhamItems: any[] = [];
           
           // Phân loại các mặt hàng trong đơn
           for (const item of order.saleOrderItems) {
