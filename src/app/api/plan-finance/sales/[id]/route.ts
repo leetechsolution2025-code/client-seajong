@@ -151,18 +151,26 @@ export async function GET(
           }
         } catch(e){}
 
+        let warehouseCode = "KHO-CHINH";
         let resolvedDinhMucId = item.inventoryItem?.dinhMucId || null;
-        if (!resolvedDinhMucId) {
-          const mfp = await prisma.manufacturedProduct.findFirst({
-            where: { name: item.tenHang }
-          });
-          if (mfp) {
+        
+        // Cố gắng tìm trong KHO-THANHPHAM (ManufacturedProduct) trước
+        const mfp = await prisma.manufacturedProduct.findFirst({
+          where: { name: item.tenHang }
+        });
+        if (mfp) {
+          warehouseCode = "KHO-THANHPHAM";
+          if (!resolvedDinhMucId) {
             const dm = await prisma.dinhMuc.findFirst({
               where: { manufacturedProductId: mfp.id }
             });
             if (dm) resolvedDinhMucId = dm.id;
           }
+        } else if (item.inventoryItem?.loai === "hang-hoa") {
+          warehouseCode = "KHO-CHINH";
         }
+        
+        item.warehouseCode = warehouseCode;
 
         if (resolvedDinhMucId) {
           // Fetch BOM materials
@@ -464,75 +472,62 @@ export async function PATCH(
         if (order.trangThaiKho === "in_stock") {
           orderUpdate = await tx.saleOrder.update({ where: { id: order.id }, data: { trangThai: "approved" } });
         } else if (order.trangThaiKho === "out_of_stock") {
-          const missingHangHoaItems: any[] = [];
-          const missingThanhPhamItems: any[] = [];
-          const itemsInStockToExport: any[] = [];
-
-          // Phân loại các mặt hàng trong đơn
-          for (const item of order.saleOrderItems) {
-            const invItem = item.inventoryItemId ? await tx.inventoryItem.findFirst({ where: { id: item.inventoryItemId } }) : null;
-            const availableStock = invItem ? invItem.soLuong : 0;
-            const requiredQty = item.soLuong;
-            
-            // 1. Phần có sẵn trong kho thì đưa vào danh sách xuất kho giao khách
-            const exportQty = Math.min(availableStock, requiredQty);
-            if (exportQty > 0) {
-              itemsInStockToExport.push({
-                tenHang: invItem?.tenHang || "Hàng hoá không xác định",
-                donVi: invItem?.donVi || "cái",
-                soLuong: exportQty
-              });
-            }
-
-            // 2. Phần thiếu hụt
-            if (availableStock < requiredQty) {
-              const missingQty = requiredQty - availableStock;
-              let resolvedDinhMucId = invItem?.dinhMucId || null;
-              if (!resolvedDinhMucId) {
-                const mfp = await tx.manufacturedProduct.findFirst({
-                  where: { name: item.tenHang }
-                });
-                if (mfp) {
-                  const dm = await tx.dinhMuc.findFirst({
-                    where: { manufacturedProductId: mfp.id }
-                  });
-                  if (dm) resolvedDinhMucId = dm.id;
-                }
-              }
-
-              const record = {
-                saleOrderItemId: item.id,
-                inventoryItemId: invItem?.id || null,
-                tenHang: invItem?.tenHang || "Hàng hoá",
-                donVi: invItem?.donVi || "cái",
-                missingQty,
-                donGia: item.donGia,
-                dinhMucId: resolvedDinhMucId
-              };
-              
-              // Nếu item.id nằm trong danh sách được tích Checkbox ở offcanvas -> Cho vào sản xuất
-              const isSelectedForProduction = productionItemIds.includes(item.id);
-              
-              if (isSelectedForProduction && resolvedDinhMucId) {
-                missingThanhPhamItems.push(record);
-              } else {
-                missingHangHoaItems.push(record);
-              }
-            }
-          }
-
           const prItemsToCreate: any[] = [];
           const extractedMaterials: any[] = [];
+          const itemsToExport: any[] = [];
+          
+          // Phân loại các mặt hàng trong đơn
+          for (const item of order.saleOrderItems) {
+            let warehouseCode = "KHO-CHINH";
+            const invItem = item.inventoryItemId ? await tx.inventoryItem.findFirst({ where: { id: item.inventoryItemId } }) : null;
+            let resolvedDinhMucId = invItem?.dinhMucId || null;
+            
+            const mfp = await tx.manufacturedProduct.findFirst({ where: { name: item.tenHang } });
+            if (mfp) {
+              warehouseCode = "KHO-THANHPHAM";
+              if (!resolvedDinhMucId) {
+                const dm = await tx.dinhMuc.findFirst({ where: { manufacturedProductId: mfp.id } });
+                if (dm) resolvedDinhMucId = dm.id;
+              }
+            } else if (invItem?.loai === "hang-hoa") {
+              warehouseCode = "KHO-CHINH";
+            }
 
-          // A. XỬ LÝ MUA HÀNG CHO CÁC HÀNG HOÁ THIẾU (Không tick sản xuất)
-          for (const item of missingHangHoaItems) {
-            prItemsToCreate.push({
-              inventoryItemId: item.inventoryItemId,
-              tenHang: item.tenHang,
-              soLuong: item.missingQty,
-              donVi: item.donVi || "cái",
-              ghiChu: `Mua thẳng hàng hoá thiếu cho đơn ${order.code}`
-            });
+            const requiredQty = item.soLuong;
+            const isSelectedForProduction = productionItemIds.includes(item.id);
+
+            // BƯỚC 1 + 2: QUYẾT ĐỊNH XỬ LÝ HÀNG HOÁ
+            if (warehouseCode === "KHO-THANHPHAM" && isSelectedForProduction && resolvedDinhMucId) {
+              // CASE A: Sản xuất -> Bóc tách vật tư
+              missingThanhPhamItems.push({
+                saleOrderItemId: item.id,
+                tenHang: item.tenHang || "Hàng hoá",
+                donVi: invItem?.donVi || "cái",
+                missingQty: requiredQty,
+                dinhMucId: resolvedDinhMucId
+              });
+            } else {
+              // CASE B: KHO-CHINH hoặc KHO-THANHPHAM (Không check sản xuất)
+              itemsToExport.push({
+                tenHang: item.tenHang || "Hàng hoá",
+                soLuong: requiredQty,
+                donVi: invItem?.donVi || "cái",
+                kho: warehouseCode === "KHO-CHINH" ? "Kho Hàng Hoá (KHO-CHINH)" : "Kho Thành Phẩm (KHO-THANHPHAM)",
+                inventoryItemId: invItem?.id || null
+              });
+              
+              // Kiểm tra tồn kho để mua hàng
+              const availableStock = invItem ? invItem.soLuong : 0;
+              if (availableStock < requiredQty) {
+                prItemsToCreate.push({
+                  inventoryItemId: invItem?.id || null,
+                  tenHang: item.tenHang || "Hàng hoá",
+                  soLuong: requiredQty - availableStock,
+                  donVi: invItem?.donVi || "cái",
+                  ghiChu: `Mua bù hàng thiếu cho đơn ${order.code} [Từ ${warehouseCode}]`
+                });
+              }
+            }
           }
 
           // B. XỬ LÝ SẢN XUẤT VÀ BÓC TÁCH VẬT TƯ (Cho các item có tick sản xuất)
@@ -576,15 +571,16 @@ export async function PATCH(
                 tenVatTu: mat.tenVatTu,
                 donVi: mat.donVi,
                 soLuong: mat.soLuongCan,
+                kho: "Kho Vật Tư Phụ Kiện (KVP)"
               });
 
               if (currentStock < mat.soLuongCan) {
                 prItemsToCreate.push({
-                  inventoryItemId: null,
+                  inventoryItemId: null, // PR cho vật tư không liên kết InventoryItem
                   tenHang: mat.tenVatTu,
                   soLuong: mat.soLuongCan - currentStock,
                   donVi: mat.donVi,
-                  ghiChu: `Bù vật tư thiếu để sản xuất đơn ${order.code}`
+                  ghiChu: `Bù vật tư KVP thiếu để sản xuất đơn ${order.code}`
                 });
               }
             }
@@ -643,25 +639,25 @@ export async function PATCH(
             }
           }
 
-          // C. TẠO LỆNH XUẤT KHO CHUNG (Hàng có sẵn + Vật tư sản xuất)
-          if (itemsInStockToExport.length > 0 || extractedMaterials.length > 0) {
+          // C. TẠO LỆNH XUẤT KHO CHUNG (Hàng gốc không sản xuất + Vật tư sản xuất)
+          if (itemsToExport.length > 0 || extractedMaterials.length > 0) {
             let materialDesc = `Yêu cầu xuất kho cho đơn hàng ${order.code}.\n\n`;
             
-            if (itemsInStockToExport.length > 0) {
-              materialDesc += `📦 1. HÀNG HOÁ GIAO KHÁCH (Kho thành phẩm):\n`;
-              itemsInStockToExport.forEach(m => materialDesc += `- ${m.tenHang}: ${m.soLuong} ${m.donVi}\n`);
+            if (itemsToExport.length > 0) {
+              materialDesc += `📦 1. HÀNG HOÁ GIAO KHÁCH:\n`;
+              itemsToExport.forEach(m => materialDesc += `- ${m.tenHang}: ${m.soLuong} ${m.donVi} [${m.kho}]\n`);
               materialDesc += `\n`;
             }
 
             if (extractedMaterials.length > 0) {
-              materialDesc += `🔧 2. VẬT TƯ SẢN XUẤT (Kho linh kiện KVP):\n`;
-              extractedMaterials.forEach(m => materialDesc += `- ${m.tenVatTu}: ${m.soLuong} ${m.donVi}\n`);
+              materialDesc += `🔧 2. VẬT TƯ SẢN XUẤT:\n`;
+              extractedMaterials.forEach(m => materialDesc += `- ${m.tenVatTu}: ${m.soLuong} ${m.donVi} [${m.kho}]\n`);
             }
 
             // Combine everything into a JSON array to display in the Logistics UI
             const combinedLogisticsItems = [
-              ...itemsInStockToExport.map(i => ({ tenHang: i.tenHang, soLuong: i.availableStock, donVi: i.donVi || "cái", type: "Thành phẩm (Có sẵn)" })),
-              ...extractedMaterials.map(m => ({ tenHang: m.tenHang, soLuong: m.soLuong, donVi: m.donVi || "cái", type: "Vật tư sản xuất" }))
+              ...itemsToExport.map(i => ({ tenHang: i.tenHang, soLuong: i.soLuong, donVi: i.donVi || "cái", type: i.kho })),
+              ...extractedMaterials.map(m => ({ tenHang: m.tenVatTu, soLuong: m.soLuong, donVi: m.donVi || "cái", type: m.kho }))
             ];
 
             const khoTask = await tx.task.create({

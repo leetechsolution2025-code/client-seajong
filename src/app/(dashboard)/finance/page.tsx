@@ -1791,9 +1791,10 @@ export default function FinancePage() {
                     header: "",
                     render: (item: any) => {
                       const hasEnoughStock = (item.missingQty || 0) <= 0;
-                      // Khoá checkbox nếu không phải hàng sản xuất HOẶC đã có đủ tồn kho không cần sản xuất thêm
-                      const isDisabled = !item.isManufactured || hasEnoughStock;
-                      const isProdChecked = hasEnoughStock ? false : (!item.isManufactured ? false : productionItemIds.includes(item.id));
+                      // Khóa checkbox nếu là KHO-CHINH
+                      const isKhoChinh = item.warehouseCode === "KHO-CHINH";
+                      const isDisabled = isKhoChinh;
+                      const isProdChecked = isKhoChinh ? false : productionItemIds.includes(item.id);
                       
                       return (
                         <div className="d-flex justify-content-center">
@@ -1820,15 +1821,17 @@ export default function FinancePage() {
                     header: "Sản phẩm",
                     render: (item: any) => {
                       const hasEnoughStock = (item.missingQty || 0) <= 0;
+                      const warehouseLabel = item.warehouseCode === "KHO-CHINH" ? "Kho Hàng Hoá (KHO-CHINH)" : "Kho Thành Phẩm (KHO-THANHPHAM)";
                       return (
                         <div className="d-flex flex-column">
                           <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>{item.tenHang || item.name}</span>
+                          <span className="text-muted" style={{ fontSize: "11px" }}><i className="bi bi-box-seam me-1"></i>{warehouseLabel}</span>
                           {!hasEnoughStock ? (
                             <div className="d-flex flex-column mt-1">
                               <span className="text-danger fw-semibold" style={{ fontSize: "11px" }}>
                                 <i className="bi bi-exclamation-triangle me-1"></i> Thiếu: {item.missingQty} {item.donVi || item.unit || "cái"}
                               </span>
-                              {item.isManufactured ? (
+                              {item.warehouseCode === "KHO-THANHPHAM" ? (
                                 item.canProduce ? (
                                   <span className="text-success fw-medium mt-1" style={{ fontSize: "11px" }}>
                                     <i className="bi bi-check-circle me-1"></i> Đủ phụ kiện để sản xuất
@@ -1840,7 +1843,7 @@ export default function FinancePage() {
                                 )
                               ) : (
                                 <span className="text-muted fw-medium mt-1" style={{ fontSize: "11px" }}>
-                                  <i className="bi bi-cart-x me-1"></i> Hết hàng, cần mua (Hàng nhập/mua thẳng)
+                                  <i className="bi bi-cart-x me-1"></i> Hết hàng, cần mua
                                 </span>
                               )}
                             </div>

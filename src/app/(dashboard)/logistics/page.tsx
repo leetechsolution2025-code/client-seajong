@@ -248,7 +248,16 @@ export default function LogisticsOverviewPage() {
                 <Table
                   rows={orderDetails}
                   columns={[
-                    { header: "Sản phẩm", render: (row: any) => <span className="fw-medium text-dark">{row.name}</span>, width: "70%" },
+                    { 
+                      header: "Sản phẩm", 
+                      render: (row: any) => (
+                        <div className="d-flex flex-column">
+                          <span className="fw-medium text-dark">{row.name}</span>
+                          {row.type && <span className="text-muted" style={{ fontSize: 11 }}><i className="bi bi-box-seam me-1"></i>{row.type}</span>}
+                        </div>
+                      ), 
+                      width: "70%" 
+                    },
                     { header: "SL", render: (row: any) => <div className="text-end fw-bold text-primary">{row.qty} <span className="fw-normal text-muted" style={{ fontSize: 11 }}>{row.unit || "cái"}</span></div>, align: "right", width: "30%" }
                   ]}
                   fixedLayout={false}
