@@ -1231,81 +1231,7 @@ export default function FinancePage() {
                       )}
                     </div>
 
-                    <div className="mt-4 pt-3 border-top">
-                      <SectionTitle title="Ra quyết định" className="mb-2" />
-                      <div className="d-flex flex-column gap-3 p-3 bg-light rounded-4">
-                        {/* Switch 1: Mua hàng */}
-                        <div 
-                          className="form-check form-switch d-flex align-items-center justify-content-between p-0 m-0" 
-                          onClick={() => !isLocked && handleToggleDecision('purchase')}
-                          style={{ cursor: isLocked ? "not-allowed" : "pointer", opacity: isLocked ? 0.65 : 1 }}
-                        >
-                          <div className="d-flex align-items-center gap-2">
-                            <div 
-                              className="rounded-3 d-flex align-items-center justify-content-center" 
-                              style={{ 
-                                width: 34, 
-                                height: 34,
-                                backgroundColor: isPurchase ? 'rgba(67, 56, 202, 0.12)' : 'rgba(100, 116, 139, 0.1)',
-                                color: isPurchase ? 'var(--primary, #4338ca)' : '#64748b'
-                              }}
-                            >
-                              <i className="bi bi-cart-plus" style={{ fontSize: '15px' }} />
-                            </div>
-                            <div>
-                              <span className="fw-semibold text-dark d-block" style={{ fontSize: '13px' }}>Mua hàng</span>
-                              <span className="text-muted" style={{ fontSize: '11px' }}>Tạo phiếu yêu cầu mua vật tư còn thiếu</span>
-                            </div>
-                          </div>
-                          <input 
-                            className="form-check-input ms-0" 
-                            type="checkbox" 
-                            role="switch" 
-                            checked={isPurchase}
-                            disabled={isLocked}
-                            onChange={() => {}} // handled by click on parent div
-                            style={{ width: '28px', height: '16px', cursor: isLocked ? 'not-allowed' : 'pointer', flexShrink: 0 }}
-                          />
-                        </div>
 
-                        {/* Divider */}
-                        <div className="border-top" style={{ borderColor: 'rgba(0,0,0,0.06)' }} />
-
-                        {/* Switch 2: Sản xuất lắp ráp */}
-                        <div 
-                          className="form-check form-switch d-flex align-items-center justify-content-between p-0 m-0" 
-                          onClick={() => !isLocked && handleToggleDecision('production')}
-                          style={{ cursor: isLocked ? "not-allowed" : "pointer", opacity: isLocked ? 0.65 : 1 }}
-                        >
-                          <div className="d-flex align-items-center gap-2">
-                            <div 
-                              className="rounded-3 d-flex align-items-center justify-content-center" 
-                              style={{ 
-                                width: 34, 
-                                height: 34,
-                                backgroundColor: isProduction ? 'rgba(16, 185, 129, 0.12)' : 'rgba(100, 116, 139, 0.1)',
-                                color: isProduction ? '#10b981' : '#64748b'
-                              }}
-                            >
-                              <i className="bi bi-gear-wide-connected" style={{ fontSize: '15px' }} />
-                            </div>
-                            <div>
-                              <span className="fw-semibold text-dark d-block" style={{ fontSize: '13px' }}>Sản xuất lắp ráp</span>
-                              <span className="text-muted" style={{ fontSize: '11px' }}>Chuyển thông tin lắp ráp sang bộ phận sản xuất</span>
-                            </div>
-                          </div>
-                          <input 
-                            className="form-check-input ms-0" 
-                            type="checkbox" 
-                            role="switch" 
-                            checked={isProduction}
-                            disabled={isLocked}
-                            onChange={() => {}} // handled by click on parent div
-                            style={{ width: '28px', height: '16px', cursor: isLocked ? 'not-allowed' : 'pointer', flexShrink: 0 }}
-                          />
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )
@@ -1838,7 +1764,7 @@ export default function FinancePage() {
       <div 
         className={`offcanvas offcanvas-end ${showItemsOffcanvas ? 'show' : ''}`} 
         tabIndex={-1} 
-        style={{ width: 500, zIndex: 1065 }}
+        style={{ width: 400, zIndex: 1065 }}
       >
         <div className="offcanvas-header border-bottom px-4 py-3 bg-light">
           <div>
@@ -1857,6 +1783,7 @@ export default function FinancePage() {
             </div>
           ) : orderDetails.length > 0 ? (
             <div className="d-flex flex-column gap-3">
+              <div className="fw-medium text-muted" style={{ fontSize: "13px" }}>Nhấn chọn hàng hoá để sản xuất</div>
               {orderDetails.map((item: any, idx: number) => {
                 const hasEnoughStock = (item.missingQty || 0) <= 0;
                 const isProdChecked = productionItemIds.includes(item.id);

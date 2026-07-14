@@ -459,78 +459,83 @@ export async function PATCH(
         if (order.trangThaiKho === "in_stock") {
           orderUpdate = await tx.saleOrder.update({ where: { id: order.id }, data: { trangThai: "approved" } });
         } else if (order.trangThaiKho === "out_of_stock") {
-          // Tính toán các mặt hàng thiếu từ báo giá tương ứng
-          const quotation = await tx.quotation.findFirst({
-            where: { customerId: order.customerId, thanhTien: order.tongTien, trangThai: "won" },
-            include: { items: true }
-          });
-
           const missingHangHoaItems: any[] = [];
           const missingThanhPhamItems: any[] = [];
+          const itemsInStockToExport: any[] = [];
 
-          if (quotation) {
-            for (const item of quotation.items) {
-              const invItem = await tx.inventoryItem.findFirst({ where: { tenHang: item.tenHang } });
-              const availableStock = invItem ? invItem.soLuong : 0;
-              const requiredQty = item.soLuong;
+          // Phân loại các mặt hàng trong đơn
+          for (const item of order.saleOrderItems) {
+            const invItem = await tx.inventoryItem.findFirst({ where: { id: item.inventoryItemId } });
+            const availableStock = invItem ? invItem.soLuong : 0;
+            const requiredQty = item.soLuong;
+            
+            // 1. Phần có sẵn trong kho thì đưa vào danh sách xuất kho giao khách
+            const exportQty = Math.min(availableStock, requiredQty);
+            if (exportQty > 0) {
+              itemsInStockToExport.push({
+                tenHang: invItem?.tenHang || "Hàng hoá không xác định",
+                donVi: invItem?.donVi || "cái",
+                soLuong: exportQty
+              });
+            }
+
+            // 2. Phần thiếu hụt
+            if (availableStock < requiredQty) {
+              const missingQty = requiredQty - availableStock;
               
-              if (availableStock < requiredQty) {
-                const missingQty = requiredQty - availableStock;
-                
-                // Parse ghiChu to find BOM code
-                let itemCode = null;
-                try {
-                  if (item.ghiChu) {
-                    const meta = JSON.parse(item.ghiChu);
-                    if (meta.code) itemCode = meta.code;
-                  }
-                } catch(e){}
-
-                let resolvedDinhMucId = invItem?.dinhMucId || null;
-                if (!resolvedDinhMucId && itemCode) {
-                  // Try to find DinhMuc by code DM-{itemCode} or just {itemCode}
-                  const dm = await tx.dinhMuc.findFirst({ 
-                    where: { 
-                      OR: [
-                        { code: `DM-${itemCode}` },
-                        { code: itemCode }
-                      ]
-                    } 
-                  });
-                  if (dm) resolvedDinhMucId = dm.id;
+              let resolvedDinhMucId = invItem?.dinhMucId || null;
+              let itemCode = null;
+              try {
+                if (item.ghiChu) {
+                  const meta = JSON.parse(item.ghiChu);
+                  if (meta.code) itemCode = meta.code;
                 }
+              } catch(e){}
 
-                const record = {
-                  inventoryItemId: invItem?.id || null,
-                  tenHang: item.tenHang,
-                  donVi: item.donVi,
-                  missingQty,
-                  donGia: item.donGia,
-                  dinhMucId: resolvedDinhMucId
-                };
-                
-                if (resolvedDinhMucId) missingThanhPhamItems.push(record);
-                else missingHangHoaItems.push(record);
+              if (!resolvedDinhMucId && itemCode) {
+                const dm = await tx.dinhMuc.findFirst({ 
+                  where: { OR: [{ code: `DM-${itemCode}` }, { code: itemCode }] } 
+                });
+                if (dm) resolvedDinhMucId = dm.id;
+              }
+
+              const record = {
+                saleOrderItemId: item.id,
+                inventoryItemId: invItem?.id || null,
+                tenHang: invItem?.tenHang || "Hàng hoá",
+                donVi: invItem?.donVi || "cái",
+                missingQty,
+                donGia: item.donGia,
+                dinhMucId: resolvedDinhMucId
+              };
+              
+              // Nếu item.id nằm trong danh sách được tích Checkbox ở offcanvas -> Cho vào sản xuất
+              const isSelectedForProduction = productionItemIds.includes(item.id);
+              
+              if (isSelectedForProduction && resolvedDinhMucId) {
+                missingThanhPhamItems.push(record);
+              } else {
+                missingHangHoaItems.push(record);
               }
             }
           }
-          const prItemsToCreate: any[] = [];
 
-          // XỬ LÝ MUA HÀNG CHO KHO HÀNG HOÁ
-          if (isPurchase) {
-            for (const item of missingHangHoaItems) {
-              prItemsToCreate.push({
-                inventoryItemId: item.inventoryItemId,
-                tenHang: item.tenHang,
-                soLuong: item.missingQty,
-                donVi: item.donVi || "cái",
-                ghiChu: `Mua thẳng hàng hoá thiếu cho đơn ${order.code}`
-              });
-            }
+          const prItemsToCreate: any[] = [];
+          const extractedMaterials: any[] = [];
+
+          // A. XỬ LÝ MUA HÀNG CHO CÁC HÀNG HOÁ THIẾU (Không tick sản xuất)
+          for (const item of missingHangHoaItems) {
+            prItemsToCreate.push({
+              inventoryItemId: item.inventoryItemId,
+              tenHang: item.tenHang,
+              soLuong: item.missingQty,
+              donVi: item.donVi || "cái",
+              ghiChu: `Mua thẳng hàng hoá thiếu cho đơn ${order.code}`
+            });
           }
 
-          // XỬ LÝ SẢN XUẤT CHO KHO THÀNH PHẨM
-          if (isProduction && missingThanhPhamItems.length > 0) {
+          // B. XỬ LÝ SẢN XUẤT VÀ BÓC TÁCH VẬT TƯ (Cho các item có tick sản xuất)
+          if (missingThanhPhamItems.length > 0) {
             orderUpdate = await tx.saleOrder.update({ where: { id: order.id }, data: { trangThai: "in_production" } });
 
             const allMaterials: any[] = [];
@@ -557,20 +562,24 @@ export async function PATCH(
               return acc;
             }, {});
 
-            const finalMaterialList: any[] = [];
             for (const mat of Object.values(groupedMaterials) as any[]) {
-              const invMat = await tx.inventoryItem.findUnique({ where: { id: mat.materialId } });
-              const currentStock = invMat ? invMat.soLuong : 0;
-              finalMaterialList.push({
+              // Lấy tồn kho vật tư từ MaterialStock
+              const matStock = await tx.materialStock.aggregate({
+                where: { materialId: mat.materialId },
+                _sum: { soLuong: true }
+              });
+              const currentStock = matStock._sum.soLuong || 0;
+              
+              extractedMaterials.push({
                 materialId: mat.materialId,
                 tenVatTu: mat.tenVatTu,
                 donVi: mat.donVi,
                 soLuong: mat.soLuongCan,
               });
 
-              if (currentStock < mat.soLuongCan && isPurchase) {
+              if (currentStock < mat.soLuongCan) {
                 prItemsToCreate.push({
-                  inventoryItemId: mat.materialId,
+                  inventoryItemId: null,
                   tenHang: mat.tenVatTu,
                   soLuong: mat.soLuongCan - currentStock,
                   donVi: mat.donVi,
@@ -591,11 +600,8 @@ export async function PATCH(
               select: { userId: true }
             });
 
-            let desc = `Yêu cầu sản xuất cho đơn hàng ${order.code}.
-Các mặt hàng:
-`;
-            missingThanhPhamItems.forEach(i => desc += `- ${i.tenHang}: ${i.missingQty} ${i.donVi}
-`);
+            let desc = `Yêu cầu sản xuất cho đơn hàng ${order.code}.\nCác mặt hàng:\n`;
+            missingThanhPhamItems.forEach(i => desc += `- ${i.tenHang}: ${i.missingQty} ${i.donVi}\n`);
 
             let dueDate;
             if (order.ngayGiao) {
@@ -634,122 +640,109 @@ Các mặt hàng:
                 create: { notificationId: prodNotif.id, userId: prodHead.userId }
               });
             }
-
-            // Lệnh xuất KVP cho Thủ Kho
-            if (finalMaterialList.length > 0) {
-              let materialDesc = "Danh sách vật tư bóc tách:\n";
-              finalMaterialList.forEach(m => materialDesc += `- ${m.tenVatTu}: ${m.soLuong} ${m.donVi}\n`);
-              
-              const khoTask = await tx.task.create({
-                data: {
-                  title: `Lệnh xuất kho KVP cho đơn hàng ${order.code}`,
-                  description: `Yêu cầu xuất vật tư cho lệnh sản xuất đơn ${order.code}.\n\n${materialDesc}`,
-                  assigneeId: storekeeperUserIds[0] || session.user.id,
-                  creatorId: session.user.id,
-                  deptCode: "logistics",
-                  priority: "high",
-                  status: "pending",
-                  actualResult: JSON.stringify(finalMaterialList.map(m => ({ tenHang: m.tenVatTu, soLuong: m.soLuong, donVi: m.donVi }))),
-                  ...(dueDate && { dueDate })
-                }
-              });
-
-              if (storekeeperUserIds.length > 0) {
-                const notifKhoKvp = await tx.notification.create({
-                  data: {
-                    title: `🔧 Lệnh xuất Kho Vật tư phụ kiện (KVP) cho đơn ${order.code}`,
-                    content: `Đơn bán hàng ${order.code} cần xuất vật tư cho bộ phận sản xuất.\n\n${materialDesc}`,
-                    type: "info",
-                    priority: "high",
-                    audienceType: "group",
-                    audienceValue: JSON.stringify(storekeeperUserIds),
-                    createdById: session.user.id
-                  }
-                });
-                await Promise.all(
-                  storekeeperUserIds.map(uid =>
-                    tx.notificationRecipient.upsert({
-                      where: { notificationId_userId: { notificationId: notifKhoKvp.id, userId: uid } },
-                      update: {},
-                      create: { notificationId: notifKhoKvp.id, userId: uid }
-                    })
-                  )
-                );
-              }
-            }
           }
 
-          // TẠO YÊU CẦU MUA HÀNG
-          if (prItemsToCreate.length > 0) {
-            if (!isProduction) {
-              orderUpdate = await tx.saleOrder.update({ where: { id: order.id }, data: { trangThai: "processing" } });
-            }
+          // C. TẠO LỆNH XUẤT KHO CHUNG (Hàng có sẵn + Vật tư sản xuất)
+          if (itemsInStockToExport.length > 0 || extractedMaterials.length > 0) {
+            let materialDesc = `Yêu cầu xuất kho cho đơn hàng ${order.code}.\n\n`;
             
-            const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
-            const countRequestsToday = await tx.purchaseRequest.count({
-              where: { code: { startsWith: `YC-${todayStr}-` } }
-            });
-            const prSeqStr = String(countRequestsToday + 1).padStart(4, "0");
-            const prCode = `YC-${todayStr}-${prSeqStr}`;
+            if (itemsInStockToExport.length > 0) {
+              materialDesc += `📦 1. HÀNG HOÁ GIAO KHÁCH (Kho thành phẩm):\n`;
+              itemsInStockToExport.forEach(m => materialDesc += `- ${m.tenHang}: ${m.soLuong} ${m.donVi}\n`);
+              materialDesc += `\n`;
+            }
 
-            const pr = await tx.purchaseRequest.create({
+            if (extractedMaterials.length > 0) {
+              materialDesc += `🔧 2. VẬT TƯ SẢN XUẤT (Kho linh kiện KVP):\n`;
+              extractedMaterials.forEach(m => materialDesc += `- ${m.tenVatTu}: ${m.soLuong} ${m.donVi}\n`);
+            }
+
+            const khoTask = await tx.task.create({
               data: {
-                code: prCode,
-                nguoiYeuCau: session.user.name ?? "Hệ thống",
-                donVi: "Mua hàng",
-                lyDo: `Bổ sung hàng hoá/vật tư do thiếu cho đơn ${order.code}`,
-                trangThai: "chua-xu-ly",
-                createdById: session.user.id,
-                items: {
-                  create: prItemsToCreate.map(item => ({
-                    inventoryItemId: item.inventoryItemId,
-                    tenHang: item.tenHang,
-                    soLuong: item.soLuong,
-                    donVi: item.donVi,
-                    ghiChu: item.ghiChu
-                  }))
-                }
+                title: `Lệnh xuất kho cho đơn hàng ${order.code}`,
+                description: materialDesc,
+                assigneeId: storekeeperUserIds[0] || session.user.id,
+                creatorId: session.user.id,
+                deptCode: "logistics",
+                priority: "high",
+                status: "pending"
               }
             });
 
-            const purchasingEmployees = await tx.employee.findMany({
-              where: {
-                status: "active",
-                OR: [
-                  { departmentName: { contains: "Mua hàng" } },
-                  { departmentCode: { contains: "purchase" } }
-                ]
-              },
-              select: { userId: true }
-            });
-
-            if (purchasingEmployees.length > 0) {
-              const userIds = purchasingEmployees.map(e => e.userId).filter(Boolean) as string[];
-              const poNotif = await tx.notification.create({
+            // Gửi thông báo Lệnh Xuất Kho
+            if (storekeeperUserIds.length > 0) {
+              const khoNotif = await tx.notification.create({
                 data: {
-                  title: `⚠️ Có Yêu cầu mua hàng mới: ${prCode}`,
-                  content: `Hệ thống tự động lập YC ${prCode} cho các hàng hoá/vật tư còn thiếu để chạy đơn ${order.code}. Vui lòng xử lý.`,
-                  type: "warning",
+                  title: `📦 Lệnh xuất kho mới (${order.code})`,
+                  content: `Đã tạo Lệnh xuất kho cho đơn hàng ${order.code}. Xem chi tiết trong module Công việc.`,
+                  type: "info",
                   priority: "high",
                   audienceType: "group",
-                  audienceValue: JSON.stringify(userIds),
+                  audienceValue: JSON.stringify(storekeeperUserIds),
                   createdById: session.user.id
                 }
               });
               await Promise.all(
-                userIds.map(uid =>
+                storekeeperUserIds.map(uid =>
                   tx.notificationRecipient.upsert({
-                    where: { notificationId_userId: { notificationId: poNotif.id, userId: uid } },
+                    where: { notificationId_userId: { notificationId: khoNotif.id, userId: uid } },
                     update: {},
-                    create: { notificationId: poNotif.id, userId: uid }
+                    create: { notificationId: khoNotif.id, userId: uid }
                   })
                 )
               );
             }
           }
+
+          // D. TẠO YÊU CẦU MUA HÀNG (Cho hàng hoá thiếu và vật tư thiếu)
+          if (prItemsToCreate.length > 0) {
+            // Find PR manager
+            const prHead = await tx.employee.findFirst({
+              where: {
+                status: "active",
+                OR: [
+                  { departmentName: { contains: "Mua hàng" }, position: { contains: "Trưởng" } },
+                  { departmentCode: { contains: "purchase" }, position: { contains: "Trưởng" } }
+                ]
+              },
+              select: { userId: true }
+            });
+
+            const code = "YC-" + new Date().toISOString().slice(0,10).replace(/-/g,"") + "-" + Math.floor(1000 + Math.random() * 9000);
+            const pr = await tx.purchaseRequest.create({
+              data: {
+                code,
+                departmentCode: "finance",
+                departmentName: "Phòng Tài chính Kế toán",
+                requestedById: session.user.id,
+                requestedByName: session.user.name ?? "Tài chính Kế toán",
+                status: "pending",
+                reason: `Bổ sung hàng hoá/vật tư do thiếu cho đơn ${order.code}`,
+                items: { create: prItemsToCreate }
+              }
+            });
+
+            if (prHead?.userId) {
+              const prNotif = await tx.notification.create({
+                data: {
+                  title: `🛒 Yêu cầu mua hàng mới từ Tài chính`,
+                  content: `Có yêu cầu mua hàng mới (${code}) để bổ sung cho đơn bán hàng ${order.code}.`,
+                  type: "info",
+                  priority: "high",
+                  audienceType: "individual",
+                  audienceValue: prHead.userId,
+                  createdById: session.user.id
+                }
+              });
+              await tx.notificationRecipient.upsert({
+                where: { notificationId_userId: { notificationId: prNotif.id, userId: prHead.userId } },
+                update: {},
+                create: { notificationId: prNotif.id, userId: prHead.userId }
+              });
+            }
+          }
         }
       }
-
       return orderUpdate;
     });
 
