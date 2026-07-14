@@ -104,7 +104,11 @@ export default function LogisticsOverviewPage() {
         const res = await fetch(`/api/plan-finance/sales/${row.id}`);
         if (res.ok) {
           const detail = await res.json();
-          items = (detail.saleOrderItems ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.inventoryItem?.donVi }));
+          if (detail.logisticsItems) {
+            items = detail.logisticsItems.map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type }));
+          } else {
+            items = (detail.saleOrderItems ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.inventoryItem?.donVi }));
+          }
         }
       } else if (row.type === "material-export") {
         // Dữ liệu items đã có sẵn từ API sales-active

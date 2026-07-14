@@ -1784,66 +1784,92 @@ export default function FinancePage() {
           ) : orderDetails.length > 0 ? (
             <div className="d-flex flex-column gap-3">
               <div className="fw-medium text-muted" style={{ fontSize: "13px" }}>Nhấn chọn hàng hoá để sản xuất</div>
-              {orderDetails.map((item: any, idx: number) => {
-                const hasEnoughStock = (item.missingQty || 0) <= 0;
-                const isProdChecked = productionItemIds.includes(item.id);
-
-                return (
-                  <div key={item.id || idx} className="d-flex align-items-start gap-3 p-3 border rounded-3 bg-white shadow-sm position-relative">
-                    <div className="mt-1">
-                      <input 
-                        type="checkbox" 
-                        className="form-check-input" 
-                        style={{ cursor: hasEnoughStock ? "not-allowed" : "pointer", width: "18px", height: "18px" }}
-                        disabled={hasEnoughStock}
-                        checked={hasEnoughStock ? false : isProdChecked}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setProductionItemIds(prev => [...prev, item.id]);
-                          } else {
-                            setProductionItemIds(prev => prev.filter(id => id !== item.id));
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className="flex-grow-1">
-                      <div className="d-flex justify-content-between align-items-start mb-1">
-                        <span className="fw-bold text-dark" style={{ fontSize: "14px" }}>{item.tenHang || item.name}</span>
-                        <span className="fw-bold text-primary" style={{ fontSize: "14px" }}>{item.soLuong || item.qty} {item.donVi || item.unit || "cái"}</span>
-                      </div>
+              <Table
+                rows={orderDetails}
+                columns={[
+                  {
+                    header: "",
+                    render: (item: any) => {
+                      const hasEnoughStock = (item.missingQty || 0) <= 0;
+                      // Khoá checkbox nếu không phải hàng sản xuất HOẶC đã có đủ tồn kho không cần sản xuất thêm
+                      const isDisabled = !item.isManufactured || hasEnoughStock;
+                      const isProdChecked = hasEnoughStock ? false : (!item.isManufactured ? false : productionItemIds.includes(item.id));
                       
-                      {!hasEnoughStock ? (
-                        <div className="d-flex flex-column gap-1 mt-2">
-                          <span className="text-danger fw-semibold" style={{ fontSize: "12px" }}>
-                            <i className="bi bi-exclamation-triangle me-1"></i> Thiếu: {item.missingQty} {item.donVi || item.unit || "cái"}
-                          </span>
-                          {item.isManufactured ? (
-                            item.canProduce ? (
-                              <span className="text-success fw-medium" style={{ fontSize: "11px" }}>
-                                <i className="bi bi-check-circle me-1"></i> Đủ phụ kiện để sản xuất
+                      return (
+                        <div className="d-flex justify-content-center">
+                          <input 
+                            type="checkbox" 
+                            className="form-check-input" 
+                            style={{ cursor: isDisabled ? "not-allowed" : "pointer", width: "16px", height: "16px" }}
+                            disabled={isDisabled}
+                            checked={isProdChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setProductionItemIds(prev => [...prev, item.id]);
+                              } else {
+                                setProductionItemIds(prev => prev.filter(id => id !== item.id));
+                              }
+                            }}
+                          />
+                        </div>
+                      );
+                    },
+                    width: "40px"
+                  },
+                  {
+                    header: "Sản phẩm",
+                    render: (item: any) => {
+                      const hasEnoughStock = (item.missingQty || 0) <= 0;
+                      return (
+                        <div className="d-flex flex-column">
+                          <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>{item.tenHang || item.name}</span>
+                          {!hasEnoughStock ? (
+                            <div className="d-flex flex-column mt-1">
+                              <span className="text-danger fw-semibold" style={{ fontSize: "11px" }}>
+                                <i className="bi bi-exclamation-triangle me-1"></i> Thiếu: {item.missingQty} {item.donVi || item.unit || "cái"}
                               </span>
-                            ) : (
-                              <span className="text-warning fw-medium" style={{ fontSize: "11px" }}>
-                                <i className="bi bi-exclamation-circle me-1"></i> Thiếu phụ kiện, cần mua vật tư
-                              </span>
-                            )
+                              {item.isManufactured ? (
+                                item.canProduce ? (
+                                  <span className="text-success fw-medium mt-1" style={{ fontSize: "11px" }}>
+                                    <i className="bi bi-check-circle me-1"></i> Đủ phụ kiện để sản xuất
+                                  </span>
+                                ) : (
+                                  <span className="text-warning fw-medium mt-1" style={{ fontSize: "11px" }}>
+                                    <i className="bi bi-exclamation-circle me-1"></i> Thiếu phụ kiện, cần mua vật tư
+                                  </span>
+                                )
+                              ) : (
+                                <span className="text-muted fw-medium mt-1" style={{ fontSize: "11px" }}>
+                                  <i className="bi bi-cart-x me-1"></i> Hết hàng, cần mua (Hàng nhập/mua thẳng)
+                                </span>
+                              )}
+                            </div>
                           ) : (
-                            <span className="text-muted fw-medium" style={{ fontSize: "11px" }}>
-                              <i className="bi bi-cart-x me-1"></i> Hết hàng, cần mua
-                            </span>
+                            <div className="mt-1">
+                              <span className="text-success fw-semibold" style={{ fontSize: "11px" }}>
+                                <i className="bi bi-check-circle-fill me-1"></i> Đủ hàng trong kho
+                              </span>
+                            </div>
                           )}
                         </div>
-                      ) : (
-                        <div className="mt-2">
-                          <span className="text-success fw-semibold" style={{ fontSize: "12px" }}>
-                            <i className="bi bi-check-circle-fill me-1"></i> Đủ hàng trong kho
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                      );
+                    }
+                  },
+                  {
+                    header: "SL",
+                    render: (item: any) => (
+                      <div className="text-end fw-bold text-primary" style={{ fontSize: "13px" }}>
+                        {item.soLuong || item.qty} <span className="fw-normal text-muted" style={{ fontSize: 11 }}>{item.donVi || item.unit || "cái"}</span>
+                      </div>
+                    ),
+                    align: "right",
+                    width: "60px"
+                  }
+                ]}
+                fixedLayout={false}
+                wrapperClassName="border rounded-3 bg-white"
+                wrapperStyle={{ overflowX: "hidden" }}
+              />
             </div>
           ) : (
             <div className="text-center p-5 text-muted border border-dashed rounded-3">

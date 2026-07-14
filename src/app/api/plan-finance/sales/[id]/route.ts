@@ -650,6 +650,12 @@ export async function PATCH(
               extractedMaterials.forEach(m => materialDesc += `- ${m.tenVatTu}: ${m.soLuong} ${m.donVi}\n`);
             }
 
+            // Combine everything into a JSON array to display in the Logistics UI
+            const combinedLogisticsItems = [
+              ...itemsInStockToExport.map(i => ({ tenHang: i.tenHang, soLuong: i.availableStock, donVi: i.donVi || "cái", type: "Thành phẩm (Có sẵn)" })),
+              ...extractedMaterials.map(m => ({ tenHang: m.tenHang, soLuong: m.soLuong, donVi: m.donVi || "cái", type: "Vật tư sản xuất" }))
+            ];
+
             const khoTask = await tx.task.create({
               data: {
                 title: `Lệnh xuất kho cho đơn hàng ${order.code}`,
@@ -658,7 +664,8 @@ export async function PATCH(
                 creatorId: session.user.id,
                 deptCode: "logistics",
                 priority: "high",
-                status: "pending"
+                status: "pending",
+                actualResult: JSON.stringify(combinedLogisticsItems)
               }
             });
 
