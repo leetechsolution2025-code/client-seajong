@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { syncCategoryToInventory } from "@/lib/sync-utils";
 
 export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
   try {
@@ -29,6 +30,33 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
         giaBan: giaBan !== undefined ? Number(giaBan) : undefined,
       } as any
     });
+
+    // ĐỒNG BỘ
+    if (item.code) {
+      const mappedCategoryId = await syncCategoryToInventory(item.productCategoryId);
+      await prisma.inventoryItem.upsert({
+        where: { code: item.code },
+        create: {
+          code: item.code,
+          tenHang: item.name,
+          loai: "thanh-pham",
+          brand: "Seajong",
+          categoryId: mappedCategoryId,
+          donVi: item.unit || "bộ",
+          ghiChu: item.notes || "",
+          imageUrl: null,
+          giaBan: (item as any).giaBan || 0,
+        },
+        update: {
+          tenHang: item.name,
+          loai: "thanh-pham",
+          categoryId: mappedCategoryId,
+          donVi: item.unit || "bộ",
+          ghiChu: item.notes || "",
+          giaBan: (item as any).giaBan || 0,
+        }
+      });
+    }
 
     return NextResponse.json(item);
   } catch (e: any) {
@@ -69,10 +97,37 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
     if (giaBan !== undefined) {
       // @ts-ignore
-      await prisma.manufacturedProduct.update({
+      const item = await prisma.manufacturedProduct.update({
         where: { id: params.id },
         data: { giaBan: Number(giaBan) } as any
       });
+
+      // ĐỒNG BỘ
+      if (item.code) {
+        const mappedCategoryId = await syncCategoryToInventory(item.productCategoryId);
+        await prisma.inventoryItem.upsert({
+          where: { code: item.code },
+          create: {
+            code: item.code,
+            tenHang: item.name,
+            loai: "thanh-pham",
+            brand: "Seajong",
+            categoryId: mappedCategoryId,
+            donVi: item.unit || "bộ",
+            ghiChu: item.notes || "",
+            imageUrl: null,
+            giaBan: (item as any).giaBan || 0,
+          },
+          update: {
+            tenHang: item.name,
+            loai: "thanh-pham",
+            categoryId: mappedCategoryId,
+            donVi: item.unit || "bộ",
+            ghiChu: item.notes || "",
+            giaBan: (item as any).giaBan || 0,
+          }
+        });
+      }
     }
 
     return NextResponse.json({ ok: true });

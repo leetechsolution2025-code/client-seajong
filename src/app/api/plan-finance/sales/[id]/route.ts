@@ -128,6 +128,14 @@ export async function GET(
         });
         if (invItem) {
           item.inventoryItem = invItem;
+        } else {
+          const matItem = await (prisma as any).materialItem.findFirst({
+            where: { name: item.tenHang },
+            select: { imageUrl: true, code: true, soLuong: true }
+          });
+          if (matItem) {
+            item.materialItem = matItem;
+          }
         }
       }
     }
@@ -135,7 +143,7 @@ export async function GET(
     // Tính toán số lượng thiếu và kiểm tra kho vật tư
     for (const item of orderItems) {
       const requiredQty = item.soLuong || 1;
-      const currentStock = item.inventoryItem?.soLuong || 0;
+      const currentStock = item.inventoryItem?.soLuong || item.materialItem?.soLuong || 0;
       const missingQty = Math.max(0, requiredQty - currentStock);
       
       item.missingQty = missingQty;
@@ -168,6 +176,8 @@ export async function GET(
           }
         } else if (item.inventoryItem?.loai === "hang-hoa") {
           warehouseCode = "KHO-CHINH";
+        } else if (item.materialItem) {
+          warehouseCode = "KVP";
         }
         
         item.warehouseCode = warehouseCode;
@@ -207,6 +217,22 @@ export async function GET(
     }
 
     const guest = parseGuestInfo(order.ghiChu);
+
+    // Fetch logistics task to get actual logisticsItems
+    const logisticsTask = await prisma.task.findFirst({
+      where: {
+        deptCode: "logistics",
+        title: `Lệnh xuất kho cho đơn hàng ${order.code}`
+      }
+    });
+    
+    let logisticsItems = null;
+    if (logisticsTask && logisticsTask.actualResult) {
+      try {
+        logisticsItems = JSON.parse(logisticsTask.actualResult);
+      } catch (e) { }
+    }
+
     const resolvedOrder = {
       ...order,
       ghiChu: cleanGhiChu(order.ghiChu),
@@ -215,6 +241,7 @@ export async function GET(
       stockMovementCode: sm?.soChungTu || null,
       hasLệnhXuatKho: !!notif || (order.keToanDuyet === "approved" && order.trangThaiKho === "in_stock"),
       items: orderItems,
+      logisticsItems,
       customer: order.customer || (guest ? {
         id: null,
         name: guest.name,
@@ -509,16 +536,19 @@ export async function PATCH(
               });
             } else {
               // CASE B: KHO-CHINH hoặc KHO-THANHPHAM (Không check sản xuất)
+              // Kiểm tra tồn kho để mua hàng
+              const availableStock = invItem ? invItem.soLuong : 0;
+              const isShortage = availableStock < requiredQty;
+
               itemsToExport.push({
                 tenHang: item.tenHang || "Hàng hoá",
                 soLuong: requiredQty,
                 donVi: invItem?.donVi || "cái",
                 kho: warehouseCode === "KHO-CHINH" ? "Kho Hàng Hoá (KHO-CHINH)" : "Kho Thành Phẩm (KHO-THANHPHAM)",
-                inventoryItemId: invItem?.id || null
+                inventoryItemId: invItem?.id || null,
+                isShortage
               });
-              
               // Kiểm tra tồn kho để mua hàng
-              const availableStock = invItem ? invItem.soLuong : 0;
               if (availableStock < requiredQty) {
                 prItemsToCreate.push({
                   inventoryItemId: invItem?.id || null,
@@ -567,15 +597,18 @@ export async function PATCH(
               });
               const currentStock = matStock._sum.soLuong || 0;
               
+              const isShortage = currentStock < mat.soLuongCan;
+              
               extractedMaterials.push({
                 materialId: mat.materialId,
                 tenVatTu: mat.tenVatTu,
                 donVi: mat.donVi,
                 soLuong: mat.soLuongCan,
-                kho: "Kho Vật Tư Phụ Kiện (KVP)"
+                kho: "Kho Vật Tư Phụ Kiện (KVP)",
+                isShortage
               });
 
-              if (currentStock < mat.soLuongCan) {
+              if (isShortage) {
                 prItemsToCreate.push({
                   inventoryItemId: null, // PR cho vật tư không liên kết InventoryItem
                   tenHang: mat.tenVatTu,
@@ -657,8 +690,8 @@ export async function PATCH(
 
             // Combine everything into a JSON array to display in the Logistics UI
             const combinedLogisticsItems = [
-              ...itemsToExport.map(i => ({ tenHang: i.tenHang, soLuong: i.soLuong, donVi: i.donVi || "cái", type: i.kho })),
-              ...extractedMaterials.map(m => ({ tenHang: m.tenVatTu, soLuong: m.soLuong, donVi: m.donVi || "cái", type: m.kho }))
+              ...itemsToExport.map(i => ({ tenHang: i.tenHang, soLuong: i.soLuong, donVi: i.donVi || "cái", type: i.kho, isShortage: i.isShortage })),
+              ...extractedMaterials.map(m => ({ tenHang: m.tenVatTu, soLuong: m.soLuong, donVi: m.donVi || "cái", type: m.kho, isShortage: m.isShortage }))
             ];
 
             const khoTask = await tx.task.create({

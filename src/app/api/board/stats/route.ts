@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
       // Loans
       prisma.debt.findMany({ where: { type: "LOAN" } }),
       // Receivables
-      prisma.debt.findMany({ where: { type: "phai-thu" } }),
+      prisma.debt.findMany({ where: { type: { in: ["phai-thu", "RECEIVABLE"] } } }),
       // Detailed Sales Plan
       prisma.salesYearlyPlan.findUnique({ where: { year: currentYear } })
     ]);

@@ -1121,15 +1121,16 @@ export default function FinancePage() {
                                 let color = "#64748b";
                                 let bg = "rgba(100, 116, 139, 0.1)";
                                 let text = selectedOrder.trangThai || "draft";
+                                
                                 if (text === "draft") {
                                   text = "Đang tạo đơn";
                                   color = "#94a3b8";
                                   bg = "rgba(148, 163, 184, 0.1)";
-                                } else if (text === "active") {
+                                } else if (text === "active" || text === "processing") {
                                   text = "Đang thực hiện";
                                   color = "#3b82f6";
                                   bg = "rgba(59, 130, 246, 0.1)";
-                                } else if (text === "done") {
+                                } else if (text === "done" || text === "completed") {
                                   text = "Hoàn thành";
                                   color = "#10b981";
                                   bg = "rgba(16, 185, 129, 0.1)";
@@ -1137,6 +1138,18 @@ export default function FinancePage() {
                                   text = "Đã huỷ";
                                   color = "#ef4444";
                                   bg = "rgba(239, 68, 68, 0.1)";
+                                } else if (text === "in_production") {
+                                  text = "Đang sản xuất";
+                                  color = "#8b5cf6"; // Purple
+                                  bg = "rgba(139, 92, 246, 0.1)";
+                                } else if (text === "pending" || text === "unpaid") {
+                                  text = "Chờ xử lý";
+                                  color = "#f59e0b"; // Amber
+                                  bg = "rgba(245, 158, 11, 0.1)";
+                                } else if (text === "approved" || text === "confirmed") {
+                                  text = "Đã duyệt";
+                                  color = "#0ea5e9"; // Light Blue
+                                  bg = "rgba(14, 165, 233, 0.1)";
                                 }
                                 return (
                                   <span className="badge rounded-pill fw-bold" style={{ color, background: bg, padding: "3px 10px", fontSize: "11px" }}>
@@ -1821,7 +1834,7 @@ export default function FinancePage() {
                     header: "Sản phẩm",
                     render: (item: any) => {
                       const hasEnoughStock = (item.missingQty || 0) <= 0;
-                      const warehouseLabel = item.warehouseCode === "KHO-CHINH" ? "Kho Hàng Hoá (KHO-CHINH)" : "Kho Thành Phẩm (KHO-THANHPHAM)";
+                      const warehouseLabel = item.warehouseCode === "KHO-CHINH" ? "Kho Hàng Hoá (KHO-CHINH)" : item.warehouseCode === "KVP" ? "Kho Vật tư phụ kiện (KVP)" : "Kho Thành Phẩm (KHO-THANHPHAM)";
                       return (
                         <div className="d-flex flex-column">
                           <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>{item.tenHang || item.name}</span>

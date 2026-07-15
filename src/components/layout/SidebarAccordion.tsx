@@ -322,7 +322,8 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
         const isLogistics = pathname.startsWith("/logistics");
         const isMarketing = pathname.startsWith("/marketing");
         const isProduction = pathname.startsWith("/production");
-        if (isLogistics || isMarketing || isProduction) return null; // Ẩn chức năng Kho hàng trong bộ phận kho, marketing, và sản xuất
+        const isFinance = pathname.startsWith("/finance");
+        if (isLogistics || isMarketing || isProduction || isFinance) return null; // Ẩn chức năng Kho hàng trong bộ phận kho, marketing, sản xuất, tài chính
 
         const currentModule = pathname.split("/")[1] || "";
         const isKhoHangActive = pathname.includes("/inventory");

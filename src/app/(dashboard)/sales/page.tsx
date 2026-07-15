@@ -106,6 +106,8 @@ export default function SalesPage() {
   const [showKpiModal, setShowKpiModal] = useState<boolean>(false);
   const [kpiActiveTab, setKpiActiveTab] = useState<'manager' | 'employee'>('employee');
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [midTab, setMidTab] = useState<'chart' | 'pie'>('chart');
+  const [bottomTab, setBottomTab] = useState<'orders' | 'care'>('orders');
   const { data: session } = useSession();
 
   const managerKpiColumns: TableColumn<any>[] = [
@@ -402,6 +404,161 @@ export default function SalesPage() {
     );
   };
 
+  const renderRevenueChart = () => (
+    <div className="bg-card border rounded-4 p-3 d-flex flex-column h-100 shadow-sm" style={{ border: "none" }}>
+      <div className="mb-2">
+        <div className="d-flex align-items-center justify-content-between">
+          <span className="fw-bold text-dark" style={{ fontSize: 13.5 }}>
+            <i className="bi bi-activity text-emerald me-2" />
+            Xu hướng doanh thu
+          </span>
+          <button onClick={() => setShowKpiModal(true)} className="btn btn-sm btn-danger shadow-sm d-flex align-items-center gap-1 text-white border-0" style={{ fontSize: 11, padding: "3px 10px" }}>
+            <i className="bi bi-bar-chart-line text-white"></i>
+            KPI
+          </button>
+        </div>
+        <span className="text-muted d-block mt-1" style={{ fontSize: 11 }}>
+          Mục tiêu kế hoạch so với thực tế
+        </span>
+      </div>
+      <div style={{ flex: 1, minHeight: 280 }}>
+        <ReactApexChart options={apexOptions} series={chartSeries} type="area" height={280} />
+      </div>
+    </div>
+  );
+
+  const renderCategoryPie = () => (
+    <div className="bg-card border rounded-4 p-3 d-flex flex-column justify-content-between h-100 shadow-sm" style={{ border: "none" }}>
+      <div>
+        <span className="fw-bold text-dark d-block mb-2" style={{ fontSize: 13.5 }}>
+          <i className="bi bi-pie-chart text-info me-2" />
+          Cơ cấu dòng sản phẩm
+        </span>
+        <span className="text-muted d-block mb-3" style={{ fontSize: 11 }}>
+          Phần trăm đóng góp vào tổng doanh thu
+        </span>
+      </div>
+      <div className="d-flex align-items-center justify-content-center" style={{ flex: 1, minHeight: 290 }}>
+        <ReactApexChart options={categoryPieOptions} series={categoriesData.series} type="donut" width="100%" height={300} />
+      </div>
+    </div>
+  );
+
+  const renderRecentOrders = () => (
+    <div className="bg-card border rounded-4 p-3 d-flex flex-column h-100 shadow-sm" style={{ border: "none" }}>
+      <div className="d-flex align-items-center justify-content-between mb-3">
+        <span className="fw-bold text-dark" style={{ fontSize: 13.5 }}>
+          <i className="bi bi-bag-check-fill text-purple me-2" />
+          Đơn hàng mới
+        </span>
+        <a href="/sales/orders" className="text-decoration-none fw-semibold" style={{ fontSize: 11.5, color: "#10b981" }}>
+          Tất cả →
+        </a>
+      </div>
+
+      <div className="flex-grow-1 custom-scrollbar">
+        {recentOrders.length === 0 ? (
+          <div className="text-center py-4 text-muted" style={{ fontSize: 12.5 }}>
+            Chưa phát sinh đơn hàng nào
+          </div>
+        ) : isMobile ? (
+          <div className="d-flex flex-column gap-2" style={{ maxHeight: 350, overflowY: "auto", paddingRight: 4 }}>
+            {recentOrders.map(order => (
+              <div key={order.id} className="p-3 border rounded-3 bg-light/30 d-flex flex-column gap-2" style={{ fontSize: 12.5 }}>
+                <div className="d-flex align-items-center justify-content-between">
+                  <span className="fw-semibold text-primary" style={{ fontSize: 13 }}>{order.code}</span>
+                  {getOrderStatusBadge(order.trangThai)}
+                </div>
+                <div className="d-flex justify-content-between text-secondary" style={{ fontSize: 11.5 }}>
+                  <span className="text-truncate" style={{ maxWidth: "60%" }} title={order.customerName}>
+                    👤 {order.customerName}
+                  </span>
+                  <span>
+                    📅 {order.ngayDat ? new Date(order.ngayDat).toLocaleDateString("vi-VN") : "—"}
+                  </span>
+                </div>
+                <div className="d-flex justify-content-between align-items-center mt-1 pt-2" style={{ borderTop: "1px dashed var(--border)" }}>
+                  <span className="text-muted" style={{ fontSize: 11 }}>Tổng tiền:</span>
+                  <span className="fw-bold text-dark" style={{ fontSize: 13.5, color: "#10b981" }}>
+                    {order.tongTien?.toLocaleString("vi-VN")} đ
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-sm table-hover align-middle mb-0" style={{ fontSize: 12.5 }}>
+              <thead>
+                <tr className="text-secondary" style={{ borderBottom: "1px solid var(--border)" }}>
+                  <th className="py-2">Mã đơn</th>
+                  <th className="py-2">Khách hàng</th>
+                  <th className="py-2">Ngày đặt</th>
+                  <th className="py-2 text-end">Tổng tiền</th>
+                  <th className="py-2 text-center">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentOrders.map(order => (
+                  <tr key={order.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                    <td className="py-2 fw-semibold text-primary">{order.code}</td>
+                    <td className="py-2 text-truncate" style={{ maxWidth: 120 }}>{order.customerName}</td>
+                    <td className="py-2 text-muted">
+                      {order.ngayDat ? new Date(order.ngayDat).toLocaleDateString("vi-VN") : "—"}
+                    </td>
+                    <td className="py-2 text-end fw-bold">{order.tongTien?.toLocaleString("vi-VN")} đ</td>
+                    <td className="py-2 text-center">{getOrderStatusBadge(order.trangThai)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderRecentCare = () => (
+    <div className="bg-card border rounded-4 p-3 d-flex flex-column h-100 shadow-sm" style={{ border: "none" }}>
+      <div className="d-flex align-items-center justify-content-between mb-3">
+        <span className="fw-bold text-dark" style={{ fontSize: 13.5 }}>
+          <i className="bi bi-chat-heart-fill text-danger me-2" />
+          Hoạt động CSKH
+        </span>
+        <a href="/sales/customers" className="text-decoration-none fw-semibold" style={{ fontSize: 11.5, color: "#10b981" }}>
+          Nhật ký →
+        </a>
+      </div>
+
+      <div className="flex-grow-1 overflow-auto custom-scrollbar d-flex flex-column gap-2" style={{ maxHeight: 240 }}>
+        {recentCare.length === 0 ? (
+          <div className="text-center py-4 text-muted" style={{ fontSize: 12.5 }}>
+            Chưa ghi nhận hoạt động nào gần đây
+          </div>
+        ) : recentCare.map(log => {
+          const badgeColor = log.hinhThuc === "call" || log.hinhThuc === "Điện thoại" ? "#3b82f6"
+            : log.hinhThuc === "visit" || log.hinhThuc === "Gặp mặt" ? "#10b981"
+              : "#8b5cf6";
+          return (
+            <div key={log.id} className="p-2 border rounded-3 bg-light/50 d-flex flex-column gap-1" style={{ fontSize: 12 }}>
+              <div className="d-flex align-items-center justify-content-between">
+                <span className="fw-bold text-dark">{log.customer?.name || "Khách hàng"}</span>
+                <span className="badge fw-bold" style={{ backgroundColor: `color-mix(in srgb, ${badgeColor} 10%, transparent)`, color: badgeColor, fontSize: 9.5 }}>
+                  {log.hinhThuc}
+                </span>
+              </div>
+              <p className="margin-0 text-secondary" style={{ fontSize: 11.5, margin: 0 }}>{log.tomTat}</p>
+              <div className="d-flex justify-content-between text-muted" style={{ fontSize: 10, marginTop: 2 }}>
+                <span>Phụ trách: {log.nguoiChamSoc?.fullName || "Hệ thống"}</span>
+                <span>{log.ngayChamSoc ? new Date(log.ngayChamSoc).toLocaleDateString("vi-VN") : ""}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   return (
     <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
       <PageHeader
@@ -447,159 +604,68 @@ export default function SalesPage() {
         </div>
 
         {/* ── Chart & Shortcuts ── */}
-        <div className="sales-mid-grid">
-          {/* Revenue Chart */}
-          <div className="bg-card border rounded-4 p-3 d-flex flex-column">
-            <div className="mb-2">
-              <div className="d-flex align-items-center justify-content-between">
-                <span className="fw-bold text-dark" style={{ fontSize: 13.5 }}>
-                  <i className="bi bi-activity text-emerald me-2" />
-                  Xu hướng doanh thu (Mục tiêu vs Thực tế)
-                </span>
-                <button onClick={() => setShowKpiModal(true)} className="btn btn-sm btn-danger shadow-sm d-flex align-items-center gap-1 text-white border-0" style={{ fontSize: 11, padding: "3px 10px" }}>
-                  <i className="bi bi-bar-chart-line text-white"></i>
-                  Theo dõi KPI
-                </button>
-              </div>
-              <span className="text-muted d-block mt-1" style={{ fontSize: 11 }}>
-                Biểu đồ diện tích so sánh doanh thu mục tiêu kế hoạch tháng với doanh thu thực tế
-              </span>
-            </div>
-            <div style={{ flex: 1, minHeight: 280 }}>
-              <ReactApexChart options={apexOptions} series={chartSeries} type="area" height={280} />
-            </div>
-          </div>
+        <div className="d-none d-xl-grid sales-mid-grid">
+          {renderRevenueChart()}
+          {renderCategoryPie()}
+        </div>
 
-          {/* Categories distribution */}
-          <div className="bg-card border rounded-4 p-3 d-flex flex-column justify-content-between shadow-sm">
-            <div>
-              <span className="fw-bold text-dark d-block mb-2" style={{ fontSize: 13.5 }}>
-                <i className="bi bi-pie-chart text-info me-2" />
-                Cơ cấu doanh thu theo dòng sản phẩm
-              </span>
-              <span className="text-muted d-block mb-3" style={{ fontSize: 11 }}>
-                Phần trăm đóng góp của các nhóm hàng chính vào tổng doanh thu
-              </span>
-            </div>
-             <div className="d-flex align-items-center justify-content-center" style={{ flex: 1, minHeight: 290 }}>
-               <ReactApexChart options={categoryPieOptions} series={categoriesData.series} type="donut" width="100%" height={300} />
-             </div>
+        {/* ── Chart & Shortcuts (Mobile Tabs) ── */}
+        <div className="d-block d-xl-none bg-card border rounded-4 p-2 shadow-sm mb-2">
+          <ul className="nav nav-pills nav-fill mb-2" style={{ background: "var(--muted)", borderRadius: 12, padding: 4 }}>
+            <li className="nav-item">
+              <button 
+                className={`nav-link rounded-3 fw-bold ${midTab === "chart" ? "active bg-white text-dark shadow-sm" : "text-muted"}`}
+                onClick={() => setMidTab("chart")}
+                style={{ fontSize: 12 }}
+              >
+                <i className="bi bi-activity me-1" /> Xu hướng
+              </button>
+            </li>
+            <li className="nav-item">
+              <button 
+                className={`nav-link rounded-3 fw-bold ${midTab === "pie" ? "active bg-white text-dark shadow-sm" : "text-muted"}`}
+                onClick={() => setMidTab("pie")}
+                style={{ fontSize: 12 }}
+              >
+                <i className="bi bi-pie-chart me-1" /> Cơ cấu
+              </button>
+            </li>
+          </ul>
+          <div>
+            {midTab === "chart" ? renderRevenueChart() : renderCategoryPie()}
           </div>
         </div>
 
         {/* ── Feed Rows (Orders & Care Logs) ── */}
-        <div className="sales-bottom-grid">
-          {/* Recent Orders */}
-          <div className="bg-card border rounded-4 p-3 d-flex flex-column">
-            <div className="d-flex align-items-center justify-content-between mb-3">
-              <span className="fw-bold text-dark" style={{ fontSize: 13.5 }}>
-                <i className="bi bi-bag-check-fill text-purple me-2" />
-                Đơn hàng mới nhất
-              </span>
-              <a href="/sales/orders" className="text-decoration-none fw-semibold" style={{ fontSize: 11.5, color: "#10b981" }}>
-                Tất cả đơn hàng →
-              </a>
-            </div>
+        <div className="d-none d-xl-grid sales-bottom-grid">
+          {renderRecentOrders()}
+          {renderRecentCare()}
+        </div>
 
-            <div className="flex-grow-1 custom-scrollbar">
-              {recentOrders.length === 0 ? (
-                <div className="text-center py-4 text-muted" style={{ fontSize: 12.5 }}>
-                  Chưa phát sinh đơn hàng nào
-                </div>
-              ) : isMobile ? (
-                <div className="d-flex flex-column gap-2" style={{ maxHeight: 350, overflowY: "auto", paddingRight: 4 }}>
-                  {recentOrders.map(order => (
-                    <div key={order.id} className="p-3 border rounded-3 bg-light/30 d-flex flex-column gap-2" style={{ fontSize: 12.5 }}>
-                      <div className="d-flex align-items-center justify-content-between">
-                        <span className="fw-semibold text-primary" style={{ fontSize: 13 }}>{order.code}</span>
-                        {getOrderStatusBadge(order.trangThai)}
-                      </div>
-                      <div className="d-flex justify-content-between text-secondary" style={{ fontSize: 11.5 }}>
-                        <span className="text-truncate" style={{ maxWidth: "60%" }} title={order.customerName}>
-                          👤 {order.customerName}
-                        </span>
-                        <span>
-                          📅 {order.ngayDat ? new Date(order.ngayDat).toLocaleDateString("vi-VN") : "—"}
-                        </span>
-                      </div>
-                      <div className="d-flex justify-content-between align-items-center mt-1 pt-2" style={{ borderTop: "1px dashed var(--border)" }}>
-                        <span className="text-muted" style={{ fontSize: 11 }}>Tổng tiền:</span>
-                        <span className="fw-bold text-dark" style={{ fontSize: 13.5, color: "#10b981" }}>
-                          {order.tongTien?.toLocaleString("vi-VN")} đ
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-sm table-hover align-middle mb-0" style={{ fontSize: 12.5 }}>
-                    <thead>
-                      <tr className="text-secondary" style={{ borderBottom: "1px solid var(--border)" }}>
-                        <th className="py-2">Mã đơn</th>
-                        <th className="py-2">Khách hàng</th>
-                        <th className="py-2">Ngày đặt</th>
-                        <th className="py-2 text-end">Tổng tiền</th>
-                        <th className="py-2 text-center">Trạng thái</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {recentOrders.map(order => (
-                        <tr key={order.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                          <td className="py-2 fw-semibold text-primary">{order.code}</td>
-                          <td className="py-2 text-truncate" style={{ maxWidth: 120 }}>{order.customerName}</td>
-                          <td className="py-2 text-muted">
-                            {order.ngayDat ? new Date(order.ngayDat).toLocaleDateString("vi-VN") : "—"}
-                          </td>
-                          <td className="py-2 text-end fw-bold">{order.tongTien?.toLocaleString("vi-VN")} đ</td>
-                          <td className="py-2 text-center">{getOrderStatusBadge(order.trangThai)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Recent Customer Care History */}
-          <div className="bg-card border rounded-4 p-3 d-flex flex-column">
-            <div className="d-flex align-items-center justify-content-between mb-3">
-              <span className="fw-bold text-dark" style={{ fontSize: 13.5 }}>
-                <i className="bi bi-chat-heart-fill text-danger me-2" />
-                Hoạt động chăm sóc khách hàng gần nhất
-              </span>
-              <a href="/sales/customers" className="text-decoration-none fw-semibold" style={{ fontSize: 11.5, color: "#10b981" }}>
-                Nhật ký chăm sóc →
-              </a>
-            </div>
-
-            <div className="flex-grow-1 overflow-auto custom-scrollbar d-flex flex-column gap-2" style={{ maxHeight: 240 }}>
-              {recentCare.length === 0 ? (
-                <div className="text-center py-4 text-muted" style={{ fontSize: 12.5 }}>
-                  Chưa ghi nhận hoạt động chăm sóc khách hàng nào gần đây
-                </div>
-              ) : recentCare.map(log => {
-                const badgeColor = log.hinhThuc === "call" || log.hinhThuc === "Điện thoại" ? "#3b82f6"
-                  : log.hinhThuc === "visit" || log.hinhThuc === "Gặp mặt" ? "#10b981"
-                    : "#8b5cf6";
-                return (
-                  <div key={log.id} className="p-2 border rounded-3 bg-light/50 d-flex flex-column gap-1" style={{ fontSize: 12 }}>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <span className="fw-bold text-dark">{log.customer?.name || "Khách hàng"}</span>
-                      <span className="badge fw-bold" style={{ backgroundColor: `color-mix(in srgb, ${badgeColor} 10%, transparent)`, color: badgeColor, fontSize: 9.5 }}>
-                        {log.hinhThuc}
-                      </span>
-                    </div>
-                    <p className="margin-0 text-secondary" style={{ fontSize: 11.5, margin: 0 }}>{log.tomTat}</p>
-                    <div className="d-flex justify-content-between text-muted" style={{ fontSize: 10, marginTop: 2 }}>
-                      <span>Phụ trách: {log.nguoiChamSoc?.fullName || "Hệ thống"}</span>
-                      <span>{log.ngayChamSoc ? new Date(log.ngayChamSoc).toLocaleDateString("vi-VN") : ""}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        {/* ── Feed Rows (Mobile Tabs) ── */}
+        <div className="d-block d-xl-none bg-card border rounded-4 p-2 shadow-sm mb-2">
+          <ul className="nav nav-pills nav-fill mb-2" style={{ background: "var(--muted)", borderRadius: 12, padding: 4 }}>
+            <li className="nav-item">
+              <button 
+                className={`nav-link rounded-3 fw-bold ${bottomTab === "orders" ? "active bg-white text-dark shadow-sm" : "text-muted"}`}
+                onClick={() => setBottomTab("orders")}
+                style={{ fontSize: 12 }}
+              >
+                <i className="bi bi-bag-check-fill me-1" /> Đơn hàng
+              </button>
+            </li>
+            <li className="nav-item">
+              <button 
+                className={`nav-link rounded-3 fw-bold ${bottomTab === "care" ? "active bg-white text-dark shadow-sm" : "text-muted"}`}
+                onClick={() => setBottomTab("care")}
+                style={{ fontSize: 12 }}
+              >
+                <i className="bi bi-chat-heart-fill me-1" /> Chăm sóc KH
+              </button>
+            </li>
+          </ul>
+          <div>
+            {bottomTab === "orders" ? renderRecentOrders() : renderRecentCare()}
           </div>
         </div>
 

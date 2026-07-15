@@ -256,131 +256,177 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 5000, background: "var(--background)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div className="nk-modal-wrapper" style={{ position: "fixed", inset: 0, zIndex: 5000, background: "var(--background)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <style>{`
+        /* RESPONSIVE STYLES FOR IPAD AND MOBILE ONLY */
+        @media (max-width: 1024px) {
+          /* Top bar layout */
+          .nk-top-bar { height: auto !important; padding: 12px 16px !important; flex-wrap: wrap; }
+          .nk-top-title { flex: 1; min-width: 150px; order: 1; }
+          .nk-top-close { margin-left: auto !important; order: 2; }
+          .nk-mode-select { margin-left: 0 !important; width: 100%; margin-top: 12px; order: 3; }
+          .nk-po-select { margin-left: 0 !important; width: 100%; margin-top: 8px; order: 4; }
+          .nk-top-actions-desktop { display: none !important; }
+          
+          /* Bottom Toolbar */
+          .nk-bottom-toolbar { display: flex !important; }
+          
+          /* Body and Sidebar */
+          .nk-body { flex-direction: column !important; }
+          .nk-sidebar { width: 100% !important; border-right: none !important; border-bottom: 1px solid var(--border); overflow-y: auto !important; max-height: 250px; }
+          
+          /* Sidebar Info Grid: 2 items on one row */
+          .nk-sidebar-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
+          .nk-sidebar-full-row { grid-column: 1 / -1; }
+          
+          /* Right pane header */
+          .nk-pane-header { flex-wrap: wrap; padding-bottom: 8px; }
+          .nk-pane-totals { margin-left: 0 !important; width: 100%; justify-content: space-between !important; border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 4px; }
+          
+          /* Table horizontal scrolling */
+          .nk-table-wrapper { overflow-x: hidden !important; }
+          .nk-table-inner { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; padding-bottom: 12px; }
+          .nk-table-inner > div { min-width: 1100px !important; }
+        }
+      `}</style>
 
       {/* ═══ TOP BAR ═══════════════════════════════════════════════════════ */}
-      <div style={{ flexShrink: 0, height: 56, borderBottom: "1px solid var(--border)", padding: "0 24px", display: "flex", alignItems: "center", gap: 14, background: "var(--card)" }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(16,185,129,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <i className="bi bi-box-arrow-in-down" style={{ fontSize: 18, color: "#10b981" }} />
-        </div>
-        <div>
-          <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "var(--foreground)" }}>Phiếu nhập kho</p>
-          <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)", fontFamily: "monospace" }}>{soChungTu}</p>
-        </div>
-
-        {/* Mode toggle */}
-        <div style={{ marginLeft: 16, display: "flex", background: "var(--muted)", padding: 3, borderRadius: 9, gap: 2 }}>
-          {([{ val: "manual" as const, label: "Nhập thủ công", icon: "bi-pencil" },
-          { val: "po" as const, label: "Theo đơn mua", icon: "bi-file-earmark-text" }]).map(m => (
-            <button key={m.val} onClick={() => setMode(m.val)} style={{
-              display: "flex", alignItems: "center", gap: 5,
-              padding: "5px 14px", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
-              background: mode === m.val ? "var(--card)" : "transparent",
-              color: mode === m.val ? "var(--foreground)" : "var(--muted-foreground)",
-              boxShadow: mode === m.val ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
-            }}>
-              <i className={`bi ${m.icon}`} style={{ fontSize: 12 }} />
-              {m.label}
-            </button>
-          ))}
-        </div>
-
-        {/* PO select — hiện ngay cạnh khi chọn mode PO */}
-        {mode === "po" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 10 }}>
-            {poLoading ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--muted-foreground)", padding: "0 10px" }}>
-                <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} />
-                Đang tải…
-              </div>
-            ) : (
-              <select
-                value={selectedPO?.id ?? ""}
-                onChange={e => onSelectPOById(e.target.value)}
-                style={{
-                  height: 34, padding: "0 12px",
-                  border: `1.5px solid ${selectedPO ? "rgba(16,185,129,0.6)" : "var(--border)"}`,
-                  borderRadius: 8,
-                  background: selectedPO ? "rgba(16,185,129,0.06)" : "var(--muted)",
-                  color: selectedPO ? "#10b981" : "var(--foreground)",
-                  fontSize: 13, fontWeight: selectedPO ? 700 : 400,
-                  outline: "none", cursor: "pointer",
-                  minWidth: 220, maxWidth: 340,
-                  transition: "all 0.15s",
-                }}
-              >
-                <option value="">Chọn đơn mua hàng</option>
-                {poList.length === 0 && (
-                  <option disabled value="">Không có đơn hàng</option>
-                )}
-                {poList.map(po => (
-                  <option key={po.id} value={po.id}>
-                    {po.code ?? po.id}{po.supplier?.name ? ` — ${po.supplier.name}` : ""}
-                  </option>
-                ))}
-              </select>
-            )}
-            {selectedPO && (
-              <span style={{ fontSize: 11, color: "#10b981", fontWeight: 700, background: "rgba(16,185,129,0.1)", borderRadius: 20, padding: "2px 10px", whiteSpace: "nowrap" }}>
-                <i className="bi bi-check-circle-fill" style={{ marginRight: 4 }} />
-                Đã chọn
-              </span>
-            )}
+      <div className="nk-top-bar" style={{ flexShrink: 0, minHeight: 64, borderBottom: "1px solid rgba(0,0,0,0.08)", padding: "12px 24px", display: "flex", alignItems: "center", gap: 16, background: "var(--card)" }}>
+        {/* Left: Icon & Title */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: "fit-content" }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: "linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(16,185,129,0.05) 100%)", border: "1px solid rgba(16,185,129,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <i className="bi bi-box-arrow-in-down" style={{ fontSize: 20, color: "#059669" }} />
           </div>
-        )}
+          <div className="nk-top-title">
+            <p style={{ margin: 0, fontWeight: 700, fontSize: 16, color: "var(--foreground)", letterSpacing: "-0.01em" }}>Phiếu nhập kho</p>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--muted-foreground)", fontFamily: "monospace", opacity: 0.8 }}>{soChungTu}</p>
+          </div>
+        </div>
 
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-          {success && (
-            <button onClick={() => setShowPreview(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderWidth: "1.5px", borderStyle: "solid", borderColor: "#10b981", background: "rgba(16,185,129,0.1)", color: "#10b981", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}>
-              <i className="bi bi-printer" style={{ fontSize: 14 }} /> In phiếu nhập kho
-            </button>
-          )}
-          {!success && (() => {
-            const canSave = !saving
-              && validLines.length > 0
-              && !(mode === "po" && !selectedPO);
-            return (
-              <button
-                onClick={handleSave}
-                disabled={!canSave}
-                title={
-                  mode === "po" && !selectedPO ? "Vui lòng chọn đơn mua hàng" :
-                    validLines.length === 0 ? "Chưa có hàng hoá nào trong bảng" : undefined
-                }
-                style={{
-                  display: "flex", alignItems: "center", gap: 6,
-                  padding: "7px 20px", border: "none", borderRadius: 8,
-                  background: canSave ? "#10b981" : "var(--muted)",
-                  color: canSave ? "#fff" : "var(--muted-foreground)",
-                  fontSize: 13, fontWeight: 700,
-                  cursor: canSave ? "pointer" : "not-allowed",
-                  opacity: canSave ? 1 : 0.6,
-                  transition: "all 0.15s",
-                }}
-              >
-                {saving
-                  ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} />
-                  : <i className="bi bi-check2-all" style={{ fontSize: 14 }} />}
-                Xác nhận
+        {/* Center/Right wrapper for flex distribution */}
+        <div className="nk-top-actions" style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "flex-end", gap: 16 }}>
+          {/* Mode toggle */}
+          <div className="nk-mode-select" style={{ display: "flex", background: "var(--muted)", padding: 4, borderRadius: 10, gap: 4, border: "1px solid rgba(0,0,0,0.05)" }}>
+            {([{ val: "manual" as const, label: "Nhập thủ công", icon: "bi-pencil" },
+            { val: "po" as const, label: "Theo đơn mua", icon: "bi-file-earmark-text" }]).map(m => (
+              <button key={m.val} onClick={() => setMode(m.val)} style={{
+                display: "flex", alignItems: "center", gap: 6, flex: 1, justifyContent: "center",
+                padding: "6px 16px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                cursor: "pointer", transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                background: mode === m.val ? "var(--card)" : "transparent",
+                color: mode === m.val ? "var(--foreground)" : "var(--muted-foreground)",
+                boxShadow: mode === m.val ? "0 2px 8px rgba(0,0,0,0.08)" : "none",
+                whiteSpace: "nowrap"
+              }}>
+                <i className={`bi ${m.icon}`} style={{ fontSize: 14, opacity: mode === m.val ? 1 : 0.7 }} />
+                {m.label}
               </button>
-            );
-          })()}
+            ))}
+          </div>
 
-          <button onClick={() => setShowLichSu(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderWidth: "1.5px", borderStyle: "solid", borderColor: "var(--border)", background: "var(--muted)", color: "var(--foreground)", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}>
-            <i className="bi bi-clock-history" style={{ fontSize: 14 }} /> Lịch sử
-          </button>
+          {/* PO select */}
+          {mode === "po" && (
+            <div className="nk-po-select position-relative" style={{ display: "flex", alignItems: "center" }}>
+              {poLoading ? (
+                <div style={{ fontSize: 13, color: "var(--muted-foreground)", padding: "0 10px" }}>
+                  <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> Đang tải…
+                </div>
+              ) : (
+                <div className="position-relative">
+                  <select
+                    value={selectedPO?.id ?? ""}
+                    onChange={e => onSelectPOById(e.target.value)}
+                    style={{
+                      height: 38, padding: "0 36px 0 16px",
+                      border: `1px solid ${selectedPO ? "rgba(16,185,129,0.4)" : "var(--border)"}`,
+                      borderRadius: 10,
+                      background: selectedPO ? "rgba(16,185,129,0.05)" : "var(--background)",
+                      color: selectedPO ? "#059669" : "var(--foreground)",
+                      fontSize: 13, fontWeight: selectedPO ? 600 : 400,
+                      outline: "none", cursor: "pointer",
+                      width: 280, transition: "all 0.2s",
+                      appearance: "none", textOverflow: "ellipsis"
+                    }}
+                  >
+                    <option value="">-- Chọn đơn mua hàng --</option>
+                    {poList.length === 0 && <option disabled value="">Không có đơn hàng</option>}
+                    {poList.map(po => (
+                      <option key={po.id} value={po.id}>
+                        {po.code ?? po.id}{po.supplier?.name ? ` — ${po.supplier.name}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <i className="bi bi-chevron-down position-absolute" style={{ right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 12, pointerEvents: "none", color: selectedPO ? "#059669" : "var(--muted-foreground)" }} />
+                  {selectedPO && (
+                    <span className="position-absolute" style={{ top: -10, right: -10, fontSize: 10, color: "#fff", fontWeight: 600, background: "#10b981", borderRadius: 20, padding: "2px 8px", boxShadow: "0 2px 4px rgba(16, 185, 129, 0.3)", zIndex: 10 }}>
+                      <i className="bi bi-check" style={{ marginRight: 2 }} />Đã chọn
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
-          <button onClick={onClose} style={{ width: 34, height: 34, borderWidth: "1px", borderStyle: "solid", borderColor: "var(--border)", background: "var(--muted)", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
-            <i className="bi bi-x" style={{ fontSize: 18 }} />
+          <div style={{ width: 1, height: 24, background: "var(--border)", margin: "0 4px" }} className="d-none d-lg-block" />
+
+          {/* Desktop Actions */}
+          <div className="nk-top-actions-desktop" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {success && (
+              <button onClick={() => setShowPreview(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderWidth: "1.5px", borderStyle: "solid", borderColor: "#10b981", background: "rgba(16,185,129,0.1)", color: "#10b981", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}>
+                <i className="bi bi-printer" style={{ fontSize: 14 }} /> In phiếu nhập kho
+              </button>
+            )}
+            {!success && (() => {
+              const canSave = !saving
+                && validLines.length > 0
+                && !(mode === "po" && !selectedPO);
+              return (
+                <button
+                  onClick={handleSave}
+                  disabled={!canSave}
+                  title={
+                    mode === "po" && !selectedPO ? "Vui lòng chọn đơn mua hàng" :
+                      validLines.length === 0 ? "Chưa có hàng hoá nào trong bảng" : undefined
+                  }
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "7px 20px", border: "none", borderRadius: 8,
+                    background: canSave ? "#10b981" : "var(--muted)",
+                    color: canSave ? "#fff" : "var(--muted-foreground)",
+                    fontSize: 13, fontWeight: 700,
+                    cursor: canSave ? "pointer" : "not-allowed",
+                    opacity: canSave ? 1 : 0.6,
+                    transition: "all 0.15s",
+                    whiteSpace: "nowrap"
+                  }}
+                >
+                  {saving
+                    ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} />
+                    : <i className="bi bi-check2-all" style={{ fontSize: 14 }} />}
+                  Xác nhận
+                </button>
+              );
+            })()}
+
+            <button onClick={() => setShowLichSu(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", borderWidth: "1.5px", borderStyle: "solid", borderColor: "var(--border)", background: "var(--muted)", color: "var(--foreground)", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap" }}>
+              <i className="bi bi-clock-history" style={{ fontSize: 14 }} /> Lịch sử
+            </button>
+          </div>
+
+          <div style={{ width: 1, height: 24, background: "var(--border)", margin: "0 4px" }} className="d-none d-lg-block" />
+
+          {/* Close Button Top Right */}
+          <button onClick={onClose} className="nk-top-close" style={{ width: 36, height: 36, border: "none", background: "var(--muted)", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", transition: "all 0.2s" }}>
+            <i className="bi bi-x-lg" style={{ fontSize: 16 }} />
           </button>
         </div>
       </div>
 
       {/* ═══ BODY: sidebar trái + nội dung phải ══════════════════════════ */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div className="nk-body" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
         {/* ── SIDEBAR TRÁI: Thông tin phiếu ─────────────────────────────── */}
-        <div style={{
+        <div className="nk-sidebar" style={{
           width: 272,
           flexShrink: 0,
           borderRight: "1px solid var(--border)",
@@ -403,102 +449,103 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
               <span style={{ fontWeight: 800, fontSize: 13, color: "var(--foreground)" }}>Thông tin phiếu</span>
             </div>
 
-            {/* Số phiếu */}
-            <div>
-              <label style={CSS.label}>Số phiếu nhập</label>
-              <input
-                value={soChungTu}
-                readOnly
-                style={{
-                  ...CSS.input,
-                  background: "var(--muted)",
-                  color: "var(--muted-foreground)",
-                  cursor: "default",
-                  fontFamily: "monospace",
-                  fontSize: 12,
-                }}
-              />
-            </div>
-
-            {/* Ngày nhập */}
-            <div>
-              <label style={CSS.label}>Ngày nhập kho</label>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {/* Date input */}
+            <div className="nk-sidebar-grid" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Số phiếu */}
+              <div>
+                <label style={CSS.label}>Số phiếu nhập</label>
                 <input
-                  type="date"
-                  value={ngayNhap}
-                  min={lockDate ? new Date().toISOString().slice(0, 10) : undefined}
-                  max={lockDate ? new Date().toISOString().slice(0, 10) : undefined}
-                  onChange={e => !lockDate && setNgayNhap(e.target.value)}
-                  readOnly={lockDate}
+                  value={soChungTu}
+                  readOnly
                   style={{
                     ...CSS.input,
-                    flex: 1,
-                    cursor: lockDate ? "not-allowed" : "text",
-                    opacity: lockDate ? 0.7 : 1,
-                    background: lockDate ? "var(--muted)" : CSS.input.background,
+                    background: "var(--muted)",
+                    color: "var(--muted-foreground)",
+                    cursor: "default",
+                    fontFamily: "monospace",
+                    fontSize: 12,
                   }}
                 />
-                {/* iOS-style switch */}
-                <label
-                  title={lockDate ? "Khoá ngày hôm nay — nhấn để mở" : "Đang mở — nhấn để khoá"}
-                  style={{ display: "flex", alignItems: "center", cursor: "pointer", flexShrink: 0 }}
-                >
-                  <span
-                    onClick={() => setLockDate(v => !v)}
+              </div>
+
+              {/* Ngày nhập */}
+              <div>
+                <label style={CSS.label}>Ngày nhập kho</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {/* Date input */}
+                  <input
+                    type="date"
+                    value={ngayNhap}
+                    min={lockDate ? new Date().toISOString().slice(0, 10) : undefined}
+                    max={lockDate ? new Date().toISOString().slice(0, 10) : undefined}
+                    onChange={e => !lockDate && setNgayNhap(e.target.value)}
+                    readOnly={lockDate}
                     style={{
-                      position: "relative", display: "inline-block",
-                      width: 34, height: 18, borderRadius: 9, flexShrink: 0,
-                      background: lockDate ? "#10b981" : "var(--border)",
-                      transition: "background 0.2s",
-                      cursor: "pointer",
+                      ...CSS.input,
+                      flex: 1,
+                      cursor: lockDate ? "not-allowed" : "text",
+                      opacity: lockDate ? 0.7 : 1,
+                      background: lockDate ? "var(--muted)" : CSS.input.background,
                     }}
+                  />
+                  {/* iOS-style switch */}
+                  <label
+                    title={lockDate ? "Khoá ngày hôm nay — nhấn để mở" : "Đang mở — nhấn để khoá"}
+                    style={{ display: "flex", alignItems: "center", cursor: "pointer", flexShrink: 0 }}
                   >
-                    <span style={{
-                      position: "absolute",
-                      top: 2, left: lockDate ? 18 : 2,
-                      width: 14, height: 14, borderRadius: "50%",
-                      background: "#fff",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
-                      transition: "left 0.2s",
-                    }} />
-                  </span>
-                </label>
+                    <span
+                      onClick={() => setLockDate(v => !v)}
+                      style={{
+                        position: "relative", display: "inline-block",
+                        width: 34, height: 18, borderRadius: 9, flexShrink: 0,
+                        background: lockDate ? "#10b981" : "var(--border)",
+                        transition: "background 0.2s",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span style={{
+                        position: "absolute",
+                        top: 2, left: lockDate ? 18 : 2,
+                        width: 14, height: 14, borderRadius: "50%",
+                        background: "#fff",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                        transition: "left 0.2s",
+                      }} />
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Kho nhập */}
+              <div>
+                <label style={CSS.label}>Kho nhập <span style={{ color: "#f43f5e" }}>*</span></label>
+                <select
+                  value={toWarehouseId}
+                  onChange={e => !success && setToWarehouseId(e.target.value)}
+                  disabled={true}
+                  style={{ ...CSS.input, appearance: "none", borderColor: toWarehouseId ? "rgba(16,185,129,0.5)" : "var(--border)", opacity: 0.65, cursor: "not-allowed" }}
+                >
+                  <option value="">Chọn kho</option>
+                  {warehouses.map(w => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Người thực hiện */}
+              <div>
+                <label style={CSS.label}>Người thực hiện</label>
+                <input
+                  value={nguoiThucHien}
+                  onChange={e => !success && setNguoiThucHien(e.target.value)}
+                  readOnly={success}
+                  placeholder="Tên thủ kho / người nhập"
+                  style={{ ...CSS.input, opacity: success ? 0.65 : 1, cursor: success ? "default" : "text" }}
+                />
               </div>
             </div>
 
-
-            {/* Kho nhập */}
-            <div>
-              <label style={CSS.label}>Kho nhập <span style={{ color: "#f43f5e" }}>*</span></label>
-              <select
-                value={toWarehouseId}
-                onChange={e => !success && setToWarehouseId(e.target.value)}
-                disabled={success}
-                style={{ ...CSS.input, appearance: "none", borderColor: toWarehouseId ? "rgba(16,185,129,0.5)" : "var(--border)", opacity: success ? 0.65 : 1, cursor: success ? "not-allowed" : "pointer" }}
-              >
-                <option value="">Chọn kho</option>
-                {warehouses.map(w => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Người thực hiện */}
-            <div>
-              <label style={CSS.label}>Người thực hiện</label>
-              <input
-                value={nguoiThucHien}
-                onChange={e => !success && setNguoiThucHien(e.target.value)}
-                readOnly={success}
-                placeholder="Tên thủ kho / người nhập"
-                style={{ ...CSS.input, opacity: success ? 0.65 : 1, cursor: success ? "default" : "text" }}
-              />
-            </div>
-
             {/* Lý do */}
-            <div>
+            <div className="nk-sidebar-full-row">
               <label style={CSS.label}>Lý do nhập kho</label>
               <textarea
                 value={lyDo}
@@ -510,7 +557,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
             </div>
 
             {/* Ghi chú — chiếm hết không gian còn lại */}
-            <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+            <div className="nk-sidebar-full-row" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
               <label style={CSS.label}>Ghi chú</label>
               <textarea
                 value={ghiChu}
@@ -524,7 +571,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
         </div>
 
         {/* ── NỘI DUNG PHẢI: Bảng hàng hoá ──────────────────────────────── */}
-        <div style={{ flex: 1, overflowY: !toWarehouseId ? "hidden" : "auto", padding: "16px 20px 24px", position: "relative" }}>
+        <div className="nk-table-wrapper" style={{ flex: 1, overflowY: !toWarehouseId ? "hidden" : "auto", padding: "16px 20px 24px", position: "relative" }}>
 
           {/* Overlay khi chưa chọn kho */}
           {!toWarehouseId && (
@@ -540,7 +587,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
           )}
 
           {/* Tiêu đề bảng */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <div className="nk-pane-header" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <span style={{ fontWeight: 800, fontSize: 14 }}>Danh sách hàng hoá nhập kho</span>
             <span style={{ fontSize: 12, color: "var(--muted-foreground)", background: "var(--muted)", borderRadius: 20, padding: "2px 10px" }}>
               {lines.length} dòng
@@ -551,7 +598,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
               </span>
             )}
             {/* Summary tổng — căn phải */}
-            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
+            <div className="nk-pane-totals" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Tổng SL</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: "#10b981", lineHeight: 1.2 }}>{tongSL.toLocaleString("vi-VN")}</div>
@@ -564,8 +611,9 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
             </div>
           </div>
 
-          {/* Table header — 2 dòng, merge cột SL + merge cột Vị trí */}
-          <div style={{ background: "var(--muted)", borderRadius: "8px 8px 0 0", overflow: "hidden" }}>
+          <div className="nk-table-inner">
+            {/* Table header — 2 dòng, merge cột SL + merge cột Vị trí */}
+            <div style={{ background: "var(--muted)", borderRadius: "8px 8px 0 0", overflow: "hidden" }}>
             {/* Dòng 1: nhãn nhóm */}
             <div style={{
               display: "grid",
@@ -636,7 +684,38 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
               )}
             </div>
           </div>
+          </div>
         </div>
+      </div>
+
+      {/* ═══ BOTTOM TOOLBAR (MOBILE ONLY) ════════════════════════════════════ */}
+      <div className="nk-bottom-toolbar" style={{ display: "none", padding: "12px 16px", borderTop: "1px solid var(--border)", background: "var(--card)", gap: 8, flexShrink: 0 }}>
+        {success && (
+          <button onClick={() => setShowPreview(true)} style={{ display: "flex", flex: 1, justifyContent: "center", alignItems: "center", gap: 6, padding: "10px 16px", borderWidth: "1.5px", borderStyle: "solid", borderColor: "#10b981", background: "rgba(16,185,129,0.1)", color: "#10b981", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}>
+            <i className="bi bi-printer" style={{ fontSize: 14 }} /> In phiếu
+          </button>
+        )}
+        {!success && (() => {
+          const canSave = !saving && validLines.length > 0 && !(mode === "po" && !selectedPO);
+          return (
+            <button onClick={handleSave} disabled={!canSave}
+              style={{
+                display: "flex", flex: 2, justifyContent: "center", alignItems: "center", gap: 6,
+                padding: "10px 20px", border: "none", borderRadius: 8,
+                background: canSave ? "#10b981" : "var(--muted)",
+                color: canSave ? "#fff" : "var(--muted-foreground)",
+                fontSize: 13, fontWeight: 700,
+                cursor: canSave ? "pointer" : "not-allowed", opacity: canSave ? 1 : 0.6, transition: "all 0.15s",
+              }}
+            >
+              {saving ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-check2-all" style={{ fontSize: 14 }} />}
+              Xác nhận
+            </button>
+          );
+        })()}
+        <button onClick={() => setShowLichSu(true)} style={{ display: "flex", flex: 1, justifyContent: "center", alignItems: "center", gap: 6, padding: "10px 16px", borderWidth: "1.5px", borderStyle: "solid", borderColor: "var(--border)", background: "var(--muted)", color: "var(--foreground)", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}>
+          <i className="bi bi-clock-history" style={{ fontSize: 14 }} /> Lịch sử
+        </button>
       </div>
 
       {/* Confirm khi thiếu vị trí kho */}

@@ -207,13 +207,14 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
       },
       {
         group: "Kế toán", items: [
-          { name: "Bán hàng", href: "/finance/sales", icon: "bi-cart3" },
-          { name: "Tạm ứng", href: "/finance/advances", icon: "bi-cash" },
+          { name: "Kết xuất dữ liệu", href: "/finance/export", icon: "bi-file-earmark-excel" },
+          { name: "Tạm ứng và chi phí", href: "/finance/advances", icon: "bi-cash" },
         ]
       },
       {
-        group: "Báo cáo", items: [
+        group: "Báo cáo và phân tích", items: [
           { name: "Báo cáo tài chính", href: "/finance/reports", icon: "bi-file-earmark-bar-graph", requiredOrder: 2 },
+          { name: "Phân tích doanh thu và chi phí", href: "/finance/revenue-expense-analysis", icon: "bi-pie-chart", requiredOrder: 3 },
         ]
       },
     ],

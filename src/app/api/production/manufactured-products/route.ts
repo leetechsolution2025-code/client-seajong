@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { syncCategoryToInventory } from "@/lib/sync-utils";
 import { removeVietnameseTones } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
@@ -85,6 +86,34 @@ export async function POST(req: NextRequest) {
         notes: notes || undefined,
       }
     });
+
+    const mappedCategoryId = await syncCategoryToInventory(item.productCategoryId);
+
+    // ĐỒNG BỘ: Tự động tạo InventoryItem để có thể Kiểm Kho / Xuất Kho
+    if (item.code) {
+      await prisma.inventoryItem.upsert({
+        where: { code: item.code },
+        create: {
+          code: item.code,
+          tenHang: item.name,
+          loai: "thanh-pham",
+          brand: "Seajong",
+          categoryId: mappedCategoryId,
+          donVi: item.unit || "bộ",
+          ghiChu: item.notes || "",
+          imageUrl: null,
+          giaBan: (item as any).giaBan || 0,
+        },
+        update: {
+          tenHang: item.name,
+          loai: "thanh-pham",
+          categoryId: mappedCategoryId,
+          donVi: item.unit || "bộ",
+          ghiChu: item.notes || "",
+          giaBan: (item as any).giaBan || 0,
+        }
+      });
+    }
 
     return NextResponse.json(item, { status: 201 });
   } catch (e: any) {

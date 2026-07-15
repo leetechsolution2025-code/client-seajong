@@ -57,10 +57,22 @@ export async function GET(req: NextRequest) {
       industryProdCategoryIds = descendantIds;
     }
 
+    // Lấy ID của các danh mục Vật tư và Thành phẩm đã được đồng bộ
+    const syncedCategories = await prisma.category.findMany({
+      where: { type: { in: ['danh_muc_thanh_pham', 'vat_tu_san_xuat'] } },
+      select: { id: true }
+    });
+    const syncedIds = syncedCategories.map(c => c.id);
+
     const cats = await prisma.inventoryCategory.findMany({
       where: {
         isActive: true,
-        ...(industryProdCategoryIds.length > 0 ? { id: { in: industryProdCategoryIds } } : {}),
+        ...(industryProdCategoryIds.length > 0 ? {
+          OR: [
+            { id: { in: industryProdCategoryIds } },
+            { id: { in: syncedIds } } // Bao gồm các danh mục được đồng bộ
+          ]
+        } : {}),
       },
       orderBy: { sortOrder: "asc" },
       select:  { id: true, name: true, code: true },

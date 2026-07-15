@@ -161,9 +161,16 @@ export async function PUT(request: Request) {
           }
         });
         if (order) {
+          const isFullyPaid = pAmt >= order.tongTien;
           await prisma.saleOrder.update({
             where: { id: order.id },
-            data: { daThanhToan: pAmt }
+            data: { 
+              daThanhToan: pAmt,
+              ...(isFullyPaid && {
+                trangThai: "completed",
+                keToanDuyet: "approved"
+              })
+            }
           });
         }
       } catch (err) {

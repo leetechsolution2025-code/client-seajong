@@ -268,7 +268,7 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
           </div>
 
           {/* Brand text — ẩn trên màn nhỏ */}
-          <div className="d-none d-md-flex flex-column" style={{ gap: 0 }}>
+          <div className="d-none d-lg-flex flex-column" style={{ gap: 0 }}>
             <span className="topbar-brand-name">{displayClientName}</span>
             {company?.industryName && (
               <span className="topbar-brand-sub">{company.industryName}</span>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { syncCategoryToInventory } from "@/lib/sync-utils";
 
 // Hàm đệ quy để lấy toàn bộ ID danh mục con
 async function getCategoryIdsRecursive(categoryId: string): Promise<string[]> {
@@ -451,6 +452,39 @@ export async function POST(req: Request) {
         } as any,
       });
 
+      const mappedCategoryId = await syncCategoryToInventory(newItem.categoryId);
+      if (newItem.code) {
+        await prisma.inventoryItem.upsert({
+          where: { code: newItem.code },
+          create: {
+            code: newItem.code,
+            tenHang: newItem.name,
+            loai: "vat-tu",
+            brand: newItem.brand || "Seajong",
+            categoryId: mappedCategoryId,
+            donVi: newItem.unit || "cái",
+            soLuongMin: newItem.minStock || 0,
+            giaNhap: newItem.price || 0,
+            giaBan: (newItem as any).giaBan || 0,
+            thongSoKyThuat: newItem.thongSoKyThuat || "",
+            imageUrl: newItem.imageUrl || null,
+            chieuDai: (newItem as any).chieuDai || null,
+          },
+          update: {
+            tenHang: newItem.name,
+            loai: "vat-tu",
+            categoryId: mappedCategoryId,
+            donVi: newItem.unit || "cái",
+            soLuongMin: newItem.minStock || 0,
+            giaNhap: newItem.price || 0,
+            giaBan: (newItem as any).giaBan || 0,
+            thongSoKyThuat: newItem.thongSoKyThuat || "",
+            imageUrl: newItem.imageUrl || null,
+            chieuDai: (newItem as any).chieuDai || null,
+          }
+        });
+      }
+
       // Nếu có warehouseId, tạo tồn kho ban đầu (MaterialStock)
       if (warehouseId) {
         await prisma.materialStock.create({
@@ -538,6 +572,40 @@ export async function PUT(req: Request) {
           chieuDay: chieuDay ? parseFloat(chieuDay) : null,
         } as any,
       });
+
+      const mappedCategoryId = await syncCategoryToInventory(updated.categoryId);
+      if (updated.code) {
+        await prisma.inventoryItem.upsert({
+          where: { code: updated.code },
+          create: {
+            code: updated.code,
+            tenHang: updated.name,
+            loai: "vat-tu",
+            brand: updated.brand || "Seajong",
+            categoryId: mappedCategoryId,
+            donVi: updated.unit || "cái",
+            soLuongMin: updated.minStock || 0,
+            giaNhap: updated.price || 0,
+            giaBan: (updated as any).giaBan || 0,
+            thongSoKyThuat: updated.thongSoKyThuat || "",
+            imageUrl: updated.imageUrl || null,
+            chieuDai: (updated as any).chieuDai || null,
+          },
+          update: {
+            tenHang: updated.name,
+            loai: "vat-tu",
+            categoryId: mappedCategoryId,
+            donVi: updated.unit || "cái",
+            soLuongMin: updated.minStock || 0,
+            giaNhap: updated.price || 0,
+            giaBan: (updated as any).giaBan || 0,
+            thongSoKyThuat: updated.thongSoKyThuat || "",
+            imageUrl: updated.imageUrl || null,
+            chieuDai: (updated as any).chieuDai || null,
+          }
+        });
+      }
+
       return NextResponse.json(updated);
     }
   } catch (error: any) {

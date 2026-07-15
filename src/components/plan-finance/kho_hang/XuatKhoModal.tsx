@@ -40,7 +40,7 @@ interface StockLine {
   error?:      string;
 }
 
-interface XuatKhoModalProps { onClose: () => void; onSaved: () => void; initialMode?: "manual" | "so" | "wo"; initialSoId?: string; }
+interface XuatKhoModalProps { onClose: () => void; onSaved: () => void; initialMode?: "manual" | "so" | "wo"; initialSoId?: string; initialWoId?: string; }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const uid       = () => Math.random().toString(36).slice(2);
@@ -65,7 +65,7 @@ const CSS: Record<string, React.CSSProperties> = {
 const GRID = "28px 1fr 60px 80px 80px 60px 60px 60px 110px 110px 32px";
 
 // ── Main Component ─────────────────────────────────────────────────────────────
-export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId }: XuatKhoModalProps) {
+export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initialWoId }: XuatKhoModalProps) {
   const { data: session } = useSession();
   const toast = useToast();
 
@@ -547,138 +547,176 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId }: Xua
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 5000, background: "var(--background)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div className="xk-modal-wrapper" style={{ position: "fixed", inset: 0, zIndex: 5000, background: "var(--background)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <style>{`
+        /* RESPONSIVE STYLES FOR IPAD AND MOBILE ONLY */
+        @media (max-width: 1024px) {
+          /* Top bar layout: wrap items, push close to right */
+          .xk-top-bar { height: auto !important; padding: 12px 16px !important; flex-wrap: wrap; }
+          .xk-top-title { flex: 1; min-width: 200px; }
+          .xk-mode-select { margin-left: 0 !important; width: 100%; margin-top: 12px; order: 3; }
+          .xk-so-select { margin-left: 0 !important; width: 100%; margin-top: 8px; order: 4; }
+          .xk-top-close { margin-left: 0 !important; }
+          
+          /* Body and Sidebar: Stack them vertically */
+          .xk-body { flex-direction: column !important; }
+          .xk-sidebar { width: 100% !important; border-right: none !important; border-bottom: 1px solid var(--border); overflow-y: auto !important; max-height: 250px; }
+          
+          /* Sidebar Info Grid: 2 items on one row */
+          .xk-sidebar-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
+          .xk-sidebar-full-row { grid-column: 1 / -1; }
+          
+          /* Right pane header */
+          .xk-pane-header { flex-wrap: wrap; padding-bottom: 8px; }
+          .xk-pane-totals { margin-left: 0 !important; width: 100%; justify-content: space-between !important; border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 4px; }
+          
+          /* Table horizontal scrolling */
+          .xk-table-wrapper { overflow-x: hidden !important; }
+          .xk-table-inner { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; padding-bottom: 12px; }
+          .xk-table-inner > div { min-width: 1100px !important; } /* Increased to widen Item column on iPad */
+        }
+      `}</style>
 
       {/* ═══ TOP BAR ══════════════════════════════════════════════════════════ */}
-      <div style={{ flexShrink: 0, height: 56, borderBottom: "1px solid var(--border)", padding: "0 24px", display: "flex", alignItems: "center", gap: 14, background: "var(--card)" }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(245,158,11,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <i className="bi bi-box-arrow-up" style={{ fontSize: 18, color: "#f59e0b" }} />
-        </div>
-        <div>
-          <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "var(--foreground)" }}>Phiếu xuất kho</p>
-          <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)", fontFamily: "monospace" }}>{soChungTu}</p>
-        </div>
-
-        {/* Mode toggle */}
-        <div style={{ marginLeft: 16, display: "flex", background: "var(--muted)", padding: 3, borderRadius: 9, gap: 2 }}>
-          {([
-            { val: "manual" as const, label: "Xuất thủ công",        icon: "bi-pencil" },
-            { val: "so"     as const, label: "Theo đơn bán hàng",    icon: "bi-bag-check" },
-            { val: "wo"     as const, label: "Theo lệnh sản xuất",   icon: "bi-gear" },
-          ]).map(m => (
-            <button key={m.val} onClick={() => !locked && setMode(m.val)} style={{
-              display: "flex", alignItems: "center", gap: 5,
-              padding: "5px 14px", border: "none", borderRadius: 7, fontSize: 13, fontWeight: 600,
-              cursor: locked ? "not-allowed" : "pointer", transition: "all 0.15s",
-              background: mode === m.val ? "var(--card)"  : "transparent",
-              color:      mode === m.val ? "var(--foreground)" : "var(--muted-foreground)",
-              boxShadow:  mode === m.val ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
-            }}>
-              <i className={`bi ${m.icon}`} style={{ fontSize: 12 }} />
-              {m.label}
-            </button>
-          ))}
+      <div className="xk-top-bar" style={{ flexShrink: 0, minHeight: 64, borderBottom: "1px solid rgba(0,0,0,0.08)", padding: "12px 24px", display: "flex", alignItems: "center", gap: 16, background: "var(--card)" }}>
+        {/* Left: Icon & Title */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: "fit-content" }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: "linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(245,158,11,0.05) 100%)", border: "1px solid rgba(245,158,11,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <i className="bi bi-box-arrow-up" style={{ fontSize: 20, color: "#d97706" }} />
+          </div>
+          <div className="xk-top-title">
+            <p style={{ margin: 0, fontWeight: 700, fontSize: 16, color: "var(--foreground)", letterSpacing: "-0.01em" }}>Phiếu xuất kho</p>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--muted-foreground)", fontFamily: "monospace", opacity: 0.8 }}>{soChungTu}</p>
+          </div>
         </div>
 
-        {/* SO select — ngay trong top bar khi mode = so */}
-        {mode === "so" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 10 }}>
-            {listLoading ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--muted-foreground)", padding: "0 10px" }}>
-                <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> Đang tải…
-              </div>
-            ) : (
-              <select
-                value={selectedSo?.id ?? ""}
-                onChange={e => !locked && onSelectSo(e.target.value)}
-                style={{
-                  height: 34, padding: "0 12px",
-                  border: `1.5px solid ${selectedSo ? "rgba(245,158,11,0.6)" : "var(--border)"}`,
-                  borderRadius: 8,
-                  background: selectedSo ? "rgba(245,158,11,0.06)" : "var(--muted)",
-                  color: selectedSo ? "#f59e0b" : "var(--foreground)",
-                  fontSize: 13, fontWeight: selectedSo ? 700 : 400,
-                  outline: "none", cursor: locked ? "not-allowed" : "pointer",
-                  minWidth: 260, maxWidth: 380, transition: "all 0.15s",
-                }}
-              >
-                <option value="">-- Chọn đơn bán hàng / hợp đồng --</option>
-                {saleOrders.length === 0 && <option disabled value="">Không có đơn đang thực hiện</option>}
-                {/* Group by type */}
-                {(["contract", "sale-order", "retail-invoice"] as const).map(type => {
-                  const group = saleOrders.filter(s => s.type === type);
-                  if (!group.length) return null;
-                  const groupLabel = group[0].typeLabel;
-                  return (
-                    <optgroup key={type} label={`— ${groupLabel} —`}>
-                      {group.map(so => (
-                        <option key={so.id} value={so.id}>
-                          {so.code ?? so.id}
-                          {so.customer ? ` — ${so.customer}` : ""}
-                          {so.tongTien ? ` (${so.tongTien.toLocaleString("vi-VN")}₫)` : ""}
-                        </option>
-                      ))}
-                    </optgroup>
-                  );
-                })}
-              </select>
-            )}
-            {selectedSo && (
-              <span style={{
-                fontSize: 11.5, color: "var(--muted-foreground)", fontStyle: "italic",
-                display: "flex", alignItems: "center", gap: 4,
+        {/* Center/Right wrapper for flex distribution */}
+        <div className="xk-top-actions" style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "flex-end", gap: 16 }}>
+          {/* Mode toggle */}
+          <div className="xk-mode-select" style={{ display: "flex", background: "var(--muted)", padding: 4, borderRadius: 10, gap: 4, border: "1px solid rgba(0,0,0,0.05)" }}>
+            {([
+              { val: "manual" as const, label: "Thủ công",        icon: "bi-pencil" },
+              { val: "so"     as const, label: "Theo đơn bán hàng",    icon: "bi-bag-check" },
+              { val: "wo"     as const, label: "Theo lệnh sản xuất",   icon: "bi-gear" },
+            ]).map(m => (
+              <button key={m.val} onClick={() => !locked && setMode(m.val)} style={{
+                display: "flex", alignItems: "center", gap: 6, flex: 1, justifyContent: "center",
+                padding: "6px 16px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                cursor: locked ? "not-allowed" : "pointer", transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                background: mode === m.val ? "var(--card)"  : "transparent",
+                color:      mode === m.val ? "var(--foreground)" : "var(--muted-foreground)",
+                boxShadow:  mode === m.val ? "0 2px 8px rgba(0,0,0,0.08)" : "none",
+                whiteSpace: "nowrap"
               }}>
-                <i className="bi bi-check-circle-fill" style={{ color: "#10b981", fontSize: 12 }} />
-                Đã chọn {selectedSo.typeLabel?.toLowerCase()}
-              </span>
-            )}
+                <i className={`bi ${m.icon}`} style={{ fontSize: 14, opacity: mode === m.val ? 1 : 0.7 }} />
+                {m.label}
+              </button>
+            ))}
           </div>
-        )}
 
-        {/* WO select — ngay trong top bar khi mode = wo */}
-        {mode === "wo" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 10 }}>
-            <select
-              value={selectedWo?.id ?? ""}
-              onChange={e => !locked && onSelectWo(e.target.value)}
-              style={{
-                height: 34, padding: "0 12px",
-                border: `1.5px solid ${selectedWo ? "rgba(99,102,241,0.6)" : "var(--border)"}`,
-                borderRadius: 8,
-                background: selectedWo ? "rgba(99,102,241,0.06)" : "var(--muted)",
-                color: selectedWo ? "#6366f1" : "var(--foreground)",
-                fontSize: 13, fontWeight: selectedWo ? 700 : 400,
-                outline: "none", cursor: locked ? "not-allowed" : "pointer",
-                minWidth: 240, maxWidth: 360, transition: "all 0.15s",
-              }}
-            >
-              <option value="">-- Chọn lệnh sản xuất --</option>
-              {workOrders.length === 0 && <option disabled value="">Chưa có lệnh sản xuất</option>}
-              {workOrders.map(wo => (
-                <option key={wo.id} value={wo.id}>{wo.code ?? wo.id}{wo.tenLenhSX ? ` — ${wo.tenLenhSX}` : ""}</option>
-              ))}
-            </select>
-            {selectedWo && (
-              <span style={{ fontSize: 11, color: "#6366f1", fontWeight: 700, background: "rgba(99,102,241,0.1)", borderRadius: 20, padding: "2px 10px", whiteSpace: "nowrap" }}>
-                <i className="bi bi-check-circle-fill" style={{ marginRight: 4 }} />Đã chọn
-              </span>
-            )}
-          </div>
-        )}
+          {/* SO/WO select */}
+          {mode === "so" && (
+            <div className="xk-so-select position-relative" style={{ display: "flex", alignItems: "center" }}>
+              {listLoading ? (
+                <div style={{ fontSize: 13, color: "var(--muted-foreground)", padding: "0 10px" }}>
+                  <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> Đang tải…
+                </div>
+              ) : (
+                <div className="position-relative">
+                  <select
+                    value={selectedSo?.id ?? ""}
+                    onChange={e => !locked && onSelectSo(e.target.value)}
+                    style={{
+                      height: 38, padding: "0 36px 0 16px",
+                      border: `1px solid ${selectedSo ? "rgba(245,158,11,0.4)" : "var(--border)"}`,
+                      borderRadius: 10,
+                      background: selectedSo ? "rgba(245,158,11,0.05)" : "var(--background)",
+                      color: selectedSo ? "#d97706" : "var(--foreground)",
+                      fontSize: 13, fontWeight: selectedSo ? 600 : 400,
+                      outline: "none", cursor: locked ? "not-allowed" : "pointer",
+                      width: 280, transition: "all 0.2s",
+                      appearance: "none", textOverflow: "ellipsis"
+                    }}
+                  >
+                    <option value="">-- Chọn đơn bán hàng / hợp đồng --</option>
+                    {saleOrders.length === 0 && <option disabled value="">Không có đơn đang thực hiện</option>}
+                    {/* Group by type */}
+                    {(["contract", "sale-order", "retail-invoice"] as const).map(type => {
+                      const group = saleOrders.filter(s => s.type === type);
+                      if (!group.length) return null;
+                      const groupLabel = group[0].typeLabel;
+                      return (
+                        <optgroup key={type} label={`— ${groupLabel} —`}>
+                          {group.map(so => (
+                            <option key={so.id} value={so.id}>
+                              {so.code ?? so.id}
+                              {so.customer ? ` — ${so.customer}` : ""}
+                              {so.tongTien ? ` (${so.tongTien.toLocaleString("vi-VN")}₫)` : ""}
+                            </option>
+                          ))}
+                        </optgroup>
+                      );
+                    })}
+                  </select>
+                  <i className="bi bi-chevron-down position-absolute" style={{ right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 12, pointerEvents: "none", color: selectedSo ? "#d97706" : "var(--muted-foreground)" }} />
+                  {selectedSo && (
+                    <span className="position-absolute" style={{ top: -10, right: -10, fontSize: 10, color: "#fff", fontWeight: 600, background: "#10b981", borderRadius: 20, padding: "2px 8px", boxShadow: "0 2px 4px rgba(16, 185, 129, 0.3)", zIndex: 10 }}>
+                      <i className="bi bi-check" style={{ marginRight: 2 }} />Đã chọn
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* Close Button Top Right */}
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-          <button onClick={onClose} style={{ width: 34, height: 34, borderWidth: "1px", borderStyle: "solid", borderColor: "var(--border)", background: "var(--muted)", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
-            <i className="bi bi-x" style={{ fontSize: 18 }} />
+          {mode === "wo" && (
+            <div className="xk-so-select position-relative" style={{ display: "flex", alignItems: "center" }}>
+              <div className="position-relative">
+                <select
+                  value={selectedWo?.id ?? ""}
+                  onChange={e => !locked && onSelectWo(e.target.value)}
+                  style={{
+                    height: 38, padding: "0 36px 0 16px",
+                    border: `1px solid ${selectedWo ? "rgba(99,102,241,0.4)" : "var(--border)"}`,
+                    borderRadius: 10,
+                    background: selectedWo ? "rgba(99,102,241,0.05)" : "var(--background)",
+                    color: selectedWo ? "#6366f1" : "var(--foreground)",
+                    fontSize: 13, fontWeight: selectedWo ? 600 : 400,
+                    outline: "none", cursor: locked ? "not-allowed" : "pointer",
+                    width: 320, transition: "all 0.2s",
+                    appearance: "none", textOverflow: "ellipsis"
+                  }}
+                >
+                  <option value="">-- Chọn lệnh sản xuất --</option>
+                  {workOrders.length === 0 && <option disabled value="">Chưa có lệnh sản xuất</option>}
+                  {workOrders.map(wo => (
+                    <option key={wo.id} value={wo.id}>{wo.code ?? wo.id}{wo.tenLenhSX ? ` — ${wo.tenLenhSX}` : ""}</option>
+                  ))}
+                </select>
+                <i className="bi bi-chevron-down position-absolute" style={{ right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 12, pointerEvents: "none", color: selectedWo ? "#6366f1" : "var(--muted-foreground)" }} />
+                {selectedWo && (
+                  <span className="position-absolute" style={{ top: -10, right: -10, fontSize: 10, color: "#fff", fontWeight: 600, background: "#10b981", borderRadius: 20, padding: "2px 8px", boxShadow: "0 2px 4px rgba(16, 185, 129, 0.3)", zIndex: 10 }}>
+                    <i className="bi bi-check" style={{ marginRight: 2 }} />Đã chọn
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div style={{ width: 1, height: 24, background: "var(--border)", margin: "0 4px" }} className="d-none d-lg-block" />
+
+          {/* Close Button Top Right */}
+          <button onClick={onClose} className="xk-top-close" style={{ width: 36, height: 36, border: "none", background: "var(--muted)", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", transition: "all 0.2s" }}>
+            <i className="bi bi-x-lg" style={{ fontSize: 16 }} />
           </button>
         </div>
       </div>
 
       {/* ═══ BODY ═════════════════════════════════════════════════════════════ */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div className="xk-body" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
         {/* ── SIDEBAR TRÁI ────────────────────────────────────────────────── */}
-        <div style={{ width: 272, flexShrink: 0, borderRight: "1px solid var(--border)", background: "var(--card)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div className="xk-sidebar" style={{ width: 272, flexShrink: 0, borderRight: "1px solid var(--border)", background: "var(--card)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div style={{ padding: "16px 14px", display: "flex", flexDirection: "column", gap: 14, flex: 1, minHeight: 0 }}>
 
             {/* Header nhóm */}
@@ -689,62 +727,64 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId }: Xua
               <span style={{ fontWeight: 800, fontSize: 13 }}>Thông tin phiếu</span>
             </div>
 
-            {/* Số phiếu — readOnly monospace */}
-            <div>
-              <label style={CSS.label}>Số phiếu xuất</label>
-              <input value={soChungTu} readOnly style={{ ...CSS.input, background: "var(--muted)", color: "var(--muted-foreground)", cursor: "default", fontFamily: "monospace", fontSize: 12 }} />
-            </div>
+            <div className="xk-sidebar-grid" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Số phiếu — readOnly monospace */}
+              <div>
+                <label style={CSS.label}>Số phiếu xuất</label>
+                <input value={soChungTu} readOnly style={{ ...CSS.input, background: "var(--muted)", color: "var(--muted-foreground)", cursor: "default", fontFamily: "monospace", fontSize: 12 }} />
+              </div>
 
-            {/* Ngày xuất + lock toggle */}
-            <div>
-              <label style={CSS.label}>Ngày xuất kho</label>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input
-                  type="date"
-                  value={ngayXuat}
-                  min={lockDate ? new Date().toISOString().slice(0,10) : undefined}
-                  max={lockDate ? new Date().toISOString().slice(0,10) : undefined}
-                  onChange={e => !lockDate && !locked && setNgayXuat(e.target.value)}
-                  readOnly={lockDate || locked}
-                  style={{ ...CSS.input, flex: 1, cursor: (lockDate || locked) ? "not-allowed" : "text", opacity: (lockDate || locked) ? 0.7 : 1, background: (lockDate || locked) ? "var(--muted)" : CSS.input.background }}
-                />
-                {/* iOS-style toggle */}
-                {!locked && (
-                  <span onClick={() => setLockDate(v => !v)} title={lockDate ? "Khoá ngày hôm nay — nhấn để mở" : "Đang mở — nhấn để khoá"}
-                    style={{ position: "relative", display: "inline-block", width: 34, height: 18, borderRadius: 9, flexShrink: 0, background: lockDate ? "#f59e0b" : "var(--border)", transition: "background 0.2s", cursor: "pointer" }}>
-                    <span style={{ position: "absolute", top: 2, left: lockDate ? 18 : 2, width: 14, height: 14, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.25)", transition: "left 0.2s" }} />
-                  </span>
-                )}
+              {/* Ngày xuất + lock toggle */}
+              <div>
+                <label style={CSS.label}>Ngày xuất kho</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="date"
+                    value={ngayXuat}
+                    min={lockDate ? new Date().toISOString().slice(0,10) : undefined}
+                    max={lockDate ? new Date().toISOString().slice(0,10) : undefined}
+                    onChange={e => !lockDate && !locked && setNgayXuat(e.target.value)}
+                    readOnly={lockDate || locked}
+                    style={{ ...CSS.input, flex: 1, cursor: (lockDate || locked) ? "not-allowed" : "text", opacity: (lockDate || locked) ? 0.7 : 1, background: (lockDate || locked) ? "var(--muted)" : CSS.input.background }}
+                  />
+                  {/* iOS-style toggle */}
+                  {!locked && (
+                    <span onClick={() => setLockDate(v => !v)} title={lockDate ? "Khoá ngày hôm nay — nhấn để mở" : "Đang mở — nhấn để khoá"}
+                      style={{ position: "relative", display: "inline-block", width: 34, height: 18, borderRadius: 9, flexShrink: 0, background: lockDate ? "#f59e0b" : "var(--border)", transition: "background 0.2s", cursor: "pointer" }}>
+                      <span style={{ position: "absolute", top: 2, left: lockDate ? 18 : 2, width: 14, height: 14, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.25)", transition: "left 0.2s" }} />
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Kho xuất */}
+              <div>
+                <label style={CSS.label}>Kho xuất <span style={{ color: "#f43f5e" }}>*</span></label>
+                <select value={fromWarehouseId} onChange={e => !locked && setFromWarehouseId(e.target.value)} disabled={true}
+                  style={{ ...CSS.input, appearance: "none", borderColor: fromWarehouseId ? "rgba(245,158,11,0.5)" : "var(--border)", opacity: 0.65, cursor: "not-allowed" }}>
+                  <option value="">Chọn kho</option>
+                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+              </div>
+
+              {/* Người thực hiện */}
+              <div>
+                <label style={CSS.label}>Người thực hiện</label>
+                <input value={nguoiThucHien} onChange={e => !locked && setNguoiThucHien(e.target.value)} readOnly={locked}
+                  placeholder="Tên người xuất kho"
+                  style={{ ...CSS.input, opacity: locked ? 0.65 : 1, cursor: locked ? "default" : "text" }} />
               </div>
             </div>
 
-            {/* Kho xuất */}
-            <div>
-              <label style={CSS.label}>Kho xuất <span style={{ color: "#f43f5e" }}>*</span></label>
-              <select value={fromWarehouseId} onChange={e => !locked && setFromWarehouseId(e.target.value)} disabled={locked}
-                style={{ ...CSS.input, appearance: "none", borderColor: fromWarehouseId ? "rgba(245,158,11,0.5)" : "var(--border)", opacity: locked ? 0.65 : 1, cursor: locked ? "not-allowed" : "pointer" }}>
-                <option value="">Chọn kho</option>
-                {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
-            </div>
-
-            {/* Người thực hiện */}
-            <div>
-              <label style={CSS.label}>Người thực hiện</label>
-              <input value={nguoiThucHien} onChange={e => !locked && setNguoiThucHien(e.target.value)} readOnly={locked}
-                placeholder="Tên người xuất kho"
-                style={{ ...CSS.input, opacity: locked ? 0.65 : 1, cursor: locked ? "default" : "text" }} />
-            </div>
-
             {/* Lý do — textarea */}
-            <div>
+            <div className="xk-sidebar-full-row">
               <label style={CSS.label}>Lý do xuất kho</label>
               <textarea value={lyDo} onChange={e => !locked && setLyDo(e.target.value)} readOnly={locked} rows={2}
                 style={{ ...CSS.input, resize: locked ? "none" : "vertical", lineHeight: 1.5, opacity: locked ? 0.65 : 1, cursor: locked ? "default" : "text" }} />
             </div>
 
             {/* Ghi chú — chiếm hết không gian còn lại */}
-            <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+            <div className="xk-sidebar-full-row" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
               <label style={CSS.label}>Ghi chú</label>
               <textarea value={ghiChu} onChange={e => !locked && setGhiChu(e.target.value)} readOnly={locked}
                 placeholder="Ghi chú thêm..."
@@ -768,7 +808,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId }: Xua
         </div>
 
         {/* ── TABLE AREA ─────────────────────────────────────────────────── */}
-        <div style={{ flex: 1, overflowY: !fromWarehouseId ? "hidden" : "auto", padding: "16px 20px 24px", position: "relative" }}>
+        <div className="xk-table-wrapper" style={{ flex: 1, overflowY: !fromWarehouseId ? "hidden" : "auto", padding: "16px 20px 24px", position: "relative" }}>
 
           {/* Overlay khi chưa chọn kho */}
           {!fromWarehouseId && (
@@ -784,18 +824,18 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId }: Xua
           )}
 
           {/* Tiêu đề bảng + tổng */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <div className="xk-pane-header" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <span style={{ fontWeight: 800, fontSize: 14 }}>Danh sách hàng hoá xuất kho</span>
-            <span style={{ fontSize: 12, color: "var(--muted-foreground)", background: "var(--muted)", borderRadius: 20, padding: "2px 10px" }}>
+            <span style={{ fontSize: 12, color: "var(--muted-foreground)", background: "var(--muted)", borderRadius: 20, padding: "2px 10px", whiteSpace: "nowrap" }}>
               {lines.length} dòng
             </span>
             {mode === "so" && selectedSo && (
-              <span style={{ fontSize: 11, color: "#f59e0b", background: "rgba(245,158,11,0.1)", borderRadius: 20, padding: "2px 10px", fontWeight: 600 }}>
+              <span style={{ fontSize: 11, color: "#f59e0b", background: "rgba(245,158,11,0.1)", borderRadius: 20, padding: "2px 10px", fontWeight: 600, whiteSpace: "nowrap" }}>
                 <i className="bi bi-link-45deg" /> Từ SO: {selectedSo?.code}
               </span>
             )}
             {mode === "wo" && selectedWo && (
-              <span style={{ fontSize: 11, color: "#6366f1", background: "rgba(99,102,241,0.1)", borderRadius: 20, padding: "2px 10px", fontWeight: 600 }}>
+              <span style={{ fontSize: 11, color: "#6366f1", background: "rgba(99,102,241,0.1)", borderRadius: 20, padding: "2px 10px", fontWeight: 600, whiteSpace: "nowrap" }}>
                 <i className="bi bi-link-45deg" /> Từ lệnh: {selectedWo?.code}
               </span>
             )}
@@ -811,7 +851,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId }: Xua
                 onCreatePR={reportMissingItems}
               />
             )}
-            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
+            <div className="xk-pane-totals" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Tổng SL</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: "#f59e0b", lineHeight: 1.2 }}>{tongSL.toLocaleString("vi-VN")}</div>
@@ -824,57 +864,59 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId }: Xua
             </div>
           </div>
 
-          {/* Table header — 2 dòng */}
-          <div style={{ background: "var(--muted)", borderRadius: "8px 8px 0 0", overflow: "hidden" }}>
-            {/* Dòng 1 — group labels */}
-            <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 60px 160px 180px 110px 110px 32px", gap: 5, padding: "6px 10px 0", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              <div>#</div>
-              <div>Hàng hoá</div>
-              <div style={{ textAlign: "center" }}>ĐVT</div>
-              <div style={{ textAlign: "center", borderBottom: "2px solid var(--border)", paddingBottom: 3, fontSize: 10.5 }}>Số lượng</div>
-              <div style={{ textAlign: "center", borderBottom: "2px solid var(--border)", paddingBottom: 3, fontSize: 10.5 }}>Vị trí trong kho</div>
-              <div style={{ textAlign: "right" }}>Đơn giá (₫)</div>
-              <div style={{ textAlign: "right" }}>Thành tiền</div>
-              <div />
+          <div className="xk-table-inner">
+            {/* Table header — 2 dòng */}
+            <div style={{ background: "var(--muted)", borderRadius: "8px 8px 0 0", overflow: "hidden" }}>
+              {/* Dòng 1 — group labels */}
+              <div style={{ display: "grid", gridTemplateColumns: "28px 1fr 60px 160px 180px 110px 110px 32px", gap: 5, padding: "6px 10px 0", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <div>#</div>
+                <div>Hàng hoá</div>
+                <div style={{ textAlign: "center" }}>ĐVT</div>
+                <div style={{ textAlign: "center", borderBottom: "2px solid var(--border)", paddingBottom: 3, fontSize: 10.5 }}>Số lượng</div>
+                <div style={{ textAlign: "center", borderBottom: "2px solid var(--border)", paddingBottom: 3, fontSize: 10.5 }}>Vị trí trong kho</div>
+                <div style={{ textAlign: "right" }}>Đơn giá (₫)</div>
+                <div style={{ textAlign: "right" }}>Thành tiền</div>
+                <div />
+              </div>
+              {/* Dòng 2 — sub-labels */}
+              <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 5, padding: "2px 10px 6px", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                <div /><div /><div />
+                <div style={{ textAlign: "center", opacity: 0.75 }}>Yêu cầu</div>
+                <div style={{ textAlign: "center", opacity: 0.9 }}>Thực xuất</div>
+                <div style={{ textAlign: "center", opacity: 0.75 }}>Hàng</div>
+                <div style={{ textAlign: "center", opacity: 0.75 }}>Cột</div>
+                <div style={{ textAlign: "center", opacity: 0.75 }}>Tầng</div>
+                <div /><div /><div />
+              </div>
             </div>
-            {/* Dòng 2 — sub-labels */}
-            <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 5, padding: "2px 10px 6px", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              <div /><div /><div />
-              <div style={{ textAlign: "center", opacity: 0.75 }}>Yêu cầu</div>
-              <div style={{ textAlign: "center", opacity: 0.9 }}>Thực xuất</div>
-              <div style={{ textAlign: "center", opacity: 0.75 }}>Hàng</div>
-              <div style={{ textAlign: "center", opacity: 0.75 }}>Cột</div>
-              <div style={{ textAlign: "center", opacity: 0.75 }}>Tầng</div>
-              <div /><div /><div />
-            </div>
-          </div>
 
-          {/* Lines */}
-          <div style={{ border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 8px 8px" }}>
-            {lines.map((line, idx) => (
-              <LineRow key={line.id} line={line} idx={idx}
-                onItemSearch={q => onItemSearch(line.id, q)}
-                onSelectItem={item => selectItem(line.id, item)}
-                onUpdate={(key, val) => updateLine(line.id, key, val)}
-                onRemove={() => removeLine(line.id)}
-                canRemove={lines.length > 1}
-                locked={locked}
-              />
-            ))}
-            <div style={{ padding: "8px 10px", borderTop: "1px dashed var(--border)" }}>
-              {!locked ? (
-                <button onClick={addLine}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#f59e0b"; e.currentTarget.style.color = "#f59e0b"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--muted-foreground)"; }}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderWidth: "1.5px", borderStyle: "dashed", borderColor: "var(--border)", background: "transparent", color: "var(--muted-foreground)", fontSize: 13, fontWeight: 600, borderRadius: 7, cursor: "pointer", transition: "all 0.15s" }}>
-                  <i className="bi bi-plus-lg" style={{ fontSize: 13 }} /> Thêm dòng hàng hoá
-                </button>
-              ) : (
-                <div style={{ fontSize: 12, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 6, padding: "4px 4px" }}>
-                  <i className="bi bi-lock-fill" style={{ fontSize: 11, color: "#f59e0b" }} />
-                  Danh sách đã khoá sau khi xác nhận xuất kho
-                </div>
-              )}
+            {/* Lines */}
+            <div style={{ border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 8px 8px" }}>
+              {lines.map((line, idx) => (
+                <LineRow key={line.id} line={line} idx={idx}
+                  onItemSearch={q => onItemSearch(line.id, q)}
+                  onSelectItem={item => selectItem(line.id, item)}
+                  onUpdate={(key, val) => updateLine(line.id, key, val)}
+                  onRemove={() => removeLine(line.id)}
+                  canRemove={lines.length > 1}
+                  locked={locked}
+                />
+              ))}
+              <div style={{ padding: "8px 10px", borderTop: "1px dashed var(--border)" }}>
+                {!locked ? (
+                  <button onClick={addLine}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "#f59e0b"; e.currentTarget.style.color = "#f59e0b"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--muted-foreground)"; }}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderWidth: "1.5px", borderStyle: "dashed", borderColor: "var(--border)", background: "transparent", color: "var(--muted-foreground)", fontSize: 13, fontWeight: 600, borderRadius: 7, cursor: "pointer", transition: "all 0.15s" }}>
+                    <i className="bi bi-plus-lg" style={{ fontSize: 13 }} /> Thêm dòng hàng hoá
+                  </button>
+                ) : (
+                  <div style={{ fontSize: 12, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 6, padding: "4px 4px" }}>
+                    <i className="bi bi-lock-fill" style={{ fontSize: 11, color: "#f59e0b" }} />
+                    Danh sách đã khoá sau khi xác nhận xuất kho
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

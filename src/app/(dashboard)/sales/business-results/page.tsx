@@ -64,7 +64,7 @@ function KpiCard({ label, value, sub, icon, color, progress }: {
 }
 
 export default function BusinessResultsPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [partnersCountThisMonth, setPartnersCountThisMonth] = useState<number>(0);
 
@@ -113,11 +113,11 @@ export default function BusinessResultsPage() {
 
   // Raw data from dashboard API with fallbacks
   const apiSummary = data?.summary || { totalRevenue: 0, targetRevenue: 0, totalOrdersCount: 0, totalDebt: 0, customersCount: 0, dealersCount: 0 };
-  const apiTrends = data?.monthlyTrends || Array.from({ length: 12 }, (_, i) => ({ month: `Tháng ${i + 1}`, target: 0, actual: (i + 1) > (new Date().getMonth() + 1) ? null : 0 }));
+  const apiTrends = data?.monthlyTrends || Array.from({ length: 12 }, (_, i) => ({ month: `Tháng ${i + 1}`, target: 0, actualRevenue: (i + 1) > (new Date().getMonth() + 1) ? null : 0 }));
 
   // Standard plan fallback if yearly target hasn't been set yet (to avoid 0 values on target metrics)
   const targetRevenue = apiSummary.targetRevenue > 0 ? apiSummary.targetRevenue : 4500000000;
-  const totalRevenue = apiSummary.totalRevenue;
+  const totalRevenue = apiSummary.totalRevenue || 0;
 
   // Calculate achievement percentage
   const achievementRate = targetRevenue > 0 ? Math.round((totalRevenue / targetRevenue) * 100) : 0;
@@ -126,15 +126,19 @@ export default function BusinessResultsPage() {
   const avgOrderVal = apiSummary.totalOrdersCount > 0 ? Math.round(totalRevenue / apiSummary.totalOrdersCount) : 0;
 
   // Let's refine monthly trends to ensure it has realistic target values if the database plan was empty
-  const monthlyTrends = apiTrends.map((t, idx) => {
+  const monthlyTrends = apiTrends.map((t: any, idx: number) => {
     // If DB target is empty, distribute the distributed target (e.g. 350M - 420M per month)
     const fallbackTarget = (targetRevenue / 12) * (1 + Math.sin(idx / 2) * 0.1);
     const targetVal = t.target > 0 ? t.target : Math.round(fallbackTarget);
+    
+    // API returns actualRevenue, but we safely fallback to actual or actualSales if present
+    const actualVal = t.actualRevenue !== undefined ? t.actualRevenue : (t.actual !== undefined ? t.actual : (t.actualSales || null));
+    
     return {
       month: t.month,
       target: targetVal,
-      actual: t.actual,
-      achievement: (t.actual !== null && targetVal > 0) ? Math.round((t.actual / targetVal) * 100) : 0
+      actual: actualVal,
+      achievement: (actualVal !== null && targetVal > 0) ? Math.round((actualVal / targetVal) * 100) : 0
     };
   });
 
@@ -193,7 +197,7 @@ export default function BusinessResultsPage() {
     dataLabels: { enabled: false },
     stroke: { curve: "smooth", width: 2.5 },
     xaxis: {
-      categories: monthlyTrends.map((t) => t.month),
+      categories: monthlyTrends.map((t: any) => t.month),
       labels: { style: { colors: "#64748b", fontSize: "11px" } },
       axisBorder: { show: false },
       axisTicks: { show: false },
@@ -223,8 +227,8 @@ export default function BusinessResultsPage() {
   };
 
   const revenueTrendSeries = [
-    { name: "Doanh số mục tiêu", data: monthlyTrends.map((t) => t.target) },
-    { name: "Doanh số thực tế", data: monthlyTrends.map((t) => t.actual) },
+    { name: "Doanh số mục tiêu", data: monthlyTrends.map((t: any) => t.target) },
+    { name: "Doanh số thực tế", data: monthlyTrends.map((t: any) => t.actual) },
   ];
 
   const categoryPieOptions: ApexCharts.ApexOptions = {
@@ -459,7 +463,7 @@ export default function BusinessResultsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {monthlyTrends.map((t, index) => {
+                    {monthlyTrends.map((t: any, index: number) => {
                       const achievementColor = t.achievement >= 100 ? "text-success" : t.achievement >= 75 ? "text-primary" : t.achievement > 0 ? "text-warning" : "text-muted";
                       const isFutureMonth = t.actual === null;
                       return (

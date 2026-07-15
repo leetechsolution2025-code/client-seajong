@@ -73,10 +73,35 @@ export async function GET(req: NextRequest) {
     industryProdCategoryIds = descendantIds;
   }
 
+  let whFilter: any = {};
+  if (warehouseId) {
+    const wh = await prisma.warehouse.findUnique({ where: { id: warehouseId }, select: { code: true } });
+    if (wh?.code === "KHO-THANHPHAM") whFilter = { loai: "thanh-pham" };
+    else if (wh?.code === "KVP") whFilter = { loai: "vat-tu" };
+    else if (wh?.code === "KHO-CHINH") whFilter = { loai: "hang-hoa" };
+    else if (wh?.code === "KHO-LOI") whFilter = { stocks: { some: { warehouseId: warehouseId, soLuong: { gt: 0 } } } };
+  }
+
+  // Fetch synced category ids
+  const syncedCategories = await prisma.category.findMany({
+    where: { type: { in: ['danh_muc_thanh_pham', 'vat_tu_san_xuat'] } },
+    select: { id: true }
+  });
+  const syncedIds = syncedCategories.map(c => c.id);
+
+  const isManufactured = whFilter.loai === "thanh-pham" || whFilter.loai === "vat-tu";
+  
   const items = await prisma.inventoryItem.findMany({
-    where: industryProdCategoryIds.length > 0 ? {
-      categoryId: { in: industryProdCategoryIds }
-    } : {},
+    where: {
+      ...whFilter,
+      ...(!isManufactured && industryProdCategoryIds.length > 0 ? {
+        OR: [
+          { categoryId: { in: industryProdCategoryIds } },
+          { categoryId: { in: syncedIds } },
+          { categoryId: null } // Bao gồm các vật tư, thành phẩm được đồng bộ
+        ]
+      } : {})
+    },
     select: {
       id:         true,
       code:       true,
@@ -103,8 +128,8 @@ export async function GET(req: NextRequest) {
   if (warehouseId) {
     const wh = await prisma.warehouse.findUnique({ where: { id: warehouseId }, select: { name: true } });
 
-    // Chỉ giữ item có InventoryStock trong kho này (bỏ qua hàng chưa từng có trong kho)
-    return NextResponse.json(items.filter(it => it.stocks.length > 0).map(it => {
+    // Cho phép hiển thị tất cả hàng hoá để người dùng có thể nhập tồn kho đầu kỳ
+    return NextResponse.json(items.map(it => {
       type StockLocated = { soLuong: number; soLuongMin: number; viTriHang: string | null; viTriCot: string | null; viTriTang: string | null };
       const stock = (it.stocks as StockLocated[])[0] ?? null;
       return {

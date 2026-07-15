@@ -13,8 +13,18 @@ export async function GET(req: NextRequest) {
   const limit       = Math.min(50, parseInt(searchParams.get("limit") ?? "20"));
   const warehouseId = searchParams.get("warehouseId") ?? null;
 
+  let whFilter: any = {};
+  if (warehouseId) {
+    const wh = await prisma.warehouse.findUnique({ where: { id: warehouseId }, select: { code: true } });
+    if (wh?.code === "KHO-THANHPHAM") whFilter = { loai: "thanh-pham" };
+    else if (wh?.code === "KVP") whFilter = { loai: "vat-tu" };
+    else if (wh?.code === "KHO-CHINH") whFilter = { loai: "hang-hoa" };
+    else if (wh?.code === "KHO-LOI") whFilter = { stocks: { some: { warehouseId: warehouseId, soLuong: { gt: 0 } } } };
+  }
+
   // Fetch toàn bộ khi có q để filter JS-side chính xác (SQLite không normalize dấu tiếng Việt)
   const rawItems = await prisma.inventoryItem.findMany({
+    where: whFilter,
     select: {
       id:        true,
       code:      true,

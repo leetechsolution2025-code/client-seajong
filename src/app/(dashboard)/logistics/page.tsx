@@ -18,6 +18,12 @@ export default function LogisticsOverviewPage() {
   const [orderDetails, setOrderDetails] = useState<any[]>([]);
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [showXuatKhoModal, setShowXuatKhoModal] = useState(false);
+  const [xuatKhoOrderType, setXuatKhoOrderType] = useState<"so" | "wo" | "manual">("manual");
+  const [xuatKhoSoId, setXuatKhoSoId] = useState<string | undefined>(undefined);
+  const [xuatKhoWoId, setXuatKhoWoId] = useState<string | undefined>(undefined);
+  
+  // Mobile tab state
+  const [activeTab, setActiveTab] = useState<"orders" | "inventory">("orders");
   
   const toast = useToast();
   const prevOrderIds = useRef<Set<string>>(new Set());
@@ -105,7 +111,7 @@ export default function LogisticsOverviewPage() {
         if (res.ok) {
           const detail = await res.json();
           if (detail.logisticsItems) {
-            items = detail.logisticsItems.map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type }));
+            items = detail.logisticsItems.map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type, isShortage: it.isShortage }));
           } else {
             items = (detail.saleOrderItems ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.inventoryItem?.donVi }));
           }
@@ -131,10 +137,10 @@ export default function LogisticsOverviewPage() {
         color="blue"
       />
 
-      <div className="flex-grow-1 pb-4 pt-2 px-4 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+      <div className="flex-grow-1 pb-5 pb-xl-4 pt-2 px-xl-4 px-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         <div className="row flex-grow-1 m-0 h-100" style={{ minHeight: 0 }}>
           {/* Cột trái (5 phần) */}
-          <div className="col-5 p-0 pe-2 d-flex flex-column h-100">
+          <div className={`col-12 col-xl-5 p-0 pe-xl-2 mb-3 mb-xl-0 flex-column h-100 ${activeTab === "orders" ? "d-flex" : "d-none d-xl-flex"}`} style={{ minHeight: 0 }}>
             <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
               <div className="px-4 pt-4 pb-2">
                 <SectionTitle title="Danh sách lệnh xuất nhập kho" icon="bi-card-list" />
@@ -176,12 +182,18 @@ export default function LogisticsOverviewPage() {
                         if (row.trangThai === "active" || row.trangThai === "processing" || row.trangThai === "partial") {
                           statusColor = "bg-warning";
                           statusText = "Đang xử lý";
-                        } else if (row.trangThai === "confirmed") {
+                        } else if (row.trangThai === "confirmed" || row.trangThai === "approved") {
                           statusColor = "bg-info";
                           statusText = "Đã xác nhận";
                         } else if (row.trangThai === "pending" || row.trangThai === "unpaid") {
                           statusColor = "bg-danger";
                           statusText = "Chờ xử lý";
+                        } else if (row.trangThai === "in_production") {
+                          statusColor = "bg-secondary";
+                          statusText = "Đang sản xuất";
+                        } else if (row.trangThai === "completed" || row.trangThai === "done") {
+                          statusColor = "bg-success";
+                          statusText = "Hoàn thành";
                         }
 
                         return <span className={`badge ${statusColor} rounded-pill`} style={{ fontSize: 10 }}>{statusText}</span>;
@@ -200,10 +212,10 @@ export default function LogisticsOverviewPage() {
           </div>
 
           {/* Cột phải (7 phần) */}
-          <div className="col-7 p-0 ps-2 d-flex flex-column h-100">
+          <div className={`col-12 col-xl-7 p-0 ps-xl-2 flex-column h-100 ${activeTab === "inventory" ? "d-flex" : "d-none d-xl-flex"}`} style={{ minHeight: 0 }}>
             <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
               <div 
-                className="flex-grow-1 custom-scrollbar d-flex flex-column overflow-hidden pt-4 px-4 pb-3"
+                className="flex-grow-1 custom-scrollbar d-flex flex-column overflow-hidden pt-4 px-2 px-md-4 pb-3"
                 style={{ minHeight: 0 }}
               >
                 <LogisticsInventory compactMode={true} hideActions={true} />
@@ -211,6 +223,37 @@ export default function LogisticsOverviewPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Mobile/Tablet Bottom Toolbar */}
+      <div className="d-flex d-xl-none position-fixed bottom-0 start-0 w-100 bg-white border-top shadow-lg p-2 justify-content-start align-items-center gap-2" style={{ zIndex: 1030 }}>
+        <button 
+          onClick={() => setActiveTab("orders")}
+          className={`btn rounded-pill px-4 py-2 fw-semibold ${activeTab === "orders" ? "btn-primary shadow-sm" : "btn-light text-muted"}`}
+          style={{ fontSize: 14, transition: "all 0.2s" }}
+        >
+          <i className="bi bi-card-list me-2"></i>
+          Lệnh kho
+        </button>
+        <button 
+          onClick={() => setActiveTab("inventory")}
+          className={`btn rounded-pill px-4 py-2 fw-semibold ${activeTab === "inventory" ? "btn-primary shadow-sm" : "btn-light text-muted"}`}
+          style={{ fontSize: 14, transition: "all 0.2s" }}
+        >
+          <i className="bi bi-box-seam me-2"></i>
+          Hàng hoá
+        </button>
+
+        {activeTab === "inventory" && (
+          <button 
+            onClick={() => document.getElementById("logistics-add-item-btn")?.click()}
+            className="btn btn-primary rounded-pill px-4 py-2 fw-semibold shadow-sm"
+            style={{ fontSize: 14, backgroundColor: "#011F58", borderColor: "#011F58" }}
+          >
+            <i className="bi bi-plus-lg me-2"></i>
+            Thêm
+          </button>
+        )}
       </div>
 
       {/* Offcanvas */}
@@ -252,7 +295,10 @@ export default function LogisticsOverviewPage() {
                       header: "Sản phẩm", 
                       render: (row: any) => (
                         <div className="d-flex flex-column">
-                          <span className="fw-medium text-dark">{row.name}</span>
+                          <span className="fw-medium text-dark">
+                            {row.name}
+                            {row.isShortage && <i className="bi bi-exclamation-circle text-danger ms-2" title="Thiếu hàng trong kho" />}
+                          </span>
                           {row.type && <span className="text-muted" style={{ fontSize: 11 }}><i className="bi bi-box-seam me-1"></i>{row.type}</span>}
                         </div>
                       ), 
@@ -274,7 +320,14 @@ export default function LogisticsOverviewPage() {
           </div>
         </div>
         <div className="offcanvas-footer p-3 border-top bg-light">
-          <button className="btn btn-primary w-100" onClick={() => setShowXuatKhoModal(true)}>
+          <button className="btn btn-primary w-100" onClick={() => {
+            const isSo = selectedOrder?.type === "sale-order";
+            setXuatKhoOrderType(isSo ? "so" : "wo");
+            setXuatKhoSoId(isSo ? selectedOrder?.id : undefined);
+            setXuatKhoWoId(!isSo ? selectedOrder?.id : undefined);
+            setShowXuatKhoModal(true);
+            setSelectedOrder(null);
+          }}>
             Thực hiện
           </button>
         </div>
@@ -282,12 +335,13 @@ export default function LogisticsOverviewPage() {
 
       {showXuatKhoModal && (
         <XuatKhoModal 
-          initialMode="so"
-          initialSoId={selectedOrder?.id}
+          initialMode={xuatKhoOrderType}
+          initialSoId={xuatKhoSoId}
+          initialWoId={xuatKhoWoId}
           onClose={() => setShowXuatKhoModal(false)}
           onSaved={() => {
             setShowXuatKhoModal(false);
-            setSelectedOrder(null);
+            window.location.reload();
           }}
         />
       )}

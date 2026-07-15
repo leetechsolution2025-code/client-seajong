@@ -45,7 +45,7 @@ export async function GET(req: Request) {
       prisma.saleOrder.count(),
       prisma.saleOrder.count({ where: { trangThai: "done" } }),
       prisma.expense.aggregate({ _sum: { soTien: true }, where: { trangThai: "paid" } }),
-      prisma.debt.aggregate({ _sum: { amount: true }, where: { type: "phai-thu" } }),
+      prisma.debt.aggregate({ _sum: { amount: true }, where: { type: { in: ["phai-thu", "RECEIVABLE"] } } }),
       prisma.debt.aggregate({ _sum: { amount: true }, where: { type: "phai-tra" } }),
       // Phát sinh KH theo tháng
       prisma.customer.groupBy({

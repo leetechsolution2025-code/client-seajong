@@ -186,7 +186,7 @@ export function Table<T>({
             {renderHeader ? (
               renderHeader()
             ) : (
-              <tr style={{ borderBottom: borderless ? "none" : "2px solid var(--border)" }}>
+              <tr style={{ borderTop: borderless ? "none" : "1px solid var(--border)", borderBottom: borderless ? "none" : "2px solid var(--border)" }}>
                 {columns.map((col, i) => (
                   <th
                     key={i}
@@ -199,6 +199,7 @@ export function Table<T>({
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
                       color: "var(--muted-foreground)",
+                      borderTop: borderless ? "none" : "1px solid var(--border)",
                       borderBottom: borderless ? "none" : "2px solid var(--border)",
                       whiteSpace: col.noWrap !== false ? "nowrap" : undefined,
                       width: col.width,

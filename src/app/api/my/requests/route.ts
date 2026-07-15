@@ -52,8 +52,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Request type is required" }, { status: 400 });
     }
 
+    // Generate custom Request ID: YC-ddmmYYYY-STT
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+
+    const todayRequestsCount = await (prisma as any).personalRequest.count({
+      where: {
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+    });
+
+    const dayStr = String(today.getDate()).padStart(2, '0');
+    const monthStr = String(today.getMonth() + 1).padStart(2, '0');
+    const yearStr = today.getFullYear();
+    const sequenceStr = String(todayRequestsCount + 1).padStart(3, '0');
+    
+    const requestId = `YC-${dayStr}${monthStr}${yearStr}-${sequenceStr}`;
+
     const newRequest = await (prisma as any).personalRequest.create({
       data: {
+        id: requestId,
         employeeId: session.user.employeeId,
         type,
         status: "PENDING",

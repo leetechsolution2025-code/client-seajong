@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { BOMBuilderModal } from "./BOMBuilderModal";
+import toast from "react-hot-toast";
 
 interface InventoryDetailOffcanvasProps {
   show: boolean;
@@ -12,6 +13,30 @@ interface InventoryDetailOffcanvasProps {
 
 export function InventoryDetailOffcanvas({ show, onClose, item, isMaterial, onRefresh }: InventoryDetailOffcanvasProps) {
   const [showBOM, setShowBOM] = useState(false);
+  const [isEditingPrice, setIsEditingPrice] = useState(false);
+  const [editPriceVal, setEditPriceVal] = useState<number | string>(0);
+  const [savingPrice, setSavingPrice] = useState(false);
+
+  const handleSavePrice = async () => {
+    if (!item?.id) return;
+    setSavingPrice(true);
+    try {
+      const res = await fetch(`/api/production/materials/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ giaBan: Number(editPriceVal) })
+      });
+      if (!res.ok) throw new Error("Cập nhật thất bại");
+      toast.success("Cập nhật giá bán lẻ thành công");
+      setIsEditingPrice(false);
+      onRefresh?.();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSavingPrice(false);
+    }
+  };
+
   if (!item) return null;
 
   return (
@@ -74,11 +99,38 @@ export function InventoryDetailOffcanvas({ show, onClose, item, isMaterial, onRe
               <InfoRow label="Danh mục" value={item.category?.name || "Chưa phân loại"} />
               <InfoRow label="Đơn vị tính" value={item.donVi || "Cái"} />
               <InfoRow label="Thương hiệu" value={item.brand || "Seajong"} />
-              <InfoRow 
-                label="Giá bán niêm yết" 
-                value={item.giaBan ? `${item.giaBan.toLocaleString("vi-VN")} VNĐ` : "Chưa có giá"} 
-                highlight 
-              />
+              <div className="d-flex justify-content-between align-items-start gap-3">
+                <span className="text-muted flex-shrink-0" style={{ fontSize: 12 }}>Giá bán niêm yết:</span>
+                {isEditingPrice ? (
+                  <div className="d-flex align-items-center gap-1">
+                    <input 
+                      type="number" 
+                      className="form-control form-control-sm text-end" 
+                      value={editPriceVal} 
+                      onChange={e => setEditPriceVal(e.target.value)} 
+                      style={{ width: 100, fontSize: 12.5 }}
+                    />
+                    <button className="btn btn-sm btn-success py-0 px-1" onClick={handleSavePrice} disabled={savingPrice}>
+                      <i className="bi bi-check2"></i>
+                    </button>
+                    <button className="btn btn-sm btn-light py-0 px-1 border" onClick={() => setIsEditingPrice(false)}>
+                      <i className="bi bi-x"></i>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-end text-primary fw-bold d-flex align-items-center gap-2" style={{ fontSize: 12.5 }}>
+                    {item.giaBan ? `${item.giaBan.toLocaleString("vi-VN")} VNĐ` : "Chưa có giá"}
+                    {isMaterial && (
+                      <i 
+                        className="bi bi-pencil cursor-pointer text-muted ms-1" 
+                        style={{ cursor: "pointer", fontSize: 11 }} 
+                        onClick={() => { setIsEditingPrice(true); setEditPriceVal(item.giaBan || 0); }} 
+                        title="Cập nhật giá bán lẻ"
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
               {!isMaterial && (
                 <InfoRow 
                   label="Mã định mức" 

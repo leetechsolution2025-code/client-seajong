@@ -399,7 +399,7 @@ return () => clearInterval(interval);
         editItem={editingItem}
       />
 
-      {hideActions && selectedItem ? (
+      {hideActions && selectedItem && selectedItem.source !== "material" ? (
         fetchingWebProduct ? (
           <div className="offcanvas offcanvas-end show" style={{ width: 600, visibility: "visible" }}>
             <div className="offcanvas-header border-bottom p-3">
@@ -437,7 +437,7 @@ return () => clearInterval(interval);
       ) : (
         <LogisticsItemDetailOffcanvas 
           item={selectedItem as any} 
-          open={!!selectedItem && !hideActions} 
+          open={!!selectedItem && (!hideActions || selectedItem?.source === "material")} 
           onClose={() => setSelectedItem(null)} 
           onEdit={hideActions ? undefined : (item) => {
             setSelectedItem(null);
@@ -656,7 +656,8 @@ return () => clearInterval(interval);
 
             {!hideAddButton && (
               <button 
-                className="btn btn-sm rounded-pill px-4 fw-bold text-white" 
+                id="logistics-add-item-btn"
+                className="btn btn-sm rounded-pill px-4 fw-bold text-white d-none d-xl-flex align-items-center" 
                 style={{ 
                   fontSize: 13, 
                   height: 32, 

@@ -27,6 +27,8 @@ interface Item {
   source: string;
 }
 
+import toast from "react-hot-toast";
+
 interface Props {
   item: Item | null;
   open: boolean;
@@ -36,6 +38,30 @@ interface Props {
 }
 
 export function LogisticsItemDetailOffcanvas({ item, open, onClose, onEdit, onDelete }: Props) {
+  const [isEditingPrice, setIsEditingPrice] = React.useState(false);
+  const [editPriceVal, setEditPriceVal] = React.useState<number | string>(0);
+  const [savingPrice, setSavingPrice] = React.useState(false);
+
+  const handleSavePrice = async () => {
+    if (!item?.id) return;
+    setSavingPrice(true);
+    try {
+      const res = await fetch(`/api/production/materials/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ giaBan: Number(editPriceVal) })
+      });
+      if (!res.ok) throw new Error("Cập nhật thất bại");
+      toast.success("Cập nhật giá bán lẻ thành công");
+      item.giaBan = Number(editPriceVal);
+      setIsEditingPrice(false);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSavingPrice(false);
+    }
+  };
+
   if (!item) return null;
 
   const formatCurrency = (val: number) => {
@@ -154,7 +180,38 @@ export function LogisticsItemDetailOffcanvas({ item, open, onClose, onEdit, onDe
                 <DetailRow label="Thương hiệu" value={item.brand} />
                 <DetailRow label="Kiểu dáng" value={item.model || item.spec} />
                 <DetailRow label="Giá nhập dự kiến" value={formatCurrency(item.giaNhap)} />
-                <DetailRow label="Giá bán niêm yết" value={formatCurrency(item.giaBan)} />
+                <div className="d-flex align-items-center justify-content-between p-2 rounded-3 hover-bg-light transition-all">
+                  <span className="text-muted" style={{ fontSize: 13 }}>Giá bán niêm yết</span>
+                  {isEditingPrice ? (
+                    <div className="d-flex align-items-center gap-1">
+                      <input 
+                        type="number" 
+                        className="form-control form-control-sm text-end" 
+                        value={editPriceVal} 
+                        onChange={e => setEditPriceVal(e.target.value)} 
+                        style={{ width: 100, fontSize: 13 }}
+                      />
+                      <button className="btn btn-sm btn-success py-0 px-1" onClick={handleSavePrice} disabled={savingPrice}>
+                        <i className="bi bi-check2"></i>
+                      </button>
+                      <button className="btn btn-sm btn-light py-0 px-1 border" onClick={() => setIsEditingPrice(false)}>
+                        <i className="bi bi-x"></i>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-end text-primary fw-bold d-flex align-items-center gap-2" style={{ fontSize: 13 }}>
+                      {formatCurrency(item.giaBan)}
+                      {item.source === "material" && (
+                        <i 
+                          className="bi bi-pencil cursor-pointer text-muted ms-1" 
+                          style={{ cursor: "pointer", fontSize: 11 }} 
+                          onClick={() => { setIsEditingPrice(true); setEditPriceVal(item.giaBan || 0); }} 
+                          title="Cập nhật giá bán lẻ"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </section>
 

@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     const [total, rawItems, rawPhuThu, rawPhuTra] = await Promise.all([
       prisma.debt.count({ where }),
       prisma.debt.findMany({ where, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE, orderBy: [{ status: "asc" }, { createdAt: "desc" }] }),
-      prisma.debt.findMany({ where: { type: "phai-thu" }, select: { amount: true, paidAmount: true, status: true, dueDate: true } }),
+      prisma.debt.findMany({ where: { type: { in: ["phai-thu", "RECEIVABLE"] } }, select: { amount: true, paidAmount: true, status: true, dueDate: true } }),
       prisma.debt.findMany({ where: { type: "phai-tra" }, select: { amount: true, paidAmount: true, status: true, dueDate: true } }),
     ]);
 

@@ -282,7 +282,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       return;
     }
     suggestTimer.current = setTimeout(() => {
-      fetch(`/api/logistics/inventory?search=${encodeURIComponent(query)}&limit=20&includeManufactured=true&excludeMaterials=true`)
+      fetch(`/api/logistics/inventory?search=${encodeURIComponent(query)}&limit=20&includeManufactured=true`)
         .then(r => r.json())
         .then(d => {
           if (activeRowIdRef.current === rowId) {
@@ -292,7 +292,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 : (item.source === "manufactured" ? "Kho thành phẩm" 
                    : item.source === "inventory" ? "Kho hàng hoá" 
                    : item.source === "material" ? "Kho vật tư và phụ kiện" : "");
-              return khoTenStr.toLowerCase().includes("kho hàng hoá") || khoTenStr.toLowerCase().includes("kho thành phẩm");
+              return khoTenStr.toLowerCase().includes("kho hàng hoá") || khoTenStr.toLowerCase().includes("kho thành phẩm") || khoTenStr.toLowerCase().includes("vật tư");
             });
             setSuggest(filtered);
           }

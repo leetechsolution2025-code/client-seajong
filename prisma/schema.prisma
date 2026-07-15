@@ -34,38 +34,38 @@ model SeajongCategory {
 }
 
 model SeajongProduct {
-  id          Int               @id @default(autoincrement())
-  slug        String            @unique
-  url         String
-  name        String
-  excerpt     String            @default("")
-  description String            @default("")
-  images      String            @default("[]")
-  specs       String            @default("{}")
-  price       Float             @default(0)
-  priceHtml   String?
-  promotions  String            @default("[]")
-  policies    String            @default("[]")
-  variations  String            @default("[]")
-  variationData String?
-  updatedAt   DateTime
-  syncedAt    DateTime          @default(now())
-  imageUrl      String?
-  categories    SeajongCategory[]         @relation("ProductCategories")
+  id             Int                       @id @default(autoincrement())
+  slug           String                    @unique
+  url            String
+  name           String
+  excerpt        String                    @default("")
+  description    String                    @default("")
+  images         String                    @default("[]")
+  specs          String                    @default("{}")
+  price          Float                     @default(0)
+  priceHtml      String?
+  promotions     String                    @default("[]")
+  policies       String                    @default("[]")
+  variations     String                    @default("[]")
+  variationData  String?
+  updatedAt      DateTime
+  syncedAt       DateTime                  @default(now())
+  imageUrl       String?
+  categories     SeajongCategory[]         @relation("ProductCategories")
   variationsList SeajongProductVariation[]
 }
 
 model SeajongProductVariation {
-  id          Int            @id @default(autoincrement())
-  variationId Int            @unique // WooCommerce variation_id
+  id          Int     @id @default(autoincrement())
+  variationId Int     @unique // WooCommerce variation_id
   productId   Int
   sku         String?
-  price       Float          @default(0)
-  attributes  String         @default("{}") // JSON string of attributes
+  price       Float   @default(0)
+  attributes  String  @default("{}") // JSON string of attributes
   imageUrl    String?
-  
-  product     SeajongProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
+
+  product SeajongProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
   @@index([productId])
 }
 
@@ -387,23 +387,23 @@ model HrStationeryDepartmentBudget {
 }
 
 model Category {
-  id            String         @id @default(cuid())
-  type          String
-  code          String
-  name          String
-  color         String?
-  icon          String?
-  description   String?
-  sortOrder     Int            @default(0)
-  isActive      Boolean        @default(true)
-  clientId      String?
-  parentId      String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  parent        Category?      @relation("CategoryParent", fields: [parentId], references: [id])
-  children      Category[]     @relation("CategoryParent")
-  dinhMucVatTus DinhMucVatTu[]
-  materials     MaterialItem[]
+  id                   String                @id @default(cuid())
+  type                 String
+  code                 String
+  name                 String
+  color                String?
+  icon                 String?
+  description          String?
+  sortOrder            Int                   @default(0)
+  isActive             Boolean               @default(true)
+  clientId             String?
+  parentId             String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  parent               Category?             @relation("CategoryParent", fields: [parentId], references: [id])
+  children             Category[]            @relation("CategoryParent")
+  dinhMucVatTus        DinhMucVatTu[]
+  materials            MaterialItem[]
   manufacturedProducts ManufacturedProduct[] @relation("MfpProdCategory")
 
   @@unique([type, code])
@@ -806,18 +806,18 @@ model Asset {
 }
 
 model InventoryCategory {
-  id        String              @id @default(cuid())
-  name      String              @unique
-  code      String?             @unique
-  sortOrder Int                 @default(0)
-  isActive  Boolean             @default(true)
-  parentId  String?
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
-  parent    InventoryCategory?  @relation("InvCategoryParent", fields: [parentId], references: [id])
-  children  InventoryCategory[] @relation("InvCategoryParent")
-  items     InventoryItem[]
-  suppliers SupplierCategory[]
+  id                   String                @id @default(cuid())
+  name                 String                @unique
+  code                 String?               @unique
+  sortOrder            Int                   @default(0)
+  isActive             Boolean               @default(true)
+  parentId             String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  parent               InventoryCategory?    @relation("InvCategoryParent", fields: [parentId], references: [id])
+  children             InventoryCategory[]   @relation("InvCategoryParent")
+  items                InventoryItem[]
+  suppliers            SupplierCategory[]
   manufacturedProducts ManufacturedProduct[] @relation("MfpCategory")
 }
 
@@ -926,21 +926,21 @@ model MaterialStock {
 }
 
 model ManufacturedProduct {
-  giaBan           Float?   @default(0)
-  id               String   @id @default(cuid())
-  code             String?  @unique
+  giaBan           Float?             @default(0)
+  id               String             @id @default(cuid())
+  code             String?            @unique
   name             String
-  unit             String   @default("bộ")
-  defaultWarehouse String?  @default("KHO-THANHPHAM")
+  unit             String             @default("bộ")
+  defaultWarehouse String?            @default("KHO-THANHPHAM")
   categoryId       String? // Bỏ hoặc đổi tên sau
   category         InventoryCategory? @relation("MfpCategory", fields: [categoryId], references: [id])
-  
+
   productCategoryId String?
   productCategory   Category? @relation("MfpProdCategory", fields: [productCategoryId], references: [id])
-  imageUrl         String?
-  notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  imageUrl          String?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   dinhMucs DinhMuc[]
 }
