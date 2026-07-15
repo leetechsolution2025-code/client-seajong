@@ -58,7 +58,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
     if (!file) return;
 
     if (file.size > 10 * 1024 * 1024) {
-      toast.show({ title: "Lỗi", message: "Kích thước ảnh tối đa 10MB", type: "error" });
+      toast.error("Lỗi", "Kích thước ảnh tối đa 10MB");
       return;
     }
 
@@ -70,10 +70,10 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
       setForm({ ...form, imageUrl: data.url });
-      toast.show({ title: "Thành công", message: "Đã tải ảnh lên", type: "success" });
+      toast.success("Thành công", "Đã tải ảnh lên");
     } catch (err) {
       console.error(err);
-      toast.show({ title: "Lỗi", message: "Không thể tải ảnh lên", type: "error" });
+      toast.error("Lỗi", "Không thể tải ảnh lên");
     } finally {
       setIsUploadingImage(false);
       e.target.value = ""; // Reset input so same file can be uploaded again if needed
