@@ -51,6 +51,34 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
   const [webResults, setWebResults] = useState<any[]>([]);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
   const [showWebResults, setShowWebResults] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.show({ title: "Lỗi", message: "Kích thước ảnh tối đa 10MB", type: "error" });
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setForm({ ...form, imageUrl: data.url });
+      toast.show({ title: "Thành công", message: "Đã tải ảnh lên", type: "success" });
+    } catch (err) {
+      console.error(err);
+      toast.show({ title: "Lỗi", message: "Không thể tải ảnh lên", type: "error" });
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = ""; // Reset input so same file can be uploaded again if needed
+    }
+  };
 
   const [stamp, setStamp] = useState("");
   const [nextSeq, setNextSeq] = useState(1);
@@ -613,7 +641,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                         </div>
                       )}
                     </div>
-                    <div className="input-group">
+                    <div className="input-group mb-2">
                       <span className="input-group-text bg-white border-end-0 text-muted" style={{ fontSize: 11 }}><i className="bi bi-link-45deg" /></span>
                       <input 
                         type="text" 
@@ -623,6 +651,41 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                         value={form.imageUrl || ""} 
                         onChange={e => setForm({...form, imageUrl: e.target.value})} 
                       />
+                    </div>
+                    
+                    <div className="d-flex align-items-center">
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        className="d-none"
+                        id="uploadImageBtn"
+                        onChange={handleImageUpload}
+                        disabled={isUploadingImage}
+                      />
+                      <label 
+                        htmlFor="uploadImageBtn" 
+                        className="btn btn-sm w-100 d-flex align-items-center justify-content-center gap-2"
+                        style={{ 
+                          fontSize: 11, 
+                          background: isUploadingImage ? "var(--muted)" : "var(--card)", 
+                          border: "1px solid var(--border)",
+                          color: "var(--foreground)",
+                          cursor: isUploadingImage ? "not-allowed" : "pointer",
+                          transition: "all 0.2s"
+                        }}
+                      >
+                        {isUploadingImage ? (
+                          <>
+                            <div className="spinner-border spinner-border-sm text-primary" role="status" />
+                            Đang tải lên...
+                          </>
+                        ) : (
+                          <>
+                            <i className="bi bi-cloud-arrow-up" style={{ color: "#3b82f6" }} />
+                            Tải ảnh từ máy tính
+                          </>
+                        )}
+                      </label>
                     </div>
                   </div>
 
