@@ -11,7 +11,7 @@ import { Table } from "@/components/ui/Table";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChiTietKhachHangOffcanvas } from "@/components/plan-finance/khach_hang/ChiTietKhachHangOffcanvas";
 import { Pagination } from "@/components/ui/Pagination";
-import { BaoGiaWoodDoorModal } from "@/components/plan-finance/bao_gia/BaoGiaWoodDoorModal";
+
 import { useToast } from "@/components/ui/Toast";
 
 const STEPS = [
@@ -476,6 +476,7 @@ function AddCustomerModal({ isOpen, onClose, onSaved, employees, currentUserEmpl
 
 
 export default function FacCrmPage() {
+  const toast = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [groupFilter, setGroupFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -495,7 +496,7 @@ export default function FacCrmPage() {
   const [nguonOptions, setNguonOptions] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [currentUserEmployeeId, setCurrentUserEmployeeId] = useState<string | null>(null);
-  const [activeIndustryCode, setActiveIndustryCode] = useState<string>("wood_door");
+  const [activeIndustryCode, setActiveIndustryCode] = useState<string>("sanitary");
 
   // Load categories and employees on mount
   useEffect(() => {
@@ -752,25 +753,11 @@ export default function FacCrmPage() {
           setIsModalOpen(true);
         }}
         onQuote={() => {
-          setSelectedCustomerForQuote(selectedCustomer);
-          setIsBaoGiaModalOpen(true);
+          toast.error("Tính năng báo giá đang được cập nhật cho ngành hàng mới.");
         }}
         employees={employees}
         currentUserEmployeeId={currentUserEmployeeId}
       />
-
-      {activeIndustryCode === "wood_door" && (
-        <BaoGiaWoodDoorModal
-          isOpen={isBaoGiaModalOpen}
-          onClose={() => {
-            setIsBaoGiaModalOpen(false);
-            setSelectedCustomerForQuote(null);
-          }}
-          customer={selectedCustomerForQuote}
-          employees={employees}
-          currentUserEmployeeId={currentUserEmployeeId}
-        />
-      )}
     </StandardPage>
   );
 }

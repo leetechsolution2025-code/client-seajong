@@ -38,13 +38,15 @@ export default function FinancePage() {
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [productionItemIds, setProductionItemIds] = useState<string[]>([]);
 
-  const handleViewItems = async () => {
-    if (!selectedOrder) return;
+  const handleViewItems = async (e: React.MouseEvent, orderToView: any) => {
+    e.stopPropagation();
+    if (!orderToView) return;
+    setSelectedOrder(orderToView);
     setShowItemsOffcanvas(true);
     setFetchingDetails(true);
     setOrderDetails([]);
     try {
-      const res = await fetch(`/api/plan-finance/sales/${selectedOrder.id}`);
+      const res = await fetch(`/api/plan-finance/sales/${orderToView.id}`);
       if (res.ok) {
         const detail = await res.json();
         setOrderDetails(detail.items || []);
@@ -1059,33 +1061,52 @@ export default function FinancePage() {
                         <div className="d-flex align-items-start gap-2">
                           <i className="bi bi-person text-muted mt-0.5" />
                           <div className="w-100">
-                            <div className="d-flex align-items-center justify-content-between mb-1 w-100">
-                              <div className="d-flex align-items-center gap-2">
-                                <span className="fw-semibold text-dark">{selectedOrder.customer?.name || "Khách vãng lai"}</span>
-                                {(!selectedOrder.customer || selectedOrder.customer.id === null) && (
-                                  <span 
-                                    className="badge bg-success bg-opacity-10 text-success fw-bold px-2 py-0.5 rounded-pill d-inline-flex align-items-center gap-1"
-                                    style={{ fontSize: "10px", border: "1px solid rgba(25, 135, 84, 0.2)" }}
-                                  >
-                                    <i className="bi bi-plus-circle" style={{ fontSize: "9px" }} />
-                                    Khách vãng lai
-                                  </span>
-                                )}
-                              </div>
-                              <button
-                                className="btn btn-sm btn-outline-primary py-0 px-2 flex-shrink-0"
-                                style={{ fontSize: "11px", height: "24px" }}
-                                onClick={handleViewItems}
-                              >
-                                <i className="bi bi-box-seam me-1"></i> Xem hàng hoá
-                              </button>
-                            </div>
-                            {selectedOrder.customer?.dienThoai && (
-                              <div className="text-muted small">{selectedOrder.customer.dienThoai}</div>
-                            )}
-                            {selectedOrder.customer?.address && (
-                              <div className="text-muted small mt-1">{selectedOrder.customer.address}</div>
-                            )}
+                            {(() => {
+                              let cName = selectedOrder.customer?.name;
+                              let cPhone = selectedOrder.customer?.dienThoai;
+                              let cAddress = selectedOrder.customer?.address;
+                              
+                              if (!selectedOrder.customer && selectedOrder.ghiChu) {
+                                const match = selectedOrder.ghiChu.match(/Tên khách hàng:\s*(.*?)\s*Số điện thoại:\s*(.*?)\s*Địa chỉ giao hàng:\s*(.*)/);
+                                if (match) {
+                                  cName = match[1].trim();
+                                  cPhone = match[2].trim();
+                                  cAddress = match[3].trim();
+                                }
+                              }
+
+                              return (
+                                <div className="w-100">
+                                  <div className="d-flex align-items-center justify-content-between mb-1 w-100">
+                                    <div className="d-flex align-items-center gap-2">
+                                      <span className="fw-semibold text-dark">{cName || "Khách vãng lai"}</span>
+                                      {(!selectedOrder.customer || selectedOrder.customer.id === null) && (
+                                        <span 
+                                          className="badge bg-success bg-opacity-10 text-success fw-bold px-2 py-0.5 rounded-pill d-inline-flex align-items-center gap-1"
+                                          style={{ fontSize: "10px", border: "1px solid rgba(25, 135, 84, 0.2)" }}
+                                        >
+                                          <i className="bi bi-plus-circle" style={{ fontSize: "9px" }} />
+                                          Khách vãng lai
+                                        </span>
+                                      )}
+                                    </div>
+                                    <button
+                                      className="btn btn-sm btn-outline-primary py-0 px-2 flex-shrink-0"
+                                      style={{ fontSize: "11px", height: "24px" }}
+                                      onClick={(e) => handleViewItems(e, order)}
+                                    >
+                                      <i className="bi bi-box-seam me-1"></i> Xem hàng hoá
+                                    </button>
+                                  </div>
+                                  {cPhone && (
+                                    <div className="text-muted small">{cPhone}</div>
+                                  )}
+                                  {cAddress && (
+                                    <div className="text-muted small mt-1">{cAddress}</div>
+                                  )}
+                                </div>
+                              );
+                            })()}
 
                             {/* Dữ liệu Công nợ & Hạn mức nếu khách hàng đã tồn tại */}
                             {selectedOrder.customer && selectedOrder.customer.id !== null && (

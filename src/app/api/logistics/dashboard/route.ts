@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (!activeIndustryCode) {
-      activeIndustryCode = "wood_door";
+      activeIndustryCode = "sanitary";
     }
 
     const industry = await prisma.industry.findUnique({
@@ -62,7 +62,6 @@ export async function GET(req: NextRequest) {
     // 2. Resolve Product Categories for active industry
     let industryProdCategoryIds: string[] = [];
     const industryProductCodeMap: Record<string, string> = {
-      "wood_door": "SP_GO",
       "sanitary": "SP_VESINH",
       "building_materials": "SP_VLXD"
     };

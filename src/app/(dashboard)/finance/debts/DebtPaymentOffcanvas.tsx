@@ -292,6 +292,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
           paidAmount: newPaidAmount,
           status: newStatus,
           description: updatedDescription,
+          newPayment: newHistoryItem,
         }),
       });
 

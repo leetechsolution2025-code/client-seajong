@@ -52,7 +52,7 @@ export default function LoginForm() {
           if (activeIndCookie && d.some(i => i.code === activeIndCookie)) {
             setSelectedIndustry(activeIndCookie);
           } else {
-            const defaultInd = d.find(ind => ind.code === "wood_door") || d[0];
+            const defaultInd = d.find(ind => ind.code === "sanitary") || d[0];
             if (defaultInd) setSelectedIndustry(defaultInd.code);
           }
         }

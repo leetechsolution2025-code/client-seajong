@@ -54,28 +54,39 @@ export async function GET(req: NextRequest) {
       }
     });
 
+    const monthlyDepreciation: Record<string, number> = {};
+
     assets.forEach(asset => {
       const startDate = new Date(asset.ngayBatDauKhauHao!);
       const monthlyAmount = asset.giaTriMua / (asset.soThangKhauHao || 1);
       
-      // Generate for each month from start to now
       let iterDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
       while (iterDate <= now) {
-        const itemDate = new Date(iterDate);
-        automatedItems.push({
-          id: `AUTO_ASSET_${asset.id}_${itemDate.getFullYear()}_${itemDate.getMonth()}`,
-          tenChiPhi: `Khấu hao: ${asset.tenTaiSan}`,
-          loai: "exp-20260401-8491-ewer", // Hardcoded category for depreciation
-          soTien: Math.round(monthlyAmount),
-          ngayChiTra: itemDate,
-          nguoiChiTra: "Hệ thống tự động",
-          trangThai: "paid",
-          ghiChu: `Khấu hao định kỳ tháng ${itemDate.getMonth() + 1}/${itemDate.getFullYear()}`,
-          isAutomated: true
-        });
+        // Prevent calculating for future months if cron hasn't run, but here it's up to `now`
+        // Also wait, Asset might be bought at the end of the month, so lastCompletedMonth logic applies
+        // But for UI display in expenses, we can just use the same logic or simpler up to 'now'.
+        // Actually, the previous logic just loop up to 'now'.
+        const key = `${iterDate.getFullYear()}_${iterDate.getMonth()}`;
+        monthlyDepreciation[key] = (monthlyDepreciation[key] || 0) + monthlyAmount;
         iterDate.setMonth(iterDate.getMonth() + 1);
       }
     });
+
+    for (const [key, amount] of Object.entries(monthlyDepreciation)) {
+      const [y, m] = key.split('_').map(Number);
+      const itemDate = new Date(y, m, 1);
+      automatedItems.push({
+        id: `AUTO_ASSET_TOTAL_${y}_${m}`,
+        tenChiPhi: `Chi phí khấu hao tài sản cố định`,
+        loai: "exp-20260401-8491-ewer",
+        soTien: Math.round(amount),
+        ngayChiTra: itemDate,
+        nguoiChiTra: "Hệ thống tự động",
+        trangThai: "paid",
+        ghiChu: `Khấu hao định kỳ tháng ${m + 1}/${y}`,
+        isAutomated: true
+      });
+    }
 
     // B. Loan Interest
     const loans = await prisma.debt.findMany({

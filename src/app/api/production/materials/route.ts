@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       include: { client: { include: { industry: true } } }
     });
 
-    let activeIndustryCode = "wood_door";
+    let activeIndustryCode = "sanitary";
     if (user?.role === "SUPERADMIN") {
       const cookieHeader = req.headers.get("cookie") || "";
       const cookieCode = cookieHeader
@@ -95,12 +95,9 @@ export async function GET(req: NextRequest) {
       where.categoryId = { in: validCategoryIds };
     }
 
-    if (warehouseId) {
-      where.OR = [
-        { stocks: { some: { warehouseId } } },
-        { stocks: { none: {} } }
-      ];
-    }
+    // if (warehouseId) {
+    //   where.stocks = { some: { warehouseId } };
+    // }
 
     const rawItems = await prisma.materialItem.findMany({
       where,
@@ -151,6 +148,7 @@ export async function GET(req: NextRequest) {
         soLuong: soLuongThuc,
         trangThai,
         category: item.category,
+        categoryId: item.categoryId,
       };
     });
 

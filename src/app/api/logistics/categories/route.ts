@@ -17,14 +17,25 @@ export async function GET(req: Request) {
     if (!type && warehouseId) {
       const wh = await prisma.warehouse.findUnique({
         where: { id: warehouseId },
-        select: { type: true }
+        select: { type: true, code: true }
       });
       if (wh) {
-        type = (wh as any).type;
+        const code = (wh as any).code;
+        if (code === "KVP") {
+          type = "MATERIAL";
+        } else if (code === "KHO-THANHPHAM") {
+          type = "PRODUCT";
+        } else if (code === "KHO-LOI") {
+          type = "DEFECT";
+        } else if (code === "KHO-CHINH") {
+          type = "PRODUCT_SYNC";
+        } else {
+          type = (wh as any).type;
+        }
       }
     }
 
-    let activeIndustryCode = "wood_door";
+    let activeIndustryCode = "sanitary";
     if (searchParams.get("industryCode")) {
       activeIndustryCode = searchParams.get("industryCode") as string;
     } else if ((user as any)?.client?.industry) {
@@ -45,7 +56,6 @@ export async function GET(req: Request) {
       });
       
       const industryMaterialCodeMap: Record<string, string> = {
-        "wood_door": "VTSX_GO",
         "sanitary": "VTSX_VESINH",
         "building_materials": "VTSX_VLXD"
       };
@@ -64,7 +74,7 @@ export async function GET(req: Request) {
         };
         collectDescendants(rootCategory.id);
         const filteredCats = allCats.filter(c => descendantIds.includes(c.id));
-        result = buildCategoryTree(filteredCats);
+        result = buildCategoryTree(filteredCats, rootCategory.id);
       } else {
         result = buildCategoryTree(allCats);
       }
@@ -83,7 +93,6 @@ export async function GET(req: Request) {
     } else {
       // Default / PRODUCT_SYNC: InventoryCategory
       const industryProductCodeMap: Record<string, string> = {
-        "wood_door": "SP_GO",
         "sanitary": "SP_VESINH",
         "building_materials": "SP_VLXD"
       };
@@ -112,7 +121,7 @@ export async function GET(req: Request) {
         collectDescendants(rootCategory.id);
         
         const filteredCats = allCats.filter(c => descendantIds.includes(c.id));
-        result = buildCategoryTree(filteredCats);
+        result = buildCategoryTree(filteredCats, rootCategory.id);
       } else {
         result = buildCategoryTree(allCats);
       }

@@ -132,10 +132,15 @@ export async function GET(
         } else {
           const matItem = await (prisma as any).materialItem.findFirst({
             where: { name: item.tenHang },
-            select: { imageUrl: true, code: true, soLuong: true }
+            select: { 
+              imageUrl: true, 
+              code: true, 
+              stocks: { select: { soLuong: true } }
+            }
           });
           if (matItem) {
-            item.materialItem = matItem;
+            const soLuong = matItem.stocks ? matItem.stocks.reduce((acc: number, curr: any) => acc + (curr.soLuong || 0), 0) : 0;
+            item.materialItem = { ...matItem, soLuong };
           }
         }
       }
@@ -781,6 +786,39 @@ export async function PATCH(
           }
         }
       }
+      // [ACCOUNTING] Ghi nhận công nợ và doanh thu chưa thực hiện (Nợ 131 / Có 3387) khi DUYỆT ĐƠN
+      if (orderUpdate && (orderUpdate.trangThai === "approved" || orderUpdate.trangThai === "in_production") && order.trangThai !== "approved" && order.trangThai !== "in_production") {
+        if (orderUpdate.tongTien > 0) {
+          // 1. Tạo bản ghi Debt (Công nợ)
+          const existingDebt = await tx.debt.findFirst({ where: { referenceId: orderUpdate.code || "" } });
+          if (!existingDebt) {
+            await tx.debt.create({
+              data: {
+                type: "phai-thu",
+                partnerName: order.customer?.name || "Khách hàng lẻ",
+                amount: orderUpdate.tongTien,
+                paidAmount: orderUpdate.daThanhToan || 0,
+                status: (orderUpdate.daThanhToan || 0) >= orderUpdate.tongTien ? "PAID" : "UNPAID",
+                dueDate: orderUpdate.ngayGiao || new Date(),
+                referenceId: orderUpdate.code || undefined,
+                description: `Công nợ đơn hàng bán ${orderUpdate.code}`,
+              }
+            });
+
+            // 2. Gọi engine hạch toán (Nợ 131 / Có 3387)
+            const { createAutoJournal } = require("@/lib/accounting-engine");
+            await createAutoJournal({
+              event: "SALES_REVENUE",
+              overrideDebitCode: "131",
+              overrideCreditCode: "3387",
+              amount: orderUpdate.tongTien,
+              referenceCode: orderUpdate.code || undefined,
+              description: `Ghi nhận công nợ (Doanh thu chưa thực hiện) đơn hàng ${orderUpdate.code}`
+            });
+          }
+        }
+      }
+
       return orderUpdate;
     });
 

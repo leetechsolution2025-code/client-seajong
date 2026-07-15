@@ -130,8 +130,8 @@ function PriceCalcModal({ open, onClose, giaNhap, tenHang, onApply }: {
 }
 
 // ── TaoMoiHangHoa ─────────────────────────────────────────────────────────────
-export function TaoMoiHangHoa({ open, onClose, onSaved }: {
-  open: boolean; onClose: () => void; onSaved: () => void;
+export function TaoMoiHangHoa({ open, onClose, onSaved, editItem }: {
+  open: boolean; onClose: () => void; onSaved: () => void; editItem?: any;
 }) {
   const toast = useToast();
   const [tab, setTab]         = React.useState<"info"|"standard">("info");
@@ -207,8 +207,11 @@ export function TaoMoiHangHoa({ open, onClose, onSaved }: {
     if (!validate()) { setTab("info"); return; }
     setSaving(true);
     try {
-      const res = await fetch("/api/plan-finance/inventory", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      const isEdit = !!editItem;
+      const url = isEdit ? `/api/plan-finance/inventory/${editItem.id}` : "/api/plan-finance/inventory";
+      const method = isEdit ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method, headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code:           form.code          || undefined,
           tenHang:        form.tenHang.trim(),
@@ -230,7 +233,7 @@ export function TaoMoiHangHoa({ open, onClose, onSaved }: {
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Lỗi lưu"); }
-      toast.success("Thêm thành công", `Hàng hoá "${form.tenHang}" đã được tạo.`);
+      toast.success(isEdit ? "Cập nhật thành công" : "Thêm thành công", `Hàng hoá "${form.tenHang}" đã được lưu.`);
       onSaved();
       onClose();
     } catch(e) {
@@ -257,18 +260,40 @@ export function TaoMoiHangHoa({ open, onClose, onSaved }: {
   }, []);
 
   React.useEffect(() => {
+    if (editItem) return;
     const cat = categories.find(c => c.id === form.categoryId);
     setForm(f => ({ ...f, code: generateSKU(cat?.code ?? undefined) }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.categoryId, categories]);
+  }, [form.categoryId, categories, editItem]);
 
   React.useEffect(() => {
     if (!open) return;
     setSuppliers([]);
-    setForm(f => ({ ...f, nhaCungCapId: "" }));
-    if (!form.categoryId) return;
+    if (editItem) {
+      setForm({
+        code: editItem.code || "",
+        tenHang: editItem.tenHang || "",
+        categoryId: editItem.categoryId || "",
+        donVi: editItem.donVi || "",
+        soLuong: editItem.soLuong || 0,
+        soLuongMin: editItem.soLuongMin || 0,
+        giaNhap: editItem.giaNhap || 0,
+        giaBan: editItem.giaBan || 0,
+        thongSoKyThuat: editItem.thongSoKyThuat || editItem.spec || "",
+        ghiChu: editItem.ghiChu || editItem.supplier || editItem.nhaCungCap || "",
+        trangThai: editItem.trangThai || "con-hang",
+        nhaCungCapId: editItem.nhaCungCapId || "",
+      });
+      setTab("info");
+      setErrors({});
+      // Note: mapping existing materials would require parsing editItem.dinhMuc
+    } else {
+      setForm({ ...DEFAULT_FORM, nhaCungCapId: "" });
+    }
+    if (!form.categoryId && !editItem?.categoryId) return;
+    const catIdToFetch = editItem?.categoryId || form.categoryId;
     setSuppliersLoading(true);
-    fetch(`/api/plan-finance/suppliers?categoryId=${form.categoryId}&page=1`)
+    fetch(`/api/plan-finance/suppliers?categoryId=${catIdToFetch}&page=1`)
       .then(r => r.json())
       .then(d => setSuppliers((d.items ?? []).map((s: {id:string;name:string}) => ({ id: s.id, name: s.name }))))
       .catch(() => setSuppliers([]))
@@ -325,7 +350,7 @@ export function TaoMoiHangHoa({ open, onClose, onSaved }: {
             <div style={{ width: 30, height: 30, borderRadius: 8, background: "color-mix(in srgb, var(--primary) 12%, transparent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <i className="bi bi-plus-circle" style={{ fontSize: 15, color: "var(--primary)" }} />
             </div>
-            <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "var(--foreground)" }}>Thêm hàng hoá mới</p>
+            <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "var(--foreground)" }}>{editItem ? "Cập nhật hàng hoá" : "Thêm hàng hoá mới"}</p>
           </div>
           <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)", background: "var(--muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
             <i className="bi bi-x" style={{ fontSize: 17 }} />

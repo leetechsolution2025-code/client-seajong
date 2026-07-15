@@ -147,26 +147,8 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    // [ACCOUNTING ENGINE] Tự động hạch toán Bán Hàng
-    if (fullOrder && fullOrder.tongTien > 0) {
-      // 1. Ghi nhận doanh thu (Nợ 131 / Có 511)
-      await createAutoJournal({
-        event: "SALES_REVENUE",
-        amount: fullOrder.tongTien,
-        referenceCode: fullOrder.code || undefined,
-        description: `Ghi nhận doanh thu đơn hàng ${fullOrder.code}`
-      });
-
-      // 2. Ghi nhận thanh toán (nếu có khách trả ngay) (Nợ 111 / Có 131)
-      if (fullOrder.daThanhToan > 0) {
-        await createAutoJournal({
-          event: "SALES_RECEIPT",
-          amount: fullOrder.daThanhToan,
-          referenceCode: fullOrder.code || undefined,
-          description: `Khách hàng thanh toán đơn hàng ${fullOrder.code}`
-        });
-      }
-    }
+    // Kế toán duyệt mới ghi nhận công nợ, xem PATCH /api/plan-finance/sales/[id]/route.ts
+    // Khi thanh toán mới ghi nhận doanh thu, xem PUT /api/finance/debts-v2/route.ts
 
     return NextResponse.json(fullOrder, { status: 201 });
   } catch (e: unknown) {

@@ -16,15 +16,13 @@ export async function GET(req: NextRequest) {
     const search      = searchParams.get("search")      ?? "";
 
     const where: any = {
+      loai: "hang-hoa",
       ...(categoryId && { categoryId }),
     };
 
-    if (warehouseId) {
-      where.OR = [
-        { stocks: { some: { warehouseId } } },
-        { stocks: { none: {} } }
-      ];
-    }
+    // if (warehouseId) {
+    //   where.stocks = { some: { warehouseId } };
+    // }
 
     const [rawItems, categories] = await Promise.all([
       prisma.inventoryItem.findMany({

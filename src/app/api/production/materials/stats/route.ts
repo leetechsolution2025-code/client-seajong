@@ -23,12 +23,9 @@ export async function GET(req: NextRequest) {
       ...(categoryId && { categoryId }),
     };
 
-    if (warehouseId) {
-      where.OR = [
-        { stocks: { some: { warehouseId } } },
-        { stocks: { none: {} } }
-      ];
-    }
+    // if (warehouseId) {
+    //   where.stocks = { some: { warehouseId } };
+    // }
 
     const [rawItems, categories] = await Promise.all([
       prisma.materialItem.findMany({

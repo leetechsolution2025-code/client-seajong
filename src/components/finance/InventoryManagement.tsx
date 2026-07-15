@@ -9,9 +9,12 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import { TreeFilterSelect } from "@/components/ui/TreeFilterSelect";
 import { Pagination } from "@/components/ui/Pagination";
 import { InventoryDetailOffcanvas } from "@/app/(dashboard)/finance/inventory/InventoryDetailOffcanvas";
+import { AddLogisticsProductModal } from "@/components/logistics/inventory/AddLogisticsProductModal";
+import { ProductDrawer } from "@/components/marketing/ProductDrawer";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 // Types
 export interface InventoryItem {
@@ -51,7 +54,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
     categoryStats: []
   });
   const [categories, setCategories] = useState<{ label: string; value: string }[]>([]);
-  const [warehouses, setWarehouses] = useState<{ label: string; value: string; type: string }[]>([]);
+  const [warehouses, setWarehouses] = useState<{ label: string; value: string; type: string; code?: string | null }[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -68,8 +71,13 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
   const [pageSize] = useState(100);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editItem, setEditItem] = useState<any>(null);
   
-  const { error } = useToast();
+  const [deletingItem, setDeletingItem] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const { error, success } = useToast();
 
   const fetchStats = async () => {
     try {
@@ -121,7 +129,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
     try {
       const res = await fetch("/api/finance/warehouses");
       const data = await res.json();
-      const mapped = data.map((w: any) => ({ label: w.name, value: w.id, type: w.type }));
+      const mapped = data.map((w: any) => ({ label: w.name, value: w.id, type: w.type, code: w.code }));
       setWarehouses(mapped);
       setWarehouseCount(data.length);
       
@@ -174,6 +182,34 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
       // Find the updated item in the newly fetched items
       // Note: items state might not be updated yet due to async nature, so we use the fetched data if possible
       // or just trust that fetchItems will trigger a re-render and we can update selectedItem manually
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingItem) return;
+    setIsDeleting(true);
+    try {
+      const selectedWH = warehouses.find(w => w.value === warehouseId);
+      const whType = selectedWH?.type || "SEAJONG";
+      let apiPath = "/api/logistics/seajong-inventory";
+      if (whType === "MATERIAL") apiPath = "/api/production/materials";
+      else if (whType === "PRODUCT") apiPath = "/api/production/manufactured-products";
+      else if (whType === "DEFECT") apiPath = "/api/logistics/defects";
+      else if (whType === "PRODUCT_SYNC") apiPath = "/api/finance/inventory";
+
+      const res = await fetch(`${apiPath}/${deletingItem.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || "Xoá thất bại");
+      }
+      success("Xoá thành công", "Đã xoá mặt hàng");
+      setShowDetail(false);
+      setDeletingItem(null);
+      handleRefresh();
+    } catch (err: any) {
+      error("Lỗi", err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -245,7 +281,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
   const isMaterial = whType === "MATERIAL";
   const isProduct = whType === "PRODUCT";
   const isDefect = whType === "DEFECT";
-  const isSeajong = whType === "SEAJONG";
+  const isKhoHangHoa = !warehouseId || selectedWH?.code === "KHO-CHINH";
 
   const rawColumns: TableColumn<InventoryItem | any>[] = [
     {
@@ -431,7 +467,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
                     placeholder="Tìm theo tên, SKU..."
                 />
               </div>
-              {allowAdd && <BrandButton icon="bi-plus-lg" className="flex-shrink-0">Thêm hàng hoá</BrandButton>}
+              {allowAdd && <BrandButton icon="bi-plus-lg" className="flex-shrink-0" onClick={() => setShowAddModal(true)}>Thêm hàng hoá</BrandButton>}
             </div>
 
             {/* Table */}
@@ -448,12 +484,57 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
               />
             </div>
             
+            {isKhoHangHoa && showDetail && selectedItem && (
+              <ProductDrawer 
+                p={{
+                  id: typeof selectedItem.id === 'number' ? selectedItem.id : 0,
+                  slug: selectedItem.code || selectedItem.id,
+                  url: selectedItem.webProductId ? `https://seajong.com/san-pham/${selectedItem.code}` : "#",
+                  name: selectedItem.tenHang || selectedItem.name || "",
+                  excerpt: selectedItem.ghiChu || "",
+                  description: selectedItem.thongSoKyThuat || selectedItem.spec || "",
+                  images: selectedItem.imageUrl ? [selectedItem.imageUrl] : [],
+                  specs: {
+                    "Mã sản phẩm": selectedItem.code || "---",
+                    "Đơn vị tính": selectedItem.donVi || selectedItem.unit || "Cái",
+                    "Thương hiệu": selectedItem.brand || "Seajong",
+                    ...(selectedItem.material ? { "Chất liệu": selectedItem.material } : {}),
+                    ...(selectedItem.color ? { "Màu sắc": selectedItem.color } : {}),
+                    ...(selectedItem.kieuDang ? { "Kiểu dáng": selectedItem.kieuDang } : {})
+                  },
+                  price: selectedItem.giaBan || 0,
+                  categories: selectedItem.category?.id ? [1] : [],
+                  updatedAt: selectedItem.updatedAt || new Date().toISOString(),
+                }}
+                cats={selectedItem.category ? [{ id: 1, name: selectedItem.category.name, slug: "", count: 0, parent: 0 }] : []}
+                onClose={() => setShowDetail(false)}
+                onEdit={() => {
+                  setShowDetail(false);
+                  setEditItem(selectedItem);
+                }}
+              />
+            )}
+
             <InventoryDetailOffcanvas 
-              show={showDetail}
+              show={showDetail && !isKhoHangHoa}
               onClose={() => setShowDetail(false)}
               item={selectedItem}
               isMaterial={isMaterial}
               onRefresh={handleRefresh}
+              onDelete={(item) => setDeletingItem(item)}
+              onEdit={(item) => {
+                setShowDetail(false);
+                setEditItem(item);
+              }}
+            />
+            <AddLogisticsProductModal 
+              open={showAddModal || !!editItem} 
+              onClose={() => { setShowAddModal(false); setEditItem(null); }} 
+              onSaved={handleRefresh}
+              warehouseId={warehouseId}
+              warehouseType={warehouses.find(w => w.value === warehouseId)?.type}
+              isMaterialWarehouse={warehouses.find(w => w.value === warehouseId)?.type === "MATERIAL"}
+              editItem={editItem} 
             />
 
             {/* Footer Actions */}
@@ -470,6 +551,17 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
           </div>
         </div>
       </div>
+      
+      <ConfirmDialog
+        open={!!deletingItem}
+        variant="danger"
+        title="Xác nhận xoá"
+        message={`Bạn có chắc chắn muốn xoá mặt hàng "${deletingItem?.tenHang || deletingItem?.name}" không? Hành động này không thể hoàn tác.`}
+        confirmLabel="Xoá"
+        loading={isDeleting}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeletingItem(null)}
+      />
     </div>
   );
 }

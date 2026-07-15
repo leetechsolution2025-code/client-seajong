@@ -642,7 +642,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         placeholder="Nhập tên khách hàng..."
                         value={custInfo.name}
                         onChange={e => {
-                          const val = e.target.value.toUpperCase();
+                          const val = e.target.value;
                           setCustInfo(prev => ({ ...prev, name: val, id: "" }));
                           setInfo(prev => ({ ...prev, tenNguoiNhan: val }));
                         }}
@@ -690,7 +690,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                   placeholder="Nhập tên khách hàng..."
                   value={info.tenNguoiNhan}
                   onChange={e => {
-                    const val = e.target.value.toUpperCase();
+                    const val = e.target.value;
                     setInfo(prev => ({ ...prev, tenNguoiNhan: val }));
                     if (!customer) setCustInfo(prev => ({ ...prev, name: val, id: "" }));
                   }}

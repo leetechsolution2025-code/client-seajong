@@ -55,7 +55,7 @@ export async function GET(req: Request) {
     const skip = (page - 1) * limit;
 
     const session = await getServerSession(authOptions);
-    let activeIndustryCode = "wood_door";
+    let activeIndustryCode = "sanitary";
 
     if (session) {
       const user = await prisma.user.findFirst({
@@ -131,7 +131,6 @@ export async function GET(req: Request) {
     // 2. Lấy danh mục sản phẩm (InventoryCategory) của ngành
     let industryProdCategoryIds: string[] = [];
     const industryProductCodeMap: Record<string, string> = {
-      "wood_door": "SP_GO",
       "sanitary": "SP_VESINH",
       "building_materials": "SP_VLXD"
     };
@@ -370,23 +369,80 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const {
-      tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, warehouseId,
-      chieuDai, chieuRong, chieuDay
-    } = body;
+    const { tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, warehouseId, chieuDai, chieuRong, chieuDay, source } = body;
 
     if (!tenHang) return NextResponse.json({ error: "Thiếu tên hàng hoá" }, { status: 400 });
 
     if (code) {
-      const duplicateItem = await prisma.inventoryItem.findUnique({
-        where: { code }
-      });
-      const duplicateMaterial = await (prisma as any).materialItem.findUnique({
-        where: { code }
-      });
-      if (duplicateItem || duplicateMaterial) {
-        return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
+      if (source === "inventory") {
+        const duplicateItem = await prisma.inventoryItem.findUnique({ where: { code } });
+        if (duplicateItem) return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
+      } else if (source === "manufactured") {
+        const duplicateManufactured = await prisma.manufacturedProduct.findUnique({ where: { code } });
+        if (duplicateManufactured) return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
+      } else {
+        const duplicateMaterial = await (prisma as any).materialItem.findUnique({ where: { code } });
+        if (duplicateMaterial) return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
       }
+    }
+
+    if (source === "manufactured") {
+      const newItem = await prisma.manufacturedProduct.create({
+        data: {
+          code,
+          name: tenHang,
+          productCategoryId: categoryId || undefined,
+          unit: donVi || "bộ",
+          defaultWarehouse: warehouseId || "KHO-THANHPHAM",
+          notes: ghiChu || undefined,
+          giaBan: Number(giaBan) || 0,
+          imageUrl: imageUrl || null,
+        } as any
+      });
+
+      // Tạo InventoryItem đồng bộ
+      if (code) {
+        const mappedCategoryId = await syncCategoryToInventory(newItem.productCategoryId);
+        await prisma.inventoryItem.create({
+          data: {
+            code,
+            tenHang,
+            categoryId: mappedCategoryId,
+            brand: brand || "Seajong",
+            model: kieuDang || "",
+            donVi: donVi || "bộ",
+            soLuongMin: Number(soLuongMin) || 0,
+            giaNhap: Number(giaNhap) || 0,
+            giaBan: Number(giaBan) || 0,
+            thongSoKyThuat: thongSoKyThuat || "",
+            ghiChu: ghiChu || "",
+            imageUrl: imageUrl || null,
+            soLuong: 0,
+            trangThai: "het-hang",
+            chieuDai: chieuDai ? parseFloat(chieuDai) : null,
+            chieuRong: chieuRong ? parseFloat(chieuRong) : null,
+            chieuDay: chieuDay ? parseFloat(chieuDay) : null,
+            loai: "thanh-pham"
+          } as any
+        });
+        
+        // Tạo tồn kho ban đầu (InventoryStock)
+        if (warehouseId) {
+          const invItem = await prisma.inventoryItem.findUnique({ where: { code } });
+          if (invItem) {
+            await (prisma as any).inventoryStock.create({
+              data: {
+                inventoryItemId: invItem.id,
+                warehouseId,
+                soLuong: 0,
+                viTriHang: "Chờ sắp xếp"
+              }
+            });
+          }
+        }
+      }
+
+      return NextResponse.json(newItem);
     }
 
     // Kiểm tra xem categoryId thuộc về InventoryCategory hay Category
@@ -517,19 +573,33 @@ export async function PUT(req: Request) {
     if (!id) return NextResponse.json({ error: "Thiếu ID hàng hoá" }, { status: 400 });
 
     if (code) {
-      const duplicateItem = await prisma.inventoryItem.findFirst({
-        where: { code, id: { not: id } }
-      });
-      const duplicateMaterial = await (prisma as any).materialItem.findFirst({
-        where: { code, id: { not: id } }
-      });
-      if (duplicateItem || duplicateMaterial) {
-        return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
+      let currentCode = "";
+      if (source === "inventory") {
+        const current = await prisma.inventoryItem.findUnique({ where: { id }, select: { code: true } });
+        currentCode = current?.code || "";
+      } else if (source === "manufactured") {
+        const current = await prisma.manufacturedProduct.findUnique({ where: { id }, select: { code: true } });
+        currentCode = current?.code || "";
+      } else {
+        const current = await (prisma as any).materialItem.findUnique({ where: { id }, select: { code: true } });
+        currentCode = current?.code || "";
+      }
+
+      if (code !== currentCode) {
+        if (source === "inventory") {
+          const duplicateItem = await prisma.inventoryItem.findFirst({ where: { code, id: { not: id } } });
+          if (duplicateItem) return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
+        } else if (source === "manufactured") {
+          const duplicateManufactured = await prisma.manufacturedProduct.findFirst({ where: { code, id: { not: id } } });
+          if (duplicateManufactured) return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
+        } else {
+          const duplicateMaterial = await (prisma as any).materialItem.findFirst({ where: { code, id: { not: id } } });
+          if (duplicateMaterial) return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
+        }
       }
     }
 
     if (source === "inventory") {
-      // Cập nhật InventoryItem (Hàng hoá từ website)
       const updated = await prisma.inventoryItem.update({
         where: { id },
         data: {
@@ -550,6 +620,74 @@ export async function PUT(req: Request) {
           chieuDay: chieuDay ? parseFloat(chieuDay) : null,
         } as any,
       });
+      return NextResponse.json(updated);
+    } else if (source === "manufactured") {
+      const oldProduct = await prisma.manufacturedProduct.findUnique({ where: { id }, select: { code: true } });
+      const oldCode = oldProduct?.code;
+
+      // Cập nhật ManufacturedProduct
+      const updated = await prisma.manufacturedProduct.update({
+        where: { id },
+        data: {
+          code,
+          name: tenHang,
+          productCategoryId: categoryId || undefined,
+          unit: donVi || "bộ",
+          notes: ghiChu || undefined,
+          giaBan: Number(giaBan) || 0,
+          imageUrl: imageUrl || null,
+        } as any
+      });
+      
+      // ĐỒNG BỘ Cập nhật InventoryItem
+      if (code) {
+        const mappedCategoryId = await syncCategoryToInventory(updated.productCategoryId);
+        
+        if (oldCode && oldCode !== code) {
+          await prisma.inventoryItem.updateMany({
+            where: { code: oldCode },
+            data: { code: code }
+          });
+        }
+
+        await prisma.inventoryItem.upsert({
+          where: { code: code },
+          create: {
+            code: code,
+            tenHang: tenHang,
+            loai: "thanh-pham",
+            brand: brand || "Seajong",
+            categoryId: mappedCategoryId,
+            donVi: donVi || "bộ",
+            ghiChu: ghiChu || "",
+            imageUrl: imageUrl || null,
+            giaBan: Number(giaBan) || 0,
+            model: kieuDang || "",
+            soLuongMin: Number(soLuongMin) || 0,
+            giaNhap: Number(giaNhap) || 0,
+            thongSoKyThuat: thongSoKyThuat || "",
+            chieuDai: chieuDai ? parseFloat(chieuDai) : null,
+            chieuRong: chieuRong ? parseFloat(chieuRong) : null,
+            chieuDay: chieuDay ? parseFloat(chieuDay) : null,
+          } as any,
+          update: {
+            tenHang: tenHang,
+            brand: brand || "Seajong",
+            categoryId: mappedCategoryId,
+            donVi: donVi || "bộ",
+            ghiChu: ghiChu || "",
+            imageUrl: imageUrl || null,
+            giaBan: Number(giaBan) || 0,
+            model: kieuDang || "",
+            soLuongMin: Number(soLuongMin) || 0,
+            giaNhap: Number(giaNhap) || 0,
+            thongSoKyThuat: thongSoKyThuat || "",
+            chieuDai: chieuDai ? parseFloat(chieuDai) : null,
+            chieuRong: chieuRong ? parseFloat(chieuRong) : null,
+            chieuDay: chieuDay ? parseFloat(chieuDay) : null,
+          } as any
+        });
+      }
       return NextResponse.json(updated);
     } else {
       // Cập nhật MaterialItem (Vật tư sản xuất)

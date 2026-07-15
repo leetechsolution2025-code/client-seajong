@@ -53,7 +53,7 @@ export async function GET() {
 
     if (!industryName) {
       const defaultIndustry = await prisma.industry.findUnique({
-        where: { code: "wood_door" },
+        where: { code: "sanitary" },
         select: { name: true }
       });
       if (defaultIndustry) {

@@ -22,16 +22,14 @@ export async function GET(req: NextRequest) {
     const FETCH_LIMIT = search ? 1000 : 100;
 
     const where: any = {
+      loai: "hang-hoa",
       ...(trangThai  && { trangThai }),
       ...(categoryId && { categoryId }),
     };
 
-    if (warehouseId) {
-      where.OR = [
-        { stocks: { some: { warehouseId } } },
-        { stocks: { none: {} } }
-      ];
-    }
+    // if (warehouseId) {
+    //   where.stocks = { some: { warehouseId } };
+    // }
 
     const rawItems = await prisma.inventoryItem.findMany({
       where,

@@ -1,13 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { PrismaClient } = require('@prisma/client')
+const prisma = new PrismaClient()
+
 async function main() {
-  const reqs = await prisma.approvalRequest.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
-  console.log(JSON.stringify(reqs, null, 2));
+  const warehouses = await prisma.warehouse.findMany()
+  console.log(JSON.stringify(warehouses, null, 2))
 }
 main()
-  .catch(e => console.error(e))
-  .finally(async () => {
-    await prisma.$disconnect()
-  })

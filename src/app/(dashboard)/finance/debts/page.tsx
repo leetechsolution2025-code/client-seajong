@@ -86,7 +86,9 @@ export default function DebtsPage() {
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
   const [expenseStatuses, setExpenseStatuses] = useState<any[]>([]);
   const [selectedExpenseStatus, setSelectedExpenseStatus] = useState("");
-  const [collapsedMonths, setCollapsedMonths] = useState<string[]>([]);
+  const [expandedMonths, setExpandedMonths] = useState<string[]>([
+    `THÁNG ${String(new Date().getMonth() + 1).padStart(2, "0")}/${new Date().getFullYear()}`
+  ]);
   
   const [showDebtForm, setShowDebtForm] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -759,7 +761,7 @@ export default function DebtsPage() {
                     if (d.dueDate) {
                       const date = new Date(d.dueDate);
                       const monthStr = `THÁNG ${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
-                      const isCollapsed = collapsedMonths.includes(monthStr);
+                      const isCollapsed = !expandedMonths.includes(monthStr);
                       
                       if (monthStr !== lastMonth) {
                         grouped.push({
@@ -768,7 +770,7 @@ export default function DebtsPage() {
                           fullWidthContent: (
                             <div 
                               className="d-flex align-items-center justify-content-between w-100 cursor-pointer"
-                              onClick={() => setCollapsedMonths(prev => 
+                              onClick={() => setExpandedMonths(prev => 
                                 prev.includes(monthStr) ? prev.filter(m => m !== monthStr) : [...prev, monthStr]
                               )}
                             >

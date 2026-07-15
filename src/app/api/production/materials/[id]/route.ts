@@ -29,3 +29,24 @@ export async function PUT(
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { id } = await params;
+
+    await prisma.materialItem.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    console.error("[DELETE /materials/[id]]", e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}

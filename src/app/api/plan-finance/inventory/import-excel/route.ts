@@ -81,12 +81,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (!activeIndustryCode) {
-      activeIndustryCode = "wood_door";
+      activeIndustryCode = "sanitary";
     }
 
     let industryProdCategoryIds: string[] = [];
     const industryProductCodeMap: Record<string, string> = {
-      "wood_door": "SP_GO",
       "sanitary": "SP_VESINH",
       "building_materials": "SP_VLXD"
     };

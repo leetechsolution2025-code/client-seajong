@@ -200,12 +200,13 @@ export async function GET(request: NextRequest) {
       const payables = getBalance("331");
       const employees = getBalance("334");
       const taxes = getBalance("333");
-      const otherLiabilities = getBalance("338");
+      const unearnedRevenue = getBalance("3387");
+      const otherLiabilities = getBalance("338") - unearnedRevenue;
       
       const equity = getBalance("411");
       const retainedEarnings = getBalance("421");
       
-      const totalLiabilities = payables + employees + taxes + otherLiabilities;
+      const totalLiabilities = payables + employees + taxes + unearnedRevenue + otherLiabilities;
       const totalEquity = equity + retainedEarnings;
       const totalCapital = totalLiabilities + totalEquity;
 
@@ -248,11 +249,10 @@ export async function GET(request: NextRequest) {
           { code: "313", item: "3. Thuế và các khoản phải nộp Nhà nước", note: "V.10", current: taxes, previous: 0 },
           { code: "314", item: "4. Phải trả người lao động", note: "", current: employees, previous: 0 },
           { code: "315", item: "5. Phải trả khác", note: "V.09.c", current: otherLiabilities, previous: 0 },
-          { code: "316", item: "6. Vay và nợ thuê tài chính", note: "V.11", current: 0, previous: 0 },
-          { code: "317", item: "7. Phải trả nội bộ về vốn kinh doanh", note: "", current: 0, previous: 0 },
+          { code: "316", item: "6. Doanh thu chưa thực hiện", note: "", current: unearnedRevenue, previous: 0 },
+          { code: "317", item: "7. Vay và nợ thuê tài chính", note: "V.11", current: 0, previous: 0 },
           { code: "318", item: "8. Dự phòng phải trả", note: "V.12", current: 0, previous: 0 },
           { code: "319", item: "9. Quỹ khen thưởng, phúc lợi", note: "", current: 0, previous: 0 },
-          { code: "320", item: "10. Quỹ phát triển khoa học và công nghệ", note: "", current: 0, previous: 0 },
           { code: "400", item: "II. Vốn chủ sở hữu", note: "V.13", current: totalEquity, previous: 0, isParent: true },
           { code: "411", item: "1. Vốn góp của chủ sở hữu", note: "", current: equity, previous: 0 },
           { code: "412", item: "2. Thặng dư vốn cổ phần", note: "", current: 0, previous: 0 },

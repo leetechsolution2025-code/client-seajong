@@ -36,12 +36,11 @@ export async function GET(req: NextRequest) {
     }
 
     if (!activeIndustryCode) {
-      activeIndustryCode = "wood_door";
+      activeIndustryCode = "sanitary";
     }
 
     if (isMaterial) {
       const rootCodeMap: Record<string, string> = {
-        "wood_door": "VTSX_GO",
         "sanitary": "VTSX_VESINH",
         "building_materials": "VTSX_VLXD"
       };
@@ -74,7 +73,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(result);
     } else {
       const rootCodeMap: Record<string, string> = {
-        "wood_door": "SP_GO",
         "sanitary": "SP_VESINH",
         "building_materials": "SP_VLXD"
       };

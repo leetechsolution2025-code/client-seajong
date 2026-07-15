@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { TreeFilterSelect, TreeOption } from "@/components/ui/TreeFilterSelect";
+import { FilterSelect } from "@/components/ui/FilterSelect";
 
 interface Category {
   id: string;
@@ -11,16 +12,19 @@ interface Category {
   parentId: string | null;
 }
 
-export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, isMaterialWarehouse, editItem }: { 
+export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, warehouseType, isMaterialWarehouse, editItem }: { 
   open: boolean, 
   onClose: () => void, 
   onSaved: () => void, 
   warehouseId?: string | null,
+  warehouseType?: string | null,
   isMaterialWarehouse?: boolean,
   editItem?: any
 }) {
   const toast = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [warehouses, setWarehouses] = useState<{ label: string; value: string; type: string }[]>([]);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState(warehouseId || "");
 
   const [form, setForm] = useState({
     tenHang: "",
@@ -70,10 +74,13 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
 
   useEffect(() => {
     if (open) {
+      if (!editItem) {
+        setSelectedWarehouseId(warehouseId || "");
+      }
       if (editItem) {
         setIsCodeManuallyEdited(true);
         setForm({
-          tenHang: editItem.tenHang || "",
+          tenHang: editItem.tenHang || editItem.name || "",
           code: editItem.code || "",
           categoryId: editItem.categoryId || "",
           loai: editItem.source === "inventory" ? "hang-hoa" : "vat-tu",
@@ -117,16 +124,30 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
       }
       setWebSearch("");
       setWebResults([]);
+    }
+  }, [open, editItem, warehouseId, isMaterialWarehouse]);
 
-      const url = warehouseId 
-        ? `/api/logistics/categories?warehouseId=${warehouseId}`
+  useEffect(() => {
+    if (open) {
+      const url = selectedWarehouseId 
+        ? `/api/logistics/categories?warehouseId=${selectedWarehouseId}`
         : "/api/logistics/categories";
       fetch(url)
         .then(r => r.json())
         .then(data => setCategories(Array.isArray(data) ? data : []))
         .catch(() => {});
     }
-  }, [open, warehouseId, editItem]);
+  }, [open, selectedWarehouseId]);
+
+  useEffect(() => {
+    fetch("/api/finance/warehouses")
+      .then(res => res.json())
+      .then(data => {
+        const mapped = data.map((w: any) => ({ label: w.name, value: w.id, type: w.type }));
+        setWarehouses(mapped);
+      })
+      .catch(() => {});
+  }, []);
 
   const categoryOptions: TreeOption[] = categories.map(c => ({
     label: c.name,
@@ -236,9 +257,12 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
     if (!form.categoryId) return toast.error("Lỗi", "Vui lòng chọn danh mục");
 
     try {
+      const isProduct = warehouseType === "PRODUCT" || editItem?.source === "manufactured" || (!editItem?.source && warehouseType === "PRODUCT");
+      
       const payload = editItem 
-        ? { ...form, id: editItem.id, source: editItem.source } 
-        : { ...form, warehouseId };
+        ? { ...form, id: editItem.id, source: editItem.source || (isProduct ? "manufactured" : undefined) } 
+        : { ...form, warehouseId: selectedWarehouseId, source: isProduct ? "manufactured" : undefined };
+
       const res = await fetch("/api/logistics/inventory", {
         method: editItem ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -305,8 +329,8 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
             <div>
               <h6 className="fw-bold mb-0">
                 {isMaterialWarehouse 
-                  ? (editItem ? "Chỉnh sửa vật tư, phụ kiện mới" : "Thêm vật tư, phụ kiện mới")
-                  : (editItem ? "Chỉnh sửa thành phẩm mới" : "Thêm thành phẩm mới")
+                  ? (editItem ? "Chỉnh sửa vật tư, phụ kiện" : "Thêm vật tư, phụ kiện mới")
+                  : (editItem ? "Chỉnh sửa thành phẩm" : "Thêm thành phẩm mới")
                 }
               </h6>
               <p className="text-muted small mb-0" style={{ fontSize: "10px" }}>
@@ -332,13 +356,13 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
         </div>
 
         {/* Form Content */}
-        <div className="flex-grow-1 overflow-y-auto px-4 py-4" style={{ background: "#f8f9fa" }}>
-          <div className="container-fluid p-0" style={{ maxWidth: 1200 }}>
-            <div className="row g-4">
+        <div className="flex-grow-1 overflow-y-auto px-4 py-4 d-flex flex-column" style={{ background: "#f8f9fa" }}>
+          <div className="container-fluid p-0 d-flex flex-column flex-grow-1" style={{ maxWidth: 1200 }}>
+            <div className="row g-4 flex-grow-1">
               
               {/* Left Column: Form Fields */}
-              <div className="col-lg-8">
-                <div className="d-flex flex-column gap-4 p-4 rounded-4 border bg-white shadow-sm mb-4">
+              <div className="col-lg-8 d-flex flex-column">
+                <div className="d-flex flex-column gap-4 p-4 rounded-4 border bg-white shadow-sm flex-grow-1">
                   
                   {/* Basic Info Header */}
                   <div className="d-flex align-items-center gap-2 pb-2 border-bottom border-light">
@@ -349,21 +373,22 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
                   </div>
 
                   {/* Fields Grid */}
-                  <div className="row g-3">
+                  <div className="d-flex flex-column gap-3 flex-grow-1">
                     
                     {/* Website product search (only for Sanitary products) */}
                     {!editItem && !isMaterialWarehouse && (
-                      <div className="col-12 position-relative">
+                      <div className="col-12 position-relative flex-shrink-0">
                         <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Tìm kiếm dữ liệu từ Website (Tùy chọn)</label>
                         <div className="input-group">
                           <span className="input-group-text bg-light"><i className="bi bi-search text-muted" /></span>
                           <input 
                             type="text" 
-                            className="form-control rounded-3" 
+                            className="form-control rounded-3 bg-light" 
                             style={{ fontSize: "13px" }}
-                            placeholder="Nhập tên sản phẩm để tự động điền thông tin..." 
+                            placeholder="Tính năng tìm kiếm từ website đang tạm khóa..." 
                             value={webSearch} 
                             onChange={e => handleWebSearch(e.target.value)} 
+                            disabled
                           />
                           {isSearchingWeb && (
                             <span className="input-group-text bg-white">
@@ -389,12 +414,24 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
                       </div>
                     )}
 
-                    <div className="col-12">
+                    <div className="col-12 flex-shrink-0">
                       <div className="row g-3">
                         {/* Left Column for Inputs */}
                         <div className="col-md-9 col-12">
                           <div className="row g-3">
-                            <div className="col-md-6 col-12">
+                            {/* Warehouse Selection */}
+                            <div className="col-md-4 col-12">
+                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Kho lưu trữ {!editItem ? "*" : ""}</label>
+                              <FilterSelect 
+                                options={isMaterialWarehouse ? warehouses.filter(w => w.type === "MATERIAL") : warehouses}
+                                value={selectedWarehouseId}
+                                onChange={(val) => setSelectedWarehouseId(val)}
+                                placeholder="Chọn kho lưu trữ..."
+                                width="100%"
+                              />
+                            </div>
+
+                            <div className="col-md-4 col-12">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Danh mục {isMaterialWarehouse ? "vật tư" : "thành phẩm"} *</label>
                               <TreeFilterSelect 
                                 options={categoryOptions} 
@@ -404,7 +441,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
                               />
                             </div>
 
-                            <div className="col-md-6 col-12">
+                            <div className="col-md-4 col-12">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Mã định danh</label>
                               <input 
                                 type="text" 
@@ -474,7 +511,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
                     </div>
 
                     {/* Section: Tài chính & Kho vận và Thông số kỹ thuật */}
-                    <div className="row border-top pt-3 g-4 mb-3">
+                    <div className="row border-top pt-0 mt-0 g-4 mb-0 flex-grow-1">
                       {/* Left Column: Tài chính & Kho vận */}
                       <div className="col-md-6 border-end">
                         <div className="d-flex align-items-center gap-2 mb-3">
@@ -523,19 +560,18 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
                       </div>
 
                       {/* Right Column: Thông số kỹ thuật */}
-                      <div className="col-md-6">
+                      <div className="col-md-6 d-flex flex-column">
                         <div className="d-flex align-items-center gap-2 mb-3">
                           <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <i className="bi bi-gear text-primary" />
                           </div>
                           <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 13 }}>Thông số kỹ thuật</span>
                         </div>
-                        <div className="row">
-                          <div className="col-12">
+                        <div className="row flex-grow-1">
+                          <div className="col-12 d-flex flex-column">
                             <textarea 
-                              className="form-control rounded-3" 
-                              rows={5} 
-                              style={{ fontSize: 12 }} 
+                              className="form-control rounded-3 flex-grow-1" 
+                              style={{ fontSize: 12, resize: "none" }} 
                               placeholder="Chi tiết thông số kỹ thuật..." 
                               value={form.thongSoKyThuat} 
                               onChange={e => setForm({...form, thongSoKyThuat: e.target.value})} 
@@ -549,8 +585,8 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
               </div>
 
               {/* Right Column: Sidebar info */}
-              <div className="col-lg-4">
-                <div className="d-flex flex-column gap-3">
+              <div className="col-lg-4 d-flex flex-column">
+                <div className="d-flex flex-column gap-3 flex-grow-1">
                   
                   {/* Product Image Card */}
                   <div className="p-3 rounded-4 border shadow-sm" style={{ background: "var(--card)" }}>
@@ -595,7 +631,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
                     const isEditable = !!isMaterialWarehouse || warehouseId === "cmoit7ttx0000i4514gkqzm1k" || (editItem && editItem.source !== "inventory");
                     return (
                       <div 
-                        className="p-3 rounded-4 border shadow-sm" 
+                        className="p-3 rounded-4 border shadow-sm d-flex flex-column flex-grow-1" 
                         style={{ 
                           background: "var(--card)", 
                           opacity: isEditable ? 1 : 0.6,
@@ -637,12 +673,11 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, i
                           />
                         </div>
 
-                        <div className="mb-0 mt-2">
+                        <div className="mb-0 mt-2 flex-grow-1 d-flex flex-column">
                           <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Ghi chú nội bộ</label>
                           <textarea 
-                            className="form-control rounded-3" 
-                            rows={3} 
-                            style={{ fontSize: 12 }} 
+                            className="form-control rounded-3 flex-grow-1" 
+                            style={{ fontSize: 12, resize: "none" }} 
                             placeholder={isEditable ? "Lưu ý đặc biệt cho nhân viên kho..." : "Bị khoá - chỉ dùng cho kho vật tư"} 
                             value={form.ghiChu} 
                             onChange={e => setForm({...form, ghiChu: e.target.value})}

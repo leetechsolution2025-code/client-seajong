@@ -49,7 +49,9 @@ export async function GET(req: NextRequest) {
     const mappedItems = paginated.map((item: any) => ({
       ...item,
       categoryId: item.productCategoryId,
-      category: item.productCategory
+      category: item.productCategory,
+      dinhMuc: item.dinhMucs?.[0] || null,
+      source: "manufactured"
     }));
 
     return NextResponse.json({ 

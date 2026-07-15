@@ -131,7 +131,9 @@ export async function PUT(request: Request) {
     if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
 
     const body = await request.json();
-    const { type, partnerName, amount, paidAmount, dueDate, interestRate, description, referenceId, status } = body;
+    const { type, partnerName, amount, paidAmount, dueDate, interestRate, description, referenceId, status, newPayment } = body;
+
+    const oldDebt = await (prisma.debt as any).findUnique({ where: { id } });
 
     const debt = await (prisma.debt as any).update({
       where: { id },
@@ -147,6 +149,47 @@ export async function PUT(request: Request) {
         status: status || "UNPAID",
       }
     });
+
+    const payAmount = Number(paidAmount) - (oldDebt?.paidAmount || 0);
+
+    if (payAmount > 0 && newPayment) {
+      const typeUpper = (type || debt.type || "").toUpperCase();
+      const isReceivable = typeUpper === "RECEIVABLE" || typeUpper === "PHAI-THU";
+      const methodCode = newPayment.method === "Chuyển khoản" ? "1121" : "1111";
+      const { createAutoJournal } = require("@/lib/accounting-engine");
+
+      if (isReceivable) {
+        // 1. Thu tiền triệt tiêu công nợ
+        await createAutoJournal({
+          event: "SALES_RECEIPT",
+          overrideDebitCode: methodCode,
+          overrideCreditCode: "131",
+          amount: payAmount,
+          referenceCode: referenceId || id,
+          description: `Thu tiền khách hàng - ${partnerName}`
+        });
+
+        // 2. Kết chuyển doanh thu chưa thực hiện sang doanh thu thực tế
+        await createAutoJournal({
+          event: "SALES_REVENUE",
+          overrideDebitCode: "3387",
+          overrideCreditCode: "511",
+          amount: payAmount,
+          referenceCode: referenceId || id,
+          description: `Ghi nhận doanh thu từ HĐ - ${partnerName}`
+        });
+      } else {
+        const isLoan = typeUpper === "LOAN" || typeUpper === "VAY";
+        await createAutoJournal({
+          event: isLoan ? "CASH_PAYMENT_OTHER" : "VENDOR_PAYMENT", 
+          overrideDebitCode: isLoan ? "341" : "331",
+          overrideCreditCode: methodCode,
+          amount: payAmount,
+          referenceCode: referenceId || id,
+          description: isLoan ? `Trả nợ vay - ${partnerName}` : `Thanh toán NCC - ${partnerName}`
+        });
+      }
+    }
 
     // Sync paidAmount to SaleOrder or Contract if referenceId is set
     if (referenceId) {

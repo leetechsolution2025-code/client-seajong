@@ -29,7 +29,7 @@ export async function GET(req: Request) {
       include: { client: { include: { industry: true } } }
     });
 
-    let activeIndustryCode = "wood_door";
+    let activeIndustryCode = "sanitary";
     
     if (user?.role === "SUPERADMIN") {
       const cookieHeader = req.headers.get("cookie") || "";
@@ -64,7 +64,6 @@ export async function GET(req: Request) {
 
     if (warehouseCode === "KHO-THANHPHAM" || warehouseType === "PRODUCT" || warehouseType === "DEFECT") {
       const industryProductCodeMap: Record<string, string> = {
-        "wood_door": "SP_GO",
         "sanitary": "SP_VESINH",
         "building_materials": "SP_VLXD"
       };

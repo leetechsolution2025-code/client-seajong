@@ -24,7 +24,7 @@ export interface SyncLog {
 
 
 // ── ProductDrawer ──────────────────────────────────────────────────────────────
-export function ProductDrawer({ p, cats, onClose, isSalesMode }: { p: Product; cats: Category[]; onClose: () => void; isSalesMode?: boolean }) {
+export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Product; cats: Category[]; onClose: () => void; onEdit?: () => void; isSalesMode?: boolean }) {
   let activePromotions: string[] = [];
   let activePolicies: string[] = [];
   let activeVariations: any[] = [];
@@ -903,17 +903,33 @@ export function ProductDrawer({ p, cats, onClose, isSalesMode }: { p: Product; c
           <span style={{ fontSize: 16, fontWeight: 700, color: "var(--foreground)" }}>
             Thông tin sản phẩm
           </span>
-          <button
-            onClick={onClose}
-            style={{
-              width: 32, height: 32, borderRadius: 8,
-              border: "1.5px solid var(--border)", background: "transparent",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              color: "var(--foreground)",
-            }}
-          >
-            <i className="bi bi-x-lg" style={{ fontSize: 13 }} />
-          </button>
+          <div className="d-flex align-items-center gap-2">
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                style={{
+                  height: 32, borderRadius: 8, padding: "0 12px",
+                  border: "1.5px solid var(--border)", background: "transparent",
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "var(--foreground)", fontSize: 13, fontWeight: 600, gap: 6
+                }}
+              >
+                <i className="bi bi-pencil-square" style={{ fontSize: 13 }} />
+                Sửa
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                width: 32, height: 32, borderRadius: 8,
+                border: "1.5px solid var(--border)", background: "transparent",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                color: "var(--foreground)",
+              }}
+            >
+              <i className="bi bi-x-lg" style={{ fontSize: 13 }} />
+            </button>
+          </div>
         </div>
 
         {/* ── BODY CUỘN ── */}

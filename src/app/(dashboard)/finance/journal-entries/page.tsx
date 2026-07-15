@@ -193,14 +193,37 @@ export default function JournalEntriesPage() {
       ) : null
     },
     {
-      header: "SỐ CT",
+      header: "SỐ CHỨNG TỪ",
       width: "15%",
-      render: (row: any) => row.isMain ? <span className="text-primary fw-medium">{row.referenceCode || "-"}</span> : <span className="text-muted ps-4">{row.account?.code}</span>
+      render: (row: any) => {
+        if (!row.isMain) return <span className="text-muted ps-4">{row.account?.code}</span>;
+        if (!row.referenceCode) return <span className="text-muted">-</span>;
+
+        const relatedEntries = entries.filter((e: any) => e.referenceCode === row.referenceCode);
+        const hasManual = relatedEntries.some((e: any) => e.sourceModule === 'MANUAL');
+        
+        if (row.sourceModule !== 'MANUAL') {
+            return (
+              <div className="d-flex flex-column gap-1">
+                <span className="text-primary fw-medium">{row.referenceCode}</span>
+                {hasManual ? 
+                  <span className="badge bg-success-subtle text-success" style={{ width: 'fit-content', fontSize: '0.7rem' }}>Đã hạch toán</span> : 
+                  <span className="badge bg-warning-subtle text-warning" style={{ width: 'fit-content', fontSize: '0.7rem' }}>Chờ hạch toán</span>
+                }
+              </div>
+            );
+        }
+        
+        return <span className="text-primary fw-medium">{row.referenceCode}</span>;
+      }
     },
     {
       header: "DIỄN GIẢI",
       width: "35%",
-      render: (row: any) => row.isMain ? row.description : <span className="text-muted">{row.account?.name} {row.description ? `(${row.description})` : ''}</span>
+      render: (row: any) => {
+        if (!row.isMain) return <span className="text-muted">{row.account?.name} {row.description ? `(${row.description})` : ''}</span>;
+        return row.description ? row.description.replace(/\s*\(Mã:\s*[A-Za-z0-9-]+\)/i, '') : '';
+      }
     },
     {
       header: "NGUỒN",
@@ -293,7 +316,22 @@ export default function JournalEntriesPage() {
             stickyHeader
             compact
             emptyText="Chưa có bút toán nào trong hệ thống."
-            onRowClick={(row) => row.isMain && toggleExpand(row.id)}
+            onRowClick={(row) => {
+              if (row.isMain && row.referenceCode && row.sourceModule !== 'MANUAL') {
+                const relatedEntries = entries.filter((e: any) => e.referenceCode === row.referenceCode);
+                const hasManual = relatedEntries.some((e: any) => e.sourceModule === 'MANUAL');
+                
+                if (!hasManual) {
+                  setReferenceCode(row.referenceCode);
+                  setDescription(`Thanh toán cho chứng từ ${row.referenceCode}`);
+                  setLines([
+                    { accountId: "", type: "DEBIT", amount: row.totalAmount || 0, description: "" },
+                    { accountId: "", type: "CREDIT", amount: row.totalAmount || 0, description: "" }
+                  ]);
+                  setShowAddOffcanvas(true);
+                }
+              }
+            }}
             rowStyle={(row) => !row.isMain ? { background: 'var(--bs-light)', fontSize: '0.9em' } : {}}
           />
         </div>

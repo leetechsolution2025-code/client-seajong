@@ -67,10 +67,10 @@ export async function POST(req: NextRequest) {
     } = body;
 
     const prompt = `
-Bạn là chuyên gia phân tích tài chính và tối ưu hóa chi phí sản xuất đồ gỗ (đặc biệt là cửa gỗ công nghiệp và cửa chống cháy). Hãy phân tích bảng chiết tính chi phí tổng hợp dưới đây:
+Bạn là chuyên gia phân tích tài chính và tối ưu hóa chi phí (đặc biệt là thiết bị vệ sinh và nội thất). Hãy phân tích bảng chiết tính chi phí tổng hợp dưới đây:
 
 📊 THÔNG TIN SẢN PHẨM:
-- Tên sản phẩm: ${tenHang || "Cửa gỗ công nghiệp"}
+- Tên sản phẩm: ${tenHang || "Sản phẩm"}
 - Kích thước: ${kichThuoc || "Chưa xác định"}
 - Số lượng sản xuất: ${qtyBo || 1} bộ
 
@@ -88,12 +88,12 @@ Bạn là chuyên gia phân tích tài chính và tối ưu hóa chi phí sản 
 Hãy cung cấp phân tích tài chính ngắn gọn, súc tích và trực quan bằng ngôn ngữ Tiếng Việt, sử dụng định dạng Markdown rõ ràng bao gồm:
 1. **Phân tích cơ cấu chi phí**: Đánh giá tỷ trọng giữa vật tư chính, các vật tư phụ khác và chi phí sản xuất phân bổ. Nhận định xem cơ cấu này đã hợp lý và cân đối chưa.
 2. **Đánh giá hiệu quả kinh doanh**: Tính toán tỷ suất lợi nhuận gộp trên doanh thu bán hàng (Gross Margin), nhận định mức biên lợi nhuận này có thực sự an toàn tài chính cho doanh nghiệp không.
-3. **Đánh giá giá bán so với thị trường**: Đánh giá đơn giá bộ và đơn giá m² so với mặt bằng chung các xưởng sản xuất cửa gỗ công nghiệp khác.
+3. **Đánh giá giá bán so với thị trường**: Đánh giá đơn giá bộ và đơn giá m² so với mặt bằng chung các thương hiệu thiết bị vệ sinh khác.
 4. **Khuyến nghị tối ưu hóa**: Cung cấp 2-3 khuyến nghị cụ thể (Ví dụ: bổ sung vật tư tiêu hao/vật tư phụ nếu đang hiển thị bằng 0 đ để tránh rủi ro lỗ ngầm, tối ưu hao hụt ván để tiết kiệm chi phí vật tư chính, hoặc nâng biên lợi nhuận để dự phòng rủi ro bảo hành nếu giá bán đang quá thấp v.v.).
 
 Lưu ý quan trọng về định dạng:
 - Hãy trả về nội dung phân tích bằng Markdown trực quan, ngắn gọn, súc tích, định dạng chuyên nghiệp với các bullet points, in đậm để người dùng dễ theo dõi. Không bọc mã markdown trong bất kỳ khối JSON nào, chỉ trả về chuỗi Markdown thô.
-- Mỗi câu, nhận định hay khuyến nghị phải viết thành một câu đầy đủ chủ vị, rõ nghĩa và có ngữ nghĩa hoàn chỉnh. Tuyệt đối không viết nửa câu, câu cụt hoặc tự ý xuống dòng ngắt quãng làm xuất hiện các đầu dòng rời rạc không rõ ngữ cảnh (ví dụ như đầu dòng chỉ ghi vỏn vẹn mỗi chữ '(300 bộ).'). Nếu muốn nhắc đến số lượng sản xuất hoặc kích thước, hãy viết rõ ràng trong câu (ví dụ: 'Với quy mô đơn hàng sản xuất ${qtyBo || 1} bộ cửa gỗ...').
+- Mỗi câu, nhận định hay khuyến nghị phải viết thành một câu đầy đủ chủ vị, rõ nghĩa và có ngữ nghĩa hoàn chỉnh. Tuyệt đối không viết nửa câu, câu cụt hoặc tự ý xuống dòng ngắt quãng làm xuất hiện các đầu dòng rời rạc không rõ ngữ cảnh (ví dụ như đầu dòng chỉ ghi vỏn vẹn mỗi chữ '(300 bộ).'). Nếu muốn nhắc đến số lượng sản xuất hoặc kích thước, hãy viết rõ ràng trong câu (ví dụ: 'Với quy mô đơn hàng sản xuất ${qtyBo || 1} sản phẩm...').
 `;
 
     const analysis = await generateWithFallback(prompt);

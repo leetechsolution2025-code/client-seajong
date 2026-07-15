@@ -98,7 +98,7 @@ export async function DELETE(
 
     const { id } = await params;
     const asset = await prisma.asset.findUnique({ where: { id } });
-    if (asset) {
+    if (asset?.code) {
       await deleteAutoJournalByReference(asset.code, "Xoá tài sản cố định");
     }
     await prisma.asset.delete({
