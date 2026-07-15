@@ -1093,7 +1093,7 @@ export default function FinancePage() {
                                     <button
                                       className="btn btn-sm btn-outline-primary py-0 px-2 flex-shrink-0"
                                       style={{ fontSize: "11px", height: "24px" }}
-                                      onClick={(e) => handleViewItems(e, order)}
+                                      onClick={(e) => handleViewItems(e, selectedOrder)}
                                     >
                                       <i className="bi bi-box-seam me-1"></i> Xem hàng hoá
                                     </button>
