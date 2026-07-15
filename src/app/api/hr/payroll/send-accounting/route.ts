@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAttendanceData } from "@/components/hr/attendance-actions";
+import { createAutoJournal } from "@/lib/accounting-engine";
 
 export async function POST(req: Request) {
   try {
@@ -183,6 +184,16 @@ export async function POST(req: Request) {
 
       return notif;
     });
+
+    // [ACCOUNTING ENGINE] Tự động hạch toán Chi phí Lương (PAYROLL_EXPENSE)
+    if (totalNet + totalDeductions > 0) {
+      await createAutoJournal({
+        event: "PAYROLL_EXPENSE",
+        amount: Math.round(totalNet + totalDeductions),
+        referenceCode: `Lương T${month}/${year}`,
+        description: `Hạch toán chi phí lương tháng ${month}/${year}`
+      });
+    }
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession }          from "next-auth";
 import { authOptions }               from "@/lib/auth";
 import { prisma }                    from "@/lib/prisma";
+import { createAutoJournal }         from "@/lib/accounting-engine";
 
 /**
  * POST /api/plan-finance/stock-movements/batch-xuat
@@ -73,9 +74,14 @@ export async function POST(req: NextRequest) {
 
     // ── Bước 1: Kiểm tra tồn kho trước khi ghi ──────────────────────────────
     const insufficient: { inventoryItemId: string; tenHang: string; soLuong: number; soLuongTon: number }[] = [];
+    let totalBatchValue = 0; // Tính tổng giá trị xuất kho (giá vốn)
 
     for (const line of lines) {
       if (!line.inventoryItemId || !line.soLuong || line.soLuong <= 0) continue;
+      
+      if (line.donGia) {
+        totalBatchValue += line.soLuong * line.donGia;
+      }
 
       // Lấy InventoryStock theo kho cụ thể
       const stock = await prisma.inventoryStock.findUnique({
@@ -185,6 +191,16 @@ export async function POST(req: NextRequest) {
       await prisma.inventoryItem.update({
         where: { id: inventoryItemId },
         data:  { soLuong: tongSoLuong, trangThai },
+      });
+    }
+
+    // [ACCOUNTING ENGINE] Tự động hạch toán Xuất Kho
+    if (totalBatchValue > 0) {
+      await createAutoJournal({
+        event: "INVENTORY_ISSUE",
+        amount: totalBatchValue,
+        referenceCode: soChungTu,
+        description: lyDo || `Xuất kho theo chứng từ ${soChungTu || 'N/A'}`
       });
     }
 

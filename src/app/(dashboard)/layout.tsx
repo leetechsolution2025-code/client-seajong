@@ -207,6 +207,9 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
       },
       {
         group: "Kế toán", items: [
+          { name: "Danh mục tài khoản", href: "/finance/accounts", icon: "bi-journal-bookmark" },
+          { name: "Khai báo số dư đầu kỳ", href: "/finance/opening-balances", icon: "bi-wallet2" },
+          { name: "Sổ nhật ký chung", href: "/finance/journal-entries", icon: "bi-journal-text" },
           { name: "Kết xuất dữ liệu", href: "/finance/export", icon: "bi-file-earmark-excel" },
           { name: "Tạm ứng và chi phí", href: "/finance/advances", icon: "bi-cash" },
         ]

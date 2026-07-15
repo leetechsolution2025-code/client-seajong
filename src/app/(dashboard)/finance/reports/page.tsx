@@ -223,11 +223,11 @@ export default function FinancialReportsPage() {
                     currentSection = row.item;
                     return true;
                   }
-                  if (row.item.startsWith("TỔNG CỘNG")) {
+                  if (row?.item?.startsWith("TỔNG CỘNG")) {
                     currentSection = "";
                     return true;
                   }
-                  if (collapsedSections[currentSection]) {
+                  if (currentSection && collapsedSections[currentSection]) {
                     return false;
                   }
                   return true;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { createAutoJournal } from "@/lib/accounting-engine";
 
 function parseGuestInfo(ghiChu: string | null | undefined): { name: string; dienThoai: string; address: string } | null {
   if (!ghiChu) return null;
@@ -145,6 +146,27 @@ export async function POST(req: NextRequest) {
         include: { saleOrderItems: true },
       });
     });
+
+    // [ACCOUNTING ENGINE] Tự động hạch toán Bán Hàng
+    if (fullOrder && fullOrder.tongTien > 0) {
+      // 1. Ghi nhận doanh thu (Nợ 131 / Có 511)
+      await createAutoJournal({
+        event: "SALES_REVENUE",
+        amount: fullOrder.tongTien,
+        referenceCode: fullOrder.code || undefined,
+        description: `Ghi nhận doanh thu đơn hàng ${fullOrder.code}`
+      });
+
+      // 2. Ghi nhận thanh toán (nếu có khách trả ngay) (Nợ 111 / Có 131)
+      if (fullOrder.daThanhToan > 0) {
+        await createAutoJournal({
+          event: "SALES_RECEIPT",
+          amount: fullOrder.daThanhToan,
+          referenceCode: fullOrder.code || undefined,
+          description: `Khách hàng thanh toán đơn hàng ${fullOrder.code}`
+        });
+      }
+    }
 
     return NextResponse.json(fullOrder, { status: 201 });
   } catch (e: unknown) {

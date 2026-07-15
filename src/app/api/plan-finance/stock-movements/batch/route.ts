@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession }          from "next-auth";
 import { authOptions }               from "@/lib/auth";
 import { prisma }                    from "@/lib/prisma";
+import { createAutoJournal }         from "@/lib/accounting-engine";
 
 /**
  * POST /api/plan-finance/stock-movements/batch
@@ -64,12 +65,17 @@ export async function POST(req: NextRequest) {
     if (!lines.length)     return NextResponse.json({ error: "Cần ít nhất 1 dòng hàng hoá" }, { status: 400 });
 
     const movements = [];
+    let totalBatchValue = 0; // Tính tổng giá trị nhập kho để hạch toán
 
     for (const line of lines) {
       const { inventoryItemId, soLuong, soLuongCT, donGia, viTriHang, viTriCot, viTriTang, ghiChu } = line;
 
       if (!inventoryItemId) continue;
       if (!soLuong || soLuong <= 0) continue;
+      
+      if (donGia) {
+        totalBatchValue += soLuong * donGia;
+      }
 
       // Lấy tồn hiện tại
       const existing = await prisma.inventoryStock.findUnique({
@@ -374,15 +380,25 @@ export async function POST(req: NextRequest) {
             });
           }
         }
-      } catch (err) {
-        console.error("[POST /stock-movements/batch] Failed to process purchase order post-inbound actions:", err);
+      } catch (err: any) {
+        console.error("Lỗi hoàn thành PO:", err.message);
       }
     }
 
-    return NextResponse.json({ ok: true, count: movements.length, movements });
-  } catch (e) {
-    console.error("[POST /stock-movements/batch]", e);
-    const msg = e instanceof Error ? e.message : String(e);
+    // [ACCOUNTING ENGINE] Tự động hạch toán Nhập Kho
+    if (totalBatchValue > 0) {
+      await createAutoJournal({
+        event: "INVENTORY_RECEIPT",
+        amount: totalBatchValue,
+        referenceCode: soChungTu,
+        description: lyDo || `Nhập kho theo chứng từ ${soChungTu || 'N/A'}`
+      });
+    }
+
+    return NextResponse.json({ success: true, count: lines.length, movements }, { status: 201 });
+  } catch (error: any) {
+    console.error("[POST /stock-movements/batch]", error);
+    const msg = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

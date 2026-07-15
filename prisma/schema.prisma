@@ -2694,3 +2694,63 @@ model OemMasterYearlyPlan {
   @@index([year])
   @@index([status])
 }
+
+
+// --- MODULE ACCOUNTING (HẠCH TOÁN KẾ TOÁN) ---
+
+model AccountingAccount {
+  id            String  @id @default(cuid())
+  code          String  @unique // Mã TK: 111, 1111, 141.1
+  name          String  // Tên TK: Tiền mặt, Tạm ứng Kinh doanh...
+  level         Int     // Cấp: 1, 2, 3
+  isParent      Boolean @default(false)
+  parentId      String? // FK trỏ tới TK cha
+  type          String  // Loại: ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
+  balance       Float   @default(0) // Số dư hiện tại
+  
+  parent          AccountingAccount?  @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children        AccountingAccount[] @relation("AccountHierarchy")
+  journalLines    JournalLine[]
+  monthlyBalances MonthlyBalance[]
+}
+
+model MonthlyBalance {
+  id              String   @id @default(cuid())
+  accountId       String
+  month           Int      // 1-12
+  year            Int
+  openingDebit    Float    @default(0)
+  openingCredit   Float    @default(0)
+  arisingDebit    Float    @default(0)
+  arisingCredit   Float    @default(0)
+  closingDebit    Float    @default(0)
+  closingCredit   Float    @default(0)
+  
+  account         AccountingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  
+  @@unique([accountId, month, year])
+}
+
+model JournalEntry {
+  id            String   @id @default(cuid())
+  entryDate     DateTime @default(now())
+  referenceCode String?  
+  description   String   
+  sourceModule  String   // INVENTORY, SALES, MANUAL
+  totalAmount   Float    
+  createdAt     DateTime @default(now())
+  
+  lines         JournalLine[]
+}
+
+model JournalLine {
+  id              String   @id @default(cuid())
+  journalEntryId  String
+  accountId       String
+  type            String   // DEBIT hoặc CREDIT
+  amount          Float
+  description     String?
+  
+  journalEntry    JournalEntry      @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account         AccountingAccount @relation(fields: [accountId], references: [id])
+}
