@@ -61,6 +61,11 @@ export const ACCOUNTING_RULES = {
     sourceModule: "PRODUCTION"
   },
   // Tài sản (Assets)
+  ASSET_PURCHASE: {
+    debitCode: "211", // Tài sản cố định
+    creditCode: "331", // Phải trả
+    sourceModule: "ASSETS"
+  },
   ASSET_DEPRECIATION: {
     debitCode: "642", // Chi phí QLDN
     creditCode: "214", // Hao mòn TSCĐ
@@ -131,6 +136,69 @@ interface AutoJournalParams {
   overrideCreditCode?: string;
 }
 
+
+async function updateAccountBalance(tx: any, accountId: string, amount: number, isDebit: boolean) {
+  const account = await tx.accountingAccount.findUnique({ where: { id: accountId } });
+  if (!account) return;
+  
+  let amountChange = 0;
+  if (['ASSET', 'EXPENSE'].includes(account.type)) {
+    amountChange = isDebit ? amount : -amount;
+  } else {
+    amountChange = isDebit ? -amount : amount;
+  }
+
+  if (amountChange !== 0) {
+    await tx.accountingAccount.update({
+      where: { id: accountId },
+      data: { balance: { increment: amountChange } }
+    });
+    
+    // Update parent recursively
+    if (account.parentId) {
+      await updateAccountBalance(tx, account.parentId, amount, isDebit);
+    }
+  }
+}
+
+export async function deleteAutoJournalByReference(referenceCode: string, reason: string) {
+  try {
+    const journalEntries = await (prisma as any).journalEntry.findMany({
+      where: { referenceCode },
+      include: { lines: true }
+    });
+
+    if (journalEntries.length === 0) return false;
+
+    // Log deletion
+    const fs = require('fs');
+    const path = require('path');
+    const logFile = path.join(process.cwd(), 'deleted_journals.log');
+    
+    for (const entry of journalEntries) {
+      const logData = `[2026-07-15T07:35:10.964Z] DELETED: ${entry.referenceCode} - ${entry.description} - Reason: ${reason}\n` +
+                      `Lines: ${JSON.stringify(entry.lines)}\n\n`;
+      fs.appendFileSync(logFile, logData);
+
+      // Revert balances
+      await (prisma as any).$transaction(async (tx: any) => {
+        for (const line of entry.lines) {
+          // Reverse the amount: if it was DEBIT, we now simulate CREDIT to reverse it, etc.
+          // Wait, reversing a debit means applying a debit of -amount.
+          await updateAccountBalance(tx, line.accountId, -line.amount, line.type === 'DEBIT');
+        }
+        await tx.journalLine.deleteMany({ where: { journalEntryId: entry.id } });
+        await tx.journalEntry.delete({ where: { id: entry.id } });
+      });
+    }
+    console.log(`[AccountingEngine] Đã xoá và lưu log ${journalEntries.length} bút toán của ${referenceCode}`);
+    return true;
+  } catch (error) {
+    console.error("[AccountingEngine] Lỗi xoá bút toán:", error);
+    return false;
+  }
+}
+
 export async function createAutoJournal(params: AutoJournalParams) {
   const { event, amount, referenceCode, description, date, overrideDebitCode, overrideCreditCode } = params;
   
@@ -162,34 +230,65 @@ export async function createAutoJournal(params: AutoJournalParams) {
       return null;
     }
 
-    // 2. Tạo Bút toán (JournalEntry)
-    const journalEntry = await (prisma as any).journalEntry.create({
-      data: {
-        entryDate: date || new Date(),
-        referenceCode: referenceCode || null,
-        description: description,
-        sourceModule: rule.sourceModule,
-        totalAmount: amount,
-        lines: {
-          create: [
-            {
-              accountId: debitAccount.id,
-              type: "DEBIT",
-              amount: amount,
-              description: description
-            },
-            {
-              accountId: creditAccount.id,
-              type: "CREDIT",
-              amount: amount,
-              description: description
-            }
-          ]
+    // 2. Tạo Bút toán và cập nhật số dư
+    const journalEntry = await (prisma as any).$transaction(async (tx: any) => {
+      const entry = await tx.journalEntry.create({
+        data: {
+          entryDate: date || new Date(),
+          referenceCode: referenceCode || null,
+          description: description,
+          sourceModule: rule.sourceModule,
+          totalAmount: amount,
+          lines: {
+            create: [
+              { accountId: debitAccount.id, type: "DEBIT", amount, description },
+              { accountId: creditAccount.id, type: "CREDIT", amount, description }
+            ]
+          }
         }
-      }
+      });
+      
+      await updateAccountBalance(tx, debitAccount.id, amount, true);
+      await updateAccountBalance(tx, creditAccount.id, amount, false);
+      
+      return entry;
     });
 
     console.log(`[AccountingEngine] Tự động hạch toán thành công: ${event} (${amount}đ)`);
+    
+    // 3. Thông báo cho Kế toán và Giám đốc
+    try {
+      const financeUsers = await (prisma as any).user.findMany({
+        where: {
+          OR: [
+            { role: { in: ["ACCOUNTANT", "KETOAN", "FINANCE", "admin", "ADMIN", "SUPERADMIN", "DIRECTOR", "CEO", "GIAMDOC"] } },
+            { employee: { departmentCode: { in: ["KETOAN", "FINANCE", "TCKT", "KT", "TC", "BGD", "BOD"] } } },
+            { employee: { position: { contains: "Giám đốc" } } },
+            { employee: { position: { contains: "CEO" } } },
+            { employee: { position: { contains: "Director" } } }
+          ]
+        },
+        select: { id: true }
+      });
+      const userIds = financeUsers.map((u: any) => u.id);
+      
+      if (userIds.length > 0) {
+        await (prisma as any).notification.create({
+          data: {
+            title: `🔔 Tự động hạch toán: Phát sinh nghiệp vụ mới`,
+            content: `Hệ thống vừa tự động ghi nhận một nghiệp vụ phát sinh (${description}) với số tiền ${new Intl.NumberFormat("vi-VN").format(amount)} VNĐ. Sổ nhật ký chung và các báo cáo tài chính liên quan đã được cập nhật số liệu theo thời gian thực.`,
+            type: "info",
+            priority: "medium",
+            audienceType: "group",
+            audienceValue: JSON.stringify(userIds),
+            createdById: userIds[0] // Default to a valid user id for system notification
+          }
+        });
+      }
+    } catch (notifErr) {
+      console.error("[AccountingEngine] Không gửi được thông báo kế toán:", notifErr);
+    }
+
     return journalEntry;
   } catch (error) {
     console.error(`[AccountingEngine] Lỗi tự động hạch toán:`, error);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { deleteAutoJournalByReference } from "@/lib/accounting-engine";
 
 function parseGuestInfo(ghiChu: string | null | undefined): { name: string; dienThoai: string; address: string } | null {
   if (!ghiChu) return null;
@@ -823,6 +824,10 @@ export async function DELETE(
     }
 
     await prisma.$transaction(async (tx) => {
+      // Xoá bút toán kế toán
+      if (order.code) {
+        await deleteAutoJournalByReference(order.code, "Huỷ/xoá đơn hàng bán");
+      }
       // Xoá công nợ liên quan nếu có
       if (order.code) {
         await tx.debt.deleteMany({

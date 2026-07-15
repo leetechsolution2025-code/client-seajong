@@ -102,7 +102,7 @@ export default function FinancialReportsPage() {
 
   const trialColumns = [
     { header: "Tài khoản", width: "100px", render: (row: any) => <span className={row.isParent || row.accountName === "Cộng" ? "fw-bold" : ""} style={{ paddingLeft: (row.level || 0) * 12 + "px" }}>{row.accountCode}</span> },
-    { header: "TÊN TÀI KHOẢN", render: (row: any) => <span className={row.isParent || row.accountName === "Cộng" ? "fw-bold" : ""} style={{ paddingLeft: (row.level || 0) * 12 + "px" }}>{row.accountName}</span> },
+    { header: "TÊN TÀI KHOẢN", width: "350px", render: (row: any) => <div title={row.accountName} className={row.isParent || row.accountName === "Cộng" ? "fw-bold" : ""} style={{ paddingLeft: (row.level || 0) * 12 + "px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "330px" }}>{row.accountName}</div> },
     { header: "ĐẦU KỲ NỢ", align: "right", render: (row: any) => <span className={row.isParent || row.accountName === "Cộng" ? "fw-bold" : ""}>{formatValue(row.openingDebit)}</span> },
     { header: "ĐẦU KỲ CÓ", align: "right", render: (row: any) => <span className={row.isParent || row.accountName === "Cộng" ? "fw-bold" : ""}>{formatValue(row.openingCredit)}</span> },
     { header: "PHÁT SINH NỢ", align: "right", render: (row: any) => <span className={row.isParent || row.accountName === "Cộng" ? "fw-bold" : ""}>{formatValue(row.arisingDebit)}</span> },
@@ -114,19 +114,19 @@ export default function FinancialReportsPage() {
   const renderTrialHeader = () => (
     <>
       <tr style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
-        <th rowSpan={2} className="text-uppercase" style={{ padding: "4px 12px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", borderBottom: "2px solid var(--border)", verticalAlign: "middle" }}>Tài khoản</th>
-        <th rowSpan={2} className="text-uppercase" style={{ padding: "4px 12px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", borderBottom: "2px solid var(--border)", verticalAlign: "middle" }}>TÊN TÀI KHOẢN</th>
+        <th rowSpan={2} className="text-uppercase" style={{ width: "100px", padding: "4px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", borderBottom: "2px solid var(--border)", verticalAlign: "middle" }}>Tài khoản</th>
+        <th rowSpan={2} className="text-uppercase" style={{ width: "350px", padding: "4px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", borderBottom: "2px solid var(--border)", verticalAlign: "middle" }}>TÊN TÀI KHOẢN</th>
         <th colSpan={2} className="text-uppercase" style={{ padding: "4px 12px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>ĐẦU KỲ</th>
         <th colSpan={2} className="text-uppercase" style={{ padding: "4px 12px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>PHÁT SINH</th>
         <th colSpan={2} className="text-uppercase" style={{ padding: "4px 12px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>CUỐI KỲ</th>
       </tr>
       <tr>
-        <th className="text-uppercase" style={{ padding: "4px 12px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "2px solid var(--border)", top: "27px" }}>NỢ</th>
-        <th className="text-uppercase" style={{ padding: "4px 12px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "2px solid var(--border)", top: "27px" }}>CÓ</th>
-        <th className="text-uppercase" style={{ padding: "4px 12px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "2px solid var(--border)", top: "27px" }}>NỢ</th>
-        <th className="text-uppercase" style={{ padding: "4px 12px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "2px solid var(--border)", top: "27px" }}>CÓ</th>
-        <th className="text-uppercase" style={{ padding: "4px 12px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "2px solid var(--border)", top: "27px" }}>NỢ</th>
-        <th className="text-uppercase" style={{ padding: "4px 12px", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "2px solid var(--border)", top: "27px" }}>CÓ</th>
+        <th className="text-uppercase" style={{ padding: "4px 12px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "2px solid var(--border)", top: "27px" }}>NỢ</th>
+        <th className="text-uppercase" style={{ padding: "4px 12px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "2px solid var(--border)", top: "27px" }}>CÓ</th>
+        <th className="text-uppercase" style={{ padding: "4px 12px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "2px solid var(--border)", top: "27px" }}>NỢ</th>
+        <th className="text-uppercase" style={{ padding: "4px 12px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "2px solid var(--border)", top: "27px" }}>CÓ</th>
+        <th className="text-uppercase" style={{ padding: "4px 12px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "2px solid var(--border)", top: "27px" }}>NỢ</th>
+        <th className="text-uppercase" style={{ padding: "4px 12px", textAlign: "right", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "2px solid var(--border)", top: "27px" }}>CÓ</th>
       </tr>
     </>
   );
@@ -169,6 +169,9 @@ export default function FinancialReportsPage() {
                        <div 
                          className={`progress-bar ${analysis.score >= 85 ? 'bg-success' : analysis.score >= 75 ? 'bg-primary' : analysis.score >= 60 ? 'bg-warning' : 'bg-danger'}`}
                          role="progressbar" 
+                         aria-valuenow={analysis.score}
+                         aria-valuemin={0}
+                         aria-valuemax={100}
                          style={{ width: `${analysis.score}%` }} 
                        ></div>
                      </div>
@@ -240,6 +243,20 @@ export default function FinancialReportsPage() {
               compact
               wrapperStyle={{ height: "100%", overflowY: "auto" }}
               emptyText="Không có dữ liệu cho kỳ báo cáo này."
+              cellStyle={(row: any) => {
+                if (row.accountName === "Cộng" || row.item?.startsWith("TỔNG CỘNG")) {
+                  return {
+                    position: "sticky",
+                    bottom: 0,
+                    zIndex: 11,
+                    background: "var(--card, white)",
+                    borderTop: "2px solid var(--border)",
+                    borderBottom: "none",
+                    boxShadow: "0 -2px 10px rgba(0,0,0,0.05)"
+                  };
+                }
+                return {};
+              }}
             />
           )}
         </div>

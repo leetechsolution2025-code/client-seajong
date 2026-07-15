@@ -125,24 +125,7 @@ export async function GET(request: NextRequest) {
     // ==========================================
     // TAB 1: TRIAL BALANCE (CÂN ĐỐI TÀI KHOẢN)
     // ==========================================
-    if (tab === "trial") {
-      const trialData = allAccounts.map((acc: any) => {
-          const bal = accountBalances.get(acc.id)!;
-          return {
-              accountCode: acc.code,
-              accountName: acc.name,
-              openingDebit: bal.openingDebit,
-              openingCredit: bal.openingCredit,
-              arisingDebit: bal.arisingDebit,
-              arisingCredit: bal.arisingCredit,
-              closingDebit: bal.closingDebit,
-              closingCredit: bal.closingCredit,
-          };
-      }).filter((a: any) => a.openingDebit > 0 || a.openingCredit > 0 || a.arisingDebit > 0 || a.arisingCredit > 0 || a.closingDebit > 0 || a.closingCredit > 0);
-
-      const analysis = { summary: "Dữ liệu được trích xuất trực tiếp từ Sổ nhật ký chung.", score: 95 };
-      return NextResponse.json({ success: true, analysis, data: trialData });
-    }
+    // Block removed to use the full mock array at the bottom of the file.
 
     // ==========================================
     // TAB 2: INCOME STATEMENT (KẾT QUẢ KINH DOANH)
@@ -195,7 +178,9 @@ export async function GET(request: NextRequest) {
           { code: "60", item: "15. Lợi nhuận sau thuế thu nhập doanh nghiệp (60 = 50 - 51)", note: "", current: netProfit, previous: 0, isParent: true, isCalculated: true }
       ];
 
-      return NextResponse.json({ success: true, analysis: { summary: "Đã cập nhật số liệu thực tế từ hệ thống.", score: 90 }, data });
+      const hasData = data.some((d: any) => Math.abs(d.current || 0) > 0 || Math.abs(d.previous || 0) > 0);
+      const analysis = hasData ? { summary: "Đã cập nhật số liệu thực tế từ hệ thống.", score: 90 } : { summary: "Chưa có phát sinh trong kỳ.", score: 0 };
+      return NextResponse.json({ success: true, analysis, data });
     }
 
     // ==========================================
@@ -205,7 +190,9 @@ export async function GET(request: NextRequest) {
       const cash = getBalance("111") + getBalance("112");
       const receivables = getBalance("131") + getBalance("138");
       const inventory = getBalance("15");
-      const fixedAssets = getBalance("211") - getBalance("214");
+      const fixedAssetsOriginal = getBalance("211");
+      const fixedAssetsDepreciation = getBalance("214"); // This returns a negative number for Credit balances
+      const fixedAssets = fixedAssetsOriginal + fixedAssetsDepreciation;
       const otherAssets = getBalance("141") + getBalance("242");
       
       const totalAssets = cash + receivables + inventory + fixedAssets + otherAssets;
@@ -243,8 +230,8 @@ export async function GET(request: NextRequest) {
           { code: "141", item: "1. Hàng tồn kho", note: "", current: inventory, previous: 0 },
           { code: "142", item: "2. Dự phòng giảm giá hàng tồn kho (*)", note: "", current: 0, previous: 0 },
           { code: "150", item: "V. Tài sản cố định", note: "V.05", current: fixedAssets, previous: 0, isParent: true },
-          { code: "151", item: "- Nguyên giá", note: "", current: fixedAssets, previous: 0 },
-          { code: "152", item: "- Giá trị hao mòn lũy kế (*)", note: "", current: 0, previous: 0 },
+          { code: "151", item: "- Nguyên giá", note: "", current: fixedAssetsOriginal, previous: 0 },
+          { code: "152", item: "- Giá trị hao mòn lũy kế (*)", note: "", current: fixedAssetsDepreciation, previous: 0 },
           { code: "160", item: "VI. Bất động sản đầu tư", note: "V.06", current: 0, previous: 0, isParent: true },
           { code: "161", item: "- Nguyên giá", note: "", current: 0, previous: 0 },
           { code: "162", item: "- Giá trị hao mòn lũy kế (*)", note: "", current: 0, previous: 0 },
@@ -277,7 +264,9 @@ export async function GET(request: NextRequest) {
           { code: "500", item: "TỔNG CỘNG NGUỒN VỐN (500 = 300 + 400)", note: "", current: totalCapital, previous: 0, isParent: true, isLevel1: true, isCalculated: true }
       ];
 
-      return NextResponse.json({ success: true, analysis: { summary: "Bảng cân đối được tính toán từ các số dư cuối kỳ.", score: 92 }, data });
+      const hasData = data.some((d: any) => Math.abs(d.current || 0) > 0 || Math.abs(d.previous || 0) > 0);
+      const analysis = hasData ? { summary: "Bảng cân đối được tính toán từ các số dư cuối kỳ.", score: 92 } : { summary: "Chưa có số liệu đầu kỳ và phát sinh.", score: 0 };
+      return NextResponse.json({ success: true, analysis, data });
     }
 
     // ==========================================
@@ -327,15 +316,120 @@ export async function GET(request: NextRequest) {
           { code: "01", item: "1. Tiền thu từ bán hàng, cung cấp dịch vụ và doanh thu khác", current: thuBanHang, previous: 0 },
           { code: "02", item: "2. Tiền chi trả cho người cung cấp hàng hóa và dịch vụ", current: chiTraNCC, previous: 0 },
           { code: "03", item: "3. Tiền chi trả cho người lao động", current: chiTraNV, previous: 0 },
-          { code: "07", item: "4. Tiền chi khác", current: chiKhac, previous: 0 },
+          { code: "04", item: "4. Tiền lãi vay đã trả", current: 0, previous: 0 },
+          { code: "05", item: "5. Thuế thu nhập doanh nghiệp đã nộp", current: 0, previous: 0 },
+          { code: "06", item: "6. Tiền thu khác từ hoạt động kinh doanh", current: 0, previous: 0 },
+          { code: "07", item: "7. Tiền chi khác cho hoạt động kinh doanh", current: chiKhac, previous: 0 },
           { code: "20", item: "Lưu chuyển tiền thuần từ hoạt động kinh doanh", current: netCash, previous: 0, isParent: true, isCalculated: true },
           
-          { code: "50", item: "Lưu chuyển tiền thuần trong kỳ", current: netCash, previous: 0, isParent: true, isCalculated: true },
+          { code: "", item: "II. Lưu chuyển tiền từ hoạt động đầu tư", current: 0, previous: 0, isParent: true, isLevel1: true },
+          { code: "21", item: "1. Tiền chi để mua sắm, xây dựng TSCĐ và các tài sản dài hạn khác", current: 0, previous: 0 },
+          { code: "22", item: "2. Tiền thu từ thanh lý, nhượng bán TSCĐ và các tài sản dài hạn khác", current: 0, previous: 0 },
+          { code: "23", item: "3. Tiền chi cho vay, mua các công cụ nợ của đơn vị khác", current: 0, previous: 0 },
+          { code: "24", item: "4. Tiền thu hồi cho vay, bán lại các công cụ nợ của đơn vị khác", current: 0, previous: 0 },
+          { code: "25", item: "5. Tiền chi đầu tư góp vốn vào đơn vị khác", current: 0, previous: 0 },
+          { code: "26", item: "6. Tiền thu hồi đầu tư góp vốn vào đơn vị khác", current: 0, previous: 0 },
+          { code: "27", item: "7. Tiền thu lãi cho vay, cổ tức và lợi nhuận được chia", current: 0, previous: 0 },
+          { code: "30", item: "Lưu chuyển tiền thuần từ hoạt động đầu tư", current: 0, previous: 0, isParent: true, isCalculated: true },
+
+          { code: "", item: "III. Lưu chuyển tiền từ hoạt động tài chính", current: 0, previous: 0, isParent: true, isLevel1: true },
+          { code: "31", item: "1. Tiền thu từ phát hành cổ phiếu, nhận vốn góp của chủ sở hữu", current: 0, previous: 0 },
+          { code: "32", item: "2. Tiền chi trả vốn góp cho các chủ sở hữu, mua lại cổ phiếu...", current: 0, previous: 0 },
+          { code: "33", item: "3. Tiền thu từ đi vay", current: 0, previous: 0 },
+          { code: "34", item: "4. Tiền trả nợ gốc vay", current: 0, previous: 0 },
+          { code: "35", item: "5. Tiền trả nợ gốc thuê tài chính", current: 0, previous: 0 },
+          { code: "36", item: "6. Cổ tức, lợi nhuận đã trả cho chủ sở hữu", current: 0, previous: 0 },
+          { code: "40", item: "Lưu chuyển tiền thuần từ hoạt động tài chính", current: 0, previous: 0, isParent: true, isCalculated: true },
+
+          { code: "50", item: "Lưu chuyển tiền thuần trong kỳ (50 = 20 + 30 + 40)", current: netCash, previous: 0, isParent: true, isCalculated: true },
           { code: "60", item: "Tiền và tương đương tiền đầu kỳ", current: openingCash, previous: 0, isParent: true, isCalculated: true },
-          { code: "70", item: "Tiền và tương đương tiền cuối kỳ", current: closingCash, previous: 0, isParent: true, isCalculated: true }
+          { code: "61", item: "Ảnh hưởng của thay đổi tỷ giá hối đoái quy đổi ngoại tệ", current: 0, previous: 0 },
+          { code: "70", item: "Tiền và tương đương tiền cuối kỳ (70 = 50 + 60 + 61)", current: closingCash, previous: 0, isParent: true, isCalculated: true }
       ];
 
-      return NextResponse.json({ success: true, analysis: { summary: "Dòng tiền được trích xuất từ các nghiệp vụ thực tế.", score: 85 }, data });
+      const hasData = data.some((d: any) => Math.abs(d.current || 0) > 0 || Math.abs(d.previous || 0) > 0);
+      const analysis = hasData ? { summary: "Dòng tiền được trích xuất từ các nghiệp vụ thực tế.", score: 85 } : { summary: "Chưa có dòng tiền phát sinh.", score: 0 };
+      return NextResponse.json({ success: true, analysis, data });
+    }
+
+if (tab === "trial" || tab === "trial-balance") {
+      const trialDataRaw = allAccounts.map((acc: any) => {
+          const bal = accountBalances.get(acc.id) || {
+              openingDebit: 0, openingCredit: 0,
+              arisingDebit: 0, arisingCredit: 0,
+              closingDebit: 0, closingCredit: 0
+          };
+          return {
+              accountCode: acc.code,
+              accountName: acc.name,
+              openingDebit: bal.openingDebit,
+              openingCredit: bal.openingCredit,
+              arisingDebit: bal.arisingDebit,
+              arisingCredit: bal.arisingCredit,
+              closingDebit: bal.closingDebit,
+              closingCredit: bal.closingCredit,
+              isParent: false,
+              level: 0
+          };
+      });
+
+      // Calculate isParent and level
+      trialDataRaw.forEach((row: any, idx: number) => {
+        if (idx < trialDataRaw.length - 1 && trialDataRaw[idx+1].accountCode.startsWith(row.accountCode)) {
+            row.isParent = true;
+        } else {
+            row.isParent = false;
+        }
+        let lvl = 0;
+        for (let i = idx - 1; i >= 0; i--) {
+          if (row.accountCode.startsWith(trialDataRaw[i].accountCode) && row.accountCode !== trialDataRaw[i].accountCode) {
+            lvl = trialDataRaw[i].level + 1;
+            break;
+          }
+        }
+        row.level = lvl;
+      });
+
+      // Add Total Row
+      let totalOpeningDebit = 0;
+      let totalOpeningCredit = 0;
+      let totalArisingDebit = 0;
+      let totalArisingCredit = 0;
+      let totalClosingDebit = 0;
+      let totalClosingCredit = 0;
+
+      trialDataRaw.forEach((row: any) => {
+          if (!row.isParent) {
+              totalOpeningDebit += row.openingDebit;
+              totalOpeningCredit += row.openingCredit;
+              totalArisingDebit += row.arisingDebit;
+              totalArisingCredit += row.arisingCredit;
+              totalClosingDebit += row.closingDebit;
+              totalClosingCredit += row.closingCredit;
+          }
+      });
+
+      trialDataRaw.push({
+          accountCode: "",
+          accountName: "Cộng",
+          openingDebit: totalOpeningDebit,
+          openingCredit: totalOpeningCredit,
+          arisingDebit: totalArisingDebit,
+          arisingCredit: totalArisingCredit,
+          closingDebit: totalClosingDebit,
+          closingCredit: totalClosingCredit,
+          isParent: true,
+          level: 0
+      });
+
+      const hasData = trialDataRaw.some((d: any) => Math.abs(d.openingDebit || 0) > 0 || Math.abs(d.openingCredit || 0) > 0 || Math.abs(d.arisingDebit || 0) > 0 || Math.abs(d.arisingCredit || 0) > 0 || Math.abs(d.closingDebit || 0) > 0 || Math.abs(d.closingCredit || 0) > 0);
+      const analysis = hasData ? { summary: "Dữ liệu được tổng hợp trực tiếp từ Sổ nhật ký chung và Sổ cái.", score: 95 } : { summary: "Không có số dư hay phát sinh trong kỳ.", score: 0 };
+
+      return NextResponse.json({
+        success: true,
+        analysis,
+        data: trialDataRaw
+      });
     }
 
     return NextResponse.json({ success: false, error: "Invalid tab" });

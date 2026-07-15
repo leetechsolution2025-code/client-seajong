@@ -1,0 +1,12 @@
+[2026-07-15T07:35:10.964Z] DELETED: TS-20260715-5669 - Mua mới tài sản: Máy khắc Lazer (Mã: TS-20260715-5669) - Reason: Xoá tài sản cố định
+Lines: [{"id":"cmrlrcylb0004gstu6u7jlet1","journalEntryId":"cmrlrcylb0002gstubmin7dr6","accountId":"cmrln1vrr002b8ovfbfhoz6g9","type":"DEBIT","amount":8750012,"description":"Mua mới tài sản: Máy khắc Lazer (Mã: TS-20260715-5669)"},{"id":"cmrlrcylb0005gstuvoqh6eb6","journalEntryId":"cmrlrcylb0002gstubmin7dr6","accountId":"cmrlmib2j000n8o5m4pnz39de","type":"CREDIT","amount":8750012,"description":"Mua mới tài sản: Máy khắc Lazer (Mã: TS-20260715-5669)"}]
+
+[2026-07-15T07:35:10.964Z] DELETED: TS-20260715-6158 - Mua mới tài sản: Máy khắc Lazer (Mã: TS-20260715-6158) - Reason: Xoá tài sản cố định
+Lines: [{"id":"cmrlsav3m00cjgstutipbisqb","journalEntryId":"cmrlsav3m00chgstu9ni8rpr2","accountId":"cmrln1vrr002b8ovfbfhoz6g9","type":"DEBIT","amount":8750012,"description":"Mua mới tài sản: Máy khắc Lazer (Mã: TS-20260715-6158)"},{"id":"cmrlsav3m00ckgstupso0f9ap","journalEntryId":"cmrlsav3m00chgstu9ni8rpr2","accountId":"cmrlmib2j000n8o5m4pnz39de","type":"CREDIT","amount":8750012,"description":"Mua mới tài sản: Máy khắc Lazer (Mã: TS-20260715-6158)"}]
+
+[2026-07-15T07:35:10.964Z] DELETED: TS-20260715-6158 - Khấu hao tháng 6/2026 cho TS: Máy khắc Lazer - Reason: Xoá tài sản cố định
+Lines: [{"id":"cmrlsevu100cpgstuvqgaqwia","journalEntryId":"cmrlsevu100cngstu2suk1xis","accountId":"cmrln1vt4008d8ovf93qsc0hj","type":"DEBIT","amount":875001,"description":"Khấu hao tháng 6/2026 cho TS: Máy khắc Lazer"},{"id":"cmrlsevu100cqgstus150zqf7","journalEntryId":"cmrlsevu100cngstu2suk1xis","accountId":"cmrln1vrx00348ovfrjaiazfj","type":"CREDIT","amount":875001,"description":"Khấu hao tháng 6/2026 cho TS: Máy khắc Lazer"}]
+
+[2026-07-15T07:35:10.964Z] DELETED: TS-20260715-6158 - Khấu hao tháng 7/2026 cho TS: Máy khắc Lazer - Reason: Xoá tài sản cố định
+Lines: [{"id":"cmrlsf1of00cvgstut0vnli3i","journalEntryId":"cmrlsf1of00ctgstuo70n0rpk","accountId":"cmrln1vt4008d8ovf93qsc0hj","type":"DEBIT","amount":875001,"description":"Khấu hao tháng 7/2026 cho TS: Máy khắc Lazer"},{"id":"cmrlsf1of00cwgstu4ebxmc53","journalEntryId":"cmrlsf1of00ctgstuo70n0rpk","accountId":"cmrln1vrx00348ovfrjaiazfj","type":"CREDIT","amount":875001,"description":"Khấu hao tháng 7/2026 cho TS: Máy khắc Lazer"}]
+

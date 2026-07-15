@@ -12,7 +12,7 @@ export default function RevenueExpenseAnalysisPage() {
       title="Phân tích doanh thu và chi phí"
       description="Xem báo cáo chi tiết về tình hình thu chi và lợi nhuận của doanh nghiệp"
       icon="bi-pie-chart"
-      color="primary"
+      color="indigo"
     >
       <div className="row g-4">
         <div className="col-12">

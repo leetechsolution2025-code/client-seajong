@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { deleteAutoJournalByReference } from "@/lib/accounting-engine";
 import { syncCategoryToInventory } from "@/lib/sync-utils";
 
 // Hàm đệ quy để lấy toàn bộ ID danh mục con
@@ -623,9 +624,17 @@ export async function DELETE(req: Request) {
     if (!id) return NextResponse.json({ error: "Thiếu ID hàng hoá" }, { status: 400 });
 
     if (source === "inventory") {
+      const item = await prisma.inventoryItem.findUnique({ where: { id } });
+      if (item && item.code) {
+         await deleteAutoJournalByReference(item.code, "Xoá mã hàng hoá");
+      }
       await prisma.stockMovement.deleteMany({ where: { inventoryItemId: id } });
       await prisma.inventoryItem.delete({ where: { id } });
     } else {
+      const item = await (prisma as any).materialItem.findUnique({ where: { id } });
+      if (item && item.code) {
+         await deleteAutoJournalByReference(item.code, "Xoá vật tư");
+      }
       await prisma.dinhMucVatTu.updateMany({
         where: { materialId: id },
         data: { materialId: null }

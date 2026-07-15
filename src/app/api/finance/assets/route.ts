@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createAutoJournal } from "@/lib/accounting-engine";
 
 export async function GET(request: Request) {
   try {
@@ -32,8 +33,10 @@ export async function GET(request: Request) {
       
       if (asset.soThangKhauHao && asset.soThangKhauHao > 0 && asset.ngayBatDauKhauHao) {
         const start = new Date(asset.ngayBatDauKhauHao);
-        const monthsDiff = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth()) + 1;
-        
+        const startMonth = start.getFullYear() * 12 + start.getMonth();
+        const currentMonth = now.getFullYear() * 12 + now.getMonth();
+        const lastCompletedMonth = (now.getDate() >= 28) ? currentMonth : currentMonth - 1;
+        const monthsDiff = lastCompletedMonth - startMonth + 1;
         if (monthsDiff > 0) {
           const depreciationPerMonth = asset.giaTriMua / asset.soThangKhauHao;
           remainingValue = Math.max(0, asset.giaTriMua - (monthsDiff * depreciationPerMonth));
@@ -83,12 +86,64 @@ export async function POST(request: Request) {
         donVi,
         nguoiSuDungId,
         ghiChu,
-        trangThai: "chua-su-dung",
+        trangThai: body.trangThai || "chua-su-dung",
         ngayMua: ngayMua ? new Date(ngayMua) : null,
         ngayBatDauKhauHao: ngayBatDauKhauHao ? new Date(ngayBatDauKhauHao) : null,
       } as any,
     });
+    
+    // Auto record journal for asset purchase
+    let debitCode = "2118";
+    if (loai === "Nhà cửa, vật kiến trúc") debitCode = "2111";
+    else if (loai === "Máy móc, thiết bị") debitCode = "2112";
+    else if (loai === "Phương tiện vận tải") debitCode = "2113";
+    else if (loai === "Thiết bị, dụng cụ quản lý") debitCode = "2114";
+    else if (loai === "Phần mềm máy tính") debitCode = "213";
+    
+    await createAutoJournal({
+      event: "ASSET_PURCHASE" as any,
+      amount: Number(giaTriMua) || 0,
+      description: `Mua mới tài sản: ${tenTaiSan} (Mã: ${code})`,
+      referenceCode: code,
+      overrideDebitCode: debitCode,
+    });
+    
+
+    // BACKFILL DEPRECIATION
+    const actualStatus = body.trangThai || "chua-su-dung";
+    if (actualStatus === "dang-su-dung" && ngayBatDauKhauHao) {
+      const startDate = new Date(ngayBatDauKhauHao);
+      const now = new Date();
+      const startMonth = startDate.getFullYear() * 12 + startDate.getMonth();
+      const currentMonth = now.getFullYear() * 12 + now.getMonth();
+      const lastCompletedMonth = (now.getDate() >= 28) ? currentMonth : currentMonth - 1;
+      
+      if (startMonth <= lastCompletedMonth && parseInt(soThangKhauHao) > 0) {
+        const depreciationPerMonth = Number(giaTriMua) / parseInt(soThangKhauHao);
+        let depDebitCode = "642";
+        if (loai === "Máy móc, thiết bị" || (donVi || "").toLowerCase().includes("sản xuất")) {
+          depDebitCode = "627";
+        }
+        
+        for (let m = startMonth; m <= lastCompletedMonth; m++) {
+          const mYear = Math.floor(m / 12);
+          const mMonth = (m % 12) + 1;
+          
+          await createAutoJournal({
+            event: "ASSET_DEPRECIATION" as any,
+            amount: Math.round(depreciationPerMonth),
+            description: `Khấu hao tháng ${mMonth}/${mYear} cho TS: ${tenTaiSan}`,
+            referenceCode: code,
+            overrideDebitCode: depDebitCode,
+            overrideCreditCode: "214",
+            date: new Date(mYear, mMonth - 1, 28)
+          });
+        }
+      }
+    }
+    
     return NextResponse.json(asset);
+
   } catch (error: any) {
     console.error("Create asset error details:", error);
     return NextResponse.json(
