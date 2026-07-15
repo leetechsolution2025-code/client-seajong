@@ -52,6 +52,7 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
   const [totalPages, setTotalPages] = useState(1);
   const [filteredCount, setFilteredCount] = useState(0);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Load warehouses once on mount
   useEffect(() => {
@@ -112,6 +113,58 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
   useEffect(() => {
     fetchItems();
   }, [search, filterCategory, filterWarehouse, page]);
+
+  const handleExportExcel = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.append("search", search);
+      if (filterCategory) params.append("categoryId", filterCategory);
+      if (filterWarehouse) params.append("warehouseId", filterWarehouse);
+      params.append("limit", "999999");
+      
+      const res = await fetch(`/api/logistics/inventory?${params}`);
+      const data = await res.json();
+      
+      const exportItems = data.items || [];
+      if (!exportItems.length) {
+        alert("Không có dữ liệu để xuất");
+        return;
+      }
+
+      const exportData = exportItems.map((item: any, index: number) => ({
+        "STT": index + 1,
+        "Tên vật tư, hàng hoá": item.tenHang || "",
+        "Mã hàng": item.code || "",
+        "Danh mục": item.categoryName || item.category?.name || "",
+        "Đơn vị tính": item.donVi || "",
+        "Giá nhập": item.giaNhap || 0,
+        "Giá bán": item.giaBan || 0,
+        "Tồn kho": item.soLuong || 0,
+        "Đã giữ": item.daGiu || 0,
+        "Thực tồn": (item.soLuong || 0) - (item.daGiu || 0),
+        "Trạng thái": item.trangThai === "con-hang" ? "Còn hàng" : item.trangThai === "sap-het" ? "Sắp hết" : "Hết hàng"
+      }));
+
+      const XLSX = await import("xlsx");
+      
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      ws['!cols'] = [
+        { wch: 5 }, { wch: 40 }, { wch: 15 }, { wch: 25 }, { wch: 15 },
+        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Kho_Hang");
+      XLSX.writeFile(wb, `Danh_Sach_Hang_Hoa_Trong_Kho_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (error) {
+      console.error("Export error:", error);
+      alert("Lỗi khi xuất file Excel");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const actions = [
     { label: "Nhập hàng", icon: "bi-arrow-down-left-square", fromColor: "#3b82f6", toColor: "#60a5fa", shadow: "rgba(59,130,246,0.25)" },
@@ -391,6 +444,8 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
             {/* Export */}
             <button 
               title="Xuất dữ liệu (Export)"
+              onClick={handleExportExcel}
+              disabled={isExporting}
               style={{
                 width: "32px",
                 height: "32px",
@@ -401,13 +456,20 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                cursor: "pointer",
-                transition: "all 0.2s"
+                cursor: isExporting ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                opacity: isExporting ? 0.6 : 1
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--muted)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--card)"; }}
+              onMouseEnter={(e) => { if (!isExporting) e.currentTarget.style.background = "var(--muted)"; }}
+              onMouseLeave={(e) => { if (!isExporting) e.currentTarget.style.background = "var(--card)"; }}
             >
-              <i className="bi bi-file-earmark-arrow-up" style={{ fontSize: "14px", color: "#8b5cf6" }} />
+              {isExporting ? (
+                <div className="spinner-border spinner-border-sm text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              ) : (
+                <i className="bi bi-file-earmark-arrow-up" style={{ fontSize: "14px", color: "#8b5cf6" }} />
+              )}
             </button>
           </div>
         </div>
