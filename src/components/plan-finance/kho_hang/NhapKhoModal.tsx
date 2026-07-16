@@ -77,6 +77,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
   const [nguoiThucHien, setNguoiThucHien] = React.useState("");
   const [lyDo, setLyDo] = React.useState("Nhập kho hàng hoá");
   const [ghiChu, setGhiChu] = React.useState("");
+  const [chiPhiVanChuyen, setChiPhiVanChuyen] = React.useState(0);
 
   React.useEffect(() => {
     if (session?.user?.name && !nguoiThucHien) {
@@ -225,17 +226,25 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
           toWarehouseId,
           soChungTu: soChungTu || undefined,
           purchaseOrderId: selectedPO?.id || undefined,
-          lyDo: lyDo || undefined, nguoiThucHien: nguoiThucHien || undefined,
-          lines: validLines.map(l => ({
-            inventoryItemId: l.item!.id,
-            soLuong: l.soLuongThucTe ?? l.soLuong,
-            soLuongCT: l.soLuong,
-            donGia: l.donGia || undefined,
-            viTriHang: l.viTriHang || undefined,
-            viTriCot: l.viTriCot || undefined,
-            viTriTang: l.viTriTang || undefined,
-            ghiChu: l.ghiChu || undefined,
-          })),
+          lyDo: [lyDo, ghiChu ? `Ghi chú: ${ghiChu}` : "", chiPhiVanChuyen > 0 ? `Phí vận chuyển: ${fmtVnd(chiPhiVanChuyen)}` : ""].filter(Boolean).join(" - ") || undefined,
+          nguoiThucHien: nguoiThucHien || undefined,
+          lines: validLines.map(l => {
+            const soLuong = l.soLuongThucTe ?? l.soLuong;
+            const thanhTien = soLuong * l.donGia;
+            const phanBo = tongTien > 0 ? (thanhTien / tongTien) * chiPhiVanChuyen : tongSL > 0 ? (soLuong / tongSL) * chiPhiVanChuyen : 0;
+            const giaVonDonVi = soLuong > 0 ? (thanhTien + phanBo) / soLuong : 0;
+
+            return {
+              inventoryItemId: l.item!.id,
+              soLuong: soLuong,
+              soLuongCT: l.soLuong,
+              donGia: giaVonDonVi || l.donGia || undefined,
+              viTriHang: l.viTriHang || undefined,
+              viTriCot: l.viTriCot || undefined,
+              viTriTang: l.viTriTang || undefined,
+              ghiChu: l.ghiChu || undefined,
+            };
+          }),
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Lỗi lưu"); }
@@ -521,14 +530,26 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
                 <select
                   value={toWarehouseId}
                   onChange={e => !success && setToWarehouseId(e.target.value)}
-                  disabled={true}
-                  style={{ ...CSS.input, appearance: "none", borderColor: toWarehouseId ? "rgba(16,185,129,0.5)" : "var(--border)", opacity: 0.65, cursor: "not-allowed" }}
+                  disabled={success}
+                  style={{ ...CSS.input, appearance: "none", borderColor: toWarehouseId ? "rgba(16,185,129,0.5)" : "var(--border)", opacity: success ? 0.65 : 1, cursor: success ? "not-allowed" : "pointer" }}
                 >
                   <option value="">Chọn kho</option>
                   {warehouses.map(w => (
                     <option key={w.id} value={w.id}>{w.name}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* Chi phí vận chuyển */}
+              <div>
+                <label style={CSS.label}>Chi phí vận chuyển (đ)</label>
+                <CurrencyInput
+                  value={chiPhiVanChuyen}
+                  onChange={v => !success && setChiPhiVanChuyen(v)}
+                  readOnly={success}
+                  placeholder="0"
+                  style={{ ...CSS.input, opacity: success ? 0.65 : 1, cursor: success ? "default" : "text" }}
+                />
               </div>
 
               {/* Người thực hiện */}
@@ -617,7 +638,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
             {/* Dòng 1: nhãn nhóm */}
             <div style={{
               display: "grid",
-              gridTemplateColumns: "28px 1fr 60px 160px 180px 110px 110px 32px",
+              gridTemplateColumns: "28px 1fr 60px 140px 180px 100px 100px 100px 32px",
               gap: 5, padding: "6px 10px 0",
               fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)",
               textTransform: "uppercase", letterSpacing: "0.05em",
@@ -634,13 +655,14 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
                 Vị trí trong kho
               </div>
               <div style={{ textAlign: "right" }}>Đơn giá (₫)</div>
+              <div style={{ textAlign: "right", color: "#8b5cf6" }}>Giá vốn (₫)</div>
               <div style={{ textAlign: "right" }}>Thành tiền</div>
               <div />
             </div>
             {/* Dòng 2: sub-label */}
             <div style={{
               display: "grid",
-              gridTemplateColumns: "28px 1fr 60px 80px 80px 60px 60px 60px 110px 110px 32px",
+              gridTemplateColumns: "28px 1fr 60px 70px 70px 60px 60px 60px 100px 100px 100px 32px",
               gap: 5, padding: "2px 10px 6px",
               fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)",
               textTransform: "uppercase", letterSpacing: "0.04em",
@@ -651,7 +673,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
               <div style={{ textAlign: "center", opacity: 0.75 }}>Hàng</div>
               <div style={{ textAlign: "center", opacity: 0.75 }}>Cột</div>
               <div style={{ textAlign: "center", opacity: 0.75 }}>Tầng</div>
-              <div /><div /><div />
+              <div /><div /><div /><div />
             </div>
           </div>
 
@@ -660,6 +682,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
           <div style={{ border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 8px 8px" }}>
             {lines.map((line, idx) => (
               <LineRow key={line.id} line={line} idx={idx}
+                tongTien={tongTien} tongSL={tongSL} chiPhiVanChuyen={chiPhiVanChuyen}
                 onItemSearch={q => onItemSearch(line.id, q)}
                 onSelectItem={item => selectItem(line.id, item)}
                 onUpdate={(key, val) => updateLine(line.id, key, val)}
@@ -761,7 +784,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
 }
 
 // ── LineRow ───────────────────────────────────────────────────────────────────
-function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, canRemove, locked }: {
+function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, canRemove, locked, tongTien, tongSL, chiPhiVanChuyen }: {
   line: StockLine; idx: number;
   onItemSearch: (q: string) => void;
   onSelectItem: (item: ItemSuggestion) => void;
@@ -769,6 +792,9 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
   onRemove: () => void;
   canRemove: boolean;
   locked?: boolean;
+  tongTien: number;
+  tongSL: number;
+  chiPhiVanChuyen: number;
 }) {
   const cellInput: React.CSSProperties = {
     width: "100%", padding: "6px 8px", borderWidth: 1, borderStyle: "solid", borderColor: "var(--border)",
@@ -777,12 +803,15 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
     outline: "none", boxSizing: "border-box",
     cursor: locked ? "default" : "text",
   };
-  const thanhTien = (line.soLuongThucTe ?? line.soLuong) * line.donGia;
+  const soLuong = line.soLuongThucTe ?? line.soLuong;
+  const thanhTien = soLuong * line.donGia;
+  const phanBo = tongTien > 0 ? (thanhTien / tongTien) * chiPhiVanChuyen : tongSL > 0 ? (soLuong / tongSL) * chiPhiVanChuyen : 0;
+  const giaVonDonVi = soLuong > 0 ? (thanhTien + phanBo) / soLuong : 0;
 
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "28px 1fr 60px 80px 80px 60px 60px 60px 110px 110px 32px",
+      gridTemplateColumns: "28px 1fr 60px 70px 70px 60px 60px 60px 100px 100px 100px 32px",
       gap: 5, padding: "7px 10px",
       borderTop: idx === 0 ? "none" : "1px solid var(--border)",
       alignItems: "center",
@@ -848,6 +877,11 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
 
       {/* Đơn giá */}
       <CurrencyInput value={line.donGia} onChange={v => !locked && onUpdate("donGia", v)} placeholder="0" style={{ ...cellInput, textAlign: "right" }} />
+
+      {/* Giá vốn */}
+      <div style={{ textAlign: "right", fontSize: 12.5, fontWeight: 700, color: giaVonDonVi > 0 ? "#8b5cf6" : "var(--muted-foreground)" }}>
+        {giaVonDonVi > 0 ? Math.round(giaVonDonVi).toLocaleString("vi-VN") + " ₫" : "—"}
+      </div>
 
       {/* Thành tiền */}
       <div style={{ textAlign: "right", fontSize: 12.5, fontWeight: 700, color: thanhTien > 0 ? "var(--foreground)" : "var(--muted-foreground)" }}>

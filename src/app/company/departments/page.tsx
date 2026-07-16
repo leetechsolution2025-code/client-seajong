@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
-type Dept = { code: string; nameVi: string; nameEn: string; group: string; icon: string; sortOrder: number };
+type Dept = { id: string; code: string; nameVi: string; nameEn: string; group: string; icon: string; sortOrder: number; isActive: boolean; };
 
 const GROUP_LABELS: Record<string, string> = {
   management: "Quản lý", core: "Cốt lõi", business: "Kinh doanh", support: "Vận hành",
@@ -25,6 +25,19 @@ export default function DepartmentsPage() {
     acc[d.group].push(d);
     return acc;
   }, {});
+
+  const toggleActive = async (id: string, nextState: boolean) => {
+    setDepts(prev => prev.map(d => d.id === id ? { ...d, isActive: nextState } : d));
+    try {
+      await fetch(`/api/company/departments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: nextState })
+      });
+    } catch (e) {
+      setDepts(prev => prev.map(d => d.id === id ? { ...d, isActive: !nextState } : d));
+    }
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
@@ -49,7 +62,7 @@ export default function DepartmentsPage() {
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
               {items.map(dept => (
-                <div key={dept.code} style={{ background: "var(--card)", borderRadius: 14, padding: "16px 18px", border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 14 }}>
+                <div key={dept.code} style={{ background: "var(--card)", borderRadius: 14, padding: "16px 18px", border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 14, opacity: dept.isActive ? 1 : 0.6 }}>
                   <div style={{ width: 40, height: 40, borderRadius: 12, background: `color-mix(in srgb, ${GROUP_COLORS[dept.group] || "#6366f1"} 12%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <i className={`bi ${dept.icon}`} style={{ fontSize: 18, color: GROUP_COLORS[dept.group] || "#6366f1" }} />
                   </div>
@@ -57,7 +70,9 @@ export default function DepartmentsPage() {
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dept.nameVi}</p>
                     <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)", fontFamily: "monospace" }}>/{dept.code}</p>
                   </div>
-                  <i className="bi bi-check-circle-fill" style={{ color: "#10b981", fontSize: 16, flexShrink: 0 }} />
+                  <button onClick={() => toggleActive(dept.id, !dept.isActive)} style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0 }} title={dept.isActive ? "Đang hoạt động. Nhấn để dừng." : "Đã dừng hoạt động. Nhấn để kích hoạt."}>
+                    <i className={`bi ${dept.isActive ? "bi-check-circle-fill" : "bi-dash-circle-dotted"}`} style={{ color: dept.isActive ? "#10b981" : "var(--muted-foreground)", fontSize: 18, flexShrink: 0, transition: "color 0.2s" }} />
+                  </button>
                 </div>
               ))}
             </div>

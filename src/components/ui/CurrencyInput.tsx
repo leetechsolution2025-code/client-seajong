@@ -10,6 +10,7 @@ interface CurrencyInputProps {
   onBlur?:  (e: React.FocusEvent<HTMLInputElement>) => void;
   name?: string;
   disabled?: boolean;
+  readOnly?: boolean;
   min?: number;
   className?: string;
 }
@@ -30,6 +31,7 @@ export function CurrencyInput({
   onBlur,
   name,
   disabled,
+  readOnly,
   min = 0,
   className,
 }: CurrencyInputProps) {
@@ -87,6 +89,7 @@ export function CurrencyInput({
       value={display}
       placeholder={placeholder}
       disabled={disabled}
+      readOnly={readOnly}
       style={style}
       onChange={handleChange}
       onFocus={handleFocus}

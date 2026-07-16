@@ -53,11 +53,17 @@ export default function BOMPage() {
   useEffect(() => {
     if (bomData?.vatTu?.length > 0) {
       bomData.vatTu.forEach((row: any) => {
-        const ten = row.tenVatTu;
-        if (!ten) return;
+        let query = "";
+        if (row.material?.code) {
+          const match = row.material.code.match(/^[a-zA-Z]+/);
+          if (match) query = match[0];
+        }
         
-        const nameParts = ten.split(" ");
-        const query = nameParts.length >= 2 ? nameParts.slice(0, 2).join(" ") : ten;
+        // Nếu không có mã thì không gợi ý
+        if (!query) {
+          setSwapCounts(prev => ({ ...prev, [row.id || row.tenVatTu]: 0 }));
+          return;
+        }
         
         setSwapCounts(prev => {
           if (prev[query] !== undefined) return prev; // Already fetched or fetching
@@ -912,9 +918,13 @@ export default function BOMPage() {
                               <td className="text-center align-middle" style={{ padding: "6px 8px" }}>
                                 <div className="d-flex align-items-center justify-content-center gap-1">
                                   {(() => {
-                                    const nameParts = row.tenVatTu?.split(" ") || [];
-                                    const query = nameParts.length >= 2 ? nameParts.slice(0, 2).join(" ") : row.tenVatTu;
-                                    const count = swapCounts[query] || 0;
+                                    let query = "";
+                                    if (row.material?.code) {
+                                      const match = row.material.code.match(/^[a-zA-Z]+/);
+                                      if (match) query = match[0];
+                                    }
+                                    
+                                    const count = query ? (swapCounts[query] || 0) : 0;
                                     const isDisabled = count !== -1 && count <= 1;
                                     return (
                                       <button 
@@ -996,7 +1006,7 @@ export default function BOMPage() {
                   />
                   <div className="form-text text-muted small mt-2">
                     <i className="bi bi-lightbulb text-warning me-1"></i>
-                    Gợi ý tự động dựa trên tên vật tư hiện tại
+                    Gợi ý tự động dựa trên các ký tự đầu mã định danh
                   </div>
                 </div>
                 

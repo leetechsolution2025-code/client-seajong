@@ -155,7 +155,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           sdtNguoiNhan = parsed.dienThoai || sdtNguoiNhan;
           diaChiGiaoHang = parsed.address || diaChiGiaoHang;
           rawGhiChu = rawGhiChu.replace(/\[GuestInfo:.*?\]\n?/, "");
-        } catch(e) {}
+        } catch (e) { }
       }
 
       const lines = rawGhiChu.split("\n");
@@ -248,6 +248,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: ""
   });
 
+
+
   const [showBomDetail, setShowBomDetail] = React.useState(false);
   const [bomDetailData, setBomDetailData] = React.useState<any>(null);
   const [loadingBom, setLoadingBom] = React.useState(false);
@@ -287,11 +289,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         .then(d => {
           if (activeRowIdRef.current === rowId) {
             const filtered = (d.items ?? []).filter((item: any) => {
-              const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name) 
-                ? item.stocks[0].warehouse.name 
-                : (item.source === "manufactured" ? "Kho thành phẩm" 
-                   : item.source === "inventory" ? "Kho hàng hoá" 
-                   : item.source === "material" ? "Kho vật tư và phụ kiện" : "");
+              const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name)
+                ? item.stocks[0].warehouse.name
+                : (item.source === "manufactured" ? "Kho thành phẩm"
+                  : item.source === "inventory" ? "Kho hàng hoá"
+                    : item.source === "material" ? "Kho vật tư và phụ kiện" : "");
               return khoTenStr.toLowerCase().includes("kho hàng hoá") || khoTenStr.toLowerCase().includes("kho thành phẩm") || khoTenStr.toLowerCase().includes("vật tư");
             });
             setSuggest(filtered);
@@ -304,11 +306,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   const applySuggest = (rowId: number, item: any) => {
     const soLuongTon = item.soLuongThuc ?? item.soLuong;
     const defaultDinhMuc = item.dinhMucs?.length > 0 ? item.dinhMucs[0] : null;
-    const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name) 
-      ? item.stocks[0].warehouse.name 
-      : (item.source === "manufactured" ? "Kho thành phẩm" 
-         : item.source === "inventory" ? "Kho hàng hoá" 
-         : item.source === "material" ? "Kho vật tư và phụ kiện" : "");
+    const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name)
+      ? item.stocks[0].warehouse.name
+      : (item.source === "manufactured" ? "Kho thành phẩm"
+        : item.source === "inventory" ? "Kho hàng hoá"
+          : item.source === "material" ? "Kho vật tư và phụ kiện" : "");
 
     const updatePayload = {
       ten: item.tenHang,
@@ -367,6 +369,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
   const toast = useToast();
   const { data: session } = useSession();
+  const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
 
   const handleSave = async () => {
     if (!info.soPhieu.trim()) {
@@ -827,9 +830,9 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                     onChange={e => {
                       const dmId = e.target.value;
                       const dm = formItem.dinhMucs?.find(x => x.id === dmId);
-                      setFormItem(p => ({ 
-                        ...p, 
-                        dinhMucId: dmId, 
+                      setFormItem(p => ({
+                        ...p,
+                        dinhMucId: dmId,
                         dinhMucTen: dm ? dm.tenDinhMuc : null,
                         donGia: dm ? (dm.giaBan ?? 0) : p.donGia
                       }));
@@ -851,9 +854,9 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                       placeholder="Tự động hiển thị..."
                       style={{ flex: 1, padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
                     />
-                    <button 
-                      type="button" 
-                      className="btn btn-light border" 
+                    <button
+                      type="button"
+                      className="btn btn-light border"
                       onClick={() => setShowBomDetail(true)}
                       disabled={!formItem.dinhMucId}
                       style={{ padding: "7px 12px", borderRadius: 6 }}
@@ -866,11 +869,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               </div>
               <div style={{ flex: "1 1 120px" }}>
                 <FLabel text="Tên kho" />
-                <input 
-                  value={formItem.khoTen || ""} 
-                  readOnly 
+                <input
+                  value={formItem.khoTen || ""}
+                  readOnly
                   placeholder="Tự động..."
-                  style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }} 
+                  style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
                 />
               </div>
               <div style={{ flex: "1 1 80px" }}>
@@ -889,9 +892,10 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 <FLabel text="Đơn giá (đ)" />
                 <CurrencyInput
                   value={formItem.donGia}
-                  onChange={v => setFormItem(p => ({ ...p, donGia: v }))}
+                  onChange={v => !(!isAdmin) && setFormItem(p => ({ ...p, donGia: v }))}
+                  readOnly={!isAdmin}
                   placeholder="0"
-                  style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }}
+                  style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: !isAdmin ? "var(--muted)" : "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: !isAdmin ? "var(--muted-foreground)" : "var(--foreground)", cursor: !isAdmin ? "not-allowed" : "text" }}
                 />
               </div>
               <div>
@@ -998,7 +1002,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         {bomDetailData.vatTu?.length || 0} mục
                       </span>
                     </div>
-                    
+
                     {bomDetailData.vatTu?.length > 0 ? (
                       <div className="d-flex flex-column gap-2">
                         {bomDetailData.vatTu.map((vt: any, idx: number) => (

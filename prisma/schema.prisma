@@ -249,6 +249,7 @@ model LaborContract {
 
   @@index([employeeId])
   @@index([status])
+  
 }
 
 model EmploymentHistory {
@@ -617,6 +618,7 @@ model SaleOrder {
   updatedAt            DateTime        @updatedAt
   customer             Customer?       @relation(fields: [customerId], references: [id])
   saleOrderItems       SaleOrderItem[]
+  incidents            ProductionIncident[]
 
   @@index([trangThai])
   @@index([customerId])
@@ -635,6 +637,16 @@ model SaleOrderItem {
 
   @@index([saleOrderId])
   @@index([inventoryItemId])
+}
+
+model ProductionIncident {
+  id        String    @id @default(cuid())
+  orderId   String
+  message   String
+  createdAt DateTime  @default(now())
+  saleOrder SaleOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
 }
 
 model PurchaseRequest {
@@ -2753,4 +2765,55 @@ model JournalLine {
   
   journalEntry    JournalEntry      @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
   account         AccountingAccount @relation(fields: [accountId], references: [id])
+}
+
+// ==========================================
+// THÔNG TIN XỬ LÝ HÀNG LỖI (DEFECTS)
+// ==========================================
+model DefectRecord {
+  activities DefectActivity[]
+  id                 String   @id @default(cuid())
+  code               String   @unique
+  source             String   // INTERNAL, WARRANTY
+  status             String   @default("NEW")
+  
+  productName        String
+  productCode        String
+  quantity           Int
+  description        String
+  mediaUrls          String   @default("[]") 
+  
+  customerName       String?
+  customerPhone      String?
+  customerAddress    String?
+  purchaseDate       DateTime?
+  
+  isRepairable       Boolean?
+  repairPlan         String?
+  materialCosts      Float?
+  
+  reporterName       String
+  reporterDepartment String
+  assignedTo         String?
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  @@index([source])
+  @@index([status])
+}
+
+
+model DefectActivity {
+  id          String       @id @default(cuid())
+  defectId    String
+  action      String       // BÁO CÁO, CHẨN ĐOÁN, CHUYỂN TRẠNG THÁI...
+  description String?      // Chi tiết thao tác
+  oldStatus   String?
+  newStatus   String?
+  performedBy String       
+  createdAt   DateTime     @default(now())
+
+  defect      DefectRecord @relation(fields: [defectId], references: [id], onDelete: Cascade)
+  @@index([defectId])
 }

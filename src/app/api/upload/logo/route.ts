@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     }
 
     // Lưu vào /public/uploads/logos/
-    const uploadDir = join(process.cwd(), "public", "uploads", "logos");
+    const uploadDir = join(process.cwd(), "storage", "uploads", "logos");
     await mkdir(uploadDir, { recursive: true });
 
     const ext = file.name.split(".").pop() || "png";

@@ -369,7 +369,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, warehouseId, chieuDai, chieuRong, chieuDay, source } = body;
+    const { tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, warehouseId, chieuDai, chieuRong, chieuDay, source, material } = body;
 
     if (!tenHang) return NextResponse.json({ error: "Thiếu tên hàng hoá" }, { status: 400 });
 
@@ -500,6 +500,7 @@ export async function POST(req: Request) {
           price: Number(giaNhap) || 0,
           giaBan: Number(giaBan) || 0,
           spec: kieuDang || "",
+          material: material || null,
           thongSoKyThuat: thongSoKyThuat || "",
           ghiChu: ghiChu || "",
           imageUrl: imageUrl || null,
@@ -567,7 +568,7 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const {
       id, tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, source,
-      chieuDai, chieuRong, chieuDay
+      chieuDai, chieuRong, chieuDay, material
     } = body;
 
     if (!id) return NextResponse.json({ error: "Thiếu ID hàng hoá" }, { status: 400 });
@@ -703,6 +704,7 @@ export async function PUT(req: Request) {
           price: Number(giaNhap) || 0,
           giaBan: Number(giaBan) || 0,
           spec: kieuDang || "",
+          material: material || null,
           thongSoKyThuat: thongSoKyThuat || "",
           ghiChu: ghiChu || "",
           imageUrl: imageUrl || null,

@@ -52,6 +52,7 @@ rsync -avz --delete \
     --exclude="node_modules" \
     --exclude=".git" \
     --exclude=".next" \
+    --exclude="storage" \
     --exclude="**/*.db*" \
     --exclude="prisma/migrations" \
     --exclude="*.log" \
@@ -69,6 +70,6 @@ log "Mã nguồn đã đồng bộ thành công lên máy chủ!"
 
 # ── Chạy kịch bản deploy trên VPS qua SSH ───────────────────
 info "Đang chạy kịch bản cập nhật và restart trên máy chủ..."
-ssh ${SSH_OPTS} -t "${SSH_USER}@${SSH_HOST}" "SKIP_GIT=1 bash ${SSH_DIR}/scripts/deploy.sh"
+ssh ${SSH_OPTS} -t "${SSH_USER}@${SSH_HOST}" "SKIP_GIT=1 SKIP_SEED=1 SKIP_DATA_CONVERT=1 bash ${SSH_DIR}/scripts/deploy.sh"
 
 log "Cập nhật ứng dụng lên máy chủ thành công!"

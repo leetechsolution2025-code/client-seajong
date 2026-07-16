@@ -43,6 +43,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
     thongSoKyThuat: "",
     ghiChu: "",
     kieuDang: "",
+    material: "",
     webProductId: null as number | null,
     imageUrl: "" as string | null,
   });
@@ -124,6 +125,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
           thongSoKyThuat: editItem.thongSoKyThuat || "",
           ghiChu: editItem.ghiChu || "",
           kieuDang: editItem.kieuDang || editItem.spec || "",
+          material: editItem.material || "",
           webProductId: editItem.webProductId || null,
           imageUrl: editItem.imageUrl || null,
         });
@@ -146,6 +148,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
           thongSoKyThuat: "",
           ghiChu: "",
           kieuDang: "",
+          material: "",
           webProductId: null,
           imageUrl: null,
         });
@@ -447,8 +450,8 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                         {/* Left Column for Inputs */}
                         <div className="col-md-9 col-12">
                           <div className="row g-3">
-                            {/* Warehouse Selection */}
-                            <div className="col-md-4 col-12">
+                            {/* Row 1: Kho lưu trữ & Danh mục */}
+                            <div className="col-md-6 col-12">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Kho lưu trữ {!editItem ? "*" : ""}</label>
                               <FilterSelect 
                                 options={isMaterialWarehouse ? warehouses.filter(w => w.type === "MATERIAL") : warehouses}
@@ -459,16 +462,31 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                               />
                             </div>
 
-                            <div className="col-md-4 col-12">
+                            <div className="col-md-6 col-12">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Danh mục {isMaterialWarehouse ? "vật tư" : "thành phẩm"} *</label>
                               <TreeFilterSelect 
                                 options={categoryOptions} 
                                 value={form.categoryId} 
                                 onChange={val => setForm({ ...form, categoryId: val })} 
                                 placeholder="Chọn danh mục..."
+                                width="100%"
                               />
                             </div>
 
+                            {/* Row 2: Tên vật tư */}
+                            <div className="col-md-12 col-12">
+                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Tên {isMaterialWarehouse ? "vật tư, linh kiện" : "thành phẩm"} *</label>
+                              <input 
+                                type="text" 
+                                className="form-control rounded-3" 
+                                style={{ fontSize: "13px" }} 
+                                placeholder={isMaterialWarehouse ? "Ví dụ: Nắp bồn cầu S-0139, Van xả, Cảm biến..." : "Ví dụ: Bồn cầu thông minh..."}
+                                value={form.tenHang} 
+                                onChange={e => setForm({...form, tenHang: e.target.value})} 
+                              />
+                            </div>
+
+                            {/* Row 3: Mã định danh & Kiểu dáng */}
                             <div className="col-md-4 col-12">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Mã định danh</label>
                               <input 
@@ -484,18 +502,6 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                             </div>
 
                             <div className="col-md-8 col-12">
-                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Tên {isMaterialWarehouse ? "vật tư, linh kiện" : "thành phẩm"} *</label>
-                              <input 
-                                type="text" 
-                                className="form-control rounded-3" 
-                                style={{ fontSize: "13px" }} 
-                                placeholder={isMaterialWarehouse ? "Ví dụ: Nắp bồn cầu S-0139, Van xả, Cảm biến..." : "Ví dụ: Bồn cầu thông minh..."}
-                                value={form.tenHang} 
-                                onChange={e => setForm({...form, tenHang: e.target.value})} 
-                              />
-                            </div>
-
-                            <div className="col-md-4 col-12">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Kiểu dáng</label>
                               <input 
                                 type="text" 
@@ -511,19 +517,18 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
 
                         {/* Right Column for QR Code */}
                         <div className="col-md-3 col-12 d-flex flex-column align-items-center justify-content-center border-start ps-3 border-light">
-                          <label className="form-label fw-bold small text-muted w-100 text-center" style={{ fontSize: "11px" }}>Mã QR hàng hóa</label>
                           <div 
                             className="border rounded-3 p-2 d-flex align-items-center justify-content-center bg-white"
                             style={{ 
-                              width: "110px", 
-                              height: "110px", 
+                              width: "140px", 
+                              height: "140px", 
                               boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
                               marginTop: "8px"
                             }}
                           >
                             {form.code ? (
                               <img 
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`}
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`}
                                 alt="QR Code" 
                                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
                               />
@@ -534,6 +539,39 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                               </div>
                             )}
                           </div>
+                          {form.code && (
+                            <button 
+                              type="button" 
+                              className="btn btn-outline-secondary btn-sm mt-3 w-100 d-flex align-items-center justify-content-center gap-2"
+                              style={{ maxWidth: "140px", fontSize: "12px", borderRadius: "8px" }}
+                              onClick={() => {
+                                // Add print logic if needed
+                                const printWindow = window.open('', '_blank');
+                                if (printWindow) {
+                                  printWindow.document.write(`
+                                    <html>
+                                      <head><title>In Mã QR</title></head>
+                                      <body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
+                                        <div style="text-align: center; font-family: sans-serif;">
+                                          <img src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrData)}" style="width: 300px; height: 300px; margin-bottom: 20px;" />
+                                          <h2 style="margin: 0;">${form.code}</h2>
+                                          <p style="margin: 5px 0 0 0; color: #666;">${form.tenHang}</p>
+                                        </div>
+                                      </body>
+                                    </html>
+                                  `);
+                                  printWindow.document.close();
+                                  printWindow.focus();
+                                  setTimeout(() => {
+                                    printWindow.print();
+                                    printWindow.close();
+                                  }, 500);
+                                }
+                              }}
+                            >
+                              <i className="bi bi-printer" /> In mã QR
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -541,48 +579,73 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                     {/* Section: Tài chính & Kho vận và Thông số kỹ thuật */}
                     <div className="row border-top pt-0 mt-0 g-4 mb-0 flex-grow-1">
                       {/* Left Column: Tài chính & Kho vận */}
-                      <div className="col-md-6 border-end">
-                        <div className="d-flex align-items-center gap-2 mb-3">
-                          <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <i className="bi bi-currency-dollar text-primary" />
+                      <div className="col-md-6 border-end d-flex flex-column gap-4">
+                        {/* Section: Đặc tính vật liệu */}
+                        <div>
+                          <div className="d-flex align-items-center gap-2 mb-3">
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <i className="bi bi-layers text-primary" />
+                            </div>
+                            <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 13 }}>Đặc tính vật liệu</span>
                           </div>
-                          <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 13 }}>Tài chính & Kho vận</span>
+                          <div className="row g-3">
+                            <div className="col-12">
+                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Chất liệu</label>
+                              <input 
+                                type="text" 
+                                className="form-control rounded-3" 
+                                style={{ fontSize: "13px" }} 
+                                placeholder="Ví dụ: Thép không gỉ, Nhựa PVC..."
+                                value={form.material} 
+                                onChange={e => setForm({...form, material: e.target.value})} 
+                              />
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="row g-3">
-                          <div className="col-6">
-                            <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Giá nhập dự kiến</label>
-                            <div className="input-group">
-                              <input 
-                                type="text" 
-                                className="form-control rounded-3" 
-                                style={{ fontSize: "13px" }} 
-                                value={formatCurrency(form.giaNhap)} 
-                                onChange={e => handleCurrencyChange("giaNhap", e.target.value)}
-                              />
-                              <span className="input-group-text bg-light fw-bold text-muted" style={{ fontSize: 11 }}>VNĐ</span>
+                        <div>
+                          <div className="d-flex align-items-center gap-2 mb-3">
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <i className="bi bi-currency-dollar text-primary" />
                             </div>
+                            <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 13 }}>Tài chính & Kho vận</span>
                           </div>
-                          <div className="col-6">
-                            <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Giá bán niêm yết</label>
-                            <div className="input-group">
-                              <input 
-                                type="text" 
-                                className="form-control rounded-3" 
-                                style={{ fontSize: "13px" }} 
-                                value={formatCurrency(form.giaBan)} 
-                                onChange={e => handleCurrencyChange("giaBan", e.target.value)}
-                              />
-                              <span className="input-group-text bg-light fw-bold text-muted" style={{ fontSize: 11 }}>VNĐ</span>
+
+                          <div className="row g-3">
+                            <div className="col-6">
+                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Giá nhập dự kiến</label>
+                              <div className="input-group">
+                                <input 
+                                  type="text" 
+                                  className="form-control rounded-3" 
+                                  style={{ fontSize: "13px" }} 
+                                  value={formatCurrency(form.giaNhap)} 
+                                  onChange={e => handleCurrencyChange("giaNhap", e.target.value)}
+                                />
+                                <span className="input-group-text bg-light fw-bold text-muted" style={{ fontSize: 11 }}>VNĐ</span>
+                              </div>
                             </div>
-                          </div>
-                          <div className="col-6">
-                            <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Đơn vị tính (ĐVT)</label>
-                            <input type="text" className="form-control rounded-3" style={{ fontSize: "13px" }} value={form.donVi} onChange={e => setForm({...form, donVi: e.target.value})} />
-                          </div>
-                          <div className="col-6">
-                            <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Tồn kho tối thiểu</label>
-                            <input type="number" className="form-control rounded-3" style={{ fontSize: "13px" }} value={form.soLuongMin} onChange={e => setForm({...form, soLuongMin: Number(e.target.value)})} />
+                            <div className="col-6">
+                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Giá bán niêm yết</label>
+                              <div className="input-group">
+                                <input 
+                                  type="text" 
+                                  className="form-control rounded-3" 
+                                  style={{ fontSize: "13px" }} 
+                                  value={formatCurrency(form.giaBan)} 
+                                  onChange={e => handleCurrencyChange("giaBan", e.target.value)}
+                                />
+                                <span className="input-group-text bg-light fw-bold text-muted" style={{ fontSize: 11 }}>VNĐ</span>
+                              </div>
+                            </div>
+                            <div className="col-6">
+                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Đơn vị tính (ĐVT)</label>
+                              <input type="text" className="form-control rounded-3" style={{ fontSize: "13px" }} value={form.donVi} onChange={e => setForm({...form, donVi: e.target.value})} />
+                            </div>
+                            <div className="col-6">
+                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Tồn kho tối thiểu</label>
+                              <input type="number" className="form-control rounded-3" style={{ fontSize: "13px" }} value={form.soLuongMin} onChange={e => setForm({...form, soLuongMin: Number(e.target.value)})} />
+                            </div>
                           </div>
                         </div>
                       </div>

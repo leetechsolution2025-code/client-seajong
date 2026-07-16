@@ -532,29 +532,29 @@ function PrintPreviewModal({ open, onClose, customer, items, info, initialAction
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#d1d5db", fontSize: 13, marginLeft: 8, marginRight: 8 }}>
               <span>Con dấu:</span>
-              <div 
+              <div
                 onClick={() => setShowStamp(!showStamp)}
-                style={{ 
-                  width: 38, 
-                  height: 20, 
-                  borderRadius: 10, 
-                  background: showStamp ? "#003087" : "#4b5563", 
-                  position: "relative", 
-                  cursor: "pointer", 
-                  transition: "background-color 0.2s" 
+                style={{
+                  width: 38,
+                  height: 20,
+                  borderRadius: 10,
+                  background: showStamp ? "#003087" : "#4b5563",
+                  position: "relative",
+                  cursor: "pointer",
+                  transition: "background-color 0.2s"
                 }}
               >
-                <div 
-                  style={{ 
-                    width: 16, 
-                    height: 16, 
-                    borderRadius: "50%", 
-                    background: "#fff", 
-                    position: "absolute", 
-                    top: 2, 
-                    left: showStamp ? 20 : 2, 
-                    transition: "left 0.2s" 
-                  }} 
+                <div
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    background: "#fff",
+                    position: "absolute",
+                    top: 2,
+                    left: showStamp ? 20 : 2,
+                    transition: "left 0.2s"
+                  }}
                 />
               </div>
             </div>
@@ -760,7 +760,7 @@ function PrintPreviewModal({ open, onClose, customer, items, info, initialAction
                     <div style={{ fontWeight: 800, fontSize: "11px", color: "#003087", marginBottom: "6px", borderLeft: "3px solid #003087", paddingLeft: "6px" }}>
                       NHỮNG ĐẶC QUYỀN VÀ CHÍNH SÁCH HỖ TRỢ TỐI ƯU DÀNH CHO ĐẠI LÝ:
                     </div>
-                    
+
                     <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: "10px" }}>
                       {[
                         {
@@ -961,230 +961,230 @@ function PrintPreviewModal({ open, onClose, customer, items, info, initialAction
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, paddingBottom: 8, borderBottom: "2px solid #003087" }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center", position: "relative" }}>
-                {company.logoUrl && <img src={company.logoUrl} alt="Logo" style={{ height: "40px", width: "auto", objectFit: "contain", flexShrink: 0 }} />}
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 10.5, color: "#003087", textTransform: "uppercase" }}>{company.name ?? "Công ty"}</div>
-                  {company.address && <div style={{ fontSize: 9, color: "#374151", marginTop: 1 }}>Địa chỉ: {company.address}</div>}
-                  {(company.phone || company.email) && <div style={{ fontSize: 9, color: "#374151", display: "flex", gap: 12 }}>{company.phone && <span>Điện thoại: {company.phone.replace(/[Hh]otline:\s*/gi, "").trim()}</span>}{company.email && <span>Email: {company.email}</span>}</div>}
-                </div>
-                {/* Con dấu treo Sejong Faucet */}
-                {showStamp && (
-                  <img
-                    src="/seajong_stampt.png"
-                    alt="Sejong Stamp"
-                    style={{
-                      position: "absolute",
-                      left: "22mm",
-                      top: "0mm",
-                      width: "36mm",
-                      height: "36mm",
-                      objectFit: "contain",
-                      opacity: 0.85,
-                      transform: "rotate(-10deg)",
-                      pointerEvents: "none",
-                      zIndex: 10
-                    }}
-                  />
-                )}
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontWeight: 900, fontSize: 20, letterSpacing: 1, color: "#003087" }}>BẢNG BÁO GIÁ</div>
-                <div style={{ fontSize: 11, color: "#374151", marginTop: 3 }}>Số: <strong>{info.soPhieu}</strong></div>
-                <div style={{ fontSize: 11, color: "#374151" }}>Ngày lập: {fmtDate(info.ngayLap)}</div>
-                <div style={{ fontSize: 11, color: "#374151" }}>Hiệu lực đến: {fmtDate(info.hieuLuc)}</div>
-              </div>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontWeight: 800, fontSize: 12, textTransform: "uppercase", color: "#003087", borderLeft: "3px solid #003087", paddingLeft: 6, marginBottom: 6 }}>Thông tin khách hàng</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 20px", fontSize: 11 }}>
-                <div><strong>Đơn vị:</strong> {customer?.name ?? "—"}</div>
-                <div><strong>Người liên hệ:</strong> {customer?.daiDien ? `${customer.xungHo ?? ""} ${customer.daiDien}` : "—"}</div>
-                <div><strong>Địa chỉ:</strong> {customer?.address ?? "—"}</div>
-                <div><strong>Điện thoại:</strong> {customer?.dienThoai ?? "—"}</div>
-              </div>
-            </div>
-            <div style={{ marginBottom: 12, fontSize: 11, color: "#374151", lineHeight: 1.5, textAlign: "justify" }}>
-              Công ty cổ phần Sejong Faucet Việt Nam trân trọng cảm ơn Quý khách hàng đã quan tâm đến sản phẩm của chúng tôi. Sejong xin gửi đến Quý khách hàng bảng báo giá các sản phẩm, thiết bị theo yêu cầu của Quý khách hàng với thông tin chi tiết như sau:
-            </div>
-            <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10, fontSize: 9.5 }}>
-              <thead>
-                <tr style={{ background: "#003087", color: "#fff" }}>
-                  {isCoQuayKe ? (
-                    <>
-                      <th style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", width: "40px", textTransform: "uppercase" }}>STT</th>
-                      <th style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", textTransform: "uppercase" }}>Tên hàng hoá</th>
-                      <th style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", width: "50px", textTransform: "uppercase" }}>Vị trí</th>
-                      <th style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", width: "50px", textTransform: "uppercase" }}>Quy cách</th>
-                      <th style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", width: "95px", textTransform: "uppercase" }}>Giá bán (đ)</th>
-                      <th style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", width: "95px", textTransform: "uppercase" }}>Giá đại lý (đ)</th>
-                    </>
-                  ) : (
-                    ["STT", "Tên hàng hoá - Dịch vụ", "ĐVT", "Số lượng", "Đơn giá", "Thành tiền"].map((h, i) => (
-                      <th key={h} style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", textTransform: "uppercase" }}>{h}</th>
-                    ))
+                  {company.logoUrl && <img src={company.logoUrl} alt="Logo" style={{ height: "40px", width: "auto", objectFit: "contain", flexShrink: 0 }} />}
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 10.5, color: "#003087", textTransform: "uppercase" }}>{company.name ?? "Công ty"}</div>
+                    {company.address && <div style={{ fontSize: 9, color: "#374151", marginTop: 1 }}>Địa chỉ: {company.address}</div>}
+                    {(company.phone || company.email) && <div style={{ fontSize: 9, color: "#374151", display: "flex", gap: 12 }}>{company.phone && <span>Điện thoại: {company.phone.replace(/[Hh]otline:\s*/gi, "").trim()}</span>}{company.email && <span>Email: {company.email}</span>}</div>}
+                  </div>
+                  {/* Con dấu treo Sejong Faucet */}
+                  {showStamp && (
+                    <img
+                      src="/seajong_stampt.png"
+                      alt="Sejong Stamp"
+                      style={{
+                        position: "absolute",
+                        left: "22mm",
+                        top: "0mm",
+                        width: "36mm",
+                        height: "36mm",
+                        objectFit: "contain",
+                        opacity: 0.85,
+                        transform: "rotate(-10deg)",
+                        pointerEvents: "none",
+                        zIndex: 10
+                      }}
+                    />
                   )}
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  let globalIdx = 0;
-                  
-                  // If not CoQuayKe, we render flat list
-                  if (!isCoQuayKe) {
-                    return items.filter((it: any) => it.ten).map((it: any) => {
-                      globalIdx++;
-                      return (
-                        <tr key={it.id} style={{ background: globalIdx % 2 === 0 ? "#fff" : "#eff6ff" }}>
-                          <td style={{ padding: "4px 6px", textAlign: "center", border: "1px solid #dbeafe" }}>{globalIdx}</td>
-                          <td style={{ padding: "4px 6px", border: "1px solid #dbeafe" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              {it.imageUrl && (
-                                <img
-                                  src={it.imageUrl.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(it.imageUrl)}` : it.imageUrl}
-                                  alt={it.ten}
-                                  style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 4, border: "1px solid #e5e7eb", background: "#fff", flexShrink: 0 }}
-                                />
-                              )}
-                              <div>
-                                <div style={{ fontWeight: 600 }}>{it.ten}</div>
-                                {getProductCode(it) && (
-                                  <div style={{ fontSize: "8px", color: "#6b7280", marginTop: "2px", fontFamily: "monospace" }}>
-                                    Mã: {getProductCode(it)}
-                                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontWeight: 900, fontSize: 20, letterSpacing: 1, color: "#003087" }}>BẢNG BÁO GIÁ</div>
+                  <div style={{ fontSize: 11, color: "#374151", marginTop: 3 }}>Số: <strong>{info.soPhieu}</strong></div>
+                  <div style={{ fontSize: 11, color: "#374151" }}>Ngày lập: {fmtDate(info.ngayLap)}</div>
+                  <div style={{ fontSize: 11, color: "#374151" }}>Hiệu lực đến: {fmtDate(info.hieuLuc)}</div>
+                </div>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontWeight: 800, fontSize: 12, textTransform: "uppercase", color: "#003087", borderLeft: "3px solid #003087", paddingLeft: 6, marginBottom: 6 }}>Thông tin khách hàng</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 20px", fontSize: 11 }}>
+                  <div><strong>Đơn vị:</strong> {customer?.name ?? "—"}</div>
+                  <div><strong>Người liên hệ:</strong> {customer?.daiDien ? `${customer.xungHo ?? ""} ${customer.daiDien}` : "—"}</div>
+                  <div><strong>Địa chỉ:</strong> {customer?.address ?? "—"}</div>
+                  <div><strong>Điện thoại:</strong> {customer?.dienThoai ?? "—"}</div>
+                </div>
+              </div>
+              <div style={{ marginBottom: 12, fontSize: 11, color: "#374151", lineHeight: 1.5, textAlign: "justify" }}>
+                Công ty cổ phần Sejong Faucet Việt Nam trân trọng cảm ơn Quý khách hàng đã quan tâm đến sản phẩm của chúng tôi. Sejong xin gửi đến Quý khách hàng bảng báo giá các sản phẩm, thiết bị theo yêu cầu của Quý khách hàng với thông tin chi tiết như sau:
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10, fontSize: 9.5 }}>
+                <thead>
+                  <tr style={{ background: "#003087", color: "#fff" }}>
+                    {isCoQuayKe ? (
+                      <>
+                        <th style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", width: "40px", textTransform: "uppercase" }}>STT</th>
+                        <th style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", textTransform: "uppercase" }}>Tên hàng hoá</th>
+                        <th style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", width: "50px", textTransform: "uppercase" }}>Vị trí</th>
+                        <th style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", width: "50px", textTransform: "uppercase" }}>Quy cách</th>
+                        <th style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", width: "95px", textTransform: "uppercase" }}>Giá bán (đ)</th>
+                        <th style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", width: "95px", textTransform: "uppercase" }}>Giá đại lý (đ)</th>
+                      </>
+                    ) : (
+                      ["STT", "Tên hàng hoá - Dịch vụ", "ĐVT", "Số lượng", "Đơn giá", "Thành tiền"].map((h, i) => (
+                        <th key={h} style={{ padding: "5px 6px", textAlign: "center", fontWeight: 700, border: "1px solid #93c5fd", textTransform: "uppercase" }}>{h}</th>
+                      ))
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    let globalIdx = 0;
+
+                    // If not CoQuayKe, we render flat list
+                    if (!isCoQuayKe) {
+                      return items.filter((it: any) => it.ten).map((it: any) => {
+                        globalIdx++;
+                        return (
+                          <tr key={it.id} style={{ background: globalIdx % 2 === 0 ? "#fff" : "#eff6ff" }}>
+                            <td style={{ padding: "4px 6px", textAlign: "center", border: "1px solid #dbeafe" }}>{globalIdx}</td>
+                            <td style={{ padding: "4px 6px", border: "1px solid #dbeafe" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                {it.imageUrl && (
+                                  <img
+                                    src={it.imageUrl.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(it.imageUrl)}` : it.imageUrl}
+                                    alt={it.ten}
+                                    style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 4, border: "1px solid #e5e7eb", background: "#fff", flexShrink: 0 }}
+                                  />
                                 )}
+                                <div>
+                                  <div style={{ fontWeight: 600 }}>{it.ten}</div>
+                                  {getProductCode(it) && (
+                                    <div style={{ fontSize: "8px", color: "#6b7280", marginTop: "2px", fontFamily: "monospace" }}>
+                                      Mã: {getProductCode(it)}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                          <td style={{ padding: "4px 6px", textAlign: "center", border: "1px solid #dbeafe" }}>{it.dvt}</td>
-                          <td style={{ padding: "4px 6px", textAlign: "center", border: "1px solid #dbeafe" }}>{it.soLuong.toLocaleString("vi-VN")}</td>
-                          <td style={{ padding: "4px 6px", textAlign: "right", border: "1px solid #dbeafe" }}>{fmt(it.donGia)}</td>
-                          <td style={{ padding: "4px 6px", textAlign: "right", fontWeight: 600, border: "1px solid #dbeafe" }}>{fmt(thanhTien(it))}</td>
-                        </tr>
-                      );
-                    });
-                  }
-                  
-                  // If CoQuayKe, group items by Area name (viTri)
-                  const validItems = items.filter((it: any) => it.ten);
-                  const areas = Array.from(new Set(validItems.map((it: any) => it.viTri || "Khu vực 1"))) as string[];
-                  
-                  return areas.map(areaName => {
-                    const areaItems = validItems.filter((it: any) => (it.viTri || "Khu vực 1") === areaName);
-                    if (areaItems.length === 0) return null;
-                    
-                    return (
-                      <React.Fragment key={areaName}>
-                        {/* Area Header Row */}
-                        <tr style={{ background: "#f8fafc", fontWeight: 800 }}>
-                          <td colSpan={6} style={{ padding: "6px 10px", color: "#003087", textTransform: "uppercase", fontSize: "10px", border: "1px solid #bfdbfe", background: "#f1f5f9" }}>
-                            {areaName}
-                          </td>
-                        </tr>
-                        {/* Area Items */}
-                        {areaItems.map((it: any) => {
-                          globalIdx++;
-                          let viTriChiTiet = it.viTriChiTiet || "";
-                          try {
-                            if (it.ghiChu) {
-                              const parsed = JSON.parse(it.ghiChu);
-                              if (parsed && typeof parsed === "object") {
-                                viTriChiTiet = parsed.viTriChiTiet || parsed.viTri || "";
-                                if (viTriChiTiet.startsWith("Khu vực")) {
-                                  viTriChiTiet = "";
+                            </td>
+                            <td style={{ padding: "4px 6px", textAlign: "center", border: "1px solid #dbeafe" }}>{it.dvt}</td>
+                            <td style={{ padding: "4px 6px", textAlign: "center", border: "1px solid #dbeafe" }}>{it.soLuong.toLocaleString("vi-VN")}</td>
+                            <td style={{ padding: "4px 6px", textAlign: "right", border: "1px solid #dbeafe" }}>{fmt(it.donGia)}</td>
+                            <td style={{ padding: "4px 6px", textAlign: "right", fontWeight: 600, border: "1px solid #dbeafe" }}>{fmt(thanhTien(it))}</td>
+                          </tr>
+                        );
+                      });
+                    }
+
+                    // If CoQuayKe, group items by Area name (viTri)
+                    const validItems = items.filter((it: any) => it.ten);
+                    const areas = Array.from(new Set(validItems.map((it: any) => it.viTri || "Khu vực 1"))) as string[];
+
+                    return areas.map(areaName => {
+                      const areaItems = validItems.filter((it: any) => (it.viTri || "Khu vực 1") === areaName);
+                      if (areaItems.length === 0) return null;
+
+                      return (
+                        <React.Fragment key={areaName}>
+                          {/* Area Header Row */}
+                          <tr style={{ background: "#f8fafc", fontWeight: 800 }}>
+                            <td colSpan={6} style={{ padding: "6px 10px", color: "#003087", textTransform: "uppercase", fontSize: "10px", border: "1px solid #bfdbfe", background: "#f1f5f9" }}>
+                              {areaName}
+                            </td>
+                          </tr>
+                          {/* Area Items */}
+                          {areaItems.map((it: any) => {
+                            globalIdx++;
+                            let viTriChiTiet = it.viTriChiTiet || "";
+                            try {
+                              if (it.ghiChu) {
+                                const parsed = JSON.parse(it.ghiChu);
+                                if (parsed && typeof parsed === "object") {
+                                  viTriChiTiet = parsed.viTriChiTiet || parsed.viTri || "";
+                                  if (viTriChiTiet.startsWith("Khu vực")) {
+                                    viTriChiTiet = "";
+                                  }
                                 }
                               }
-                            }
-                          } catch (e) { }
-                          
-                          return (
-                            <tr key={it.id} style={{ background: globalIdx % 2 === 0 ? "#fff" : "#eff6ff" }}>
-                              <td style={{ padding: "4px 6px", textAlign: "center", border: "1px solid #dbeafe" }}>{globalIdx}</td>
-                              <td style={{ padding: "4px 6px", border: "1px solid #dbeafe" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  {it.imageUrl && (
-                                    <img
-                                      src={it.imageUrl.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(it.imageUrl)}` : it.imageUrl}
-                                      alt={it.ten}
-                                      style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 4, border: "1px solid #e5e7eb", background: "#fff", flexShrink: 0 }}
-                                    />
-                                  )}
-                                  <div>
-                                    <div style={{ fontWeight: 600 }}>{it.ten}</div>
-                                    {getProductCode(it) && (
-                                      <div style={{ fontSize: "8px", color: "#6b7280", marginTop: "2px", fontFamily: "monospace" }}>
-                                        Mã: {getProductCode(it)}
-                                      </div>
+                            } catch (e) { }
+
+                            return (
+                              <tr key={it.id} style={{ background: globalIdx % 2 === 0 ? "#fff" : "#eff6ff" }}>
+                                <td style={{ padding: "4px 6px", textAlign: "center", border: "1px solid #dbeafe" }}>{globalIdx}</td>
+                                <td style={{ padding: "4px 6px", border: "1px solid #dbeafe" }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    {it.imageUrl && (
+                                      <img
+                                        src={it.imageUrl.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(it.imageUrl)}` : it.imageUrl}
+                                        alt={it.ten}
+                                        style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 4, border: "1px solid #e5e7eb", background: "#fff", flexShrink: 0 }}
+                                      />
                                     )}
+                                    <div>
+                                      <div style={{ fontWeight: 600 }}>{it.ten}</div>
+                                      {getProductCode(it) && (
+                                        <div style={{ fontSize: "8px", color: "#6b7280", marginTop: "2px", fontFamily: "monospace" }}>
+                                          Mã: {getProductCode(it)}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              </td>
-                              <td style={{ padding: "4px 6px", border: "1px solid #dbeafe", textAlign: "center" }}>
-                                {viTriChiTiet}
-                              </td>
-                              <td style={{ padding: "4px 6px", border: "1px solid #dbeafe", textAlign: "center" }}>{it.dvt}</td>
-                              <td style={{ padding: "4px 6px", textAlign: "right", border: "1px solid #dbeafe" }}>{fmt(it.donGia)}</td>
-                              <td style={{ padding: "4px 6px", textAlign: "right", fontWeight: 600, border: "1px solid #dbeafe" }}>
-                                {fmt(it.giaDaiLy ?? it.thanhTien ?? 0)}
-                              </td>
-                            </tr>
+                                </td>
+                                <td style={{ padding: "4px 6px", border: "1px solid #dbeafe", textAlign: "center" }}>
+                                  {viTriChiTiet}
+                                </td>
+                                <td style={{ padding: "4px 6px", border: "1px solid #dbeafe", textAlign: "center" }}>{it.dvt}</td>
+                                <td style={{ padding: "4px 6px", textAlign: "right", border: "1px solid #dbeafe" }}>{fmt(it.donGia)}</td>
+                                <td style={{ padding: "4px 6px", textAlign: "right", fontWeight: 600, border: "1px solid #dbeafe" }}>
+                                  {fmt(it.giaDaiLy ?? it.thanhTien ?? 0)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 60 }}>
+                <div style={{ fontSize: 9 }}>
+                  {info.ghiChu && (
+                    <div style={{ color: "#374151", display: "flex", flexDirection: "column", gap: 5 }}>
+                      {info.ghiChu.split("\n").map((line: string, idx: number) => {
+                        const trimmed = line.trim();
+                        if (!trimmed) return null;
+                        if (trimmed.startsWith("-")) {
+                          return (
+                            <div key={idx} style={{ display: "flex", gap: 6, alignItems: "flex-start", textAlign: "justify" }}>
+                              <span style={{ flexShrink: 0 }}>-</span>
+                              <span>{trimmed.substring(1).trim()}</span>
+                            </div>
                           );
-                        })}
-                      </React.Fragment>
-                    );
-                  });
-                })()}
-              </tbody>
-            </table>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 60 }}>
-              <div style={{ fontSize: 9 }}>
-                {info.ghiChu && (
-                  <div style={{ color: "#374151", display: "flex", flexDirection: "column", gap: 5 }}>
-                    {info.ghiChu.split("\n").map((line: string, idx: number) => {
-                      const trimmed = line.trim();
-                      if (!trimmed) return null;
-                      if (trimmed.startsWith("-")) {
+                        }
                         return (
-                          <div key={idx} style={{ display: "flex", gap: 6, alignItems: "flex-start", textAlign: "justify" }}>
-                            <span style={{ flexShrink: 0 }}>-</span>
-                            <span>{trimmed.substring(1).trim()}</span>
+                          <div key={idx} style={{ textAlign: "justify" }}>
+                            {trimmed}
                           </div>
                         );
-                      }
-                      return (
-                        <div key={idx} style={{ textAlign: "justify" }}>
-                          {trimmed}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div style={{ fontSize: 9.5 }}>
+                  {[
+                    ["Tổng tiền hàng (đ):", fmt(tamTinh)],
+                    [`Chiết khấu (${info.chietKhauTong}%):`, fmt(ckTien)],
+                    [`Thuế VAT (${info.thue}%):`, fmt(thueTien)],
+                    ...(chiPhiThiCong > 0 ? [["Chi phí thi công (đ):", fmt(chiPhiThiCong)]] : [])
+                  ].map(([l, v]) => (
+                    <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0", borderBottom: "1px solid #e5e7eb" }}><span>{l}</span><strong>{v}</strong></div>
+                  ))}
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderTop: "2px solid #003087", marginTop: 2 }}><span style={{ fontWeight: 800 }}>TỔNG CỘNG:</span><span style={{ fontWeight: 900, color: "#003087" }}>{fmt(tongCong)}</span></div>
+                  <div style={{ fontSize: 8.5, fontStyle: "italic", textAlign: "right" }}>({numberToVNWords(tongCong)})</div>
+                </div>
               </div>
-              <div style={{ fontSize: 9.5 }}>
-                {[
-                  ["Tổng tiền hàng (đ):", fmt(tamTinh)],
-                  [`Chiết khấu (${info.chietKhauTong}%):`, fmt(ckTien)],
-                  [`Thuế VAT (${info.thue}%):`, fmt(thueTien)],
-                  ...(chiPhiThiCong > 0 ? [["Chi phí thi công (đ):", fmt(chiPhiThiCong)]] : [])
-                ].map(([l, v]) => (
-                  <div key={l} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0", borderBottom: "1px solid #e5e7eb" }}><span>{l}</span><strong>{v}</strong></div>
-                ))}
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderTop: "2px solid #003087", marginTop: 2 }}><span style={{ fontWeight: 800 }}>TỔNG CỘNG:</span><span style={{ fontWeight: 900, color: "#003087" }}>{fmt(tongCong)}</span></div>
-                <div style={{ fontSize: 8.5, fontStyle: "italic", textAlign: "right" }}>({numberToVNWords(tongCong)})</div>
-              </div>
-            </div>
-            <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
-              <div style={{ textAlign: "center", minWidth: 140, fontSize: 9.5 }}>
-                <div style={{ fontWeight: 700 }}>ĐẠI DIỆN CÔNG TY</div>
-                <div style={{ fontStyle: "italic", fontSize: 9, color: "#6b7280" }}>(Ký, ghi rõ họ tên)</div>
-                <div style={{ height: 40 }} />
-                {company.legalRep && <div style={{ fontWeight: 700 }}>{company.legalRep}</div>}
+              <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
+                <div style={{ textAlign: "center", minWidth: 140, fontSize: 9.5 }}>
+                  <div style={{ fontWeight: 700 }}>ĐẠI DIỆN CÔNG TY</div>
+                  <div style={{ fontStyle: "italic", fontSize: 9, color: "#6b7280" }}>(Ký, ghi rõ họ tên)</div>
+                  <div style={{ height: 40 }} />
+                  {company.legalRep && <div style={{ fontWeight: 700 }}>{company.legalRep}</div>}
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </>
+    </>
   );
 }
 
@@ -1258,7 +1258,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
 
   React.useEffect(() => {
     if (!open) return;
-    
+
     if (custInfo.id) {
       setIsCustomerNew(false);
       fetch(`/api/plan-finance/customers/${custInfo.id}`)
@@ -1381,10 +1381,45 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
 
   const toast = useToast();
   const { data: session } = useSession();
+  const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
   const nextId = React.useRef(1);
   const [items, setItems] = React.useState<QuoteItem[]>([
     { id: nextId.current++, ten: "", dvt: "", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null },
   ]);
+
+  const [formItem, setFormItem] = React.useState<QuoteItem & { khoTen?: string; source?: string; dinhMucs?: any[]; dinhMucId?: string | null; dinhMucTen?: string | null }>({
+    id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: ""
+  });
+
+  const [showBomDetail, setShowBomDetail] = React.useState(false);
+  const [bomDetailData, setBomDetailData] = React.useState<any>(null);
+  const [loadingBom, setLoadingBom] = React.useState(false);
+
+  React.useEffect(() => {
+    if (showBomDetail && formItem.dinhMucId) {
+      setLoadingBom(true);
+      fetch(`/api/production/bom/${formItem.dinhMucId}`)
+        .then(res => res.json())
+        .then(data => setBomDetailData(data))
+        .catch(console.error)
+        .finally(() => setLoadingBom(false));
+    } else if (!showBomDetail) {
+      setBomDetailData(null);
+    }
+  }, [showBomDetail, formItem.dinhMucId]);
+
+  const addRow = () => {
+    if (info.quoteType !== "Có quầy kệ") {
+      if (!formItem.ten.trim()) {
+        toast.error("Lỗi", "Vui lòng chọn hoặc nhập tên sản phẩm");
+        return;
+      }
+      setItems(r => [...r, { ...formItem, id: nextId.current++ }]);
+      setFormItem({ id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: "" });
+    } else {
+      setItems(r => [...r, { id: nextId.current++, ten: "", dvt: "", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, giaDaiLy: 0, viTri: "Khu vực 1" }]);
+    }
+  };
 
   React.useEffect(() => {
     const activeCoQuayKe = info.quoteType === "Có quầy kệ" && isSanitary;
@@ -1596,18 +1631,35 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
 
   const applySuggest = (rowId: number, item: any) => {
     const soLuongTon = item.soLuongThuc ?? item.soLuong;
-    setItems(r => r.map(x => x.id === rowId ? {
-      ...x,
+    const defaultDinhMuc = item.dinhMucs?.length > 0 ? item.dinhMucs[0] : null;
+    const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name)
+      ? item.stocks[0].warehouse.name
+      : (item.source === "manufactured" ? "Kho thành phẩm"
+        : item.source === "inventory" ? "Kho hàng hoá"
+          : item.source === "material" ? "Kho vật tư và phụ kiện" : "");
+
+    const updatePayload = {
       ten: item.tenHang,
-      dvt: item.donVi ?? "",
-      donGia: item.giaBan,
-      giaDaiLy: Math.round(item.giaBan * (tyLeGiaDaiLy / 100)),
+      khoTen: khoTenStr,
+      dvt: item.donVi ?? "cái",
+      donGia: defaultDinhMuc ? (defaultDinhMuc.giaBan ?? item.giaBan) : item.giaBan,
       soLuongTon,
       trangThaiKho: item.trangThai,
       inventoryId: item.id,
       imageUrl: item.imageUrl || null,
-      code: item.code || null
-    } : x));
+      code: item.code || null,
+      dinhMucs: item.dinhMucs || [],
+      dinhMucId: defaultDinhMuc ? defaultDinhMuc.id : null,
+      dinhMucTen: defaultDinhMuc ? defaultDinhMuc.tenDinhMuc : null,
+      source: item.source,
+      giaDaiLy: Math.round((item.giaBan || 0) * (tyLeGiaDaiLy / 100))
+    };
+
+    if (rowId === -1) {
+      setFormItem(x => ({ ...x, ...updatePayload }));
+    } else {
+      setItems(r => r.map(x => x.id === rowId ? { ...x, ...updatePayload } : x));
+    }
     setSuggest([]);
     setActiveRowIdSync(null);
   };
@@ -1707,7 +1759,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
     );
   };
 
-  const addRow = () => setItems(r => [...r, { id: nextId.current++, ten: "", dvt: "", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null }]);
+
   const removeRow = (id: number) => setItems(r => r.filter(x => x.id !== id));
   const updateRow = (id: number, f: string, v: any) => setItems(r => r.map(x => x.id === id ? { ...x, [f]: v } : x));
 
@@ -1835,8 +1887,8 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
       const trangThai = isDirectOrder
         ? "won"
         : (type === "retail"
-            ? (editData?.id ? editData.trangThai : "draft")
-            : (mode === "draft" ? "draft" : (pheduyet ? "pending_approval" : "approved")));
+          ? (editData?.id ? editData.trangThai : "draft")
+          : (mode === "draft" ? "draft" : (pheduyet ? "pending_approval" : "approved")));
       const finalCustomerId = custInfo.id;
       let finalGhiChu = [info.ghiChu, info.dieuKhoanTT ? `ĐKTT: ${info.dieuKhoanTT}` : "", info.dieuKhoanGH ? `ĐKGH: ${info.dieuKhoanGH}` : ""].filter(Boolean).join("\n");
       if (!finalCustomerId) {
@@ -1907,20 +1959,20 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
 
         // So sánh các thay đổi
         const changes: string[] = [];
-        
+
         // 1. So sánh trạng thái
         const oldTrangThai = editData.trangThai || "draft";
         if (oldTrangThai !== trangThai) {
           changes.push(`  + Trạng thái: từ "${STATUS_LABEL[oldTrangThai] || oldTrangThai}" thành "${STATUS_LABEL[trangThai] || trangThai}"`);
         }
-        
+
         // 2. So sánh chiết khấu
         const oldDiscount = editData.discount ?? 0;
         const newDiscount = info.chietKhauTong;
         if (oldDiscount !== newDiscount) {
           changes.push(`  + Chiết khấu: từ ${oldDiscount}% thành ${newDiscount}%`);
         }
-        
+
         // 3. So sánh VAT
         const oldVat = editData.vat ?? 10;
         const newVat = info.thue;
@@ -2053,9 +2105,9 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
               {editData?.id
                 ? (isDirectOrder ? "Sửa đơn bán hàng (SO)" : "Sửa báo giá")
                 : (isDirectOrder
-                    ? (type === "retail" ? "Lập đơn hàng bán lẻ" : "Lập đơn bán hàng (SO)")
-                    : (type === "retail" ? "Lập báo giá bán lẻ" : "Lập báo giá đại lý")
-                  )
+                  ? (type === "retail" ? "Lập đơn hàng bán lẻ" : "Lập đơn bán hàng (SO)")
+                  : (type === "retail" ? "Lập báo giá bán lẻ" : "Lập báo giá đại lý")
+                )
               }
             </p>
           </div>
@@ -2559,7 +2611,132 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
             )}
           </div>
 
-          <div className="sanitary-modal-table-container" style={{ flex: 1, overflowY: "auto", overflowX: "auto", padding: 20 }}>
+          <div className="sanitary-modal-table-container" style={{ flex: 1, overflowY: "auto", overflowX: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Form nhập liệu (Chỉ dành cho Bán lẻ / Không quầy kệ) */}
+            {!isCoQuayKe && (
+              <div style={{ padding: 16, background: "rgba(59,130,246,0.04)", border: "1px dashed rgba(59,130,246,0.3)", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
+                <div style={{ flex: "1 1 100%", display: "flex", gap: 12 }}>
+                  <div style={{ flex: "2 1 250px", position: "relative" }}>
+                    <FLabel text="Sản phẩm / Dịch vụ" required />
+                    <input
+                      value={formItem.ten}
+                      placeholder="Nhập tên hoặc mã SKU sản phẩm..."
+                      onChange={e => {
+                        const v = e.target.value;
+                        setFormItem(prev => ({ ...prev, ten: v }));
+                        if (!v) {
+                          setSuggest([]);
+                        } else {
+                          setActiveRowIdSync(-1);
+                          fetchSuggest(v, -1);
+                        }
+                      }}
+                      onFocus={e => { setActiveRowIdSync(-1); fetchSuggest(formItem.ten, -1); e.currentTarget.style.border = "1px solid var(--primary)"; }}
+                      onBlur={e => { e.currentTarget.style.border = "1px solid var(--border)"; setTimeout(() => { if (activeRowIdRef.current === -1) { setSuggest([]); setActiveRowIdSync(null); } }, 200); }}
+                      style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", background: "#fff", outline: "none", borderRadius: 6, fontFamily: "inherit", fontSize: 13, color: "var(--foreground)", transition: "border-color 0.15s" }}
+                    />
+                    {activeRowId === -1 && suggest.length > 0 && (
+                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
+                        {suggest.map(s => (
+                          <div key={s.id} onClick={() => applySuggest(-1, s)}
+                            onMouseEnter={e => e.currentTarget.style.background = "var(--muted)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                            style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, borderBottom: "1px solid var(--border)", transition: "background 0.1s" }}
+                          >
+                            <div style={{ fontWeight: 600 }}>{s.tenHang}</div>
+                            <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", gap: 8, marginTop: 2 }}>
+                              {s.code && <span style={{ fontFamily: "monospace", background: "var(--muted)", padding: "0 5px", borderRadius: 4 }}>{s.code}</span>}
+                              <span>Tồn: <b>{s.soLuongThuc ?? s.soLuong}</b> {s.donVi}</span>
+                              <span>Giá: <b>{s.giaBan.toLocaleString("vi-VN")} ₫</b></span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ flex: "1 1 110px", maxWidth: 180 }}>
+                    <FLabel text="Mã định mức" />
+                    <select
+                      value={formItem.dinhMucId || ""}
+                      onChange={e => {
+                        const dmId = e.target.value;
+                        const dm = formItem.dinhMucs?.find(x => x.id === dmId);
+                        setFormItem(p => ({
+                          ...p,
+                          dinhMucId: dmId,
+                          dinhMucTen: dm ? dm.tenDinhMuc : null,
+                          donGia: dm ? (dm.giaBan ?? 0) : p.donGia
+                        }));
+                      }}
+                      disabled={formItem.source === "inventory"}
+                      style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: formItem.source === "inventory" ? "var(--muted)" : "#fff", outline: "none", fontFamily: "inherit", fontSize: 13, color: formItem.source === "inventory" ? "var(--muted-foreground)" : "var(--foreground)", cursor: formItem.source === "inventory" ? "not-allowed" : "default" }}
+                    >
+                      {formItem.dinhMucs?.map((dm: any) => (
+                        <option key={dm.id} value={dm.id}>{dm.code}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ flex: "2 1 240px" }}>
+                    <FLabel text="Mô tả định mức" />
+                    <div className="d-flex gap-2">
+                      <input
+                        value={formItem.dinhMucTen || ""}
+                        readOnly
+                        placeholder="Tự động hiển thị..."
+                        style={{ flex: 1, padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-light border"
+                        onClick={() => setShowBomDetail(true)}
+                        disabled={!formItem.dinhMucId}
+                        style={{ padding: "7px 12px", borderRadius: 6 }}
+                        title="Xem chi tiết định mức"
+                      >
+                        <i className="bi bi-three-dots"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ flex: "1 1 120px" }}>
+                  <FLabel text="Tên kho" />
+                  <input
+                    value={formItem.khoTen || ""}
+                    readOnly
+                    placeholder="Tự động..."
+                    style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
+                  />
+                </div>
+                <div style={{ flex: "1 1 80px" }}>
+                  <FLabel text="Đơn vị tính" />
+                  <input value={formItem.dvt} onChange={e => setFormItem(p => ({ ...p, dvt: e.target.value }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "center", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                </div>
+                <div style={{ flex: "1 1 90px" }}>
+                  <FLabel text="Số lượng" required />
+                  <input type="number" min={1} value={formItem.soLuong} onChange={e => setFormItem(p => ({ ...p, soLuong: Math.max(1, Number(e.target.value)) }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                </div>
+                <div style={{ flex: "1 1 90px" }}>
+                  <FLabel text="Chiết khấu (%)" />
+                  <input type="number" min={0} max={100} value={formItem.ckPct} onChange={e => setFormItem(p => ({ ...p, ckPct: Math.max(0, Math.min(100, Number(e.target.value))) }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                </div>
+                <div style={{ flex: "1 1 120px" }}>
+                  <FLabel text="Đơn giá (đ)" />
+                  <CurrencyInput
+                    value={formItem.donGia}
+                    onChange={v => !(!isAdmin) && setFormItem(p => ({ ...p, donGia: v }))}
+                    readOnly={!isAdmin}
+                    placeholder="0"
+                    style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: !isAdmin ? "var(--muted)" : "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: !isAdmin ? "var(--muted-foreground)" : "var(--foreground)", cursor: !isAdmin ? "not-allowed" : "text" }}
+                  />
+                </div>
+                <div>
+                  <button onClick={addRow} style={{ padding: "7px 14px", border: "none", background: "var(--primary)", color: "#fff", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, height: 33 }}>
+                    <i className="bi bi-plus-lg" /> Thêm
+                  </button>
+                </div>
+              </div>
+            )}
+
             <table className="sanitary-modal-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "var(--muted)", textAlign: "left" }}>
@@ -2579,6 +2756,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                       <th style={{ padding: 10 }}>Tên hàng hoá - Dịch vụ</th>
                       <th style={{ padding: 10, width: 70, textAlign: "center" }}>ĐVT</th>
                       <th style={{ padding: 10, width: 90, textAlign: "center" }}>Số lượng</th>
+                      <th style={{ padding: 10, width: 110, textAlign: "center" }}>Chiết khấu (%)</th>
                       <th style={{ padding: 10, width: 130, textAlign: "right" }}>Đơn giá (đ)</th>
                       <th style={{ padding: 10, width: 130, textAlign: "right" }}>Thành tiền (đ)</th>
                       <th style={{ padding: 10, width: 40 }} />
@@ -2655,7 +2833,9 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                     items.map((it, idx) => renderQuayKeRow(it, idx))
                   )
                 ) : (
-                  items.map((it, idx) => (
+                  items.length === 0 ? (
+                    <tr><td colSpan={8} style={{ padding: 20, textAlign: "center", color: "var(--muted-foreground)" }}>Chưa có sản phẩm nào</td></tr>
+                  ) : items.map((it, idx) => (
                     <tr key={it.id} style={{ borderBottom: "1px solid var(--border)" }}>
                       <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
                       <td style={{ padding: "6px 10px", position: "relative" }}>
@@ -2673,69 +2853,24 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                           );
                           return null;
                         })()}
-                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                          <input
-                            value={it.ten}
-                            placeholder="Nhập tên hoặc mã SKU..."
-                            onChange={e => {
-                              const v = e.target.value;
-                              if (!v) {
-                                setItems(r => r.map(x => x.id === it.id
-                                  ? { ...x, ten: "", dvt: "", donGia: 0, ckPct: 0, soLuong: 1, soLuongTon: null, trangThaiKho: null, inventoryId: null }
-                                  : x
-                                ));
-                                setSuggest([]);
-                              } else {
-                                updateRow(it.id, "ten", v);
-                                setActiveRowIdSync(it.id);
-                                fetchSuggest(v, it.id);
-                              }
-                            }}
-                            onFocus={e => { setActiveRowIdSync(it.id); fetchSuggest(it.ten, it.id); e.currentTarget.style.border = "1px solid var(--primary)"; }}
-                            onBlur={e => { e.currentTarget.style.border = "1px solid var(--border)"; setTimeout(() => { if (activeRowIdRef.current === it.id) { setSuggest([]); setActiveRowIdSync(null); } }, 200); }}
-                            style={{ width: "100%", padding: 6, border: "1px solid var(--border)", background: "#fff", outline: "none", borderRadius: 6, fontFamily: "inherit", fontSize: 13, color: "var(--foreground)", transition: "border-color 0.15s" }}
-                          />
-
-                        </div>
-                        {activeRowId === it.id && suggest.length > 0 && (
-                          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxHeight: 200, overflowY: "auto" }}>
-                            {suggest.map(s => (
-                              <div key={s.id} onClick={() => applySuggest(it.id, s)}
-                                onMouseEnter={e => e.currentTarget.style.background = "var(--muted)"}
-                                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                                style={{ padding: "8px 12px", cursor: "pointer", fontSize: 13, borderBottom: "1px solid var(--border)", transition: "background 0.1s" }}
-                              >
-                                <div style={{ fontWeight: 600 }}>{s.tenHang}</div>
-                                <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", gap: 8, marginTop: 2 }}>
-                                  {s.code && <span style={{ fontFamily: "monospace", background: "var(--muted)", padding: "0 5px", borderRadius: 4 }}>{s.code}</span>}
-                                  <span>Tồn: <b>{s.soLuongThuc ?? s.soLuong}</b> {s.donVi}</span>
-                                  <span>Giá: <b>{s.giaBan.toLocaleString("vi-VN")} ₫</b></span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{it.ten}</span>
                       </td>
-                      <td style={{ padding: 6 }}><input value={it.dvt} onChange={e => updateRow(it.id, "dvt", e.target.value)} style={{ width: "100%", padding: 6, border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "center", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} onFocus={e => e.currentTarget.style.borderColor = "var(--primary)"} onBlur={e => e.currentTarget.style.borderColor = "var(--border)"} /></td>
-                      <td style={{ padding: 6 }}><input type="number" value={it.soLuong} onChange={e => updateRow(it.id, "soLuong", Number(e.target.value))} style={{ width: "100%", padding: 6, border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} onFocus={e => e.currentTarget.style.borderColor = "var(--primary)"} onBlur={e => e.currentTarget.style.borderColor = "var(--border)"} /></td>
+                      <td style={{ padding: 6, textAlign: "center" }}>{it.dvt}</td>
+                      <td style={{ padding: 6, textAlign: "center" }}>{it.soLuong}</td>
+                      <td style={{ padding: 6, textAlign: "center" }}>{it.ckPct}</td>
+                      <td style={{ padding: 6, textAlign: "right" }}>{fmt(it.donGia)}</td>
+                      <td style={{ padding: 6, textAlign: "right", fontWeight: 600 }}>{fmt(thanhTien(it))} đ</td>
                       <td style={{ padding: 6 }}>
-                        <CurrencyInput
-                          value={it.donGia}
-                          onChange={v => updateRow(it.id, "donGia", v)}
-                          placeholder="0"
-                          style={{ width: "100%", padding: 6, border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }}
-                        />
+                        <button onClick={() => removeRow(it.id)} style={{ padding: 4, background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>
+                          <i className="bi bi-trash" />
+                        </button>
                       </td>
-                      <td style={{ padding: 6, textAlign: "right", fontWeight: 600 }}>{fmt(thanhTien(it))}</td>
-                      <td style={{ padding: 6 }}><button onClick={() => removeRow(it.id)} style={{ padding: 4, background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}><i className="bi bi-trash" /></button></td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
-            {!(isCoQuayKe && soKhuVuc > 1) && (
-              <button onClick={addRow} style={{ marginTop: 10, padding: "6px 14px", border: "1px solid var(--border)", background: "var(--card)", borderRadius: 6, cursor: "pointer", color: "var(--foreground)", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s" }} onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.color = "var(--primary)"; }} onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--foreground)"; }}><i className="bi bi-plus-lg" style={{ fontSize: 12 }} /> Thêm dòng</button>
-            )}
+            {!(isCoQuayKe) && false /* hidden as we use the form instead */}
           </div>
 
           <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--card)" }}>

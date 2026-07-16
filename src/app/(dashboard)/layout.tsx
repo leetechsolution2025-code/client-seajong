@@ -33,14 +33,14 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
       key: "plan", label: "Lập kế hoạch", icon: "bi-calendar-check", flat: true,
       items: [{ name: "Lập kế hoạch", href: "/board/plan" }],
     },
-    {
-      key: "operations", label: "Vận hành hệ thống", icon: "bi-gear-wide-connected",
-      items: [
-        { name: "Kinh doanh và Marketing", href: "/board/business-marketing" },
-        { name: "Tài chính kế toán", href: "/board/finance-accounting" },
-        { name: "Nhân sự", href: "/board/hr" },
-      ],
-    },
+    // {
+    //   key: "operations", label: "Vận hành hệ thống", icon: "bi-gear-wide-connected",
+    //   items: [
+    //     { name: "Kinh doanh và Marketing", href: "/board/business-marketing" },
+    //     { name: "Tài chính kế toán", href: "/board/finance-accounting" },
+    //     { name: "Nhân sự", href: "/board/hr" },
+    //   ],
+    // },
     {
       key: "tasks", label: "Quản trị công việc", icon: "bi-kanban", flat: true,
       items: [{ name: "Quản trị công việc", href: "/board/tasks" }],

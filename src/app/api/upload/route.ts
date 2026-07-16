@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     const ext       = file.name.split(".").pop() ?? "bin";
     const fileName  = `att_${Date.now()}.${ext}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    const uploadDir = path.join(process.cwd(), "storage", "uploads");
 
     await mkdir(uploadDir, { recursive: true });
 

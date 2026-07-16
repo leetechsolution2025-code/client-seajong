@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
       // Cập nhật trangThai + soLuong tổng trên InventoryItem
       const allStocks = await prisma.inventoryStock.findMany({
         where: { inventoryItemId },
-        include: { inventoryItem: { select: { soLuongMin: true } } },
+        include: { inventoryItem: { select: { soLuongMin: true, giaNhap: true } } },
       });
       const tongSoLuong = allStocks.reduce((s, st) => s + st.soLuong, 0);
       const soLuongMin  = allStocks[0]?.inventoryItem.soLuongMin ?? 0;
@@ -137,12 +137,25 @@ export async function POST(req: NextRequest) {
                         : soLuongMin > 0 && tongSoLuong <= soLuongMin ? "sap-het"
                         : "con-hang";
 
+      // Tính giá bình quân gia quyền (Moving Average Cost)
+      let finalGiaNhap = undefined;
+      if (donGia !== undefined && donGia > 0) {
+        const oldPrice = allStocks[0]?.inventoryItem.giaNhap ?? 0;
+        const oldQty = tongSoLuong - soLuong;
+        
+        if (oldQty > 0 && oldPrice > 0) {
+          finalGiaNhap = ((oldQty * oldPrice) + (soLuong * donGia)) / tongSoLuong;
+        } else {
+          finalGiaNhap = donGia;
+        }
+      }
+
       await prisma.inventoryItem.update({
         where: { id: inventoryItemId },
         data:  { 
           soLuong: tongSoLuong, 
           trangThai,
-          ...(donGia !== undefined && donGia > 0 && { giaNhap: donGia }),
+          ...(finalGiaNhap !== undefined && { giaNhap: finalGiaNhap }),
         },
       });
     }

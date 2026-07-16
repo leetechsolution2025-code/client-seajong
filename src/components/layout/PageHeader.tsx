@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 interface PageHeaderProps {
   /** Tên phòng ban / tiêu đề trang */
@@ -20,17 +22,37 @@ const WEEKDAYS = [
 ];
 
 const COLOR_MAP: Record<string, { bg: string; icon: string }> = {
-  rose:    { bg: "ph-icon-box-rose",    icon: "ph-icon-rose" },
-  indigo:  { bg: "ph-icon-box-indigo",  icon: "ph-icon-indigo" },
+  rose: { bg: "ph-icon-box-rose", icon: "ph-icon-rose" },
+  indigo: { bg: "ph-icon-box-indigo", icon: "ph-icon-indigo" },
   emerald: { bg: "ph-icon-box-emerald", icon: "ph-icon-emerald" },
-  amber:   { bg: "ph-icon-box-amber",   icon: "ph-icon-amber" },
-  blue:    { bg: "ph-icon-box-blue",    icon: "ph-icon-blue" },
-  violet:  { bg: "ph-icon-box-violet",  icon: "ph-icon-violet" },
-  cyan:    { bg: "ph-icon-box-cyan",    icon: "ph-icon-cyan" },
+  amber: { bg: "ph-icon-box-amber", icon: "ph-icon-amber" },
+  blue: { bg: "ph-icon-box-blue", icon: "ph-icon-blue" },
+  violet: { bg: "ph-icon-box-violet", icon: "ph-icon-violet" },
+  cyan: { bg: "ph-icon-box-cyan", icon: "ph-icon-cyan" },
 };
 
-export function PageHeader({ title, description, icon = "bi-grid", color = "rose", children }: PageHeaderProps) {
+function PageHeaderInner({ title, description, icon = "bi-grid", color = "rose", children }: PageHeaderProps) {
   const [now, setNow] = useState<Date | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const { data: session } = useSession();
+  const [fromAdmin, setFromAdmin] = useState(false);
+
+  useEffect(() => {
+    if (pathname.startsWith("/board")) {
+      setFromAdmin(false);
+      sessionStorage.removeItem("fromAdmin");
+      return;
+    }
+
+    if (searchParams.get("fromAdmin") === "true") {
+      setFromAdmin(true);
+      sessionStorage.setItem("fromAdmin", "true");
+    } else if (sessionStorage.getItem("fromAdmin") === "true") {
+      setFromAdmin(true);
+    }
+  }, [searchParams, pathname]);
 
   useEffect(() => {
     setNow(new Date());
@@ -42,9 +64,9 @@ export function PageHeader({ title, description, icon = "bi-grid", color = "rose
     ? now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
     : "--:--:--";
 
-  const day   = now ? String(now.getDate()).padStart(2, "0") : "00";
+  const day = now ? String(now.getDate()).padStart(2, "0") : "00";
   const month = now ? String(now.getMonth() + 1).padStart(2, "0") : "00";
-  const year  = now ? now.getFullYear() : "";
+  const year = now ? now.getFullYear() : "";
 
   const dateStr = now
     ? `${WEEKDAYS[now.getDay()]}, ngày ${day} tháng ${month} năm ${year}`
@@ -64,7 +86,32 @@ export function PageHeader({ title, description, icon = "bi-grid", color = "rose
 
         {/* Text */}
         <div className="ph-text">
-          <h1 className="page-header-title">{title}</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <h1 className="page-header-title">{title}</h1>
+            {fromAdmin && (
+              <button
+                onClick={() => {
+                  sessionStorage.removeItem("fromAdmin");
+                  const role = session?.user?.role;
+                  const dept = session?.user?.departmentCode;
+                  if (role === "SUPERADMIN") router.push("/admin");
+                  else if (dept) router.push(`/${dept}`);
+                  else if (role === "ADMIN") router.push("/company");
+                  else router.push("/board");
+                }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 4,
+                  padding: "2px 8px",
+                  border: "1px solid var(--border)", borderRadius: 6,
+                  background: "var(--card)", color: "var(--foreground)",
+                  fontSize: 11, fontWeight: 600, cursor: "pointer",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                }}
+              >
+                <i className="bi bi-arrow-left" /> Quay về trang chủ
+              </button>
+            )}
+          </div>
           {description && <p className="page-header-desc">{description}</p>}
         </div>
       </div>
@@ -79,5 +126,13 @@ export function PageHeader({ title, description, icon = "bi-grid", color = "rose
       </div>
 
     </div>
+  );
+}
+
+export function PageHeader(props: PageHeaderProps) {
+  return (
+    <Suspense fallback={<div style={{ height: 62 }} />}>
+      <PageHeaderInner {...props} />
+    </Suspense>
   );
 }

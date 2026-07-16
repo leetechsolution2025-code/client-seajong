@@ -299,7 +299,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
     {
       header: isMaterial ? "Vật tư / Nhóm" : (isProduct ? "Thành phẩm / Loại" : (isDefect ? "Hàng lỗi" : "Hàng hoá / Loại")),
       render: (row) => (
-        <div className="d-flex align-items-center gap-3">
+        <div className="d-flex align-items-center gap-3" style={{ minWidth: 0, width: "100%", maxWidth: "350px" }}>
           <div 
             className="flex-shrink-0 rounded-3 border bg-light d-flex align-items-center justify-content-center overflow-hidden" 
             style={{ width: 36, height: 36 }}
@@ -310,12 +310,12 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
               <i className="bi bi-box-seam text-muted opacity-50" style={{ fontSize: 16 }} />
             )}
           </div>
-          <div className="d-flex flex-column">
-            <span className="fw-semibold text-dark lh-1 mb-1" style={{ fontSize: 12.5 }}>{row.tenHang || row.name}</span>
-            <div className="d-flex align-items-center gap-2">
-              <small className="text-primary fw-medium" style={{ fontSize: 10, letterSpacing: 0.5 }}>{row.code || "SKU-AUTO"}</small>
-              <span className="text-muted" style={{ fontSize: 10 }}>•</span>
-              <small className="text-muted" style={{ fontSize: 10.5 }}>{row.category?.name || "Chưa phân loại"}</small>
+          <div className="d-flex flex-column overflow-hidden flex-grow-1" style={{ minWidth: 0 }}>
+            <span className="fw-semibold text-dark lh-1 mb-1 text-truncate d-block w-100" style={{ fontSize: 12.5 }} title={row.tenHang || row.name}>{row.tenHang || row.name}</span>
+            <div className="d-flex align-items-center gap-2 overflow-hidden w-100">
+              <small className="text-primary fw-medium flex-shrink-0" style={{ fontSize: 10, letterSpacing: 0.5 }}>{row.code || "SKU-AUTO"}</small>
+              <span className="text-muted flex-shrink-0" style={{ fontSize: 10 }}>•</span>
+              <small className="text-muted text-truncate flex-grow-1" style={{ fontSize: 10.5 }} title={row.category?.name}>{row.category?.name || "Chưa phân loại"}</small>
             </div>
           </div>
         </div>
@@ -328,9 +328,17 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
     },
     {
       header: isMaterial ? "Thông số" : "ĐVT",
-      width: isMaterial ? 150 : 80,
+      width: isMaterial ? 200 : 80,
       align: isMaterial ? "left" : "center",
-      render: (row) => <span className="text-muted small">{isMaterial ? row.spec : (row.donVi || row.unit || "cái")}</span>
+      render: (row) => (
+        <span 
+          className={isMaterial ? "text-muted small text-truncate d-inline-block" : "text-muted small"} 
+          style={isMaterial ? { maxWidth: 180 } : undefined}
+          title={isMaterial ? row.thongSoKyThuat : undefined}
+        >
+          {isMaterial ? (row.thongSoKyThuat || row.spec) : (row.donVi || row.unit || "cái")}
+        </span>
+      )
     },
     {
       header: "Tồn kho",
@@ -382,7 +390,13 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
     }
   ];
 
-  const columns = isCS ? rawColumns.filter(c => !["Đơn giá nhập", "Giá thành", "Giá bán (đồng)"].includes(c.header as string)) : rawColumns;
+  const isBoard = mode === "board";
+  const hidePrice = isCS || isBoard;
+  const columns = rawColumns.filter(c => {
+    if (hidePrice && ["Đơn giá nhập", "Giá thành", "Giá bán (đồng)"].includes(c.header as string)) return false;
+    if (mode === "production" && c.header === "Đơn giá nhập") return false;
+    return true;
+  });
 
   return (
     <div className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0, gap: "1rem" }}>

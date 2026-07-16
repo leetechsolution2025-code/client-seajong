@@ -15,7 +15,7 @@ async function persistLogo(logoUrl: string | null | undefined): Promise<string |
   const [, mimeType, base64Data] = match;
   const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") || "png";
   const fileName = `logo_${Date.now()}.${ext}`;
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  const uploadsDir = path.join(process.cwd(), "storage", "uploads");
   await fs.mkdir(uploadsDir, { recursive: true });
   await fs.writeFile(path.join(uploadsDir, fileName), Buffer.from(base64Data, "base64"));
   return `/uploads/${fileName}`;

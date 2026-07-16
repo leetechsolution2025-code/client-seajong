@@ -105,16 +105,24 @@ else
 fi
 log "Database đã migration và đồng bộ hoàn toàn"
 
-info "Chạy các tập lệnh chuyển đổi dữ liệu..."
-node scripts/migrate_mfp_categories.js || true
-node scripts/copy_sp_thanh_pham.js || true
-node scripts/delete_sp_vesinh.js || true
-node scripts/import_material_data.js || true
-log "Chuyển đổi dữ liệu hoàn tất"
+if [ "${SKIP_DATA_CONVERT}" != "1" ]; then
+    info "Chạy các tập lệnh chuyển đổi dữ liệu..."
+    node scripts/migrate_mfp_categories.js || true
+    node scripts/copy_sp_thanh_pham.js || true
+    node scripts/delete_sp_vesinh.js || true
+    node scripts/import_material_data.js || true
+    log "Chuyển đổi dữ liệu hoàn tất"
+else
+    info "Bỏ qua các tập lệnh chuyển đổi dữ liệu (SKIP_DATA_CONVERT=1)"
+fi
 
 # ── Seed database (chỉ khi DB trống) ─────────────────────────
-info "Chạy seed database..."
-bash "${APP_DIR}/scripts/seed.sh"
+if [ "${SKIP_SEED}" != "1" ]; then
+    info "Chạy seed database..."
+    bash "${APP_DIR}/scripts/seed.sh"
+else
+    info "Bỏ qua chạy seed database (SKIP_SEED=1)"
+fi
 
 # ── Dừng app cũ trước khi build (tránh EADDRINUSE) ──────────
 info "Dừng app cũ trước khi build..."

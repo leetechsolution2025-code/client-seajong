@@ -10,10 +10,11 @@ export async function GET(req: Request, props: { params: Promise<{ id: string }>
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const orderId = params.id;
+    const dbOrderId = orderId.replace('LSX', 'DHBL');
 
     // Lấy thông tin lệnh sản xuất
     let order = await prisma.saleOrder.findUnique({
-      where: { id: orderId },
+      where: { id: dbOrderId },
       include: {
         saleOrderItems: true
       }
@@ -21,7 +22,7 @@ export async function GET(req: Request, props: { params: Promise<{ id: string }>
 
     if (!order) {
       order = await prisma.saleOrder.findUnique({
-        where: { code: orderId },
+        where: { code: dbOrderId },
         include: {
           saleOrderItems: true
         }
@@ -87,12 +88,14 @@ export async function GET(req: Request, props: { params: Promise<{ id: string }>
       }
     }
 
-    const isCompleted = order.trangThai === "approved" || order.trangThai === "shipped";
+    const isCompleted = order.trangThai === "approved" || order.trangThai === "shipped" || order.trangThai === "completed";
     const isRunning = order.trangThai === "in_production";
+    
+    const orderCode = order.code ? order.code.replace('DHBL', 'LSX') : order.id;
 
     return NextResponse.json({
       order: {
-        id: order.code || order.id,
+        id: orderCode,
         trangThai: isCompleted ? "completed" : (isRunning ? "running" : "pending"),
         ngayDat: order.ngayDat,
         ngayHoanThanh: order.ngayHoanThanhSanXuat || order.ngayGiao,
@@ -104,6 +107,41 @@ export async function GET(req: Request, props: { params: Promise<{ id: string }>
 
   } catch (e) {
     console.error("[GET /api/production/orders/[id]]", e);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: Request, props: { params: Promise<{ id: string }> }) {
+  try {
+    const params = await props.params;
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const orderId = params.id;
+    const dbOrderId = orderId.replace('LSX', 'DHBL');
+    const { trangThai } = await req.json();
+
+    let order = await prisma.saleOrder.findUnique({ where: { id: dbOrderId } });
+    if (!order) {
+      order = await prisma.saleOrder.findUnique({ where: { code: dbOrderId } });
+    }
+
+    if (!order) {
+      return NextResponse.json({ error: "Không tìm thấy lệnh sản xuất" }, { status: 404 });
+    }
+
+    let newTrangThai = order.trangThai;
+    if (trangThai === "running") newTrangThai = "in_production";
+    else if (trangThai === "completed") newTrangThai = "completed";
+
+    await prisma.saleOrder.update({
+      where: { id: order.id },
+      data: { trangThai: newTrangThai }
+    });
+
+    return NextResponse.json({ success: true, trangThai: newTrangThai });
+  } catch (e) {
+    console.error("[PATCH /api/production/orders/[id]]", e);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

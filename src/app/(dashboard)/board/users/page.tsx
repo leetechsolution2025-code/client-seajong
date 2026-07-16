@@ -14,22 +14,13 @@ const SYSTEM_PERMISSIONS = [
   { key: "report",         label: "Xem báo cáo",               icon: "bi-bar-chart-line",      color: "#06b6d4" },
   { key: "plan",           label: "Lập kế hoạch",              icon: "bi-calendar3",           color: "#f43f5e" },
   { key: "approve_request",label: "Duyệt yêu cầu",             icon: "bi-check2-circle",       color: "#22c55e" },
+  { key: "oem_sales",      label: "Bán hàng OEM",              icon: "bi-bag-check",           color: "#0ea5e9" },
   { key: "approve_budget", label: "Duyệt ngân sách",           icon: "bi-cash-coin",           color: "#ef4444" },
 ];
 
-const DEPARTMENTS = [
-  { code: "board",        name: "Ban Giám đốc",            icon: "bi-building",             color: "#6366f1" },
-  { code: "plan_finance", name: "Kế hoạch - Tài chính",    icon: "bi-cash-coin",            color: "#10b981" },
-  { code: "hr",           name: "Nhân sự",                  icon: "bi-people",               color: "#3b82f6" },
-  { code: "sales",        name: "Kinh doanh",               icon: "bi-cart3",                color: "#f59e0b" },
-  { code: "marketing",    name: "Marketing",                icon: "bi-megaphone",            color: "#ec4899" },
-  { code: "cs",           name: "Chăm sóc khách hàng",     icon: "bi-chat-heart",           color: "#22d3ee" },
-  { code: "logistics",    name: "Vận chuyển - Kho",         icon: "bi-truck",                color: "#84cc16" },
-  { code: "production",   name: "Sản xuất",                 icon: "bi-gear",                 color: "#f97316" },
-  { code: "it",           name: "Công nghệ thông tin",      icon: "bi-pc-display",           color: "#8b5cf6" },
-  { code: "legal",        name: "Pháp chế",                 icon: "bi-file-earmark-text",    color: "#64748b" },
-  { code: "facility",     name: "Hành chính - CSVC",        icon: "bi-house-gear",           color: "#78716c" },
-];
+const GROUP_COLORS: Record<string, string> = {
+  management: "#6366f1", core: "#0ea5e9", business: "#10b981", support: "#f59e0b",
+};
 
 const ROLE_OPTIONS = [
   {
@@ -55,6 +46,8 @@ const LEVEL_LABELS: Record<string, { label: string; color: string; bg: string }>
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+type Dept = { code: string; nameVi: string; icon: string; group: string; isActive: boolean; };
+
 type UserRow = {
   id: string; name: string | null; email: string; role: string;
   permissions: string; deptAccess: string; createdAt: string;
@@ -136,6 +129,7 @@ export default function BoardUsersPage() {
 
   // User list state
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [departments, setDepartments] = useState<Dept[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"" | "ADMIN" | "USER">("");
@@ -152,6 +146,10 @@ export default function BoardUsersPage() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
+      const resDepts = await fetch("/api/company/departments");
+      const deptsData = await resDepts.json();
+      if (Array.isArray(deptsData)) setDepartments(deptsData.filter(d => d.isActive));
+
       const res = await fetch("/api/board/users");
       const data = await res.json();
       const list: UserRow[] = Array.isArray(data) ? data : [];
@@ -171,13 +169,13 @@ export default function BoardUsersPage() {
     if (!u) return;
     setEditRole(u.role);
     setEditPerms(parseJson<string[]>(u.permissions, []));
-    setEditDeptAccess(DEPARTMENTS.map(d => {
+    setEditDeptAccess(departments.map(d => {
       const existing = parseJson<DeptAccess[]>(u.deptAccess, []).find(x => x.code === d.code);
       return { code: d.code, level: existing?.level ?? "none" };
     }));
     setActiveTab("perms");
     setDirty(false);
-  }, [selectedId, users]);
+  }, [selectedId, users, departments]);
 
 
 
@@ -186,15 +184,6 @@ export default function BoardUsersPage() {
   const selectUser = (u: UserRow) => {
     if (dirty && !confirm("Có thay đổi chưa lưu. Bỏ qua?")) return;
     setSelectedId(u.id);
-    setEditRole(u.role);
-    setEditPerms(parseJson<string[]>(u.permissions, []));
-    const deptMap: DeptAccess[] = DEPARTMENTS.map(d => {
-      const existing = parseJson<DeptAccess[]>(u.deptAccess, []).find(x => x.code === d.code);
-      return { code: d.code, level: existing?.level ?? "none" };
-    });
-    setEditDeptAccess(deptMap);
-    setActiveTab("perms");
-    setDirty(false);
   };
 
   const togglePerm = (key: string) => {
@@ -328,9 +317,9 @@ export default function BoardUsersPage() {
       </div>
     </div>
   ) : (
-    <div>
+    <div style={{ padding: "1.5rem", height: "100%", overflowY: "auto", display: "flex", flexDirection: "column" }}>
       {/* User header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid var(--border)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <Avatar user={selectedUser} size={52} />
           <div>
@@ -452,17 +441,18 @@ export default function BoardUsersPage() {
               Mức độ truy cập theo bộ phận · Click để thay đổi
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {DEPARTMENTS.map(d => {
+              {departments.map(d => {
                 const access = editDeptAccess.find(x => x.code === d.code) ?? { code: d.code, level: "none" as const };
                 const cfg = LEVEL_LABELS[access.level];
+                const dColor = GROUP_COLORS[d.group] || "#6366f1";
                 return (
                   <div key={d.code}
                     style={{ display: "flex", alignItems: "center", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--card)", gap: 12 }}
                   >
-                    <div style={{ width: 34, height: 34, borderRadius: 8, background: `color-mix(in srgb, ${d.color} 12%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <i className={`bi ${d.icon}`} style={{ fontSize: 15, color: d.color }} />
+                    <div style={{ width: 34, height: 34, borderRadius: 8, background: `color-mix(in srgb, ${dColor} 12%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <i className={`bi ${d.icon}`} style={{ fontSize: 15, color: dColor }} />
                     </div>
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>{d.name}</span>
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>{d.nameVi}</span>
                     {/* Level cycle button */}
                     <button onClick={() => cycleDeptLevel(d.code)}
                       style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 14px", borderRadius: 7, border: "none", background: cfg.bg, color: cfg.color, fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }}

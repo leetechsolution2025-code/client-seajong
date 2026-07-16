@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(bytes);
 
     // Tạo thư mục uploads nếu chưa có
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "messages");
+    const uploadDir = path.join(process.cwd(), "storage", "uploads", "messages");
     await mkdir(uploadDir, { recursive: true });
 
     // Tên file unique

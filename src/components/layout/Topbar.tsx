@@ -26,7 +26,7 @@ interface CompanyInfo {
 }
 
 const DEPT_LABEL: Record<string, string> = {
-  hr: "Phòng Nhân sự", it: "Phòng CNTT", finance: "Phòng Tài chính",
+  hr: "Phòng Nhân sự", it: "Phòng CNTT", finance: "Tài chính - Kế toán", plan_finance: "Kế hoạch - Tài chính",
   sales: "Phòng Kinh doanh", marketing: "Phòng Marketing", legal: "Phòng Pháp chế",
   board: "Ban Giám đốc", exec: "Văn phòng TGĐ", admin_ops: "Hành chính – VP",
   ops: "Phòng Vận hành", logistics: "Kho vận", purchase: "Phòng Mua hàng",
@@ -53,6 +53,7 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [calcOpen, setCalcOpen] = useState(false);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
   const [unreadCount,    setUnreadCount]    = useState(0);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
   const [logoLoadError,  setLogoLoadError]  = useState(false);
@@ -64,10 +65,14 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
   const searchParams = useSearchParams();
 
   /* ── Click outside đóng dropdown ── */
+  const switcherRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setUserMenuOpen(false);
+      }
+      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
+        setSwitcherOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -212,6 +217,16 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
   const displayTitle = userPositionName || ROLE_LABEL[userRole] || userRole || "Thành viên";
   const displayDept  = DEPT_LABEL[userDept] || "";
 
+  // Danh sách bộ phận được truy cập
+  const deptAccessStr = (session?.user as any)?.deptAccess || "[]";
+  const accessibleDepts = React.useMemo(() => {
+    try {
+      const list = JSON.parse(deptAccessStr);
+      if (Array.isArray(list)) return list.filter(d => d.level !== "none");
+    } catch { }
+    return [];
+  }, [deptAccessStr]);
+
   return (
     <header className="app-topbar" style={{
       position: "fixed", top: 0, left: 0, right: 0, zIndex: 1030,
@@ -280,6 +295,75 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
       {/* ── RIGHT ── */}
       <div className="d-flex align-items-center gap-1">
 
+        {/* App Switcher (Quản lý trực tiếp) */}
+        {accessibleDepts.length > 0 && (
+          <div style={{ position: "relative" }} ref={switcherRef}>
+            <button
+              title="Quản lý trực tiếp (Chuyển bộ phận)"
+              onClick={() => { setSwitcherOpen(v => !v); setNotifOpen(false); setMsgOpen(false); setUserMenuOpen(false); }}
+              style={{
+                width: 38, height: 38,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                borderRadius: 10, border: "none",
+                background: switcherOpen ? "rgba(99,102,241,0.1)" : "transparent",
+                color: switcherOpen ? "#6366f1" : "var(--muted-foreground)",
+                cursor: "pointer", transition: "all 0.15s",
+              }}
+              onMouseEnter={e => { if (!switcherOpen) e.currentTarget.style.background = "var(--muted)"; }}
+              onMouseLeave={e => { if (!switcherOpen) e.currentTarget.style.background = "transparent"; }}
+            >
+              <i className="bi bi-grid-3x3-gap-fill" style={{ fontSize: 18 }} />
+            </button>
+            
+            {/* Switcher Dropdown */}
+            {switcherOpen && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 8px)", right: 0,
+                width: 320, background: "var(--background)",
+                border: "1px solid var(--border)", borderRadius: 12,
+                boxShadow: "0 10px 40px rgba(0,0,0,0.1)", zIndex: 9999,
+                overflow: "hidden", display: "flex", flexDirection: "column"
+              }}>
+                <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "var(--foreground)" }}>Quản lý trực tiếp</p>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>Chuyển nhanh sang các bộ phận được cấp quyền</p>
+                </div>
+                <div style={{ padding: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, maxHeight: 400, overflowY: "auto" }}>
+                  {accessibleDepts.map((d: any) => (
+                    <Link
+                      key={d.code}
+                      href={`/${d.code}?fromAdmin=true`}
+                      onClick={() => setSwitcherOpen(false)}
+                      style={{
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+                        padding: "16px 8px", borderRadius: 10, border: "1px solid transparent",
+                        textDecoration: "none", color: "var(--foreground)", transition: "all 0.15s",
+                        cursor: "pointer", textAlign: "center"
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = "rgba(99,102,241,0.05)";
+                        e.currentTarget.style.border = "1px solid rgba(99,102,241,0.2)";
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.border = "1px solid transparent";
+                      }}
+                    >
+                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(99,102,241,0.1)", color: "#6366f1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <i className="bi bi-box" style={{ fontSize: 16 }} />
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.2 }}>{DEPT_LABEL[d.code] || d.code}</span>
+                      <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>
+                        {d.level === "full" ? "Toàn quyền" : "Chỉ xem"}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Calculator */}
         <button
           title="Máy tính"
@@ -300,7 +384,7 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
         <button
           id="topbar-notif-btn"
           title="Thông báo"
-          onClick={() => { setNotifOpen(true); setMsgOpen(false); setUserMenuOpen(false); }}
+          onClick={() => { setNotifOpen(true); setMsgOpen(false); setUserMenuOpen(false); setSwitcherOpen(false); }}
           style={{
             position: "relative", width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -329,7 +413,7 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
         <button
           id="topbar-msg-btn"
           title="Tin nhắn"
-          onClick={() => { setMsgOpen(true); setNotifOpen(false); setApprovalOpen(false); setUserMenuOpen(false); }}
+          onClick={() => { setMsgOpen(true); setNotifOpen(false); setApprovalOpen(false); setUserMenuOpen(false); setSwitcherOpen(false); }}
           style={{
             position: "relative", width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -361,7 +445,7 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
         <div style={{ position: "relative" }} ref={userMenuRef}>
           <button
             id="topbar-user-btn"
-            onClick={() => { setUserMenuOpen(v => !v); setNotifOpen(false); setMsgOpen(false); }}
+            onClick={() => { setUserMenuOpen(v => !v); setNotifOpen(false); setMsgOpen(false); setSwitcherOpen(false); }}
             style={{
               display: "flex", alignItems: "center", gap: 8,
               padding: "4px 8px 4px 4px",

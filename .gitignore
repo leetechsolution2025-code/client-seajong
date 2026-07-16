@@ -53,3 +53,6 @@ next-env.d.ts
 
 # Scratch directory for temporary/debug scripts
 /scratch/
+
+# Local storage
+storage/

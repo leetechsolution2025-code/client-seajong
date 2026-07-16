@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { ProductDrawer } from "@/components/marketing/ProductDrawer";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { useSearchParams } from "next/navigation";
 
 interface Category {
   id: string;
@@ -47,6 +48,8 @@ interface InventoryItem {
 }
 
 export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, hideActions, compactMode }: { defaultWarehouseNameMatch?: string, hideAddButton?: boolean, hideActions?: boolean, compactMode?: boolean } = {}) {
+  const searchParams = useSearchParams();
+  const fromAdmin = searchParams.get("fromAdmin") === "true";
   const toast = useToast();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -60,6 +63,9 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
   const [totalItems, setTotalItems] = useState(0); // Tổng số hàng hóa thực tế
   const [filteredCount, setFilteredCount] = useState(0); // Số lượng theo search/filter
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [showPriceModal, setShowPriceModal] = useState(false);
+  const [priceRatio, setPriceRatio] = useState("15");
+  const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [deletingItem, setDeletingItem] = useState<any | null>(null);
@@ -643,6 +649,17 @@ return () => clearInterval(interval);
         {/* Footer for Actions */}
         {(!hideAddButton || selectedIds.length > 0) && (
           <div className="bg-light border-top p-2 d-flex align-items-center justify-content-end gap-3" style={{ backgroundColor: "var(--card)" }}>
+            {fromAdmin && isMaterialWarehouse && (
+              <button 
+                className="btn btn-sm btn-danger text-white rounded-pill px-4 fw-bold me-auto" 
+                style={{ fontSize: 13, height: 32, border: 'none' }}
+                onClick={() => setShowPriceModal(true)}
+              >
+                <i className="bi bi-tag me-2" />
+                Cập nhật giá bán
+              </button>
+            )}
+            
             {selectedIds.length > 0 && (
               <button 
                 className="btn btn-sm btn-outline-danger rounded-pill px-4 fw-bold" 
@@ -677,6 +694,72 @@ return () => clearInterval(interval);
         )}
       </div>
 
+      {/* Price Ratio Modal */}
+      {showPriceModal && (
+        <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title fw-bold">Cập nhật giá bán hàng loạt</h5>
+                <button type="button" className="btn-close" onClick={() => setShowPriceModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <p className="text-muted small mb-3">Giá bán sẽ được tính bằng: <strong>Giá nhập + (Giá nhập x Lợi nhuận %)</strong> cho toàn bộ hàng hoá trong kho vật tư và phụ kiện.</p>
+                <div className="mb-3">
+                  <label className="form-label fw-medium text-dark">Lợi nhuận (%)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    value={priceRatio}
+                    onChange={(e) => setPriceRatio(e.target.value)}
+                    placeholder="15"
+                    step="1"
+                    min="0"
+                  />
+                  <div className="form-text text-primary">Ví dụ: Lợi nhuận 15%, Giá bán = Giá nhập + (Giá nhập x 15%)</div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-light" onClick={() => setShowPriceModal(false)} disabled={isUpdatingPrice}>Hủy</button>
+                <button 
+                  type="button" 
+                  className="btn btn-danger" 
+                  disabled={isUpdatingPrice}
+                  onClick={async () => {
+                    const ratio = parseFloat(priceRatio);
+                    if (isNaN(ratio) || ratio <= 0) {
+                      return toast.error("Tỷ lệ không hợp lệ");
+                    }
+                    setIsUpdatingPrice(true);
+                    try {
+                      const res = await fetch("/api/logistics/inventory/update-price-ratio", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ ratio })
+                      });
+                      if (res.ok) {
+                        toast.success("Cập nhật giá bán thành công");
+                        setShowPriceModal(false);
+                        fetchItems();
+                      } else {
+                        const data = await res.json();
+                        toast.error(data.error || "Lỗi cập nhật");
+                      }
+                    } catch (e) {
+                      toast.error("Lỗi kết nối");
+                    } finally {
+                      setIsUpdatingPrice(false);
+                    }
+                  }}
+                >
+                  {isUpdatingPrice ? <span className="spinner-border spinner-border-sm me-2"></span> : null}
+                  Xác nhận cập nhật
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
