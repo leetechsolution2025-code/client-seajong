@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    console.log("turbopack cache bust");
 
     const body = await req.json();
     const {
@@ -172,8 +173,12 @@ export async function POST(req: NextRequest) {
         finalCode = `${prefix}${nextSTTStr}`;
       }
 
-      // 1. Tạo báo giá
-      const q = await tx.quotation.create({
+      const isDirectOrder = finalCode.startsWith("DH");
+      let q: any = null;
+
+      if (!isDirectOrder) {
+        // 1. Tạo báo giá
+        q = await tx.quotation.create({
         data: {
           code: finalCode,
           trangThai: trangThai ?? "draft",
@@ -250,21 +255,34 @@ export async function POST(req: NextRequest) {
           });
         }
       }
+    } else {
+      q = {
+        id: "direct-order-bypass",
+        code: finalCode,
+        customerId,
+        thanhTien: parseFloat(thanhTien ?? 0),
+        ghiChu,
+        nguoiPhuTrachId,
+      };
+    }
 
       // 4. Business logic for WON status (Thành công)
       if (trangThai === "won") {
         const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
 
-        // 1. Generate Order Code: DHBL-YYYYmmdd-STT
-        const countToday = await tx.saleOrder.count({
-          where: {
-            code: {
-              startsWith: `DHBL-${todayStr}-`
+        // 1. Generate Order Code: DHBL-YYYYmmdd-STT or use direct order code
+        let orderCode = finalCode;
+        if (!isDirectOrder) {
+          const countToday = await tx.saleOrder.count({
+            where: {
+              code: {
+                startsWith: `DHBL-${todayStr}-`
+              }
             }
-          }
-        });
-        const seqStr = String(countToday + 1).padStart(2, "0");
-        const orderCode = `DHBL-${todayStr}-${seqStr}`;
+          });
+          const seqStr = String(countToday + 1).padStart(2, "0");
+          orderCode = `DHBL-${todayStr}-${seqStr}`;
+        }
 
         // 2. Stock Check
         const insufficientItems: any[] = [];
@@ -368,4 +386,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
+
 

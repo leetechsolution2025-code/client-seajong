@@ -42,9 +42,10 @@ interface Stats {
 interface InventoryManagementProps {
   allowAdd?: boolean;
   mode?: "finance" | "production" | "sales" | "cs" | "board";
+  onTickerUpdate?: (news: any[]) => void;
 }
 
-export function InventoryManagement({ allowAdd = true, mode = "finance" }: InventoryManagementProps) {
+export function InventoryManagement({ allowAdd = true, mode = "finance", onTickerUpdate }: InventoryManagementProps) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [stats, setStats] = useState<Stats>({
     tongMatHang: 0,
@@ -98,6 +99,31 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
       const res = await fetch(`${apiPath}?${params.toString()}`);
       const data = await res.json();
       setStats(data);
+
+      if (onTickerUpdate) {
+        const whName = selectedWH ? selectedWH.label : "Tất cả kho";
+        const formatMoney = (val: number) => new Intl.NumberFormat("vi-VN").format(Math.round(val || 0)) + " đ";
+        
+        let assessment = "";
+        if (data.hetHang > 0) {
+          assessment = `Báo động đỏ (${whName}): Có ${data.hetHang} mặt hàng đã cạn kiệt, cần lên phương án nhập gấp!`;
+        } else if (data.sapHet > 0) {
+          assessment = `Lưu ý (${whName}): Có ${data.sapHet} mặt hàng sắp chạm ngưỡng tồn kho tối thiểu, cần theo dõi sát sao.`;
+        } else if (data.tongMatHang > 0) {
+          assessment = `Tình trạng tồn kho tại ${whName} an toàn, sẵn sàng đáp ứng yêu cầu kinh doanh.`;
+        } else {
+          assessment = `Kho ${whName} hiện chưa có dữ liệu.`;
+        }
+
+        const news = [
+          { text: `• ${assessment}`, type: 'text' },
+          { text: `• ${whName} - Tổng số mặt hàng: ${data.tongMatHang}`, type: 'text' },
+          { text: `• ${whName} - Tổng giá trị: ${formatMoney(data.tongGiaTri)}`, type: 'text' },
+          { text: `• Sắp hết: ${data.sapHet} mặt hàng`, type: 'text' },
+          { text: `• Đã hết: ${data.hetHang} mặt hàng`, type: 'text' },
+        ];
+        onTickerUpdate(news);
+      }
     } catch (err) {
       console.error("Fetch stats error:", err);
     }

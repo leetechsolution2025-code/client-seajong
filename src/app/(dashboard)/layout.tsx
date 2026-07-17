@@ -313,7 +313,7 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
       {
         group: "Báo cáo và phân tích", icon: "bi-bar-chart-line", items: [
           { name: "Kết quả kinh doanh", href: "/sales/business-results", icon: "bi-graph-up-arrow" },
-          { name: "Hoạt động các đại lý", href: "/sales/partner-activities", icon: "bi-people" },
+          { name: "Hoạt động của các đại lý", href: "/sales/partner-activities", icon: "bi-people" },
         ]
       },
     ],

@@ -8,6 +8,7 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { XuatKhoModal } from "@/components/plan-finance/kho_hang/XuatKhoModal";
 import { useToast } from "@/components/ui/Toast";
+import { DynamicTicker } from "@/components/layout/DynamicTicker";
 
 export default function LogisticsOverviewPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -136,6 +137,7 @@ export default function LogisticsOverviewPage() {
         icon="bi-truck"
         color="blue"
       />
+      <DynamicTicker pageTitle="Quản lý hệ thống kho" />
 
       <div className="flex-grow-1 pb-5 pb-xl-4 pt-2 px-xl-4 px-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         <div className="row flex-grow-1 m-0 h-100" style={{ minHeight: 0 }}>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { DynamicTicker } from "@/components/layout/DynamicTicker";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { useSession } from "next-auth/react";
@@ -285,8 +286,33 @@ export default function SalesPage() {
   const currentMonthTarget = currentMonthTrend.target;
   const mmYYYY = `${String(currentMonthIdx + 1).padStart(2, "0")}-${currentYear}`;
 
-  const currentMonthSalesLabel = `Doanh số tháng | ${mmYYYY}`;
   const currentMonthDealersLabel = `Phát triển đại lý | ${mmYYYY}`;
+
+  let assessment = "";
+  if (targetRevenue > 0) {
+    const progress = (totalRevenue / targetRevenue) * 100;
+    if (progress >= 100) assessment += "Tuyệt vời! Doanh thu đã vượt chỉ tiêu đề ra. ";
+    else if (progress >= 80) assessment += "Tín hiệu khả quan! Doanh thu đang bám rất sát mục tiêu. ";
+    else if (progress >= 50) assessment += "Tiến độ kinh doanh đang duy trì ở mức ổn định. ";
+    else assessment += "Lưu ý: Tiến độ hoàn thành doanh thu còn thấp, cần đẩy mạnh chiến dịch bán hàng. ";
+  }
+  if (totalSales > 0) {
+    const collectionRate = (totalRevenue / totalSales) * 100;
+    if (collectionRate < 50) assessment += "Cảnh báo: Tỷ lệ thu hồi công nợ thấp, cần đôn đốc thu tiền! ";
+    else if (collectionRate >= 90) assessment += "Tỷ lệ thu hồi tiền rất tốt, đảm bảo dòng tiền khoẻ. ";
+  }
+  if (partnersCountThisMonth > 0) {
+    assessment += `Tháng này ghi nhận sự mở rộng tích cực với ${partnersCountThisMonth} đại lý mới. `;
+  }
+  if (!assessment) assessment = "Hệ thống đang theo dõi và tổng hợp số liệu kinh doanh.";
+
+  const customTickerNews = [
+    { text: `• Nhận xét chung: ${assessment}`, type: 'text' },
+    { text: `• Tổng doanh số: ${totalSales.toLocaleString("vi-VN")} đ (${totalSales > 0 ? `Tỷ lệ thu hồi: ${Math.round(totalRevenue / totalSales * 100)}%` : "Chưa có dữ liệu"})`, type: 'text' },
+    { text: `• Tổng doanh thu: ${totalRevenue.toLocaleString("vi-VN")} đ (Chỉ tiêu năm: ${targetRevenue.toLocaleString("vi-VN")} đ, Tiến độ: ${targetRevenue > 0 ? Math.round(totalRevenue / targetRevenue * 100) : 0}%)`, type: 'text' },
+    { text: `• Giao dịch phát sinh: ${summary.totalOrdersCount} đơn hàng (${avgOrderVal > 0 ? `Bình quân đơn: ${avgOrderVal.toLocaleString("vi-VN")} đ` : "Chưa phát sinh đơn"})`, type: 'text' },
+    { text: `• ${currentMonthDealersLabel}: ${partnersCountThisMonth} đối tác mới (Tổng hệ thống: ${summary.dealersCount} đại lý)`, type: 'text' },
+  ];
 
   // Chart setup
   const chartSeries = [
@@ -407,17 +433,18 @@ export default function SalesPage() {
   const renderRevenueChart = () => (
     <div className="bg-card border rounded-4 p-3 d-flex flex-column h-100 shadow-sm" style={{ border: "none" }}>
       <div className="mb-2">
-        <div className="d-flex align-items-center justify-content-between">
-          <span className="fw-bold text-dark" style={{ fontSize: 13.5 }}>
-            <i className="bi bi-activity text-emerald me-2" />
-            Xu hướng doanh thu
-          </span>
-          <button onClick={() => setShowKpiModal(true)} className="btn btn-sm btn-danger shadow-sm d-flex align-items-center gap-1 text-white border-0" style={{ fontSize: 11, padding: "3px 10px" }}>
-            <i className="bi bi-bar-chart-line text-white"></i>
-            KPI
-          </button>
-        </div>
-        <span className="text-muted d-block mt-1" style={{ fontSize: 11 }}>
+        <SectionTitle 
+          title="Xu hướng doanh thu" 
+          icon="bi-activity text-emerald" 
+          className="mb-1"
+          action={
+            <button onClick={() => setShowKpiModal(true)} className="btn btn-sm btn-danger shadow-sm d-flex align-items-center gap-1 text-white border-0" style={{ fontSize: 11, padding: "3px 10px" }}>
+              <i className="bi bi-bar-chart-line text-white"></i>
+              KPI
+            </button>
+          }
+        />
+        <span className="text-muted d-block" style={{ fontSize: 11 }}>
           Mục tiêu kế hoạch so với thực tế
         </span>
       </div>
@@ -430,10 +457,11 @@ export default function SalesPage() {
   const renderCategoryPie = () => (
     <div className="bg-card border rounded-4 p-3 d-flex flex-column justify-content-between h-100 shadow-sm" style={{ border: "none" }}>
       <div>
-        <span className="fw-bold text-dark d-block mb-2" style={{ fontSize: 13.5 }}>
-          <i className="bi bi-pie-chart text-info me-2" />
-          Cơ cấu dòng sản phẩm
-        </span>
+        <SectionTitle 
+          title="Cơ cấu dòng sản phẩm" 
+          icon="bi-pie-chart text-info" 
+          className="mb-1"
+        />
         <span className="text-muted d-block mb-3" style={{ fontSize: 11 }}>
           Phần trăm đóng góp vào tổng doanh thu
         </span>
@@ -446,15 +474,16 @@ export default function SalesPage() {
 
   const renderRecentOrders = () => (
     <div className="bg-card border rounded-4 p-3 d-flex flex-column h-100 shadow-sm" style={{ border: "none" }}>
-      <div className="d-flex align-items-center justify-content-between mb-3">
-        <span className="fw-bold text-dark" style={{ fontSize: 13.5 }}>
-          <i className="bi bi-bag-check-fill text-purple me-2" />
-          Đơn hàng mới
-        </span>
-        <a href="/sales/orders" className="text-decoration-none fw-semibold" style={{ fontSize: 11.5, color: "#10b981" }}>
-          Tất cả →
-        </a>
-      </div>
+      <SectionTitle 
+        title="Đơn hàng mới" 
+        icon="bi-bag-check-fill text-purple" 
+        className="mb-3"
+        action={
+          <a href="/sales/orders" className="text-decoration-none fw-semibold" style={{ fontSize: 11.5, color: "#10b981" }}>
+            Tất cả →
+          </a>
+        }
+      />
 
       <div className="flex-grow-1 custom-scrollbar">
         {recentOrders.length === 0 ? (
@@ -520,15 +549,16 @@ export default function SalesPage() {
 
   const renderRecentCare = () => (
     <div className="bg-card border rounded-4 p-3 d-flex flex-column h-100 shadow-sm" style={{ border: "none" }}>
-      <div className="d-flex align-items-center justify-content-between mb-3">
-        <span className="fw-bold text-dark" style={{ fontSize: 13.5 }}>
-          <i className="bi bi-chat-heart-fill text-danger me-2" />
-          Hoạt động CSKH
-        </span>
-        <a href="/sales/customers" className="text-decoration-none fw-semibold" style={{ fontSize: 11.5, color: "#10b981" }}>
-          Nhật ký →
-        </a>
-      </div>
+      <SectionTitle 
+        title="Hoạt động CSKH" 
+        icon="bi-chat-heart-fill text-danger" 
+        className="mb-3"
+        action={
+          <a href="/sales/customers" className="text-decoration-none fw-semibold" style={{ fontSize: 11.5, color: "#10b981" }}>
+            Nhật ký →
+          </a>
+        }
+      />
 
       <div className="flex-grow-1 overflow-auto custom-scrollbar d-flex flex-column gap-2" style={{ maxHeight: 240 }}>
         {recentCare.length === 0 ? (
@@ -567,41 +597,9 @@ export default function SalesPage() {
         color="emerald"
         icon="bi-graph-up-arrow"
       />
+      <DynamicTicker pageTitle="Phòng Kinh doanh" customNews={customTickerNews} />
 
       <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column custom-scrollbar overflow-auto" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0, gap: 16 }}>
-
-        {/* ── KPI Row ── */}
-        <div className="sales-kpi-grid">
-          <KpiCard
-            label="Tổng doanh số"
-            value={`${totalSales.toLocaleString("vi-VN")} đ`}
-            sub={totalSales > 0 ? `Tỷ lệ thu hồi: ${Math.round(totalRevenue / totalSales * 100)}%` : "Chưa có dữ liệu"}
-            icon="bi-bar-chart-line"
-            color="#003087"
-          />
-          <KpiCard
-            label="Tổng doanh thu"
-            value={`${totalRevenue.toLocaleString("vi-VN")} đ`}
-            sub={`Chỉ tiêu năm: ${targetRevenue.toLocaleString("vi-VN")} đ`}
-            icon="bi-cash-coin"
-            color="#10b981"
-            progress={{ cur: totalRevenue, max: targetRevenue }}
-          />
-          <KpiCard
-            label="Giao dịch phát sinh"
-            value={`${summary.totalOrdersCount} đơn hàng`}
-            sub={avgOrderVal > 0 ? `Bình quân đơn: ${avgOrderVal.toLocaleString("vi-VN")} đ` : "Chưa phát sinh đơn"}
-            icon="bi-cart-check-fill"
-            color="#8b5cf6"
-          />
-          <KpiCard
-            label={currentMonthDealersLabel}
-            value={`${partnersCountThisMonth} đối tác mới`}
-            sub={`Tổng hệ thống: ${summary.dealersCount} đại lý`}
-            icon="bi-people-fill"
-            color="#f59e0b"
-          />
-        </div>
 
         {/* ── Chart & Shortcuts ── */}
         <div className="d-none d-xl-grid sales-mid-grid">

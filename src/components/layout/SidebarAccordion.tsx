@@ -14,6 +14,7 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
   const searchParams = useSearchParams();
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [todayTasks, setTodayTasks] = useState<number>(0);
+  const [isFromAdmin, setIsFromAdmin] = useState(false);
   const isOverviewActive = pathname === overviewHref;
 
   const isLinkActive = (href: string) => {
@@ -35,6 +36,14 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
     };
     
     refreshTasks();
+    
+    if (searchParams.get("fromAdmin") === "true") {
+      setIsFromAdmin(true);
+    } else if (typeof window !== "undefined" && window.sessionStorage.getItem("fromAdmin") === "true") {
+      setIsFromAdmin(true);
+    } else {
+      setIsFromAdmin(false);
+    }
     
     // Auto-expand the active accordion group
     if (pathname.startsWith("/my/documents") || pathname.startsWith("/my/meetings")) {
@@ -142,10 +151,10 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
               <div className="ps-3 pe-1 pb-1">
                 {group.items.map((item) => {
                   const active = isLinkActive(item.href);
-                  const isAdmin = userRole === "SUPERADMIN" || userRole === "admin";
-                  const isLocked = item.isLocked !== undefined ? item.isLocked : (!isAdmin && item.requiredOrder != null && (
+                  const isAdmin = userRole === "SUPERADMIN" || userRole === "admin" || isFromAdmin;
+                  const isLocked = isAdmin ? false : (item.isLocked !== undefined ? item.isLocked : (item.requiredOrder != null && (
                     userLevelOrder == null || userLevelOrder > item.requiredOrder
-                  ));
+                  )));
                   
                   return (
                     <Link

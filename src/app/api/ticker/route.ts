@@ -46,7 +46,19 @@ export async function GET(req: Request) {
       
       const formatMoney = (val: number) => new Intl.NumberFormat("vi-VN").format(Math.round(val)) + " đ";
 
+      let assessment = "";
+      if (daHet > 0) {
+        assessment = `Báo động đỏ: Có ${daHet} mặt hàng đã cạn kiệt trong kho, nguy cơ đứt gãy nguồn cung! Cần lên phương án nhập gấp.`;
+      } else if (sapHet > 0) {
+        assessment = `Lưu ý: Có ${sapHet} mặt hàng sắp chạm ngưỡng tồn kho tối thiểu, cần theo dõi sát sao.`;
+      } else if (items.length > 0) {
+        assessment = `Tình trạng tồn kho rất an toàn, đảm bảo cung ứng đầy đủ cho hoạt động kinh doanh.`;
+      } else {
+        assessment = `Hệ thống chưa ghi nhận dữ liệu hàng hóa trong kho.`;
+      }
+
       data = [
+        { text: `• Nhận xét chung: ${assessment}`, type: 'text' },
         { text: `• Tổng số mặt hàng: ${items.length}`, type: 'text' },
         { text: `• Tổng giá trị kho: ${formatMoney(tongGiaTri)}`, type: 'text' },
         { text: `• Sắp hết hàng: ${sapHet} mặt hàng`, type: 'text' },
@@ -173,6 +185,163 @@ export async function GET(req: Request) {
         { text: "• Cảnh báo: Mã vật tư VT-001 đang dưới định mức an toàn.", type: "text" },
         { text: "• Kế hoạch bảo trì máy cắt laser CNC số 2 vào cuối tuần này.", type: "text" },
         { text: "• Tiến độ sản xuất đơn hàng PO-2024-05 đạt 85%.", type: "text" }
+      ];
+    } else if (moduleStr === "sales_quotations") {
+      const quotations = await prisma.quotation.findMany({
+        where: { type: "retail", code: { startsWith: "BG" } },
+        select: { id: true, thanhTien: true, createdAt: true },
+      });
+      
+      const orders = await prisma.saleOrder.findMany({
+        select: { id: true, tongTien: true, createdAt: true },
+      });
+
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+
+      const tongBaoGia = quotations.length;
+      const tongGiaTriBaoGia = quotations.reduce((sum: number, q: any) => sum + (q.thanhTien || 0), 0);
+      const baoGiaTrongThang = quotations.filter((q: any) => {
+        const d = new Date(q.createdAt);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      });
+      const giaTriBaoGiaTrongThang = baoGiaTrongThang.reduce((sum: number, q: any) => sum + (q.thanhTien || 0), 0);
+
+      const tongDonHang = orders.length;
+      const tongGiaTriDonHang = orders.reduce((sum: number, o: any) => sum + (o.tongTien || 0), 0);
+      const donHangTrongThang = orders.filter((o: any) => {
+        const d = new Date(o.createdAt);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      });
+      const giaTriDonHangTrongThang = donHangTrongThang.reduce((sum: number, o: any) => sum + (o.tongTien || 0), 0);
+
+      const formatMoney = (val: number) => new Intl.NumberFormat("vi-VN").format(Math.round(val)) + " đ";
+
+      data = [
+        { text: `• Tổng số báo giá: <strong>${tongBaoGia}</strong>`, type: 'text' },
+        { text: `• Tổng giá trị đã báo giá: <strong>${formatMoney(tongGiaTriBaoGia)}</strong>`, type: 'text' },
+        { text: `• Số báo giá trong tháng: <strong>${baoGiaTrongThang.length}</strong>`, type: 'text' },
+        { text: `• Giá trị báo giá trong tháng: <strong>${formatMoney(giaTriBaoGiaTrongThang)}</strong>`, type: 'text' },
+        { text: `• Tổng số đơn hàng: <strong>${tongDonHang}</strong>`, type: 'text' },
+        { text: `• Tổng giá trị các đơn hàng: <strong>${formatMoney(tongGiaTriDonHang)}</strong>`, type: 'text' },
+        { text: `• Số đơn hàng trong tháng: <strong>${donHangTrongThang.length}</strong>`, type: 'text' },
+        { text: `• Giá trị đơn hàng trong tháng: <strong>${formatMoney(giaTriDonHangTrongThang)}</strong>`, type: 'text' },
+      ];
+    } else if (moduleStr === "sales_omnichannel") {
+      const orders = await prisma.omnichannelOrder.findMany({
+        select: { totalAmount: true, createdAt: true },
+      });
+
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+
+      const tongDonHang = orders.length;
+      const tongDoanhThu = orders.reduce((sum: number, o: any) => sum + (o.totalAmount || 0), 0);
+
+      const donHangTrongThang = orders.filter((o: any) => {
+        const d = new Date(o.createdAt);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      });
+      const doanhThuTrongThang = donHangTrongThang.reduce((sum: number, o: any) => sum + (o.totalAmount || 0), 0);
+
+      const formatMoney = (val: number) => new Intl.NumberFormat("vi-VN").format(Math.round(val)) + " đ";
+
+      data = [
+        { text: `• Tổng đơn hàng: <strong>${tongDonHang}</strong>`, type: 'text' },
+        { text: `• Số đơn hàng trong tháng: <strong>${donHangTrongThang.length}</strong>`, type: 'text' },
+        { text: `• Tổng doanh thu: <strong>${formatMoney(tongDoanhThu)}</strong>`, type: 'text' },
+        { text: `• Doanh thu trong tháng: <strong>${formatMoney(doanhThuTrongThang)}</strong>`, type: 'text' },
+      ];
+    } else if (moduleStr === "logistics") {
+      const saleOrders = await prisma.saleOrder.findMany({
+        where: { trangThai: { in: ["active", "confirmed", "processing", "in_production", "completed"] } },
+        select: { id: true, tongTien: true },
+      });
+      const purchaseOrders = await prisma.purchaseOrder.findMany({
+        where: { trangThai: { in: ["approved", "completed", "shipping"] } },
+        select: { id: true, tongTien: true },
+      });
+
+      const tongXuatKho = saleOrders.length;
+      const giaTriXuatKho = saleOrders.reduce((sum, o) => sum + (o.tongTien || 0), 0);
+      
+      const tongNhapKho = purchaseOrders.length;
+      const giaTriNhapKho = purchaseOrders.reduce((sum, o) => sum + (o.tongTien || 0), 0);
+
+      const formatMoney = (val: number) => new Intl.NumberFormat("vi-VN").format(Math.round(val)) + " đ";
+
+      data = [
+        { text: `• Số lệnh xuất kho: <strong>${tongXuatKho}</strong>`, type: 'text' },
+        { text: `• Tổng giá trị đã xuất kho: <strong>${formatMoney(giaTriXuatKho)}</strong>`, type: 'text' },
+        { text: `• Số lệnh nhập kho: <strong>${tongNhapKho}</strong>`, type: 'text' },
+        { text: `• Tổng giá trị đã nhập kho: <strong>${formatMoney(giaTriNhapKho)}</strong>`, type: 'text' },
+        { text: `• Cảnh báo: Sức chứa kho Vật tư KVP đang đạt 85% công suất tối đa.`, type: 'text' },
+      ];
+    } else if (moduleStr === "sales_business_results") {
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth(); // 0-11
+      const now = new Date();
+      const mmYYYY = `${String(currentMonth + 1).padStart(2, "0")}-${currentYear}`;
+      const currentMonthStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}`;
+
+      const orders = await prisma.saleOrder.findMany({
+        select: { daThanhToan: true, createdAt: true },
+      });
+      const totalRevenue = orders.reduce((sum, o) => sum + (o.daThanhToan || 0), 0);
+      const currentMonthOrders = orders.filter((o) => {
+        const d = new Date(o.createdAt);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      });
+      const currentMonthRevenue = currentMonthOrders.reduce((sum, o) => sum + (o.daThanhToan || 0), 0);
+
+      // Yearly Plan Target
+      const yearlyPlan = await prisma.salesYearlyPlan.findUnique({ where: { year: currentYear } });
+      let targetRevenue = 0;
+      let currentMonthTarget = 0;
+      if (yearlyPlan) {
+        try {
+          const planRowsList = JSON.parse(yearlyPlan.planRows || "[]");
+          const totalRow = planRowsList.find((r: any) => r.stt === "1");
+          targetRevenue = totalRow?.target || 0;
+
+          if (yearlyPlan.monthlyTargets) {
+            const monthlyTargetsData = JSON.parse(yearlyPlan.monthlyTargets);
+            const mData = monthlyTargetsData[currentMonth + 1];
+            if (mData?.revenueRows) {
+              currentMonthTarget = mData.revenueRows.reduce((sum: number, r: any) => sum + (r.value || 0), 0);
+            }
+          }
+        } catch (e) {}
+      }
+
+      // Partners
+      const partners = await (prisma as any).marketingLead.findMany({
+        select: { formValues: true, createdAt: true }
+      });
+      let dealersCount = 0;
+      let newDealersThisMonth = 0;
+      partners.forEach((l: any) => {
+        if (l.formValues) {
+          try {
+            const parsed = JSON.parse(l.formValues);
+            if (parsed.step === 5) {
+              dealersCount++;
+              const d = new Date(l.createdAt);
+              if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                newDealersThisMonth++;
+              }
+            }
+          } catch (e) {}
+        }
+      });
+
+      const formatMoney = (val: number) => new Intl.NumberFormat("vi-VN").format(Math.round(val)) + " đ";
+
+      data = [
+        { text: `• Tổng doanh thu năm: <strong>${formatMoney(totalRevenue)}</strong> / ${formatMoney(targetRevenue)}`, type: 'text' },
+        { text: `• Doanh thu tháng ${currentMonth + 1}: <strong>${formatMoney(currentMonthRevenue)}</strong> / ${formatMoney(currentMonthTarget)}`, type: 'text' },
+        { text: `• Tổng số đơn hàng: <strong>${orders.length}</strong> (Tháng này: ${currentMonthOrders.length})`, type: 'text' },
+        { text: `• Tổng số đại lý: <strong>${dealersCount}</strong> (Tháng này thêm mới: ${newDealersThisMonth})`, type: 'text' },
       ];
     } else if (moduleStr === "sales") {
       data = [

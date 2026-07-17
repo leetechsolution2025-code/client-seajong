@@ -278,43 +278,6 @@ export default function OmnichannelPage() {
       `}</style>
 
       <div className="d-flex flex-column h-100">
-        {/* KPI Section */}
-        <div className="row g-3 mb-3">
-          <KPICard 
-            label="Tổng đơn hôm nay" 
-            value={orders.length} 
-            icon="bi-cart-check" 
-            accent="#f43f5e" 
-            suffix={
-              <span className="text-success ms-2" style={{ fontSize: 13, fontWeight: 700 }}>
-                ↑ 15%
-              </span>
-            }
-            subtitle="đơn hàng"
-          />
-          <KPICard 
-            label="Chờ xác nhận" 
-            value={orders.filter(o => o.status === "Chờ xác nhận").length} 
-            icon="bi-hourglass-split" 
-            accent="#f59e0b" 
-            subtitle="đơn mới"
-          />
-          <KPICard 
-            label="Đang chuẩn bị" 
-            value={orders.filter(o => o.status === "Đã xác nhận").length} 
-            icon="bi-box-seam" 
-            accent="#06b6d4" 
-            subtitle="đơn đã xác nhận"
-          />
-          <KPICard 
-            label="Doanh thu Shopee" 
-            value={orders.reduce((acc, o) => acc + o.amount, 0).toLocaleString("vi-VN")} 
-            suffix="đ" 
-            icon="bi-currency-dollar" 
-            accent="#10b981" 
-            subtitle="tổng thu"
-          />
-        </div>
 
         {/* Main Content Card */}
         <div className="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column overflow-hidden">

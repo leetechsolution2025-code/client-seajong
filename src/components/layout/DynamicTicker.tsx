@@ -50,6 +50,31 @@ export function DynamicTicker({ pageTitle, customNews }: { pageTitle?: string, c
     colorClass = "bg-danger bg-opacity-10 border-danger text-danger";
     iconClass = "bi-exclamation-triangle-fill";
     title = "SẢN XUẤT:";
+  } else if (pathname.includes("/sales/inventory")) {
+    module = "finance_inventory";
+    colorClass = "bg-success bg-opacity-10 border-success text-success";
+    iconClass = "bi-box-seam";
+    title = "HÀNG HOÁ TRONG KHO:";
+  } else if (pathname.includes("/sales/quotations")) {
+    module = "sales_quotations";
+    colorClass = "bg-success bg-opacity-10 border-success text-success";
+    iconClass = "bi-graph-up-arrow";
+    title = "BÁN HÀNG:";
+  } else if (pathname.includes("/sales/business-results")) {
+    module = "sales_business_results";
+    colorClass = "bg-success bg-opacity-10 border-success text-success";
+    iconClass = "bi-bar-chart-fill";
+    title = "KẾT QUẢ KINH DOANH:";
+  } else if (pathname.includes("/sales/omnichannel")) {
+    module = "sales_omnichannel";
+    colorClass = "bg-success bg-opacity-10 border-success text-success";
+    iconClass = "bi-shop";
+    title = "BÁN HÀNG ĐA KÊNH:";
+  } else if (pathname.includes("/logistics")) {
+    module = "logistics";
+    colorClass = "bg-info bg-opacity-10 border-info text-info";
+    iconClass = "bi-truck";
+    title = "HỆ THỐNG KHO:";
   } else if (pathname.includes("/sales") || pathname.includes("/marketing")) {
     module = "sales";
     colorClass = "bg-success bg-opacity-10 border-success text-success";
@@ -86,7 +111,7 @@ export function DynamicTicker({ pageTitle, customNews }: { pageTitle?: string, c
   const formatTickerText = (text: string) => {
     if (!text) return "";
     // Wrap numbers (not inside HTML tags) with bold and #003087
-    return text.replace(/(^|[^\w])([+-]?\d+(?:[.,]\d+)*)\b(?![^<]*>)/g, '$1<span style="font-weight: bold; color: #003087;">$2</span>');
+    return text.replace(/(^|[^\w])([+-]?\d+(?:[.,]\d+)*(?:\s*[đ₫%])?)(?![^<]*>)/gi, '$1<span style="font-weight: bold; color: #003087;">$2</span>');
   };
 
   return (

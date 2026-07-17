@@ -43,6 +43,7 @@ export default function SalesPlanPage() {
       color={activeTab === "seajong" ? "emerald" : "indigo"}
       icon="bi-calendar-check"
       useCard={false}
+      hideTicker={true}
     >
       <div className="flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
         <WorkflowCard

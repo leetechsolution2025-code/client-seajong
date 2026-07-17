@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { DynamicTicker } from "@/components/layout/DynamicTicker";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { Table, TableColumn } from "@/components/ui/Table";
@@ -6286,6 +6287,23 @@ export default function PartnersPage() {
   const calculatedPartnerCost = calculatedCabinetCost - calculatedBrandSupport;
   const calculatedTotalInvestment = calculatedPartnerCost + cabinetOtherCostsNum;
 
+  // Calculate stats for ticker
+  const step1Count = partners.filter(p => p.step === 1).length;
+  const step2Count = partners.filter(p => p.step === 2).length;
+  const step3Count = partners.filter(p => p.step === 3).length;
+  const step4Count = partners.filter(p => p.step === 4).length;
+  const step5Count = partners.filter(p => p.step === 5).length;
+  const totalCount = partners.length;
+
+  const tickerNews = [
+    { text: `• Tổng số đối tác đang tiếp cận: ${totalCount} (Thông tin: ${step1Count}, Chăm sóc: ${step2Count}, Báo giá: ${step3Count}, Hợp đồng: ${step4Count}, Thi công: ${step5Count})`, type: 'text' },
+    { text: `• Bước 1 (Tiếp nhận): Có ${step1Count} đối tác mới cần sàng lọc.`, type: 'text' },
+    { text: `• Bước 2 (Chăm sóc): Đang tư vấn cho ${step2Count} đối tác tiềm năng.`, type: 'text' },
+    { text: `• Bước 3 (Báo giá): Đang đàm phán và báo giá với ${step3Count} đối tác.`, type: 'text' },
+    { text: `• Bước 4 (Hợp đồng): Có ${step4Count} đối tác đang chờ ký kết hợp đồng.`, type: 'text' },
+    { text: `• Bước 5 (Thi công): Có ${step5Count} đại lý đang triển khai thi công showroom.`, type: 'text' },
+  ];
+
   return (
     <div className="d-flex flex-column h-100 partners-page" style={{ background: "var(--background)" }}>
       <style>{`
@@ -6300,6 +6318,7 @@ export default function PartnersPage() {
         icon="bi-person-badge"
         color="blue"
       />
+      <DynamicTicker pageTitle="Phát triển đại lý" customNews={tickerNews} />
       <div className="flex-grow-1 px-3 px-md-4 pb-4 pt-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         <WorkflowCard
           contentPadding="p-0"

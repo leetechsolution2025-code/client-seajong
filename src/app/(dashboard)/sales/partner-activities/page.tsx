@@ -75,7 +75,7 @@ export default function PartnerActivitiesPage() {
   if (loading) {
     return (
       <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
-        <PageHeader title="Hoạt động các đại lý" description="Báo cáo & Phân tích · Tình trạng phát triển đại lý, phễu tuyển dụng & lịch sử chăm sóc" color="blue" icon="bi-people-fill" />
+        <PageHeader title="Hoạt động của các đại lý" description="Báo cáo & Phân tích · Tình trạng phát triển đại lý, phễu tuyển dụng & lịch sử chăm sóc" color="blue" icon="bi-people-fill" />
         <div className="flex-grow-1 d-flex align-items-center justify-content-center text-muted">
           <div className="d-flex flex-column align-items-center gap-2">
             <div className="spinner-border spinner-border-sm text-primary" role="status" />
@@ -85,6 +85,33 @@ export default function PartnerActivitiesPage() {
       </div>
     );
   }
+
+  // --- TEMPORARY LOCK UI ---
+  return (
+    <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
+      <PageHeader
+        title="Hoạt động của các đại lý"
+        description="Báo cáo & Phân tích · Phân tích phễu phát triển, mức độ tương tác chăm sóc định kỳ và đánh giá chất lượng đại lý"
+        color="blue"
+        icon="bi-people-fill"
+      />
+
+      <div className="flex-grow-1 d-flex align-items-center justify-content-center px-4 pb-4 pt-2" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+        <div className="text-center p-5 bg-white border rounded-4 shadow-sm" style={{ maxWidth: 400 }}>
+          <div className="mb-3">
+            <div className="d-inline-flex align-items-center justify-content-center bg-light rounded-circle" style={{ width: 80, height: 80 }}>
+              <i className="bi bi-lock-fill text-muted" style={{ fontSize: 36 }}></i>
+            </div>
+          </div>
+          <h5 className="fw-bold text-dark mb-2">Tính năng đang tạm khoá</h5>
+          <p className="text-muted small mb-0">
+            Hệ thống đang tiến hành bảo trì và nâng cấp chức năng phân tích hoạt động đại lý. Vui lòng quay lại sau!
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+  // -------------------------
 
   // 1. Calculate Core Metrics
   const totalPartners = partners.length;

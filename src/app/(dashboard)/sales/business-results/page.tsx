@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { DynamicTicker } from "@/components/layout/DynamicTicker";
 import dynamic from "next/dynamic";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -332,53 +333,11 @@ export default function BusinessResultsPage() {
         color="blue"
         icon="bi-bar-chart-line-fill"
       />
+      <DynamicTicker pageTitle="Kết quả kinh doanh" />
 
       <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column custom-scrollbar overflow-auto" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0, gap: 16 }}>
 
-        {/* KPI Summary Cards */}
-        <div className="row g-3">
-          <div className="col-12 col-sm-6 col-xl-3">
-            <KpiCard
-              label="Tổng doanh thu"
-              value={`${totalRevenue.toLocaleString("vi-VN")} đ`}
-              sub={`Chỉ tiêu năm: ${targetRevenue.toLocaleString("vi-VN")} đ`}
-              icon="bi-cash-coin"
-              color="#003087"
-              progress={{ cur: totalRevenue, max: targetRevenue }}
-            />
-          </div>
 
-          <div className="col-12 col-sm-6 col-xl-3">
-            <KpiCard
-              label={currentMonthLabel}
-              value={`${currentMonthRevenue.toLocaleString("vi-VN")} đ`}
-              sub={`Chỉ tiêu tháng: ${currentMonthTarget.toLocaleString("vi-VN")} đ`}
-              icon="bi-calendar-event"
-              color="#10b981"
-              progress={{ cur: currentMonthRevenue, max: currentMonthTarget }}
-            />
-          </div>
-
-          <div className="col-12 col-sm-6 col-xl-3">
-            <KpiCard
-              label="Giao dịch phát sinh"
-              value={`${apiSummary.totalOrdersCount} đơn hàng`}
-              sub={`Bình quân đơn: ${avgOrderVal.toLocaleString("vi-VN")} đ`}
-              icon="bi-cart-check-fill"
-              color="#8b5cf6"
-            />
-          </div>
-
-          <div className="col-12 col-sm-6 col-xl-3">
-            <KpiCard
-              label={currentMonthDealersLabel}
-              value={`${partnersCountThisMonth} đối tác mới`}
-              sub={`Tổng hệ thống: ${apiSummary.dealersCount} đại lý`}
-              icon="bi-people-fill"
-              color="#f59e0b"
-            />
-          </div>
-        </div>
 
         {/* Charts Grid */}
         <div className="row g-3">
