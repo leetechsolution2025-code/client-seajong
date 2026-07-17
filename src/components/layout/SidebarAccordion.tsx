@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface NavItem { name: string; href: string; requiredOrder?: number; isLocked?: boolean }
+interface NavItem { name: string; href?: string; icon?: string; requiredOrder?: number; isLocked?: boolean; subItems?: NavItem[]; }
 interface NavGroup { key: string; label: string; icon: string; items: NavItem[]; flat?: boolean; }
 interface Props { overviewHref: string; groups: NavGroup[]; isCollapsed: boolean; onMenuSelect?: () => void; userRole?: string; userLevelOrder?: number | null; onRequestRecruitment?: () => void; onRequestTraining?: () => void; }
 
@@ -13,12 +13,13 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [openSubGroup, setOpenSubGroup] = useState<string | null>(null);
   const [todayTasks, setTodayTasks] = useState<number>(0);
   const [isFromAdmin, setIsFromAdmin] = useState(false);
   const isOverviewActive = pathname === overviewHref;
 
-  const isLinkActive = (href: string) => {
-    if (href === "#" || href.startsWith("#")) return false;
+  const isLinkActive = (href?: string) => {
+    if (!href || href === "#" || href.startsWith("#")) return false;
     const [path, query] = href.split("?");
     const pathMatch = pathname === path || pathname.startsWith(path + "/");
     if (!query) return pathMatch && Array.from(searchParams.entries()).length === 0;
@@ -50,7 +51,17 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
       setOpenGroup("luutru");
     } else if (groups) {
       for (const group of groups) {
-        const active = group.items.some(i => pathname === i.href || pathname.startsWith(i.href + "/"));
+        let active = false;
+        for (const i of group.items) {
+          if (i.href && (pathname === i.href || pathname.startsWith(i.href + "/"))) {
+            active = true; break;
+          }
+          if (i.subItems && i.subItems.some(sub => sub.href && (pathname === sub.href || pathname.startsWith(sub.href + "/")))) {
+            active = true;
+            setOpenSubGroup(i.name);
+            break;
+          }
+        }
         if (active) {
           setOpenGroup(group.key);
           break;
@@ -67,7 +78,10 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
   const otherGroups = groups?.filter(g => g.key !== "admin") || [];
 
   const renderGroup = (group: NavGroup) => {
-    const isGroupActive = group.items.some(i => pathname === i.href || pathname.startsWith(i.href + "/"));
+    const isGroupActive = group.items.some(i => 
+      (i.href && (pathname === i.href || pathname.startsWith(i.href + "/"))) ||
+      (i.subItems && i.subItems.some(sub => sub.href && (pathname === sub.href || pathname.startsWith(sub.href + "/"))))
+    );
     const isOpen = openGroup === group.key;
 
     // Flat item — render link trực tiếp, không accordion
@@ -90,7 +104,7 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
       return (
         <Link
           key={group.key}
-          href={isLocked ? "#" : item.href}
+          href={isLocked ? "#" : (item.href || "#")}
           onClick={handleClick}
           className={`si-item d-flex align-items-center gap-2 px-3 py-2 mb-1 text-decoration-none${active ? " active" : ""}`}
           style={{ opacity: isLocked ? 0.5 : 1, cursor: isLocked ? "not-allowed" : "pointer" }}
@@ -111,6 +125,60 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
         </Link>
       );
     }
+
+    const renderNavItem = (item: NavItem, isSubItem = false) => {
+      const active = isLinkActive(item.href);
+      const isAdmin = userRole === "SUPERADMIN" || userRole === "admin" || isFromAdmin;
+      const isLocked = isAdmin ? false : (item.isLocked !== undefined ? item.isLocked : (item.requiredOrder != null && (
+        userLevelOrder == null || userLevelOrder > item.requiredOrder
+      )));
+      
+      return (
+        <Link
+          key={`${item.name}-${item.href || ''}`}
+          href={isLocked ? "#" : (item.href || "#")}
+          onClick={(e) => {
+            if (isLocked) {
+              e.preventDefault();
+            } else if (item.href === "#recruitment-request") {
+              e.preventDefault();
+              if (onRequestRecruitment) onRequestRecruitment();
+            } else if (item.href === "#training-request") {
+              e.preventDefault();
+              if (onRequestTraining) onRequestTraining();
+            } else if (onMenuSelect) {
+              onMenuSelect();
+            }
+          }}
+          className={`si-item d-flex align-items-center gap-2 px-3 py-2 text-decoration-none${active ? " active" : ""}`}
+          style={{ opacity: isLocked ? 0.5 : 1, cursor: isLocked ? "not-allowed" : "pointer" }}
+        >
+          <span className="d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 16 }}>
+            {isSubItem ? (
+              <span style={{
+                width: 4, height: 4, borderRadius: "50%",
+                background: active ? "currentColor" : "transparent",
+                border: "1px solid currentColor",
+                opacity: active ? 1 : 0.4,
+                transition: "all 0.15s",
+              }} />
+            ) : (
+              <span style={{
+                width: 6, height: 6, borderRadius: "50%",
+                border: "1.5px solid currentColor",
+                background: active ? "currentColor" : "transparent",
+                opacity: active ? 1 : 0.5,
+                transition: "all 0.15s",
+              }} />
+            )}
+          </span>
+          <span style={{ fontSize: isSubItem ? 13 : 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: active ? 600 : 400, flex: 1 }}>
+            {item.name}
+          </span>
+          {isLocked && <i className="bi bi-lock-fill text-muted flex-shrink-0" style={{ fontSize: 13 }} />}
+        </Link>
+      );
+    };
 
     return (
       <div key={group.key} className="mb-1">
@@ -150,47 +218,46 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
             >
               <div className="ps-3 pe-1 pb-1">
                 {group.items.map((item) => {
-                  const active = isLinkActive(item.href);
-                  const isAdmin = userRole === "SUPERADMIN" || userRole === "admin" || isFromAdmin;
-                  const isLocked = isAdmin ? false : (item.isLocked !== undefined ? item.isLocked : (item.requiredOrder != null && (
-                    userLevelOrder == null || userLevelOrder > item.requiredOrder
-                  )));
-                  
-                  return (
-                    <Link
-                      key={`${item.name}-${item.href}`}
-                      href={isLocked ? "#" : item.href}
-                      onClick={(e) => {
-                        if (isLocked) {
-                          e.preventDefault();
-                        } else if (item.href === "#recruitment-request") {
-                          e.preventDefault();
-                          if (onRequestRecruitment) onRequestRecruitment();
-                        } else if (item.href === "#training-request") {
-                          e.preventDefault();
-                          if (onRequestTraining) onRequestTraining();
-                        } else if (onMenuSelect) {
-                          onMenuSelect();
-                        }
-                      }}
-                      className={`si-item d-flex align-items-center gap-2 px-3 py-2 text-decoration-none${active ? " active" : ""}`}
-                      style={{ opacity: isLocked ? 0.5 : 1, cursor: isLocked ? "not-allowed" : "pointer" }}
-                    >
-                      <span className="d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 16 }}>
-                        <span style={{
-                          width: 6, height: 6, borderRadius: "50%",
-                          border: "1.5px solid currentColor",
-                          background: active ? "currentColor" : "transparent",
-                          opacity: active ? 1 : 0.5,
-                          transition: "all 0.15s",
-                        }} />
-                      </span>
-                      <span style={{ fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: active ? 600 : 400, flex: 1 }}>
-                        {item.name}
-                      </span>
-                      {isLocked && <i className="bi bi-lock-fill text-muted flex-shrink-0" style={{ fontSize: 13 }} />}
-                    </Link>
-                  );
+                  if (item.subItems) {
+                    const isSubOpen = openSubGroup === item.name;
+                    const isSubActive = item.subItems.some(sub => sub.href && (pathname === sub.href || pathname.startsWith(sub.href + "/")));
+                    return (
+                      <div key={item.name} className="mb-1">
+                        <button
+                          onClick={() => setOpenSubGroup(isSubOpen ? null : item.name)}
+                          className="w-100 d-flex align-items-center gap-2 px-3 py-2 border-0 bg-transparent text-muted"
+                          style={{ cursor: "pointer" }}
+                        >
+                          <span className="d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 16 }}>
+                            <i className={`bi ${item.icon || "bi-folder"} flex-shrink-0`} style={{ fontSize: 14, color: isSubActive ? "var(--bs-primary)" : "inherit" }} />
+                          </span>
+                          <span style={{ fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", flexGrow: 1, textAlign: "left", fontWeight: isSubActive ? 600 : 500, color: isSubActive ? "var(--bs-primary)" : "inherit" }}>
+                            {item.name}
+                          </span>
+                          <motion.i
+                            className="bi bi-chevron-down flex-shrink-0"
+                            style={{ fontSize: 10, opacity: 0.45 }}
+                            animate={{ rotate: isSubOpen ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                          />
+                        </button>
+                        <AnimatePresence>
+                          {isSubOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2, ease: "easeInOut" }}
+                              style={{ overflow: "hidden" }}
+                            >
+                              <div className="ps-4 pe-1">
+                                {item.subItems.map(sub => renderNavItem(sub, true))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  }
+                  return renderNavItem(item, false);
                 })}
               </div>
             </motion.div>

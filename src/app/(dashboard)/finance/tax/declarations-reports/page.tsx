@@ -186,11 +186,7 @@ export default function TaxDeclarationsReportsPage() {
 
   // handleUploadPayroll was moved up
 
-  const customTickerNews = [
-    { text: `• <span class="fw-bold">GTGT:</span> Lệch 1đ tại chỉ tiêu [24] so với bảng kê hóa đơn gốc.`, type: 'text' },
-    { text: `• <span class="fw-bold">TNCN:</span> Phát hiện 2 MST không tồn tại (NV Thử việc).`, type: 'text' },
-    { text: `• <span class="fw-bold">TNDN:</span> Có 2 khoản chi phí chờ phê duyệt tính hợp lý.`, type: 'text' }
-  ];
+  // customTickerNews was removed to allow API to fetch tax policies
 
   return (
     <StandardPage
@@ -200,7 +196,6 @@ export default function TaxDeclarationsReportsPage() {
       color="indigo"
       useCard={false}
       paddingClassName="px-4 pb-2 pt-1"
-      customTickerNews={customTickerNews}
     >
       <div className="row g-4 d-flex h-100 flex-grow-1 overflow-hidden pb-4">
         {/* 2. Workspace */}
