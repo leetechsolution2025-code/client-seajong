@@ -3,7 +3,7 @@ import { DefectRecord, DefectStatus } from '../mockData';
 
 const getStatusBadge = (status: DefectStatus) => {
   switch (status) {
-    case 'NEW': return <span className="badge bg-primary">Mới</span>;
+    case 'NEW': return <span className="badge bg-primary">Chưa thực hiện</span>;
     case 'TECH_EVALUATING': return <span className="badge bg-info">Đang chẩn đoán</span>;
     case 'WAITING_APPROVAL': return <span className="badge bg-warning text-dark">Chờ duyệt</span>;
     case 'PROCESSING': return <span className="badge bg-secondary">Đang xử lý</span>;
@@ -44,10 +44,10 @@ export function DefectList({ data, onSelect }: DefectListProps) {
                   <div>
                     <div className="fw-medium text-dark d-flex align-items-center gap-2">
                       {defect.code} 
-                      {getStatusBadge(defect.status)}
                     </div>
-                    <div className="text-muted" style={{ fontSize: '11px' }}>
-                      {new Date(defect.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} {new Date(defect.createdAt).toLocaleDateString('vi-VN')}
+                    <div className="text-muted d-flex align-items-center gap-2 mt-1" style={{ fontSize: '11px' }}>
+                      <span>{new Date(defect.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} {new Date(defect.createdAt).toLocaleDateString('vi-VN')}</span>
+                      {getStatusBadge(defect.status)}
                     </div>
                   </div>
                 </div>

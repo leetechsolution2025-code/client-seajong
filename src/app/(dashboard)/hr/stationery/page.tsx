@@ -1682,44 +1682,6 @@ export default function StationeryToolsPage() {
       useCard={false}
     >
       <div className="d-flex flex-column h-100 fs-stationery-container">
-        {/* ── KPI Cards ── */}
-        <div className="px-3 px-md-0 mb-3 flex-shrink-0 d-none d-md-block">
-          <div className="row g-3">
-            <KPICard
-              label="Yêu cầu chờ duyệt"
-              value={loading ? "—" : stats.pendingCount}
-              icon="bi-clock-history"
-              accent="#f59e0b"
-              subtitle="Cần xử lý ngay"
-              colClass="col-12 col-md-3"
-            />
-            <KPICard
-              label="Vật tư dưới mức tối thiểu"
-              value={loading ? "—" : stats.lowStockCount}
-              icon="bi-exclamation-triangle"
-              accent="#ef4444"
-              subtitle="Cần nhập hàng thêm"
-              colClass="col-12 col-md-3"
-            />
-            <KPICard
-              label="Giá trị tồn kho"
-              value={loading ? "—" : stats.totalValue.toLocaleString("vi-VN")}
-              suffix="đ"
-              icon="bi-currency-dollar"
-              accent="#10b981"
-              subtitle="Tổng giá trị tài sản"
-              colClass="col-12 col-md-3"
-            />
-            <KPICard
-              label="Dụng cụ đang bàn giao"
-              value={loading ? "—" : stats.assetsInUse}
-              icon="bi-person-check"
-              accent="#6366f1"
-              subtitle="Đang được sử dụng"
-              colClass="col-12 col-md-3"
-            />
-          </div>
-        </div>
 
         {/* ── Workflow Card ── */}
         <WorkflowCard

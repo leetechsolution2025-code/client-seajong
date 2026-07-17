@@ -156,6 +156,7 @@ function RecruitmentContent() {
     }
   }, [stepParam]);
   const [requests, setRequests] = useState<RecruitmentRequest[]>([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [candidateStatusFilter, setCandidateStatusFilter] = useState("All");
   const [candidatePositionFilter, setCandidatePositionFilter] = useState("All");
@@ -610,6 +611,7 @@ function RecruitmentContent() {
   };
 
   const fetchRequests = async () => {
+    setIsLoadingRequests(true);
     try {
       const res = await fetch("/api/hr/recruitment");
       const data = await res.json();
@@ -622,6 +624,8 @@ function RecruitmentContent() {
       }
     } catch (error) {
       console.error("FETCH ERROR:", error);
+    } finally {
+      setIsLoadingRequests(false);
     }
   };
 
@@ -1750,7 +1754,7 @@ function RecruitmentContent() {
                     (statusFilter === "" || r.status === statusFilter) &&
                     (deptFilter === "" || r.department === deptFilter)
                   )}
-                  loading={requests.length === 0 && !statusFilter}
+                  loading={isLoadingRequests}
                   rowKey={(r) => r.id}
                   onRowClick={(r) => setSelectedRequest(r)}
                   compact={true}
@@ -1896,6 +1900,7 @@ function RecruitmentContent() {
                       });
                       return flat;
                     })()}
+                    loading={isLoadingRequests}
                     rowKey={(r) => r.id}
                     onRowClick={(r) => {
                       if (r.isFullWidth) return;

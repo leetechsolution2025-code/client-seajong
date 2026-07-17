@@ -443,6 +443,7 @@ export default function BOMPage() {
       icon="bi-diagram-3"
       color="indigo"
       useCard={false}
+      hideTicker={true}
     >
       <div className="bg-white rounded-4 shadow-sm border w-100" style={{ height: "calc(100vh - 150px)", overflow: "hidden" }}>
         <div className="row g-0 h-100">

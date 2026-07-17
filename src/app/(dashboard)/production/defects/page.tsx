@@ -56,8 +56,7 @@ export default function DefectHandlingPage() {
               {/* Status Filter */}
               <select className="form-select form-select-sm rounded-pill shadow-none border" style={{ width: '160px', fontSize: '13px' }}>
                 <option value="">Tất cả trạng thái</option>
-                <option value="NEW">Mới</option>
-                <option value="TECH_EVALUATING">Đang chẩn đoán</option>
+                <option value="NEW">Chưa thực hiện</option>
                 <option value="WAITING_APPROVAL">Chờ duyệt</option>
                 <option value="PROCESSING">Đang xử lý</option>
                 <option value="COMPLETED">Hoàn tất</option>

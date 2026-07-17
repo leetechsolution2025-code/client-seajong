@@ -12,6 +12,7 @@ export default function ProductionInventoryPage() {
       icon="bi-box-seam"
       color="blue"
       useCard={false}
+      hideTicker={true}
     >
       <InventoryManagement mode="production" allowAdd={false} />
     </StandardPage>

@@ -338,6 +338,13 @@ export default function HRDashboardPage() {
   const now = new Date();
   const monthLabel = now.toLocaleDateString("vi-VN", { month: "long", year: "numeric" });
 
+  const customTickerNews = [
+    { text: `• Tổng nhân sự: <strong>${loading ? "—" : (s?.totalHeadcount ?? 0)}</strong> ${!loading ? `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">${s?.totalActive ?? 0} đang làm • ${s?.totalProbation ?? 0} thử việc</span>` : ""}`, type: 'text' },
+    { text: `• Mới trong tháng: <strong>${loading ? "—" : (s?.newThisMonth ?? 0)} người</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">Gia nhập tháng này</span>`, type: 'text' },
+    { text: `• Hợp đồng sắp hết hạn: <strong>${loading ? "—" : (s?.contractsExpiring ?? 0)}</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">Trong 30 ngày tới</span>`, type: 'text' },
+    { text: `• Yêu cầu tuyển dụng: <strong>${loading ? "—" : (s?.activeRecruitment ?? 0)}</strong> ${!loading ? `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">${s?.recruiting ?? 0} đang tuyển • ${s?.interviewing ?? 0} phỏng vấn</span>` : ""}`, type: 'text' },
+  ];
+
   return (
     <>
       <StandardPage
@@ -346,46 +353,9 @@ export default function HRDashboardPage() {
         icon="bi-people-fill"
         color="rose"
         useCard={false}
+        customTickerNews={customTickerNews}
       >
         <div className="flex-grow-1 overflow-auto pe-1 custom-scrollbar">
-          {/* ── Row 1: KPI Cards ─────────────────────────────────────────────── */}
-          <div className="px-3 px-md-0 mb-3 mt-3 mt-md-2">
-            <div className="row g-3">
-              <KPICard
-                label="Tổng nhân sự"
-                value={loading ? "—" : (s?.totalHeadcount ?? 0)}
-                icon="bi-people-fill"
-                accent="#6366f1"
-                subtitle={loading ? undefined : `${s?.totalActive ?? 0} đang làm • ${s?.totalProbation ?? 0} thử việc`}
-                colClass="col-6 col-lg-3"
-              />
-              <KPICard
-                label="Mới trong tháng"
-                value={loading ? "—" : (s?.newThisMonth ?? 0)}
-                icon="bi-person-plus-fill"
-                accent="#10b981"
-                suffix=" người"
-                subtitle="Gia nhập tháng này"
-                colClass="col-6 col-lg-3"
-              />
-              <KPICard
-                label="Hợp đồng sắp hết hạn"
-                value={loading ? "—" : (s?.contractsExpiring ?? 0)}
-                icon="bi-file-earmark-text-fill"
-                accent={s?.contractsExpiring && s.contractsExpiring > 0 ? "#f59e0b" : "#6366f1"}
-                subtitle="Trong 30 ngày tới"
-                colClass="col-6 col-lg-3"
-              />
-              <KPICard
-                label="Yêu cầu tuyển dụng"
-                value={loading ? "—" : (s?.activeRecruitment ?? 0)}
-                icon="bi-briefcase-fill"
-                accent="#3b82f6"
-                subtitle={loading ? undefined : `${s?.recruiting ?? 0} đang tuyển • ${s?.interviewing ?? 0} phỏng vấn`}
-                colClass="col-6 col-lg-3"
-              />
-            </div>
-          </div>
 
           {/* ── Row 2: Main content ───────────────────────────────────────────── */}
           <div className="px-3 px-md-0">

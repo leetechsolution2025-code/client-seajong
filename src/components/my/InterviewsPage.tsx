@@ -1191,6 +1191,7 @@ export default function InterviewsPage() {
         icon="bi-chat-quote"
         color="violet"
         useCard={false}
+        hideTicker={true}
       >
         <WorkflowCard
           bottomToolbar={bottomToolbar}

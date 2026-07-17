@@ -3,14 +3,15 @@
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { DynamicTicker } from "@/components/layout/DynamicTicker";
 
 // Dynamic import for ApexCharts to avoid SSR issues
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-const container = {
+const container: Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
@@ -18,7 +19,7 @@ const container = {
   }
 };
 
-const item = {
+const item: Variants = {
   hidden: { opacity: 0, y: 15 },
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
@@ -82,10 +83,10 @@ export default function QaPage() {
 
   // Chart configs
   const trendOptions: any = {
-    chart: { 
-      type: 'area', 
-      toolbar: { show: false }, 
-      fontFamily: "inherit", 
+    chart: {
+      type: 'area',
+      toolbar: { show: false },
+      fontFamily: "inherit",
       background: "transparent",
       zoom: { enabled: false },
       selection: { enabled: false }
@@ -93,7 +94,7 @@ export default function QaPage() {
     colors: ['#dc2626', '#10b981'],
     dataLabels: { enabled: false },
     stroke: { curve: 'smooth', width: 2 },
-    xaxis: { 
+    xaxis: {
       categories: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'],
       labels: { style: { colors: "#64748b", fontSize: "11px" } },
       axisBorder: { show: false },
@@ -146,48 +147,19 @@ export default function QaPage() {
         color="emerald"
         icon="bi-patch-check"
       />
-      
+
+      <DynamicTicker pageTitle="Đảm bảo chất lượng" />
+
       <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column custom-scrollbar overflow-auto" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0, gap: 16 }}>
         <motion.div variants={container} initial="hidden" animate="show" className="d-flex flex-column" style={{ gap: 16 }}>
-          
-          {/* KPI Cards */}
-          <motion.div variants={item} className="qa-kpi-grid">
-            <KpiCard
-              label="Tỷ lệ hàng lỗi xuất xưởng"
-              value="2.5%"
-              sub="Giảm 0.3% so với tháng trước"
-              icon="bi-box-seam"
-              color="#dc2626"
-            />
-            <KpiCard
-              label="Tỷ lệ hàng lỗi bảo hành"
-              value="0.8%"
-              sub="Nằm trong giới hạn cho phép (<1%)"
-              icon="bi-shield-exclamation"
-              color="#f59e0b"
-            />
-            <KpiCard
-              label="Sản phẩm đã kiểm tra"
-              value="1,245"
-              sub="Tăng 15% so với tuần trước"
-              icon="bi-check2-circle"
-              color="#10b981"
-            />
-            <KpiCard
-              label="Hồ sơ lỗi chờ xử lý"
-              value="12"
-              sub="2 hồ sơ đang quá hạn (SLA)"
-              icon="bi-inboxes"
-              color="#003087"
-            />
-          </motion.div>
+
 
           {/* Charts Row */}
           <motion.div variants={item} className="d-none d-xl-grid qa-mid-grid">
             <div className="bg-card border rounded-4 p-3 d-flex flex-column h-100 shadow-sm" style={{ border: "none", backgroundColor: "#fff" }}>
               <div className="mb-2">
-                <SectionTitle 
-                  title="Biến động chất lượng" 
+                <SectionTitle
+                  title="Biến động chất lượng"
                   icon="bi-activity text-emerald"
                   action={
                     <button className="btn btn-sm btn-danger shadow-sm d-flex align-items-center gap-1 text-white border-0" style={{ fontSize: 11, padding: "3px 10px" }}>
@@ -222,9 +194,9 @@ export default function QaPage() {
           {/* Recent Action Items */}
           <motion.div variants={item} className="qa-bottom-grid">
             <div className="bg-card border rounded-4 p-3 d-flex flex-column h-100 shadow-sm" style={{ border: "none", backgroundColor: "#fff" }}>
-              <SectionTitle 
-                title="Hồ sơ lỗi mới nhất" 
-                icon="bi-list-check text-purple" 
+              <SectionTitle
+                title="Hồ sơ lỗi mới nhất"
+                icon="bi-list-check text-purple"
                 action={
                   <Link href="/production/defects" className="text-decoration-none fw-semibold" style={{ fontSize: 11.5, color: "#10b981" }}>
                     Tất cả →
@@ -257,11 +229,11 @@ export default function QaPage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-card border rounded-4 p-3 d-flex flex-column h-100 shadow-sm" style={{ border: "none", backgroundColor: "#fff" }}>
-              <SectionTitle 
-                title="Hành động khắc phục (CAPA)" 
-                icon="bi-tools text-orange" 
+              <SectionTitle
+                title="Hành động khắc phục (CAPA)"
+                icon="bi-tools text-orange"
                 action={
                   <Link href="/qa/actions" className="text-decoration-none fw-semibold" style={{ fontSize: 11.5, color: "#10b981" }}>
                     Mở rộng →
@@ -281,7 +253,7 @@ export default function QaPage() {
                     <span>Deadline: 20/07</span>
                   </div>
                 </div>
-                
+
                 <div className="p-2 border rounded-3 bg-light/50 d-flex flex-column gap-1" style={{ fontSize: 12 }}>
                   <div className="d-flex align-items-center justify-content-between">
                     <span className="fw-bold text-dark">Làm việc với NCC Dây cấp</span>

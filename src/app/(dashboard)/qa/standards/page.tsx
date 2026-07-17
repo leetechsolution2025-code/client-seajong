@@ -22,6 +22,7 @@ export default function QaStandardsPage() {
       color="indigo"
       icon="bi-award"
       useCard={false}
+      hideTicker={true}
     >
       <div className="flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
         <style>{`

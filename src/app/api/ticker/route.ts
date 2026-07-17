@@ -26,7 +26,7 @@ export async function GET(req: Request) {
           stocks: { select: { soLuong: true, soLuongMin: true } }
         }
       });
-      
+
       let tongGiaTri = 0;
       let sapHet = 0;
       let daHet = 0;
@@ -34,16 +34,16 @@ export async function GET(req: Request) {
       items.forEach((item: any) => {
         const hasStocks = item.stocks && item.stocks.length > 0;
         const soLuongThuc = hasStocks ? item.stocks.reduce((sum: number, s: any) => sum + s.soLuong, 0) : (item.soLuong || 0);
-        
+
         tongGiaTri += soLuongThuc * (item.giaNhap || 0);
-        
+
         const soLuongMinTotal = hasStocks ? item.stocks.reduce((sum: number, s: any) => sum + s.soLuongMin, 0) : 0;
         const minThreshold = soLuongMinTotal > 0 ? soLuongMinTotal : (item.soLuongMin || 0);
 
         if (soLuongThuc <= 0) daHet++;
         else if (minThreshold > 0 && soLuongThuc <= minThreshold) sapHet++;
       });
-      
+
       const formatMoney = (val: number) => new Intl.NumberFormat("vi-VN").format(Math.round(val)) + " đ";
 
       let assessment = "";
@@ -103,11 +103,11 @@ export async function GET(req: Request) {
       ];
     } else if (moduleStr === "finance") {
       const debts = await prisma.debt.findMany();
-      
+
       let phaiThuTotal = 0; let phaiThuCon = 0;
       let phaiTraTotal = 0; let phaiTraCon = 0;
-      let noVayTotal = 0;   let noVayCon = 0;
-      
+      let noVayTotal = 0; let noVayCon = 0;
+
       debts.forEach((d: any) => {
         const amt = d.amount || 0;
         const remaining = amt - (d.paidAmount || 0);
@@ -121,11 +121,11 @@ export async function GET(req: Request) {
           noVayTotal += amt; noVayCon += remaining;
           const startDate = new Date(d.createdAt);
           if (startDate <= new Date()) {
-             totalExpense += (amt * (d.interestRate || 0)) / 100 / 12;
+            totalExpense += (amt * (d.interestRate || 0)) / 100 / 12;
           }
         }
       });
-      
+
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
@@ -137,7 +137,7 @@ export async function GET(req: Request) {
       // 1. Manual expenses
       const expenses = await prisma.expense.aggregate({
         _sum: { soTien: true },
-        where: { 
+        where: {
           ngayChiTra: { gte: firstDay, lte: lastDay },
           trangThai: { in: ["paid", "Đã thanh toán", "completed"] }
         }
@@ -167,12 +167,100 @@ export async function GET(req: Request) {
       totalExpense += payrolls._sum.tongChiPhiCty || 0;
 
       const formatMoney = (val: number) => new Intl.NumberFormat("vi-VN").format(Math.round(val)) + " đ";
-      
+
       data = [
         { text: `• Tổng phát sinh phải thu: ${formatMoney(phaiThuTotal)} (Dư nợ hiện tại: ${formatMoney(phaiThuCon)})`, type: 'text' },
         { text: `• Tổng phát sinh phải trả: ${formatMoney(phaiTraTotal)} (Dư nợ hiện tại: ${formatMoney(phaiTraCon)})`, type: 'text' },
         { text: `• Tổng vay: ${formatMoney(noVayTotal)} (Dư nợ hiện tại: ${formatMoney(noVayCon)})`, type: 'text' },
         { text: `• Tổng chi phí trong tháng: ${formatMoney(totalExpense)}`, type: 'text' },
+      ];
+    } else if (moduleStr === "hr_recruitment") {
+      const reqs = await (prisma as any).recruitmentRequest.findMany();
+      const cands = await (prisma as any).candidate.findMany();
+
+      const totalReqs = reqs.length;
+      const completedReqs = reqs.filter((r: any) => r.status === "Completed").length;
+      const completedPct = totalReqs > 0 ? ((completedReqs / totalReqs) * 100).toFixed(1) : 0;
+
+      const totalCands = cands.length;
+      const interviewCands = cands.filter((c: any) => c.status === "Interviewing" || c.status === "Chờ phỏng vấn").length;
+      const pendingHireCands = cands.filter((c: any) => c.status === "Đã gửi thư mời" || c.status === "Đã nhận việc").length;
+      const probationCands = cands.filter((c: any) => c.status === "Đang thử việc").length;
+
+      data = [
+        { text: `• Số lượng yêu cầu: <strong>${totalReqs}</strong>`, type: 'text' },
+        { text: `• Đã hoàn thành: <strong>${completedReqs}</strong> ${totalReqs > 0 ? `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">${completedPct}%</span>` : ''}`, type: 'text' },
+        { text: `• Số ứng viên: <strong>${totalCands}</strong>`, type: 'text' },
+        { text: `• Ứng viên chờ phỏng vấn: <strong>${interviewCands}</strong>`, type: 'text' },
+        { text: `• Đang chờ tuyển dụng: <strong>${pendingHireCands}</strong>`, type: 'text' },
+        { text: `• Đang thử việc: <strong>${probationCands}</strong>`, type: 'text' },
+      ];
+    } else if (moduleStr === "hr_probation") {
+      const probations = await (prisma as any).employeeProbation.findMany();
+      const total = probations.length;
+      const evaluating = probations.filter((i: any) => i.status === "EVALUATING").length;
+      const passed = probations.filter((i: any) => i.status === "PASSED").length;
+      const expiring = probations.filter((i: any) => {
+        const end = new Date(i.endDate);
+        const now = new Date();
+        const diff = (end.getTime() - now.getTime()) / (1000 * 3600 * 24);
+        return diff > 0 && diff <= 7 && i.status !== "PASSED";
+      }).length;
+
+      data = [
+        { text: `• Đang thử việc: <strong>${total}</strong>`, type: 'text' },
+        { text: `• Đang đánh giá: <strong>${evaluating}</strong>`, type: 'text' },
+        { text: `• Sắp hết hạn: <strong>${expiring}</strong>`, type: 'text' },
+        { text: `• Đã đạt (Tổng cộng): <strong>${passed}</strong>`, type: 'text' },
+      ];
+    } else if (moduleStr === "hr_insurance") {
+      const today = new Date();
+      const currentMonth = today.getMonth() + 1;
+      const currentYear = today.getFullYear();
+      
+      const history = await (prisma as any).insuranceHistory.findMany({
+        where: { month: currentMonth, year: currentYear }
+      });
+      const totalFund = history.reduce((sum: number, item: any) => sum + (item.totalAmount || 0), 0);
+      const enrolledCount = history.length;
+
+      const pendingBenefits = await (prisma as any).insuranceBenefit.count({
+        where: { status: { in: ["pending", "processing"] } }
+      });
+      const pendingChanges = await (prisma as any).insuranceChange.count({
+        where: { status: { in: ["pending", "processing"] } }
+      });
+
+      data = [
+        { text: `• Tổng quỹ bảo hiểm: <strong>${(totalFund / 1000000).toFixed(1)}M</strong> (Tháng ${currentMonth}/${currentYear})`, type: 'text' },
+        { text: `• Số nhân viên đóng: <strong>${enrolledCount}</strong>`, type: 'text' },
+        { text: `• Yêu cầu giải quyết: <strong>${pendingBenefits}</strong>`, type: 'text' },
+        { text: `• Biến động chưa xử lý: <strong>${pendingChanges}</strong>`, type: 'text' },
+      ];
+    } else if (moduleStr === "hr_stationery") {
+      const [pendingCount, supplyItems, assetsInUse] = await Promise.all([
+        (prisma as any).hrSupplyRequest.count({
+          where: {
+            status: { in: ["PENDING", "OVER_NORM"] }
+          }
+        }),
+        (prisma as any).hrSupplyItem.findMany({
+          where: { isActive: true },
+          select: { currentStock: true, minStock: true, price: true }
+        }),
+        (prisma as any).hrAssetHandover.count({
+          where: { status: "USING" }
+        })
+      ]);
+
+      const lowStockCount = supplyItems.filter((i: any) => i.currentStock < i.minStock).length;
+      const totalValue = supplyItems.reduce((acc: number, item: any) => acc + (item.currentStock * (item.price || 0)), 0);
+
+      data = [
+        { text: `• Yêu cầu chờ duyệt: <strong>${pendingCount}</strong>`, type: 'text' },
+        { text: `• Vật tư dưới mức tối thiểu: <strong>${lowStockCount}</strong>`, type: 'text' },
+        { text: `• Giá trị tồn kho: <strong>${totalValue.toLocaleString("vi-VN")}đ</strong>`, type: 'text' },
+        { text: `• Dụng cụ đang bàn giao: <strong>${assetsInUse}</strong>`, type: 'text' },
       ];
     } else if (moduleStr === "hr") {
       data = [
@@ -181,17 +269,120 @@ export async function GET(req: Request) {
         { text: "• Chính sách phúc lợi mới: Tăng phụ cấp ăn trưa từ tháng sau.", type: "text" }
       ];
     } else if (moduleStr === "production") {
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth();
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      const orders = await prisma.saleOrder.findMany({
+        where: { keToanDuyet: "approved" },
+        include: { saleOrderItems: true },
+      });
+
+      let totalOrders = orders.length;
+      let completed = 0;
+      let inProgress = 0;
+      let pending = 0;
+      let dueToday = 0;
+      let yearlyVolume = 0;
+      let monthlyVolume = 0;
+
+      orders.forEach(order => {
+        const isCompleted = order.trangThai === "approved" || order.trangThai === "shipped" || order.trangThai === "completed";
+        const isRunning = order.trangThai === "in_production";
+
+        if (isCompleted) completed++;
+        else if (isRunning) inProgress++;
+        else pending++;
+
+        const targetDate = order.ngayHoanThanhSanXuat || order.ngayGiao;
+        if (targetDate && new Date(targetDate).toISOString().split('T')[0] === todayStr) {
+          dueToday++;
+        }
+
+        if (isCompleted) {
+          const updatedAt = new Date(order.updatedAt);
+          if (updatedAt.getFullYear() === currentYear) {
+            const qty = order.saleOrderItems.reduce((sum: number, item: any) => sum + item.soLuong, 0);
+            yearlyVolume += qty;
+            if (updatedAt.getMonth() === currentMonth) {
+              monthlyVolume += qty;
+            }
+          }
+        }
+      });
+
       data = [
-        { text: "• Cảnh báo: Mã vật tư VT-001 đang dưới định mức an toàn.", type: "text" },
-        { text: "• Kế hoạch bảo trì máy cắt laser CNC số 2 vào cuối tuần này.", type: "text" },
-        { text: "• Tiến độ sản xuất đơn hàng PO-2024-05 đạt 85%.", type: "text" }
+        { text: `• Tổng số lệnh: <strong>${totalOrders}</strong>`, type: 'text' },
+        { text: `• Đã hoàn thành: <strong>${completed}</strong>`, type: 'text' },
+        { text: `• Đang thực hiện: <strong>${inProgress}</strong>`, type: 'text' },
+        { text: `• Chưa thực hiện: <strong>${pending}</strong>`, type: 'text' },
+        { text: `• Đơn hàng phải hoàn thành hôm nay: <strong>${dueToday}</strong>`, type: 'text' },
+        { text: `• Sản lượng năm: <strong>${yearlyVolume}</strong>`, type: 'text' },
+        { text: `• Sản lượng tháng: <strong>${monthlyVolume}</strong>`, type: 'text' },
+      ];
+    } else if (moduleStr === "production_defects") {
+      const defects = await (prisma as any).defectRecord.findMany();
+
+      const totalDefects = defects.length;
+      const completed = defects.filter((d: any) => d.status === "COMPLETED").length;
+      const completedPct = totalDefects > 0 ? Math.round((completed / totalDefects) * 100) : 0;
+
+      const pending = defects.filter((d: any) => d.status === "NEW" || d.status === "TECH_EVALUATING").length;
+      const waitingApproval = defects.filter((d: any) => d.status === "WAITING_APPROVAL").length;
+
+      const productCounts: Record<string, number> = {};
+      defects.forEach((d: any) => {
+        if (d.productName) {
+          productCounts[d.productName] = (productCounts[d.productName] || 0) + 1;
+        }
+      });
+      let mostDefectiveProduct = "Chưa có";
+      let maxCount = 0;
+      for (const [name, count] of Object.entries(productCounts)) {
+        if (count > maxCount) {
+          maxCount = count;
+          mostDefectiveProduct = name;
+        }
+      }
+
+      const mostDefectivePct = totalDefects > 0 ? Math.round((maxCount / totalDefects) * 100) : 0;
+      const mostDefectiveBadge = maxCount > 0 ? ` <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">${mostDefectivePct}%</span>` : "";
+
+      const internalDefects = defects.filter((d: any) => d.source === "INTERNAL").length;
+      const internalPct = totalDefects > 0 ? Math.round((internalDefects / totalDefects) * 100) : 0;
+
+      const warrantyDefects = defects.filter((d: any) => d.source === "WARRANTY").length;
+      const warrantyPct = totalDefects > 0 ? Math.round((warrantyDefects / totalDefects) * 100) : 0;
+
+      data = [
+        { text: `• Tổng số hàng lỗi: <strong>${totalDefects}</strong>`, type: 'text' },
+        { text: `• Lỗi nội bộ: <strong>${internalDefects}</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">${internalPct}%</span>`, type: 'text' },
+        { text: `• Lỗi bảo hành: <strong>${warrantyDefects}</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">${warrantyPct}%</span>`, type: 'text' },
+        { text: `• Đã xử lý: <strong>${completed}</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">${completedPct}%</span>`, type: 'text' },
+        { text: `• Chưa xử lý: <strong>${pending}</strong>`, type: 'text' },
+        { text: `• Đang chờ duyệt: <strong>${waitingApproval}</strong>`, type: 'text' },
+        { text: `• Sản phẩm lỗi nhiều nhất: <strong>${mostDefectiveProduct}</strong>${mostDefectiveBadge}`, type: 'text' },
+      ];
+    } else if (moduleStr === "qa") {
+      data = [
+        { text: `• Tỷ lệ hàng lỗi xuất xưởng: <strong>2.5%</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">Giảm 0.3%</span>`, type: 'text' },
+        { text: `• Tỷ lệ hàng lỗi bảo hành: <strong>0.8%</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">&lt; 1%</span>`, type: 'text' },
+        { text: `• Sản phẩm đã kiểm tra: <strong>1,245</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">Tăng 15%</span>`, type: 'text' },
+        { text: `• Hồ sơ lỗi chờ xử lý: <strong>12</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">2 quá hạn SLA</span>`, type: 'text' },
+      ];
+    } else if (moduleStr === "qa_inspections") {
+      data = [
+        { text: `• Số phiếu yêu cầu: <strong>145</strong>`, type: 'text' },
+        { text: `• Đã hoàn thành: <strong>112</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">77.2%</span>`, type: 'text' },
+        { text: `• Chưa thực hiện: <strong>33</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">22.8%</span>`, type: 'text' },
+        { text: `• Số yêu cầu phải hoàn thành hôm nay: <strong>8</strong>`, type: 'text' },
       ];
     } else if (moduleStr === "sales_quotations") {
       const quotations = await prisma.quotation.findMany({
         where: { type: "retail", code: { startsWith: "BG" } },
         select: { id: true, thanhTien: true, createdAt: true },
       });
-      
+
       const orders = await prisma.saleOrder.findMany({
         select: { id: true, tongTien: true, createdAt: true },
       });
@@ -264,7 +455,7 @@ export async function GET(req: Request) {
 
       const tongXuatKho = saleOrders.length;
       const giaTriXuatKho = saleOrders.reduce((sum, o) => sum + (o.tongTien || 0), 0);
-      
+
       const tongNhapKho = purchaseOrders.length;
       const giaTriNhapKho = purchaseOrders.reduce((sum, o) => sum + (o.tongTien || 0), 0);
 
@@ -311,7 +502,7 @@ export async function GET(req: Request) {
               currentMonthTarget = mData.revenueRows.reduce((sum: number, r: any) => sum + (r.value || 0), 0);
             }
           }
-        } catch (e) {}
+        } catch (e) { }
       }
 
       // Partners
@@ -331,7 +522,7 @@ export async function GET(req: Request) {
                 newDealersThisMonth++;
               }
             }
-          } catch (e) {}
+          } catch (e) { }
         }
       });
 

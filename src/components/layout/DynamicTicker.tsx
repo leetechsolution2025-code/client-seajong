@@ -28,7 +28,7 @@ export function DynamicTicker({ pageTitle, customNews }: { pageTitle?: string, c
     module = "tax";
     colorClass = "bg-warning bg-opacity-10 border-warning text-warning";
     title = "CHÍNH SÁCH THUẾ:";
-  } else if (pathname.includes("/finance/inventory")) {
+  } else if (pathname.includes("/finance/inventory") || pathname.includes("/board/inventory")) {
     module = "finance_inventory";
     colorClass = "bg-warning bg-opacity-10 border-warning text-warning";
     title = "HÀNG HOÁ TRONG KHO:";
@@ -40,12 +40,44 @@ export function DynamicTicker({ pageTitle, customNews }: { pageTitle?: string, c
     module = "finance";
     colorClass = "bg-warning bg-opacity-10 border-warning text-warning";
     title = "TIN TÀI CHÍNH:";
+  } else if (pathname.includes("/hr/recruitment")) {
+    module = "hr_recruitment";
+    colorClass = "bg-info bg-opacity-10 border-info text-info";
+    iconClass = "bi-person-plus-fill";
+    title = "TUYỂN DỤNG:";
+  } else if (pathname.includes("/hr/probation")) {
+    module = "hr_probation";
+    colorClass = "bg-info bg-opacity-10 border-info text-info";
+    iconClass = "bi-person-badge-fill";
+    title = "THEO DÕI THỬ VIỆC:";
+  } else if (pathname.includes("/hr/stationery")) {
+    module = "hr_stationery";
+    colorClass = "bg-info bg-opacity-10 border-info text-info";
+    iconClass = "bi-archive";
+    title = "VĂN PHÒNG PHẨM & DỤNG CỤ:";
+  } else if (pathname.includes("/hr/insurance")) {
+    module = "hr_insurance";
+    colorClass = "bg-info bg-opacity-10 border-info text-info";
+    iconClass = "bi-shield-check";
+    title = "BẢO HIỂM:";
   } else if (pathname.includes("/hr")) {
     module = "hr";
     colorClass = "bg-info bg-opacity-10 border-info text-info";
     iconClass = "bi-person-lines-fill";
-    title = "NHÂN SỰ:";
-  } else if (pathname.includes("/production") || pathname.includes("/qa")) {
+  } else if (pathname.includes("/production/defects")) {
+    module = "production_defects";
+    colorClass = "bg-danger bg-opacity-10 border-danger text-danger";
+    iconClass = "bi-exclamation-octagon-fill";
+    title = "XỬ LÝ HÀNG LỖI:";
+  } else if (pathname.includes("/qa/inspections")) {
+    module = "qa_inspections";
+    colorClass = "ticker-qa";
+    iconClass = "bi-patch-check-fill";
+  } else if (pathname.includes("/qa")) {
+    module = "qa";
+    colorClass = "ticker-qa";
+    iconClass = "bi-patch-check-fill";
+  } else if (pathname.includes("/production")) {
     module = "production";
     colorClass = "bg-danger bg-opacity-10 border-danger text-danger";
     iconClass = "bi-exclamation-triangle-fill";
@@ -104,9 +136,20 @@ export function DynamicTicker({ pageTitle, customNews }: { pageTitle?: string, c
   }, [module]);
 
   const displayNews = customNews || news;
-  const totalChars = displayNews.reduce((acc, item) => acc + (item.text?.length || 0), 0);
-  // Default 50s, but dynamic based on 0.12s per character to keep speed consistent. Minimum 15s.
-  const dynamicDuration = displayNews.length > 0 ? Math.max(15, totalChars * 0.12) : 50;
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const [duration, setDuration] = useState(50);
+
+  useEffect(() => {
+    if (wrapperRef.current && contentRef.current) {
+      // scrollWidth of content includes the 100% padding-left + actual text width.
+      // This is exactly the total distance the animation travels.
+      const distance = contentRef.current.scrollWidth;
+      // Fixed speed in pixels per second (adjust if too fast/slow)
+      const speed = 70;
+      setDuration(distance / speed);
+    }
+  }, [displayNews]);
 
   const formatTickerText = (text: string) => {
     if (!text) return "";
@@ -120,12 +163,12 @@ export function DynamicTicker({ pageTitle, customNews }: { pageTitle?: string, c
         <i className={`bi ${iconClass} me-2`}></i>
         {title}
       </div>
-      <div className="dynamic-ticker-scroll-wrapper flex-grow-1 overflow-hidden" style={{ fontSize: '0.875rem' }}>
-        <div className="dynamic-ticker-content" style={{ animationDuration: `${dynamicDuration}s` }}>
+      <div ref={wrapperRef} className="dynamic-ticker-scroll-wrapper flex-grow-1 overflow-hidden" style={{ fontSize: '0.875rem' }}>
+        <div ref={contentRef} className="dynamic-ticker-content" style={{ animationDuration: `${duration}s` }}>
           {displayNews.length > 0 ? (
             displayNews.map((item, idx) => (
-              <span 
-                key={idx} 
+              <span
+                key={idx}
                 className="me-5 text-dark"
                 style={{ cursor: item.type === 'tax' && item.link ? 'pointer' : 'default' }}
                 onClick={() => {
@@ -144,9 +187,9 @@ export function DynamicTicker({ pageTitle, customNews }: { pageTitle?: string, c
         </div>
       </div>
 
-      <TaxPolicyOffcanvas 
-        show={showOffcanvas} 
-        onHide={() => setShowOffcanvas(false)} 
+      <TaxPolicyOffcanvas
+        show={showOffcanvas}
+        onHide={() => setShowOffcanvas(false)}
         url={selectedItem?.url || ""}
         title={selectedItem?.title || ""}
       />

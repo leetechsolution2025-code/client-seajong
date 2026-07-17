@@ -28,3 +28,9 @@
     transform: translateX(-100%);
   }
 }
+
+.ticker-qa {
+  background-color: rgba(0, 48, 135, 0.08) !important;
+  color: #003087 !important;
+  border-color: rgba(0, 48, 135, 0.2) !important;
+}

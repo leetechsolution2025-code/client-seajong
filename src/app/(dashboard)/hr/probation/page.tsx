@@ -295,33 +295,6 @@ export default function ProbationPage() {
       color="indigo"
       useCard={false}
     >
-      {/* KPI Section */}
-      <div className="row g-3 mb-2 px-3 px-md-0">
-        <KPICard
-          label="Đang thử việc"
-          value={stats.total}
-          icon="bi-people"
-          accent="var(--bs-primary)"
-        />
-        <KPICard
-          label="Đang đánh giá"
-          value={stats.evaluating}
-          icon="bi-clipboard-check"
-          accent="var(--bs-warning)"
-        />
-        <KPICard
-          label="Sắp hết hạn"
-          value={stats.expiring}
-          icon="bi-clock-history"
-          accent="var(--bs-danger)"
-        />
-        <KPICard
-          label="Đã đạt (Tổng cộng)"
-          value={stats.passed}
-          icon="bi-check2-circle"
-          accent="var(--bs-success)"
-        />
-      </div>
 
       {/* Main Content Card */}
       <div className="bg-card rounded-4 shadow-sm border overflow-hidden d-flex flex-column flex-grow-1">

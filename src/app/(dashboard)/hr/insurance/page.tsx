@@ -367,13 +367,6 @@ export default function InsurancePage() {
       useCard={false}
     >
       <div className="d-flex flex-column gap-2 h-100 insurance-page-container">
-        {/* Statistics Section */}
-        <div className="row g-2 g-md-3 flex-shrink-0 px-2 px-md-0 d-none d-md-flex">
-          <KPICard label="Tổng quỹ bảo hiểm" value={`${(totalFund / 1000000).toFixed(1)}M`} icon="bi-bank" accent="#f43f5e" subtitle={`Tháng ${selectedMonth}/${selectedYear}`} />
-          <KPICard label="Số nhân viên đóng" value={String(enrolledCount)} icon="bi-people" accent="#10b981" subtitle="Đang tham gia" />
-          <KPICard label="Yêu cầu giải quyết" value={String(pendingBenefits)} icon="bi-file-earmark-medical" accent="#f59e0b" subtitle="Chế độ bảo hiểm" />
-          <KPICard label="Biến động chưa xử lý" value={String(pendingChanges)} icon="bi-clock-history" accent="#6366f1" subtitle="Cần nộp cơ quan BH" />
-        </div>
 
         {/* Content Card using WorkflowCard */}
         <WorkflowCard
