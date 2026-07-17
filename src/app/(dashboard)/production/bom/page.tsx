@@ -984,83 +984,83 @@ export default function BOMPage() {
         loading={deletingBom}
       />
 
-      {/* Swap Material Modal */}
+      {/* Swap Material Offcanvas */}
       {showSwapModal && (
-        <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}>
-          <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-            <div className="modal-content shadow-lg border-0 rounded-4">
-              <div className="modal-header border-bottom-0 bg-light">
-                <h6 className="modal-title fw-bold text-primary d-flex align-items-center gap-2">
-                  <i className="bi bi-arrow-left-right"></i> Đổi vật tư / Hàng hoá cùng loại
-                </h6>
-                <button type="button" className="btn-close shadow-none" onClick={() => setShowSwapModal(false)}></button>
-              </div>
-              <div className="modal-body p-4">
-                <div className="mb-3">
-                  <input
-                    type="text"
-                    className="form-control form-control-lg bg-light"
-                    placeholder="Tìm kiếm vật tư thay thế..."
-                    value={swapSearch}
-                    onChange={e => setSwapSearch(e.target.value)}
-                    autoFocus
-                  />
-                  <div className="form-text text-muted small mt-2">
-                    <i className="bi bi-lightbulb text-warning me-1"></i>
-                    Gợi ý tự động dựa trên các ký tự đầu mã định danh
-                  </div>
+        <>
+          <div className="offcanvas offcanvas-end show border-0 shadow-lg" tabIndex={-1} style={{ width: "400px", visibility: "visible", zIndex: 1055 }}>
+            <div className="offcanvas-header border-bottom bg-light">
+              <h6 className="offcanvas-title fw-bold text-primary d-flex align-items-center gap-2">
+                <i className="bi bi-arrow-left-right"></i> Đổi vật tư / Hàng hoá cùng loại
+              </h6>
+              <button type="button" className="btn-close shadow-none" onClick={() => setShowSwapModal(false)}></button>
+            </div>
+            <div className="offcanvas-body p-4 d-flex flex-column h-100">
+              <div className="mb-3">
+                <input
+                  type="text"
+                  className="form-control form-control-lg bg-light"
+                  placeholder="Tìm kiếm vật tư thay thế..."
+                  value={swapSearch}
+                  onChange={e => setSwapSearch(e.target.value)}
+                  autoFocus
+                />
+                <div className="form-text text-muted small mt-2">
+                  <i className="bi bi-lightbulb text-warning me-1"></i>
+                  Gợi ý tự động dựa trên các ký tự đầu mã định danh
                 </div>
-                
-                <div className="list-group list-group-flush border rounded-3 custom-scrollbar" style={{ height: "300px", overflowY: "auto" }}>
-                  {swapOptions.length === 0 ? (
-                    <div className="text-center text-muted small py-5 d-flex flex-column align-items-center">
-                      <i className="bi bi-search display-6 text-light mb-2"></i>
-                      Không tìm thấy vật tư phù hợp
-                    </div>
-                  ) : (
-                    swapOptions.map((m: any) => (
-                      <button
-                        key={m.id}
-                        className="list-group-item list-group-item-action py-2 px-3 border-bottom"
-                        onClick={() => {
-                          if (swapIndex !== null) {
-                            setBomData((prev: any) => {
-                              const newVatTu = [...prev.vatTu];
-                              // Chỉ cập nhật các trường liên quan đến vật tư, giữ nguyên số lượng
-                              newVatTu[swapIndex] = {
-                                ...newVatTu[swapIndex],
-                                materialId: m.id,
-                                tenVatTu: m.tenHang || m.name,
-                                donViTinh: m.donVi || m.unit || "cái",
-                                material: m
-                              };
-                              return { ...prev, vatTu: newVatTu };
-                            });
-                          }
-                          setShowSwapModal(false);
-                        }}
-                      >
-                        <div className="d-flex justify-content-between align-items-center">
-                          <div>
-                            <div className="fw-semibold text-dark mb-0">{m.tenHang || m.name}</div>
-                            <div className="text-muted d-flex gap-3 mt-1" style={{ fontSize: "0.75rem" }}>
-                              <span><i className="bi bi-upc-scan me-1"></i> {m.code}</span>
-                              <span><i className="bi bi-tag me-1"></i> {m.donVi || m.unit}</span>
-                              <span><i className="bi bi-cash me-1"></i> {(m.giaNhap || m.price || 0).toLocaleString()} đ</span>
-                            </div>
-                          </div>
-                          <div className="btn btn-sm btn-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ width: 32, height: 32 }}>
-                            <i className="bi bi-arrow-left-right"></i>
+              </div>
+              
+              <div className="list-group list-group-flush border rounded-3 custom-scrollbar flex-grow-1" style={{ overflowY: "auto", minHeight: 0 }}>
+                {swapOptions.length === 0 ? (
+                  <div className="text-center text-muted small py-5 d-flex flex-column align-items-center">
+                    <i className="bi bi-search display-6 text-light mb-2"></i>
+                    Không tìm thấy vật tư phù hợp
+                  </div>
+                ) : (
+                  swapOptions.map((m: any) => (
+                    <button
+                      key={m.id}
+                      className="list-group-item list-group-item-action py-1 px-3 border-bottom"
+                      onClick={() => {
+                        if (swapIndex !== null) {
+                          setBomData((prev: any) => {
+                            const newVatTu = [...prev.vatTu];
+                            // Chỉ cập nhật các trường liên quan đến vật tư, giữ nguyên số lượng
+                            newVatTu[swapIndex] = {
+                              ...newVatTu[swapIndex],
+                              materialId: m.id,
+                              tenVatTu: m.tenHang || m.name,
+                              donViTinh: m.donVi || m.unit || "cái",
+                              material: m
+                            };
+                            return { ...prev, vatTu: newVatTu };
+                          });
+                        }
+                        setShowSwapModal(false);
+                      }}
+                    >
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <div className="fw-semibold text-dark mb-0 lh-sm" style={{ fontSize: "0.85rem" }}>{m.tenHang || m.name}</div>
+                          <div className="text-muted d-flex column-gap-3 row-gap-1 mt-1" style={{ fontSize: "0.75rem", flexWrap: "wrap" }}>
+                            <span><i className="bi bi-upc-scan me-1"></i> {m.code}</span>
+                            <span><i className="bi bi-tag me-1"></i> {m.donVi || m.unit}</span>
+                            <span><i className="bi bi-cash me-1"></i> {(m.giaNhap || m.price || 0).toLocaleString()} đ</span>
+                            <span><i className="bi bi-box-seam me-1"></i> Tồn kho: <span className={m.soLuong > 0 ? "text-success fw-bold" : "text-danger fw-bold"}>{m.soLuong || 0}</span></span>
                           </div>
                         </div>
-                      </button>
-                    ))
-                  )}
-                </div>
+                        <div className="btn btn-sm btn-primary rounded-circle p-2 d-flex align-items-center justify-content-center flex-shrink-0 ms-2" style={{ width: 32, height: 32 }}>
+                          <i className="bi bi-arrow-left-right"></i>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           </div>
-        </div>
+          <div className="offcanvas-backdrop fade show" onClick={() => setShowSwapModal(false)} style={{ zIndex: 1050 }}></div>
+        </>
       )}
     </StandardPage>
   );
