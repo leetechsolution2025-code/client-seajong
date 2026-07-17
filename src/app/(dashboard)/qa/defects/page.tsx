@@ -42,7 +42,7 @@ export default function QaDefectsPage() {
     <StandardPage
       title="Lỗi & Báo cáo không phù hợp (NCR)"
       description="Quản lý và theo dõi tiến độ khắc phục các sản phẩm, vật tư không đạt tiêu chuẩn"
-      color="red"
+      color="rose"
       icon="bi-bug"
     >
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">

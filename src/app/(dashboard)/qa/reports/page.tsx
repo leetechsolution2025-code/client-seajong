@@ -58,7 +58,7 @@ export default function QaReportsPage() {
       <PageHeader
         title="Báo cáo Chất lượng"
         description="Phân tích chuyên sâu về tỷ lệ lỗi, chi phí chất lượng kém và đánh giá nhà cung cấp"
-        color="purple"
+        color="violet"
         icon="bi-file-earmark-bar-graph"
       />
       
