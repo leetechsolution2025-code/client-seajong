@@ -30,7 +30,7 @@ export default function QaActionsPage() {
     <StandardPage
       title="Hành động Khắc phục (CAPA)"
       description="Quản lý nguyên nhân gốc rễ và biện pháp cải tiến hệ thống (Corrective and Preventive Action)"
-      color="orange"
+      color="amber"
       icon="bi-tools"
     >
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
