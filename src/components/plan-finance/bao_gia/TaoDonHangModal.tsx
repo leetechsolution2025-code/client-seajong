@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { TrangThaiTonKhoBadge } from "@/components/plan-finance/dung_chung/TrangThaiTonKhoBadge";
 import { genDocCode } from "@/lib/genDocCode";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type CustomerRow = {
@@ -248,24 +249,276 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: ""
   });
 
+  const initialDonGiaRef = React.useRef<number>(0);
+
 
 
   const [showBomDetail, setShowBomDetail] = React.useState(false);
   const [bomDetailData, setBomDetailData] = React.useState<any>(null);
+  const [originalBomData, setOriginalBomData] = React.useState<any>(null);
+  const [newBomDescription, setNewBomDescription] = React.useState("");
+  const [savingNewBom, setSavingNewBom] = React.useState(false);
   const [loadingBom, setLoadingBom] = React.useState(false);
+  const [altSearch, setAltSearch] = React.useState("");
+  const [previewCode, setPreviewCode] = React.useState("");
+  const [confirmDeleteBom, setConfirmDeleteBom] = React.useState(false);
+  const [isDeletingBom, setIsDeletingBom] = React.useState(false);
+
+  const handleDeleteBom = async () => {
+    if (!formItem.dinhMucId) return;
+    setIsDeletingBom(true);
+    try {
+      const res = await fetch(`/api/production/bom/${formItem.dinhMucId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete BOM");
+      
+      const newDinhMucs = (formItem.dinhMucs || []).filter((d: any) => d.id !== formItem.dinhMucId);
+      const standardDm = newDinhMucs.length > 0 ? newDinhMucs[0] : null;
+      
+      setFormItem((prev: any) => ({
+        ...prev,
+        dinhMucs: newDinhMucs,
+        dinhMucId: standardDm ? standardDm.id : null,
+        dinhMucTen: standardDm ? standardDm.tenDinhMuc : null,
+        code: standardDm ? standardDm.code : prev.code,
+        donGia: standardDm ? (standardDm.giaBan ?? 0) : prev.donGia
+      }));
+      setConfirmDeleteBom(false);
+      toast.success("Xoá thành công", "Đã xoá định mức khỏi hệ thống");
+    } catch (e) {
+      console.error(e);
+      toast.error("Lỗi xoá định mức", "Không thể xoá định mức này");
+    } finally {
+      setIsDeletingBom(false);
+    }
+  };
+
+  const activeDm = formItem.dinhMucs?.find((x: any) => x.id === formItem.dinhMucId);
+  const isStandardBom = activeDm ? !/-[0-9]+$/.test(activeDm.code) : true;
+
+  const hasBomChanged = React.useMemo(() => {
+    if (!originalBomData || !bomDetailData) return false;
+    const origStr = originalBomData.vatTu?.map((v: any) => `${v.materialId}:${v.soLuong}`).join(",") || "";
+    const currStr = bomDetailData.vatTu?.map((v: any) => `${v.materialId}:${v.soLuong}`).join(",") || "";
+    return origStr !== currStr;
+  }, [originalBomData, bomDetailData]);
+
+  const totalBomCost = React.useMemo(() => {
+    if (!bomDetailData || !bomDetailData.vatTu) return 0;
+    return bomDetailData.vatTu.reduce((acc: number, vt: any) => acc + (vt.material?.giaBan || vt.material?.price || 0) * (vt.soLuong || 0), 0);
+  }, [bomDetailData]);
+
+  const proposedDonGia = React.useMemo(() => {
+    if (!originalBomData || !hasBomChanged) return formItem.donGia;
+    const origCost = originalBomData.vatTu?.reduce((acc: number, vt: any) => acc + (vt.material?.giaBan || vt.material?.price || 0) * (vt.soLuong || 0), 0) || 0;
+    if (origCost > 0) {
+      const ratio = initialDonGiaRef.current / origCost;
+      return Math.round(totalBomCost * ratio);
+    }
+    return formItem.donGia;
+  }, [hasBomChanged, totalBomCost, originalBomData, formItem.donGia]);
+
+  React.useEffect(() => {
+    if (hasBomChanged && originalBomData?.code) {
+      fetch(`/api/production/bom/next-code?originalCode=${originalBomData.code}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.nextCode) setPreviewCode(data.nextCode);
+        })
+        .catch(console.error);
+    } else {
+      setPreviewCode("");
+    }
+  }, [hasBomChanged, originalBomData?.code]);
+
+  const [showAlternative, setShowAlternative] = React.useState(false);
+  const [alternativeTarget, setAlternativeTarget] = React.useState<any>(null);
+  const [alternativeMaterials, setAlternativeMaterials] = React.useState<any[]>([]);
+  const [loadingAlternatives, setLoadingAlternatives] = React.useState(false);
+  const [targetDeleteMaterial, setTargetDeleteMaterial] = React.useState<any>(null);
+
+  const [showAddMaterial, setShowAddMaterial] = React.useState(false);
+  const [addMaterialTargetIndex, setAddMaterialTargetIndex] = React.useState<number | null>(null);
+  const [addMaterials, setAddMaterials] = React.useState<any[]>([]);
+  const [loadingAddMaterials, setLoadingAddMaterials] = React.useState(false);
+  const [addSearch, setAddSearch] = React.useState("");
+  const [addCategory, setAddCategory] = React.useState("");
+  const [addCategories, setAddCategories] = React.useState<any[]>([]);
+  const [addQuantities, setAddQuantities] = React.useState<Record<string, number>>({});
+
+  React.useEffect(() => {
+    if (showAddMaterial) {
+      setLoadingAddMaterials(true);
+      Promise.all([
+        fetch(`/api/production/materials`).then(res => res.json()),
+        fetch(`/api/production/materials/categories`).then(res => res.json())
+      ])
+        .then(([materialsData, categoriesData]) => {
+          setAddMaterials(materialsData.items || []);
+          setAddCategories(categoriesData || []);
+          setAddSearch("");
+          setAddCategory("");
+          setAddQuantities({});
+        })
+        .catch(console.error)
+        .finally(() => setLoadingAddMaterials(false));
+    } else {
+      setAddMaterials([]);
+      setAddCategories([]);
+      setAddMaterialTargetIndex(null);
+    }
+  }, [showAddMaterial]);
+
+  React.useEffect(() => {
+    if (showAlternative && alternativeTarget?.material?.category?.id) {
+      setLoadingAlternatives(true);
+      fetch(`/api/production/materials?categoryId=${alternativeTarget.material.category.id}`)
+        .then(res => res.json())
+        .then(data => {
+          setAlternativeMaterials(data.items || []);
+          setAltSearch("");
+        })
+        .catch(console.error)
+        .finally(() => setLoadingAlternatives(false));
+    } else if (!showAlternative) {
+      setAlternativeMaterials([]);
+      setAlternativeTarget(null);
+    }
+  }, [showAlternative, alternativeTarget]);
 
   React.useEffect(() => {
     if (showBomDetail && formItem.dinhMucId) {
       setLoadingBom(true);
       fetch(`/api/production/bom/${formItem.dinhMucId}`)
         .then(res => res.json())
-        .then(data => setBomDetailData(data))
+        .then(data => {
+          setBomDetailData(data);
+          setOriginalBomData(JSON.parse(JSON.stringify(data)));
+          setNewBomDescription("");
+          initialDonGiaRef.current = formItem.donGia || 0;
+        })
         .catch(console.error)
         .finally(() => setLoadingBom(false));
     } else if (!showBomDetail) {
       setBomDetailData(null);
+      setOriginalBomData(null);
+      setNewBomDescription("");
     }
   }, [showBomDetail, formItem.dinhMucId]);
+
+  const handleSwapMaterial = (altMaterial: any) => {
+    if (!alternativeTarget || !bomDetailData) return;
+    const newVatTu = [...(bomDetailData.vatTu || [])];
+    const index = newVatTu.findIndex(v => v.id === alternativeTarget.id);
+    if (index !== -1) {
+      newVatTu[index] = {
+        ...newVatTu[index],
+        materialId: altMaterial.id,
+        tenVatTu: altMaterial.name || altMaterial.tenHang,
+        material: {
+          ...newVatTu[index].material,
+          id: altMaterial.id,
+          code: altMaterial.code,
+          tenHang: altMaterial.name || altMaterial.tenHang,
+          name: altMaterial.name || altMaterial.tenHang,
+          unit: altMaterial.unit || altMaterial.donVi,
+          donVi: altMaterial.unit || altMaterial.donVi,
+          price: altMaterial.giaNhap || altMaterial.price || 0,
+          giaBan: altMaterial.giaBan || 0,
+        }
+      };
+      setBomDetailData({ ...bomDetailData, vatTu: newVatTu });
+    }
+    setShowAlternative(false);
+  };
+
+  const handleDeleteMaterial = () => {
+    if (!targetDeleteMaterial || !bomDetailData) return;
+    const newVatTu = bomDetailData.vatTu.filter((v: any) => v.id !== targetDeleteMaterial.id);
+    setBomDetailData({ ...bomDetailData, vatTu: newVatTu });
+    setTargetDeleteMaterial(null);
+  };
+
+  const handleAddMaterial = (newMaterial: any) => {
+    if (addMaterialTargetIndex === null || !bomDetailData) return;
+    const qty = addQuantities[newMaterial.id] || 1;
+    const newVatTu = [...(bomDetailData.vatTu || [])];
+    
+    const newItem = {
+      materialId: newMaterial.id,
+      tenVatTu: newMaterial.name || newMaterial.tenHang,
+      soLuong: qty,
+      donViTinh: newMaterial.unit || newMaterial.donVi,
+      material: {
+        id: newMaterial.id,
+        code: newMaterial.code,
+        tenHang: newMaterial.name || newMaterial.tenHang,
+        name: newMaterial.name || newMaterial.tenHang,
+        unit: newMaterial.unit || newMaterial.donVi,
+        donVi: newMaterial.unit || newMaterial.donVi,
+        price: newMaterial.giaNhap || newMaterial.price || 0,
+        giaBan: newMaterial.giaBan || 0,
+      }
+    };
+
+    newVatTu.splice(addMaterialTargetIndex + 1, 0, newItem);
+    setBomDetailData({ ...bomDetailData, vatTu: newVatTu });
+    setShowAddMaterial(false);
+  };
+
+  const handleSaveNewBom = async () => {
+    if (!newBomDescription.trim() || !hasBomChanged || !bomDetailData) return;
+    setSavingNewBom(true);
+    try {
+      const payload = {
+        originalCode: originalBomData.code,
+        tenDinhMuc: newBomDescription.trim(),
+        manufacturedProductId: formItem.inventoryId || null,
+        vatTu: bomDetailData.vatTu.map((v: any) => ({
+          materialId: v.materialId || null,
+          tenVatTu: v.tenVatTu,
+          soLuong: v.soLuong,
+          donViTinh: v.donViTinh || v.material?.unit || v.material?.donVi || "",
+          ghiChu: v.ghiChu || ""
+        }))
+      };
+
+      const res = await fetch("/api/production/bom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error("Failed to save BOM");
+
+      const created = await res.json();
+      
+      setFormItem(prev => ({
+        ...prev,
+        dinhMucs: [...(prev.dinhMucs || []), created],
+        dinhMucId: created.id,
+        dinhMucTen: created.tenDinhMuc,
+        code: created.code,
+        donGia: Number(proposedDonGia || 0)
+      }));
+      
+      // Update local states so it turns into the new BOM
+      // We need to fetch it to get full details (with vatTu structure) or just rely on what we have.
+      // Re-fetching is safer.
+      const res2 = await fetch(`/api/production/bom/${created.id}`);
+      const freshData = await res2.json();
+      setBomDetailData(freshData);
+      setOriginalBomData(JSON.parse(JSON.stringify(freshData)));
+      setNewBomDescription("");
+      initialDonGiaRef.current = Number(proposedDonGia || 0);
+      
+      toast.success("Lưu thành công", "Đã tạo định mức mới: " + created.code);
+      setShowBomDetail(false);
+    } catch (e) {
+      console.error(e);
+      toast.error("Lỗi", "Có lỗi xảy ra khi lưu định mức mới!");
+    } finally {
+      setSavingNewBom(false);
+    }
+  };
 
   const [suggest, setSuggest] = React.useState<any[]>([]);
   const [activeRowId, setActiveRowId] = React.useState<number | null>(null);
@@ -854,16 +1107,37 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                       placeholder="Tự động hiển thị..."
                       style={{ flex: 1, padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
                     />
-                    <button
-                      type="button"
-                      className="btn btn-light border"
-                      onClick={() => setShowBomDetail(true)}
-                      disabled={!formItem.dinhMucId}
-                      style={{ padding: "7px 12px", borderRadius: 6 }}
-                      title="Xem chi tiết định mức"
-                    >
-                      <i className="bi bi-three-dots"></i>
-                    </button>
+                    <div className="dropdown">
+                      <button
+                        type="button"
+                        className="btn btn-light border dropdown-toggle"
+                        data-bs-toggle="dropdown"
+                        disabled={!formItem.dinhMucId}
+                        style={{ padding: "7px 12px", borderRadius: 6 }}
+                        title="Tuỳ chọn định mức"
+                      >
+                        <i className="bi bi-three-dots"></i>
+                      </button>
+                      <ul className="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 p-1">
+                        <li>
+                          <button 
+                            className="dropdown-item py-1.5 px-3 rounded-2" 
+                            onClick={() => setShowBomDetail(true)}
+                          >
+                            <i className="bi bi-info-circle me-2 text-info"></i> Xem chi tiết
+                          </button>
+                        </li>
+                        <li>
+                          <button 
+                            className="dropdown-item py-1.5 px-3 rounded-2 text-danger" 
+                            disabled={isStandardBom}
+                            onClick={() => setConfirmDeleteBom(true)}
+                          >
+                            <i className="bi bi-trash me-2"></i> Xoá định mức
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -990,9 +1264,50 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         <i className="bi bi-diagram-3 me-1"></i> B.O.M
                       </span>
                     </div>
-                    <h5 className="mb-1 fw-bold" style={{ color: "var(--foreground)" }}>{bomDetailData.code}</h5>
-                    <p className="mb-0 text-muted" style={{ fontSize: 13 }}>{bomDetailData.tenDinhMuc}</p>
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <h5 className="mb-0 fw-bold" style={{ color: "var(--foreground)" }}>
+                        {hasBomChanged ? (previewCode || `${originalBomData?.code}-XX`) : bomDetailData.code}
+                      </h5>
+                      <span className="fw-bold text-primary" style={{ fontSize: 15 }}>{fmt(Number(proposedDonGia || 0))} ₫</span>
+                    </div>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <p className="mb-0 text-muted" style={{ fontSize: 13 }}>
+                        {originalBomData?.tenDinhMuc || bomDetailData.tenDinhMuc}
+                      </p>
+                      <div className="text-end text-muted" style={{ fontSize: 12 }}>
+                        Giá vốn: <span className="fw-semibold text-danger">{fmt(Number(totalBomCost || 0))} ₫</span>
+                        <span className="mx-1">|</span>
+                        Tỷ lệ: <span className="fw-semibold text-success">
+                          {totalBomCost > 0 ? (Number(proposedDonGia || 0) / Number(totalBomCost)).toFixed(2) : "0.00"}x
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 d-flex align-items-center gap-2">
+                      <input 
+                        type="text" 
+                        className="form-control form-control-sm" 
+                        placeholder="Mô tả định mức mới (bắt buộc)" 
+                        value={newBomDescription}
+                        onChange={e => setNewBomDescription(e.target.value)}
+                        disabled={!hasBomChanged || savingNewBom}
+                      />
+                      <button 
+                        className="btn btn-sm btn-primary d-flex align-items-center justify-content-center flex-shrink-0"
+                        style={{ width: 31, height: 31 }}
+                        onClick={handleSaveNewBom}
+                        disabled={!hasBomChanged || !newBomDescription.trim() || savingNewBom}
+                        title="Lưu định mức mới"
+                      >
+                        {savingNewBom ? (
+                          <span className="spinner-border spinner-border-sm" style={{ width: "1rem", height: "1rem", borderWidth: "0.15em" }}></span>
+                        ) : (
+                          <i className="bi bi-save"></i>
+                        )}
+                      </button>
+                    </div>
                   </div>
+
                   <div className="p-4 flex-grow-1" style={{ overflowY: "auto" }}>
                     <div className="d-flex align-items-center justify-content-between mb-3">
                       <p className="fw-bold mb-0 text-uppercase" style={{ fontSize: 11, letterSpacing: 0.5, color: "var(--muted-foreground)" }}>
@@ -1006,10 +1321,10 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                     {bomDetailData.vatTu?.length > 0 ? (
                       <div className="d-flex flex-column gap-2">
                         {bomDetailData.vatTu.map((vt: any, idx: number) => (
-                          <div key={idx} className="d-flex align-items-center justify-content-between p-3 bg-white" style={{ border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
+                          <div key={idx} className="d-flex align-items-center justify-content-between p-2 px-3 bg-white" style={{ border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
                             <div className="d-flex align-items-center gap-3">
-                              <div className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 36, height: 36, background: "rgba(99, 102, 241, 0.1)", color: "#6366f1" }}>
-                                <i className="bi bi-box-seam" style={{ fontSize: 15 }}></i>
+                              <div className="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 32, height: 32, background: "rgba(99, 102, 241, 0.1)", color: "#6366f1" }}>
+                                <i className="bi bi-box-seam" style={{ fontSize: 14 }}></i>
                               </div>
                               <div>
                                 <h6 className="mb-0 fw-semibold" style={{ fontSize: 13, color: "var(--foreground)" }}>
@@ -1020,9 +1335,57 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                                 </span>
                               </div>
                             </div>
-                            <div className="text-end ms-3 border-start ps-3 flex-shrink-0">
-                              <span className="fw-bold d-block text-primary" style={{ fontSize: 15 }}>{vt.soLuong}</span>
-                              <span className="text-muted text-uppercase" style={{ fontSize: 10, fontWeight: 600 }}>{vt.donViTinh || vt.material?.unit || vt.material?.donVi}</span>
+                            <div className="d-flex align-items-center gap-3">
+                              <div className="dropdown">
+                                <button 
+                                  className="btn btn-sm btn-link p-0 text-muted" 
+                                  data-bs-toggle="dropdown"
+                                  title="Tuỳ chọn"
+                                >
+                                  <i className="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul className="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 p-1" style={{ fontSize: 13, minWidth: 160, boxShadow: "0 4px 12px rgba(0,0,0,0.1) !important" }}>
+                                  <li>
+                                    <button 
+                                      className="dropdown-item py-1.5 px-3 rounded-2 text-success" 
+                                      onClick={() => {
+                                        setAddMaterialTargetIndex(idx);
+                                        setShowAddMaterial(true);
+                                      }}
+                                    >
+                                      <i className="bi bi-plus-circle me-2"></i>Thêm mới
+                                    </button>
+                                  </li>
+                                  {vt.material?.category?.id && (
+                                    <li>
+                                      <button className="dropdown-item py-1.5 px-3 rounded-2" onClick={() => {
+                                        setAlternativeTarget(vt);
+                                        setShowAlternative(true);
+                                      }}>
+                                        <i className="bi bi-arrow-left-right me-2 text-primary"></i>Thay thế
+                                      </button>
+                                    </li>
+                                  )}
+                                  <li>
+                                    <button 
+                                      className="dropdown-item py-1.5 px-3 rounded-2 text-danger" 
+                                      onClick={() => setTargetDeleteMaterial(vt)}
+                                    >
+                                      <i className="bi bi-trash me-2"></i>Xoá bỏ
+                                    </button>
+                                  </li>
+                                  <li><hr className="dropdown-divider my-1" /></li>
+                                  <li>
+                                    <button className="dropdown-item py-1.5 px-3 rounded-2" onClick={() => {}}>
+                                      <i className="bi bi-info-circle me-2 text-info"></i>Xem chi tiết
+                                    </button>
+                                  </li>
+                                </ul>
+                              </div>
+                              <div className="text-end border-start ps-3 flex-shrink-0">
+                                <span className="fw-bold d-block text-primary" style={{ fontSize: 15 }}>{vt.soLuong}</span>
+                                <span className="text-muted text-uppercase" style={{ fontSize: 10, fontWeight: 600 }}>{vt.donViTinh || vt.material?.unit || vt.material?.donVi}</span>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -1044,8 +1407,187 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
             </div>
           </div>
           <div className="offcanvas-backdrop fade show" style={{ zIndex: 1050 }} onClick={() => setShowBomDetail(false)}></div>
+
+          {/* Modal xem danh sách vật tư thay thế */}
+          {showAlternative && (
+            <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1070 }}>
+              <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                <div className="modal-content" style={{ height: "85vh" }}>
+                  <div className="modal-header border-bottom-0 pb-0">
+                    <h5 className="modal-title fw-bold">Vật tư thay thế cùng loại</h5>
+                    <button type="button" className="btn-close" onClick={() => setShowAlternative(false)}></button>
+                  </div>
+                  <div className="bg-white p-3 border-bottom rounded-top">
+                    <p className="mb-1 text-muted" style={{ fontSize: 12 }}>Đang xem vật tư thay thế cho:</p>
+                    <h6 className="mb-3 fw-semibold">{alternativeTarget?.tenVatTu || alternativeTarget?.material?.name || alternativeTarget?.material?.tenHang}</h6>
+                    <div className="input-group input-group-sm">
+                      <span className="input-group-text bg-light border-end-0"><i className="bi bi-search text-muted"></i></span>
+                      <input 
+                        type="text" 
+                        className="form-control border-start-0 ps-0 bg-light" 
+                        placeholder="Tìm kiếm theo mã hoặc tên..."
+                        value={altSearch}
+                        onChange={e => setAltSearch(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="modal-body bg-light p-3">
+                    {loadingAlternatives ? (
+                      <div className="text-center p-4">
+                        <div className="spinner-border text-primary" role="status"></div>
+                      </div>
+                    ) : alternativeMaterials.length > 0 ? (
+                      <div className="d-flex flex-column gap-2">
+                        {alternativeMaterials.filter(m => {
+                          if (!altSearch.trim()) return true;
+                          const q = altSearch.toLowerCase();
+                          return (m.name || m.tenHang || "").toLowerCase().includes(q) || (m.code || "").toLowerCase().includes(q);
+                        }).map((alt, idx) => (
+                            <div key={idx} className="p-3 bg-white d-flex align-items-center justify-content-between" style={{ border: "1px solid var(--border)", borderRadius: 8 }}>
+                              <div>
+                                <h6 className="mb-1 fw-semibold" style={{ fontSize: 13 }}>{alt.name || alt.tenHang}</h6>
+                                <span className="text-muted" style={{ fontSize: 11 }}>
+                                  Mã: {alt.code} | Đơn vị: {alt.unit || alt.donVi} <span className="mx-1">|</span> Giá bán: <span className="fw-semibold text-primary">{fmt(alt.giaBan || 0)} ₫</span>
+                                </span>
+                              </div>
+                              <div className="d-flex align-items-center gap-3">
+                                <div className="text-end ps-2 border-start">
+                                  <span className="d-block text-muted" style={{ fontSize: 10 }}>TỒN KHO</span>
+                                  <span className="fw-bold" style={{ fontSize: 14 }}>{alt.stocks?.reduce((acc: any, s: any) => acc + s.soLuong, 0) || 0}</span>
+                                </div>
+                                <button className="btn btn-sm btn-outline-primary" onClick={() => handleSwapMaterial(alt)}>
+                                  Chọn
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center p-4 text-muted">
+                          Không tìm thấy vật tư nào khác cùng loại.
+                        </div>
+                      )}
+                  </div>
+                  <div className="modal-footer bg-white border-top">
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowAlternative(false)}>Đóng</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal tìm và thêm vật tư mới */}
+          {showAddMaterial && (
+            <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1070 }}>
+              <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                <div className="modal-content" style={{ height: "85vh" }}>
+                  <div className="modal-header border-bottom-0 pb-0">
+                    <h5 className="modal-title fw-bold">Thêm mới vật tư</h5>
+                    <button type="button" className="btn-close" onClick={() => setShowAddMaterial(false)}></button>
+                  </div>
+                  <div className="bg-white p-3 border-bottom rounded-top">
+                    <div className="d-flex gap-2 mb-2">
+                      <select 
+                        className="form-select form-select-sm border-start-0 ps-2 bg-light" 
+                        value={addCategory} 
+                        onChange={e => setAddCategory(e.target.value)}
+                        style={{ maxWidth: 200, borderLeft: "1px solid var(--border)", borderTopLeftRadius: 6, borderBottomLeftRadius: 6 }}
+                      >
+                        <option value="">Tất cả danh mục</option>
+                        {addCategories.map((c: any) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                      <div className="input-group input-group-sm flex-grow-1">
+                        <span className="input-group-text bg-light border-end-0"><i className="bi bi-search text-muted"></i></span>
+                        <input 
+                          type="text" 
+                          className="form-control border-start-0 ps-0 bg-light" 
+                          placeholder="Tìm kiếm theo mã hoặc tên..."
+                          value={addSearch}
+                          onChange={e => setAddSearch(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="modal-body bg-light p-3">
+                    {loadingAddMaterials ? (
+                      <div className="text-center p-4">
+                        <div className="spinner-border text-primary" role="status"></div>
+                      </div>
+                    ) : addMaterials.length > 0 ? (
+                      <div className="d-flex flex-column gap-2">
+                        {addMaterials.filter(m => {
+                          if (addCategory && m.categoryId !== addCategory) return false;
+                          if (!addSearch.trim()) return true;
+                          const q = addSearch.toLowerCase();
+                          return (m.name || m.tenHang || "").toLowerCase().includes(q) || (m.code || "").toLowerCase().includes(q);
+                        }).slice(0, 50).map((alt, idx) => (
+                            <div key={idx} className="p-3 bg-white d-flex align-items-center justify-content-between" style={{ border: "1px solid var(--border)", borderRadius: 8 }}>
+                              <div className="flex-grow-1 pe-3">
+                                <h6 className="mb-1 fw-semibold" style={{ fontSize: 13 }}>{alt.name || alt.tenHang}</h6>
+                                <span className="text-muted" style={{ fontSize: 11 }}>
+                                  Mã: {alt.code} | Đơn vị: {alt.unit || alt.donVi} <span className="mx-1">|</span> Giá bán: <span className="fw-semibold text-primary">{fmt(alt.giaBan || 0)} ₫</span>
+                                </span>
+                              </div>
+                              <div className="d-flex align-items-center gap-3">
+                                <div className="text-end ps-2 border-start">
+                                  <span className="d-block text-muted" style={{ fontSize: 10 }}>TỒN KHO</span>
+                                  <span className="fw-bold" style={{ fontSize: 14 }}>{alt.stocks?.reduce((acc: any, s: any) => acc + s.soLuong, 0) || 0}</span>
+                                </div>
+                                <div className="d-flex align-items-center border rounded">
+                                  <input 
+                                    type="number" 
+                                    min="1" 
+                                    className="form-control form-control-sm border-0 text-center" 
+                                    style={{ width: 50, outline: "none", boxShadow: "none" }} 
+                                    value={addQuantities[alt.id] || 1}
+                                    onChange={(e) => setAddQuantities(p => ({ ...p, [alt.id]: Math.max(1, Number(e.target.value)) }))}
+                                  />
+                                </div>
+                                <button className="btn btn-sm btn-outline-success px-2" onClick={() => handleAddMaterial(alt)} title="Thêm vật tư">
+                                  <i className="bi bi-plus-lg"></i>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center p-4 text-muted">
+                          Không tìm thấy vật tư nào.
+                        </div>
+                      )}
+                  </div>
+                  <div className="modal-footer bg-white border-top">
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowAddMaterial(false)}>Đóng</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteBom}
+        variant="danger"
+        title="Xoá định mức?"
+        message="Bạn có chắc chắn muốn xoá định mức này khỏi hệ thống? Thao tác này không thể hoàn tác."
+        confirmLabel="Xoá định mức"
+        loading={isDeletingBom}
+        onConfirm={handleDeleteBom}
+        onCancel={() => setConfirmDeleteBom(false)}
+      />
+
+      <ConfirmDialog
+        open={!!targetDeleteMaterial}
+        variant="danger"
+        title="Xoá vật tư?"
+        message={`Bạn có chắc chắn muốn xoá vật tư "${targetDeleteMaterial?.tenVatTu || targetDeleteMaterial?.material?.name || targetDeleteMaterial?.material?.tenHang || 'này'}" khỏi định mức?`}
+        confirmLabel="Xoá"
+        onConfirm={handleDeleteMaterial}
+        onCancel={() => setTargetDeleteMaterial(null)}
+      />
     </div>
   );
 }

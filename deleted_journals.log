@@ -10,3 +10,12 @@ Lines: [{"id":"cmrlsevu100cpgstuvqgaqwia","journalEntryId":"cmrlsevu100cngstu2su
 [2026-07-15T07:35:10.964Z] DELETED: TS-20260715-6158 - Khấu hao tháng 7/2026 cho TS: Máy khắc Lazer - Reason: Xoá tài sản cố định
 Lines: [{"id":"cmrlsf1of00cvgstut0vnli3i","journalEntryId":"cmrlsf1of00ctgstuo70n0rpk","accountId":"cmrln1vt4008d8ovf93qsc0hj","type":"DEBIT","amount":875001,"description":"Khấu hao tháng 7/2026 cho TS: Máy khắc Lazer"},{"id":"cmrlsf1of00cwgstu4ebxmc53","journalEntryId":"cmrlsf1of00ctgstuo70n0rpk","accountId":"cmrln1vrx00348ovfrjaiazfj","type":"CREDIT","amount":875001,"description":"Khấu hao tháng 7/2026 cho TS: Máy khắc Lazer"}]
 
+[2026-07-15T07:35:10.964Z] DELETED: DHBL-20260715-01 - Ghi nhận công nợ (Doanh thu chưa thực hiện) đơn hàng DHBL-20260715-01 - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmrlwb4xm0002gsliq5b7t7m8","journalEntryId":"cmrlwb4xm0000gsli8gu2j4kl","accountId":"cmrlmib2f000a8o5mbfh4csxq","type":"DEBIT","amount":77000,"description":"Ghi nhận công nợ (Doanh thu chưa thực hiện) đơn hàng DHBL-20260715-01"},{"id":"cmrlwb4xm0003gsli6kb4v90x","journalEntryId":"cmrlwb4xm0000gsli8gu2j4kl","accountId":"cmrln1vse005a8ovfj9xbdl8s","type":"CREDIT","amount":77000,"description":"Ghi nhận công nợ (Doanh thu chưa thực hiện) đơn hàng DHBL-20260715-01"}]
+
+[2026-07-15T07:35:10.964Z] DELETED: DHBL-20260715-01 - Thu tiền khách hàng - Khách hàng lẻ – Đơn DHBL-20260715-01 - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmrm4spt6001agsm0aix0c4m0","journalEntryId":"cmrm4spt60018gsm01919upnw","accountId":"cmrlmib2e00078o5mu1q6ffjo","type":"DEBIT","amount":77000,"description":"Thu tiền khách hàng - Khách hàng lẻ – Đơn DHBL-20260715-01"},{"id":"cmrm4spt6001bgsm0lafjskh8","journalEntryId":"cmrm4spt60018gsm01919upnw","accountId":"cmrlmib2f000a8o5mbfh4csxq","type":"CREDIT","amount":77000,"description":"Thu tiền khách hàng - Khách hàng lẻ – Đơn DHBL-20260715-01"}]
+
+[2026-07-15T07:35:10.964Z] DELETED: DHBL-20260715-01 - Ghi nhận doanh thu từ HĐ - Khách hàng lẻ – Đơn DHBL-20260715-01 - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmrm4spta001ggsm0yneazc7q","journalEntryId":"cmrm4spta001egsm0b1st6vgz","accountId":"cmrln1vse005a8ovfj9xbdl8s","type":"DEBIT","amount":77000,"description":"Ghi nhận doanh thu từ HĐ - Khách hàng lẻ – Đơn DHBL-20260715-01"},{"id":"cmrm4spta001hgsm0j5wwqf13","journalEntryId":"cmrm4spta001egsm0b1st6vgz","accountId":"cmrlmib2m000v8o5mqxsjn8lb","type":"CREDIT","amount":77000,"description":"Ghi nhận doanh thu từ HĐ - Khách hàng lẻ – Đơn DHBL-20260715-01"}]
+

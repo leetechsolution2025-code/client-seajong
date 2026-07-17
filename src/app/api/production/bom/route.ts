@@ -10,7 +10,37 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { code, tenDinhMuc, manufacturedProductId, vatTu = [] } = body;
+    const { originalCode, tenDinhMuc, manufacturedProductId, vatTu = [] } = body;
+
+    let finalCode = "";
+    if (originalCode) {
+      const existingBoms = await prisma.dinhMuc.findMany({
+        where: { code: { startsWith: `${originalCode}-` } },
+        select: { code: true }
+      });
+      const existingNumbers: number[] = [];
+      for (const b of existingBoms) {
+        if (!b.code) continue;
+        const parts = b.code.split('-');
+        const lastPart = parts[parts.length - 1];
+        const num = parseInt(lastPart, 10);
+        if (!isNaN(num) && num > 0) {
+          existingNumbers.push(num);
+        }
+      }
+      existingNumbers.sort((a, b) => a - b);
+      let nextNum = 1;
+      for (const num of existingNumbers) {
+        if (num === nextNum) {
+          nextNum++;
+        } else if (num > nextNum) {
+          break;
+        }
+      }
+      finalCode = `${originalCode}-${String(nextNum).padStart(2, '0')}`;
+    } else {
+      finalCode = `DM-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    }
 
     for (const v of vatTu) {
       if (!v.materialId && v.tenVatTu) {
@@ -37,7 +67,7 @@ export async function POST(req: NextRequest) {
     // Tạo định mức mới
     const dm = await prisma.dinhMuc.create({
       data: {
-        code,
+        code: finalCode,
         tenDinhMuc,
         manufacturedProductId: manufacturedProductId || null,
         vatTu: {
