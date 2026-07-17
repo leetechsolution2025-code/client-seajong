@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import useSWR from "swr";
 import { DefectStatus } from "../mockData";
+import { SectionTitle } from "@/components/ui/SectionTitle";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -86,7 +87,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                   {/* Left Column: Info & Timeline */}
                   <div className="col-lg-5 d-flex flex-column gap-4">
                     <div className="bg-light rounded-4 border p-4">
-                      <h6 className="fw-bold mb-3"><i className="bi bi-info-circle me-2 text-muted"></i>Thông tin gốc</h6>
+                      <SectionTitle title="Thông tin gốc" icon="bi-info-circle" />
                       <div className="d-flex gap-4 small mb-3 text-muted">
                         <div>Sản phẩm: <strong className="text-dark">{defect.productName}</strong></div>
                         <div>Mã SP: <strong className="text-dark">{defect.productCode}</strong></div>
@@ -112,7 +113,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                     </div>
 
                     <div className="bg-white rounded-4 border p-4 flex-grow-1">
-                      <h6 className="fw-bold mb-4"><i className="bi bi-clock-history me-2 text-muted"></i>Lịch sử xử lý</h6>
+                      <SectionTitle title="Lịch sử xử lý" icon="bi-clock-history" className="mb-4" />
                       
                       <div className="position-relative ms-2 ps-3 border-start border-2 border-primary border-opacity-25" style={{ fontSize: '13px' }}>
                         {defect.activities && defect.activities.map((act: any) => (
@@ -135,10 +136,12 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                   {/* Right Column: Action Board & BOM */}
                   <div className="col-lg-7 d-flex flex-column gap-4">
                     <div className="bg-white rounded-4 shadow-sm border p-4">
-                      <div className="d-flex justify-content-between align-items-center mb-4">
-                        <h6 className="fw-bold mb-0"><i className="bi bi-gear me-2 text-primary"></i>Bảng Thao tác</h6>
-                        <span className="badge bg-dark rounded-pill px-3 py-2 fw-normal">{STATUS_LABELS[defect.status] || defect.status}</span>
-                      </div>
+                      <SectionTitle 
+                        title="Bảng Thao tác" 
+                        icon="bi-gear" 
+                        className="mb-4"
+                        action={<span className="badge bg-dark rounded-pill px-3 py-2 fw-normal" style={{ fontSize: '13px', textTransform: 'none' }}>{STATUS_LABELS[defect.status] || defect.status}</span>}
+                      />
 
                       {defect.status === 'COMPLETED' ? (
                         <div className="alert alert-success d-flex align-items-center rounded-3 border-0">
@@ -224,10 +227,11 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
 
                     {/* BOM Card */}
                     <div className="bg-white rounded-4 shadow-sm border p-4 flex-grow-1">
-                      <div className="d-flex justify-content-between align-items-center mb-3">
-                        <h6 className="fw-bold mb-0"><i className="bi bi-box-seam me-2 text-primary"></i>Vật tư linh kiện phân rã</h6>
-                        <span className="badge bg-light text-secondary border">Theo định mức (BOM)</span>
-                      </div>
+                      <SectionTitle 
+                        title="Vật tư linh kiện phân rã" 
+                        icon="bi-box-seam" 
+                        action={<span className="badge bg-light text-secondary border fw-normal" style={{ textTransform: 'none' }}>Theo định mức (BOM)</span>}
+                      />
                       
                       <div className="table-responsive">
                         <table className="table table-hover align-middle table-sm border mb-0">

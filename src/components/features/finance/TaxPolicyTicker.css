@@ -1,0 +1,29 @@
+.tax-ticker-container {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.tax-ticker-scroll-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.tax-ticker-content {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  animation: scroll-ticker 50s linear infinite;
+}
+
+.tax-ticker-content:hover {
+  animation-play-state: paused;
+}
+
+@keyframes scroll-ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}

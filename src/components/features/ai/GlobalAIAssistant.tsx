@@ -14,12 +14,63 @@ const ACCENT2   = "#8b5cf6";
 const ACCENT_BG = "rgba(99,102,241,0.07)";
 const ACCENT_BORDER = "rgba(99,102,241,0.25)";
 
-const SUGGESTED_QUESTIONS = [
-  "Tóm tắt tình hình kinh doanh hiện tại",
-  "Hợp đồng nào đang chậm tiến độ?",
-  "Win rate báo giá đang ở mức bao nhiêu?",
-  "Tổng công nợ hợp đồng hiện là bao nhiêu?",
-];
+const getDepartmentConfig = (pathname: string) => {
+  if (pathname.includes("/hr")) {
+    return {
+      name: "Nhân sự",
+      description: "quản trị nhân sự và chấm công",
+      suggestions: [
+        "Công ty đang có bao nhiêu nhân viên làm việc?",
+        "Dữ liệu chấm công hôm nay thế nào?",
+        "Tóm tắt tình hình biến động nhân sự",
+      ]
+    };
+  }
+  if (pathname.includes("/finance")) {
+    return {
+      name: "Kế toán",
+      description: "tư vấn nghiệp vụ tài chính kế toán",
+      suggestions: [
+        "Tổng công nợ phải thu hiện tại?",
+        "Doanh thu bán lẻ là bao nhiêu?",
+        "Chi phí hoạt động ở mức bao nhiêu?",
+      ]
+    };
+  }
+  if (pathname.includes("/production")) {
+    return {
+      name: "Sản xuất & Kho",
+      description: "quản lý kho và tiến độ sản xuất",
+      suggestions: [
+        "Có mã vật tư nào đang dưới định mức không?",
+        "Báo cáo số lượng hàng hóa trong kho?",
+        "Tình hình sản xuất gần đây",
+      ]
+    };
+  }
+  if (pathname.includes("/cs") || pathname.includes("/sales")) {
+    return {
+      name: "Kinh doanh & CSKH",
+      description: "phân tích dữ liệu khách hàng và doanh số",
+      suggestions: [
+        "Tỷ lệ chốt sale (Win rate) đang ở mức bao nhiêu?",
+        "Tổng giá trị các hợp đồng là bao nhiêu?",
+        "Tình hình chăm sóc khách hàng",
+      ]
+    };
+  }
+  
+  return {
+    name: "Ban Giám đốc",
+    description: "phân tích dữ liệu kinh doanh tổng quát",
+    suggestions: [
+      "Tóm tắt tình hình kinh doanh hiện tại",
+      "Hợp đồng nào đang chậm tiến độ?",
+      "Win rate báo giá đang ở mức bao nhiêu?",
+      "Tổng công nợ hợp đồng hiện là bao nhiêu?",
+    ]
+  };
+};
 
 // ── Simple inline markdown renderer ──────────────────────────────────────────
 function renderMarkdown(text: string): React.ReactNode[] {
@@ -45,8 +96,12 @@ function renderMarkdown(text: string): React.ReactNode[] {
     return <div key={li} style={{ marginTop: li === 0 ? 0 : 3 }}>{inlineNodes}</div>;
   });
 }
+import { usePathname } from "next/navigation";
 
-export function BoardAIAssistant() {
+export function GlobalAIAssistant() {
+  const pathname = usePathname();
+  const deptConfig = getDepartmentConfig(pathname);
+  
   const { error: toastError, success: toastSuccess } = useToast();
   const [open, setOpen]       = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -626,17 +681,21 @@ export function BoardAIAssistant() {
     setMessages([...newMessages, { id: assistantId, role: "assistant", content: "", loading: true }]);
     setLoading(true);
     try {
-      const history = newMessages.slice(-6).map(m => ({ role: m.role, content: m.content }));
-      const res = await fetch("/api/board/ai-chat", {
+      const apiHistory = newMessages.slice(-6).map(m => ({ role: m.role, content: m.content }));
+      const res = await fetch("/api/ai/global-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userText, history: history.slice(0, -1) }),
+        body: JSON.stringify({
+          message: text,
+          context: pathname,
+          history: apiHistory,
+        }),
       });
       const json = await res.json();
-      const reply = json.success ? json.reply : `Lỗi: ${json.error}`;
+      const reply = json.text ? json.text : `Lỗi: ${json.error || "Không xác định"}`;
       setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: reply, loading: false } : m));
       
-      if (isAudioEnabled && json.success) {
+      if (isAudioEnabled && json.text) {
         speakText(reply, assistantId);
       } else {
         if (isContinuousVoiceModeRef.current && recognitionRef.current) {
@@ -711,7 +770,7 @@ export function BoardAIAssistant() {
           onMouseDown={onMouseDown}
           onTouchStart={onTouchStart}
           className="ai-fab ai-fab-pulse"
-          title="Trợ lý AI Ban Giám đốc"
+          title={`Trợ lý AI ${deptConfig.name}`}
           style={{
             position: "fixed", 
             bottom: 24 + offset.y, 
@@ -764,7 +823,7 @@ export function BoardAIAssistant() {
               <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "var(--foreground)" }}>Trợ lý AI</p>
               <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 5 }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: isContinuousVoiceMode ? "#ef4444" : "#10b981", display: "inline-block" }} className={isContinuousVoiceMode ? "listening" : ""} />
-                {isContinuousVoiceMode ? "Đang đàm thoại liên tục..." : "Ban Giám đốc · Dữ liệu thực tế"}
+                {isContinuousVoiceMode ? "Đang đàm thoại liên tục..." : `${deptConfig.name} · Dữ liệu thực tế`}
               </p>
             </div>
             <button onClick={() => setShowSettings(!showSettings)} style={{
@@ -984,7 +1043,7 @@ export function BoardAIAssistant() {
                       Xin chào! Tôi là Trợ lý AI
                     </p>
                     <p style={{ margin: 0, fontSize: 12.5, color: "var(--muted-foreground)" }}>
-                      Chuyên hỗ trợ <span style={{ color: ACCENT, fontWeight: 700 }}>Ban Giám đốc</span> phân tích dữ liệu kinh doanh
+                      Chuyên hỗ trợ <span style={{ color: ACCENT, fontWeight: 700 }}>{deptConfig.name}</span> {deptConfig.description}
                     </p>
                   </div>
                 )}
@@ -996,7 +1055,7 @@ export function BoardAIAssistant() {
                       💡 Gợi ý nhanh
                     </p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                      {SUGGESTED_QUESTIONS.map((q, i) => (
+                      {deptConfig.suggestions.map((q, i) => (
                         <button key={i} className="ai-suggest" onClick={() => sendMessage(q)} style={{
                           padding: "10px 14px", borderRadius: 12,
                           border: `1px solid ${ACCENT_BORDER}`,

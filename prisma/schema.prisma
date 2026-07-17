@@ -2817,3 +2817,15 @@ model DefectActivity {
   defect      DefectRecord @relation(fields: [defectId], references: [id], onDelete: Cascade)
   @@index([defectId])
 }
+
+model TaxPolicyNews {
+  id          String   @id @default(cuid())
+  title       String
+  link        String   @unique
+  publishDate DateTime?
+  docType     String?  
+  summary         String?  
+  detailedSummary String?
+  createdAt       DateTime @default(now())
+}
+

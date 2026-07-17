@@ -11,6 +11,7 @@ import { SidebarAccordion } from "@/components/layout/SidebarAccordion";
 import { ToastProvider } from "@/components/ui/Toast";
 import { useAnimationPrefs } from "@/hooks/useAnimationPrefs";
 import { CreateTrainingRequestModal } from "@/components/features/training/CreateTrainingRequestModal";
+import { GlobalAIAssistant } from "@/components/features/ai/GlobalAIAssistant";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type SidebarItem = { name: string; href: string; icon?: string; requiredOrder?: number };
@@ -206,12 +207,19 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
         ]
       },
       {
-        group: "Kế toán", items: [
+        group: "Kế toán nội bộ", items: [
           { name: "Danh mục tài khoản", href: "/finance/accounts", icon: "bi-journal-bookmark" },
           { name: "Khai báo số dư đầu kỳ", href: "/finance/opening-balances", icon: "bi-wallet2" },
           { name: "Sổ nhật ký chung", href: "/finance/journal-entries", icon: "bi-journal-text" },
           { name: "Kết xuất dữ liệu", href: "/finance/export", icon: "bi-file-earmark-excel" },
           { name: "Tạm ứng và chi phí", href: "/finance/advances", icon: "bi-cash" },
+        ]
+      },
+      {
+        group: "Kế toán thuế", items: [
+          { name: "Lập tờ khai và báo cáo thuế", href: "/finance/tax/declarations-reports", icon: "bi-file-earmark-text" },
+          { name: "Kiểm tra hoá đơn", href: "/finance/tax/invoices-check", icon: "bi-receipt-cutoff" },
+          { name: "Tính toán và tối ưu", href: "/finance/tax/optimization", icon: "bi-calculator" },
         ]
       },
       {
@@ -476,17 +484,13 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
     label: "Đảm bảo chất lượng", icon: "bi-patch-check",
     sections: [
       {
-        group: "Tổng quan", items: [
-          { name: "Tổng quan", href: "/qa", icon: "bi-speedometer2" },
-          { name: "Tiêu chuẩn CL", href: "/qa/standards", icon: "bi-award" },
-          { name: "Kiểm tra", href: "/qa/inspections", icon: "bi-search" },
+        group: "Tiêu chuẩn chất lượng", flat: true, items: [
+          { name: "Tiêu chuẩn chất lượng", href: "/qa/standards", icon: "bi-award" },
         ]
       },
       {
-        group: "Kiểm soát", items: [
-          { name: "Lỗi & NCR", href: "/qa/defects", icon: "bi-bug" },
-          { name: "Hành động KP", href: "/qa/actions", icon: "bi-tools" },
-          { name: "Báo cáo QA", href: "/qa/reports", icon: "bi-file-earmark-bar-graph", requiredOrder: 2 },
+        group: "Kiểm tra", flat: true, items: [
+          { name: "Kiểm tra", href: "/qa/inspections", icon: "bi-search" },
         ]
       },
     ],
@@ -866,6 +870,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           }
         }}
       />
+      <GlobalAIAssistant />
     </ToastProvider>
   );
 }

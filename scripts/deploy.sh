@@ -147,20 +147,33 @@ info "Khởi động app với PM2..."
 # Ecosystem cập nhật PORT đúng
 cat > "${APP_DIR}/ecosystem.config.js" <<EOF
 module.exports = {
-  apps: [{
-    name: '${APP_NAME}',
-    script: 'npm',
-    args: 'start',
-    cwd: '${APP_DIR}',
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '800M',
-    env: {
-      NODE_ENV: 'production',
-      PORT: ${PORT}
+  apps: [
+    {
+      name: '${APP_NAME}',
+      script: 'npm',
+      args: 'start',
+      cwd: '${APP_DIR}',
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '800M',
+      env: {
+        NODE_ENV: 'production',
+        PORT: ${PORT}
+      }
+    },
+    {
+      name: 'tax-scraper-bot',
+      script: 'npx',
+      args: 'tsx scripts/tax-scraper.ts',
+      cwd: '${APP_DIR}',
+      cron_restart: '0 0,8,16 * * *',
+      autorestart: false,
+      env: {
+        NODE_ENV: 'production'
+      }
     }
-  }]
+  ]
 }
 EOF
 

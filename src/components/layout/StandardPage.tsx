@@ -15,6 +15,8 @@ interface StandardPageProps {
   useCard?: boolean;
   /** Padding cho vùng nội dung, mặc định là px-4 pb-4 pt-2 */
   paddingClassName?: string;
+  /** Nội dung hiển thị ngay dưới PageHeader (VD: Ticker, Alert) */
+  afterHeader?: ReactNode;
 }
 
 export function StandardPage({
@@ -27,6 +29,7 @@ export function StandardPage({
   background = "#EBF0F5",
   useCard = true,
   paddingClassName = "px-3 px-sm-4 pb-3 pb-sm-4 pt-2",
+  afterHeader,
 }: StandardPageProps) {
   return (
     <div className="d-flex flex-column h-100 overflow-hidden" style={{ background }}>
@@ -38,6 +41,8 @@ export function StandardPage({
       >
         {headerActions}
       </PageHeader>
+
+      {afterHeader}
 
       <div className={`flex-grow-1 d-flex flex-column standard-page-content ${paddingClassName}`} style={{ minHeight: 0 }}>
         {useCard ? (

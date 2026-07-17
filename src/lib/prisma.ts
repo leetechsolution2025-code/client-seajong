@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 // Force refresh: 2026-06-29 (Force refresh SaleOrderItem schema)
 const globalForPrisma = globalThis as unknown as {
-  prisma_smtp_v11: PrismaClient | undefined; 
+  prisma_tax_v1: PrismaClient | undefined; 
 }; 
 
 const prismaClientSingleton = () => {
@@ -10,13 +10,14 @@ const prismaClientSingleton = () => {
   return new PrismaClient();
 };
 
-const prisma = globalForPrisma.prisma_smtp_v11 ?? prismaClientSingleton();
+const prisma = globalForPrisma.prisma_tax_v1 ?? prismaClientSingleton();
 
 export { prisma };
 export const db = prisma;
 
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma_smtp_v11 = prisma;
+  globalForPrisma.prisma_tax_v1 = prisma;
 }
 
 export default prisma;
+// Force reload
