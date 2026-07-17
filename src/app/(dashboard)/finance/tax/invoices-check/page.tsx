@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
-import { TaxPolicyTicker } from "@/components/features/finance/TaxPolicyTicker";
 
 const formatCurrency = (val: number) => {
   return new Intl.NumberFormat("vi-VN", {
@@ -175,16 +174,24 @@ export default function InvoicesCheckPage() {
   const yellowInvoices = invoices.filter(i => i.statusAi === "yellow").length;
   const redInvoices = invoices.filter(i => i.statusAi === "red").length;
 
+  const customTickerNews = [
+    { text: `• Tổng hóa đơn đã quét: <span class="fw-bold text-primary">${totalInvoices}</span>`, type: 'text' },
+    { text: `• Hợp lệ (Sẵn sàng kê khai): <span class="fw-bold text-success">${greenInvoices}</span>`, type: 'text' },
+    { text: `• Cảnh báo (Cần giải trình): <span class="fw-bold text-warning">${yellowInvoices}</span>`, type: 'text' },
+    { text: `• Rủi ro (Không hợp lệ): <span class="fw-bold text-danger">${redInvoices}</span>`, type: 'text' }
+  ];
+
   return (
     <StandardPage
-      title="AI Auditor - Kiểm tra hóa đơn tự động"
+      title="Kiểm tra hóa đơn tự động"
       description="Đối soát hóa đơn đầu vào, đầu ra tự động từ cơ quan Thuế."
-      icon="bi-receipt"
-      afterHeader={<TaxPolicyTicker />}
+      useCard={false}
       color="indigo"
+      customTickerNews={customTickerNews}
     >
-      <div className="row g-4 mb-4">
-        {/* Email Auto Forward & Drag Drop Area */}
+      <div className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0, gap: "1rem" }}>
+        <div className="row g-4 flex-shrink-0">
+          {/* Email Auto Forward & Drag Drop Area */}
         <div className="col-12">
           <div className="app-card border-0 shadow-sm bg-white">
             <div className="card-body p-4">
@@ -252,76 +259,20 @@ export default function InvoicesCheckPage() {
             </div>
           </div>
         </div>
-      </div>
+        </div>
 
-      {/* AI Summary Stats */}
-      <div className="row g-4 mb-4">
-        <div className="col-md-3">
-          <div className="app-card border-0 shadow-sm bg-white h-100">
-            <div className="card-body p-3 d-flex align-items-center">
-              <div className="bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center me-3" style={{ width: "48px", height: "48px" }}>
-                <i className="bi bi-receipt fs-4"></i>
-              </div>
-              <div>
-                <div className="text-muted small fw-medium">Tổng hóa đơn đã quét</div>
-                <h4 className="fw-bold mb-0">{totalInvoices}</h4>
+        {/* Invoice Table */}
+        <div className="bg-white border rounded-4 d-flex flex-column flex-grow-1 position-relative shadow-sm overflow-hidden p-0" style={{ minHeight: 400 }}>
+          <div className="card-body p-0 d-flex flex-column h-100">
+            <div className="p-3 border-bottom d-flex align-items-center justify-content-between bg-light flex-shrink-0">
+              <h6 className="fw-bold mb-0"><i className="bi bi-list-columns-reverse text-primary me-2"></i>Danh sách Hóa đơn & Kết quả Audit</h6>
+              <div className="d-flex gap-2">
+                <input type="text" className="form-control form-control-sm" placeholder="Tìm kiếm MST, Số HĐ..." style={{ width: "200px" }} />
+                <button className="btn btn-sm btn-outline-secondary"><i className="bi bi-funnel"></i> Lọc</button>
               </div>
             </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="app-card border-0 shadow-sm bg-white h-100 border-start border-4 border-success">
-            <div className="card-body p-3 d-flex align-items-center">
-              <div className="bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center me-3" style={{ width: "48px", height: "48px" }}>
-                <i className="bi bi-check2-circle fs-4"></i>
-              </div>
-              <div>
-                <div className="text-muted small fw-medium">Hợp lệ (Sẵn sàng kê khai)</div>
-                <h4 className="fw-bold mb-0 text-success">{greenInvoices}</h4>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="app-card border-0 shadow-sm bg-white h-100 border-start border-4 border-warning">
-            <div className="card-body p-3 d-flex align-items-center">
-              <div className="bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center me-3" style={{ width: "48px", height: "48px" }}>
-                <i className="bi bi-exclamation-triangle fs-4"></i>
-              </div>
-              <div>
-                <div className="text-muted small fw-medium">Cảnh báo (Cần giải trình)</div>
-                <h4 className="fw-bold mb-0 text-warning">{yellowInvoices}</h4>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="app-card border-0 shadow-sm bg-white h-100 border-start border-4 border-danger">
-            <div className="card-body p-3 d-flex align-items-center">
-              <div className="bg-danger-subtle text-danger rounded-circle d-flex align-items-center justify-content-center me-3" style={{ width: "48px", height: "48px" }}>
-                <i className="bi bi-shield-x fs-4"></i>
-              </div>
-              <div>
-                <div className="text-muted small fw-medium">Rủi ro (Không hợp lệ)</div>
-                <h4 className="fw-bold mb-0 text-danger">{redInvoices}</h4>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Invoice Table */}
-      <div className="app-card border-0 shadow-sm bg-white">
-        <div className="card-body p-0">
-          <div className="p-3 border-bottom d-flex align-items-center justify-content-between bg-light rounded-top">
-            <h6 className="fw-bold mb-0"><i className="bi bi-list-columns-reverse text-primary me-2"></i>Danh sách Hóa đơn & Kết quả Audit</h6>
-            <div className="d-flex gap-2">
-              <input type="text" className="form-control form-control-sm" placeholder="Tìm kiếm MST, Số HĐ..." style={{ width: "200px" }} />
-              <button className="btn btn-sm btn-outline-secondary"><i className="bi bi-funnel"></i> Lọc</button>
-            </div>
-          </div>
-          
-          <div className="table-responsive">
+            
+            <div className="table-responsive flex-grow-1 h-100 overflow-auto">
             <table className="table table-hover align-middle mb-0" style={{ fontSize: "13.5px" }}>
               <thead className="table-light text-nowrap">
                 <tr>
@@ -417,6 +368,7 @@ export default function InvoicesCheckPage() {
             </table>
           </div>
         </div>
+      </div>
       </div>
 
       {/* Fullscreen Invoice Modal */}

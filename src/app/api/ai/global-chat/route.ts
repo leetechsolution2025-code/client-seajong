@@ -148,15 +148,43 @@ Dữ liệu tổng quan:
 Đóng vai chuyên gia quản trị chiến lược, hãy đưa ra lời khuyên ngắn gọn, dữ liệu phân tích sắc bén.`;
     }
 
+    let taxContext = "";
+    if (message.toLowerCase().includes("thuế") || message.toLowerCase().includes("hóa đơn") || message.toLowerCase().includes("tncn") || message.toLowerCase().includes("tndn") || message.toLowerCase().includes("đất")) {
+      try {
+        const qas = await (prisma as any).taxQA.findMany({
+          take: 200,
+          orderBy: { createdAt: 'desc' }
+        });
+        
+        const keywords = message.toLowerCase().split(/\s+/).filter(w => w.length > 3 && !["thuế", "những", "được", "không"].includes(w));
+        const scoredQAs = qas.map((qa: any) => {
+          let score = 0;
+          const q = qa.question.toLowerCase();
+          const a = qa.answer.toLowerCase();
+          keywords.forEach(kw => {
+            if (q.includes(kw)) score += 2;
+            if (a.includes(kw)) score += 1;
+          });
+          return { ...qa, score };
+        }).filter((qa: any) => qa.score > 0).sort((a: any, b: any) => b.score - a.score).slice(0, 3);
+        
+        if (scoredQAs.length > 0) {
+          taxContext = `\n\n[KIẾN THỨC PHÁP LÝ TỪ TỔNG CỤC THUẾ (GDT)]:\nDưới đây là các câu hỏi đáp chính thức từ GDT liên quan đến câu hỏi của người dùng. Hãy sử dụng thông tin này để trả lời chính xác (có thể trích dẫn nguồn):\n` + scoredQAs.map((qa: any) => `Hỏi: ${qa.question}\nĐáp: ${qa.answer}`).join("\n\n");
+        }
+      } catch (err) {
+        console.error("Lỗi lấy dữ liệu RAG TaxQA:", err);
+      }
+    }
+
     const conversationStr = history.map(m => `[${m.role === "user" ? "USER" : "AI"}]: ${m.content}`).join("\n");
-    const fullPrompt = `${systemPrompt}
+    const fullPrompt = `${systemPrompt}${taxContext}
 
 LỊCH SỬ CHAT:
 ${conversationStr}
 
 CÂU HỎI MỚI NHẤT CỦA USER: ${message}
 
-(Hãy trả lời bằng định dạng Markdown. Tập trung trực tiếp vào câu hỏi.)
+(Hãy trả lời bằng định dạng Markdown. Tập trung trực tiếp vào câu hỏi. Đảm bảo cung cấp thông tin chính xác nếu có tài liệu tham khảo.)
 `;
 
     const text = await generateWithFallback(fullPrompt);

@@ -252,6 +252,41 @@ export default function JournalEntriesPage() {
     }
   ];
 
+  // Calculate Ticker data
+  const tongChungTu = entries.length;
+  let daHachToan = 0;
+  let chuaHachToan = 0;
+  let tongGiaTri = 0;
+
+  entries.forEach((e: any) => {
+    tongGiaTri += e.totalAmount || 0;
+    
+    if (e.sourceModule !== 'MANUAL' && e.referenceCode) {
+      const hasManual = entries.some((re: any) => re.referenceCode === e.referenceCode && re.sourceModule === 'MANUAL');
+      if (hasManual) {
+        daHachToan++;
+      } else {
+        chuaHachToan++;
+      }
+    } else {
+      daHachToan++;
+    }
+  });
+
+  let danhGia = `<span class="text-success fw-bold">Sổ sách hạch toán đầy đủ</span>`;
+  if (chuaHachToan > 0) {
+    danhGia = `<span class="text-danger fw-bold">Có ${chuaHachToan} chứng từ cần hạch toán</span>`;
+  }
+
+  const customTickerNews = [
+    { text: `• Tổng chứng từ: <span class="fw-bold">${tongChungTu}</span>`, type: 'text' },
+    { text: `• Đã hạch toán: <span class="fw-bold">${daHachToan}</span>`, type: 'text' },
+    { text: `• Chưa hạch toán: <span class="text-danger fw-bold">${chuaHachToan}</span>`, type: 'text' },
+    { text: `• Tổng nợ: <span class="fw-bold">${formatCurrency(tongGiaTri)}</span>`, type: 'text' },
+    { text: `• Tổng có: <span class="fw-bold">${formatCurrency(tongGiaTri)}</span>`, type: 'text' },
+    { text: danhGia, type: 'text' }
+  ];
+
   return (
     <StandardPage
       title="Sổ nhật ký chung"
@@ -259,6 +294,7 @@ export default function JournalEntriesPage() {
       icon="bi-journal-text"
       color="indigo"
       useCard={false}
+      customTickerNews={customTickerNews}
     >
       <div className="card app-card border-0 shadow-sm flex-grow-1 overflow-hidden d-flex flex-column">
         {/* Filters Toolbar */}

@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
-import { TaxPolicyTicker } from "@/components/features/finance/TaxPolicyTicker";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -79,15 +78,64 @@ export default function TaxDeclarationsReportsPage() {
       const data = await res.json();
       if (data.success) {
         setTndnData(data.data);
-      } else {
-        alert(data.message || "Lỗi đồng bộ TNDN");
       }
     } catch (e) {
-      alert("Đã xảy ra lỗi kết nối");
+      console.error(e);
     } finally {
       setIsSyncingTndn(false);
     }
   };
+
+  const handleUploadPayroll = async () => {
+    setIsProcessing(true);
+    try {
+      const res = await fetch("/api/finance/tax/tncn");
+      const data = await res.json();
+      if (data.success) {
+        setTncnData(data.data);
+        setTncnUploaded(true);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Tự động đồng bộ theo thời gian thực (10s/lần)
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchRealtime = async () => {
+      try {
+        const resTncn = await fetch("/api/finance/tax/tncn");
+        if (resTncn.ok) {
+          const dataTncn = await resTncn.json();
+          if (dataTncn.success && isMounted) {
+            setTncnData(dataTncn.data);
+            setTncnUploaded(true);
+          }
+        }
+
+        const resTndn = await fetch("/api/finance/tax/tndn");
+        if (resTndn.ok) {
+          const dataTndn = await resTndn.json();
+          if (dataTndn.success && isMounted) {
+            setTndnData(dataTndn.data);
+          }
+        }
+      } catch (e) {
+        console.error("Realtime sync error:", e);
+      }
+    };
+
+    fetchRealtime();
+    const interval = setInterval(fetchRealtime, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const renderToolbar = () => {
     if (activeTabId === "GTGT") {
@@ -136,23 +184,13 @@ export default function TaxDeclarationsReportsPage() {
     return null;
   };
 
-  const handleUploadPayroll = async () => {
-    setIsProcessing(true);
-    try {
-      const res = await fetch("/api/finance/tax/tncn");
-      const data = await res.json();
-      if (data.success) {
-        setTncnData(data.data);
-        setTncnUploaded(true);
-      } else {
-        alert(data.message || "Lỗi đồng bộ dữ liệu");
-      }
-    } catch (e) {
-      alert("Đã xảy ra lỗi kết nối");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  // handleUploadPayroll was moved up
+
+  const customTickerNews = [
+    { text: `• <span class="fw-bold">GTGT:</span> Lệch 1đ tại chỉ tiêu [24] so với bảng kê hóa đơn gốc.`, type: 'text' },
+    { text: `• <span class="fw-bold">TNCN:</span> Phát hiện 2 MST không tồn tại (NV Thử việc).`, type: 'text' },
+    { text: `• <span class="fw-bold">TNDN:</span> Có 2 khoản chi phí chờ phê duyệt tính hợp lý.`, type: 'text' }
+  ];
 
   return (
     <StandardPage
@@ -162,7 +200,7 @@ export default function TaxDeclarationsReportsPage() {
       color="indigo"
       useCard={false}
       paddingClassName="px-4 pb-2 pt-1"
-      afterHeader={<TaxPolicyTicker />}
+      customTickerNews={customTickerNews}
     >
       <div className="row g-4 d-flex h-100 flex-grow-1 overflow-hidden pb-4">
         {/* 2. Workspace */}

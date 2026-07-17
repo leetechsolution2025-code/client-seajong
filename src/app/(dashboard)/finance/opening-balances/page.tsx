@@ -81,6 +81,18 @@ export default function OpeningBalancesPage() {
   const totalDebit = data.reduce((acc, curr) => acc + (curr.isParent ? 0 : (curr.openingDebit || 0)), 0);
   const totalCredit = data.reduce((acc, curr) => acc + (curr.isParent ? 0 : (curr.openingCredit || 0)), 0);
   const isBalanced = totalDebit === totalCredit;
+  const diff = Math.abs(totalDebit - totalCredit);
+
+  const customTickerNews = [
+    { text: `• Tổng dư nợ: ${totalDebit.toLocaleString("vi-VN")} đ`, type: 'text' },
+    { text: `• Tổng dư có: ${totalCredit.toLocaleString("vi-VN")} đ`, type: 'text' },
+    { 
+      text: !isBalanced 
+        ? `<span class="text-danger fw-bold">CẢNH BÁO LỆCH: ${diff.toLocaleString("vi-VN")} đ</span>` 
+        : `<span class="text-success fw-bold">ĐÃ CÂN BẰNG</span>`, 
+      type: 'text' 
+    }
+  ];
 
   return (
     <StandardPage
@@ -88,6 +100,7 @@ export default function OpeningBalancesPage() {
       icon="bi-wallet2"
       useCard={false}
       paddingClassName="p-3 p-sm-4"
+      customTickerNews={customTickerNews}
     >
       <div className="d-flex flex-column h-100 bg-white rounded-4 shadow-sm border overflow-hidden">
         {/* Header Actions */}
@@ -193,30 +206,6 @@ export default function OpeningBalancesPage() {
           </table>
         </div>
 
-        {/* Fixed Footer */}
-        <div className="bg-light border-top flex-shrink-0">
-          <table className="table mb-0" style={{ fontSize: 13.5 }}>
-            <tfoot>
-              <tr className="fw-bold">
-                <td className="text-end py-3 px-3 align-middle">TỔNG CỘNG:</td>
-                <td className={`text-end py-3 px-3 align-middle ${!isBalanced ? "text-danger" : "text-success"}`} style={{ width: 250 }}>
-                  {totalDebit.toLocaleString("vi-VN")}
-                </td>
-                <td className={`text-end py-3 px-3 align-middle ${!isBalanced ? "text-danger" : "text-success"}`} style={{ width: 250 }}>
-                  {totalCredit.toLocaleString("vi-VN")}
-                </td>
-              </tr>
-              {!isBalanced && (
-                <tr>
-                  <td colSpan={3} className="text-center text-danger small py-2 bg-danger bg-opacity-10 border-top-0">
-                    <i className="bi bi-exclamation-triangle me-1" />
-                    Tổng Dư Nợ và Tổng Dư Có đang không cân bằng (Chênh lệch: {Math.abs(totalDebit - totalCredit).toLocaleString("vi-VN")}). Vui lòng kiểm tra lại trước khi lưu!
-                  </td>
-                </tr>
-              )}
-            </tfoot>
-          </table>
-        </div>
       </div>
     </StandardPage>
   );

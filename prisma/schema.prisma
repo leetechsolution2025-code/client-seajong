@@ -2829,3 +2829,14 @@ model TaxPolicyNews {
   createdAt       DateTime @default(now())
 }
 
+
+model TaxQA {
+  id          String    @id @default(cuid())
+  question    String    
+  answer      String    
+  category    String?
+  sourceUrl   String?   @unique
+  publishDate DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}

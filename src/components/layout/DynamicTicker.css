@@ -1,21 +1,22 @@
-.tax-ticker-container {
+.dynamic-ticker-container {
   overflow: hidden;
   white-space: nowrap;
+  height: 36px;
 }
 
-.tax-ticker-scroll-wrapper {
+.dynamic-ticker-scroll-wrapper {
   position: relative;
   width: 100%;
 }
 
-.tax-ticker-content {
+.dynamic-ticker-content {
   display: inline-block;
   white-space: nowrap;
   padding-left: 100%;
   animation: scroll-ticker 50s linear infinite;
 }
 
-.tax-ticker-content:hover {
+.dynamic-ticker-content:hover {
   animation-play-state: paused;
 }
 

@@ -56,6 +56,7 @@ export default function ExportDataPage() {
       description="Kết xuất dữ liệu tài chính kế toán tương thích các phần mềm chuyên dụng"
       icon="bi-box-arrow-right"
       color="indigo"
+      hideTicker={true}
     >
       <div className="row g-4">
         <div className="col-lg-7">

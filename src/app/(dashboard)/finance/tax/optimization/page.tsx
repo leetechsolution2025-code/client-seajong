@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
 import dynamic from "next/dynamic";
-import { TaxPolicyTicker } from "@/components/features/finance/TaxPolicyTicker";
 
 // Using standard NumberFormat for money
 const formatVND = (num: number) => new Intl.NumberFormat('vi-VN').format(num);
@@ -99,13 +98,21 @@ export default function TaxOptimizationPage() {
     return days;
   };
 
+  const customTickerNews = [
+    { text: `• <span class="fw-bold text-danger">Lịch Thuế (Ngày 20):</span> Nộp tờ khai Thuế GTGT Tháng trước (Khẩn cấp)`, type: 'text' },
+    { text: `• <span class="fw-bold text-warning">Lịch Thuế (Ngày 30):</span> Hạn nộp Tạm tính Thuế TNDN Quý 2 (Sắp đến hạn)`, type: 'text' },
+    ...(hasRentOptimization ? [{ text: `• <span class="fw-bold text-primary">Tối ưu TNCN:</span> Đề xuất chuyển ${formatVND(rentAllowance)} VNĐ thành phụ cấp tiền nhà để tối ưu thuế!`, type: 'text' }] : []),
+    { text: `• <span class="fw-bold text-warning">Dự báo TNDN:</span> Chuẩn bị ${formatVND(citTax)} VNĐ nộp thuế trước 30/07.`, type: 'text' },
+  ];
+
   return (
     <StandardPage
-      title="Lập lịch & Tối ưu Thuế (Tax Optimization)"
+      title="Tối ưu thuế"
       description="Quản lý lịch nộp thuế thông minh và tối ưu hóa dòng tiền dựa trên AI."
       icon="bi-calendar-check"
       useCard={false}
-      afterHeader={<TaxPolicyTicker />}
+      color="rose"
+      customTickerNews={customTickerNews}
     >
       <div className="row g-4">
         

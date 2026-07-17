@@ -401,7 +401,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance" }: Inven
   return (
     <div className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0, gap: "1rem" }}>
       {/* KPI Cards */}
-      <div className="row g-3">
+      <div className="row g-3 d-none">
         <KPICard 
           label="Tổng số mặt hàng" 
           value={stats.tongMatHang} 

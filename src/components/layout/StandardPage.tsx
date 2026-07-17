@@ -1,5 +1,6 @@
 import React, { ReactNode } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { DynamicTicker } from "@/components/layout/DynamicTicker";
 
 interface StandardPageProps {
   title: string;
@@ -17,6 +18,10 @@ interface StandardPageProps {
   paddingClassName?: string;
   /** Nội dung hiển thị ngay dưới PageHeader (VD: Ticker, Alert) */
   afterHeader?: ReactNode;
+  /** Ẩn Dynamic Ticker (Mặc định là hiển thị trên tất cả các trang) */
+  hideTicker?: boolean;
+  /** Custom data cho Ticker */
+  customTickerNews?: any[];
 }
 
 export function StandardPage({
@@ -30,6 +35,8 @@ export function StandardPage({
   useCard = true,
   paddingClassName = "px-3 px-sm-4 pb-3 pb-sm-4 pt-2",
   afterHeader,
+  hideTicker = false,
+  customTickerNews,
 }: StandardPageProps) {
   return (
     <div className="d-flex flex-column h-100 overflow-hidden" style={{ background }}>
@@ -42,6 +49,7 @@ export function StandardPage({
         {headerActions}
       </PageHeader>
 
+      {!hideTicker && <DynamicTicker pageTitle={title} customNews={customTickerNews} />}
       {afterHeader}
 
       <div className={`flex-grow-1 d-flex flex-column standard-page-content ${paddingClassName}`} style={{ minHeight: 0 }}>

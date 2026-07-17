@@ -159,6 +159,13 @@ export default function AdvancesPage() {
     },
   ];
 
+  const customTickerNews = [
+    { text: `• Đã tạm ứng trong năm: <span class="fw-bold">${totalAmount.toLocaleString("vi-VN")} đ</span>`, type: 'text' },
+    { text: `• Đã tạm ứng trong tháng: <span class="fw-bold">${totalPaid.toLocaleString("vi-VN")} đ</span>`, type: 'text' },
+    { text: `• Còn nợ tạm ứng: <span class="fw-bold text-danger">${totalDebt.toLocaleString("vi-VN")} đ</span>`, type: 'text' },
+    { text: `• Yêu cầu chờ duyệt: <span class="fw-bold text-danger">${pendingRequests} yêu cầu</span>`, type: 'text' }
+  ];
+
   return (
     <StandardPage
       title="Quản lý tạm ứng"
@@ -166,42 +173,9 @@ export default function AdvancesPage() {
       icon="bi-cash"
       color="emerald"
       useCard={false}
+      customTickerNews={customTickerNews}
     >
       <div className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0, gap: "1rem" }}>
-        
-        {/* Sleek Unified Toolbar (Outside the main card) */}
-        <div className="bg-white border rounded-3 shadow-sm d-flex align-items-center px-4 py-2.5 w-100" style={{ minHeight: 48 }}>
-          <div className="d-flex align-items-center gap-2 flex-grow-1 justify-content-center">
-            <i className="bi bi-calendar3 text-primary" style={{ fontSize: 16 }} />
-            <span className="text-muted" style={{ fontSize: 13, fontWeight: 500 }}>Đã tạm ứng trong năm:</span>
-            <span className="fw-bold text-dark" style={{ fontSize: 14 }}>{totalAmount.toLocaleString("vi-VN")} đ</span>
-          </div>
-          
-          <div className="border-start border-2 opacity-50" style={{ height: 20 }}></div>
-
-          <div className="d-flex align-items-center gap-2 flex-grow-1 justify-content-center">
-            <i className="bi bi-calendar-event text-success" style={{ fontSize: 16 }} />
-            <span className="text-muted" style={{ fontSize: 13, fontWeight: 500 }}>Đã tạm ứng trong tháng:</span>
-            <span className="fw-bold text-dark" style={{ fontSize: 14 }}>{totalPaid.toLocaleString("vi-VN")} đ</span>
-          </div>
-          
-          <div className="border-start border-2 opacity-50" style={{ height: 20 }}></div>
-
-          <div className="d-flex align-items-center gap-2 flex-grow-1 justify-content-center">
-            <i className="bi bi-exclamation-triangle-fill text-warning" style={{ fontSize: 16 }} />
-            <span className="text-muted" style={{ fontSize: 13, fontWeight: 500 }}>Còn nợ tạm ứng:</span>
-            <span className="fw-bold text-dark" style={{ fontSize: 14 }}>{totalDebt.toLocaleString("vi-VN")} đ</span>
-          </div>
-          
-          <div className="border-start border-2 opacity-50" style={{ height: 20 }}></div>
-
-          <div className="d-flex align-items-center gap-2 flex-grow-1 justify-content-center">
-            <i className="bi bi-file-earmark-text-fill text-danger" style={{ fontSize: 16 }} />
-            <span className="text-muted" style={{ fontSize: 13, fontWeight: 500 }}>Yêu cầu chờ duyệt:</span>
-            <span className="fw-bold text-danger" style={{ fontSize: 14 }}>{pendingRequests} yêu cầu</span>
-          </div>
-        </div>
-
         {/* Main Content Card */}
         <div className="bg-white border rounded-4 d-flex flex-column flex-grow-1 position-relative shadow-sm overflow-hidden p-0" style={{ minHeight: 400 }}>
           {/* Card Header */}

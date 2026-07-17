@@ -33,6 +33,8 @@ export default function FinancialReportsPage() {
 
   const activeTab = REPORT_STEPS.find(s => s.num === currentStep)?.id || "balance";
 
+  const [globalTickerNews, setGlobalTickerNews] = useState<any[]>([]);
+
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
@@ -52,6 +54,86 @@ export default function FinancialReportsPage() {
       
     return () => { isMounted = false; };
   }, [activeTab, month, year]);
+
+  // Fetch all 4 reports for the global ticker
+  useEffect(() => {
+    let isMounted = true;
+    Promise.all([
+      fetch(`/api/finance/reports?tab=balance&month=${month}&year=${year}`).then(r => r.json()),
+      fetch(`/api/finance/reports?tab=income&month=${month}&year=${year}`).then(r => r.json()),
+      fetch(`/api/finance/reports?tab=cashflow&month=${month}&year=${year}`).then(r => r.json()),
+      fetch(`/api/finance/reports?tab=trial&month=${month}&year=${year}`).then(r => r.json())
+    ]).then(([bRes, iRes, cRes, tRes]) => {
+      if (!isMounted) return;
+      const news = [];
+
+      // 1. Balance
+      if (bRes.data) {
+        const totalAssets = bRes.data.find((r:any) => r.code === "200")?.current || 0;
+        const totalCapital = bRes.data.find((r:any) => r.code === "500")?.current || 0;
+        if (totalAssets === totalCapital) {
+          news.push({ text: `• <span class="fw-bold text-success">Cân đối kế toán:</span> Tổng tài sản và Tổng nguồn vốn cân bằng (${new Intl.NumberFormat('vi-VN').format(totalAssets)} VNĐ).`, type: 'text' });
+        } else {
+          news.push({ text: `• <span class="fw-bold text-danger">Lỗi Cân đối kế toán:</span> Bảng cân đối bị lệch ${new Intl.NumberFormat('vi-VN').format(Math.abs(totalAssets - totalCapital))} VNĐ.`, type: 'text' });
+        }
+        const cash = bRes.data.find((r:any) => r.code === "110")?.current || 0;
+        if (cash < 0) {
+          news.push({ text: `• <span class="fw-bold text-danger">Cảnh báo:</span> Quỹ tiền mặt/tiền gửi đang bị âm (${new Intl.NumberFormat('vi-VN').format(cash)} VNĐ)!`, type: 'text' });
+        }
+      }
+
+      // 2. Income
+      if (iRes.data) {
+        const revenue = iRes.data.find((r:any) => r.code === "10")?.current || 0;
+        const profit = iRes.data.find((r:any) => r.code === "60")?.current || 0;
+        if (profit > 0) {
+          news.push({ text: `• <span class="fw-bold text-success">Tích cực:</span> Kết quả kinh doanh có lãi. Lợi nhuận đạt ${new Intl.NumberFormat('vi-VN').format(profit)} VNĐ.`, type: 'text' });
+        } else if (profit < 0) {
+          news.push({ text: `• <span class="fw-bold text-danger">Cảnh báo:</span> Kết quả kinh doanh ghi nhận LỖ ${new Intl.NumberFormat('vi-VN').format(Math.abs(profit))} VNĐ.`, type: 'text' });
+        } else {
+          news.push({ text: `• <span class="fw-bold text-muted">Kết quả kinh doanh:</span> Chưa có phát sinh lợi nhuận hoặc doanh thu.`, type: 'text' });
+        }
+        const cogs = iRes.data.find((r:any) => r.code === "11")?.current || 0;
+        if (revenue > 0 && cogs / revenue > 0.8) {
+           news.push({ text: `• <span class="fw-bold text-warning">Rủi ro Kết quả kinh doanh:</span> Tỷ trọng Giá vốn chiếm >80% doanh thu thuần.`, type: 'text' });
+        }
+      }
+
+      // 3. Cashflow
+      if (cRes.data) {
+        const netCash = cRes.data.find((r:any) => r.code === "50")?.current || 0;
+        const operatingCash = cRes.data.find((r:any) => r.code === "20")?.current || 0;
+        if (netCash < 0) {
+          news.push({ text: `• <span class="fw-bold text-warning">Lưu ý Lưu chuyển tiền tệ:</span> Dòng tiền thuần bị ÂM (${new Intl.NumberFormat('vi-VN').format(Math.abs(netCash))} VNĐ).`, type: 'text' });
+        } else if (netCash > 0) {
+          news.push({ text: `• <span class="fw-bold text-success">Khả quan:</span> Dòng tiền dương, thặng dư ${new Intl.NumberFormat('vi-VN').format(netCash)} VNĐ.`, type: 'text' });
+        } else {
+          news.push({ text: `• <span class="fw-bold text-muted">Lưu chuyển tiền tệ:</span> Lưu chuyển tiền thuần trong kỳ bằng 0.`, type: 'text' });
+        }
+        if (operatingCash < 0) {
+          news.push({ text: `• <span class="fw-bold text-danger">Rủi ro:</span> Dòng tiền Hoạt động kinh doanh âm. Cần kiểm tra công nợ!`, type: 'text' });
+        }
+      }
+
+      // 4. Trial
+      if (tRes.data) {
+        const totalRow = tRes.data.find((r:any) => r.accountName === "Cộng");
+        if (totalRow) {
+           const diffOpening = Math.abs((totalRow.openingDebit || 0) - (totalRow.openingCredit || 0));
+           const diffArising = Math.abs((totalRow.arisingDebit || 0) - (totalRow.arisingCredit || 0));
+           const diffClosing = Math.abs((totalRow.closingDebit || 0) - (totalRow.closingCredit || 0));
+           if (diffOpening > 0 || diffArising > 0 || diffClosing > 0) {
+             news.push({ text: `• <span class="fw-bold text-danger">Lỗi Cân đối tài khoản:</span> Lệch Phát sinh: ${new Intl.NumberFormat('vi-VN').format(diffArising)} VNĐ.`, type: 'text' });
+           } else {
+             news.push({ text: `• <span class="fw-bold text-success">Hợp lệ:</span> Cân đối tài khoản đã cân bằng hoàn hảo.`, type: 'text' });
+           }
+        }
+      }
+
+      setGlobalTickerNews(news);
+    }).catch(err => console.error(err));
+    return () => { isMounted = false; };
+  }, [month, year]);
 
   const columns = [
     { header: "CHỈ TIÊU", render: (row: any) => {
@@ -131,6 +213,8 @@ export default function FinancialReportsPage() {
     </>
   );
 
+
+
   return (
     <StandardPage
       title="Báo cáo tài chính"
@@ -138,6 +222,7 @@ export default function FinancialReportsPage() {
       icon="bi-file-earmark-bar-graph"
       color="blue"
       useCard={false}
+      customTickerNews={globalTickerNews}
     >
       <div className="bg-white rounded-4 shadow-sm border d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
         {/* -- FIXED HEADER AREA -- */}

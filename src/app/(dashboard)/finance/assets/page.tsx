@@ -291,7 +291,7 @@ export default function AssetsPage() {
       <div className="d-flex flex-column h-100">
         
         {/* ── Thống kê ── */}
-        <div className="row g-3 mb-3">
+        <div className="row g-3 mb-3 d-none">
           <KPICard 
             label="Tổng giá trị hiện tại" 
             value={Math.round(stats.totalValue).toLocaleString("vi-VN")} 

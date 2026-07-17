@@ -101,6 +101,7 @@ export default function ChartOfAccountsPage() {
       icon="bi-journal-bookmark"
       color="indigo"
       useCard={false}
+      hideTicker={true}
     >
       <div className="card app-card border-0 shadow-sm flex-grow-1 overflow-hidden d-flex flex-column">
         {/* Filters Toolbar */}
