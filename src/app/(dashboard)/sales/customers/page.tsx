@@ -441,6 +441,13 @@ export default function SalesCustomersPage() {
     }
   ];
 
+  const mockOrders = [
+    { id: 1, orderCode: "DH-2026-001", totalAmount: 15000000, paidAmount: 15000000, note: "Thanh toán đủ" },
+    { id: 2, orderCode: "DH-2026-002", totalAmount: 32000000, paidAmount: 16000000, note: "Thanh toán đợt 1" },
+    { id: 3, orderCode: "DH-2026-003", totalAmount: 8500000, paidAmount: 0, note: "Chưa thanh toán" },
+    { id: 4, orderCode: "DH-2026-004", totalAmount: 45000000, paidAmount: 40000000, note: "Còn nợ 5tr" },
+  ];
+
   return (
     <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
       <PageHeader
@@ -558,7 +565,7 @@ export default function SalesCustomersPage() {
                         <div className="flex-grow-1 mt-3" style={{ minHeight: 0 }}>
                           <Table
                             columns={orderColumns}
-                            rows={[]} 
+                            rows={mockOrders} 
                             emptyText="Chưa có dữ liệu hoạt động"
                             compact
                             wrapperStyle={{ height: "100%", overflowY: "auto" }}
