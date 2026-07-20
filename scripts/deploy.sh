@@ -105,6 +105,9 @@ else
 fi
 log "Database đã migration và đồng bộ hoàn toàn"
 
+info "Đồng bộ dữ liệu Kỹ năng mềm (Q&A)..."
+npx tsx prisma/seed-soft-skills-qa.ts || true
+
 if [ "${SKIP_DATA_CONVERT}" != "1" ]; then
     info "Chạy các tập lệnh chuyển đổi dữ liệu..."
     node scripts/migrate_mfp_categories.js || true
