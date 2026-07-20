@@ -700,7 +700,6 @@ export default function SalesCustomersPage() {
                 />
               </div>
               <button
-                disabled
                 onClick={handleOpenCreate}
                 className="btn btn-sm btn-primary d-flex align-items-center gap-1"
                 style={{
