@@ -419,7 +419,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     const body = await req.json();
-    const { name, area, source, scale, contact, contactEmail, needs, role } = body;
+    const { name, area, source, scale, contact, contactEmail, needs, role, detailBusinessAddress, careStaff } = body;
 
     let campaign = await (prisma as any).marketingCampaign.findUnique({
       where: { externalId: "partner-development-campaign" }
@@ -481,7 +481,8 @@ export async function POST(req: NextRequest) {
       step: 1,
       contact: contact || "",
       detailRole: role || "Ông chủ",
-      careStaff: careStaffName,
+      detailBusinessAddress: detailBusinessAddress || "",
+      careStaff: careStaff || careStaffName,
     };
 
     const newLead = await (prisma as any).marketingLead.create({
@@ -1076,8 +1077,8 @@ export async function PATCH(req: NextRequest) {
       }
     });
 
-    // Sync to Customer & Contract tables if hdCode is provided (Contract Saved)
-    if (body.hdCode) {
+    // Sync to Customer & Contract tables if hdCode is provided (Contract Saved) or contractStatus is Signed/Active
+    if (body.hdCode || body.contractStatus === "Signed" || body.contractStatus === "Active") {
       try {
         let customer = await prisma.customer.findUnique({
           where: { id }
@@ -1109,7 +1110,9 @@ export async function PATCH(req: NextRequest) {
         }
 
         let contractVal = 0;
-        if (body.hdAnnualRevenue) {
+        if (body.contractValue !== undefined) {
+          contractVal = Number(body.contractValue);
+        } else if (body.hdAnnualRevenue) {
           const cleanRevenue = String(body.hdAnnualRevenue).replace(/\./g, "").trim();
           const parsed = parseFloat(cleanRevenue);
           if (!isNaN(parsed)) {
@@ -1117,10 +1120,13 @@ export async function PATCH(req: NextRequest) {
           }
         }
 
+        const actualHdCode = body.hdCode || body.contractNo || `HDDL-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)}`;
+        const actualSignDate = body.hdDate ? new Date(body.hdDate) : (body.signDate ? new Date(body.signDate) : new Date());
+
         const contractData = {
-          code: body.hdCode,
+          code: actualHdCode,
           customerId: id,
-          ngayKy: body.hdDate ? new Date(body.hdDate) : new Date(),
+          ngayKy: actualSignDate,
           giaTriHopDong: contractVal,
           trangThai: "active",
         };
