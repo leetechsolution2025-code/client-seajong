@@ -299,7 +299,7 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
         group: "Khách hàng và đại lý", icon: "bi-people", items: [
           { name: "Phát triển đại lý", href: "/sales/partners", icon: "bi-person-badge" },
           { name: "Danh sách đại lý", href: "/sales/customers", icon: "bi-people" },
-          { name: "Chính sách và bảng giá", href: "/sales/pricing", icon: "bi-tags" },
+          { name: "Chính sách bán hàng", href: "/sales/pricing", icon: "bi-tags" },
         ]
       },
 

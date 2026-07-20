@@ -32,7 +32,10 @@ export async function GET(req: NextRequest) {
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
         orderBy: { createdAt: "desc" },
-        include: { nguoiChamSoc: { select: { id: true, fullName: true } } },
+        include: { 
+          nguoiChamSoc: { select: { id: true, fullName: true } },
+          contracts: { select: { giaTriHopDong: true, trangThai: true, code: true, ngayKy: true } }
+        },
       }),
     ]);
 

@@ -42,6 +42,7 @@ export function printDocumentById(
 <html>
 <head>
   <meta charset="utf-8">
+  <base href="${globalThis.window.location.href}">
   <title>${title ?? "In tài liệu"}</title>
   <link rel="stylesheet" href="${GOOGLE_FONT_URL}">
   <link rel="stylesheet"
@@ -57,6 +58,12 @@ export function printDocumentById(
     th {
       background-color: #003087 !important;
       color: #fff !important;
+    }
+    .apexcharts-canvas {
+      position: relative !important;
+    }
+    .apexcharts-canvas svg * { 
+      clip-path: none !important; 
     }
     .pdf-brand-bg {
       background-color: #003087 !important;

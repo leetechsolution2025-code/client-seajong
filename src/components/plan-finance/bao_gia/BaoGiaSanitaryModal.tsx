@@ -646,8 +646,13 @@ function PrintPreviewModal({ open, onClose, customer, items, info, initialAction
                     <div style={{ fontWeight: 800, color: "#111", fontSize: 13 }}>
                       {customer?.name ?? "—"}
                     </div>
-                    {customer?.daiDien && (
+                    {customer?.address && (
                       <div style={{ color: "#374151", marginTop: 3 }}>
+                        Địa chỉ: {customer.address}
+                      </div>
+                    )}
+                    {customer?.daiDien && (
+                      <div style={{ color: "#374151", marginTop: customer?.address ? 0 : 3 }}>
                         Đại diện: {customer.xungHo ?? ""} {customer.daiDien}
                       </div>
                     )}
@@ -1667,8 +1672,14 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
   const setInfoField = (k: string) => (e: any) => setInfo(f => ({ ...f, [k]: e.target.type === "number" ? Number(e.target.value) : e.target.value }));
 
   const handleUpload = (key: "file3DUrl" | "fileDetailUrl" | "fileLayoutUrl", label: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const target = e.target;
+    const file = target.files?.[0];
+    
+    // Reset ngay trong onChange sau khi đã lấy được file
+    target.value = "";
+
     if (!file) return;
+
     const formData = new FormData();
     formData.append("file", file);
     try {
@@ -1692,18 +1703,11 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
     toast.success("Đã gỡ file", `Đã gỡ bản vẽ ${label}`);
   };
 
-  const AttachmentButton = ({ label, fileUrl, uploadKey, id, disabled }: { label: string; fileUrl: string; uploadKey: "file3DUrl" | "fileDetailUrl" | "fileLayoutUrl"; id: string; disabled?: boolean }) => {
+  const renderAttachmentButton = ({ label, fileUrl, uploadKey, disabled }: { label: string; fileUrl: string; uploadKey: "file3DUrl" | "fileDetailUrl" | "fileLayoutUrl"; disabled?: boolean }) => {
     const isAttached = !!fileUrl;
     const fileName = fileUrl ? fileUrl.split("/").pop() : "";
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", opacity: disabled ? 0.5 : 1, pointerEvents: disabled ? "none" : undefined }}>
-        <input
-          type="file"
-          id={id}
-          disabled={disabled}
-          onChange={handleUpload(uploadKey, label)}
-          style={{ display: "none" }}
-        />
         {isAttached ? (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1740,17 +1744,23 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
           </div>
         ) : (
           <label
-            htmlFor={disabled ? undefined : id}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
               padding: "6px 8px", background: "var(--muted)", border: "1px solid var(--border)",
               borderRadius: 8, height: 35, boxSizing: "border-box", cursor: disabled ? "not-allowed" : "pointer",
               fontSize: 12, fontWeight: 600, color: "var(--foreground)",
-              transition: "all 0.15s"
+              transition: "all 0.15s",
+              margin: 0
             }}
             onMouseEnter={e => { if (!disabled) { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.color = "var(--primary)"; } }}
             onMouseLeave={e => { if (!disabled) { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--foreground)"; } }}
           >
+            <input
+              type="file"
+              disabled={disabled}
+              onChange={handleUpload(uploadKey, label)}
+              style={{ display: "none" }}
+            />
             <i className="bi bi-plus-lg" style={{ fontSize: 11 }} />
             <span style={{ whiteSpace: "nowrap" }}>{label}</span>
           </label>
@@ -1946,9 +1956,12 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
         });
       }
       if (!res.ok) throw new Error((await res.json()).error ?? "Lỗi lưu báo giá");
+      
+      const responseData = await res.json();
+      const quoteId = editData?.id || responseData?.id;
 
-      // Ghi lịch sử sau khi sửa thành công
-      if (editData?.id) {
+      // Ghi lịch sử sau khi lưu thành công
+      if (quoteId) {
         const STATUS_LABEL: Record<string, string> = {
           draft: "Nháp", pending_approval: "Đang trình duyệt",
           approved: "Đã phê duyệt", sent: "Đang thương thảo",
@@ -1956,73 +1969,83 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
         };
         const nguoiThucHien = session?.user?.name ?? "Hệ thống";
         const validItems = items.filter(it => it.ten.trim());
+        let ketQua = "";
 
-        // So sánh các thay đổi
-        const changes: string[] = [];
+        if (editData?.id) {
+          // So sánh các thay đổi khi cập nhật
+          const changes: string[] = [];
 
-        // 1. So sánh trạng thái
-        const oldTrangThai = editData.trangThai || "draft";
-        if (oldTrangThai !== trangThai) {
-          changes.push(`  + Trạng thái: từ "${STATUS_LABEL[oldTrangThai] || oldTrangThai}" thành "${STATUS_LABEL[trangThai] || trangThai}"`);
-        }
+          // 1. So sánh trạng thái
+          const oldTrangThai = editData.trangThai || "draft";
+          if (oldTrangThai !== trangThai) {
+            changes.push(`  + Trạng thái: từ "${STATUS_LABEL[oldTrangThai] || oldTrangThai}" thành "${STATUS_LABEL[trangThai] || trangThai}"`);
+          }
 
-        // 2. So sánh chiết khấu
-        const oldDiscount = editData.discount ?? 0;
-        const newDiscount = info.chietKhauTong;
-        if (oldDiscount !== newDiscount) {
-          changes.push(`  + Chiết khấu: từ ${oldDiscount}% thành ${newDiscount}%`);
-        }
+          // 2. So sánh chiết khấu
+          const oldDiscount = editData.discount ?? 0;
+          const newDiscount = info.chietKhauTong;
+          if (oldDiscount !== newDiscount) {
+            changes.push(`  + Chiết khấu: từ ${oldDiscount}% thành ${newDiscount}%`);
+          }
 
-        // 3. So sánh VAT
-        const oldVat = editData.vat ?? 10;
-        const newVat = info.thue;
-        if (oldVat !== newVat) {
-          changes.push(`  + Thuế VAT: từ ${oldVat}% thành ${newVat}%`);
-        }
+          // 3. So sánh VAT
+          const oldVat = editData.vat ?? 10;
+          const newVat = info.thue;
+          if (oldVat !== newVat) {
+            changes.push(`  + Thuế VAT: từ ${oldVat}% thành ${newVat}%`);
+          }
 
-        // 4. So sánh chi phí thi công
-        const oldThiCong = editData.chiPhiThiCong ?? 0;
-        const newThiCong = info.chiPhiThiCong;
-        if (oldThiCong !== newThiCong) {
-          changes.push(`  + Phí thi công: từ ${oldThiCong.toLocaleString("vi-VN")}đ thành ${newThiCong.toLocaleString("vi-VN")}đ`);
-        }
+          // 4. So sánh chi phí thi công
+          const oldThiCong = editData.chiPhiThiCong ?? 0;
+          const newThiCong = info.chiPhiThiCong;
+          if (oldThiCong !== newThiCong) {
+            changes.push(`  + Phí thi công: từ ${oldThiCong.toLocaleString("vi-VN")}đ thành ${newThiCong.toLocaleString("vi-VN")}đ`);
+          }
 
-        // 5. So sánh sản phẩm
-        const oldItemsStr = editData.items?.map(it => `${it.tenHang} (x${it.soLuong ?? 1})`).join(", ") || "Không có";
-        const newItemsStr = validItems.map(it => `${it.ten} (x${it.soLuong})`).join(", ");
-        if (oldItemsStr !== newItemsStr) {
-          changes.push(`  + Danh sách sản phẩm: từ [${oldItemsStr}] thành [${newItemsStr}]`);
-        }
+          // 5. So sánh sản phẩm
+          const oldItemsFlat = editData.items?.map(it => `${it.tenHang} (x${it.soLuong ?? 1})`).join(",") || "";
+          const newItemsFlat = validItems.map(it => `${it.ten} (x${it.soLuong})`).join(",") || "";
+          
+          if (oldItemsFlat !== newItemsFlat) {
+            const oldItemsStr = editData.items?.map(it => `    • ${it.tenHang} (x${it.soLuong ?? 1})`).join("\n") || "    • Không có";
+            const newItemsStr = validItems.map(it => `    • ${it.ten} (x${it.soLuong})`).join("\n") || "    • Không có";
+            changes.push(`  + Danh sách sản phẩm thay đổi:\n  - Cũ:\n${oldItemsStr}\n  - Mới:\n${newItemsStr}`);
+          }
 
-        // Tính toán giá trị thay đổi
-        const oldTotal = editData.thanhTien ?? 0;
-        const diffTotal = tongCong - oldTotal;
-        let diffText = "";
-        if (diffTotal > 0) {
-          diffText = `Tăng từ ${oldTotal.toLocaleString("vi-VN")} đồng thành ${tongCong.toLocaleString("vi-VN")} đồng (Tăng +${diffTotal.toLocaleString("vi-VN")} đồng)`;
-        } else if (diffTotal < 0) {
-          diffText = `Giảm từ ${oldTotal.toLocaleString("vi-VN")} đồng thành ${tongCong.toLocaleString("vi-VN")} đồng (Giảm ${Math.abs(diffTotal).toLocaleString("vi-VN")} đồng)`;
+          // Tính toán giá trị thay đổi
+          const oldTotal = editData.thanhTien ?? 0;
+          const diffTotal = tongCong - oldTotal;
+          let diffText = "";
+          if (diffTotal > 0) {
+            diffText = `Tăng từ ${oldTotal.toLocaleString("vi-VN")} đồng thành ${tongCong.toLocaleString("vi-VN")} đồng (Tăng +${diffTotal.toLocaleString("vi-VN")} đồng)`;
+          } else if (diffTotal < 0) {
+            diffText = `Giảm từ ${oldTotal.toLocaleString("vi-VN")} đồng thành ${tongCong.toLocaleString("vi-VN")} đồng (Giảm ${Math.abs(diffTotal).toLocaleString("vi-VN")} đồng)`;
+          } else {
+            diffText = `Không thay đổi (${tongCong.toLocaleString("vi-VN")} đồng)`;
+          }
+
+          const ketQuaLines = [
+            "Đã cập nhật báo giá",
+            `- Nội dung cập nhật:${changes.length > 0 ? "\n" + changes.join("\n") : " Không có thay đổi thuộc tính chính"}`,
+            `- Giá trị thay đổi: ${diffText}`
+          ];
+          ketQua = ketQuaLines.join("\n");
         } else {
-          diffText = `Không thay đổi (${tongCong.toLocaleString("vi-VN")} đồng)`;
+          // Tạo mới
+          const itemsStr = validItems.map(it => `  • ${it.ten} (x${it.soLuong})`).join("\n");
+          ketQua = `Tạo mới báo giá thành công.\n- Tổng giá trị: ${tongCong.toLocaleString("vi-VN")} đồng\n- Trạng thái: ${STATUS_LABEL[trangThai] || trangThai}\n- Danh sách sản phẩm:\n${itemsStr || "  • Không có"}`;
         }
 
-        const ketQuaLines = [
-          "Đã cập nhật báo giá",
-          `- Nội dung cập nhật:${changes.length > 0 ? "\n" + changes.join("\n") : " Không có thay đổi thuộc tính chính"}`,
-          `- Giá trị thay đổi: ${diffText}`
-        ];
-        const ketQua = ketQuaLines.join("\n");
-
-        fetch(`/api/plan-finance/quotations/${editData.id}/negotiations`, {
+        await fetch(`/api/plan-finance/quotations/${quoteId}/negotiations`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             loai: "system",
-            ngay: new Date().toISOString().slice(0, 10),
+            ngay: new Date().toISOString(),
             nguoiThucHien,
             ketQua,
           }),
-        }).catch(() => { }); // fire and forget
+        }).catch(() => { });
       }
 
       if (mode === "draft") {
@@ -2462,9 +2485,9 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                   <div>
                     <FLabel text="Bản vẽ đính kèm" />
                     <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                      <AttachmentButton label="Bản vẽ 3D" fileUrl={info.file3DUrl || ""} uploadKey="file3DUrl" id="file-3d-upload" disabled={!isCoQuayKe} />
-                      <AttachmentButton label="Bản vẽ chi tiết" fileUrl={info.fileDetailUrl || ""} uploadKey="fileDetailUrl" id="file-detail-upload" disabled={!isCoQuayKe} />
-                      <AttachmentButton label="Bản vẽ mặt bằng" fileUrl={info.fileLayoutUrl || ""} uploadKey="fileLayoutUrl" id="file-layout-upload" disabled={!isCoQuayKe} />
+                      {renderAttachmentButton({ label: "Bản vẽ 3D", fileUrl: info.file3DUrl || "", uploadKey: "file3DUrl", disabled: !isCoQuayKe })}
+                      {renderAttachmentButton({ label: "Bản vẽ chi tiết", fileUrl: info.fileDetailUrl || "", uploadKey: "fileDetailUrl", disabled: !isCoQuayKe })}
+                      {renderAttachmentButton({ label: "Bản vẽ mặt bằng", fileUrl: info.fileLayoutUrl || "", uploadKey: "fileLayoutUrl", disabled: !isCoQuayKe })}
                     </div>
                     {isCoQuayKe && (
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 4 }}>

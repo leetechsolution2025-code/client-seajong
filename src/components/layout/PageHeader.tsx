@@ -40,7 +40,15 @@ function PageHeaderInner({ title, description, icon = "bi-grid", color = "rose",
   const [fromAdmin, setFromAdmin] = useState(false);
 
   useEffect(() => {
-    if (pathname.startsWith("/board")) {
+    const role = session?.user?.role;
+    const dept = session?.user?.departmentCode;
+
+    let homePrefix = "/board";
+    if (role === "SUPERADMIN") homePrefix = "/admin";
+    else if (role === "ADMIN") homePrefix = "/company";
+    else if (dept) homePrefix = `/${dept}`;
+
+    if (pathname.startsWith(homePrefix)) {
       setFromAdmin(false);
       sessionStorage.removeItem("fromAdmin");
       return;
@@ -52,7 +60,7 @@ function PageHeaderInner({ title, description, icon = "bi-grid", color = "rose",
     } else if (sessionStorage.getItem("fromAdmin") === "true") {
       setFromAdmin(true);
     }
-  }, [searchParams, pathname]);
+  }, [searchParams, pathname, session]);
 
   useEffect(() => {
     setNow(new Date());

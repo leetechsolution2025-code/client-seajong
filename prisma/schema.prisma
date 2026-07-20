@@ -2840,3 +2840,12 @@ model TaxQA {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
+
+model SoftSkillQA {
+  id        Int      @id @default(autoincrement())
+  question  String
+  answer    String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
