@@ -2946,7 +2946,7 @@ export default function PartnersPage() {
     setKhdMonthlyContractValue(defaultMonthly);
     setKhdCreditLimit(partner.creditLimit || 50000000);
     setKhdSignDate(partner.signDate || new Date().toISOString().split("T")[0]);
-    setKhdContractStatus(partner.contractStatus || "Pending Signature");
+    setKhdContractStatus(partner.contractStatus === "Pending Signature" ? "Signed" : (partner.contractStatus || "Signed"));
     setKhdContractPdf(partner.contractPdf || "");
     setShowKyHopDongModal(true);
   };
