@@ -401,6 +401,46 @@ export default function SalesCustomersPage() {
     },
   ];
 
+  const orderColumns: TableColumn<any>[] = [
+    {
+      header: "STT",
+      align: "center",
+      width: 60,
+      render: (row, idx) => idx + 1
+    },
+    {
+      header: "Số đơn hàng",
+      render: (row) => <span className="fw-medium text-primary">{row.orderCode || "—"}</span>
+    },
+    {
+      header: "Giá trị",
+      align: "right",
+      render: (row) => <span className="fw-medium">{(row.totalAmount || 0).toLocaleString("vi-VN")} ₫</span>
+    },
+    {
+      header: "Đã thanh toán",
+      render: (row) => {
+        const total = row.totalAmount || 0;
+        const paid = row.paidAmount || 0;
+        const percent = total > 0 ? Math.round((paid / total) * 100) : 0;
+        return (
+          <div className="d-flex flex-column gap-1 w-100" style={{ minWidth: 120 }}>
+            <span className="fw-medium text-dark" style={{ fontSize: "13px" }}>
+              {paid.toLocaleString("vi-VN")} ₫
+            </span>
+            <div className="progress" style={{ height: "4px" }}>
+              <div className="progress-bar bg-success" style={{ width: `${percent}%` }}></div>
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      header: "Ghi chú",
+      render: (row) => <span className="text-muted" style={{ fontSize: "13px" }}>{row.note || "—"}</span>
+    }
+  ];
+
   return (
     <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
       <PageHeader
@@ -513,8 +553,17 @@ export default function SalesCustomersPage() {
                     </div>
                     {/* Cột phải */}
                     <div className="col-12 col-lg-8">
-                      <div className="bg-card rounded-4 shadow-sm border p-3 h-100">
+                      <div className="bg-card rounded-4 shadow-sm border p-3 h-100 d-flex flex-column">
                         <SectionTitle title="Dữ liệu hoạt động của đại lý" />
+                        <div className="flex-grow-1 mt-3" style={{ minHeight: 0 }}>
+                          <Table
+                            columns={orderColumns}
+                            rows={[]} 
+                            emptyText="Chưa có dữ liệu hoạt động"
+                            compact
+                            wrapperStyle={{ height: "100%", overflowY: "auto" }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
