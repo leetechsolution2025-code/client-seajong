@@ -503,6 +503,22 @@ export default function SalesCustomersPage() {
               </div>
               
               <div className="modal-body p-4 bg-white" style={{ overflowY: "auto" }}>
+                <div className="container-fluid h-100">
+                  <div className="row g-4 h-100">
+                    {/* Cột trái */}
+                    <div className="col-12 col-lg-4">
+                      <div className="bg-card rounded-4 shadow-sm border p-4 h-100">
+                        <SectionTitle title="Thông tin chung" />
+                      </div>
+                    </div>
+                    {/* Cột phải */}
+                    <div className="col-12 col-lg-8">
+                      <div className="bg-card rounded-4 shadow-sm border p-4 h-100">
+                        <SectionTitle title="Dữ liệu hoạt động của đại lý" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="modal-footer border-top p-3 d-flex align-items-center justify-content-start gap-2 bg-light">
