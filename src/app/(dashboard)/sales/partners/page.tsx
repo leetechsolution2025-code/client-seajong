@@ -532,7 +532,7 @@ const renderCareChannel = (channel: string) => {
 const renderQuoteStatus = (status?: string) => {
   switch (status) {
     case "Draft":
-      return <span className="badge bg-warning-subtle text-warning-emphasis px-2 py-1 rounded">Bản nháp</span>;
+      return <span className="badge bg-warning-subtle text-warning-emphasis px-2 py-1 rounded">Đang thương thảo</span>;
     case "Sent":
       return <span className="badge bg-info-subtle text-info-emphasis px-2 py-1 rounded">Đã gửi khách</span>;
     case "Approved":
@@ -646,6 +646,12 @@ export default function PartnersPage() {
   const [selectedConstructionTask, setSelectedConstructionTask] = useState<any | null>(null);
   const [tempProgress, setTempProgress] = useState<number>(0);
   const [savingProgress, setSavingProgress] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (selectedConstructionTask) {
@@ -792,6 +798,7 @@ export default function PartnersPage() {
   const [showKyHopDongModal, setShowKyHopDongModal] = useState(false);
   const [khdContractNo, setKhdContractNo] = useState("");
   const [khdContractValue, setKhdContractValue] = useState(0);
+  const [khdMonthlyContractValue, setKhdMonthlyContractValue] = useState(0);
   const [khdCreditLimit, setKhdCreditLimit] = useState(0);
   const [khdSignDate, setKhdSignDate] = useState("");
   const [khdContractStatus, setKhdContractStatus] = useState<"Pending Signature" | "Signed" | "Active">("Pending Signature");
@@ -904,7 +911,7 @@ export default function PartnersPage() {
       nguon: selectedPartner.source || null,
       dienThoai: phoneOnly,
       email: selectedPartner.contactEmail || null,
-      address: selectedPartner.area || null,
+      address: selectedPartner.detailBusinessAddress?.trim() || selectedPartner.area || null,
       daiDien: nameOnly,
       xungHo: "Anh/Chị",
       chucVu: "Đại diện",
@@ -1390,7 +1397,7 @@ export default function PartnersPage() {
       setCarePremisesCondition(selectedPartner.detailPremisesCondition || "");
       setCareOtherRequirements(selectedPartner.detailOtherRequirements || "");
       setCareExecutionDate(formatForDateTimeInput(selectedPartner.detailExecutionDate) || getNowDateTimeString());
-      setCareExecutor(selectedPartner.careStaff || "");
+      setCareExecutor(selectedPartner.careStaff || currentUserName || crmEmployees[0]?.fullName || "");
     } else {
       setAddedCabinetItems([]);
       setShowGeneralInfo(false);
@@ -1434,7 +1441,7 @@ export default function PartnersPage() {
     const partner = partnerInput || selectedPartner;
     setEditingNegId(null);
     setNegDate(getNowDateTimeString());
-    setNegExecutor(partner?.careStaff || currentUserName);
+    setNegExecutor(partner?.careStaff || currentUserName || crmEmployees[0]?.fullName || "");
     setNegType("call");
     setNegOutcome("");
     setShowNegModal(true);
@@ -1655,7 +1662,7 @@ export default function PartnersPage() {
       }
 
       setCareExecutionDate(getNowDateTimeString());
-      setCareExecutor(partner.careStaff || "");
+      setCareExecutor(partner.careStaff || currentUserName || crmEmployees[0]?.fullName || "");
       setShowCareModal(true);
     }
   };
@@ -1811,7 +1818,7 @@ export default function PartnersPage() {
           updated.quoteStatus = undefined;
         } else if (next === 4) {
           updated.contractNo = updated.contractNo || `HDDL-2026-0${Math.floor(1000 + Math.random() * 9000)}`;
-          updated.contractValue = updated.contractValue || updated.quoteValue || 150000000;
+          updated.contractValue = updated.contractValue || 1200000000;
           updated.creditLimit = updated.creditLimit || 50000000;
           updated.signDate = updated.signDate || new Date().toISOString().split("T")[0];
           updated.contractStatus = updated.contractStatus || "Pending Signature";
@@ -1892,6 +1899,9 @@ export default function PartnersPage() {
   const [newRole, setNewRole] = useState("Ông chủ");
   const [newPhone, setNewPhone] = useState("");
   const [newContactEmail, setNewContactEmail] = useState("");
+  const [newBusinessAddress, setNewBusinessAddress] = useState("");
+  const [newCareStaff, setNewCareStaff] = useState("");
+  const [newCreationTime, setNewCreationTime] = useState<Date | null>(null);
   const [newNeeds, setNewNeeds] = useState("");
 
   const areas = useMemo(() => {
@@ -2044,6 +2054,9 @@ export default function PartnersPage() {
     setNewRole("Ông chủ");
     setNewPhone("");
     setNewContactEmail("");
+    setNewBusinessAddress("");
+    setNewCareStaff("");
+    setNewCreationTime(null);
     setNewScale("");
     setNewNeeds("");
   };
@@ -2057,6 +2070,9 @@ export default function PartnersPage() {
     setNewContact(contactParts[0] || "");
     setNewPhone(contactParts[1] || "");
     setNewContactEmail(partner.contactEmail || "");
+    setNewBusinessAddress(partner.detailBusinessAddress || "");
+    setNewCareStaff(partner.careStaff || "");
+    setNewCreationTime(partner.date ? new Date(partner.date) : new Date());
     setNewRole(partner.detailRole || "Ông chủ");
     setNewScale(partner.scale || "");
     setNewNeeds(partner.needs || "");
@@ -2077,6 +2093,8 @@ export default function PartnersPage() {
       scale: newScale,
       contact: newPhone ? `${newContact} - ${newPhone}` : newContact,
       contactEmail: newContactEmail || undefined,
+      detailBusinessAddress: newBusinessAddress,
+      careStaff: newCareStaff || "",
       needs: newNeeds,
       detailRole: newRole,
     };
@@ -2092,6 +2110,9 @@ export default function PartnersPage() {
       setNewRole("Ông chủ");
       setNewPhone("");
       setNewContactEmail("");
+      setNewBusinessAddress("");
+      setNewCareStaff("");
+      setNewCreationTime(null);
       setNewScale("");
       setNewNeeds("");
     }
@@ -2137,6 +2158,8 @@ export default function PartnersPage() {
           scale: newScale,
           contact: newPhone ? `${newContact} - ${newPhone}` : newContact,
           contactEmail: newContactEmail || undefined,
+          detailBusinessAddress: newBusinessAddress,
+          careStaff: newCareStaff || undefined,
           needs: newNeeds,
           role: newRole,
         }),
@@ -2152,6 +2175,9 @@ export default function PartnersPage() {
         setNewRole("Ông chủ");
         setNewPhone("");
         setNewContactEmail("");
+        setNewBusinessAddress("");
+        setNewCareStaff("");
+        setNewCreationTime(null);
         setNewScale("");
         setNewNeeds("");
       }
@@ -2913,8 +2939,11 @@ export default function PartnersPage() {
   };
 
   const handleOpenKyHopDongModal = (partner: PartnerProcessItem) => {
+    const defaultAnnual = partner.hdAnnualRevenue ? parseInt(partner.hdAnnualRevenue.replace(/\./g, "")) : (partner.contractValue && partner.contractValue !== partner.quoteValue ? partner.contractValue : 1200000000);
+    const defaultMonthly = partner.hdMonthlyRevenue ? parseInt(partner.hdMonthlyRevenue.replace(/\./g, "")) : Math.floor(defaultAnnual / 12);
     setKhdContractNo(partner.contractNo || `HDDL-2026-0${Math.floor(1000 + Math.random() * 9000)}`);
-    setKhdContractValue(partner.contractValue || partner.quoteValue || 150000000);
+    setKhdContractValue(defaultAnnual);
+    setKhdMonthlyContractValue(defaultMonthly);
     setKhdCreditLimit(partner.creditLimit || 50000000);
     setKhdSignDate(partner.signDate || new Date().toISOString().split("T")[0]);
     setKhdContractStatus(partner.contractStatus || "Pending Signature");
@@ -2933,6 +2962,8 @@ export default function PartnersPage() {
           id: selectedPartner.id,
           contractNo: khdContractNo,
           contractValue: khdContractValue,
+          hdAnnualRevenue: new Intl.NumberFormat("vi-VN").format(khdContractValue),
+          hdMonthlyRevenue: new Intl.NumberFormat("vi-VN").format(khdMonthlyContractValue),
           creditLimit: khdCreditLimit,
           signDate: khdSignDate,
           contractStatus: khdContractStatus,
@@ -5125,7 +5156,7 @@ export default function PartnersPage() {
       updated.quoteStatus = undefined;
     } else if (next === 4) {
       updated.contractNo = updated.contractNo || `HDDL-2026-0${Math.floor(1000 + Math.random() * 9000)}`;
-      updated.contractValue = updated.contractValue || updated.quoteValue || 150000000;
+      updated.contractValue = updated.contractValue || 1200000000;
       updated.creditLimit = updated.creditLimit || 50000000;
       updated.signDate = updated.signDate || new Date().toISOString().split("T")[0];
       updated.contractStatus = updated.contractStatus || "Pending Signature";
@@ -5580,7 +5611,7 @@ export default function PartnersPage() {
               return (
                 <div>
                   <div className="fw-bold text-dark">{row.name}</div>
-                  <div className="text-muted" style={{ fontSize: "11px" }}>{row.area || "—"}</div>
+                  <div className="text-muted" style={{ fontSize: "11px" }}>{row.detailBusinessAddress?.trim() || row.area || "—"}</div>
                 </div>
               );
             },
@@ -5665,6 +5696,22 @@ export default function PartnersPage() {
             header: "Người tiếp nhận",
             render: (row) => {
               const caregiver = crmEmployees.find(emp => emp.fullName === row.careStaff);
+              
+              let warningMessage = null;
+              let warningStyle: React.CSSProperties = {};
+              if (row.date) {
+                const receiveTime = new Date(row.date).getTime();
+                const diffHours = (currentTime - receiveTime) / (1000 * 60 * 60);
+                
+                if (diffHours > 24) {
+                  warningMessage = "Khách hàng chưa được liên hệ sau 24 giờ kể từ lúc tiếp nhận";
+                  warningStyle = { color: "#dc3545", backgroundColor: "#f8d7da", border: "1px solid #f5c2c7" };
+                } else if (diffHours > 6) {
+                  warningMessage = "Khách hàng chưa được liên hệ sau 6 giờ kể từ lúc tiếp nhận";
+                  warningStyle = { color: "#fd7e14", backgroundColor: "#ffe8d6", border: "1px solid #ffd8b8" };
+                }
+              }
+
               return (
                 <div>
                   <span className="fw-semibold text-secondary">
@@ -5675,6 +5722,12 @@ export default function PartnersPage() {
                     <div className="text-muted small mt-0.5" style={{ fontSize: "11px" }}>
                       <i className="bi bi-telephone me-1" style={{ fontSize: "10px" }} />
                       {caregiver.phone}
+                    </div>
+                  )}
+                  {warningMessage && (
+                    <div className="mt-2 rounded px-2 py-1" style={{ fontSize: "10.5px", whiteSpace: "normal", textAlign: "left", lineHeight: "1.3", ...warningStyle }}>
+                      <i className="bi bi-exclamation-triangle-fill me-1" />
+                      {warningMessage}
                     </div>
                   )}
                 </div>
@@ -5696,7 +5749,7 @@ export default function PartnersPage() {
             render: (row) => (
               <div>
                 <div className="fw-bold text-dark">{row.name}</div>
-                <div className="text-muted" style={{ fontSize: "11px" }}>{row.area}</div>
+                <div className="text-muted" style={{ fontSize: "11px" }}>{row.detailBusinessAddress?.trim() || row.area}</div>
               </div>
             ),
             width: "22%",
@@ -5857,20 +5910,20 @@ export default function PartnersPage() {
             render: (row) => (
               <div>
                 <div className="fw-bold text-dark">{row.name}</div>
-                <div className="text-muted" style={{ fontSize: "11px" }}>{row.area}</div>
+                <div className="text-muted" style={{ fontSize: "11px" }}>{row.detailBusinessAddress?.trim() || row.area}</div>
               </div>
             ),
             width: "25%",
           },
           {
-            header: "Số hợp đồng",
+            header: "Mã hợp đồng",
             render: (row) => (
               <div style={{ whiteSpace: "nowrap" }}>
                 <div>
                   <code className="text-dark font-monospace fw-bold">{row.contractNo || "—"}</code>
                 </div>
                 <div className="text-muted mt-1" style={{ fontSize: "11px" }}>
-                  Giá trị: <span className="fw-semibold text-primary">{row.contractValue ? `${row.contractValue.toLocaleString("vi-VN")} đ` : "—"}</span>
+                  Giá trị báo giá: <span className="fw-semibold text-primary">{row.quoteValue ? `${row.quoteValue.toLocaleString("vi-VN")} đ` : "—"}</span>
                 </div>
               </div>
             ),
@@ -5930,7 +5983,7 @@ export default function PartnersPage() {
                     </div>
                     <div className="text-muted mb-2" style={{ fontSize: "11px" }}>
                       <i className="bi bi-geo-alt-fill text-secondary me-1" />
-                      {row.area}
+                      {row.detailBusinessAddress?.trim() || row.area}
                     </div>
                     <div className="text-muted small-xs font-italic" style={{ fontSize: "11px" }}>
                       Chưa cập nhật mốc thời gian thi công
@@ -5951,7 +6004,7 @@ export default function PartnersPage() {
                   </div>
                   <div className="text-muted mb-3" style={{ fontSize: "11px" }}>
                     <i className="bi bi-geo-alt-fill text-secondary me-1" />
-                    {row.area}
+                    {row.detailBusinessAddress?.trim() || row.area}
                   </div>
 
                   {/* Biểu đồ Gantt mini */}
@@ -6052,7 +6105,7 @@ export default function PartnersPage() {
             render: (row) => (
               <div>
                 <div className="fw-bold text-dark">{row.name}</div>
-                <div className="text-muted" style={{ fontSize: "11px" }}>{row.area}</div>
+                <div className="text-muted" style={{ fontSize: "11px" }}>{row.detailBusinessAddress?.trim() || row.area}</div>
               </div>
             ),
             width: "25%",
@@ -6366,7 +6419,21 @@ export default function PartnersPage() {
                 <button
                   className="btn btn-primary btn-sm rounded-pill px-3 shadow-sm d-flex align-items-center gap-2"
                   style={{ height: 32, fontSize: 12, fontWeight: 600 }}
-                  onClick={() => { setEditingPartner(null); setShowCreateModal(true); }}
+                  onClick={() => {
+                    setEditingPartner(null);
+                    setNewName("");
+                    setNewArea("");
+                    setNewContact("");
+                    setNewRole("Ông chủ");
+                    setNewPhone("");
+                    setNewContactEmail("");
+                    setNewBusinessAddress("");
+                    setNewScale("");
+                    setNewNeeds("");
+                    setNewCareStaff(currentUserName || crmEmployees[0]?.fullName || "Vũ Hoàng Long");
+                    setNewCreationTime(new Date());
+                    setShowCreateModal(true);
+                  }}
                 >
                   <i className="bi bi-plus-lg" style={{ fontSize: 11 }} />
                   <span>Thêm khách hàng</span>
@@ -6814,23 +6881,109 @@ export default function PartnersPage() {
                 {/* Lịch sử chăm sóc / thương thảo */}
                 <div className="mb-4">
                   <SectionTitle
-                    title={Number(selectedPartner.step) === 3 ? "Lịch sử báo giá" : "Chăm sóc và Tư vấn"}
+                    title={
+                      Number(selectedPartner.step) === 4 ? "Lịch sử hợp đồng" :
+                      Number(selectedPartner.step) === 3 ? (
+                        <div className="d-flex align-items-center gap-2">
+                          Lịch sử báo giá
+                          {selectedPartner.quoteStatus && (
+                            <span style={{ textTransform: "none", letterSpacing: "normal" }}>
+                              {renderQuoteStatus(selectedPartner.quoteStatus)}
+                            </span>
+                          )}
+                        </div>
+                      ) : "Chăm sóc và Tư vấn"
+                    }
                     className="border-bottom pb-2 mb-3"
                     action={
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm px-2 py-0.5 d-flex align-items-center gap-1 rounded-2 shadow-sm fw-semibold"
-                        style={{ fontSize: "11px" }}
-                        onClick={() => Number(selectedPartner.step) === 3 ? handleAddNewNeg() : handleAddNewCare()}
-                      >
-                        <i className="bi bi-plus-lg" />
-                        Thêm mới
-                      </button>
+                      Number(selectedPartner.step) !== 4 ? (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm px-2 py-0.5 d-flex align-items-center gap-1 rounded-2 shadow-sm fw-semibold"
+                          style={{ fontSize: "11px" }}
+                          onClick={() => Number(selectedPartner.step) === 3 ? handleAddNewNeg() : handleAddNewCare()}
+                        >
+                          <i className="bi bi-plus-lg" />
+                          Thêm mới
+                        </button>
+                      ) : null
                     }
                   />
 
                   <div className="position-relative ps-3 ms-2 py-1">
                     {(() => {
+                      if (Number(selectedPartner.step) === 4) {
+                        const items = [];
+                        if (selectedPartner.contractStatus === "Active") {
+                          items.push(
+                            <div key="active-contract" className="position-relative mb-4">
+                                <div
+                                  className="position-absolute"
+                                  style={{
+                                    width: "2px",
+                                    top: "9px",
+                                    bottom: "-25px",
+                                    left: "-17px",
+                                    backgroundColor: "rgba(25,135,84,0.2)",
+                                    zIndex: 0
+                                  }}
+                                />
+                                <div
+                                  className="position-absolute rounded-circle bg-success"
+                                  style={{
+                                    width: 10,
+                                    height: 10,
+                                    left: -21,
+                                    top: 4,
+                                    border: "2px solid #fff",
+                                    boxShadow: "0 0 0 2px var(--success, #198754)",
+                                    zIndex: 1
+                                  }}
+                                />
+                                <div className="small text-muted fw-semibold mb-1" style={{ fontSize: '11px' }}>
+                                  <i className="bi bi-clock me-1" />
+                                  {selectedPartner.signDate ? formatDisplayDate(selectedPartner.signDate) : "Đã hoàn thành"}
+                                </div>
+                                <div className="fw-bold text-dark" style={{ fontSize: '13px' }}>
+                                  Ký kết hợp đồng thành công
+                                </div>
+                                <div className="text-muted small mt-0.5" style={{ fontSize: '11.5px' }}>
+                                  Hợp đồng {selectedPartner.contractNo} đã chính thức có hiệu lực.
+                                </div>
+                            </div>
+                          );
+                        }
+
+                        items.push(
+                          <div key="init-contract" className="position-relative mb-1">
+                            <div
+                              className="position-absolute rounded-circle bg-success"
+                              style={{
+                                width: 10,
+                                height: 10,
+                                left: -21,
+                                top: 4,
+                                border: "2px solid #fff",
+                                boxShadow: "0 0 0 2px var(--success, #198754)",
+                                zIndex: 1
+                              }}
+                            />
+                            <div className="small text-muted fw-semibold mb-1" style={{ fontSize: '11px' }}>
+                              <i className="bi bi-clock me-1" />
+                              Đang thực hiện
+                            </div>
+                            <div className="fw-bold text-dark" style={{ fontSize: '13px' }}>
+                              Khởi tạo hợp đồng
+                            </div>
+                            <div className="text-muted small mt-0.5" style={{ fontSize: '11.5px' }}>
+                              Bắt đầu giai đoạn chuẩn bị thủ tục pháp lý và ký kết.
+                            </div>
+                          </div>
+                        );
+
+                        return items;
+                      }
+
                       if (Number(selectedPartner.step) === 3) {
                         const negotiations = selectedPartner.quoteNegotiations || [];
                         const sortedNegotiations = [...negotiations].sort(
@@ -6904,9 +7057,11 @@ export default function PartnersPage() {
                                     {approachStep}
                                   </div>
                                 </div>
-                                <div className="text-muted small mt-1" style={{ fontSize: '11.5px', lineHeight: '1.4' }}>
-                                  <div><strong>Kết quả:</strong> {neg.ketQua}</div>
-                                  <div><strong>Người thực hiện:</strong> {neg.nguoiThucHien}</div>
+                                <div className="text-muted small mt-1" style={{ fontSize: '11.5px', lineHeight: '1.5' }}>
+                                  <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", backgroundColor: "rgba(0,0,0,0.02)", padding: "6px", borderRadius: "6px", border: "1px solid rgba(0,0,0,0.05)" }}>
+                                    <strong style={{ color: "#4b5563" }}>Kết quả:</strong><br/>{neg.ketQua}
+                                  </div>
+                                  <div className="mt-1 ms-1"><strong>Người thực hiện:</strong> {neg.nguoiThucHien}</div>
                                 </div>
                               </div>
                             );
@@ -7043,16 +7198,32 @@ export default function PartnersPage() {
                                         try {
                                           const items = JSON.parse(history.cabinetNotes);
                                           if (Array.isArray(items) && items.length > 0) {
+                                            const totalValue = items.reduce((acc, item) => {
+                                              const sizeNum = parseFloat(String(item.size || "").replace(/[^\d.]/g, "")) || 1;
+                                              return acc + ((item.unitPrice || 0) * (item.quantity || 0) * sizeNum);
+                                            }, 0);
+
                                             return (
-                                              <div className="d-flex flex-column gap-1">
-                                                {items.map((item: any, itemIdx: number) => (
-                                                  <div key={itemIdx} className="d-flex justify-content-between text-dark" style={{ fontSize: '11px', lineHeight: '1.3' }}>
-                                                    <span style={{ maxWidth: '80%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                      • {item.name} {item.size ? `(${item.size} ${item.unit || "md"})` : `(${item.unit || "md"})`}
-                                                    </span>
-                                                    <span className="fw-bold">x{item.quantity}</span>
-                                                  </div>
-                                                ))}
+                                              <div className="d-flex flex-column gap-1 mt-1">
+                                                {items.map((item: any, itemIdx: number) => {
+                                                  const sizeNum = parseFloat(String(item.size || "").replace(/[^\d.]/g, "")) || 1;
+                                                  const itemValue = (item.unitPrice || 0) * (item.quantity || 0) * sizeNum;
+                                                  return (
+                                                    <div key={itemIdx} className="d-flex justify-content-between text-dark" style={{ fontSize: '11px', lineHeight: '1.4' }}>
+                                                      <span style={{ flex: 1, paddingRight: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        • {item.name} {item.size ? `(${item.size} ${item.unit || "md"})` : `(${item.unit || "md"})`}
+                                                      </span>
+                                                      <div className="d-flex gap-3 text-end" style={{ minWidth: '90px', justifyContent: 'flex-end' }}>
+                                                        <span className="text-secondary">SL: {item.quantity}</span>
+                                                        <span className="fw-bold">{itemValue > 0 ? `${Math.round(itemValue).toLocaleString("vi-VN")} đ` : "—"}</span>
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                })}
+                                                <div className="mt-1 pt-1.5 border-top border-secondary-subtle d-flex justify-content-between align-items-center">
+                                                  <span className="text-secondary fw-semibold" style={{ fontSize: '11px' }}>Tổng: <span className="fw-bold text-dark">{items.length}</span> hạng mục</span>
+                                                  {totalValue > 0 && <span className="fw-bold text-primary" style={{ fontSize: '11.5px' }}>{Math.round(totalValue).toLocaleString("vi-VN")} đ</span>}
+                                                </div>
                                               </div>
                                             );
                                           }
@@ -7187,9 +7358,31 @@ export default function PartnersPage() {
                         icon="patch-check"
                       />
                       <InfoField
-                        label="Giá trị cam kết"
-                        value={formatCurrency(selectedPartner.contractValue)}
+                        label="Giá trị cam kết năm"
+                        value={
+                          selectedPartner.hdAnnualRevenue 
+                            ? formatCurrency(parseFloat(selectedPartner.hdAnnualRevenue.replace(/\./g, "").replace(/,/g, ""))) 
+                            : formatCurrency(
+                                selectedPartner.contractValue && selectedPartner.contractValue !== selectedPartner.quoteValue 
+                                  ? selectedPartner.contractValue 
+                                  : 1200000000
+                              )
+                        }
                         icon="cash-stack"
+                      />
+                      <InfoField
+                        label="Giá trị cam kết tháng"
+                        value={
+                          selectedPartner.hdMonthlyRevenue 
+                            ? formatCurrency(parseFloat(selectedPartner.hdMonthlyRevenue.replace(/\./g, "").replace(/,/g, ""))) 
+                            : formatCurrency(100000000)
+                        }
+                        icon="cash-stack"
+                      />
+                      <InfoField
+                        label="Ngày ký hợp đồng"
+                        value={formatDisplayDate(selectedPartner.signDate)}
+                        icon="calendar-date"
                       />
                       <InfoField
                         label="Hạn mức công nợ"
@@ -7199,12 +7392,6 @@ export default function PartnersPage() {
                           ) : null
                         }
                         icon="credit-card"
-                      />
-                      <InfoField
-                        label="Ngày ký hợp đồng"
-                        value={formatDisplayDate(selectedPartner.signDate)}
-                        icon="calendar-date"
-                        className={selectedPartner.contractPdf ? "col-6" : "col-12"}
                       />
                       {selectedPartner.contractPdf && (
                         <InfoField
@@ -7622,7 +7809,7 @@ export default function PartnersPage() {
                   </div>
 
                   <div className="col-6">
-                    <label className="form-label text-secondary mb-1 fw-semibold" style={{ fontSize: "13px" }}>Giá trị cam kết (VNĐ)</label>
+                    <label className="form-label text-secondary mb-1 fw-semibold" style={{ fontSize: "13px" }}>Giá trị cam kết năm (VNĐ)</label>
                     <input
                       type="text"
                       className="form-control rounded-3"
@@ -7631,15 +7818,48 @@ export default function PartnersPage() {
                         const clean = e.target.value.replace(/\./g, "").replace(/,/g, "");
                         if (!clean || isNaN(clean as any)) {
                           setKhdContractValue(0);
+                          setKhdMonthlyContractValue(0);
                         } else {
-                          setKhdContractValue(parseInt(clean));
+                          const val = parseInt(clean);
+                          setKhdContractValue(val);
+                          setKhdMonthlyContractValue(Math.floor(val / 12));
                         }
                       }}
-                      placeholder="Ví dụ: 150.000.000"
+                      placeholder="Ví dụ: 1.200.000.000"
                     />
                     <div className="text-muted small mt-1" style={{ fontSize: "11px" }}>
                       {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(khdContractValue || 0)}
                     </div>
+                  </div>
+                  <div className="col-6">
+                    <label className="form-label text-secondary mb-1 fw-semibold" style={{ fontSize: "13px" }}>Giá trị cam kết tháng (VNĐ)</label>
+                    <input
+                      type="text"
+                      className="form-control rounded-3"
+                      value={khdMonthlyContractValue ? new Intl.NumberFormat("vi-VN").format(khdMonthlyContractValue) : ""}
+                      onChange={(e) => {
+                        const clean = e.target.value.replace(/\./g, "").replace(/,/g, "");
+                        if (!clean || isNaN(clean as any)) {
+                          setKhdMonthlyContractValue(0);
+                        } else {
+                          setKhdMonthlyContractValue(parseInt(clean));
+                        }
+                      }}
+                      placeholder="Ví dụ: 100.000.000"
+                    />
+                    <div className="text-muted small mt-1" style={{ fontSize: "11px" }}>
+                      {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(khdMonthlyContractValue || 0)}
+                    </div>
+                  </div>
+
+                  <div className="col-6">
+                    <label className="form-label text-secondary mb-1 fw-semibold" style={{ fontSize: "13px" }}>Ngày ký hợp đồng</label>
+                    <input
+                      type="date"
+                      className="form-control rounded-3"
+                      value={khdSignDate}
+                      onChange={(e) => setKhdSignDate(e.target.value)}
+                    />
                   </div>
                   <div className="col-6">
                     <label className="form-label text-secondary mb-1 fw-semibold" style={{ fontSize: "13px" }}>Hạn mức công nợ (VNĐ)</label>
@@ -7660,16 +7880,6 @@ export default function PartnersPage() {
                     <div className="text-muted small mt-1" style={{ fontSize: "11px" }}>
                       {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(khdCreditLimit || 0)}
                     </div>
-                  </div>
-
-                  <div className="col-12">
-                    <label className="form-label text-secondary mb-1 fw-semibold" style={{ fontSize: "13px" }}>Ngày ký hợp đồng</label>
-                    <input
-                      type="date"
-                      className="form-control rounded-3"
-                      value={khdSignDate}
-                      onChange={(e) => setKhdSignDate(e.target.value)}
-                    />
                   </div>
 
                   <div className="col-12">
@@ -8139,6 +8349,19 @@ export default function PartnersPage() {
                     </div>
                   </div>
 
+                  <div>
+                    <label className="form-label text-secondary mb-1 fw-semibold" style={{ fontSize: "12px" }}>
+                      Địa chỉ kinh doanh
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control rounded-3"
+                      value={newBusinessAddress}
+                      onChange={(e) => setNewBusinessAddress(e.target.value)}
+                      style={{ fontSize: "13px" }}
+                    />
+                  </div>
+
                   <div className="d-flex gap-2">
                     <div className="flex-grow-1" style={{ width: "60%" }}>
                       <label className="form-label text-secondary mb-1 fw-semibold" style={{ fontSize: "12px" }}>
@@ -8212,6 +8435,48 @@ export default function PartnersPage() {
                       onChange={(e) => setNewScale(e.target.value)}
                       style={{ fontSize: "13px" }}
                     />
+                  </div>
+
+                  <div className="d-flex gap-2">
+                    <div className="flex-grow-1" style={{ width: "50%" }}>
+                      <label className="form-label text-secondary mb-1 fw-semibold" style={{ fontSize: "12px" }}>
+                        Thời gian tiếp nhận
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control rounded-3 bg-light"
+                        readOnly
+                        value={(() => {
+                          const d = newCreationTime || new Date();
+                          const hh = String(d.getHours()).padStart(2, "0");
+                          const mm = String(d.getMinutes()).padStart(2, "0");
+                          const dd = String(d.getDate()).padStart(2, "0");
+                          const month = String(d.getMonth() + 1).padStart(2, "0");
+                          const yyyy = d.getFullYear();
+                          return `${hh}:${mm} ${dd}/${month}/${yyyy}`;
+                        })()}
+                        style={{ fontSize: "13px" }}
+                      />
+                    </div>
+                    <div className="flex-grow-1" style={{ width: "50%" }}>
+                      <label className="form-label text-secondary mb-1 fw-semibold" style={{ fontSize: "12px" }}>
+                        Người phụ trách
+                      </label>
+                      <select
+                        className="form-select rounded-3"
+                        value={newCareStaff}
+                        onChange={(e) => setNewCareStaff(e.target.value)}
+                        style={{ fontSize: "13px" }}
+                      >
+                        {crmEmployees.length === 0 ? (
+                          <option value={newCareStaff || "Vũ Hoàng Long"}>{newCareStaff || "Vũ Hoàng Long"}</option>
+                        ) : (
+                          crmEmployees.map(emp => (
+                            <option key={emp.id} value={emp.fullName}>{emp.fullName}</option>
+                          ))
+                        )}
+                      </select>
+                    </div>
                   </div>
 
                   <div className="d-flex flex-column flex-grow-1">
