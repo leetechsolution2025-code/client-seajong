@@ -489,278 +489,79 @@ export default function SalesCustomersPage() {
         </div>
       </div>
 
-      {/* Offcanvas Chi tiết đại lý */}
+      {/* Modal Chi tiết đại lý (Fullscreen) */}
       {showDetailOffcanvas && selectedCustomer && (
-        <>
-          <div
-            className="offcanvas offcanvas-end show"
-            tabIndex={-1}
-            style={{ visibility: "visible", width: "400px", zIndex: 1045, borderLeft: "1px solid var(--border)", boxShadow: "-4px 0 24px rgba(0,0,0,0.05)" }}
-          >
-            <div className="offcanvas-header border-bottom py-3 px-4 bg-light">
-              <h5 className="offcanvas-title fw-bold text-dark mb-0 fs-6">
-                <i className="bi bi-person-lines-fill me-2 text-primary" />
-                Chi tiết đại lý
-              </h5>
-              <button type="button" className="btn-close shadow-none" onClick={() => setShowDetailOffcanvas(false)}></button>
-            </div>
-            <div className="offcanvas-body p-4 d-flex flex-column" style={{ overflowY: "auto" }}>
-              <div className="d-flex flex-column gap-3">
-                {/* Section: Contact Info */}
-                <div>
-                  <div className="d-flex flex-column bg-light rounded-3 border border-light" style={{ fontSize: "13px", padding: "8px 12px", gap: "5px" }}>
-                    {/* Tên khách hàng & Toggle icon */}
-                    <div className="d-flex align-items-center justify-content-between">
-                      <div className="d-flex align-items-center gap-2">
-                        <i className="bi bi-person text-muted" />
-                        <span className="text-dark fw-bold" style={{ fontSize: "14px" }}>
-                          {selectedCustomer.nhom === "ca-nhan" && selectedCustomer.xungHo ? `${selectedCustomer.xungHo} ` : ""}{selectedCustomer.name}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => setDetailsExpanded(!detailsExpanded)}
-                        className="btn btn-link p-0 text-muted d-flex align-items-center justify-content-center border-0 shadow-none"
-                        style={{ textDecoration: "none", width: "20px", height: "20px" }}
-                        title={detailsExpanded ? "Thu gọn chi tiết" : "Mở rộng chi tiết"}
-                      >
-                        <i className={`bi bi-chevron-${detailsExpanded ? "up" : "down"}`} style={{ fontSize: "15px" }} />
-                      </button>
-                    </div>
-
-                    {/* Badges row */}
-                    <div className="d-flex flex-wrap gap-1 mt-0.5">
-                      {selectedCustomer.nhom && (
-                        <span className="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-10 rounded-pill px-2 py-0.5" style={{ fontSize: "11px" }}>
-                          {selectedCustomer.nhom === "ca-nhan" ? "Cá nhân" : selectedCustomer.nhom === "dai-ly" ? "Đại lý" : "Khác"}
-                        </span>
-                      )}
-                      {selectedCustomer.loai && (
-                        <span className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-10 rounded-pill px-2 py-0.5" style={{ fontSize: "11px" }}>
-                          {selectedCustomer.loai === "kim-cuong" ? "Kim cương" : selectedCustomer.loai === "vang" ? "Vàng" : "Bạc"}
-                        </span>
-                      )}
-                      {selectedCustomer.nguon && (
-                        <span className="badge bg-info bg-opacity-10 text-info border border-info border-opacity-10 rounded-pill px-2 py-0.5" style={{ fontSize: "11px" }}>
-                          {selectedCustomer.nguon === "tu-nhien" ? "Tự nhiên" : selectedCustomer.nguon === "gioi-thieu" ? "Giới thiệu" : selectedCustomer.nguon === "quang-cao" ? "Quảng cáo" : "Khác"}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Collapsible Content */}
-                    {detailsExpanded && (
-                      <div className="d-flex flex-column gap-1.5 mt-1 pt-1 border-top" style={{ borderColor: "rgba(0,0,0,0.05)" }}>
-                        {selectedCustomer.daiDien && selectedCustomer.nhom !== "ca-nhan" && (
+        <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}>
+          <div className="modal-dialog modal-fullscreen">
+            <div className="modal-content">
+              <div className="modal-header border-bottom py-3 px-4 bg-light">
+                <h5 className="modal-title fw-bold text-dark mb-0 fs-6 d-flex align-items-center">
+                  <i className="bi bi-person-lines-fill me-2 text-primary fs-5" />
+                  Hồ sơ chi tiết đại lý
+                </h5>
+                <button type="button" className="btn-close shadow-none" onClick={() => setShowDetailOffcanvas(false)}></button>
+              </div>
+              
+              <div className="modal-body p-4 bg-white" style={{ overflowY: "auto" }}>
+                <div className="container-fluid">
+                  <div className="row g-4">
+                    {/* Cột trái: Thông tin chung */}
+                    <div className="col-12 col-lg-4">
+                      <span className="fw-bold text-secondary text-uppercase d-block mb-3" style={{ fontSize: "12px", letterSpacing: "0.05em" }}>
+                        Thông tin đại lý
+                      </span>
+                      <div className="d-flex flex-column bg-light rounded-4 border border-light" style={{ fontSize: "14px", padding: "20px", gap: "10px" }}>
+                        {/* Tên khách hàng & Toggle icon */}
+                        <div className="d-flex align-items-center justify-content-between mb-2">
                           <div className="d-flex align-items-center gap-2">
-                            <i className="bi bi-person-badge text-muted" />
-                            <span className="text-dark">
-                              {selectedCustomer.xungHo ? `${selectedCustomer.xungHo} ` : ""}{selectedCustomer.daiDien}
-                              {selectedCustomer.chucVu && ` (${selectedCustomer.chucVu})`}
+                            <i className="bi bi-person-circle text-primary fs-4" />
+                            <span className="text-dark fw-bold" style={{ fontSize: "18px" }}>
+                              {selectedCustomer.nhom === "ca-nhan" && selectedCustomer.xungHo ? `${selectedCustomer.xungHo} ` : ""}{selectedCustomer.name}
                             </span>
                           </div>
-                        )}
-                        <div className="d-flex align-items-center gap-2 flex-wrap">
-                          <i className="bi bi-telephone text-muted" />
-                          <span className="text-dark">
-                            {selectedCustomer.dienThoai || "—"}
-                          </span>
+                        </div>
+
+                        {/* Badges row */}
+                        <div className="d-flex flex-wrap gap-2 mb-3">
+                          {selectedCustomer.nhom && (
+                            <span className="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-10 rounded-pill px-3 py-1" style={{ fontSize: "12px" }}>
+                              {selectedCustomer.nhom === "ca-nhan" ? "Cá nhân" : selectedCustomer.nhom === "dai-ly" ? "Đại lý" : "Khác"}
+                            </span>
+                          )}
+                          {selectedCustomer.loai && (
+                            <span className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-10 rounded-pill px-3 py-1" style={{ fontSize: "12px" }}>
+                              {selectedCustomer.loai === "kim-cuong" ? "Kim cương" : selectedCustomer.loai === "vang" ? "Vàng" : "Bạc"}
+                            </span>
+                          )}
+                          {selectedCustomer.nguon && (
+                            <span className="badge bg-info bg-opacity-10 text-info border border-info border-opacity-10 rounded-pill px-3 py-1" style={{ fontSize: "12px" }}>
+                              {selectedCustomer.nguon === "tu-nhien" ? "Tự nhiên" : selectedCustomer.nguon === "gioi-thieu" ? "Giới thiệu" : selectedCustomer.nguon === "quang-cao" ? "Quảng cáo" : "Khác"}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="d-flex flex-column gap-3 pt-3 border-top" style={{ borderColor: "rgba(0,0,0,0.05)" }}>
+                          {selectedCustomer.daiDien && selectedCustomer.nhom !== "ca-nhan" && (
+                            <div className="d-flex align-items-center gap-3">
+                              <i className="bi bi-person-badge text-muted fs-5" />
+                              <span className="text-dark">
+                                {selectedCustomer.xungHo ? `${selectedCustomer.xungHo} ` : ""}{selectedCustomer.daiDien}
+                                {selectedCustomer.chucVu && <span className="text-muted ms-1">({selectedCustomer.chucVu})</span>}
+                              </span>
+                            </div>
+                          )}
+                          <div className="d-flex align-items-center gap-3 flex-wrap">
+                            <i className="bi bi-telephone text-muted fs-5" />
+                            <span className="text-dark fw-medium">
+                              {selectedCustomer.dienThoai || "—"}
+                            </span>
+                          </div>
                           {selectedCustomer.email && (
-                            <>
-                              <span className="text-muted mx-1">|</span>
-                              <i className="bi bi-envelope text-muted" style={{ fontSize: "13px" }} />
+                            <div className="d-flex align-items-center gap-3">
+                              <i className="bi bi-envelope text-muted fs-5" />
                               <span className="text-dark text-break">
                                 {selectedCustomer.email}
                               </span>
-                            </>
-                          )}
-                        </div>
-                        <div className="d-flex align-items-start gap-2">
-                          <i className="bi bi-geo-alt text-muted mt-0.5" />
-                          <span className="text-dark">{selectedCustomer.address || "—"}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Section: Yearly Sales and Commitment */}
-                <div>
-                  <span className="fw-bold text-secondary text-uppercase d-block mb-2" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
-                    Doanh số và doanh số cam kết năm
-                  </span>
-                  <div className="p-3 bg-light rounded-3 border border-light">
-                    <div className="d-flex gap-4">
-                      <div>
-                        <span className="text-muted d-block mb-0.5" style={{ fontSize: "11px" }}>Doanh số thực tế năm</span>
-                        <strong className="text-success" style={{ fontSize: "15px" }}>
-                          {((selectedCustomer as any).yearlySales ?? 0).toLocaleString("vi-VN")} ₫
-                        </strong>
-                      </div>
-                      <div style={{ width: "1px", backgroundColor: "rgba(0,0,0,0.08)" }} />
-                      <div>
-                        <span className="text-muted d-block mb-0.5" style={{ fontSize: "11px" }}>Doanh số cam kết năm</span>
-                        <strong className="text-primary" style={{ fontSize: "15px" }}>
-                          {((selectedCustomer as any).committedSales ?? 0).toLocaleString("vi-VN")} ₫
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Thưởng thanh toán */}
-                <div>
-                  <span className="fw-bold text-secondary text-uppercase d-block mb-2" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
-                    Thưởng thanh toán
-                  </span>
-                  <div className="p-3 bg-light rounded-3 border border-light d-flex flex-column gap-2">
-                    <div className="d-flex align-items-center justify-content-between">
-                      <div className="d-flex align-items-center gap-2">
-                        <i className="bi bi-calendar-event text-success fs-5" />
-                        <span className="text-muted" style={{ fontSize: "13px" }}>Tích lũy thanh toán</span>
-                      </div>
-                      <strong className="text-success" style={{ fontSize: "15px" }}>
-                        {((selectedCustomer as any).thuongThang ?? 0).toLocaleString("vi-VN")} ₫
-                      </strong>
-                    </div>
-                    <div className="text-muted" style={{ fontSize: "12px", lineHeight: "1.4" }}>
-                      • Chiết khấu thanh toán 2% trên tổng giá trị hóa đơn (chưa VAT) khi Đại lý hoàn tất thanh toán trước hạn hoặc đúng hạn quy định trong Hợp đồng đại lý.
-                    </div>
-                    <div className="d-flex flex-column gap-1 mt-1 p-2 rounded bg-white border border-light" style={{ fontSize: "12px" }}>
-                      <span className="text-secondary fw-semibold">Công thức tính:</span>
-                      <span className="text-primary fw-bold" style={{ fontSize: "12.5px" }}>
-                        Mức thưởng = 2% * Doanh số thanh toán đúng hạn (Chưa VAT)
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Thưởng doanh số năm */}
-                <div>
-                  <span className="fw-bold text-secondary text-uppercase d-block mb-2" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
-                    Thưởng doanh số năm
-                  </span>
-                  <div className="p-3 bg-light rounded-3 border border-light d-flex flex-column gap-2">
-                    <div className="d-flex align-items-center justify-content-between">
-                      <div className="d-flex align-items-center gap-2">
-                        <i className="bi bi-trophy text-warning fs-5" />
-                        <span className="text-muted" style={{ fontSize: "13px" }}>Thưởng đạt doanh số cam kết</span>
-                      </div>
-                      <strong className="text-warning" style={{ fontSize: "15px" }}>
-                        {((selectedCustomer as any).thuongDoanhSoNam ?? 0).toLocaleString("vi-VN")} ₫
-                      </strong>
-                    </div>
-                    <div className="text-muted" style={{ fontSize: "12px", lineHeight: "1.4" }}>
-                      • Mức thưởng đạt chỉ tiêu doanh thu năm cam kết tối thiểu. Được chi trả bằng hàng hóa hoặc trừ trực tiếp vào công nợ đơn hàng đầu tiên của năm tiếp theo.
-                    </div>
-                    <div className="d-flex flex-column gap-1 mt-1 p-2 rounded bg-white border border-light" style={{ fontSize: "12px" }}>
-                      <span className="text-secondary fw-semibold">Công thức tính:</span>
-                      <span className="text-primary fw-bold" style={{ fontSize: "12.5px" }}>
-                        Doanh số thực tế năm &gt;= 100% Cam kết: Thưởng 1.5% tổng doanh số thực tế
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Thưởng vượt doanh số năm */}
-                <div>
-                  <span className="fw-bold text-secondary text-uppercase d-block mb-2" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
-                    Thưởng vượt doanh số năm
-                  </span>
-                  <div className="p-3 bg-light rounded-3 border border-light d-flex flex-column gap-2">
-                    <div className="d-flex align-items-center justify-content-between">
-                      <div className="d-flex align-items-center gap-2">
-                        <i className="bi bi-graph-up-arrow text-danger fs-5" />
-                        <span className="text-muted" style={{ fontSize: "13px" }}>Thưởng vượt doanh số cam kết</span>
-                      </div>
-                      <strong className="text-danger" style={{ fontSize: "15px" }}>
-                        {((selectedCustomer as any).thuongVuotDoanhSoNam ?? 0).toLocaleString("vi-VN")} ₫
-                      </strong>
-                    </div>
-                    <div className="text-muted" style={{ fontSize: "12px", lineHeight: "1.4" }}>
-                      • Mức thưởng khuyến khích vượt chỉ tiêu doanh số năm cam kết.
-                    </div>
-                    <div className="d-flex flex-column gap-1 mt-1 p-2 rounded bg-white border border-light" style={{ fontSize: "12px" }}>
-                      <span className="text-secondary fw-semibold">Công thức tính:</span>
-                      <span className="text-primary fw-bold" style={{ fontSize: "12.5px" }}>
-                        Vượt chỉ tiêu: Thưởng 3% trên phần doanh số vượt chỉ tiêu cam kết
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Thưởng đặc biệt */}
-                <div>
-                  <span className="fw-bold text-secondary text-uppercase d-block mb-2" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
-                    Thưởng đặc biệt
-                  </span>
-                  <div className="p-3 bg-light rounded-3 border border-light d-flex flex-column gap-2">
-                    <div className="d-flex align-items-center justify-content-between">
-                      <div className="d-flex align-items-center gap-2">
-                        <i className="bi bi-star text-primary fs-5" />
-                        <span className="text-muted" style={{ fontSize: "13px" }}>Chương trình thi đua đặt biệt</span>
-                      </div>
-                      <strong className="text-primary" style={{ fontSize: "15px" }}>
-                        {((selectedCustomer as any).thuongDacBiet ?? 0).toLocaleString("vi-VN")} ₫
-                      </strong>
-                    </div>
-                    <div className="text-muted" style={{ fontSize: "12px", lineHeight: "1.4" }}>
-                      • Thưởng đặc biệt dành cho đối tác xuất sắc đạt thứ hạng Kim Cương hoặc tham gia các chương trình thi đua đặc biệt của công ty.
-                    </div>
-                    <div className="d-flex flex-column gap-1 mt-1 p-2 rounded bg-white border border-light" style={{ fontSize: "12px" }}>
-                      <span className="text-secondary fw-semibold">Công thức tính:</span>
-                      <span className="text-primary fw-bold" style={{ fontSize: "12.5px" }}>
-                        Áp dụng theo quyết định chương trình khuyến mãi cụ thể
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section: Notes */}
-                {selectedCustomer.ghiChu && (
-                  <div>
-                    <span className="fw-bold text-secondary text-uppercase d-block mb-1" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
-                      Ghi chú
-                    </span>
-                    <p className="text-muted bg-light p-3 rounded-3 mb-0" style={{ fontSize: "13.5px", whiteSpace: "pre-line" }}>
-                      {selectedCustomer.ghiChu}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Action Footer */}
-            <div className="border-top p-3 d-flex align-items-center gap-2 flex-shrink-0 bg-light">
-              <button
-                onClick={() => setBaoGiaModalOpen(true)}
-                className="btn btn-sm btn-outline-success d-flex align-items-center gap-2"
-                style={{ borderRadius: "8px", fontSize: "12px", padding: "5px 10px", fontWeight: 500 }}
-              >
-                <i className="bi bi-file-text" /> Báo giá
-              </button>
-              <button
-                type="button"
-                onClick={() => setDonHangModalOpen(true)}
-                className="btn btn-sm btn-outline-success d-flex align-items-center gap-2"
-                style={{ borderRadius: "8px", fontSize: "12px", padding: "5px 10px", fontWeight: 500 }}
-              >
-                <i className="bi bi-cart3" /> Đơn hàng
-              </button>
-
-              <button
-                onClick={() => {
-                  handleOpenEdit();
-                  setShowDetailOffcanvas(false);
-                }}
-                className="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center ms-auto"
-                style={{ width: "32px", height: "32px", padding: 0, borderRadius: "8px" }}
-                title="Chỉnh sửa thông tin khách hàng"
-              >
-                <i className="bi bi-pencil" style={{ fontSize: "13px" }} />
-              </button>
-              <button
-                onClick={() => {
-                  setDeleteConfirmOpen(true);
-                  setShowDetailOffcanvas(false);
                 }}
                 className="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
                 style={{ width: "32px", height: "32px", padding: 0, borderRadius: "8px" }}
