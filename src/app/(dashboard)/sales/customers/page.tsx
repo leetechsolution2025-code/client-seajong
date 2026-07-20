@@ -410,7 +410,14 @@ export default function SalesCustomersPage() {
     },
     {
       header: "Số đơn hàng",
-      render: (row) => <span className="fw-medium text-primary">{row.orderCode || "—"}</span>
+      render: (row) => (
+        <div className="d-flex flex-column">
+          <span className="fw-medium text-primary">{row.orderCode || "—"}</span>
+          <span className="text-muted" style={{ fontSize: "11px" }}>
+            {row.createdAt || "—"} | {row.createdBy || "—"}
+          </span>
+        </div>
+      )
     },
     {
       header: "Giá trị",
@@ -442,10 +449,10 @@ export default function SalesCustomersPage() {
   ];
 
   const mockOrders = [
-    { id: 1, orderCode: "DH-2026-001", totalAmount: 15000000, paidAmount: 15000000, note: "Thanh toán đủ" },
-    { id: 2, orderCode: "DH-2026-002", totalAmount: 32000000, paidAmount: 16000000, note: "Thanh toán đợt 1" },
-    { id: 3, orderCode: "DH-2026-003", totalAmount: 8500000, paidAmount: 0, note: "Chưa thanh toán" },
-    { id: 4, orderCode: "DH-2026-004", totalAmount: 45000000, paidAmount: 40000000, note: "Còn nợ 5tr" },
+    { id: 1, orderCode: "DH-2026-001", totalAmount: 15000000, paidAmount: 15000000, note: "Thanh toán đủ", createdAt: "20/07/2026 08:30", createdBy: "Nguyễn Văn A" },
+    { id: 2, orderCode: "DH-2026-002", totalAmount: 32000000, paidAmount: 16000000, note: "Thanh toán đợt 1", createdAt: "19/07/2026 14:15", createdBy: "Trần Thị B" },
+    { id: 3, orderCode: "DH-2026-003", totalAmount: 8500000, paidAmount: 0, note: "Chưa thanh toán", createdAt: "18/07/2026 09:45", createdBy: "Nguyễn Văn A" },
+    { id: 4, orderCode: "DH-2026-004", totalAmount: 45000000, paidAmount: 40000000, note: "Còn nợ 5tr", createdAt: "15/07/2026 16:20", createdBy: "Lê Văn C" },
   ];
 
   return (
