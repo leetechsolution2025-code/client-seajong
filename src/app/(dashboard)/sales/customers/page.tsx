@@ -26,11 +26,11 @@ interface CustomerRow {
   chucVu: string | null;
   ghiChu: string | null;
   createdAt: string;
+  formValues?: string;
 }
 
 export default function SalesCustomersPage() {
   // States for filters and query
-  const [nhomFilter, setNhomFilter] = useState("");
   const [nguonFilter, setNguonFilter] = useState("");
   const [hangFilter, setHangFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -94,11 +94,6 @@ export default function SalesCustomersPage() {
   };
 
   // Static options lists
-  const nhomOptions = [
-    { label: "Cá nhân", value: "ca-nhan" },
-    { label: "Đại lý", value: "dai-ly" },
-    { label: "Loại khác", value: "loai-khac" }
-  ];
 
   const nguonOptions = [
     { label: "Tự nhiên", value: "tu-nhien" },
@@ -120,7 +115,7 @@ export default function SalesCustomersPage() {
       const params = new URLSearchParams({ page: String(page) });
       if (searchQuery) params.set("search", searchQuery);
       if (nguonFilter) params.set("nguon", nguonFilter);
-      if (nhomFilter) params.set("nhom", nhomFilter);
+      params.set("nhom", "dai-ly"); // Chỉ hiển thị đại lý (những khách đã ký hợp đồng)
       if (hangFilter) params.set("loai", hangFilter);
       const res = await fetch(`/api/plan-finance/customers?${params}`);
       const data = await res.json();
@@ -139,7 +134,7 @@ export default function SalesCustomersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, searchQuery, nguonFilter, nhomFilter, hangFilter]);
+  }, [page, searchQuery, nguonFilter, hangFilter]);
 
   useEffect(() => {
     fetchCustomers();
@@ -148,7 +143,7 @@ export default function SalesCustomersPage() {
   // Reset page to 1 when filters or query changes
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, nguonFilter, nhomFilter, hangFilter]);
+  }, [searchQuery, nguonFilter, hangFilter]);
 
   // Fetch transaction history
   useEffect(() => {
@@ -308,16 +303,25 @@ export default function SalesCustomersPage() {
     },
     {
       header: "Tên khách hàng",
-      render: (row) => (
-        <div className="d-flex flex-column">
-          <span className="fw-bold text-dark">{row.name}</span>
-          {row.address && (
-            <span className="text-muted" style={{ fontSize: "11px" }}>
-              <i className="bi bi-geo-alt me-1" />{row.address}
-            </span>
-          )}
-        </div>
-      )
+      render: (row) => {
+        let actualAddress = row.address;
+        if (!actualAddress && row.formValues) {
+          try {
+            const parsed = JSON.parse(row.formValues);
+            actualAddress = parsed.detailBusinessAddress || parsed.address || "";
+          } catch(e) {}
+        }
+        return (
+          <div className="d-flex flex-column">
+            <span className="fw-bold text-dark">{row.name}</span>
+            {actualAddress && (
+              <span className="text-muted" style={{ fontSize: "11px" }}>
+                <i className="bi bi-geo-alt me-1" />{actualAddress}
+              </span>
+            )}
+          </div>
+        );
+      }
     },
     {
       header: "Thông tin liên hệ",
@@ -347,7 +351,7 @@ export default function SalesCustomersPage() {
       )
     },
     {
-      header: "Doanh số",
+      header: "Doanh số năm",
       width: 220,
       render: (row) => {
         const committed = (row as any).committedSales ?? 0;
@@ -417,13 +421,6 @@ export default function SalesCustomersPage() {
               {/* Thanh công cụ Toolbar */}
               <div className="d-flex align-items-center gap-2 mb-3">
                 <FilterSelect
-                  options={nhomOptions}
-                  value={nhomFilter}
-                  onChange={setNhomFilter}
-                  placeholder="Nhóm"
-                  width={120}
-                />
-                <FilterSelect
                   options={nguonOptions}
                   value={nguonFilter}
                   onChange={setNguonFilter}
@@ -445,6 +442,7 @@ export default function SalesCustomersPage() {
                   />
                 </div>
                 <button
+                  disabled
                   onClick={handleOpenCreate}
                   className="btn btn-sm btn-primary d-flex align-items-center gap-1"
                   style={{
