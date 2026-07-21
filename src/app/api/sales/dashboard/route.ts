@@ -34,7 +34,8 @@ export async function GET(req: NextRequest) {
             name: true,
             dienThoai: true,
             loai: true,
-            nhom: true
+            nhom: true,
+            address: true
           }
         },
         saleOrderItems: true
