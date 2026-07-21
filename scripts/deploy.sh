@@ -137,6 +137,9 @@ fi
 fuser -k "${PORT}/tcp" 2>/dev/null || true
 sleep 2
 
+# Remove any existing Next.js build locks that might cause errors
+rm -f .next/lock || true
+
 # ── Build ─────────────────────────────────────────────────────
 info "Build production... (có thể mất 3-8 phút)"
 BUILD_START=$(date +%s)
