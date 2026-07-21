@@ -6,6 +6,9 @@ import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { PolicyOffcanvas } from "./PolicyOffcanvas";
+import { PromotionOffcanvas } from "./PromotionOffcanvas";
+import { QAAddModal } from "./QAAddModal";
 
 const STEPS: ModernStepItem[] = [
   { num: 1, id: "policy", title: "Chính sách bán hàng", desc: "Thiết lập chính sách", icon: "bi-file-earmark-text" },
@@ -22,9 +25,22 @@ interface PolicyItem {
   endDate?: string;
   summary: string;
   status: string;
+  pdfUrl?: string;
 }
 
-const policyColumns: TableColumn<PolicyItem>[] = [
+const getPolicyColumns = (
+  onViewPdf: (item: PolicyItem) => void,
+  selectedIds: number[],
+  toggleSelection: (id: number) => void
+): TableColumn<PolicyItem>[] => [
+  { header: "", width: "40px", render: (row: PolicyItem) => (
+    <input 
+      type="checkbox" 
+      className="form-check-input mt-0"
+      checked={selectedIds.includes(row.id)}
+      onChange={() => toggleSelection(row.id)}
+    />
+  )},
   { header: "STT", width: "60px", render: (_: PolicyItem, index: number) => index + 1 },
   { header: "Tên văn bản", render: (row: PolicyItem) => (
     <div>
@@ -39,18 +55,32 @@ const policyColumns: TableColumn<PolicyItem>[] = [
       {row.status}
     </span>
   )},
-  { header: "", width: "50px", render: () => (
-    <button className="btn btn-sm btn-light text-muted border-0"><i className="bi bi-three-dots-vertical"></i></button>
-  )}
+  { header: "", width: "50px", render: (row: PolicyItem) => row.pdfUrl ? (
+    <button 
+      className="btn btn-sm btn-light text-muted border-0"
+      onClick={() => onViewPdf(row)}
+      title="Xem văn bản đính kèm"
+    >
+      <i className="bi bi-three-dots-vertical"></i>
+    </button>
+  ) : null}
 ];
 
-const mockPolicies: PolicyItem[] = [
-  { id: 1, name: "Chính sách chiết khấu Quý 3/2026", docNo: "125/2026/CS-SJ", date: "01/07/2026", summary: "Áp dụng mức chiết khấu mới cho đại lý cấp 1 và cấp 2", status: "Hiệu lực" },
-  { id: 2, name: "Quy định hỗ trợ bảng biển", docNo: "112/2026/QĐ-SJ", date: "15/06/2026", summary: "Hỗ trợ 50% chi phí thi công bảng biển chuẩn nhận diện", status: "Hiệu lực" },
-  { id: 3, name: "Chính sách đổi trả hàng hóa", date: "01/01/2026", summary: "Quy định điều kiện và thời gian đổi trả hàng lỗi", status: "Hết hiệu lực" }
-];
+// mockPolicies removed as data is now fetched from the database
 
-const promotionColumns: TableColumn<PolicyItem>[] = [
+const getPromotionColumns = (
+  onViewPdf: (item: PolicyItem) => void,
+  selectedIds: number[],
+  toggleSelection: (id: number) => void
+): TableColumn<PolicyItem>[] => [
+  { header: "", width: "40px", render: (row: PolicyItem) => (
+    <input 
+      type="checkbox" 
+      className="form-check-input mt-0"
+      checked={selectedIds.includes(row.id)}
+      onChange={() => toggleSelection(row.id)}
+    />
+  )},
   { header: "STT", width: "60px", render: (_: PolicyItem, index: number) => index + 1 },
   { header: "Tên văn bản", render: (row: PolicyItem) => (
     <div>
@@ -70,15 +100,18 @@ const promotionColumns: TableColumn<PolicyItem>[] = [
       {row.status}
     </span>
   )},
-  { header: "", width: "50px", render: () => (
-    <button className="btn btn-sm btn-light text-muted border-0"><i className="bi bi-three-dots-vertical"></i></button>
-  )}
+  { header: "", width: "50px", render: (row: PolicyItem) => row.pdfUrl ? (
+    <button 
+      className="btn btn-sm btn-light text-muted border-0"
+      onClick={() => onViewPdf(row)}
+      title="Xem văn bản đính kèm"
+    >
+      <i className="bi bi-three-dots-vertical"></i>
+    </button>
+  ) : null}
 ];
 
-const mockPromotions: PolicyItem[] = [
-  { id: 1, name: "Chương trình Mùa Hè Sôi Động", docNo: "015/2026/CTKM-SJ", startDate: "10/05/2026", endDate: "10/08/2026", summary: "Tặng ngay 1 phần quà khi mua 10 bộ sen vòi", status: "Hiệu lực" },
-  { id: 2, name: "Khuyến mãi ra mắt sản phẩm mới", docNo: "020/2026/CTKM-SJ", startDate: "01/08/2026", endDate: "31/12/2026", summary: "Chiết khấu thêm 5% cho đại lý", status: "Hiệu lực" }
-];
+// mockPromotions removed as data is now fetched from the database
 
 interface QAItem {
   id: number;
@@ -158,6 +191,24 @@ export default function PricingPage() {
   const [expandedQA, setExpandedQA] = useState<number | null>(null);
   const [qaList, setQaList] = useState<QAItem[]>([]);
   const [loadingQA, setLoadingQA] = useState(true);
+  const [isQaModalOpen, setIsQaModalOpen] = useState(false);
+  const [selectedQaIds, setSelectedQaIds] = useState<number[]>([]);
+  const [isDeletingQa, setIsDeletingQa] = useState(false);
+
+  const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
+  const [isDeletingPolicy, setIsDeletingPolicy] = useState(false);
+
+  const [selectedPromotionIds, setSelectedPromotionIds] = useState<number[]>([]);
+  const [isDeletingPromotion, setIsDeletingPromotion] = useState(false);
+
+  const [isPolicyOffcanvasOpen, setIsPolicyOffcanvasOpen] = useState(false);
+  const [isPromotionOffcanvasOpen, setIsPromotionOffcanvasOpen] = useState(false);
+  const [previewPdfItem, setPreviewPdfItem] = useState<PolicyItem | null>(null);
+
+  const [policies, setPolicies] = useState<PolicyItem[]>([]);
+  const [promotions, setPromotions] = useState<PolicyItem[]>([]);
+  const [loadingPolicies, setLoadingPolicies] = useState(true);
+  const [loadingPromotions, setLoadingPromotions] = useState(true);
 
   // Filter states
   const [policySearch, setPolicySearch] = useState("");
@@ -169,11 +220,25 @@ export default function PricingPage() {
   const [qaSearch, setQaSearch] = useState("");
 
   useEffect(() => {
+    fetchQA();
+    fetchPolicies();
+    fetchPromotions();
+  }, []);
+
+  const fetchQA = (focusId?: number) => {
+    setLoadingQA(true);
     fetch('/api/soft-skills-qa')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
           setQaList(data);
+          if (focusId) {
+            setExpandedQA(focusId);
+            setTimeout(() => {
+              const el = document.getElementById(`qa-item-${focusId}`);
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+          }
         } else {
           console.error("API returned non-array data:", data);
           setQaList([]);
@@ -185,21 +250,130 @@ export default function PricingPage() {
         setQaList([]);
         setLoadingQA(false);
       });
-  }, []);
+  };
+
+  const handleDeleteQa = async () => {
+    if (selectedQaIds.length === 0) return;
+    setIsDeletingQa(true);
+    try {
+      const res = await fetch('/api/soft-skills-qa', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedQaIds })
+      });
+      if (res.ok) {
+        setSelectedQaIds([]);
+        fetchQA();
+      } else {
+        alert("Xóa thất bại");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsDeletingQa(false);
+    }
+  };
+
+  const toggleQaSelection = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedQaIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const fetchPolicies = async () => {
+    setLoadingPolicies(true);
+    try {
+      const res = await fetch('/api/sales/policies');
+      if (res.ok) {
+        const data = await res.json();
+        setPolicies(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch policies:", error);
+    } finally {
+      setLoadingPolicies(false);
+    }
+  };
+
+  const fetchPromotions = async () => {
+    setLoadingPromotions(true);
+    try {
+      const res = await fetch('/api/sales/promotions');
+      if (res.ok) {
+        const data = await res.json();
+        setPromotions(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch promotions:", error);
+    } finally {
+      setLoadingPromotions(false);
+    }
+  };
+
+  const handleDeletePolicies = async () => {
+    if (selectedPolicyIds.length === 0) return;
+    setIsDeletingPolicy(true);
+    try {
+      const res = await fetch('/api/sales/policies', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedPolicyIds })
+      });
+      if (res.ok) {
+        setSelectedPolicyIds([]);
+        fetchPolicies();
+      } else {
+        alert("Xóa thất bại");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsDeletingPolicy(false);
+    }
+  };
+
+  const togglePolicySelection = (id: number) => {
+    setSelectedPolicyIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handleDeletePromotions = async () => {
+    if (selectedPromotionIds.length === 0) return;
+    setIsDeletingPromotion(true);
+    try {
+      const res = await fetch('/api/sales/promotions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedPromotionIds })
+      });
+      if (res.ok) {
+        setSelectedPromotionIds([]);
+        fetchPromotions();
+      } else {
+        alert("Xóa thất bại");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsDeletingPromotion(false);
+    }
+  };
+
+  const togglePromotionSelection = (id: number) => {
+    setSelectedPromotionIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
 
   const toggleQA = (id: number) => {
     setExpandedQA(prev => prev === id ? null : id);
   };
 
   // Derived filtered data
-  const filteredPolicies = mockPolicies.filter(p => {
+  const filteredPolicies = policies.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(policySearch.toLowerCase()) || 
                           p.docNo?.toLowerCase().includes(policySearch.toLowerCase());
     const matchesStatus = policyStatus === "all" || p.status === (policyStatus === "active" ? "Hiệu lực" : "Hết hiệu lực");
     return matchesSearch && matchesStatus;
   });
 
-  const filteredPromotions = mockPromotions.filter(p => {
+  const filteredPromotions = promotions.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(promotionSearch.toLowerCase()) || 
                           p.docNo?.toLowerCase().includes(promotionSearch.toLowerCase());
     const matchesStatus = promotionStatus === "all" || p.status === (promotionStatus === "active" ? "Hiệu lực" : "Hết hiệu lực");
@@ -260,12 +434,34 @@ export default function PricingPage() {
                     />
                   </div>
                 </div>
-                <button className="btn btn-primary btn-sm px-3 flex-shrink-0">
-                  <i className="bi bi-plus-lg me-1"></i> Thêm chính sách
-                </button>
+                <div className="d-flex align-items-center gap-2">
+                  {selectedPolicyIds.length > 0 && (
+                    <button 
+                      className="btn btn-outline-danger btn-sm px-2 flex-shrink-0"
+                      onClick={handleDeletePolicies}
+                      disabled={isDeletingPolicy}
+                      title="Xóa các mục đã chọn"
+                    >
+                      {isDeletingPolicy ? <span className="spinner-border spinner-border-sm" role="status"></span> : <i className="bi bi-trash"></i>}
+                    </button>
+                  )}
+                  <button 
+                    className="btn btn-primary btn-sm px-3 flex-shrink-0"
+                    onClick={() => setIsPolicyOffcanvasOpen(true)}
+                  >
+                    <i className="bi bi-plus-lg me-1"></i> Thêm chính sách
+                  </button>
+                </div>
               </div>
               <div className="flex-grow-1 overflow-auto bg-white">
-                <Table columns={policyColumns} rows={filteredPolicies} compact />
+                {loadingPolicies ? (
+                  <div className="text-center p-4 text-muted">
+                    <div className="spinner-border spinner-border-sm me-2 text-primary"></div>
+                    Đang tải danh sách chính sách...
+                  </div>
+                ) : (
+                  <Table columns={getPolicyColumns(setPreviewPdfItem, selectedPolicyIds, togglePolicySelection)} rows={filteredPolicies} compact />
+                )}
               </div>
             </div>
           )}
@@ -297,12 +493,34 @@ export default function PricingPage() {
                     />
                   </div>
                 </div>
-                <button className="btn btn-primary btn-sm px-3 flex-shrink-0">
-                  <i className="bi bi-plus-lg me-1"></i> Thêm khuyến mãi
-                </button>
+                <div className="d-flex align-items-center gap-2">
+                  {selectedPromotionIds.length > 0 && (
+                    <button 
+                      className="btn btn-outline-danger btn-sm px-2 flex-shrink-0"
+                      onClick={handleDeletePromotions}
+                      disabled={isDeletingPromotion}
+                      title="Xóa các mục đã chọn"
+                    >
+                      {isDeletingPromotion ? <span className="spinner-border spinner-border-sm" role="status"></span> : <i className="bi bi-trash"></i>}
+                    </button>
+                  )}
+                  <button 
+                    className="btn btn-primary btn-sm px-3 flex-shrink-0"
+                    onClick={() => setIsPromotionOffcanvasOpen(true)}
+                  >
+                    <i className="bi bi-plus-lg me-1"></i> Thêm khuyến mãi
+                  </button>
+                </div>
               </div>
               <div className="flex-grow-1 overflow-auto bg-white">
-                <Table columns={promotionColumns} rows={filteredPromotions} compact />
+                {loadingPromotions ? (
+                  <div className="text-center p-4 text-muted">
+                    <div className="spinner-border spinner-border-sm me-2 text-primary"></div>
+                    Đang tải danh sách khuyến mãi...
+                  </div>
+                ) : (
+                  <Table columns={getPromotionColumns(setPreviewPdfItem, selectedPromotionIds, togglePromotionSelection)} rows={filteredPromotions} compact />
+                )}
               </div>
             </div>
           )}
@@ -351,9 +569,24 @@ export default function PricingPage() {
                       />
                     </div>
                   </div>
-                  <button className="btn btn-primary btn-sm px-3 flex-shrink-0">
-                    <i className="bi bi-plus-lg me-1"></i> Thêm câu hỏi
-                  </button>
+                  <div className="d-flex align-items-center gap-2">
+                    {selectedQaIds.length > 0 && (
+                      <button 
+                        className="btn btn-outline-danger btn-sm px-2 flex-shrink-0"
+                        onClick={handleDeleteQa}
+                        disabled={isDeletingQa}
+                        title="Xóa các mục đã chọn"
+                      >
+                        {isDeletingQa ? <span className="spinner-border spinner-border-sm" role="status"></span> : <i className="bi bi-trash"></i>}
+                      </button>
+                    )}
+                    <button 
+                      className="btn btn-primary btn-sm px-3 flex-shrink-0"
+                      onClick={() => setIsQaModalOpen(true)}
+                    >
+                      <i className="bi bi-plus-lg me-1"></i> Thêm câu hỏi
+                    </button>
+                  </div>
                 </div>
               <div className="flex-grow-1 overflow-auto px-1 py-1 custom-scrollbar">
                 <div className="d-flex flex-column gap-2 pb-3">
@@ -364,13 +597,20 @@ export default function PricingPage() {
                     </div>
                   ) : (
                     filteredQaList.map((item, index) => (
-                      <div key={item.id} className="card border-0 shadow-sm rounded-3 overflow-hidden">
+                      <div id={`qa-item-${item.id}`} key={item.id} className="card border-0 shadow-sm rounded-3 overflow-hidden">
                       <div 
                         className="card-header bg-white border-0 px-3 py-2 d-flex align-items-center justify-content-between"
                         onClick={() => toggleQA(item.id)}
                         style={{ cursor: "pointer" }}
                       >
                         <div className="d-flex align-items-center gap-3 pe-3">
+                          <input 
+                            type="checkbox" 
+                            className="form-check-input mt-0" 
+                            checked={selectedQaIds.includes(item.id)}
+                            onChange={() => {}}
+                            onClick={(e) => toggleQaSelection(item.id, e)}
+                          />
                           <span className="badge rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: "26px", height: "26px", backgroundColor: "color-mix(in srgb, var(--bs-violet) 10%, transparent)", color: "var(--bs-violet)" }}>{index + 1}</span>
                           <span className="fw-semibold" style={{ color: "var(--bs-violet)", fontSize: "14px" }}>{item.question}</span>
                         </div>
@@ -392,6 +632,118 @@ export default function PricingPage() {
           )}
         </WorkflowCard>
       </div>
+
+      <PolicyOffcanvas 
+        open={isPolicyOffcanvasOpen} 
+        onClose={() => setIsPolicyOffcanvasOpen(false)} 
+        onSuccess={fetchPolicies}
+      />
+
+      <PromotionOffcanvas 
+        open={isPromotionOffcanvasOpen} 
+        onClose={() => setIsPromotionOffcanvasOpen(false)} 
+        onSuccess={fetchPromotions}
+      />
+
+      <QAAddModal 
+        open={isQaModalOpen}
+        onClose={() => setIsQaModalOpen(false)}
+        onSuccess={fetchQA}
+      />
+
+      {/* Modal xem trước PDF */}
+      {previewPdfItem && (
+        <>
+          <div className="modal-backdrop fade show" style={{ zIndex: 1050 }}></div>
+          <div 
+            className="modal fade show d-block" 
+            tabIndex={-1} 
+            style={{ zIndex: 1051 }}
+            onClick={() => setPreviewPdfItem(null)}
+          >
+            <div className="modal-dialog modal-fullscreen" onClick={e => e.stopPropagation()}>
+              <div className="modal-content overflow-hidden border-0 bg-light">
+                <div className="modal-header bg-white border-bottom px-4 py-3">
+                  <div className="d-flex align-items-center gap-2">
+                    <div className="bg-primary-subtle p-2 rounded-3 text-primary d-flex align-items-center justify-content-center" style={{ width: 36, height: 36 }}>
+                      <i className="bi bi-file-earmark-pdf-fill fs-5" />
+                    </div>
+                    <h5 className="modal-title fw-bold mb-0" style={{ fontSize: 16 }}>
+                      {previewPdfItem.name}
+                    </h5>
+                  </div>
+                  <button type="button" className="btn-close" onClick={() => setPreviewPdfItem(null)}></button>
+                </div>
+                <div className="modal-body p-0 d-flex h-100">
+                  <div className="flex-grow-1 bg-secondary bg-opacity-10 h-100">
+                    {previewPdfItem.pdfUrl ? (
+                      <iframe 
+                        src={previewPdfItem.pdfUrl} 
+                        className="w-100 h-100" 
+                        style={{ border: 'none', display: 'block' }} 
+                        title="PDF Preview" 
+                      />
+                    ) : (
+                      <div className="d-flex align-items-center justify-content-center h-100 text-muted">
+                        Không có văn bản đính kèm
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0 bg-white border-start h-100 overflow-auto" style={{ width: "400px" }}>
+                    <div className="p-4">
+                      <h6 className="fw-bold mb-4 text-primary text-uppercase" style={{ fontSize: "13px", letterSpacing: "0.5px" }}>Tóm tắt văn bản</h6>
+                      
+                      <div className="mb-4">
+                        <label className="text-muted fw-semibold d-block mb-1" style={{ fontSize: "12px" }}>Tên văn bản</label>
+                        <div className="fw-medium text-dark">{previewPdfItem.name}</div>
+                      </div>
+
+                      {previewPdfItem.docNo && (
+                        <div className="mb-4">
+                          <label className="text-muted fw-semibold d-block mb-1" style={{ fontSize: "12px" }}>Số văn bản</label>
+                          <div className="fw-medium text-dark">{previewPdfItem.docNo}</div>
+                        </div>
+                      )}
+
+                      <div className="mb-4">
+                        <label className="text-muted fw-semibold d-block mb-1" style={{ fontSize: "12px" }}>Trạng thái</label>
+                        <span className={`badge bg-${previewPdfItem.status === 'Hiệu lực' ? 'success' : 'secondary'} bg-opacity-10 text-${previewPdfItem.status === 'Hiệu lực' ? 'success' : 'secondary'} px-3 py-2 rounded-pill`}>
+                          {previewPdfItem.status}
+                        </span>
+                      </div>
+
+                      {previewPdfItem.date && (
+                        <div className="mb-4">
+                          <label className="text-muted fw-semibold d-block mb-1" style={{ fontSize: "12px" }}>Ngày ban hành</label>
+                          <div className="fw-medium text-dark">{previewPdfItem.date}</div>
+                        </div>
+                      )}
+
+                      {previewPdfItem.startDate && (
+                        <div className="mb-4">
+                          <label className="text-muted fw-semibold d-block mb-1" style={{ fontSize: "12px" }}>Thời gian hiệu lực</label>
+                          <div className="fw-medium text-dark">
+                            Bắt đầu: {previewPdfItem.startDate}
+                            <br/>
+                            Kết thúc: {previewPdfItem.endDate}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mb-4">
+                        <label className="text-muted fw-semibold d-block mb-2" style={{ fontSize: "12px" }}>Nội dung chính</label>
+                        <div className="p-3 bg-light rounded-3 text-dark" style={{ fontSize: "13.5px", lineHeight: "1.6" }}>
+                          {previewPdfItem.summary}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -2849,3 +2849,33 @@ model SoftSkillQA {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model SalesPolicy {
+  id        String   @id @default(cuid())
+  name      String
+  docNo     String?
+  status    String   @default("Hiệu lực")
+  issueDate DateTime?
+  issuer    String?
+  summary   String?
+  pdfUrl    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+model SalesPromotion {
+  id        String   @id @default(cuid())
+  name      String
+  docNo     String?
+  status    String   @default("Hiệu lực")
+  startDate DateTime?
+  endDate   DateTime?
+  summary   String?
+  pdfUrl    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
