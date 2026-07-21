@@ -46,12 +46,31 @@ export async function GET(req: NextRequest) {
       ? filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
       : filtered;
 
-    const mappedItems = paginated.map((item: any) => ({
-      ...item,
-      categoryId: item.productCategoryId,
-      category: item.productCategory,
-      dinhMuc: item.dinhMucs?.[0] || null,
-      source: "manufactured"
+    const mappedItems = await Promise.all(paginated.map(async (item: any) => {
+      // Find stock via InventoryItem code
+      let soLuong = 0;
+      let trangThai = "het-hang";
+      if (item.code) {
+        const invItem = await prisma.inventoryItem.findUnique({
+          where: { code: item.code },
+          include: { stocks: { select: { soLuong: true } } }
+        });
+        if (invItem && invItem.stocks) {
+          soLuong = invItem.stocks.reduce((sum, s) => sum + s.soLuong, 0);
+          trangThai = soLuong > 0 ? "con-hang" : "het-hang";
+        }
+      }
+
+      return {
+        ...item,
+        tenHang: item.name,
+        categoryId: item.productCategoryId,
+        category: item.productCategory,
+        dinhMuc: item.dinhMucs?.[0] || null,
+        source: "manufactured",
+        soLuong,
+        trangThai
+      };
     }));
 
     return NextResponse.json({ 
