@@ -650,22 +650,22 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                         </div>
                       </div>
 
-                      {/* Right Column: Thông số kỹ thuật */}
+                      {/* Right Column: Tên gọi khi kê khai (mapped to ghiChu) */}
                       <div className="col-md-6 d-flex flex-column">
                         <div className="d-flex align-items-center gap-2 mb-3">
                           <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <i className="bi bi-gear text-primary" />
+                            <i className="bi bi-card-text text-primary" />
                           </div>
-                          <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 13 }}>Thông số kỹ thuật</span>
+                          <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 13 }}>Tên gọi khi kê khai</span>
                         </div>
                         <div className="row flex-grow-1">
                           <div className="col-12 d-flex flex-column">
                             <textarea 
                               className="form-control rounded-3 flex-grow-1" 
                               style={{ fontSize: 12, resize: "none" }} 
-                              placeholder="Chi tiết thông số kỹ thuật..." 
-                              value={form.thongSoKyThuat} 
-                              onChange={e => setForm({...form, thongSoKyThuat: e.target.value})} 
+                              placeholder="Chi tiết tên gọi khi kê khai, ghi chú vật tư..." 
+                              value={form.ghiChu} 
+                              onChange={e => setForm({...form, ghiChu: e.target.value})} 
                             />
                           </div>
                         </div>
@@ -800,13 +800,13 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                         </div>
 
                         <div className="mb-0 mt-2 flex-grow-1 d-flex flex-column">
-                          <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Ghi chú nội bộ</label>
+                          <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Thông số kỹ thuật</label>
                           <textarea 
                             className="form-control rounded-3 flex-grow-1" 
                             style={{ fontSize: 12, resize: "none" }} 
-                            placeholder={isEditable ? "Lưu ý đặc biệt cho nhân viên kho..." : "Bị khoá - chỉ dùng cho kho vật tư"} 
-                            value={form.ghiChu} 
-                            onChange={e => setForm({...form, ghiChu: e.target.value})}
+                            placeholder={isEditable ? "Chi tiết thông số kỹ thuật..." : "Bị khoá - chỉ dùng cho kho vật tư"} 
+                            value={form.thongSoKyThuat} 
+                            onChange={e => setForm({...form, thongSoKyThuat: e.target.value})}
                             disabled={!isEditable}
                           />
                         </div>
