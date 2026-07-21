@@ -1,5 +1,6 @@
 "use client";
 
+import * as XLSX from "xlsx";
 import React, { useState, useEffect, useRef } from "react";
 import { KPICard } from "@/components/ui/KPICard";
 import { Table, TableColumn } from "@/components/ui/Table";
@@ -78,7 +79,87 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
   const [deletingItem, setDeletingItem] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
+  const [isProcessingExcel, setIsProcessingExcel] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const { error, success } = useToast();
+
+  const handleDownloadTemplate = () => {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["Mã hàng hoá (SKU)", "Tên hàng hoá", "Mã nhóm cha", "Tên phân loại", "Đơn vị tính", "Số lượng", "Giá nhập", "Giá bán", "Thương hiệu", "Ghi chú"],
+      ["", "Ví dụ: Vòi chậu rửa mặt", "VTSX_VESINH", "Nhóm vật tư", "Cái", "10", "150000", "200000", "Seajong", "Hàng mới"]
+    ]);
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "Mau_Nhap_Kho.xlsx");
+  };
+
+  const handleUploadExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!warehouseId) {
+      error("Vui lòng chọn Kho hàng cụ thể trước khi Import.");
+      return;
+    }
+
+    setIsProcessingExcel(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      
+      const itemsToImport = [];
+      // Skip header row
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i] as any[];
+        if (!row || row.length === 0 || !row[1]) continue; // Skip empty rows or rows without name
+
+        itemsToImport.push({
+          sku: row[0]?.toString() || "",
+          name: row[1]?.toString() || "",
+          categoryCode: row[2]?.toString() || "",
+          unit: row[4]?.toString() || "Cái",
+          quantity: parseFloat(row[5]) || 0,
+          importPrice: parseFloat(row[6]) || 0,
+          sellPrice: parseFloat(row[7]) || 0,
+          brand: row[8]?.toString() || "Seajong",
+          note: row[9]?.toString() || ""
+        });
+      }
+
+      if (itemsToImport.length === 0) {
+        error("Không tìm thấy dữ liệu hợp lệ trong file Excel.");
+        return;
+      }
+
+      const res = await fetch("/api/logistics/inventory/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: itemsToImport, warehouseId })
+      });
+
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Import failed");
+
+      if (resData.skipped && resData.skipped.length > 0) {
+        console.warn("Skipped items (duplicate SKU):", resData.skipped);
+        success(`Import thành công ${resData.imported} mặt hàng. Bỏ qua ${resData.skipped.length} mặt hàng do trùng mã SKU (Xem Console log).`);
+      } else {
+        success(`Import thành công toàn bộ ${resData.imported} mặt hàng!`);
+      }
+      
+      fetchItems();
+      fetchStats();
+    } catch (err: any) {
+      console.error(err);
+      error("Lỗi khi import Excel: " + err.message);
+    } finally {
+      setIsProcessingExcel(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -465,8 +546,23 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
               title="Danh sách hàng hoá" 
               action={
                 <div className="d-flex gap-2">
-                  <button className="btn btn-light btn-sm border shadow-sm px-2 py-1"><i className="bi bi-file-earmark-arrow-down" /></button>
-                  <button className="btn btn-light btn-sm border shadow-sm px-2 py-1"><i className="bi bi-file-earmark-arrow-up" /></button>
+                  <input type="file" accept=".xlsx, .xls" hidden ref={fileInputRef} onChange={handleUploadExcel} />
+                  <button 
+                    className="btn btn-light btn-sm border shadow-sm px-2 py-1" 
+                    title="Tải file mẫu" 
+                    onClick={handleDownloadTemplate}
+                    disabled={isProcessingExcel}
+                  >
+                    <i className="bi bi-file-earmark-arrow-down" />
+                  </button>
+                  <button 
+                    className="btn btn-light btn-sm border shadow-sm px-2 py-1" 
+                    title="Import Excel" 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isProcessingExcel}
+                  >
+                    {isProcessingExcel ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-file-earmark-arrow-up" />}
+                  </button>
                   <button className="btn btn-light btn-sm border shadow-sm px-2 py-1"><i className="bi bi-printer" /></button>
                 </div>
               }
