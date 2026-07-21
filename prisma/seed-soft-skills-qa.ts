@@ -50,8 +50,11 @@ const qaData = [
 ];
 
 async function main() {
-  console.log('Clearing existing SoftSkillQA data...');
-  await prisma.softSkillQA.deleteMany();
+  const count = await prisma.softSkillQA.count();
+  if (count > 0) {
+    console.log(`SoftSkillQA already has ${count} items. Skipping seed to prevent data loss.`);
+    return;
+  }
   
   console.log('Seeding SoftSkillQA data...');
   for (const item of qaData) {

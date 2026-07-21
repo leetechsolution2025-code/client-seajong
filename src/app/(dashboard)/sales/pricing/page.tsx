@@ -17,7 +17,7 @@ const STEPS: ModernStepItem[] = [
 ];
 
 interface PolicyItem {
-  id: number;
+  id: string;
   name: string;
   docNo?: string;
   date?: string;
@@ -30,8 +30,8 @@ interface PolicyItem {
 
 const getPolicyColumns = (
   onViewPdf: (item: PolicyItem) => void,
-  selectedIds: number[],
-  toggleSelection: (id: number) => void
+  selectedIds: string[],
+  toggleSelection: (id: string) => void
 ): TableColumn<PolicyItem>[] => [
   { header: "", width: "40px", render: (row: PolicyItem) => (
     <input 
@@ -70,8 +70,8 @@ const getPolicyColumns = (
 
 const getPromotionColumns = (
   onViewPdf: (item: PolicyItem) => void,
-  selectedIds: number[],
-  toggleSelection: (id: number) => void
+  selectedIds: string[],
+  toggleSelection: (id: string) => void
 ): TableColumn<PolicyItem>[] => [
   { header: "", width: "40px", render: (row: PolicyItem) => (
     <input 
@@ -195,10 +195,10 @@ export default function PricingPage() {
   const [selectedQaIds, setSelectedQaIds] = useState<number[]>([]);
   const [isDeletingQa, setIsDeletingQa] = useState(false);
 
-  const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
+  const [selectedPolicyIds, setSelectedPolicyIds] = useState<string[]>([]);
   const [isDeletingPolicy, setIsDeletingPolicy] = useState(false);
 
-  const [selectedPromotionIds, setSelectedPromotionIds] = useState<number[]>([]);
+  const [selectedPromotionIds, setSelectedPromotionIds] = useState<string[]>([]);
   const [isDeletingPromotion, setIsDeletingPromotion] = useState(false);
 
   const [isPolicyOffcanvasOpen, setIsPolicyOffcanvasOpen] = useState(false);
@@ -331,7 +331,7 @@ export default function PricingPage() {
     }
   };
 
-  const togglePolicySelection = (id: number) => {
+  const togglePolicySelection = (id: string) => {
     setSelectedPolicyIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
@@ -357,7 +357,7 @@ export default function PricingPage() {
     }
   };
 
-  const togglePromotionSelection = (id: number) => {
+  const togglePromotionSelection = (id: string) => {
     setSelectedPromotionIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
