@@ -158,26 +158,24 @@ export default function BusinessResultsPage() {
   const currentMonthLabel = `Doanh thu tháng | ${mmYYYY}`;
   const currentMonthDealersLabel = `Phát triển đại lý | ${mmYYYY}`;
 
-  // Category Distribution (simulated based on typical Seajong sales categories)
-  const categoriesData = {
-    labels: ["Thiết bị vệ sinh", "Sen vòi Seajong", "Phụ kiện phòng tắm", "Thiết bị nhà bếp", "Thiết bị khác"],
-    series: [
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.42) : 1890000000,
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.28) : 1260000000,
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.15) : 675000000,
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.10) : 450000000,
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.05) : 225000000,
-    ]
+  // Category Distribution from DB API
+  const apiCategoryBreakdown = data?.categoryBreakdown || [];
+  const categoriesData = apiCategoryBreakdown.length > 0 ? {
+    labels: apiCategoryBreakdown.map((c: any) => c.name),
+    series: apiCategoryBreakdown.map((c: any) => c.value)
+  } : {
+    labels: ["Chưa có dữ liệu"],
+    series: [1]
   };
 
-  // Region Distribution
-  const regionData = {
+  // Region Distribution from DB API
+  const apiRegionBreakdown = data?.regionBreakdown || [];
+  const regionData = apiRegionBreakdown.length > 0 ? {
+    categories: apiRegionBreakdown.map((r: any) => r.name),
+    series: apiRegionBreakdown.map((r: any) => r.value)
+  } : {
     categories: ["Miền Bắc", "Miền Trung", "Miền Nam"],
-    series: [
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.52) : 2340000000,
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.18) : 810000000,
-      totalRevenue > 0 ? Math.round(totalRevenue * 0.30) : 1350000000,
-    ]
+    series: [0, 0, 0]
   };
 
   // Apex Charts Configurations
