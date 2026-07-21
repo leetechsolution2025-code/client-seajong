@@ -144,6 +144,7 @@ export async function GET(req: NextRequest) {
         material: item.material,
         spec: item.spec,
         thongSoKyThuat: (item as any).thongSoKyThuat || "",
+        ghiChu: item.ghiChu,
         imageUrl: item.imageUrl,
         soLuong: soLuongThuc,
         trangThai,

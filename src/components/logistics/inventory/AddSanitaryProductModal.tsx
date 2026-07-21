@@ -123,7 +123,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
           giaBan: editItem.giaBan ?? "",
           nhaCungCap: editItem.nhaCungCap || "",
           thongSoKyThuat: editItem.thongSoKyThuat || "",
-          ghiChu: editItem.ghiChu || "",
+          ghiChu: editItem.ghiChu || editItem.notes || "",
           kieuDang: editItem.kieuDang || editItem.spec || "",
           material: editItem.material || "",
           webProductId: editItem.webProductId || null,
