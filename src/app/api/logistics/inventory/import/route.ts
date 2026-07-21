@@ -83,7 +83,6 @@ export async function POST(req: Request) {
               giaBan: item.sellPrice || 0,
               brand: item.brand || "Seajong",
               ghiChu: item.note || "",
-              categoryId: mappedCategoryId,
               loai: whCode === "KHO-THANHPHAM" ? "thanh-pham" : (whCode === "KVP" ? "vat-tu" : "hang-hoa")
             }
           });
