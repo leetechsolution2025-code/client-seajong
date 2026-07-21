@@ -173,32 +173,46 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    const categorySalesMap: Record<string, number> = {};
+    // Map to exactly 4 buckets as requested: Thiết bị vệ sinh, Thiết bị nhà bếp, Phụ kiện, Loại khác
+    const predefinedBuckets: Record<string, number> = {
+      "Thiết bị vệ sinh": 0,
+      "Thiết bị nhà bếp": 0,
+      "Phụ kiện": 0,
+      "Loại khác": 0,
+    };
+
     orders.forEach(order => {
       if (order.saleOrderItems) {
         order.saleOrderItems.forEach((item: any) => {
           if (item.tenHang) {
-            const catName = itemNameToCategory[item.tenHang] || "Thiết bị khác";
-            categorySalesMap[catName] = (categorySalesMap[catName] || 0) + (item.thanhTien || 0);
+            const rawCatName = itemNameToCategory[item.tenHang] || "Loại khác";
+            const lowerCat = rawCatName.toLowerCase();
+            const revenue = item.thanhTien || 0;
+            
+            if (lowerCat.includes("vệ sinh") || lowerCat.includes("sen") || lowerCat.includes("bàn cầu") || lowerCat.includes("lavabo")) {
+              predefinedBuckets["Thiết bị vệ sinh"] += revenue;
+            } else if (lowerCat.includes("bếp") || lowerCat.includes("hút mùi")) {
+              predefinedBuckets["Thiết bị nhà bếp"] += revenue;
+            } else if (lowerCat.includes("phụ kiện") || lowerCat.includes("gương") || lowerCat.includes("vòi xịt")) {
+              predefinedBuckets["Phụ kiện"] += revenue;
+            } else {
+              predefinedBuckets["Loại khác"] += revenue;
+            }
           }
         });
       }
     });
 
-    // Format top categories
-    const sortedCategories = Object.entries(categorySalesMap)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
+    let topCategories = [
+      { name: "Thiết bị vệ sinh", value: predefinedBuckets["Thiết bị vệ sinh"] },
+      { name: "Thiết bị nhà bếp", value: predefinedBuckets["Thiết bị nhà bếp"] },
+      { name: "Phụ kiện", value: predefinedBuckets["Phụ kiện"] },
+      { name: "Loại khác", value: predefinedBuckets["Loại khác"] },
+    ];
 
-    // Take top 4, aggregate rest into "Khác"
-    let topCategories = sortedCategories.slice(0, 4);
-    const restValue = sortedCategories.slice(4).reduce((sum, c) => sum + c.value, 0);
-    if (restValue > 0) {
-      topCategories.push({ name: "Khác", value: restValue });
-    }
-    // Removed mock fallbacks so the chart shows empty when there is no data
-    if (topCategories.length === 0) {
-      topCategories = [];
+    const totalCatValue = topCategories.reduce((sum, c) => sum + c.value, 0);
+    if (totalCatValue === 0) {
+      topCategories = []; // Return empty if no valid revenue
     }
 
     const currentMonth = new Date().getMonth() + 1;
