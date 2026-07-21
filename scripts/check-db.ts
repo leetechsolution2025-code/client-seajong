@@ -2,12 +2,19 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const mfps = await prisma.manufacturedProduct.findMany();
-  console.log("ManufacturedProduct count:", mfps.length);
-  const items = await prisma.inventoryItem.findMany();
-  console.log("InventoryItem count:", items.length);
+  const rawItems = await prisma.manufacturedProduct.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    skip: 0,
+    include: {
+      productCategory: { select: { name: true } },
+      dinhMucs: { select: { id: true, code: true, tenDinhMuc: true } }
+    }
+  });
+  console.log("Found:", rawItems.length);
   
-  // Show a few manufactured products
-  console.log("MFPs:", mfps.slice(0, 3).map(m => ({ id: m.id, code: m.code, name: m.name })));
+  if (rawItems.length > 0) {
+    console.log(rawItems[0]);
+  }
 }
 main();

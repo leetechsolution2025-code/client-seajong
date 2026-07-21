@@ -9,6 +9,8 @@ export async function GET(req: NextRequest) {
   const perPage = 100; // Matches pageSize in InventoryManagement
   const skip = (page - 1) * perPage;
 
+  import("fs").then(fs => fs.appendFileSync("/tmp/seajong-api-log2.txt", `[API Call] seajong-inventory page=${page} search='${search}' categoryId='${categoryId}'\n`));
+
   const where: any = {};
   if (categoryId) {
     where.categories = { some: { id: parseInt(categoryId) } };

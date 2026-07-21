@@ -13,11 +13,17 @@ export async function GET(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = req.nextUrl;
-    const page   = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-    const search = searchParams.get("search") ?? "";
-
-    const productCategoryId = searchParams.get("categoryId") ?? "";
+    let pageVal = parseInt(searchParams.get("page") || "1");
+    if (isNaN(pageVal)) pageVal = 1;
+    const page = Math.max(1, pageVal);
+    
+    const search = searchParams.get("search") || "";
+    let productCategoryId = searchParams.get("categoryId") || "";
+    if (productCategoryId === "undefined" || productCategoryId === "null") productCategoryId = "";
+    
     const searchNorm = removeVietnameseTones(search);
+
+    import("fs").then(fs => fs.appendFileSync("/tmp/seajong-api-log.txt", `[API Call] page=${page} search='${search}' categoryId='${productCategoryId}'\n`));
 
     const where: any = {};
     if (productCategoryId) where.productCategoryId = productCategoryId;
@@ -46,17 +52,20 @@ export async function GET(req: NextRequest) {
       ? filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
       : filtered;
 
-    const mappedItems = await Promise.all(paginated.map(async (item: any) => {
-      // Find stock via InventoryItem code
+    const itemCodes = paginated.map((p: any) => p.code).filter(Boolean);
+    const inventoryItems = await prisma.inventoryItem.findMany({
+      where: { code: { in: itemCodes } },
+      include: { stocks: { select: { soLuong: true } } }
+    });
+    const invMap = new Map(inventoryItems.map(inv => [inv.code, inv]));
+
+    const mappedItems = paginated.map((item: any) => {
       let soLuong = 0;
       let trangThai = "het-hang";
       if (item.code) {
-        const invItem = await prisma.inventoryItem.findUnique({
-          where: { code: item.code },
-          include: { stocks: { select: { soLuong: true } } }
-        });
+        const invItem = invMap.get(item.code) as any;
         if (invItem && invItem.stocks) {
-          soLuong = invItem.stocks.reduce((sum, s) => sum + s.soLuong, 0);
+          soLuong = invItem.stocks.reduce((sum: number, s: any) => sum + s.soLuong, 0);
           trangThai = soLuong > 0 ? "con-hang" : "het-hang";
         }
       }
@@ -71,7 +80,7 @@ export async function GET(req: NextRequest) {
         soLuong,
         trangThai
       };
-    }));
+    });
 
     return NextResponse.json({ 
       items: mappedItems, 
