@@ -19,6 +19,7 @@ interface XNTLine {
   maSku: string | null;
   tenHang: string;
   donVi: string | null;
+  giaVon?: number;
   tonDauSL: number;
   tonDauTT: number;
   nhapSL: number;
@@ -501,7 +502,7 @@ export function LogisticsInventoryReports() {
     }
 
     setXntLoading(true);
-    fetch(`/api/plan-finance/reports/bang-ke-xnt?warehouseId=${selectedWarehouseId}&from=${fromDate}&to=${toDate}`)
+    fetch(`/api/plan-finance/reports/bang-ke-xnt?warehouseId=${selectedWarehouseId}&from=${fromDate}&to=${toDate}&showAll=${!coBienDong}`)
       .then((r) => r.json())
       .then((d) => setXntLines(Array.isArray(d) ? d : []))
       .catch(() => setXntLines([]))
@@ -537,6 +538,7 @@ export function LogisticsInventoryReports() {
       "Hàng hóa",
       "Mã vật tư",
       "ĐVT",
+      "Giá vốn",
       "Tồn đầu SL",
       "Tồn đầu TT",
       "Nhập SL",
@@ -551,6 +553,7 @@ export function LogisticsInventoryReports() {
       l.tenHang,
       l.maSku || "",
       l.donVi || "",
+      l.giaVon ?? 0,
       l.tonDauSL,
       l.tonDauTT,
       l.nhapSL,
@@ -737,6 +740,7 @@ export function LogisticsInventoryReports() {
                     <th rowSpan={2} style={{ padding: "8px 8px", textAlign: "center", width: 40 }}>STT</th>
                     <th rowSpan={2} style={{ padding: "8px 12px", textAlign: "left" }}>Hàng hóa</th>
                     <th rowSpan={2} style={{ padding: "8px 8px", textAlign: "center", width: 48 }}>ĐVT</th>
+                    <th rowSpan={2} style={{ padding: "8px 8px", textAlign: "right", width: 75, color: "#8b5cf6" }}>Giá vốn (đ)</th>
                     <th colSpan={2} style={{ padding: "6px 8px 0 8px", textAlign: "center" }}>
                       <div style={{ borderBottom: "1px solid var(--border)", paddingBottom: "3px", marginLeft: "12px", marginRight: "12px" }}>
                         Tồn đầu kỳ
@@ -792,6 +796,9 @@ export function LogisticsInventoryReports() {
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "center", color: "var(--muted-foreground)" }}>
                         {line.donVi || "—"}
+                      </td>
+                      <td style={{ padding: "6px 8px", textAlign: "right", color: "#8b5cf6", fontWeight: 600 }}>
+                        {fmtAmount(line.giaVon ?? 0)}
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 500 }}>
                         {fmtN(line.tonDauSL)}
@@ -1941,6 +1948,7 @@ export function LogisticsInventoryReports() {
             <th rowSpan={2} style={thCss(70)}>Mã vật tư</th>
             <th rowSpan={2} style={thCss()}>Sản phẩm</th>
             <th rowSpan={2} style={thCss(38)}>ĐVT</th>
+            <th rowSpan={2} style={{ ...thCss(60), color: "#8b5cf6" }}>Giá vốn (đ)</th>
             <th colSpan={2} style={thCss()}>Số dư đầu kỳ</th>
             <th colSpan={2} style={thCss()}>Nhập trong kỳ</th>
             <th colSpan={2} style={thCss()}>Xuất trong kỳ</th>
@@ -1952,19 +1960,20 @@ export function LogisticsInventoryReports() {
             ))}
           </tr>
           <tr style={{ fontStyle: "italic" }}>
-            {["A","B","C","(1)","(2)","(3)","(4)","(5)","(6)","(7)","(8)"].map(c => (
+            {["A","B","C","D","(1)","(2)","(3)","(4)","(5)","(6)","(7)","(8)"].map(c => (
               <td key={c} style={{ border: B1, padding: "3px", textAlign: "center", fontSize: 11 }}>{c}</td>
             ))}
           </tr>
         </thead>
         <tbody>
           {filteredXntLines.length === 0 ? (
-            <tr><td colSpan={11} style={{ border: B1, padding: 20, textAlign: "center", color: "#94a3b8" }}>Không có dữ liệu trong kỳ</td></tr>
+            <tr><td colSpan={12} style={{ border: B1, padding: 20, textAlign: "center", color: "#94a3b8" }}>Không có dữ liệu trong kỳ</td></tr>
           ) : filteredXntLines.map((l, i) => (
             <tr key={i} style={{ background: i % 2 === 1 ? "#f8fafc" : "#fff" }}>
               <td style={tdCss("center")}>{l.maSku ?? ""}</td>
               <td style={tdCss()}><span style={{ fontWeight: 600 }}>{l.tenHang}</span></td>
-              <td style={tdCss("center")}>{l.donVi ?? "—"}</td>
+              <td style={tdCss("center")}>{l.donVi}</td>
+              <td style={tdCss("right")}><strong style={{ color: "#8b5cf6" }}>{fmtAmount(l.giaVon ?? 0)}</strong></td>
               <td style={tdCss("right")}>{fmtN(l.tonDauSL)}</td>
               <td style={tdCss("right")}>{fmtAmount(l.tonDauTT)}</td>
               <td style={tdCss("right")}>{fmtN(l.nhapSL)}</td>

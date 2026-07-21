@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   const warehouseId = searchParams.get("warehouseId");
   const from        = searchParams.get("from");
   const to          = searchParams.get("to");
+  const showAll     = searchParams.get("showAll") === "true";
 
   if (!warehouseId) return NextResponse.json({ error: "Thiếu warehouseId" }, { status: 400 });
 
@@ -82,6 +83,18 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Nếu showAll (tắt "Có biến động"), lấy TOÀN BỘ danh mục vật tư/hàng hóa đang active
+  if (showAll) {
+    const allItems = await prisma.inventoryItem.findMany({
+      select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true }
+    });
+    for (const it of allItems) {
+      if (!itemStockMap.has(it.id)) {
+        itemStockMap.set(it.id, { item: it, currentSL: 0 });
+      }
+    }
+  }
+
   // 5. Tính cho từng item
   const results = [];
   for (const [itemId, { item, currentSL }] of itemStockMap) {
@@ -104,14 +117,15 @@ export async function GET(req: NextRequest) {
     // tonDauKy = tonCuoiKy - nhap + xuat
     const tonDauSL  = Math.max(0, tonCuoiSL - nhapSL + xuatSL);
 
-    // Bỏ qua dòng hoàn toàn rỗng
-    if (tonDauSL === 0 && nhapSL === 0 && xuatSL === 0 && tonCuoiSL === 0) continue;
+    // Bỏ qua dòng hoàn toàn rỗng nếu không có tuỳ chọn showAll
+    if (!showAll && tonDauSL === 0 && nhapSL === 0 && xuatSL === 0 && tonCuoiSL === 0) continue;
 
     const giaNhap = item.giaNhap ?? 0;
     results.push({
       maSku:      item.code,
       tenHang:    item.tenHang,
       donVi:      item.donVi,
+      giaVon:     giaNhap,
       tonDauSL,
       tonDauTT:   tonDauSL  * giaNhap,
       nhapSL,

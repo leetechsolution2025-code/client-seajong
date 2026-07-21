@@ -369,9 +369,23 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   }, [showAddMaterial]);
 
   React.useEffect(() => {
-    if (showAlternative && alternativeTarget?.material?.category?.id) {
+    if (showAlternative && alternativeTarget?.material) {
       setLoadingAlternatives(true);
-      fetch(`/api/production/materials?categoryId=${alternativeTarget.material.category.id}`)
+      
+      let exactLetterPrefix = "";
+      if (alternativeTarget.material.code) {
+        const match = alternativeTarget.material.code.match(/^[a-zA-Z]+/);
+        if (match) exactLetterPrefix = match[0];
+      }
+      
+      const queryParams = new URLSearchParams();
+      if (exactLetterPrefix) {
+        queryParams.append("exactLetterPrefix", exactLetterPrefix);
+      } else if (alternativeTarget.material.category?.id) {
+        queryParams.append("categoryId", alternativeTarget.material.category.id);
+      }
+
+      fetch(`/api/production/materials?${queryParams.toString()}`)
         .then(res => res.json())
         .then(data => {
           setAlternativeMaterials(data.items || []);

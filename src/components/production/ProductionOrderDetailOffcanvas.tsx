@@ -64,6 +64,28 @@ export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate
     }
   };
 
+  const handleUpdateQCDate = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    if (!orderId) return;
+    try {
+      setData((prev: any) => ({ ...prev, order: { ...prev.order, ngayYeuCauQC: newValue } }));
+      const res = await fetch(`/api/production/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ngayYeuCauQC: newValue })
+      });
+      if (res.ok) {
+        toast.success("Đã cập nhật ngày yêu cầu QC");
+        if (onUpdate) onUpdate();
+      } else {
+        toast.error("Lỗi khi cập nhật ngày");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Lỗi hệ thống");
+    }
+  };
+
   const handleReportIncident = async () => {
     if (!orderId || !incidentMessage.trim()) return;
     try {
@@ -129,11 +151,22 @@ export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate
                     {data.order?.ngayHoanThanh ? new Date(data.order.ngayHoanThanh).toLocaleDateString("vi-VN") : "—"}
                   </span>
                 </div>
-                <div className="d-flex justify-content-between align-items-center">
+                <div className="d-flex justify-content-between align-items-center mb-2">
                   <span className="text-muted small">Trạng thái:</span>
                   <div className={`badge ${data.order?.trangThai === "completed" ? "bg-primary-subtle text-primary" : data.order?.trangThai === "running" ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning"} rounded-pill px-3 py-2 fw-medium`} style={{ fontSize: 10 }}>
                     {data.order?.trangThai === "completed" ? "Đã thực hiện" : data.order?.trangThai === "running" ? "Đang thực hiện" : "Chưa thực hiện"}
                   </div>
+                </div>
+                <div className="d-flex justify-content-between align-items-center">
+                  <span className="text-muted small">Yêu cầu đánh giá chất lượng:</span>
+                  <input 
+                    type="date"
+                    className="form-control form-control-sm text-end fw-medium border-0 bg-transparent p-0 w-auto text-primary"
+                    style={{ cursor: "pointer", outline: "none", boxShadow: "none" }}
+                    value={data.order?.ngayYeuCauQC ? new Date(data.order.ngayYeuCauQC).toISOString().split('T')[0] : (data.order?.ngayHoanThanh ? new Date(data.order.ngayHoanThanh).toISOString().split('T')[0] : "")}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={handleUpdateQCDate}
+                  />
                 </div>
               </div>
 

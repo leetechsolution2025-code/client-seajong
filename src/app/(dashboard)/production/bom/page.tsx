@@ -41,7 +41,9 @@ export default function BOMPage() {
 
   useEffect(() => {
     if (showSwapModal) {
-      fetch(`/api/production/materials?prefix=${encodeURIComponent(swapSearch)}&page=1`)
+      const isPureLetters = /^[a-zA-Z]+$/.test(swapSearch);
+      const queryParam = isPureLetters ? `exactLetterPrefix=${encodeURIComponent(swapSearch)}` : `search=${encodeURIComponent(swapSearch)}`;
+      fetch(`/api/production/materials?${queryParam}&page=1`)
         .then(res => res.json())
         .then(data => setSwapOptions(data.items || []))
         .catch(console.error);
@@ -71,7 +73,7 @@ export default function BOMPage() {
           // Mark as fetching with -1 so we don't refetch
           const next = { ...prev, [query]: -1 };
           
-          fetch(`/api/production/materials?search=${encodeURIComponent(query)}&page=1`)
+          fetch(`/api/production/materials?exactLetterPrefix=${encodeURIComponent(query)}&page=1`)
             .then(res => res.json())
             .then(data => {
               setSwapCounts(p => ({ ...p, [query]: data.items?.length || 0 }));

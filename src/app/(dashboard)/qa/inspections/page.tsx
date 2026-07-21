@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Table, TableColumn } from "@/components/ui/Table";
+import toast from "react-hot-toast";
 
 export default function QaInspectionsPage() {
   const [filterType, setFilterType] = useState("ALL");
@@ -130,16 +131,71 @@ export default function QaInspectionsPage() {
     });
   };
 
-  const inspections = [
-    { id: "QC-20260717-107", type: "IQC", product: "Cartridge gốm 35mm", inspector: "Nguyễn Thị D", department: "Bộ phận Mua hàng", date: "17/07/2026 09:00", result: "Pending", notes: "Chờ kiểm tra lô hàng mới nhập", poNumber: "PO-202607-005", deliveryNote: "DN-2607-50C" },
-    { id: "QC-20260717-106", type: "OQC", product: "Thân vòi đồng thau đúc", inspector: "Lê Văn E", department: "Bộ phận Sản xuất", date: "17/07/2026 08:30", result: "Pending", notes: "Cần kiểm tra độ dày thành lỗ" },
-    { id: "QC-20260716-105", type: "IQC", product: "Lõi đồng van chia nước", inspector: "Trần Văn A", department: "Bộ phận Mua hàng", date: "16/07/2026 14:30", result: "Pass", notes: "Kích thước ren đạt chuẩn", poNumber: "PO-202607-001", deliveryNote: "DN-2607-45A" },
-    { id: "QC-20260716-104", type: "OQC", product: "Sen cây truyền thống", inspector: "Lê Thị B", department: "Bộ phận Kho vận", date: "16/07/2026 13:15", result: "Fail", notes: "Trầy xước bề mặt mạ (x2 SP)" },
-    { id: "QC-20260716-103", type: "OQC", product: "Vòi lavabo âm tường (BTP)", inspector: "Nguyễn Văn C", department: "Bộ phận Sản xuất", date: "16/07/2026 10:45", result: "Pass", notes: "Kiểm tra áp lực nội bộ: OK" },
-    { id: "QC-20260715-089", type: "IQC", product: "Dây cấp nước Inox 304", inspector: "Trần Văn A", department: "Bộ phận Mua hàng", date: "15/07/2026 16:00", result: "Fail", notes: "Chiều dài hụt 2cm so với chuẩn", poNumber: "PO-202607-002", deliveryNote: "DN-2607-48B" },
-    { id: "QC-20260715-088", type: "OQC", product: "Vòi bếp dây rút mạ đồng", inspector: "Lê Thị B", department: "Bộ phận Kho vận", date: "15/07/2026 14:20", result: "Pass", notes: "Đầy đủ phụ kiện, ngoại quan đẹp" },
-    { id: "QC-20260715-087", type: "OQC", product: "Củ sen nóng lạnh", inspector: "Nguyễn Văn C", department: "Bộ phận Sản xuất", date: "15/07/2026 09:30", result: "Fail", notes: "Lắp ráp sai vị trí gioăng cao su" },
-  ];
+  const handleSaveOqcResult = async () => {
+    if (!selectedInspection) return;
+    try {
+      const res = await fetch(`/api/qa/inspections/${selectedInspection.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          result: oqcFormData.result === "pass" ? "Đạt" : "Không đạt",
+          notes: oqcFormData.rejectReason || ""
+        })
+      });
+      if (res.ok) {
+        toast.success("Đã lưu kết quả OQC!");
+        setShowOqcModal(false);
+        setSelectedInspection(null);
+        // refresh list
+        fetch('/api/qa/inspections').then(r=>r.json()).then(data => {
+          if (Array.isArray(data)) {
+            setInspections(data.map(d => ({
+              id: d.code,
+              type: d.type,
+              product: d.productName || d.inventoryItem?.tenHang || "Không xác định",
+              inspector: d.requesterName || d.inspectorName || "Không xác định",
+              department: d.requesterDept || "Khác",
+              date: new Date(d.executionTime).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }),
+              result: d.status === "Chưa thực hiện" ? "Pending" : (d.result === "Đạt" ? "Pass" : "Fail"),
+              notes: d.notes,
+              poNumber: "",
+              deliveryNote: ""
+            })));
+          }
+        });
+      } else {
+        toast.error("Lỗi khi lưu kết quả");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Lỗi hệ thống");
+    }
+  };
+
+  const [inspections, setInspections] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/qa/inspections')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const formatted = data.map(d => ({
+            id: d.code,
+            type: d.type,
+            product: d.productName || d.inventoryItem?.tenHang || "Không xác định",
+            inspector: d.requesterName || d.inspectorName || "Không xác định",
+            department: d.requesterDept || "Khác",
+            date: new Date(d.executionTime).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }),
+            result: d.status === "Chưa thực hiện" ? "Pending" : (d.result === "Đạt" ? "Pass" : "Fail"),
+            notes: d.notes,
+            poNumber: "",
+            deliveryNote: ""
+          }));
+          setInspections(formatted);
+        }
+      })
+      .catch(err => console.error("Error fetching inspections:", err));
+  }, []);
 
   const filteredInspections = inspections.filter(ins => {
     if (filterType !== "ALL" && ins.type !== filterType) return false;
@@ -1024,7 +1080,7 @@ export default function QaInspectionsPage() {
               <div className="modal-footer bg-white border-top p-3 d-flex justify-content-end gap-2">
                  <button className="btn btn-light border px-4" onClick={() => { setShowOqcModal(false); setSelectedInspection(null); }}>Hủy</button>
                  <button className="btn btn-primary px-4"><i className="bi bi-printer me-2"></i>In biên bản</button>
-                 <button className="btn btn-success px-4" onClick={() => { setShowOqcModal(false); setSelectedInspection(null); }}><i className="bi bi-floppy me-2"></i>Lưu kết quả</button>
+                 <button className="btn btn-success px-4" onClick={handleSaveOqcResult}><i className="bi bi-floppy me-2"></i>Lưu kết quả</button>
               </div>
             </div>
           </div>

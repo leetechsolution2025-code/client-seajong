@@ -12,6 +12,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { InventoryDetailOffcanvas } from "@/app/(dashboard)/finance/inventory/InventoryDetailOffcanvas";
 import { AddLogisticsProductModal } from "@/components/logistics/inventory/AddLogisticsProductModal";
 import { ProductDrawer } from "@/components/marketing/ProductDrawer";
+import { MissingMaterialsOffcanvas } from "@/components/finance/MissingMaterialsOffcanvas";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -74,6 +75,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showMissingMaterials, setShowMissingMaterials] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   
   const [deletingItem, setDeletingItem] = useState<any>(null);
@@ -464,17 +466,24 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
       }
     },
     {
-        header: isMaterial ? "Đơn giá nhập" : (isProduct ? (isSales ? "Giá bán (đồng)" : "Giá thành") : (isSales ? "Giá bán (đồng)" : "Đơn giá nhập")),
-        width: 140,
+        header: "Giá nhập (đ)",
+        width: 130,
         align: "right",
-        render: (row) => {
-          const price = isMaterial ? row.giaNhap : (isProduct ? (isSales ? row.giaBan : row.costPrice) : (isSales ? row.giaBan : row.giaNhap));
-          return (
-            <span className="fw-medium text-dark">
-              {(price || 0).toLocaleString("vi-VN")}
-            </span>
-          );
-        }
+        render: (row) => (
+          <span className="fw-medium text-dark">
+            {(row.giaNhap || 0).toLocaleString("vi-VN")}
+          </span>
+        )
+    },
+    {
+        header: "Giá bán (đ)",
+        width: 130,
+        align: "right",
+        render: (row) => (
+          <span className="fw-medium text-dark">
+            {(row.giaBan || 0).toLocaleString("vi-VN")}
+          </span>
+        )
     },
     {
       header: "Trạng thái",
@@ -498,10 +507,9 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
   ];
 
   const isBoard = mode === "board";
-  const hidePrice = isCS || isBoard;
+  const hidePrice = isCS;
   const columns = rawColumns.filter(c => {
-    if (hidePrice && ["Đơn giá nhập", "Giá thành", "Giá bán (đồng)"].includes(c.header as string)) return false;
-    if (mode === "production" && c.header === "Đơn giá nhập") return false;
+    if (hidePrice && ["Giá nhập (đ)", "Giá bán (đ)"].includes(c.header as string)) return false;
     return true;
   });
 
@@ -564,6 +572,13 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                     {isProcessingExcel ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-file-earmark-arrow-up" />}
                   </button>
                   <button className="btn btn-light btn-sm border shadow-sm px-2 py-1"><i className="bi bi-printer" /></button>
+                  <button 
+                    className="btn btn-light btn-sm border shadow-sm px-2 py-1 text-danger position-relative" 
+                    onClick={() => setShowMissingMaterials(true)}
+                    title="Kiểm tra vật tư bị thiếu"
+                  >
+                    <i className="bi bi-exclamation-triangle-fill" />
+                  </button>
                 </div>
               }
             />
@@ -697,6 +712,11 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
         loading={isDeleting}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeletingItem(null)}
+      />
+
+      <MissingMaterialsOffcanvas 
+        show={showMissingMaterials} 
+        onClose={() => setShowMissingMaterials(false)} 
       />
     </div>
   );

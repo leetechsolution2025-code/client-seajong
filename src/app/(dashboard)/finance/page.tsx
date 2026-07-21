@@ -131,7 +131,10 @@ export default function FinancePage() {
           productionItemIds: productionItemIds
         }),
       });
-      if (!res.ok) throw new Error("Thao tác thất bại");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || "Thao tác thất bại");
+      }
       const updated = await res.json();
       
       // Update local state
@@ -144,8 +147,8 @@ export default function FinancePage() {
         .then(d => { if (d) setData(d); });
 
       toast.success("Thành công", "Đã duyệt đơn hàng thành công!");
-    } catch (err) {
-      toast.error("Lỗi", "Không thể duyệt đơn hàng.");
+    } catch (err: any) {
+      toast.error("Lỗi", err.message || "Không thể duyệt đơn hàng.");
     }
   };
 

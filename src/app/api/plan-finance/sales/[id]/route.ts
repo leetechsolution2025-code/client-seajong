@@ -579,10 +579,31 @@ export async function PATCH(
               });
               if (dm && dm.vatTu) {
                 for (const m of dm.vatTu) {
+                  let matId = m.materialId;
+                  let matName = m.material?.name || m.tenVatTu || "Vật tư không xác định";
+                  let matUnit = m.material?.unit || m.donViTinh || "cái";
+
+                  // Nếu chưa có materialId, tự động tìm trong bảng MaterialItem theo mã hoặc tên
+                  if (!matId && m.tenVatTu) {
+                    const matchedMat = await tx.materialItem.findFirst({
+                      where: {
+                        OR: [
+                          { code: m.tenVatTu },
+                          { name: m.tenVatTu }
+                        ]
+                      }
+                    });
+                    if (matchedMat) {
+                      matId = matchedMat.id;
+                      matName = matchedMat.name;
+                      if (matchedMat.unit) matUnit = matchedMat.unit;
+                    }
+                  }
+
                   allMaterials.push({
-                    materialId: m.materialId,
-                    tenVatTu: m.material?.name || "Vật tư không xác định",
-                    donVi: m.material?.unit || "cái",
+                    materialId: matId,
+                    tenVatTu: matName,
+                    donVi: matUnit,
                     soLuongCan: m.soLuong * item.missingQty
                   });
                 }
@@ -590,12 +611,16 @@ export async function PATCH(
             }
 
             const groupedMaterials = allMaterials.reduce((acc, curr) => {
-              if (!acc[curr.materialId]) acc[curr.materialId] = { ...curr };
-              else acc[curr.materialId].soLuongCan += curr.soLuongCan;
+              const key = curr.materialId || curr.tenVatTu;
+              if (!acc[key]) acc[key] = { ...curr };
+              else acc[key].soLuongCan += curr.soLuongCan;
               return acc;
             }, {});
 
             for (const mat of Object.values(groupedMaterials) as any[]) {
+              if (!mat.materialId) {
+                throw new Error(`Phát hiện vật tư "${mat.tenVatTu}" trong định mức sản xuất nhưng chưa được liên kết mã trong CSDL. Vui lòng cập nhật định mức trước khi duyệt.`);
+              }
               // Lấy tồn kho vật tư từ MaterialStock
               const matStock = await tx.materialStock.aggregate({
                 where: { materialId: mat.materialId },

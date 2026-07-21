@@ -37,7 +37,12 @@ interface StockLine {
   ghiChu: string;
 }
 
-interface NhapKhoModalProps { onClose: () => void; onSaved: () => void; }
+interface NhapKhoModalProps { 
+  onClose: () => void; 
+  onSaved: () => void; 
+  initialItems?: { name: string, qty: number, unit?: string }[];
+  initialTaskId?: string;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2);
@@ -49,7 +54,7 @@ const emptyLine = (): StockLine => ({
 
 const CSS: Record<string, React.CSSProperties> = {
   input: {
-    width: "100%", padding: "8px 11px", border: "1px solid var(--border)",
+    width: "100%", padding: "8px 11px", borderWidth: 1, borderStyle: "solid", borderColor: "var(--border)",
     borderRadius: 8, fontSize: 13, background: "var(--background)",
     color: "var(--foreground)", outline: "none", boxSizing: "border-box",
   },
@@ -61,7 +66,7 @@ const CSS: Record<string, React.CSSProperties> = {
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
+export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: NhapKhoModalProps) {
   const { data: session } = useSession();
   const [mode, setMode] = React.useState<"manual" | "po">("manual");
 
@@ -75,7 +80,8 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
   const [lockDate, setLockDate] = React.useState(true); // khoá ngày nhập vào hôm nay
   const [toWarehouseId, setToWarehouseId] = React.useState("");
   const [nguoiThucHien, setNguoiThucHien] = React.useState("");
-  const [lyDo, setLyDo] = React.useState("Nhập kho hàng hoá");
+  const [lyDo, setLyDo] = React.useState(initialItems && initialItems.length > 0 ? "Nhập kho thành phẩm OQC" : "Nhập kho hàng hoá");
+  const [loaiNhapKho, setLoaiNhapKho] = React.useState(initialItems && initialItems.length > 0 ? "Nhập từ sản xuất" : "Nhập mua hàng");
   const [ghiChu, setGhiChu] = React.useState("");
   const [chiPhiVanChuyen, setChiPhiVanChuyen] = React.useState(0);
 
@@ -100,6 +106,41 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [showPreview, setShowPreview] = React.useState(false);
   const [showLichSu, setShowLichSu]   = React.useState(false);
+  const [resolvingItems, setResolvingItems] = React.useState(false);
+
+  // Auto-resolve initialItems to real InventoryItems
+  React.useEffect(() => {
+    if (initialItems && initialItems.length > 0) {
+      setResolvingItems(true);
+      Promise.all(initialItems.map(async (it) => {
+        // Remove (xN) suffix from QA tests if present
+        const cleanName = it.name.replace(/\s*\(x\d+\)$/, "");
+        try {
+          const res = await fetch(`/api/plan-finance/inventory/search?q=${encodeURIComponent(cleanName)}&limit=1`);
+          const data = await res.json();
+          const found = Array.isArray(data) && data.length > 0 ? data[0] : null;
+          return {
+            id: uid(),
+            item: found ? found : null,
+            itemSearch: found ? found.tenHang : cleanName,
+            suggestions: [],
+            showSugg: false,
+            soLuong: it.qty,
+            soLuongThucTe: it.qty,
+            donGia: found ? found.giaNhap : 0,
+            viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
+          } as StockLine;
+        } catch (e) {
+          return {
+            id: uid(), item: null, itemSearch: cleanName, suggestions: [], showSugg: false,
+            soLuong: it.qty, soLuongThucTe: it.qty, donGia: 0, viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
+          } as StockLine;
+        }
+      })).then(resolved => {
+        setLines(resolved);
+      }).finally(() => setResolvingItems(false));
+    }
+  }, [initialItems]);
 
   // Fetch warehouses
   React.useEffect(() => {
@@ -226,7 +267,7 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
           toWarehouseId,
           soChungTu: soChungTu || undefined,
           purchaseOrderId: selectedPO?.id || undefined,
-          lyDo: [lyDo, ghiChu ? `Ghi chú: ${ghiChu}` : "", chiPhiVanChuyen > 0 ? `Phí vận chuyển: ${fmtVnd(chiPhiVanChuyen)}` : ""].filter(Boolean).join(" - ") || undefined,
+          lyDo: [loaiNhapKho, lyDo, ghiChu ? `Ghi chú: ${ghiChu}` : "", chiPhiVanChuyen > 0 ? `Phí vận chuyển: ${fmtVnd(chiPhiVanChuyen)}` : ""].filter(Boolean).join(" - ") || undefined,
           nguoiThucHien: nguoiThucHien || undefined,
           lines: validLines.map(l => {
             const soLuong = l.soLuongThucTe ?? l.soLuong;
@@ -248,6 +289,20 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
         }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Lỗi lưu"); }
+      
+      // Update task status if applicable
+      if (initialTaskId) {
+        try {
+          await fetch(`/api/board/tasks/${initialTaskId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "done" })
+          });
+        } catch (e) {
+          console.error("Lỗi cập nhật task", e);
+        }
+      }
+
       toast.success("✅ Nhập kho thành công!", `Phữu ${soChungTu} đã được xác nhận`, 5000);
       setSuccess(true);
       onSaved();
@@ -476,9 +531,9 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
                 />
               </div>
 
-              {/* Ngày nhập */}
+              {/* Thời gian */}
               <div>
-                <label style={CSS.label}>Ngày nhập kho</label>
+                <label style={CSS.label}>Thời gian</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {/* Date input */}
                   <input
@@ -521,6 +576,26 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
                       }} />
                     </span>
                   </label>
+                </div>
+              </div>
+
+              {/* Loại nhập kho */}
+              <div>
+                <label style={CSS.label}>Loại nhập kho</label>
+                <div style={{ position: "relative" }}>
+                  <select
+                    value={loaiNhapKho}
+                    onChange={e => !success && setLoaiNhapKho(e.target.value)}
+                    disabled={success}
+                    style={{ ...CSS.input, appearance: "none", opacity: success ? 0.65 : 1, cursor: success ? "not-allowed" : "pointer" }}
+                  >
+                    <option value="Nhập mua hàng">Nhập mua hàng</option>
+                    <option value="Nhập từ sản xuất">Nhập từ sản xuất</option>
+                    <option value="Nhập hàng hoàn trả">Nhập hàng hoàn trả</option>
+                    <option value="Nhập nội bộ">Nhập nội bộ</option>
+                    <option value="Khác">Khác</option>
+                  </select>
+                  <i className="bi bi-chevron-down position-absolute" style={{ right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, pointerEvents: "none", color: "var(--muted-foreground)" }} />
                 </div>
               </div>
 
@@ -597,12 +672,12 @@ export function NhapKhoModal({ onClose, onSaved }: NhapKhoModalProps) {
           {/* Overlay khi chưa chọn kho */}
           {!toWarehouseId && (
             <div style={{ position: "absolute", inset: 0, zIndex: 10, backdropFilter: "blur(3px)", background: "color-mix(in srgb, var(--background) 60%, transparent)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(16,185,129,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <i className="bi bi-lock-fill" style={{ fontSize: 24, color: "#10b981" }} />
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(59,130,246,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <i className="bi bi-box-seam" style={{ fontSize: 24, color: "#3b82f6" }} />
               </div>
-              <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "var(--foreground)" }}>Chưa chọn kho nhập</p>
+              <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "var(--foreground)" }}>Chọn kho nhập để bắt đầu</p>
               <p style={{ margin: 0, fontSize: 13, color: "var(--muted-foreground)", textAlign: "center" }}>
-                Vui lòng chọn kho nhập trong bảng bên trái<br />để mở khu vực nhập hàng hoá.
+                Vui lòng chọn <b>Kho nhập</b> ở bảng thông tin bên trái<br />để có thể chọn hàng hoá cần nhập kho.
               </p>
             </div>
           )}

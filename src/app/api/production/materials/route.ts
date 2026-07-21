@@ -23,11 +23,13 @@ export async function GET(req: NextRequest) {
     const page        = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
     const search      = searchParams.get("search")      ?? "";
     const prefix      = searchParams.get("prefix")      ?? "";
+    const exactLetterPrefix = searchParams.get("exactLetterPrefix") ?? "";
     const categoryId  = searchParams.get("categoryId")  ?? "";
     const warehouseId = searchParams.get("warehouseId") ?? "";
 
     const searchNorm = removeVietnameseTones(search);
     const prefixNorm = removeVietnameseTones(prefix);
+    const exactLetterPrefixNorm = removeVietnameseTones(exactLetterPrefix);
 
     // Filter by active industry
     const user = await prisma.user.findFirst({
@@ -104,8 +106,8 @@ export async function GET(req: NextRequest) {
     const rawItems = await prisma.materialItem.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      take: (search || prefix) ? 1000 : PAGE_SIZE,
-      skip: (search || prefix) ? 0 : (page - 1) * PAGE_SIZE,
+      take: (search || prefix || exactLetterPrefix) ? 1000 : PAGE_SIZE,
+      skip: (search || prefix || exactLetterPrefix) ? 0 : (page - 1) * PAGE_SIZE,
       include: {
         category: { select: { id: true, name: true } },
         stocks: warehouseId 
@@ -114,7 +116,13 @@ export async function GET(req: NextRequest) {
       },
     }) as MaterialItemWithRelations[];
 
-    const filtered = prefix
+    const filtered = exactLetterPrefix
+      ? rawItems.filter((it: MaterialItemWithRelations) => {
+          const codeNorm = removeVietnameseTones(it.code ?? "");
+          const match = codeNorm.match(/^[a-zA-Z]+/);
+          return match && match[0].toUpperCase() === exactLetterPrefixNorm.toUpperCase();
+        })
+      : prefix
       ? rawItems.filter((it: MaterialItemWithRelations) => {
           const codeNorm = removeVietnameseTones(it.code ?? "");
           return codeNorm.startsWith(prefixNorm);
@@ -127,8 +135,8 @@ export async function GET(req: NextRequest) {
         })
       : rawItems;
 
-    const total = (search || prefix) ? filtered.length : await prisma.materialItem.count({ where });
-    const paginated = (search || prefix)
+    const total = (search || prefix || exactLetterPrefix) ? filtered.length : await prisma.materialItem.count({ where });
+    const paginated = (search || prefix || exactLetterPrefix)
       ? filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
       : filtered;
 

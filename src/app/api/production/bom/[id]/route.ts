@@ -102,17 +102,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     `;
 
     for (const v of vatTu) {
-      if (!v.materialId && v.tenVatTu) {
-        let mat = await prisma.materialItem.findFirst({
-          where: { name: v.tenVatTu }
-        });
+    for (const v of vatTu) {
+      if (!v.materialId && (v.maVatTu || v.tenVatTu)) {
+        let mat = null;
+        if (v.maVatTu) {
+          mat = await prisma.materialItem.findFirst({ where: { code: v.maVatTu } });
+        }
+        if (!mat && v.tenVatTu) {
+          mat = await prisma.materialItem.findFirst({
+            where: { name: v.tenVatTu }
+          });
+        }
         if (!mat) {
-          const defaultPrice = 10000 + (v.tenVatTu.length * 2000);
+          const defaultPrice = 10000 + ((v.tenVatTu || v.maVatTu || "Vattu").length * 2000);
           const giaBan = Math.round((defaultPrice * 1.2) / 1000) * 1000;
           mat = await prisma.materialItem.create({
             data: {
-              name: v.tenVatTu,
-              code: `AUTO-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+              name: v.tenVatTu || v.maVatTu || "Chưa có tên",
+              code: v.maVatTu || `AUTO-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
               unit: v.donViTinh || "Cái",
               price: defaultPrice,
               giaBan: giaBan
@@ -124,8 +131,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       const lineId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       await prisma.$executeRaw`
-        INSERT INTO DinhMucVatTu (id, dinhMucId, materialId, tenVatTu, soLuong, donViTinh, ghiChu)
-        VALUES (${lineId}, ${id}, ${v.materialId || null}, ${v.tenVatTu}, ${v.soLuong || 1}, ${v.donViTinh || ''}, ${v.ghiChu || ''})
+        INSERT INTO DinhMucVatTu (id, dinhMucId, materialId, maVatTu, tenVatTu, soLuong, donViTinh, ghiChu)
+        VALUES (${lineId}, ${id}, ${v.materialId || null}, ${v.maVatTu || null}, ${v.tenVatTu || 'Chưa có tên'}, ${v.soLuong || 1}, ${v.donViTinh || ''}, ${v.ghiChu || ''})
       `;
     }
 

@@ -55,7 +55,7 @@ function genSoPhieu() { return genDocCode("PX"); }
 
 const CSS: Record<string, React.CSSProperties> = {
   input: {
-    width: "100%", padding: "8px 11px", border: "1px solid var(--border)",
+    width: "100%", padding: "8px 11px", borderWidth: 1, borderStyle: "solid", borderColor: "var(--border)",
     borderRadius: 8, fontSize: 13, background: "var(--background)",
     color: "var(--foreground)", outline: "none", boxSizing: "border-box",
   },
@@ -80,6 +80,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
   const [ngayXuat, setNgayXuat]         = React.useState(new Date().toISOString().slice(0,10));
   const [lockDate, setLockDate]         = React.useState(true);
   const [lyDo, setLyDo]                 = React.useState("Xuất kho hàng hoá");
+  const [loaiXuatKho, setLoaiXuatKho]   = React.useState("Xuất bán hàng");
   const [ghiChu, setGhiChu]             = React.useState("");
   const [nguoiThucHien, setNguoiThucHien] = React.useState("");
 
@@ -489,7 +490,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
         body: JSON.stringify({
           fromWarehouseId,
           soChungTu:     soChungTu     || undefined,
-          lyDo:          lyDo          || undefined,
+          lyDo:          [loaiXuatKho, lyDo, ghiChu ? `Ghi chú: ${ghiChu}` : ""].filter(Boolean).join(" - ") || undefined,
           nguoiThucHien: nguoiThucHien || undefined,
           lines: validLines.map(l => ({
             inventoryItemId: l.item!.id,
@@ -734,9 +735,9 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
                 <input value={soChungTu} readOnly style={{ ...CSS.input, background: "var(--muted)", color: "var(--muted-foreground)", cursor: "default", fontFamily: "monospace", fontSize: 12 }} />
               </div>
 
-              {/* Ngày xuất + lock toggle */}
+              {/* Thời gian */}
               <div>
-                <label style={CSS.label}>Ngày xuất kho</label>
+                <label style={CSS.label}>Thời gian</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <input
                     type="date"
@@ -757,14 +758,33 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
                 </div>
               </div>
 
+              {/* Loại xuất kho */}
+              <div>
+                <label style={CSS.label}>Loại xuất kho</label>
+                <div style={{ position: "relative" }}>
+                  <select value={loaiXuatKho} onChange={e => !locked && setLoaiXuatKho(e.target.value)} disabled={locked}
+                    style={{ ...CSS.input, appearance: "none", opacity: locked ? 0.65 : 1, cursor: locked ? "not-allowed" : "pointer" }}>
+                    <option value="Xuất bán hàng">Xuất bán hàng</option>
+                    <option value="Xuất sản xuất">Xuất sản xuất</option>
+                    <option value="Xuất trả nhà cung cấp">Xuất trả nhà cung cấp</option>
+                    <option value="Xuất huỷ/hao hụt">Xuất huỷ / hao hụt</option>
+                    <option value="Khác">Khác</option>
+                  </select>
+                  <i className="bi bi-chevron-down position-absolute" style={{ right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, pointerEvents: "none", color: "var(--muted-foreground)" }} />
+                </div>
+              </div>
+
               {/* Kho xuất */}
               <div>
                 <label style={CSS.label}>Kho xuất <span style={{ color: "#f43f5e" }}>*</span></label>
-                <select value={fromWarehouseId} onChange={e => !locked && setFromWarehouseId(e.target.value)} disabled={true}
-                  style={{ ...CSS.input, appearance: "none", borderColor: fromWarehouseId ? "rgba(245,158,11,0.5)" : "var(--border)", opacity: 0.65, cursor: "not-allowed" }}>
-                  <option value="">Chọn kho</option>
-                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                </select>
+                <div style={{ position: "relative" }}>
+                  <select value={fromWarehouseId} onChange={e => !locked && setFromWarehouseId(e.target.value)} disabled={locked}
+                    style={{ ...CSS.input, appearance: "none", borderColor: fromWarehouseId ? "rgba(245,158,11,0.5)" : "var(--border)", opacity: locked ? 0.65 : 1, cursor: locked ? "not-allowed" : "pointer" }}>
+                    <option value="">Chọn kho</option>
+                    {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                  <i className="bi bi-chevron-down position-absolute" style={{ right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, pointerEvents: "none", color: "var(--muted-foreground)" }} />
+                </div>
               </div>
 
               {/* Người thực hiện */}
@@ -813,12 +833,12 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
           {/* Overlay khi chưa chọn kho */}
           {!fromWarehouseId && (
             <div style={{ position: "absolute", inset: 0, zIndex: 10, backdropFilter: "blur(3px)", background: "color-mix(in srgb, var(--background) 60%, transparent)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(245,158,11,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <i className="bi bi-lock-fill" style={{ fontSize: 24, color: "#f59e0b" }} />
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(59,130,246,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <i className="bi bi-box-seam" style={{ fontSize: 24, color: "#3b82f6" }} />
               </div>
-              <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "var(--foreground)" }}>Chưa chọn kho xuất</p>
+              <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "var(--foreground)" }}>Chọn kho xuất để bắt đầu</p>
               <p style={{ margin: 0, fontSize: 13, color: "var(--muted-foreground)", textAlign: "center" }}>
-                Vui lòng chọn kho xuất trong bảng bên trái<br />để mở khu vực nhập hàng hoá.
+                Vui lòng chọn <b>Kho xuất</b> ở bảng thông tin bên trái<br />để có thể chọn hàng hoá cần xuất kho.
               </p>
             </div>
           )}

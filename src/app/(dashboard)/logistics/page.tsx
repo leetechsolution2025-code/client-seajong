@@ -7,6 +7,7 @@ import { LogisticsInventory } from "@/components/logistics/inventory/LogisticsIn
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { XuatKhoModal } from "@/components/plan-finance/kho_hang/XuatKhoModal";
+import { NhapKhoModal } from "@/components/plan-finance/kho_hang/NhapKhoModal";
 import { useToast } from "@/components/ui/Toast";
 import { DynamicTicker } from "@/components/layout/DynamicTicker";
 
@@ -22,6 +23,8 @@ export default function LogisticsOverviewPage() {
   const [xuatKhoOrderType, setXuatKhoOrderType] = useState<"so" | "wo" | "manual">("manual");
   const [xuatKhoSoId, setXuatKhoSoId] = useState<string | undefined>(undefined);
   const [xuatKhoWoId, setXuatKhoWoId] = useState<string | undefined>(undefined);
+  const [showNhapKhoModal, setShowNhapKhoModal] = useState(false);
+  const [nhapKhoTaskId, setNhapKhoTaskId] = useState<string | undefined>(undefined);
   
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<"orders" | "inventory">("orders");
@@ -40,7 +43,9 @@ export default function LogisticsOverviewPage() {
             const rawId = d.code || d.id;
             const parts = rawId.split('-');
             const suffix = parts[parts.length - 1] || `${index}`;
-            const exportCode = d.type === "material-export" ? `LXK-VATTU-${suffix}` : `LXK-202607-${suffix}`;
+            let exportCode = `LXK-202607-${suffix}`;
+            if (d.type === "material-export") exportCode = `LXK-VATTU-${suffix}`;
+            if (d.type === "material-import") exportCode = `LNK-OQC-${suffix}`;
             return { ...d, exportCode };
           });
           
@@ -117,9 +122,9 @@ export default function LogisticsOverviewPage() {
             items = (detail.saleOrderItems ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.inventoryItem?.donVi }));
           }
         }
-      } else if (row.type === "material-export") {
+      } else if (row.type === "material-export" || row.type === "material-import") {
         // Dữ liệu items đã có sẵn từ API sales-active
-        items = (row.items ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi }));
+        items = (row.items ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type }));
       }
       setOrderDetails(items);
     } catch (error) {
@@ -171,7 +176,9 @@ export default function LogisticsOverviewPage() {
                     { 
                       header: "Loại", 
                       render: (row: any) => (
-                        <span className="badge bg-label-primary text-primary" style={{ fontSize: 11 }}>Xuất kho</span>
+                        <span className={`badge bg-label-${row.type === 'material-import' ? 'success' : 'primary'} text-${row.type === 'material-import' ? 'success' : 'primary'}`} style={{ fontSize: 11 }}>
+                          {row.type === 'material-import' ? 'Nhập kho' : 'Xuất kho'}
+                        </span>
                       ),
                       width: "20%" 
                     },
@@ -269,7 +276,7 @@ export default function LogisticsOverviewPage() {
       >
         <div className="offcanvas-header border-bottom px-4 py-3 bg-light">
           <div>
-            <h5 className="offcanvas-title fw-bold mb-1">Lệnh Xuất Kho: {selectedOrder?.exportCode}</h5>
+            <h5 className="offcanvas-title fw-bold mb-1">Lệnh {selectedOrder?.type === 'material-import' ? 'Nhập' : 'Xuất'} Kho: {selectedOrder?.exportCode}</h5>
             <div className="text-muted" style={{ fontSize: 13 }}>
               {selectedOrder?.typeLabel} {selectedOrder?.code}
             </div>
@@ -323,11 +330,16 @@ export default function LogisticsOverviewPage() {
         </div>
         <div className="offcanvas-footer p-3 border-top bg-light">
           <button className="btn btn-primary w-100" onClick={() => {
-            const isSo = selectedOrder?.type === "sale-order";
-            setXuatKhoOrderType(isSo ? "so" : "wo");
-            setXuatKhoSoId(isSo ? selectedOrder?.id : undefined);
-            setXuatKhoWoId(!isSo ? selectedOrder?.id : undefined);
-            setShowXuatKhoModal(true);
+            if (selectedOrder?.type === "material-import") {
+              setNhapKhoTaskId(selectedOrder.id);
+              setShowNhapKhoModal(true);
+            } else {
+              const isSo = selectedOrder?.type === "sale-order";
+              setXuatKhoOrderType(isSo ? "so" : "wo");
+              setXuatKhoSoId(isSo ? selectedOrder?.id : undefined);
+              setXuatKhoWoId(!isSo ? selectedOrder?.id : undefined);
+              setShowXuatKhoModal(true);
+            }
             setSelectedOrder(null);
           }}>
             Thực hiện
@@ -343,6 +355,18 @@ export default function LogisticsOverviewPage() {
           onClose={() => setShowXuatKhoModal(false)}
           onSaved={() => {
             setShowXuatKhoModal(false);
+            window.location.reload();
+          }}
+        />
+      )}
+
+      {showNhapKhoModal && (
+        <NhapKhoModal 
+          initialItems={orderDetails}
+          initialTaskId={nhapKhoTaskId}
+          onClose={() => setShowNhapKhoModal(false)}
+          onSaved={() => {
+            setShowNhapKhoModal(false);
             window.location.reload();
           }}
         />

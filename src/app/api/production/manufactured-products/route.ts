@@ -62,11 +62,18 @@ export async function GET(req: NextRequest) {
     const mappedItems = paginated.map((item: any) => {
       let soLuong = 0;
       let trangThai = "het-hang";
+      let giaNhap = 0;
+      let giaBan = 0;
+      
       if (item.code) {
         const invItem = invMap.get(item.code) as any;
-        if (invItem && invItem.stocks) {
-          soLuong = invItem.stocks.reduce((sum: number, s: any) => sum + s.soLuong, 0);
-          trangThai = soLuong > 0 ? "con-hang" : "het-hang";
+        if (invItem) {
+          giaNhap = invItem.giaNhap || 0;
+          giaBan = invItem.giaBan || 0;
+          if (invItem.stocks) {
+            soLuong = invItem.stocks.reduce((sum: number, s: any) => sum + s.soLuong, 0);
+            trangThai = soLuong > 0 ? "con-hang" : "het-hang";
+          }
         }
       }
 
@@ -78,7 +85,9 @@ export async function GET(req: NextRequest) {
         dinhMuc: item.dinhMucs?.[0] || null,
         source: "manufactured",
         soLuong,
-        trangThai
+        trangThai,
+        giaNhap,
+        giaBan
       };
     });
 

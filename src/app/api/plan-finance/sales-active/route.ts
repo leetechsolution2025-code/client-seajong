@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const [contracts, saleOrders, retailInvoices, materialTasks] = await Promise.all([
+    const [contracts, saleOrders, retailInvoices, materialTasks, inboundTasks] = await Promise.all([
       // Hợp đồng đang thực hiện
       prisma.contract.findMany({
         where: { trangThai: "active" },
@@ -55,6 +55,20 @@ export async function GET(_req: NextRequest) {
           deptCode: "logistics",
           status: "pending",
           title: { contains: "Lệnh xuất kho KVP" }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        select: {
+          id: true, title: true, status: true,
+          actualResult: true, createdAt: true
+        }
+      }),
+      // Lệnh nhập kho thành phẩm (Task)
+      prisma.task.findMany({
+        where: {
+          deptCode: "logistics",
+          status: "pending",
+          title: { contains: "Nhập kho thành phẩm" }
         },
         orderBy: { createdAt: "desc" },
         take: 100,
@@ -108,6 +122,26 @@ export async function GET(_req: NextRequest) {
           code:      orderCode,
           type:      "material-export" as const,
           typeLabel: "Lệnh xuất kho KVP",
+          customer:  null,
+          tongTien:  null,
+          trangThai: t.status,
+          items:     parsedItems,
+        };
+      }),
+      ...inboundTasks.map(t => {
+        let parsedItems = [];
+        try {
+          if (t.actualResult) parsedItems = JSON.parse(t.actualResult);
+        } catch(e) {}
+        
+        const qcCodeMatch = t.title.match(/\((QC-\S+)\)/);
+        const code = qcCodeMatch ? qcCodeMatch[1] : "OQC";
+
+        return {
+          id:        t.id,
+          code:      code,
+          type:      "material-import" as const,
+          typeLabel: "Nhập kho thành phẩm",
           customer:  null,
           tongTien:  null,
           trangThai: t.status,
