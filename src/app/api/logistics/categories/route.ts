@@ -80,7 +80,7 @@ export async function GET(req: Request) {
       }
     } else if (type === "PRODUCT") {
       const cats = await prisma.category.findMany({
-        where: { type: "danh_muc_thanh_pham", isActive: true },
+        where: { type: "nhom_san_pham", isActive: true },
         orderBy: { sortOrder: "asc" }
       });
       result = buildCategoryTree(cats);
