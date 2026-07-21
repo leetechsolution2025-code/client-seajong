@@ -314,8 +314,14 @@ function CategoryModal({ open, editing, activeType, nextSortOrder, onClose, onSa
   const [error, setError] = useState("");
   const [parentOptions, setParentOptions] = useState<{ id: string; name: string }[]>([]);
 
+  const genCategoryCode = (prefix: string) => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
+    const rand = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+    return `${prefix}-${rand}`;
+  };
+
   const refreshCode = () =>
-    setForm(f => ({ ...f, code: genDocCode(activeType.prefix) }));
+    setForm(f => ({ ...f, code: genCategoryCode(activeType.prefix) }));
 
   useEffect(() => {
     if (open) {
@@ -327,7 +333,7 @@ function CategoryModal({ open, editing, activeType, nextSortOrder, onClose, onSa
           parentId: (editing as CategoryRow & { parentId?: string }).parentId ?? "",
         });
       } else {
-        setForm({ ...EMPTY_FORM, code: genDocCode(activeType.prefix), sortOrder: String(nextSortOrder) });
+        setForm({ ...EMPTY_FORM, code: genCategoryCode(activeType.prefix), sortOrder: String(nextSortOrder) });
       }
       setError(""); setSaving(false);
       // Fetch danh sách có thể làm cha

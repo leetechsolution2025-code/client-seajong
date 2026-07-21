@@ -54,30 +54,7 @@ export async function GET(req: Request) {
         where: { type: "vat_tu_san_xuat", isActive: true },
         orderBy: { sortOrder: "asc" }
       });
-      
-      const industryMaterialCodeMap: Record<string, string> = {
-        "sanitary": "VTSX_VESINH",
-        "building_materials": "VTSX_VLXD"
-      };
-      const matRootCode = industryMaterialCodeMap[activeIndustryCode] || "VTSX_GO";
-      
-      const rootCategory = allCats.find(c => c.code === matRootCode && c.parentId === null);
-      if (rootCategory) {
-        const descendantIds = [rootCategory.id];
-        const collectDescendants = (parentId: string) => {
-          allCats.forEach(cat => {
-            if (cat.parentId === parentId) {
-              descendantIds.push(cat.id);
-              collectDescendants(cat.id);
-            }
-          });
-        };
-        collectDescendants(rootCategory.id);
-        const filteredCats = allCats.filter(c => descendantIds.includes(c.id));
-        result = buildCategoryTree(filteredCats, rootCategory.id);
-      } else {
-        result = buildCategoryTree(allCats);
-      }
+      result = buildCategoryTree(allCats);
     } else if (type === "PRODUCT") {
       const cats = await prisma.category.findMany({
         where: { type: "nhom_san_pham", isActive: true },
