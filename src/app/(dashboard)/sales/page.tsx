@@ -401,17 +401,14 @@ export default function SalesPage() {
     },
   };
 
-  const categoryBreakdown = data?.categoryBreakdown || [
-    { name: "Thiết bị vệ sinh", value: totalSales > 0 ? Math.round(totalSales * 0.42) : 1890000000 },
-    { name: "Sen vòi Seajong", value: totalSales > 0 ? Math.round(totalSales * 0.28) : 1260000000 },
-    { name: "Phụ kiện phòng tắm", value: totalSales > 0 ? Math.round(totalSales * 0.15) : 675000000 },
-    { name: "Thiết bị nhà bếp", value: totalSales > 0 ? Math.round(totalSales * 0.10) : 450000000 },
-    { name: "Khác", value: totalSales > 0 ? Math.round(totalSales * 0.05) : 225000000 },
-  ];
+  const categoryBreakdown = data?.categoryBreakdown || [];
 
-  const categoriesData = {
+  const categoriesData = categoryBreakdown.length > 0 ? {
     labels: categoryBreakdown.map(c => c.name),
     series: categoryBreakdown.map(c => c.value)
+  } : {
+    labels: ["Chưa có dữ liệu"],
+    series: [1]
   };
 
   const categoryPieOptions: ApexCharts.ApexOptions = {

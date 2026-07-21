@@ -196,13 +196,9 @@ export async function GET(req: NextRequest) {
     if (restValue > 0) {
       topCategories.push({ name: "Khác", value: restValue });
     }
-    // If empty, provide default mock
+    // Removed mock fallbacks so the chart shows empty when there is no data
     if (topCategories.length === 0) {
-      topCategories = [
-        { name: "Thiết bị vệ sinh", value: 1890000000 },
-        { name: "Sen vòi Seajong", value: 1260000000 },
-        { name: "Phụ kiện", value: 675000000 }
-      ];
+      topCategories = [];
     }
 
     const currentMonth = new Date().getMonth() + 1;
@@ -251,12 +247,7 @@ export async function GET(req: NextRequest) {
       }
     });
     
-    // If absolutely no revenue, provide a mockup for testing purposes so chart isn't totally empty if testing empty DB
-    if (regionSalesMap["Miền Bắc"] === 0 && regionSalesMap["Miền Trung"] === 0 && regionSalesMap["Miền Nam"] === 0) {
-       regionSalesMap["Miền Bắc"] = 2340000000;
-       regionSalesMap["Miền Trung"] = 810000000;
-       regionSalesMap["Miền Nam"] = 1350000000;
-    }
+    // Removed mock fallback for empty database
 
     const regionBreakdown = [
       { name: "Miền Bắc", value: regionSalesMap["Miền Bắc"] },
