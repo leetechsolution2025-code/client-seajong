@@ -22,10 +22,12 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const page        = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
     const search      = searchParams.get("search")      ?? "";
+    const prefix      = searchParams.get("prefix")      ?? "";
     const categoryId  = searchParams.get("categoryId")  ?? "";
     const warehouseId = searchParams.get("warehouseId") ?? "";
 
     const searchNorm = removeVietnameseTones(search);
+    const prefixNorm = removeVietnameseTones(prefix);
 
     // Filter by active industry
     const user = await prisma.user.findFirst({
@@ -102,8 +104,8 @@ export async function GET(req: NextRequest) {
     const rawItems = await prisma.materialItem.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      take: search ? 1000 : PAGE_SIZE,
-      skip: search ? 0 : (page - 1) * PAGE_SIZE,
+      take: (search || prefix) ? 1000 : PAGE_SIZE,
+      skip: (search || prefix) ? 0 : (page - 1) * PAGE_SIZE,
       include: {
         category: { select: { id: true, name: true } },
         stocks: warehouseId 
@@ -112,7 +114,12 @@ export async function GET(req: NextRequest) {
       },
     }) as MaterialItemWithRelations[];
 
-    const filtered = search
+    const filtered = prefix
+      ? rawItems.filter((it: MaterialItemWithRelations) => {
+          const codeNorm = removeVietnameseTones(it.code ?? "");
+          return codeNorm.startsWith(prefixNorm);
+        })
+      : search
       ? rawItems.filter((it: MaterialItemWithRelations) => {
           const nameNorm = removeVietnameseTones(it.name);
           const codeNorm = removeVietnameseTones(it.code ?? "");
@@ -120,8 +127,8 @@ export async function GET(req: NextRequest) {
         })
       : rawItems;
 
-    const total = search ? filtered.length : await prisma.materialItem.count({ where });
-    const paginated = search
+    const total = (search || prefix) ? filtered.length : await prisma.materialItem.count({ where });
+    const paginated = (search || prefix)
       ? filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
       : filtered;
 

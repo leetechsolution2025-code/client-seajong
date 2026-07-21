@@ -41,7 +41,7 @@ export default function BOMPage() {
 
   useEffect(() => {
     if (showSwapModal) {
-      fetch(`/api/production/materials?search=${encodeURIComponent(swapSearch)}&page=1`)
+      fetch(`/api/production/materials?prefix=${encodeURIComponent(swapSearch)}&page=1`)
         .then(res => res.json())
         .then(data => setSwapOptions(data.items || []))
         .catch(console.error);

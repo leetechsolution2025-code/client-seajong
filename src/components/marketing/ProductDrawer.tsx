@@ -1332,16 +1332,32 @@ export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Pr
           <i className="bi bi-clock" style={{ fontSize: 12 }} />
           Cập nhật {new Date(p.updatedAt).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}
         </span>
-        <a
-          href={p.url} target="_blank" rel="noreferrer"
-          style={{
-            display: "flex", alignItems: "center", gap: 6,
-            color: "var(--primary)", fontWeight: 600, textDecoration: "none", fontSize: 12,
-          }}
-        >
-          <i className="bi bi-link-45deg" style={{ fontSize: 14 }} />
-          seajong.com
-        </a>
+        <div className="d-flex align-items-center gap-3">
+          <a
+            href={p.url} target="_blank" rel="noreferrer"
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              color: "var(--primary)", fontWeight: 600, textDecoration: "none", fontSize: 12,
+            }}
+          >
+            <i className="bi bi-link-45deg" style={{ fontSize: 14 }} />
+            seajong.com
+          </a>
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              style={{
+                height: 32, borderRadius: 8, padding: "0 12px",
+                border: "1.5px solid var(--border)", background: "transparent",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                color: "var(--foreground)", fontSize: 13, fontWeight: 600, gap: 6
+              }}
+            >
+              <i className="bi bi-pencil-square" style={{ fontSize: 13 }} />
+              Sửa
+            </button>
+          )}
+        </div>
       </div>
       </div>
     </>

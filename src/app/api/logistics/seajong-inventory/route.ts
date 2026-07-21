@@ -63,7 +63,8 @@ export async function GET(req: NextRequest) {
       category: { name: p.categories.map(c => c.name).join(", ") },
       brand: "Seajong",
       imageUrl: images[0] || null,
-      trangThai: "Còn hàng"
+      trangThai: "Còn hàng",
+      source: "seajong"
     };
   });
 
