@@ -101,7 +101,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   const defaultNgayLap = fmtDate(today);
 
   const [info, setInfo] = React.useState({
-    soPhieu: genDocCode("DH"),
+    soPhieu: "DBH-Tự động tạo",
     ngayLap: defaultNgayLap,
     ngayGiaoHang: defaultNgayLap,
     tenNguoiNhan: "",

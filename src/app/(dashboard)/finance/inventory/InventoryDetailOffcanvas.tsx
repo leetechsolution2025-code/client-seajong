@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { BOMBuilderModal } from "./BOMBuilderModal";
 import toast from "react-hot-toast";
+import { HoverImage } from "@/components/ui/HoverImage";
 
 interface InventoryDetailOffcanvasProps {
   show: boolean;
@@ -133,7 +134,7 @@ export function InventoryDetailOffcanvas({ show, onClose, item, isMaterial, onRe
               style={{ width: 180, height: 180 }}
             >
               {item.imageUrl ? (
-                <img src={item.imageUrl} alt={item.tenHang} className="img-fluid h-100 w-100 object-fit-cover" />
+                <HoverImage src={item.imageUrl} alt={item.tenHang} className="img-fluid h-100 w-100 object-fit-cover" />
               ) : (
                 <i className="bi bi-image text-muted opacity-25" style={{ fontSize: 60 }} />
               )}
@@ -321,7 +322,7 @@ export function InventoryDetailOffcanvas({ show, onClose, item, isMaterial, onRe
                               <div className="d-flex align-items-center gap-2 py-1">
                                 <div className="bg-light rounded d-flex align-items-center justify-content-center flex-shrink-0 border" style={{ width: 36, height: 36 }}>
                                   {v.material?.imageUrl ? (
-                                    <img src={v.material.imageUrl} className="w-100 h-100 object-fit-cover rounded" />
+                                    <HoverImage src={v.material.imageUrl} className="w-100 h-100 object-fit-cover rounded" />
                                   ) : (
                                     <i className="bi bi-cpu text-muted" style={{ fontSize: 18 }} />
                                   )}

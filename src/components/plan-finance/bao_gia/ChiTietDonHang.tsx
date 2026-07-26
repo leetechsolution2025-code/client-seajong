@@ -3,7 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
+import { docSoTien } from "@/app/(dashboard)/finance/debts/DebtPaymentOffcanvas";
 import { TaoDonHangModal } from "./TaoDonHangModal";
+import { HoverImage } from "@/components/ui/HoverImage";
 
 export interface OrderDetail {
   id: string;
@@ -22,6 +25,7 @@ export interface OrderDetail {
   purchaseRequestCode?: string | null;
   stockMovementCode?: string | null;
   hasLệnhXuatKho?: boolean;
+  tongNoCu?: number;
   items?: any[];
   customer: {
     id: string | null;
@@ -82,6 +86,17 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Print override states
+  const [printChiPhiKhac, setPrintChiPhiKhac] = useState(0);
+  const [printChietKhau, setPrintChietKhau] = useState(0);
+  const [printNoCu, setPrintNoCu] = useState(0);
+  const [printDaThanhToan, setPrintDaThanhToan] = useState(0);
+  const [printAddress, setPrintAddress] = useState("");
+  const [printMST, setPrintMST] = useState("");
+  const [printCCCD, setPrintCCCD] = useState("");
+  const [printShippingAddress, setPrintShippingAddress] = useState("");
+  const [printTerms, setPrintTerms] = useState("");
+
   useEffect(() => {
     if (!orderId) {
       setOrder(null);
@@ -108,6 +123,19 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
       setEditDaThanhToan(order.daThanhToan || 0);
       setEditTrangThai(order.trangThai || "active");
       setEditGhiChu(order.ghiChu || "");
+      setPrintDaThanhToan(order.daThanhToan || 0);
+      setPrintNoCu(order.tongNoCu || 0);
+      
+      let addr = order.customer?.address || "";
+      let shippingAddr = addr;
+      if (order.ghiChu) {
+        const lines = order.ghiChu.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("Địa chỉ giao hàng: ")) shippingAddr = line.replace("Địa chỉ giao hàng: ", "");
+        }
+      }
+      setPrintAddress(addr);
+      setPrintShippingAddress(shippingAddr);
     }
   }, [order]);
 
@@ -481,6 +509,55 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
           subtitle={`${fmtDate(order.ngayDat)} • Khách hàng: ${order.customer?.name || "Khách vãng lai"}`}
           onClose={() => setShowPrint(false)}
           printOrientation="portrait"
+          sidebar={
+            <div style={{ padding: "0 4px", display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>Địa chỉ</label>
+                <input value={printAddress} onChange={e => setPrintAddress(e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13 }} />
+              </div>
+              <div style={{ marginBottom: 12, display: "flex", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>Mã số thuế</label>
+                  <input value={printMST} onChange={e => setPrintMST(e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13 }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>Số CCCD</label>
+                  <input value={printCCCD} onChange={e => setPrintCCCD(e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13 }} />
+                </div>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>Địa chỉ nhận hàng</label>
+                <input value={printShippingAddress} onChange={e => setPrintShippingAddress(e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13 }} />
+              </div>
+              <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>Chi phí khác (đ)</label>
+                  <CurrencyInput value={printChiPhiKhac} onChange={setPrintChiPhiKhac} style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13 }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6, color: "#ef4444" }}>Chiết khấu (%)</label>
+                  <input type="number" min="0" max="100" value={printChietKhau} onChange={e => setPrintChietKhau(Number(e.target.value) || 0)} style={{ width: "100%", padding: "8px 12px", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 6, fontSize: 13, background: "rgba(239, 68, 68, 0.05)" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6, color: "#ef4444" }}>Nợ cũ (đ)</label>
+                  <CurrencyInput value={printNoCu} onChange={setPrintNoCu} disabled={true} style={{ width: "100%", padding: "8px 12px", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 6, fontSize: 13, background: "rgba(239, 68, 68, 0.15)", cursor: "not-allowed" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6, color: "#10b981" }}>Đã thanh toán (đ)</label>
+                  <CurrencyInput value={printDaThanhToan} onChange={setPrintDaThanhToan} style={{ width: "100%", padding: "8px 12px", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: 6, fontSize: 13, background: "rgba(16, 185, 129, 0.05)" }} />
+                </div>
+              </div>
+              <div style={{ marginTop: 24, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>Điều khoản và ghi chú</label>
+                <textarea 
+                  value={printTerms} 
+                  onChange={e => setPrintTerms(e.target.value)} 
+                  style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, minHeight: 80, resize: "none", flex: 1 }} 
+                  placeholder="Nhập điều khoản thanh toán, bảo hành..."
+                />
+              </div>
+            </div>
+          }
           actions={
             <button
               onClick={() => printDocumentById("print-doc")}
@@ -539,10 +616,22 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                          </>
                        )}
                      </tr>
-                     {displayCustomer.address && (
+                     <tr>
+                       <td style={{ fontWeight: 600 }}>Địa chỉ:</td>
+                       <td colSpan={3}>{printAddress}</td>
+                     </tr>
+                     {(printMST || printCCCD) && (
                        <tr>
-                         <td style={{ fontWeight: 600 }}>Địa chỉ:</td>
-                         <td colSpan={3}>{displayCustomer.address}</td>
+                         <td style={{ fontWeight: 600 }}>MST:</td>
+                         <td>{printMST}</td>
+                         <td style={{ fontWeight: 600, textAlign: "right", paddingRight: 12 }}>Số CCCD:</td>
+                         <td>{printCCCD}</td>
+                       </tr>
+                     )}
+                     {printShippingAddress && (
+                       <tr>
+                         <td style={{ fontWeight: 600 }}>Địa chỉ nhận hàng:</td>
+                         <td colSpan={3}>{printShippingAddress}</td>
                        </tr>
                      )}
                    </tbody>
@@ -569,7 +658,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                         <td style={{ border: "1px solid #1e293b", padding: "8px 12px", verticalAlign: "middle" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                             {line.inventoryItem?.imageUrl ? (
-                              <img src={line.inventoryItem.imageUrl} alt={line.tenHang} style={{ width: 50, height: 50, objectFit: "contain", borderRadius: 6, border: "1px solid #e2e8f0" }} />
+                              <HoverImage src={line.inventoryItem.imageUrl} alt={line.tenHang} style={{ width: 50, height: 50, objectFit: "contain", borderRadius: 6, border: "1px solid #e2e8f0" }} />
                             ) : (
                               <div style={{ width: 50, height: 50, background: "#f1f5f9", borderRadius: 6, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", color: "#cbd5e1" }}>
                                 <i className="bi bi-image" style={{ fontSize: 18 }} />
@@ -595,25 +684,90 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                 </div>
               )}
 
-              {/* Payment Summary */}
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
-                 <table style={{ width: "300px", fontSize: 12, color: "#1e293b", lineHeight: 2.0 }}>
-                   <tbody>
-                     <tr>
-                       <td style={{ fontWeight: 600 }}>Tổng tiền hàng:</td>
-                       <td style={{ textAlign: "right", fontWeight: 800 }}>{order.tongTien.toLocaleString("vi-VN")} đ</td>
-                     </tr>
-                     <tr>
-                       <td style={{ fontWeight: 600, color: "#10b981" }}>Đã thanh toán:</td>
-                       <td style={{ textAlign: "right", fontWeight: 800, color: "#10b981" }}>{order.daThanhToan.toLocaleString("vi-VN")} đ</td>
-                     </tr>
-                     <tr style={{ borderTop: "1px dashed #cbd5e1" }}>
-                       <td style={{ fontWeight: 800, fontSize: 13 }}>Còn lại (công nợ):</td>
-                       <td style={{ textAlign: "right", fontWeight: 800, fontSize: 13, color: conNo > 0 ? "#ef4444" : "#10b981" }}>{conNo.toLocaleString("vi-VN")} đ</td>
-                     </tr>
-                   </tbody>
-                 </table>
-              </div>
+               {/* Footer Row: Terms (Left) + Summary (Right) */}
+               <div style={{ display: "flex", justifyContent: "space-between", gap: 32, marginTop: -8 }}>
+                 {/* Terms and Notes Section */}
+                 <div style={{ flex: 1, paddingRight: 16 }}>
+                   {printTerms && (
+                     <div style={{ fontSize: 12, color: "#1e293b", lineHeight: 1.6 }}>
+                       <h4 className="text-uppercase" style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>Điều khoản và ghi chú</h4>
+                       <div style={{ whiteSpace: "pre-wrap" }}>{printTerms}</div>
+                     </div>
+                   )}
+                 </div>
+
+                 {/* Payment Summary */}
+                 <div style={{ flexShrink: 0 }}>
+                   {(() => {
+                     const chietKhauAmount = (order.tongTien * printChietKhau) / 100;
+                     return (
+                       <table style={{ width: "280px", fontSize: 12, color: "#1e293b", lineHeight: 2.0 }}>
+                         <tbody>
+                           <tr>
+                             <td style={{ fontWeight: 600 }}>Tổng tiền hàng:</td>
+                             <td style={{ textAlign: "right", fontWeight: 800 }}>{order.tongTien.toLocaleString("vi-VN")} đ</td>
+                           </tr>
+                           <tr>
+                             <td style={{ fontWeight: 600 }}>Chi phí khác:</td>
+                             <td style={{ textAlign: "right", fontWeight: 800 }}>{printChiPhiKhac.toLocaleString("vi-VN")} đ</td>
+                           </tr>
+                           <tr>
+                             <td style={{ fontWeight: 600, color: "#ef4444" }}>Chiết khấu ({printChietKhau}%):</td>
+                             <td style={{ textAlign: "right", fontWeight: 800, color: "#ef4444" }}>{chietKhauAmount.toLocaleString("vi-VN")} đ</td>
+                           </tr>
+                           <tr style={{ borderTop: "1px solid #cbd5e1", borderBottom: "1px solid #cbd5e1" }}>
+                             <td style={{ fontWeight: 800, fontSize: 13, paddingTop: 4, paddingBottom: 4 }}>Tổng tiền hoá đơn:</td>
+                             <td style={{ textAlign: "right", fontWeight: 800, fontSize: 13, paddingTop: 4, paddingBottom: 4 }}>
+                               {(order.tongTien + printChiPhiKhac - chietKhauAmount).toLocaleString("vi-VN")} đ
+                             </td>
+                           </tr>
+                           <tr>
+                             <td style={{ fontWeight: 600, color: "#ef4444", paddingTop: 4 }}>Nợ cũ:</td>
+                             <td style={{ textAlign: "right", fontWeight: 800, color: "#ef4444", paddingTop: 4 }}>{printNoCu.toLocaleString("vi-VN")} đ</td>
+                           </tr>
+                           <tr style={{ borderTop: "1px solid #cbd5e1" }}>
+                             <td style={{ fontWeight: 800, fontSize: 13, paddingTop: 4 }}>Tổng tiền:</td>
+                             <td style={{ textAlign: "right", fontWeight: 800, fontSize: 13, paddingTop: 4 }}>
+                               {(order.tongTien + printChiPhiKhac - chietKhauAmount + printNoCu).toLocaleString("vi-VN")} đ
+                             </td>
+                           </tr>
+                           <tr>
+                             <td style={{ fontWeight: 600, color: "#10b981", paddingTop: 4 }}>Đã thanh toán:</td>
+                             <td style={{ textAlign: "right", fontWeight: 800, color: "#10b981", paddingTop: 4 }}>{printDaThanhToan.toLocaleString("vi-VN")} đ</td>
+                           </tr>
+                           <tr style={{ borderTop: "2px solid #1e293b" }}>
+                             <td style={{ fontWeight: 800, fontSize: 15, paddingTop: 6 }}>Tổng phải trả:</td>
+                             <td style={{ textAlign: "right", fontWeight: 900, fontSize: 16, color: "#0284c7", paddingTop: 6 }}>
+                               {Math.max(0, order.tongTien + printChiPhiKhac - chietKhauAmount + printNoCu - printDaThanhToan).toLocaleString("vi-VN")} đ
+                             </td>
+                           </tr>
+                           <tr>
+                             <td colSpan={2} style={{ textAlign: "right", fontStyle: "italic", fontSize: 11, color: "#64748b", paddingTop: 4, paddingBottom: 8 }}>
+                               (Bằng chữ: {docSoTien(Math.max(0, order.tongTien + printChiPhiKhac - chietKhauAmount + printNoCu - printDaThanhToan))})
+                             </td>
+                           </tr>
+                         </tbody>
+                       </table>
+                     );
+                   })()}
+                 </div>
+               </div>
+
+               {/* Signature Section */}
+               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 48, padding: "0 20px" }}>
+                 <div style={{ textAlign: "center" }}>
+                   <div style={{ fontWeight: 800, textTransform: "uppercase", fontSize: 13, color: "#111" }}>Người kiểm hàng</div>
+                   <div style={{ fontStyle: "italic", fontSize: 12, color: "#64748b", marginTop: 4 }}>(Ký, ghi rõ họ tên)</div>
+                 </div>
+                 <div style={{ textAlign: "center" }}>
+                   <div style={{ fontWeight: 800, textTransform: "uppercase", fontSize: 13, color: "#111" }}>Người nhận hàng</div>
+                   <div style={{ fontStyle: "italic", fontSize: 12, color: "#64748b", marginTop: 4 }}>(Ký, ghi rõ họ tên)</div>
+                 </div>
+                 <div style={{ textAlign: "center" }}>
+                   <div style={{ fontWeight: 800, textTransform: "uppercase", fontSize: 13, color: "#111" }}>Nhân viên bán hàng</div>
+                   <div style={{ fontStyle: "italic", fontSize: 12, color: "#64748b", marginTop: 4 }}>(Ký, ghi rõ họ tên)</div>
+                 </div>
+               </div>
             </div>
           }
         />

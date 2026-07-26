@@ -27,10 +27,10 @@ export async function GET(req: NextRequest) {
     const grouped = new Map<string, { maVatTu: string, tenVatTu: string, totalSoLuong: number, boms: { code: string, name: string }[] }>();
 
     for (const item of missingMaterials) {
-      const key = item.maVatTu || item.tenVatTu;
+      const key = (item as any).maVatTu || item.tenVatTu;
       if (!grouped.has(key)) {
         grouped.set(key, {
-          maVatTu: item.maVatTu || "",
+          maVatTu: (item as any).maVatTu || "",
           tenVatTu: item.tenVatTu,
           totalSoLuong: 0,
           boms: []
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         if (!exists) {
           group.boms.push({
             code: item.dinhMuc.code || "",
-            name: item.dinhMuc.tenDinhMuc
+            name: item.dinhMuc.tenDinhMuc || ""
           });
         }
       }

@@ -2,6 +2,7 @@
 
 import * as XLSX from "xlsx";
 import React, { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { KPICard } from "@/components/ui/KPICard";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -9,10 +10,12 @@ import { BrandButton } from "@/components/ui/BrandButton";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { TreeFilterSelect } from "@/components/ui/TreeFilterSelect";
 import { Pagination } from "@/components/ui/Pagination";
+import { HoverImage } from "@/components/ui/HoverImage";
 import { InventoryDetailOffcanvas } from "@/app/(dashboard)/finance/inventory/InventoryDetailOffcanvas";
 import { AddLogisticsProductModal } from "@/components/logistics/inventory/AddLogisticsProductModal";
 import { ProductDrawer } from "@/components/marketing/ProductDrawer";
 import { MissingMaterialsOffcanvas } from "@/components/finance/MissingMaterialsOffcanvas";
+import { ImportIssuesOffcanvas } from "@/components/finance/ImportIssuesOffcanvas";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -31,6 +34,7 @@ export interface InventoryItem {
   category?: { name: string };
   brand?: string;
   imageUrl?: string | null;
+  images?: string[];
 }
 
 interface Stats {
@@ -56,6 +60,9 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
     sapHet: 0,
     categoryStats: []
   });
+  
+  const { data: session } = useSession();
+  const canViewPrice = session?.user?.role === "ADMIN" || session?.user?.permissions?.includes("view_prices");
   const [categories, setCategories] = useState<{ label: string; value: string }[]>([]);
   const [warehouses, setWarehouses] = useState<{ label: string; value: string; type: string; code?: string | null }[]>([]);
   
@@ -78,9 +85,12 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
   const [showMissingMaterials, setShowMissingMaterials] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   
-  const [deletingItem, setDeletingItem] = useState<any>(null);
+  const [deletingItem, setDeletingItem] = useState<InventoryItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  
+
+  const [skippedItems, setSkippedItems] = useState<{sku: string, name: string, reason: string}[]>([]);
+  const [showSkippedOffcanvas, setShowSkippedOffcanvas] = useState(false);
+
   const [isProcessingExcel, setIsProcessingExcel] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -89,8 +99,8 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
   const handleDownloadTemplate = () => {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([
-      ["Mã hàng hoá (SKU)", "Tên hàng hoá", "Mã nhóm cha", "Tên phân loại", "Đơn vị tính", "Số lượng", "Giá nhập", "Giá bán", "Thương hiệu", "Ghi chú"],
-      ["", "Ví dụ: Vòi chậu rửa mặt", "VTSX_VESINH", "Nhóm vật tư", "Cái", "10", "150000", "200000", "Seajong", "Hàng mới"]
+      ["Mã hàng hoá (SKU)", "Mã thay thế", "Tên hàng hoá", "Mã nhóm cha", "Tên phân loại", "Đơn vị tính", "Số lượng", "Giá nhập", "Giá bán", "Thương hiệu", "Ghi chú"],
+      ["", "Ví dụ: SJ-123", "Ví dụ: Vòi chậu rửa mặt", "VTSX_VESINH", "Nhóm vật tư", "Cái", "10", "150000", "200000", "Seajong", "Hàng mới"]
     ]);
     XLSX.utils.book_append_sheet(wb, ws, "Template");
     XLSX.writeFile(wb, "Mau_Nhap_Kho.xlsx");
@@ -116,18 +126,19 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
       // Skip header row
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i] as any[];
-        if (!row || row.length === 0 || !row[1]) continue; // Skip empty rows or rows without name
+        if (!row || row.length === 0 || !row[2]) continue; // Skip empty rows or rows without name
 
         itemsToImport.push({
           sku: row[0]?.toString() || "",
-          name: row[1]?.toString() || "",
-          categoryCode: row[2]?.toString() || "",
-          unit: row[4]?.toString() || "Cái",
-          quantity: parseFloat(row[5]) || 0,
-          importPrice: parseFloat(row[6]) || 0,
-          sellPrice: parseFloat(row[7]) || 0,
-          brand: row[8]?.toString() || "Seajong",
-          note: row[9]?.toString() || ""
+          alternateCode: row[1]?.toString() || "",
+          name: row[2]?.toString() || "",
+          categoryCode: row[3]?.toString() || "",
+          unit: row[5]?.toString() || "Cái",
+          quantity: parseFloat(row[6]) || 0,
+          importPrice: parseFloat(row[7]) || 0,
+          sellPrice: parseFloat(row[8]) || 0,
+          brand: row[9]?.toString() || "Seajong",
+          note: row[10]?.toString() || ""
         });
       }
 
@@ -147,7 +158,9 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
 
       if (resData.skipped && resData.skipped.length > 0) {
         console.warn("Skipped items (duplicate SKU):", resData.skipped);
-        success(`Import thành công ${resData.imported} mặt hàng. Bỏ qua ${resData.skipped.length} mặt hàng do trùng mã SKU (Xem Console log).`);
+        setSkippedItems(resData.skipped);
+        setShowSkippedOffcanvas(true);
+        success(`Import thành công ${resData.imported} mặt hàng. Bỏ qua ${resData.skipped.length} mặt hàng (Xem chi tiết).`);
       } else {
         success(`Import thành công toàn bộ ${resData.imported} mặt hàng!`);
       }
@@ -409,14 +422,15 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
       header: isMaterial ? "Vật tư / Nhóm" : (isProduct ? "Thành phẩm / Loại" : (isDefect ? "Hàng lỗi" : "Hàng hoá / Loại")),
       render: (row) => (
         <div className="d-flex align-items-center gap-3" style={{ minWidth: 0, width: "100%", maxWidth: "350px" }}>
-          <div 
-            className="flex-shrink-0 rounded-3 border bg-light d-flex align-items-center justify-content-center overflow-hidden" 
-            style={{ width: 36, height: 36 }}
-          >
-            {row.imageUrl ? (
-              <img src={row.imageUrl} alt={row.tenHang} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <div className="flex-shrink-0">
+            {row.imageUrl || (row.images && row.images.length > 0) ? (
+              <div style={{ width: 42, height: 42, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)", background: "#fff", flexShrink: 0 }}>
+                <HoverImage src={row.imageUrl} images={row.images} alt={row.tenHang} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
             ) : (
-              <i className="bi bi-box-seam text-muted opacity-50" style={{ fontSize: 16 }} />
+              <div className="rounded-3 border bg-light d-flex align-items-center justify-content-center" style={{ width: 42, height: 42 }}>
+                <i className="bi bi-box-seam text-muted opacity-50" style={{ fontSize: 16 }} />
+              </div>
             )}
           </div>
           <div className="d-flex flex-column overflow-hidden flex-grow-1" style={{ minWidth: 0 }}>
@@ -471,7 +485,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
         align: "right",
         render: (row) => (
           <span className="fw-medium text-dark">
-            {(row.giaNhap || 0).toLocaleString("vi-VN")}
+            {canViewPrice ? (row.giaNhap || 0).toLocaleString("vi-VN") : "*****"}
           </span>
         )
     },
@@ -481,7 +495,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
         align: "right",
         render: (row) => (
           <span className="fw-medium text-dark">
-            {(row.giaBan || 0).toLocaleString("vi-VN")}
+            {canViewPrice ? (row.giaBan || 0).toLocaleString("vi-VN") : "*****"}
           </span>
         )
     },
@@ -526,7 +540,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
         />
         <KPICard 
           label={mode === "production" ? "Tổng giá trị (giá bán)" : "Tổng giá trị kho"} 
-          value={stats.tongGiaTri.toLocaleString("vi-VN")} 
+          value={canViewPrice ? stats.tongGiaTri.toLocaleString("vi-VN") : "*****"} 
           icon="bi-cash-stack" 
           accent="#10b981" 
           subtitle="đồng"
@@ -557,17 +571,17 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                   <input type="file" accept=".xlsx, .xls" hidden ref={fileInputRef} onChange={handleUploadExcel} />
                   <button 
                     className="btn btn-light btn-sm border shadow-sm px-2 py-1" 
-                    title="Tải file mẫu" 
+                    title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để tải file mẫu" : "Tải file mẫu"} 
                     onClick={handleDownloadTemplate}
-                    disabled={isProcessingExcel}
+                    disabled={isProcessingExcel || !warehouseId}
                   >
                     <i className="bi bi-file-earmark-arrow-down" />
                   </button>
                   <button 
                     className="btn btn-light btn-sm border shadow-sm px-2 py-1" 
-                    title="Import Excel" 
+                    title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để Import" : "Import Excel"} 
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isProcessingExcel}
+                    disabled={isProcessingExcel || !warehouseId}
                   >
                     {isProcessingExcel ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-file-earmark-arrow-up" />}
                   </button>
@@ -691,7 +705,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
             {/* Footer Actions */}
             <div className="pt-3 mt-auto">
                <div className="d-flex align-items-center justify-content-between mb-3">
-                  <small className="text-muted">Hiển thị <b>{items.length}</b> mặt hàng</small>
+                  <small className="text-muted">Hiển thị <b>{items.length}/{stats.tongMatHang}</b> mặt hàng</small>
                   <Pagination 
                       page={page}
                       totalPages={totalPages}
@@ -707,7 +721,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
         open={!!deletingItem}
         variant="danger"
         title="Xác nhận xoá"
-        message={`Bạn có chắc chắn muốn xoá mặt hàng "${deletingItem?.tenHang || deletingItem?.name}" không? Hành động này không thể hoàn tác.`}
+        message={`Bạn có chắc chắn muốn xoá mặt hàng "${deletingItem?.tenHang || (deletingItem as any)?.name}" không? Hành động này không thể hoàn tác.`}
         confirmLabel="Xoá"
         loading={isDeleting}
         onConfirm={handleDeleteConfirm}
@@ -717,6 +731,12 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
       <MissingMaterialsOffcanvas 
         show={showMissingMaterials} 
         onClose={() => setShowMissingMaterials(false)} 
+      />
+
+      <ImportIssuesOffcanvas
+        show={showSkippedOffcanvas}
+        onClose={() => setShowSkippedOffcanvas(false)}
+        skippedItems={skippedItems}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { HoverImage } from "@/components/ui/HoverImage";
 import { PrintPreviewModal, printStyles, printDocumentById } from "@/components/ui/PrintPreviewModal";
 
 interface Props {
@@ -269,7 +270,7 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
                   <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 12px", verticalAlign: "middle" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       {line.hinhAnh ? (
-                        <img src={line.hinhAnh} alt={line.name} style={{ width: 50, height: 50, objectFit: "contain", borderRadius: 6, border: "1px solid #e2e8f0" }} />
+                        <HoverImage src={line.hinhAnh} alt={line.name} style={{ width: 50, height: 50, objectFit: "contain", borderRadius: 6, border: "1px solid #e2e8f0" }} />
                       ) : (
                         <div style={{ width: 50, height: 50, background: "#f1f5f9", borderRadius: 6, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", color: "#cbd5e1" }}>
                           <i className="bi bi-image" style={{ fontSize: 18 }} />

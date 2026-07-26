@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { TrangThaiTonKhoBadge } from "@/components/plan-finance/dung_chung/TrangThaiTonKhoBadge";
 import { genDocCode } from "@/lib/genDocCode";
+import { HoverImage } from "@/components/ui/HoverImage";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type CustomerRow = {
@@ -1044,7 +1045,7 @@ function PrintPreviewModal({ open, onClose, customer, items, info, initialAction
                             <td style={{ padding: "4px 6px", border: "1px solid #dbeafe" }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                 {it.imageUrl && (
-                                  <img
+                                  <HoverImage
                                     src={it.imageUrl.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(it.imageUrl)}` : it.imageUrl}
                                     alt={it.ten}
                                     style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 4, border: "1px solid #e5e7eb", background: "#fff", flexShrink: 0 }}
@@ -1107,7 +1108,7 @@ function PrintPreviewModal({ open, onClose, customer, items, info, initialAction
                                 <td style={{ padding: "4px 6px", border: "1px solid #dbeafe" }}>
                                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                     {it.imageUrl && (
-                                      <img
+                                      <HoverImage
                                         src={it.imageUrl.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(it.imageUrl)}` : it.imageUrl}
                                         alt={it.ten}
                                         style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 4, border: "1px solid #e5e7eb", background: "#fff", flexShrink: 0 }}

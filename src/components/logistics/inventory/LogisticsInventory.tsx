@@ -11,6 +11,7 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { ProductDrawer } from "@/components/marketing/ProductDrawer";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useSearchParams } from "next/navigation";
+import { HoverImage } from "@/components/ui/HoverImage";
 
 interface Category {
   id: string;
@@ -45,6 +46,7 @@ interface InventoryItem {
   createdAt: string | null;
   category: { id: string; name: string } | null;
   source?: string;
+  images?: string[];
 }
 
 export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, hideActions, compactMode }: { defaultWarehouseNameMatch?: string, hideAddButton?: boolean, hideActions?: boolean, compactMode?: boolean } = {}) {
@@ -86,7 +88,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Không thể xoá hàng hoá");
-      
+
       toast.success("Thành công", `Đã xoá hàng hoá "${deletingItem.tenHang}"`);
       setDeletingItem(null);
       setSelectedItem(null);
@@ -124,7 +126,11 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
       await Promise.all(selectedIds.map(async (id) => {
         const item = items.find(it => it.id === id);
         const source = item?.source || "material";
-        await fetch(`/api/logistics/inventory?id=${id}&source=${source}`, { method: "DELETE" });
+        const res = await fetch(`/api/logistics/inventory?id=${id}&source=${source}`, { method: "DELETE" });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Xoá thất bại ID ${id}`);
+        }
       }));
 
       toast.success("Thành công", `Đã xoá ${selectedIds.length} hàng hoá`);
@@ -161,7 +167,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
       if (filterWarehouse) {
         url += `?warehouseId=${filterWarehouse}`;
       }
-        
+
       const res = await fetch(url);
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
@@ -174,7 +180,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
     try {
       const res = await fetch("/api/logistics/warehouses");
       const data = await res.json();
-      const wList = Array.isArray(data) ? data : [];
+      const wList = Array.isArray(data) ? data.filter((w: any) => w.isActive !== false) : [];
       setWarehouses(wList);
 
       if (defaultWarehouseNameMatch && wList.length > 0) {
@@ -197,7 +203,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
       if (filterWarehouse) params.append("warehouseId", filterWarehouse);
       params.append("page", "1");
       params.append("limit", "1000");
-      
+
       const res = await fetch(`/api/logistics/inventory?${params}`, { cache: "no-store" });
       const data = await res.json();
       setItems(data.items || []);
@@ -267,51 +273,51 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
         }
       }
     }, 2000);
-    
-  // group items before rendering
-  const groupedItems = React.useMemo(() => {
-    const groups: Record<string, InventoryItem[]> = {};
-    const standalone: InventoryItem[] = [];
-    
-    items.forEach(item => {
-      if (item.webProductId && item.webVariationId) {
-        if (!groups[item.webProductId]) groups[item.webProductId] = [];
-        groups[item.webProductId].push(item);
-      } else {
-        standalone.push(item);
-      }
-    });
-    
-    const result: { type: 'parent' | 'standalone', data: any, children?: InventoryItem[] }[] = [];
-    
-    // Add standalone items
-    standalone.forEach(item => {
-      // If there's a standalone item that happens to be the parent of some variations (maybe because webVariationId is null), we should group it
-      if (groups[item.webProductId || ""]) {
-        result.push({ type: 'parent', data: item, children: groups[item.webProductId || ""] });
-        delete groups[item.webProductId || ""];
-      } else {
-        result.push({ type: 'standalone', data: item });
-      }
-    });
-    
-    // Add remaining grouped items where parent might not be in the current page
-    Object.keys(groups).forEach(webProductId => {
-      const children = groups[webProductId];
-      // Create a fake parent from the first child
-      const fakeParent = { ...children[0], tenHang: children[0].tenHang.split(" - ")[0], id: "parent-" + webProductId, soLuong: children.reduce((a,b)=>a+b.soLuong, 0) };
-      result.push({ type: 'parent', data: fakeParent, children });
-    });
-    
-    return result;
-  }, [items]);
 
-  const [expandedParents, setExpandedParents] = React.useState<Record<string, boolean>>({});
-  const toggleExpand = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setExpandedParents(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-return () => clearInterval(interval);
+    // group items before rendering
+    const groupedItems = React.useMemo(() => {
+      const groups: Record<string, InventoryItem[]> = {};
+      const standalone: InventoryItem[] = [];
+
+      items.forEach(item => {
+        if (item.webProductId && item.webVariationId) {
+          if (!groups[item.webProductId]) groups[item.webProductId] = [];
+          groups[item.webProductId].push(item);
+        } else {
+          standalone.push(item);
+        }
+      });
+
+      const result: { type: 'parent' | 'standalone', data: any, children?: InventoryItem[] }[] = [];
+
+      // Add standalone items
+      standalone.forEach(item => {
+        // If there's a standalone item that happens to be the parent of some variations (maybe because webVariationId is null), we should group it
+        if (groups[item.webProductId || ""]) {
+          result.push({ type: 'parent', data: item, children: groups[item.webProductId || ""] });
+          delete groups[item.webProductId || ""];
+        } else {
+          result.push({ type: 'standalone', data: item });
+        }
+      });
+
+      // Add remaining grouped items where parent might not be in the current page
+      Object.keys(groups).forEach(webProductId => {
+        const children = groups[webProductId];
+        // Create a fake parent from the first child
+        const fakeParent = { ...children[0], tenHang: children[0].tenHang.split(" - ")[0], id: "parent-" + webProductId, soLuong: children.reduce((a, b) => a + b.soLuong, 0) };
+        result.push({ type: 'parent', data: fakeParent, children });
+      });
+
+      return result;
+    }, [items]);
+
+    const [expandedParents, setExpandedParents] = React.useState<Record<string, boolean>>({});
+    const toggleExpand = (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      setExpandedParents(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+    return () => clearInterval(interval);
   }, [syncing]);
 
   const handleSingleSync = async (itemId: string) => {
@@ -346,8 +352,8 @@ return () => clearInterval(interval);
   return (
     <div className="d-flex flex-column gap-3" style={{ height: "100%" }}>
       <div className="d-flex align-items-center justify-content-between mb-0">
-        <h6 
-          className="mb-0 fw-bold text-uppercase d-flex align-items-center gap-2" 
+        <h6
+          className="mb-0 fw-bold text-uppercase d-flex align-items-center gap-2"
           style={{ color: "var(--muted-foreground)", fontSize: 11, letterSpacing: "0.05em", lineHeight: 1 }}
         >
           <i className="bi bi-boxes" style={{ fontSize: 13 }} />
@@ -360,7 +366,7 @@ return () => clearInterval(interval);
       {/* Search and Filter */}
 
       <div className="d-flex align-items-center gap-3 mb-2">
-        <select 
+        <select
           className="form-select border-0 shadow-sm rounded-pill px-4 text-truncate"
           style={{ width: "160px", fontSize: 13, height: 40, background: "var(--card)", color: "var(--foreground)", border: "1px solid var(--border)" }}
           value={filterWarehouse}
@@ -393,12 +399,12 @@ return () => clearInterval(interval);
         />
       </div>
 
-      <AddLogisticsProductModal 
-        open={isAddModalOpen || !!editingItem} 
+      <AddLogisticsProductModal
+        open={isAddModalOpen || !!editingItem}
         onClose={() => {
           setIsAddModalOpen(false);
           setEditingItem(null);
-        }} 
+        }}
         onSaved={fetchItems}
         warehouseId={filterWarehouse}
         isMaterialWarehouse={isMaterialWarehouse}
@@ -417,7 +423,7 @@ return () => clearInterval(interval);
             </div>
           </div>
         ) : (
-          <ProductDrawer 
+          <ProductDrawer
             p={fullWebProduct || {
               id: Number(selectedItem.webProductId) || 0,
               name: selectedItem.tenHang,
@@ -441,10 +447,10 @@ return () => clearInterval(interval);
           />
         )
       ) : (
-        <LogisticsItemDetailOffcanvas 
-          item={selectedItem as any} 
-          open={!!selectedItem && (!hideActions || selectedItem?.source === "material")} 
-          onClose={() => setSelectedItem(null)} 
+        <LogisticsItemDetailOffcanvas
+          item={selectedItem as any}
+          open={!!selectedItem && (!hideActions || selectedItem?.source === "material")}
+          onClose={() => setSelectedItem(null)}
           onEdit={hideActions ? undefined : (item) => {
             setSelectedItem(null);
             setEditingItem(item as any);
@@ -485,8 +491,8 @@ return () => clearInterval(interval);
             <thead className="bg-light" style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--card)" }}>
               <tr style={{ height: 36 }}>
                 <th className="ps-3 border-0" style={{ width: "1%", whiteSpace: "nowrap" }}>
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     className="form-check-input shadow-none"
                     checked={items.length > 0 && selectedIds.length === items.length}
                     onChange={(e) => {
@@ -524,14 +530,14 @@ return () => clearInterval(interval);
                 </tr>
               ) : (
                 items.map(item => (
-                  <tr 
-                    key={item.id} 
+                  <tr
+                    key={item.id}
                     style={{ height: 48, cursor: "pointer" }}
                     onClick={() => setSelectedItem(item)}
                   >
                     <td className="ps-3" onClick={(e) => e.stopPropagation()} style={{ width: "1%", whiteSpace: "nowrap" }}>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         className="form-check-input shadow-none"
                         checked={selectedIds.includes(item.id)}
                         onChange={(e) => {
@@ -545,18 +551,19 @@ return () => clearInterval(interval);
                     </td>
                     <td>
                       <div className="d-flex align-items-center gap-3" style={{ minWidth: 0 }}>
-                        <div 
-                          style={{ 
-                            width: 38, height: 38, borderRadius: 8, 
+                        <div
+                          style={{
+                            width: 38, height: 38, borderRadius: 8,
                             background: "var(--border)", overflow: "hidden",
                             flexShrink: 0, border: "1.5px solid rgba(0,0,0,0.05)",
                             boxShadow: "0 2px 5px rgba(0,0,0,0.05)"
                           }}
                         >
                           {item.imageUrl ? (
-                            <img 
-                              src={item.imageUrl} 
-                              alt={item.tenHang} 
+                            <HoverImage
+                              src={item.imageUrl}
+                              images={item.images}
+                              alt={item.tenHang}
                               style={{ width: "100%", height: "100%", objectFit: "cover" }}
                             />
                           ) : (
@@ -567,18 +574,18 @@ return () => clearInterval(interval);
                         </div>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div className="d-flex align-items-center gap-2">
-                            <div 
-                              className="fw-bold text-foreground text-truncate" 
+                            <div
+                              className="fw-bold text-foreground text-truncate"
                               style={{ maxWidth: "340px" }}
                               title={item.tenHang}
                             >
                               {item.tenHang}
                             </div>
                             {item.createdAt && syncLog?.startedAt && (new Date(item.createdAt).getTime() >= new Date(syncLog.startedAt).getTime() - 5000) && (
-                              <span 
-                                className="badge bg-success" 
-                                style={{ 
-                                  fontSize: 9, padding: "2px 6px", borderRadius: 4, 
+                              <span
+                                className="badge bg-success"
+                                style={{
+                                  fontSize: 9, padding: "2px 6px", borderRadius: 4,
                                   textTransform: "uppercase", letterSpacing: "0.02em",
                                   boxShadow: "0 2px 4px rgba(16, 185, 129, 0.2)",
                                   flexShrink: 0
@@ -629,8 +636,8 @@ return () => clearInterval(interval);
                           <button className="btn btn-icon btn-sm rounded-circle" title="Chi tiết">
                             <i className="bi bi-eye text-primary" />
                           </button>
-                          <button 
-                            className="btn btn-icon btn-sm rounded-circle" 
+                          <button
+                            className="btn btn-icon btn-sm rounded-circle"
                             title="Sửa"
                             onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}
                           >
@@ -645,13 +652,13 @@ return () => clearInterval(interval);
             </tbody>
           </table>
         </div>
-        
+
         {/* Footer for Actions */}
         {(!hideAddButton || selectedIds.length > 0) && (
           <div className="bg-light border-top p-2 d-flex align-items-center justify-content-end gap-3" style={{ backgroundColor: "var(--card)" }}>
             {fromAdmin && isMaterialWarehouse && (
-              <button 
-                className="btn btn-sm btn-danger text-white rounded-pill px-4 fw-bold me-auto" 
+              <button
+                className="btn btn-sm btn-danger text-white rounded-pill px-4 fw-bold me-auto"
                 style={{ fontSize: 13, height: 32, border: 'none' }}
                 onClick={() => setShowPriceModal(true)}
               >
@@ -659,10 +666,10 @@ return () => clearInterval(interval);
                 Cập nhật giá bán
               </button>
             )}
-            
+
             {selectedIds.length > 0 && (
-              <button 
-                className="btn btn-sm btn-outline-danger rounded-pill px-4 fw-bold" 
+              <button
+                className="btn btn-sm btn-outline-danger rounded-pill px-4 fw-bold"
                 style={{ fontSize: 13, height: 32 }}
                 onClick={() => setConfirmBulkDelete(true)}
               >
@@ -672,13 +679,13 @@ return () => clearInterval(interval);
             )}
 
             {!hideAddButton && (
-              <button 
+              <button
                 id="logistics-add-item-btn"
-                className="btn btn-sm rounded-pill px-4 fw-bold text-white d-none d-xl-flex align-items-center" 
-                style={{ 
-                  fontSize: 13, 
-                  height: 32, 
-                  backgroundColor: isDefectWarehouse ? "#94a3b8" : "#011F58", 
+                className="btn btn-sm rounded-pill px-4 fw-bold text-white d-none d-xl-flex align-items-center"
+                style={{
+                  fontSize: 13,
+                  height: 32,
+                  backgroundColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
                   borderColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
                   cursor: isDefectWarehouse ? "not-allowed" : "pointer",
                   opacity: isDefectWarehouse ? 0.65 : 1
@@ -707,9 +714,9 @@ return () => clearInterval(interval);
                 <p className="text-muted small mb-3">Giá bán sẽ được tính bằng: <strong>Giá nhập + (Giá nhập x Lợi nhuận %)</strong> cho toàn bộ hàng hoá trong kho vật tư và phụ kiện.</p>
                 <div className="mb-3">
                   <label className="form-label fw-medium text-dark">Lợi nhuận (%)</label>
-                  <input 
-                    type="number" 
-                    className="form-control" 
+                  <input
+                    type="number"
+                    className="form-control"
                     value={priceRatio}
                     onChange={(e) => setPriceRatio(e.target.value)}
                     placeholder="15"
@@ -721,9 +728,9 @@ return () => clearInterval(interval);
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-light" onClick={() => setShowPriceModal(false)} disabled={isUpdatingPrice}>Hủy</button>
-                <button 
-                  type="button" 
-                  className="btn btn-danger" 
+                <button
+                  type="button"
+                  className="btn btn-danger"
                   disabled={isUpdatingPrice}
                   onClick={async () => {
                     const ratio = parseFloat(priceRatio);

@@ -572,11 +572,11 @@ export function PrintPreviewModal({
             <div 
               className={hideSidebarOnDesktop ? "d-lg-none" : ""}
               style={{
-                width: 300, flexShrink: 0,
+                width: 380, flexShrink: 0,
                 background: "var(--card)",
                 borderRight: "1px solid var(--border)",
                 overflowY: "auto",
-                padding: "20px 16px",
+                padding: "16px 12px",
                 display: "flex", flexDirection: "column", gap: 14,
               }}
             >

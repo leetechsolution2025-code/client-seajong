@@ -53,6 +53,9 @@ export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate
         setData(resData);
         if (onUpdate) onUpdate();
         toast.success("Cập nhật trạng thái thành công");
+        if (newStatus === "completed") {
+          onHide();
+        }
       } else {
         toast.error("Có lỗi xảy ra khi cập nhật trạng thái");
       }

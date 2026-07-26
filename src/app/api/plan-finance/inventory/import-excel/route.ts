@@ -9,20 +9,36 @@ const DVT_ALLOWED = new Set([
 ]);
 
 // Cột header trong file Excel
-const COL_NAME     = "Tên hàng hoá *";
-const COL_SKU      = "Mã SKU";
-const COL_CAT      = "Danh mục";
-const COL_DVT      = "Đơn vị tính *";
-const COL_SL       = "Tồn đầu kỳ";
-const COL_SLMIN    = "Tồn tối thiểu";
-const COL_GNHAP    = "Giá nhập (VNĐ)";
-const COL_GBAN     = "Giá bán (VNĐ)";
-const COL_NCC      = "Nhà cung cấp";
-const COL_THONGSO  = "Thông số kỹ thuật";
-const COL_GHICHU   = "Ghi chú";
-const COL_DM_CODE  = "Mã định mức";
-const COL_DM_TEN   = "Tên định mức";
-const COL_DM_VATTU = "Vật tư định mức";
+const COL_NAMES    = ["tên hàng hoá *", "tên sản phẩm", "tên vật tư"];
+const COL_SKUS     = ["mã sku", "mã thành phẩm", "mã vật tư", "mã hàng"];
+const COL_MATHAYTHES= ["mã thay thế", "ma thay the", "mã thay thê", "mã thay the", "ma thay thế"];
+const COL_CATS     = ["danh mục", "mã nhóm pm", "mã nhóm"];
+const COL_DVTS     = ["đơn vị tính *", "đơn vị tính", "đvt"];
+const COL_SLS      = ["tồn đầu kỳ", "số lượng"];
+const COL_SLMINS   = ["tồn tối thiểu"];
+const COL_GNHAPS   = ["giá nhập (vnđ)", "giá nhập"];
+const COL_GBANS    = ["giá bán (vnđ)", "giá bán"];
+const COL_NCCS     = ["nhà cung cấp"];
+const COL_THONGSOS = ["thông số kỹ thuật"];
+const COL_GHICHUS  = ["ghi chú"];
+const COL_DM_CODES = ["mã định mức"];
+const COL_DM_TENS  = ["tên định mức"];
+const COL_DM_VATTUS= ["vật tư định mức"];
+
+function removeAccents(str: string) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+}
+
+function getVal(row: Record<string, unknown>, keys: string[]): any {
+  for (const key of Object.keys(row)) {
+    const normalizedKey = removeAccents(key.toLowerCase()).replace(/[^a-z0-9]/g, '');
+    const normalizedKeys = keys.map(k => removeAccents(k.toLowerCase()).replace(/[^a-z0-9]/g, ''));
+    if (normalizedKeys.includes(normalizedKey) || normalizedKeys.some(nk => normalizedKey.includes(nk))) {
+      return row[key];
+    }
+  }
+  return undefined;
+}
 
 /** Parse chuỗi vật tư: "TênVậtTư|SốLượng|ĐơnVịTính|GhiChú;..." */
 function parseVatTu(raw: string) {
@@ -63,6 +79,11 @@ export async function POST(req: NextRequest) {
     if (rows.length === 0) {
       return NextResponse.json({ error: "File không có dữ liệu" }, { status: 400 });
     }
+    
+    // DEBUG: Write headers to file
+    const fs = require("fs");
+    fs.writeFileSync("/tmp/excel-headers.json", JSON.stringify(Object.keys(rows[0])));
+    fs.writeFileSync("/tmp/excel-row-tay47.json", JSON.stringify(rows.find((r: any) => Object.values(r).some(v => String(v).includes("TAY47"))) || {}));
 
     // Đọc active_industry_code để lọc theo ngành hàng (loại doanh nghiệp)
     const cookieHeader = req.headers.get("cookie") || "";
@@ -84,47 +105,32 @@ export async function POST(req: NextRequest) {
       activeIndustryCode = "sanitary";
     }
 
-    let industryProdCategoryIds: string[] = [];
-    const industryProductCodeMap: Record<string, string> = {
-      "sanitary": "SP_VESINH",
-      "building_materials": "SP_VLXD"
-    };
-    const prodRootCode = industryProductCodeMap[activeIndustryCode] || "SP_GO";
-    const prodRootCategory = await prisma.inventoryCategory.findFirst({
-      where: { code: prodRootCode, parentId: null, isActive: true }
+    // Fetch danh mục → map tên → id cho InventoryCategory
+    const allInvCats = await prisma.inventoryCategory.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, code: true },
     });
-    if (prodRootCategory) {
-      const categories = await prisma.inventoryCategory.findMany({
-        where: { isActive: true },
-        select: { id: true, parentId: true }
-      });
-      const descendantIds = [prodRootCategory.id];
-      const collectDescendants = (parentId: string) => {
-        categories.forEach(cat => {
-          if (cat.parentId === parentId) {
-            descendantIds.push(cat.id);
-            collectDescendants(cat.id);
-          }
-        });
-      };
-      collectDescendants(prodRootCategory.id);
-      industryProdCategoryIds = descendantIds;
-    }
+    const invCatMap = new Map<string, string>();
+    allInvCats.forEach(c => {
+      if (c.name) invCatMap.set(c.name.toLowerCase().trim(), c.id);
+      if (c.code) invCatMap.set(c.code.toLowerCase().trim(), c.id);
+    });
 
-    // Fetch danh mục → map tên → id
-    const allCats = await prisma.inventoryCategory.findMany({
-      where: {
-        isActive: true,
-        ...(industryProdCategoryIds.length > 0 ? { id: { in: industryProdCategoryIds } } : {}),
-      },
-      select: { id: true, name: true },
+    // Fetch danh mục cho MaterialItem (Category table)
+    const allCats = await prisma.category.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, code: true },
     });
-    const catMap  = new Map(allCats.map(c => [c.name.toLowerCase().trim(), c.id]));
+    const matCatMap = new Map<string, string>();
+    allCats.forEach(c => {
+      if (c.name) matCatMap.set(c.name.toLowerCase().trim(), c.id);
+      if (c.code) matCatMap.set(c.code.toLowerCase().trim(), c.id);
+    });
 
     const errors: string[] = [];
 
     type RowData = {
-      tenHang: string; code?: string; categoryId?: string; donVi?: string;
+      tenHang: string; code?: string; maThayThe?: string; categoryId?: string; matCategoryId?: string; donVi?: string;
       soLuong: number; soLuongMin: number; giaNhap: number; giaBan: number;
       nhaCungCap?: string; thongSoKyThuat?: string; ghiChu?: string; trangThai: string;
       dmCode?: string; dmTen?: string; dmVatTu?: string;
@@ -132,29 +138,27 @@ export async function POST(req: NextRequest) {
 
     const toCreate: RowData[] = [];
 
-    rows.forEach((row, idx) => {
+    for (const [idx, row] of rows.entries()) {
       const rowNum  = idx + 2;
-      const tenHang = String(row[COL_NAME] ?? "").trim();
-      const dvt     = String(row[COL_DVT]  ?? "").trim();
+      const tenHang = String(getVal(row, COL_NAMES) ?? "").trim();
+      const dvt     = String(getVal(row, COL_DVTS) ?? "cái").trim();
 
-      if (!tenHang) { errors.push(`Hàng ${rowNum}: Tên hàng hoá không được để trống`); return; }
-      if (!dvt)     { errors.push(`Hàng ${rowNum}: Đơn vị tính không được để trống`);  return; }
-      if (!DVT_ALLOWED.has(dvt)) {
-        errors.push(`Hàng ${rowNum}: Đơn vị tính "${dvt}" không hợp lệ`); return;
+      if (!tenHang) { errors.push(`Hàng ${rowNum}: Tên hàng hoá không được để trống`); continue; }
+      if (!dvt)     { errors.push(`Hàng ${rowNum}: Đơn vị tính không được để trống`);  continue; }
+
+      const catName = String(getVal(row, COL_CATS) ?? "").trim();
+      const catId   = catName ? invCatMap.get(catName.toLowerCase()) : undefined;
+      const matCategoryId = catName ? matCatMap.get(catName.toLowerCase()) : undefined;
+
+      if (catName && !catId && !matCategoryId) {
+        errors.push(`Hàng ${rowNum}: Danh mục "${catName}" không tồn tại trong hệ thống (Sai mã nhóm)`);
+        continue;
       }
 
-      const catName = String(row[COL_CAT] ?? "").trim();
-      const catId   = catName ? catMap.get(catName.toLowerCase()) : undefined;
-
-      if (catName && !catId) {
-        errors.push(`Hàng ${rowNum}: Danh mục "${catName}" không thuộc loại doanh nghiệp hiện tại`);
-        return;
-      }
-
-      const soLuong    = Math.max(0, Number(row[COL_SL]    ?? 0) || 0);
-      const soLuongMin = Math.max(0, Number(row[COL_SLMIN] ?? 0) || 0);
-      const giaNhap    = Math.max(0, Number(row[COL_GNHAP] ?? 0) || 0);
-      const giaBan     = Math.max(0, Number(row[COL_GBAN]  ?? 0) || 0);
+      const soLuong    = Math.max(0, Number(getVal(row, COL_SLS) ?? 0) || 0);
+      const soLuongMin = Math.max(0, Number(getVal(row, COL_SLMINS) ?? 0) || 0);
+      const giaNhap    = Math.max(0, Number(getVal(row, COL_GNHAPS) ?? 0) || 0);
+      const giaBan     = Math.max(0, Number(getVal(row, COL_GBANS) ?? 0) || 0);
 
       const trangThai = soLuong === 0 ? "het-hang"
         : soLuongMin > 0 && soLuong <= soLuongMin ? "sap-het"
@@ -162,26 +166,34 @@ export async function POST(req: NextRequest) {
 
       toCreate.push({
         tenHang,
-        code:           String(row[COL_SKU]      ?? "").trim() || undefined,
+        code:           String(getVal(row, COL_SKUS) ?? "").trim() || undefined,
+        maThayThe:      String(getVal(row, COL_MATHAYTHES) ?? "").trim() || undefined,
         categoryId:     catId,
+        matCategoryId:  matCategoryId,
         donVi:          dvt,
         soLuong,
         soLuongMin,
         giaNhap,
         giaBan,
-        nhaCungCap:     String(row[COL_NCC]      ?? "").trim() || undefined,
-        thongSoKyThuat: String(row[COL_THONGSO]  ?? "").trim() || undefined,
-        ghiChu:         String(row[COL_GHICHU]   ?? "").trim() || undefined,
+        nhaCungCap:     String(getVal(row, COL_NCCS) ?? "").trim() || undefined,
+        thongSoKyThuat: String(getVal(row, COL_THONGSOS) ?? "").trim() || undefined,
+        ghiChu:         String(getVal(row, COL_GHICHUS) ?? "").trim() || undefined,
         trangThai,
-        dmCode:  String(row[COL_DM_CODE]  ?? "").trim() || undefined,
-        dmTen:   String(row[COL_DM_TEN]   ?? "").trim() || undefined,
-        dmVatTu: String(row[COL_DM_VATTU] ?? "").trim() || undefined,
+        dmCode:         String(getVal(row, COL_DM_CODES) ?? "").trim() || undefined,
+        dmTen:          String(getVal(row, COL_DM_TENS) ?? "").trim() || undefined,
+        dmVatTu:        String(getVal(row, COL_DM_VATTUS) ?? "").trim() || undefined,
       });
-    });
+    }
 
     if (errors.length > 0 && toCreate.length === 0) {
       return NextResponse.json({ error: "File có lỗi dữ liệu", errors }, { status: 422 });
     }
+
+    // XÓA dữ liệu Hàng hoá hiện tại để cập nhật toàn bộ dữ liệu mới từ Excel
+    await prisma.inventoryItem.deleteMany({});
+    
+    // Nếu muốn xóa trắng cả Vật tư (Material) thì mở comment dòng dưới (Lưu ý: sẽ làm đứt liên kết BOM)
+    // await prisma.materialItem.deleteMany({});
 
     let created = 0;
     let skipped = 0;
@@ -208,10 +220,17 @@ export async function POST(req: NextRequest) {
                 data: {
                   name: v.tenVatTu,
                   code: `AUTO-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+                  maThayThe: itemData.maThayThe || null,
                   unit: v.donViTinh || "Cái",
                   price: defaultPrice,
-                  giaBan: giaBan
-                }
+                  giaBan: giaBan,
+                  categoryId: itemData.matCategoryId || null
+                } as any
+              });
+            } else if (itemData.maThayThe && (mat as any).maThayThe !== itemData.maThayThe) {
+              mat = await prisma.materialItem.update({
+                where: { id: mat.id },
+                data: { maThayThe: itemData.maThayThe, categoryId: itemData.matCategoryId || null } as any
               });
             }
             v.materialId = mat.id;
@@ -245,12 +264,41 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        await prisma.inventoryItem.create({
-          data: {
-            ...itemData,
-            ...(dinhMucId ? { dinhMucId } : {}),
-          },
-        });
+        if (itemData.code) {
+          await prisma.inventoryItem.upsert({
+            where: { code: itemData.code },
+            update: {
+              ...itemData,
+              maThayThe: itemData.maThayThe || null,
+              ...(dinhMucId ? { dinhMucId } : {}),
+            } as any,
+            create: {
+              ...itemData,
+              maThayThe: itemData.maThayThe || null,
+              ...(dinhMucId ? { dinhMucId } : {}),
+            } as any,
+          });
+        } else {
+          await prisma.inventoryItem.create({
+            data: {
+              ...itemData,
+              maThayThe: itemData.maThayThe || null,
+              ...(dinhMucId ? { dinhMucId } : {}),
+            } as any,
+          });
+        }
+
+        // ĐỒNG BỘ: Cập nhật luôn MaterialItem (Vật tư nền tảng) nếu nó tồn tại để BOM (Định mức) nhận được dữ liệu mới
+        if (itemData.code) {
+          await prisma.materialItem.updateMany({
+            where: { code: itemData.code },
+            data: {
+              maThayThe: itemData.maThayThe || null,
+              categoryId: itemData.matCategoryId || null,
+            }
+          });
+        }
+        
         created++;
       } catch {
         skipped++;

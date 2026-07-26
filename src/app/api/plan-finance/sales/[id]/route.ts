@@ -256,6 +256,23 @@ export async function GET(
       } : null)
     };
 
+    // Calculate total receivable debt
+    const customerName = resolvedOrder.customer?.name;
+    let tongNoCu = 0;
+    if (customerName && customerName !== "Khách vãng lai") {
+      const debts = await prisma.debt.findMany({
+        where: {
+          type: { in: ["phai-thu", "RECEIVABLE"] },
+          partnerName: customerName,
+        },
+        select: { amount: true, paidAmount: true }
+      });
+      tongNoCu = debts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
+    }
+    
+    // Add to payload
+    (resolvedOrder as any).tongNoCu = tongNoCu;
+
     return NextResponse.json(resolvedOrder);
   } catch (e: unknown) {
     console.error("[GET /sales/[id]]", e);

@@ -18,22 +18,21 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
     }
 
     // @ts-ignore
-    const item = await prisma.manufacturedProduct.update({
+    const item = await prisma.materialItem.update({
       where: { id: params.id },
       data: {
         code: code || undefined,
         name: name.trim(),
-        productCategoryId: categoryId || undefined,
+        categoryId: categoryId || undefined,
         unit: unit || "bộ",
-        defaultWarehouse: defaultWarehouse || "KHO-THANHPHAM",
-        notes: notes || undefined,
+        thongSoKyThuat: notes || undefined,
         giaBan: giaBan !== undefined ? Number(giaBan) : undefined,
       } as any
     });
 
     // ĐỒNG BỘ
     if (item.code) {
-      const mappedCategoryId = await syncCategoryToInventory(item.productCategoryId);
+      const mappedCategoryId = await syncCategoryToInventory(item.categoryId);
       await prisma.inventoryItem.upsert({
         where: { code: item.code },
         create: {
@@ -43,7 +42,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
           brand: "Seajong",
           categoryId: mappedCategoryId,
           donVi: item.unit || "bộ",
-          ghiChu: item.notes || "",
+          ghiChu: item.thongSoKyThuat || "",
           imageUrl: null,
           giaBan: (item as any).giaBan || 0,
         },
@@ -52,7 +51,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
           loai: "thanh-pham",
           categoryId: mappedCategoryId,
           donVi: item.unit || "bộ",
-          ghiChu: item.notes || "",
+          ghiChu: item.thongSoKyThuat || "",
           giaBan: (item as any).giaBan || 0,
         }
       });
@@ -75,7 +74,7 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // @ts-ignore
-    await prisma.manufacturedProduct.delete({
+    await prisma.materialItem.delete({
       where: { id: params.id }
     });
 
@@ -97,14 +96,14 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
     if (giaBan !== undefined) {
       // @ts-ignore
-      const item = await prisma.manufacturedProduct.update({
+      const item = await prisma.materialItem.update({
         where: { id: params.id },
         data: { giaBan: Number(giaBan) } as any
       });
 
       // ĐỒNG BỘ
       if (item.code) {
-        const mappedCategoryId = await syncCategoryToInventory(item.productCategoryId);
+        const mappedCategoryId = await syncCategoryToInventory(item.categoryId);
         await prisma.inventoryItem.upsert({
           where: { code: item.code },
           create: {
@@ -114,7 +113,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
             brand: "Seajong",
             categoryId: mappedCategoryId,
             donVi: item.unit || "bộ",
-            ghiChu: item.notes || "",
+            ghiChu: item.thongSoKyThuat || "",
             imageUrl: null,
             giaBan: (item as any).giaBan || 0,
           },
@@ -123,7 +122,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
             loai: "thanh-pham",
             categoryId: mappedCategoryId,
             donVi: item.unit || "bộ",
-            ghiChu: item.notes || "",
+            ghiChu: item.thongSoKyThuat || "",
             giaBan: (item as any).giaBan || 0,
           }
         });

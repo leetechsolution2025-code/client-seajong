@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { TreeFilterSelect, TreeOption } from "@/components/ui/TreeFilterSelect";
 import { FilterSelect } from "@/components/ui/FilterSelect";
+import { HoverImage } from "@/components/ui/HoverImage";
 
 interface Category {
   id: string;
@@ -43,6 +44,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
     thongSoKyThuat: "",
     ghiChu: "",
     kieuDang: "",
+    maThayThe: "",
     material: "",
     webProductId: null as number | null,
     imageUrl: "" as string | null,
@@ -125,6 +127,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
           thongSoKyThuat: editItem.thongSoKyThuat || "",
           ghiChu: editItem.ghiChu || editItem.notes || "",
           kieuDang: editItem.kieuDang || editItem.spec || "",
+          maThayThe: editItem.version || "",
           material: editItem.material || "",
           webProductId: editItem.webProductId || null,
           imageUrl: editItem.imageUrl || null,
@@ -148,6 +151,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
           thongSoKyThuat: "",
           ghiChu: "",
           kieuDang: "",
+          maThayThe: "",
           material: "",
           webProductId: null,
           imageUrl: null,
@@ -198,51 +202,6 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
     setForm({ ...form, [field]: numericValue });
   };
 
-  useEffect(() => {
-    if (editItem || isCodeManuallyEdited) return;
-
-    const category = categories.find(c => c.id === form.categoryId);
-    const getCategoryAbbr = (catCode: string | null) => {
-      if (!catCode) return warehouseId ? "PROD" : "VTSX";
-      const upper = catCode.toUpperCase().trim();
-      const map: Record<string, string> = {
-        "TBVS": "TBVS",
-        "BC": "BC",
-        "SC": "SC",
-        "LB": "LB",
-        "TL": "TL",
-        "VB": "VB",
-        "BT": "BT",
-        "PK": "PK",
-      };
-      if (map[upper]) return map[upper];
-      if (upper.includes("_") || upper.includes(" ") || upper.includes("-")) {
-        return upper.split(/[_\s-]+/).map(w => w[0]).join("").substring(0, 4);
-      }
-      return upper.substring(0, 4);
-    };
-
-    const catAbbr = getCategoryAbbr(category?.code || null);
-    
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    const dateStr = `${yyyy}${mm}${dd}`;
-
-    const extractSTT = (modelStr: string, fallbackStr: string) => {
-      const match = modelStr.match(/\d+/);
-      if (match) return String(parseInt(match[0], 10)).padStart(3, "0");
-      const matchFallback = fallbackStr.match(/\d+/);
-      if (matchFallback) return String(parseInt(matchFallback[0], 10)).padStart(3, "0");
-      return String(nextSeq).padStart(3, "0");
-    };
-
-    const stt = extractSTT(form.model, form.kieuDang);
-    const codeStamp = stamp || String(Date.now()).slice(-4);
-    const sku = `${catAbbr}-${dateStr}-${codeStamp}-${stt}`.toUpperCase();
-    setForm(f => ({ ...f, code: sku }));
-  }, [form.categoryId, form.model, form.kieuDang, categories, warehouseId, editItem, stamp, nextSeq]);
 
   const handleWebSearch = async (q: string) => {
     setWebSearch(q);
@@ -405,45 +364,6 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
 
                   {/* Fields Grid */}
                   <div className="d-flex flex-column gap-3 flex-grow-1">
-                    
-                    {/* Website product search (only for Sanitary products) */}
-                    {!editItem && !isMaterialWarehouse && (
-                      <div className="col-12 position-relative flex-shrink-0">
-                        <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Tìm kiếm dữ liệu từ Website (Tùy chọn)</label>
-                        <div className="input-group">
-                          <span className="input-group-text bg-light"><i className="bi bi-search text-muted" /></span>
-                          <input 
-                            type="text" 
-                            className="form-control rounded-3 bg-light" 
-                            style={{ fontSize: "13px" }}
-                            placeholder="Tính năng tìm kiếm từ website đang tạm khóa..." 
-                            value={webSearch} 
-                            onChange={e => handleWebSearch(e.target.value)} 
-                            disabled
-                          />
-                          {isSearchingWeb && (
-                            <span className="input-group-text bg-white">
-                              <div className="spinner-border spinner-border-sm text-primary" />
-                            </span>
-                          )}
-                        </div>
-
-                        {showWebResults && webResults.length > 0 && (
-                          <div className="position-absolute w-100 bg-white border rounded-3 mt-1 shadow-lg overflow-hidden" style={{ zIndex: 10 }}>
-                            {webResults.map(p => (
-                              <button 
-                                key={p.id}
-                                className="w-100 text-start px-3 py-2 border-bottom btn btn-link text-decoration-none text-dark d-flex align-items-center gap-2 hover-bg-light"
-                                onClick={() => selectWebProduct(p)}
-                              >
-                                {p.images?.[0] && <img src={p.images[0]} alt="" style={{ width: 30, height: 30, objectFit: "contain" }} />}
-                                <span style={{ fontSize: 12 }}>{p.name}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
 
                     <div className="col-12 flex-shrink-0">
                       <div className="row g-3">
@@ -486,32 +406,6 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                               />
                             </div>
 
-                            {/* Row 3: Mã định danh & Kiểu dáng */}
-                            <div className="col-md-4 col-12">
-                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Mã định danh</label>
-                              <input 
-                                type="text" 
-                                className="form-control rounded-3" 
-                                style={{ fontSize: "13px", fontWeight: 600 }} 
-                                value={form.code} 
-                                onChange={e => {
-                                  setIsCodeManuallyEdited(true);
-                                  setForm({ ...form, code: e.target.value.toUpperCase() });
-                                }}
-                              />
-                            </div>
-
-                            <div className="col-md-8 col-12">
-                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Kiểu dáng</label>
-                              <input 
-                                type="text" 
-                                className="form-control rounded-3" 
-                                style={{ fontSize: "13px" }} 
-                                placeholder="Ví dụ: Tròn, Vuông, Âm tường" 
-                                value={form.kieuDang} 
-                                onChange={e => setForm({...form, kieuDang: e.target.value})} 
-                              />
-                            </div>
                           </div>
                         </div>
 
@@ -527,11 +421,39 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                             }}
                           >
                             {form.code ? (
-                              <img 
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`}
-                                alt="QR Code" 
-                                style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                              />
+                              <div
+                                style={{ width: "100%", height: "100%", cursor: "pointer" }}
+                                onClick={() => {
+                                  const printWindow = window.open('', '_blank');
+                                  if (printWindow) {
+                                    printWindow.document.write(`
+                                      <html>
+                                        <head><title>In Mã QR</title></head>
+                                        <body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
+                                          <div style="text-align: center; font-family: sans-serif;">
+                                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrData)}" style="width: 300px; height: 300px; margin-bottom: 20px;" />
+                                            <h2 style="margin: 0;">${form.code}</h2>
+                                            <p style="margin: 5px 0 0 0; color: #666;">${form.tenHang}</p>
+                                          </div>
+                                        </body>
+                                      </html>
+                                    `);
+                                    printWindow.document.close();
+                                    printWindow.focus();
+                                    setTimeout(() => {
+                                      printWindow.print();
+                                      printWindow.close();
+                                    }, 500);
+                                  }
+                                }}
+                                title="Nhấn để in mã QR"
+                              >
+                                <img 
+                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`}
+                                  alt="QR Code" 
+                                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                                />
+                              </div>
                             ) : (
                               <div className="text-center text-muted opacity-40">
                                 <i className="bi bi-qr-code fs-3 d-block mb-1" />
@@ -539,39 +461,49 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                               </div>
                             )}
                           </div>
-                          {form.code && (
-                            <button 
-                              type="button" 
-                              className="btn btn-outline-secondary btn-sm mt-3 w-100 d-flex align-items-center justify-content-center gap-2"
-                              style={{ maxWidth: "140px", fontSize: "12px", borderRadius: "8px" }}
-                              onClick={() => {
-                                // Add print logic if needed
-                                const printWindow = window.open('', '_blank');
-                                if (printWindow) {
-                                  printWindow.document.write(`
-                                    <html>
-                                      <head><title>In Mã QR</title></head>
-                                      <body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-                                        <div style="text-align: center; font-family: sans-serif;">
-                                          <img src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrData)}" style="width: 300px; height: 300px; margin-bottom: 20px;" />
-                                          <h2 style="margin: 0;">${form.code}</h2>
-                                          <p style="margin: 5px 0 0 0; color: #666;">${form.tenHang}</p>
-                                        </div>
-                                      </body>
-                                    </html>
-                                  `);
-                                  printWindow.document.close();
-                                  printWindow.focus();
-                                  setTimeout(() => {
-                                    printWindow.print();
-                                    printWindow.close();
-                                  }, 500);
-                                }
-                              }}
-                            >
-                              <i className="bi bi-printer" /> In mã QR
-                            </button>
-                          )}
+                        </div>
+
+                        {/* Full Width Row for Codes & Specs */}
+                        <div className="col-12 mt-4">
+                          <div className="row g-3">
+                            <div className="col-md-3 col-12">
+                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Mã định danh</label>
+                              <input 
+                                type="text" 
+                                className="form-control rounded-3" 
+                                style={{ fontSize: "13px", fontWeight: 600 }} 
+                                value={form.code} 
+                                onChange={e => {
+                                  setIsCodeManuallyEdited(true);
+                                  setForm({ ...form, code: e.target.value.toUpperCase() });
+                                }}
+                              />
+                            </div>
+
+                            <div className="col-md-3 col-12">
+                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Mã thay thế</label>
+                              <input 
+                                type="text" 
+                                className="form-control rounded-3" 
+                                style={{ fontSize: "13px" }} 
+                                placeholder="Ví dụ: SJ-..." 
+                                value={form.maThayThe || ""} 
+                                onChange={e => setForm({...form, maThayThe: e.target.value})} 
+                              />
+                            </div>
+
+                            <div className="col-md-6 col-12">
+                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Kiểu dáng</label>
+                              <input 
+                                type="text" 
+                                className="form-control rounded-3" 
+                                style={{ fontSize: "13px" }} 
+                                placeholder="Ví dụ: Tròn, Vuông, Âm tường" 
+                                value={form.kieuDang} 
+                                onChange={e => setForm({...form, kieuDang: e.target.value})} 
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -696,7 +628,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                       }}
                     >
                       {form.imageUrl ? (
-                        <img src={form.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                        <HoverImage src={form.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                       ) : (
                         <div className="text-center p-2">
                           <i className="bi bi-image-fill fs-2 text-muted opacity-25 mb-1 d-block" />

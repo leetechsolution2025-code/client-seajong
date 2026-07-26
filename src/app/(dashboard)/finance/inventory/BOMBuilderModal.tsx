@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { HoverImage } from "@/components/ui/HoverImage";
 
 interface MaterialItem {
   id: string;
@@ -337,7 +338,7 @@ export function BOMBuilderModal({ show, onClose, item, onSaved }: BOMBuilderModa
                         {line.material ? (
                           <div className="d-flex align-items-center gap-2 flex-grow-1">
                             {line.material?.imageUrl ? (
-                              <img 
+                              <HoverImage 
                                 src={line.material.imageUrl} 
                                 alt="" 
                                 className="rounded-2 object-fit-cover flex-shrink-0 shadow-sm border" 
@@ -436,7 +437,7 @@ export function BOMBuilderModal({ show, onClose, item, onSaved }: BOMBuilderModa
                                     }}
                                   >
                                     {mat.imageUrl ? (
-                                      <img 
+                                      <HoverImage 
                                         src={mat.imageUrl} 
                                         alt="" 
                                         className="rounded-2 object-fit-cover flex-shrink-0 shadow-sm border" 

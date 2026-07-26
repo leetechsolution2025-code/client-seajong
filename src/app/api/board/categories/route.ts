@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { type, code, name, color, icon, description, sortOrder, parentId } = body;
+    const { type, code, name, color, icon, description, sortOrder, parentId, hasBom } = body;
     if (!type || !code || !name) {
       return NextResponse.json({ error: "Thiếu thông tin bắt buộc" }, { status: 400 });
     }
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     if (existing) return NextResponse.json({ error: "Mã đã tồn tại trong loại danh mục này" }, { status: 409 });
 
     const row = await prisma.category.create({
-      data: { type, code: code.toLowerCase().trim(), name: name.trim(), color, icon, description, sortOrder: sortOrder ?? 0, parentId: parentId ?? null },
+      data: { type, code: code.toLowerCase().trim(), name: name.trim(), color, icon, description, sortOrder: sortOrder ?? 0, parentId: parentId ?? null, hasBom: !!hasBom },
     });
     return NextResponse.json(row, { status: 201 });
   } catch (e) {

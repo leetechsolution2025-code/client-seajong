@@ -15,6 +15,7 @@ const SYSTEM_PERMISSIONS = [
   { key: "plan",           label: "Lập kế hoạch",              icon: "bi-calendar3",           color: "#f43f5e" },
   { key: "approve_request",label: "Duyệt yêu cầu",             icon: "bi-check2-circle",       color: "#22c55e" },
   { key: "oem_sales",      label: "Bán hàng OEM",              icon: "bi-bag-check",           color: "#0ea5e9" },
+  { key: "view_prices",    label: "Hiển thị giá sản phẩm",     icon: "bi-tag",                 color: "#8b5cf6" },
   { key: "approve_budget", label: "Duyệt ngân sách",           icon: "bi-cash-coin",           color: "#ef4444" },
 ];
 

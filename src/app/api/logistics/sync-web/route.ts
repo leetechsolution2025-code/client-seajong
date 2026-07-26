@@ -270,7 +270,8 @@ async function performDeepSync(logId: string) {
         categoryId: invCat.id, brand: specs["Thương hiệu"] || "Seajong",
         model, color, version, imageUrl: (wp as any).imageUrl,
         thongSoKyThuat: wp.description, updatedAt: new Date(),
-        giaBan: wp.price || 0
+        giaBan: wp.price || 0,
+        donVi: "bộ"
       };
 
       // XỬ LÝ BIẾN THỂ (SeajongProductVariation)
@@ -343,7 +344,7 @@ async function performDeepSync(logId: string) {
           const skuMatch = await prisma.inventoryItem.findUnique({ where: { code: vSku } });
           if (skuMatch) vItemData.code = `${vSku}-${wp.id}${vData ? '-' + vData.variation_id : ''}`;
           finalItem = await prisma.inventoryItem.create({
-            data: { ...vItemData, donVi: "cái", soLuong: 0, trangThai: "het-hang" } as any
+            data: { ...vItemData, donVi: "bộ", soLuong: 0, trangThai: "het-hang" } as any
           });
         }
 

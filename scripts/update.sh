@@ -53,7 +53,6 @@ rsync -avz --delete \
     --exclude=".git" \
     --exclude=".next" \
     --exclude="storage" \
-    --exclude="**/*.db*" \
     --exclude="prisma/migrations" \
     --exclude="*.log" \
     --exclude="artifacts" \
@@ -64,6 +63,9 @@ rsync -avz --delete \
     --exclude="public/client-logo*" \
     --exclude="public/logo*" \
     --exclude="package-lock.json" \
+    --exclude="prisma/*.db" \
+    --exclude="prisma/*.sqlite" \
+    --exclude="prisma/*.db-journal" \
     -e "ssh ${SSH_OPTS}" . "${SSH_USER}@${SSH_HOST}:${SSH_DIR}/"
 
 log "Mã nguồn đã đồng bộ thành công lên máy chủ!"

@@ -76,6 +76,7 @@ export async function GET(req: NextRequest) {
         ...item,
         soLuong: soLuongThuc,
         trangThai: trangThaiLive,
+        source: "inventory",
       };
     });
 

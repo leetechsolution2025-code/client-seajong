@@ -78,6 +78,27 @@ export async function GET(req: NextRequest) {
       debtMap.set(d.partnerName, prev + outstanding);
     }
 
+    const customerIds = Array.from(new Set(items.map(item => item.customerId).filter(Boolean))) as string[];
+    const marketingLeads = await prisma.marketingLead.findMany({
+      where: { id: { in: customerIds } },
+      select: { id: true, formValues: true }
+    });
+    
+    const leadAddressMap = new Map<string, string>();
+    for (const lead of marketingLeads) {
+      if (lead.formValues) {
+        try {
+          const parsed = JSON.parse(lead.formValues);
+          const address = parsed.bbB_DiaChi || parsed.businessAddress || parsed.address || 
+                          (parsed.careHistories && parsed.careHistories.length > 0 ? parsed.careHistories[0].businessAddress : null) ||
+                          (parsed.careHistories && parsed.careHistories.length > 0 ? parsed.careHistories[parsed.careHistories.length - 1].businessAddress : null);
+          if (address) {
+            leadAddressMap.set(lead.id, address);
+          }
+        } catch (e) {}
+      }
+    }
+
     const itemsWithCreator = items.map(item => {
       const debt = item.customer ? (debtMap.get(item.customer.name) || 0) : 0;
       const guest = parseGuestInfo(item.ghiChu);
@@ -87,6 +108,7 @@ export async function GET(req: NextRequest) {
         nguoiPhuTrachName: item.nguoiPhuTrach ? (employeeMap.get(item.nguoiPhuTrach) || "Chưa rõ") : "Hệ thống",
         customer: item.customer ? {
           ...item.customer,
+          address: item.customer.address || leadAddressMap.get(item.customer.id) || "",
           outstandingDebt: debt,
           creditLimit: item.customer.hanMucCongNo,
         } : (guest ? {

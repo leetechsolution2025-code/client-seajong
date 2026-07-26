@@ -34,10 +34,11 @@ export async function GET(req: Request) {
       const qty = order.saleOrderItems.reduce((sum: number, item: any) => sum + item.soLuong, 0);
       const name = order.saleOrderItems.map((i: any) => i.tenHang).join(", ");
 
-      const orderCode = order.code ? order.code.replace('DHBL', 'LSX') : order.id;
+      const orderCode = order.code ? order.code.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX') : order.id;
 
       return {
         id: orderCode,
+        saleOrderCode: order.code || "N/A",
         ngayHoanThanh: order.ngayHoanThanhSanXuat || order.ngayGiao || null,
         progress: isCompleted ? 100 : 0,
         status: isCompleted ? "completed" : (isRunning ? "running" : "pending"),

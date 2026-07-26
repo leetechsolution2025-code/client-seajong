@@ -145,6 +145,24 @@ export function WarehouseSetup() {
       setIsDeleting(false);
     }
   };
+  const handleToggleStatus = async (wh: any) => {
+    try {
+      const res = await fetch(`/api/logistics/warehouses/${wh.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !wh.isActive })
+      });
+      if (res.ok) {
+        toast.success("Thành công", `Đã ${wh.isActive ? 'ngừng hoạt động' : 'kích hoạt'} kho`);
+        fetchWarehouses();
+      } else {
+        const err = await res.json();
+        toast.error("Lỗi", err.error || "Không thể cập nhật trạng thái");
+      }
+    } catch (e: any) {
+      toast.error("Lỗi kết nối", e.message);
+    }
+  };
 
   const activeCount = warehouses.filter(w => w.isActive).length;
   const hasLayout = warehouses.filter(w => w.layoutJson).length;
@@ -307,6 +325,15 @@ export function WarehouseSetup() {
                           <li>
                             <button className="dropdown-item py-2 d-flex align-items-center gap-2" onClick={() => setEditingLayoutWh(wh)}>
                               <i className="bi bi-map" style={{ color: "#8b5cf6" }} /> Sơ đồ layout
+                            </button>
+                          </li>
+                          <li>
+                            <button className="dropdown-item py-2 d-flex align-items-center gap-2" onClick={() => handleToggleStatus(wh)}>
+                              {wh.isActive ? (
+                                <><i className="bi bi-pause-circle" style={{ color: "#f59e0b" }} /> Ngừng hoạt động</>
+                              ) : (
+                                <><i className="bi bi-play-circle" style={{ color: "#10b981" }} /> Kích hoạt</>
+                              )}
                             </button>
                           </li>
                           <li><hr className="dropdown-divider my-1" /></li>

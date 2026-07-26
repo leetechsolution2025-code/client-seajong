@@ -6,7 +6,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const body = await req.json();
-    const { code, name, color, icon, description, sortOrder, isActive, parentId } = body;
+    const { code, name, color, icon, description, sortOrder, isActive, parentId, hasBom } = body;
     const row = await prisma.category.update({
       where: { id },
       data: {
@@ -18,6 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(sortOrder !== undefined && { sortOrder }),
         ...(isActive !== undefined && { isActive }),
         ...(parentId !== undefined && { parentId: parentId ?? null }),
+        ...(hasBom !== undefined && { hasBom }),
       },
     });
     return NextResponse.json(row);

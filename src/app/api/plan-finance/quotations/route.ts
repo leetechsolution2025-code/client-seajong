@@ -135,7 +135,9 @@ export async function POST(req: NextRequest) {
       }
 
       let finalCode = code;
-      if (!finalCode || finalCode === "Đang tải...") {
+      const isDirectOrderFlag = finalCode.startsWith("DH") || finalCode.startsWith("DBH") || finalCode === "DBH-Tự động tạo";
+
+      if (!finalCode || finalCode === "Đang tải..." || finalCode === "DBH-Tự động tạo") {
         const now = new Date();
         const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
         const ICTTime = new Date(utcTime + 3600000 * 7);
@@ -144,36 +146,49 @@ export async function POST(req: NextRequest) {
         const mm = String(ICTTime.getMonth() + 1).padStart(2, "0");
         const dd = String(ICTTime.getDate()).padStart(2, "0");
         const dateStr = `${yyyy}${mm}${dd}`;
-        const prefix = (type === "agency" ? "QUO-" : "BG-") + `${dateStr}-`;
 
-        const todayQuotes = await tx.quotation.findMany({
-          where: {
-            code: {
-              startsWith: prefix
-            }
-          },
-          select: {
-            code: true
-          }
-        });
-
-        let maxSTT = 0;
-        for (const q of todayQuotes) {
-          if (q.code) {
-            const parts = q.code.split("-");
-            const sttPart = parts[parts.length - 1];
-            const sttVal = parseInt(sttPart, 10);
-            if (!isNaN(sttVal) && sttVal > maxSTT) {
-              maxSTT = sttVal;
+        if (isDirectOrderFlag) {
+          const prefix = `DBH-${dateStr}-`;
+          const todayOrders = await tx.saleOrder.findMany({
+            where: { code: { startsWith: prefix } },
+            select: { code: true }
+          });
+          let maxSTT = 0;
+          for (const o of todayOrders) {
+            if (o.code) {
+              const parts = o.code.split("-");
+              const sttPart = parts[parts.length - 1];
+              const sttVal = parseInt(sttPart, 10);
+              if (!isNaN(sttVal) && sttVal > maxSTT) {
+                maxSTT = sttVal;
+              }
             }
           }
+          const nextSTTStr = String(maxSTT + 1).padStart(2, "0");
+          finalCode = `${prefix}${nextSTTStr}`;
+        } else {
+          const prefix = (type === "agency" ? "QUO-" : "BG-") + `${dateStr}-`;
+          const todayQuotes = await tx.quotation.findMany({
+            where: { code: { startsWith: prefix } },
+            select: { code: true }
+          });
+          let maxSTT = 0;
+          for (const q of todayQuotes) {
+            if (q.code) {
+              const parts = q.code.split("-");
+              const sttPart = parts[parts.length - 1];
+              const sttVal = parseInt(sttPart, 10);
+              if (!isNaN(sttVal) && sttVal > maxSTT) {
+                maxSTT = sttVal;
+              }
+            }
+          }
+          const nextSTTStr = String(maxSTT + 1).padStart(3, "0");
+          finalCode = `${prefix}${nextSTTStr}`;
         }
-
-        const nextSTTStr = String(maxSTT + 1).padStart(3, "0");
-        finalCode = `${prefix}${nextSTTStr}`;
       }
 
-      const isDirectOrder = finalCode.startsWith("DH");
+      const isDirectOrder = finalCode.startsWith("DH") || finalCode.startsWith("DBH");
       let q: any = null;
 
       if (!isDirectOrder) {
@@ -270,18 +285,18 @@ export async function POST(req: NextRequest) {
       if (trangThai === "won") {
         const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
 
-        // 1. Generate Order Code: DHBL-YYYYmmdd-STT or use direct order code
+        // 1. Generate Order Code: DBH-YYYYmmdd-STT or use direct order code
         let orderCode = finalCode;
         if (!isDirectOrder) {
           const countToday = await tx.saleOrder.count({
             where: {
               code: {
-                startsWith: `DHBL-${todayStr}-`
+                startsWith: `DBH-${todayStr}-`
               }
             }
           });
           const seqStr = String(countToday + 1).padStart(2, "0");
-          orderCode = `DHBL-${todayStr}-${seqStr}`;
+          orderCode = `DBH-${todayStr}-${seqStr}`;
         }
 
         // 2. Stock Check

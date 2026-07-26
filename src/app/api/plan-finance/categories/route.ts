@@ -14,12 +14,18 @@ export async function GET(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const type = req.nextUrl.searchParams.get("type");
-    if (!type) return NextResponse.json({ error: "type is required" }, { status: 400 });
+    const hasBom = req.nextUrl.searchParams.get("hasBom");
+
+    if (!type && hasBom !== "true") return NextResponse.json({ error: "type is required" }, { status: 400 });
 
     const categories = await prisma.category.findMany({
-      where: { type, isActive: true },
+      where: { 
+        ...(type && { type }),
+        isActive: true,
+        ...(hasBom === "true" && { hasBom: true }),
+      },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, code: true, name: true, color: true, icon: true, parentId: true },
+      select: { id: true, code: true, name: true, color: true, icon: true, parentId: true, hasBom: true },
     });
 
     return NextResponse.json(categories);

@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       const existingInventory = await prisma.inventoryItem.findUnique({
         where: { code: sku }
       });
-      
+
       // Map category ID
       const catCodeStr = (item.categoryCode || "").trim().toLowerCase();
       const mappedCategoryId = categoryMap.get(catCodeStr) || null;
@@ -83,6 +83,7 @@ export async function POST(req: Request) {
               giaBan: item.sellPrice || 0,
               brand: item.brand || "Seajong",
               ghiChu: item.note || "",
+              maThayThe: item.alternateCode || null,
               loai: whCode === "KHO-THANHPHAM" ? "thanh-pham" : (whCode === "KVP" ? "vat-tu" : "hang-hoa")
             }
           });
@@ -113,13 +114,23 @@ export async function POST(req: Request) {
               giaBan: item.sellPrice || 0,
               brand: item.brand || "Seajong",
               ghiChu: item.note || "",
+              maThayThe: item.alternateCode || null,
               categoryId: mappedCategoryId
             }
           });
 
-          // Create MaterialStock
-          await tx.materialStock.create({
-            data: {
+          // Upsert MaterialStock
+          await tx.materialStock.upsert({
+            where: {
+              materialId_warehouseId: {
+                materialId: mat.id,
+                warehouseId: warehouseId
+              }
+            },
+            update: {
+              soLuong: { increment: item.quantity || 0 }
+            },
+            create: {
               materialId: mat.id,
               warehouseId: warehouseId,
               soLuong: item.quantity || 0
@@ -127,9 +138,18 @@ export async function POST(req: Request) {
           });
         }
 
-        // 3. Create InventoryStock
-        await tx.inventoryStock.create({
-          data: {
+        // 3. Upsert InventoryStock
+        await tx.inventoryStock.upsert({
+          where: {
+            inventoryItemId_warehouseId: {
+              inventoryItemId: inventoryId,
+              warehouseId: warehouseId
+            }
+          },
+          update: {
+            soLuong: { increment: item.quantity || 0 }
+          },
+          create: {
             inventoryItemId: inventoryId,
             warehouseId: warehouseId,
             soLuong: item.quantity || 0
@@ -150,14 +170,14 @@ export async function POST(req: Request) {
           });
         }
       });
-      
+
       importedCount++;
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      imported: importedCount, 
-      skipped: skippedItems 
+    return NextResponse.json({
+      success: true,
+      imported: importedCount,
+      skipped: skippedItems
     });
 
   } catch (error: any) {

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { HoverImage } from "@/components/ui/HoverImage";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface Product {
@@ -585,7 +586,7 @@ export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Pr
               {/* Product thumbnail */}
               {p.images[0] && (
                 <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid var(--border)", height: 160, background: "var(--background)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <img src={p.images[activeImg]} alt={p.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", padding: 10 }} />
+                  <HoverImage src={p.images[activeImg]} images={p.images} alt={p.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", padding: 10 }} />
                 </div>
               )}
 
@@ -1083,7 +1084,7 @@ export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Pr
                 height: 280, marginBottom: 10,
               }}>
                 {/* Slide image */}
-                <img
+                <HoverImage
                   key={activeImg}
                   src={p.images[activeImg]} alt={p.name}
                   style={{
@@ -1184,7 +1185,7 @@ export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Pr
                         boxShadow: i === activeImg ? "0 0 0 3px rgba(79,70,229,0.2)" : "none",
                       }}
                     >
-                      <img src={img} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }} />
+                      <HoverImage src={img} images={p.images} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }} />
                     </div>
                   ))}
                 </div>

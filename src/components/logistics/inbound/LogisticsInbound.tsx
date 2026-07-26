@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { Pagination } from "@/components/ui/Pagination";
+import { HoverImage } from "@/components/ui/HoverImage";
 
 // Import existing modals from plan-finance
 import { NhapKhoModal } from "@/components/plan-finance/kho_hang/NhapKhoModal";
@@ -225,7 +226,7 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
             }}
           >
             {row.imageUrl ? (
-              <img 
+              <HoverImage 
                 src={row.imageUrl} 
                 alt={row.tenHang} 
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}

@@ -48,8 +48,23 @@ function StatusBadge({ status }: { status: string }) {
     pending_approval: { label: "Đang trình duyệt", cls: "bg-warning-subtle text-warning" },
     won: { label: "Thành công", cls: "bg-success-subtle text-success" },
     lost: { label: "Thất bại", cls: "bg-danger-subtle text-danger" },
+    active: { label: "Đang thực hiện", cls: "bg-primary-subtle text-primary" },
+    done: { label: "Hoàn thành", cls: "bg-success-subtle text-success" },
+    completed: { label: "Hoàn tất", cls: "bg-success-subtle text-success" },
+    in_production: { label: "Đang sản xuất", cls: "bg-warning-subtle text-warning" },
+    delivering: { label: "Đang giao hàng", cls: "bg-info-subtle text-info" },
+    delivered: { label: "Đã giao hàng", cls: "bg-success-subtle text-success" },
   };
-  const m = map[status.toLowerCase()] ?? { label: status, cls: "bg-light text-dark" };
+
+  const safeStatus = status || "unknown";
+  
+  // Fallback formatter if status is missing in the map
+  const fallbackLabel = safeStatus
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, l => l.toUpperCase());
+    
+  const m = map[safeStatus.toLowerCase()] ?? { label: fallbackLabel, cls: "bg-light text-dark border" };
+  
   return (
     <span className={`badge rounded-pill px-2.5 py-1.5 ${m.cls}`} style={{ fontSize: 11, fontWeight: 600 }}>
       {m.label}
@@ -171,6 +186,7 @@ export default function QuotationsPage() {
           id: it.id,
           maDonHang: it.code || "DH-—",
           khachHang: it.customer?.name || "Khách hàng vãng lai",
+          diaChi: it.customer?.address || "",
           ngayTao: it.ngayDat ? new Date(it.ngayDat).toLocaleDateString("vi-VN") : "—",
           ngayGiao: it.ngayGiao ? new Date(it.ngayGiao).toLocaleDateString("vi-VN") : "—",
           giaTri: it.tongTien || 0,
@@ -399,17 +415,18 @@ export default function QuotationsPage() {
       {
         header: "Mã đơn hàng",
         render: (row) => (
-          <div>
+          <div style={{ whiteSpace: "nowrap" }}>
             <span className="fw-bold text-primary cursor-pointer hover-underline">{row.maDonHang}</span>
           </div>
         ),
-        width: "160px",
+        width: "180px",
       },
       {
         header: "Khách hàng",
         render: (row) => (
           <div>
-            <span className="text-dark fw-semibold">{row.khachHang}</span>
+            <div className="text-dark fw-semibold">{row.khachHang}</div>
+            {row.diaChi && <div className="text-muted" style={{ fontSize: "0.8rem", marginTop: 2 }}>{row.diaChi}</div>}
           </div>
         ),
       },
@@ -428,6 +445,12 @@ export default function QuotationsPage() {
         render: (row) => <span className="fw-bold text-dark">{row.giaTri.toLocaleString("vi-VN")}</span>,
         align: "right",
         width: "180px",
+      },
+      {
+        header: "Trạng thái",
+        render: (row) => <StatusBadge status={row.trangThai} />,
+        align: "center",
+        width: "140px",
       },
     ];
   }, [orders, selectedOrderIds]);

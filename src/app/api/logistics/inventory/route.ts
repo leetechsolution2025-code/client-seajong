@@ -242,13 +242,36 @@ export async function GET(req: Request) {
       }) : Promise.resolve(0),
     ]);
 
+    const webProductIds = invItems.map((it: any) => it.webProductId).filter(Boolean);
+    let webProductMap = new Map();
+    if (webProductIds.length > 0) {
+      const webProducts = await prisma.seajongProduct.findMany({
+        where: { id: { in: webProductIds } },
+        select: { id: true, images: true }
+      });
+      webProductMap = new Map(webProducts.map(wp => [wp.id, wp.images]));
+    }
+
     // Map and Merge
     const allItems = [
-      ...invItems.map((it: any) => ({
-        ...it,
-        source: "inventory",
-        categoryName: it.category?.name
-      })),
+      ...invItems.map((it: any) => {
+        let parsedImages: string[] = [];
+        if (it.webProductId && webProductMap.has(it.webProductId)) {
+          try {
+            parsedImages = JSON.parse(webProductMap.get(it.webProductId) || "[]");
+          } catch (e) {}
+        }
+        if (parsedImages.length === 0 && it.imageUrl) {
+          parsedImages = [it.imageUrl];
+        }
+
+        return {
+          ...it,
+          source: "inventory",
+          categoryName: it.category?.name,
+          images: parsedImages
+        };
+      }),
       ...matItems.map((it: any) => ({
         id: it.id,
         tenHang: it.name,
@@ -369,7 +392,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, warehouseId, chieuDai, chieuRong, chieuDay, source, material } = body;
+    const { tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, warehouseId, chieuDai, chieuRong, chieuDay, source, material, maThayThe } = body;
 
     if (!tenHang) return NextResponse.json({ error: "Thiếu tên hàng hoá" }, { status: 400 });
 
@@ -422,7 +445,8 @@ export async function POST(req: Request) {
             chieuDai: chieuDai ? parseFloat(chieuDai) : null,
             chieuRong: chieuRong ? parseFloat(chieuRong) : null,
             chieuDay: chieuDay ? parseFloat(chieuDay) : null,
-            loai: "thanh-pham"
+            loai: "thanh-pham",
+            version: maThayThe || null
           } as any
         });
         
@@ -471,6 +495,7 @@ export async function POST(req: Request) {
           chieuDai: chieuDai ? parseFloat(chieuDai) : null,
           chieuRong: chieuRong ? parseFloat(chieuRong) : null,
           chieuDay: chieuDay ? parseFloat(chieuDay) : null,
+          version: maThayThe || null
         } as any,
       });
 
@@ -568,7 +593,7 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const {
       id, tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, source,
-      chieuDai, chieuRong, chieuDay, material
+      chieuDai, chieuRong, chieuDay, material, maThayThe
     } = body;
 
     if (!id) return NextResponse.json({ error: "Thiếu ID hàng hoá" }, { status: 400 });
@@ -622,6 +647,7 @@ export async function PUT(req: Request) {
           chieuDai: chieuDai ? parseFloat(chieuDai) : null,
           chieuRong: chieuRong ? parseFloat(chieuRong) : null,
           chieuDay: chieuDay ? parseFloat(chieuDay) : null,
+          version: maThayThe || null
         } as any,
       });
       return NextResponse.json(updated);
@@ -786,6 +812,14 @@ export async function DELETE(req: Request) {
       }
       await prisma.stockMovement.deleteMany({ where: { inventoryItemId: id } });
       await prisma.inventoryItem.delete({ where: { id } });
+    } else if (source === "manufactured") {
+      const item = await prisma.manufacturedProduct.findUnique({ where: { id } });
+      if (item && item.code) {
+         await deleteAutoJournalByReference(item.code, "Xoá thành phẩm");
+      }
+      await prisma.manufacturedProduct.delete({ where: { id } });
+    } else if (source === "seajong") {
+      await prisma.seajongProduct.delete({ where: { id: Number(id) } });
     } else {
       const item = await (prisma as any).materialItem.findUnique({ where: { id } });
       if (item && item.code) {

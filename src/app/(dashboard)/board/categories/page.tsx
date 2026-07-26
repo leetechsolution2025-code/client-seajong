@@ -18,16 +18,16 @@ type CategoryTypeDef = {
 type CategoryRow = {
   id: string; type: string; code: string; name: string;
   color: string | null; icon: string | null; description: string | null;
-  sortOrder: number; isActive: boolean; createdAt: string;
+  sortOrder: number; isActive: boolean; hasBom: boolean; createdAt: string;
   parentId: string | null;
   parent?: { id: string; name: string } | null;
 };
 
 type FormState = {
-  code: string; name: string; color: string; icon: string; description: string; sortOrder: string; isActive: boolean; parentId: string;
+  code: string; name: string; color: string; icon: string; description: string; sortOrder: string; isActive: boolean; parentId: string; hasBom: boolean;
 };
 
-const EMPTY_FORM: FormState = { code: "", name: "", color: "#6366f1", icon: "", description: "", sortOrder: "1", isActive: true, parentId: "" };
+const EMPTY_FORM: FormState = { code: "", name: "", color: "#6366f1", icon: "", description: "", sortOrder: "1", isActive: true, parentId: "", hasBom: false };
 const EMPTY_TYPE_FORM = { value: "", label: "", icon: "bi-folder", color: "#6366f1", prefix: "" };
 
 // ── Helper components ─────────────────────────────────────────────────────────
@@ -129,26 +129,7 @@ function autoIcon(label: string): string {
   return "bi-folder";
 }
 
-// ── Grouping logic cho loại danh mục ─────────────────────────────────────────
-const TYPE_GROUPS: { label: string; icon: string; color: string; keywords: string[] }[] = [
-  { label: "Hàng hoá",   icon: "bi-box-seam",          color: "#f59e0b", keywords: ["hang", "san_pham", "nhom"] },
-  { label: "Chi phí",    icon: "bi-receipt",            color: "#ef4444", keywords: ["chi_phi", "chi_tieu", "thu"] },
-  { label: "Khách hàng", icon: "bi-person-vcard",       color: "#3b82f6", keywords: ["khach", "doi_tac", "nha_cung"] },
-  { label: "Trạng thái", icon: "bi-toggle-on",          color: "#8b5cf6", keywords: ["trang_thai", "trang thai"] },
-  { label: "Tài sản",    icon: "bi-building-gear",      color: "#10b981", keywords: ["tai_san", "co_dinh"] },
-  { label: "Nhân sự",    icon: "bi-people",             color: "#ec4899", keywords: ["nhan_su", "nhan_vien", "tuyen_dung", "chuc"] },
-  { label: "Hoá đơn",    icon: "bi-receipt-cutoff",    color: "#06b6d4", keywords: ["hoa_don", "phieu", "bao_gia"] },
-  { label: "Khác",       icon: "bi-grid",               color: "#6b7280", keywords: [] },
-];
 
-function getTypeGroup(ct: CategoryTypeDef): string {
-  const v = ct.value.toLowerCase();
-  const l = ct.label.toLowerCase();
-  for (const g of TYPE_GROUPS) {
-    if (g.keywords.some(k => v.includes(k) || l.includes(k.replace(/_/g, " ")))) return g.label;
-  }
-  return "Khác";
-}
 
 // ── Modal thêm / sửa loại danh mục ────────────────────────────────────────────
 function TypeModal({ open, editing, onClose, onSaved }: {
@@ -331,6 +312,7 @@ function CategoryModal({ open, editing, activeType, nextSortOrder, onClose, onSa
           icon: editing.icon ?? "", description: editing.description ?? "",
           sortOrder: String(editing.sortOrder), isActive: editing.isActive,
           parentId: (editing as CategoryRow & { parentId?: string }).parentId ?? "",
+          hasBom: editing.hasBom ?? false,
         });
       } else {
         setForm({ ...EMPTY_FORM, code: genCategoryCode(activeType.prefix), sortOrder: String(nextSortOrder) });
@@ -370,6 +352,7 @@ function CategoryModal({ open, editing, activeType, nextSortOrder, onClose, onSa
         sortOrder: parseInt(form.sortOrder) || 0,
         isActive: form.isActive,
         parentId: form.parentId || null,
+        hasBom: form.hasBom,
       };
       const url = editing ? `/api/board/categories/${editing.id}` : "/api/board/categories";
       const method = editing ? "PATCH" : "POST";
@@ -510,6 +493,28 @@ function CategoryModal({ open, editing, activeType, nextSortOrder, onClose, onSa
                   </button>
 
                 </div>
+                {activeType.value === "vat_tu_san_xuat" && (
+                  <div>
+                    <Label text="Có định mức" />
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, hasBom: !f.hasBom }))}
+                      style={{
+                        width: 34, height: 20, borderRadius: 99, border: "none", cursor: "pointer",
+                        background: form.hasBom ? activeType.color : "var(--muted)",
+                        position: "relative", transition: "background 0.2s", marginTop: 7,
+                      }}
+                    >
+                      <span style={{
+                        position: "absolute", top: 3,
+                        left: form.hasBom ? "calc(100% - 17px)" : 3,
+                        width: 14, height: 14, borderRadius: "50%",
+                        background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                        transition: "left 0.2s",
+                      }} />
+                    </button>
+                  </div>
+                )}
               </div>
 
 
@@ -771,61 +776,50 @@ export default function BoardCategoriesPage() {
                   Đang tải...
                 </div>
               ) : (() => {
-                const filtered = categoryTypes.filter(ct => ct.label.toLowerCase().includes(typeSearch.toLowerCase()));
-                // Group by TYPE_GROUPS
-                const rendered: React.ReactNode[] = [];
-                TYPE_GROUPS.forEach(g => {
-                  const members = filtered.filter(ct => getTypeGroup(ct) === g.label);
-                  if (members.length === 0) return;
-                  rendered.push(
-                    <div key={`grp-${g.label}`} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 4px 4px", marginTop: 2 }}>
-                      <i className={`bi ${g.icon}`} style={{ fontSize: 10, color: g.color, opacity: 0.7 }} />
-                      <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted-foreground)", opacity: 0.55 }}>{g.label}</span>
-                      <div style={{ flex: 1, height: 1, background: "var(--border)", opacity: 0.6 }} />
+                const filtered = categoryTypes
+                  .filter(ct => ct.label.toLowerCase().includes(typeSearch.toLowerCase()))
+                  .sort((a, b) => a.label.localeCompare(b.label, 'vi'));
+                
+                return filtered.map(ct => {
+                  const idx = categoryTypes.indexOf(ct);
+                  const count = idx === activeTypeIdx ? rows.length : null;
+                  const isActive = idx === activeTypeIdx;
+                  return (
+                    <div key={ct.value} style={{ position: "relative" }}
+                      onMouseEnter={e => { const btn = e.currentTarget.querySelector<HTMLButtonElement>(".del-type-btn"); if (btn) btn.style.opacity = "1"; }}
+                      onMouseLeave={e => { const btn = e.currentTarget.querySelector<HTMLButtonElement>(".del-type-btn"); if (btn) btn.style.opacity = "0"; }}
+                    >
+                      <button onClick={() => { setActiveTypeIdx(idx); setSearch(""); }}
+                        style={{
+                          width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                          padding: "9px 12px", border: isActive ? `1px solid color-mix(in srgb, ${ct.color} 40%, transparent)` : "1px solid transparent",
+                          borderRadius: 10, background: isActive ? `color-mix(in srgb, ${ct.color} 10%, transparent)` : "transparent",
+                          cursor: "pointer", transition: "all 0.15s", textAlign: "left",
+                        }}
+                        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--muted)"; }}
+                        onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = isActive ? `color-mix(in srgb, ${ct.color} 10%, transparent)` : "transparent"; }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div style={{ width: 30, height: 30, borderRadius: 8, background: `color-mix(in srgb, ${ct.color} 15%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <i className={`bi ${ct.icon}`} style={{ fontSize: 14, color: ct.color }} />
+                          </div>
+                          <span style={{ fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? ct.color : "var(--foreground)" }}>{ct.label}</span>
+                        </div>
+                        {count !== null && (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: `color-mix(in srgb, ${ct.color} 15%, transparent)`, color: ct.color }}>
+                            {count}
+                          </span>
+                        )}
+                      </button>
+                      {!ct.isSystem && (
+                        <button className="del-type-btn" onClick={() => setDeleteTypeTarget(ct)}
+                          style={{ position: "absolute", top: "50%", right: 6, transform: "translateY(-50%)", width: 22, height: 22, border: "none", borderRadius: 5, background: "rgba(239,68,68,0.12)", color: "#ef4444", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity 0.15s", zIndex: 1 }}>
+                          <i className="bi bi-trash3" style={{ fontSize: 10 }} />
+                        </button>
+                      )}
                     </div>
                   );
-                  members.forEach(ct => {
-                    const idx = categoryTypes.indexOf(ct);
-                    const count = idx === activeTypeIdx ? rows.length : null;
-                    const isActive = idx === activeTypeIdx;
-                    rendered.push(
-                      <div key={ct.value} style={{ position: "relative" }}
-                        onMouseEnter={e => { const btn = e.currentTarget.querySelector<HTMLButtonElement>(".del-type-btn"); if (btn) btn.style.opacity = "1"; }}
-                        onMouseLeave={e => { const btn = e.currentTarget.querySelector<HTMLButtonElement>(".del-type-btn"); if (btn) btn.style.opacity = "0"; }}
-                      >
-                        <button onClick={() => { setActiveTypeIdx(idx); setSearch(""); }}
-                          style={{
-                            width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
-                            padding: "9px 12px", border: isActive ? `1px solid color-mix(in srgb, ${ct.color} 40%, transparent)` : "1px solid transparent",
-                            borderRadius: 10, background: isActive ? `color-mix(in srgb, ${ct.color} 10%, transparent)` : "transparent",
-                            cursor: "pointer", transition: "all 0.15s", textAlign: "left",
-                          }}
-                          onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--muted)"; }}
-                          onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = isActive ? `color-mix(in srgb, ${ct.color} 10%, transparent)` : "transparent"; }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <div style={{ width: 30, height: 30, borderRadius: 8, background: `color-mix(in srgb, ${ct.color} 15%, transparent)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                              <i className={`bi ${ct.icon}`} style={{ fontSize: 14, color: ct.color }} />
-                            </div>
-                            <span style={{ fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? ct.color : "var(--foreground)" }}>{ct.label}</span>
-                          </div>
-                          {count !== null && (
-                            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: `color-mix(in srgb, ${ct.color} 15%, transparent)`, color: ct.color }}>
-                              {count}
-                            </span>
-                          )}
-                        </button>
-                        {!ct.isSystem && (
-                          <button className="del-type-btn" onClick={() => setDeleteTypeTarget(ct)}
-                            style={{ position: "absolute", top: "50%", right: 6, transform: "translateY(-50%)", width: 22, height: 22, border: "none", borderRadius: 5, background: "rgba(239,68,68,0.12)", color: "#ef4444", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0, transition: "opacity 0.15s", zIndex: 1 }}>
-                            <i className="bi bi-trash3" style={{ fontSize: 10 }} />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  });
                 });
-                return rendered;
               })()}
             </div>
           </div>
@@ -918,7 +912,10 @@ export default function BoardCategoriesPage() {
                           </div>
                           {root.icon && <i className={`bi ${root.icon}`} style={{ color: root.color ?? activeType.color, fontSize: 15, flexShrink: 0 }} />}
                           <div style={{ minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{root.name}</p>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {root.name}
+                              {root.hasBom && <span style={{ marginLeft: 6, fontSize: 10, padding: "2px 6px", background: "var(--primary)", color: "#fff", borderRadius: 4 }}>BOM</span>}
+                            </p>
                             {hasChildren && <p style={{ margin: 0, fontSize: 10.5, color: "var(--muted-foreground)" }}>{children.length} danh mục con</p>}
                           </div>
                         </div>
@@ -946,7 +943,10 @@ export default function BoardCategoriesPage() {
                               <span style={{ color: "var(--border)", fontSize: 14, flexShrink: 0, lineHeight: 1 }}>{isLastChild ? "└" : "├"}</span>
                               {child.icon && <i className={`bi ${child.icon}`} style={{ color: child.color ?? root.color ?? activeType.color, fontSize: 13, flexShrink: 0 }} />}
                               {!child.icon && <span style={{ width: 8, height: 8, borderRadius: "50%", background: child.color ?? root.color ?? activeType.color, display: "inline-block", flexShrink: 0, opacity: 0.7 }} />}
-                              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{child.name}</span>
+                              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {child.name}
+                                {child.hasBom && <span style={{ marginLeft: 6, fontSize: 10, padding: "2px 6px", background: "var(--primary)", color: "#fff", borderRadius: 4 }}>BOM</span>}
+                              </span>
                             </div>
                             <div style={{ textAlign: "center" }}><span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{child.sortOrder}</span></div>
                             <div style={{ display: "flex", justifyContent: "center" }}>{renderStatusBtn(child)}</div>

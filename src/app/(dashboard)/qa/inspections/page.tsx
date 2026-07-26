@@ -278,21 +278,13 @@ export default function QaInspectionsPage() {
       render: (row) => (
         <div className="d-flex flex-column">
           <span className="fw-medium text-dark small">{row.inspector}</span>
-          <span className="text-muted" style={{ fontSize: 12 }}>{row.department}</span>
+          <span className="text-muted" style={{ fontSize: 12 }}>Bộ phận: {row.department}</span>
         </div>
       )
     },
     {
       header: "Thời gian thực hiện",
       render: (row) => <span className="text-muted small">{row.date}</span>
-    },
-    {
-      header: "Ghi chú",
-      render: (row) => (
-        <span className="text-muted small d-inline-block text-truncate" style={{ maxWidth: 200 }}>
-          {row.notes}
-        </span>
-      )
     }
   ];
 

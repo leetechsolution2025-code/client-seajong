@@ -74,15 +74,21 @@ export default function LogisticsOverviewPage() {
           }
         }
       } catch (error) {
-        console.error("Fetch export orders error:", error);
-        if (!isPolling && mounted) setLoading(false);
+        // Suppress network errors during polling (e.g. dev server restarted, offline)
+        if (!isPolling) {
+          console.error("Fetch export orders error:", error);
+          if (mounted) setLoading(false);
+        }
       }
     };
 
     fetchOrders(false);
 
     const interval = setInterval(() => {
-      fetchOrders(true);
+      // Chỉ poll dữ liệu nếu tab đang hiển thị để tránh lỗi và tiết kiệm tài nguyên
+      if (document.visibilityState === "visible") {
+        fetchOrders(true);
+      }
     }, 5000);
 
     return () => {

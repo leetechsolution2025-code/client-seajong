@@ -25,16 +25,16 @@ export async function GET(req: NextRequest) {
 
     import("fs").then(fs => fs.appendFileSync("/tmp/seajong-api-log.txt", `[API Call] page=${page} search='${search}' categoryId='${productCategoryId}'\n`));
 
-    const where: any = {};
-    if (productCategoryId) where.productCategoryId = productCategoryId;
+    const where: any = { category: { hasBom: true } };
+    if (productCategoryId) where.categoryId = productCategoryId;
 
-    const rawItems = await prisma.manufacturedProduct.findMany({
+    const rawItems = await prisma.materialItem.findMany({
       where,
       orderBy: { createdAt: "desc" },
       take: search ? 1000 : PAGE_SIZE,
       skip: search ? 0 : (page - 1) * PAGE_SIZE,
       include: {
-        productCategory: { select: { name: true } },
+        category: { select: { name: true } },
         dinhMucs: { select: { id: true, code: true, tenDinhMuc: true } }
       }
     });
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
         })
       : rawItems;
 
-    const total = search ? filtered.length : await prisma.manufacturedProduct.count({ where });
+    const total = search ? filtered.length : await prisma.materialItem.count({ where });
     const paginated = search
       ? filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
       : filtered;
@@ -80,8 +80,8 @@ export async function GET(req: NextRequest) {
       return {
         ...item,
         tenHang: item.name,
-        categoryId: item.productCategoryId,
-        category: item.productCategory,
+        categoryId: item.categoryId,
+        category: item.category,
         dinhMuc: item.dinhMucs?.[0] || null,
         source: "manufactured",
         soLuong,
@@ -115,18 +115,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Tên sản phẩm không được để trống" }, { status: 400 });
     }
 
-    const item = await prisma.manufacturedProduct.create({
+    const item = await prisma.materialItem.create({
       data: {
         code: code || undefined,
         name: name.trim(),
-        productCategoryId: productCategoryId || undefined,
+        categoryId: productCategoryId || undefined,
         unit: unit || "bộ",
-        defaultWarehouse: defaultWarehouse || "KHO-THANHPHAM",
-        notes: notes || undefined,
+        thongSoKyThuat: notes || undefined,
       }
     });
 
-    const mappedCategoryId = await syncCategoryToInventory(item.productCategoryId);
+    const mappedCategoryId = await syncCategoryToInventory(item.categoryId);
 
     // ĐỒNG BỘ: Tự động tạo InventoryItem để có thể Kiểm Kho / Xuất Kho
     if (item.code) {
@@ -139,7 +138,7 @@ export async function POST(req: NextRequest) {
           brand: "Seajong",
           categoryId: mappedCategoryId,
           donVi: item.unit || "bộ",
-          ghiChu: item.notes || "",
+          ghiChu: item.thongSoKyThuat || "",
           imageUrl: null,
           giaBan: (item as any).giaBan || 0,
         },
@@ -148,7 +147,7 @@ export async function POST(req: NextRequest) {
           loai: "thanh-pham",
           categoryId: mappedCategoryId,
           donVi: item.unit || "bộ",
-          ghiChu: item.notes || "",
+          ghiChu: item.thongSoKyThuat || "",
           giaBan: (item as any).giaBan || 0,
         }
       });

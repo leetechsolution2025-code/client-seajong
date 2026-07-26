@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 
 import { ProductDrawer, Product, Category, SyncLog } from "@/components/marketing/ProductDrawer";
+import { HoverImage } from "@/components/ui/HoverImage";
 
 type Pagination = {
   page: number;
@@ -39,7 +40,7 @@ function ProductCard({ p, cats, onClick }: { p: Product; cats: Category[]; onCli
     >
       <div style={{ height: 180, background: "#f5f5f5", overflow: "hidden", position: "relative", flexShrink: 0 }}>
         {p.images[0] && !imgError ? (
-          <img src={p.images[0]} alt={p.name} onError={() => setImgError(true)}
+          <HoverImage src={p.images[0]} images={p.images} alt={p.name} onError={() => setImgError(true)}
             style={{ width: "100%", height: "100%", objectFit: "contain", padding: 8 }} />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -968,7 +969,7 @@ export default function MarketingProductsPage() {
                     {/* Ảnh */}
                     <div style={{ width: 44, height: 44, borderRadius: 8, overflow: "hidden", background: "var(--muted)", flexShrink: 0 }}>
                       {p.images[0] ? (
-                        <img src={p.images[0]} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }} />
+                        <HoverImage src={p.images[0]} images={p.images} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }} />
                       ) : (
                         <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <i className="bi bi-image" style={{ fontSize: 16, color: "#ccc" }} />

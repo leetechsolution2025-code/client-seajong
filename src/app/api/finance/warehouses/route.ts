@@ -9,6 +9,7 @@ export async function GET() {
     // if (!session) return ...
 
     const warehouses = await prisma.warehouse.findMany({
+      where: { isActive: true },
       select: { id: true, name: true, code: true, type: true }
     });
 

@@ -19,6 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         dm.createdAt   AS dm_createdAt,
         dv.id          AS dv_id,
         dv.materialId  AS dv_materialId,
+        dv.maVatTu     AS dv_maVatTu,
         dv.tenVatTu    AS dv_tenVatTu,
         dv.soLuong     AS dv_soLuong,
         dv.donViTinh   AS dv_donViTinh,
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         mi.id          AS mi_id,
         mi.name        AS mi_name,
         mi.code        AS mi_code,
+        COALESCE(inv.maThayThe, mi.maThayThe) AS mi_maThayThe,
         mi.unit        AS mi_unit,
         mi.material    AS mi_material,
         mi.spec        AS mi_spec,
@@ -33,10 +35,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         mi.imageUrl    AS mi_imageUrl,
         mi.categoryId  AS mi_categoryId,
         mi.price       AS mi_price,
-        ic.name        AS mi_categoryName
+        ic.name        AS mi_categoryName,
+        ic.code        AS mi_categoryCode
       FROM DinhMuc dm
       LEFT JOIN DinhMucVatTu dv ON dv.dinhMucId = dm.id
       LEFT JOIN MaterialItem mi ON mi.id = dv.materialId
+      LEFT JOIN InventoryItem inv ON inv.code = mi.code
       LEFT JOIN Category ic ON ic.id = mi.categoryId
       WHERE dm.id = ${id}
       ORDER BY dv.id ASC
@@ -57,6 +61,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         .map((r: any) => ({
           id: r.dv_id,
           materialId: r.dv_materialId,
+          maVatTu: r.dv_maVatTu,
           tenVatTu: r.dv_tenVatTu,
           soLuong: r.dv_soLuong,
           donViTinh: r.dv_donViTinh,
@@ -65,13 +70,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             id: r.mi_id,
             tenHang: r.mi_name,
             code: r.mi_code,
+            maThayThe: r.mi_maThayThe,
             donVi: r.mi_unit,
             price: r.mi_price,
             material: r.mi_material,
             spec: r.mi_spec,
             thongSoKyThuat: r.mi_thongSoKyThuat,
             imageUrl: r.mi_imageUrl,
-            category: r.mi_categoryName ? { id: r.mi_categoryId, name: r.mi_categoryName } : null
+            category: r.mi_categoryName ? { id: r.mi_categoryId, name: r.mi_categoryName, code: r.mi_categoryCode } : null
           } : null
         }))
     };
@@ -91,17 +97,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { code, tenDinhMuc, vatTu = [] } = body;
+    const { code, tenDinhMuc, materialItemId, vatTu = [] } = body;
 
     // Xoá toàn bộ dòng cũ rồi tạo lại
     await prisma.$executeRaw`DELETE FROM DinhMucVatTu WHERE dinhMucId = ${id}`;
 
     await prisma.$executeRaw`
-      UPDATE DinhMuc SET code = ${code}, tenDinhMuc = ${tenDinhMuc}, updatedAt = CURRENT_TIMESTAMP
+      UPDATE DinhMuc 
+      SET code = ${code}, tenDinhMuc = ${tenDinhMuc}, materialItemId = ${materialItemId || null}, updatedAt = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
 
-    for (const v of vatTu) {
     for (const v of vatTu) {
       if (!v.materialId && (v.maVatTu || v.tenVatTu)) {
         let mat = null;

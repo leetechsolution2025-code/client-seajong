@@ -52,8 +52,7 @@ export function MissingMaterialsOffcanvas({ show, onClose }: { show: boolean; on
               <table className="table table-hover table-sm align-middle m-0">
                 <thead className="table-light">
                   <tr>
-                    <th className="px-3 py-2 text-muted fw-semibold" style={{ fontSize: "0.85rem", width: 120 }}>Mã vật tư</th>
-                    <th className="px-3 py-2 text-muted fw-semibold" style={{ fontSize: "0.85rem" }}>Tên vật tư</th>
+                    <th className="px-3 py-2 text-muted fw-semibold" style={{ fontSize: "0.8rem", width: 200 }}>Vật tư (Mã & Tên)</th>
                     <th className="px-3 py-2 text-muted fw-semibold text-center" style={{ fontSize: "0.85rem", width: 80 }}>Số lượng</th>
                     <th className="px-3 py-2 text-muted fw-semibold" style={{ fontSize: "0.85rem" }}>Định mức (BOM) sử dụng</th>
                   </tr>
@@ -61,13 +60,15 @@ export function MissingMaterialsOffcanvas({ show, onClose }: { show: boolean; on
                 <tbody>
                   {items.map((item, idx) => (
                     <tr key={idx}>
-                      <td className="px-3 py-2 fw-bold text-primary" style={{ fontSize: "0.9rem" }}>{item.maVatTu || "-"}</td>
-                      <td className="px-3 py-2 fw-medium text-dark">{item.tenVatTu}</td>
+                      <td className="px-3 py-2">
+                        <div className="fw-bold text-primary mb-1" style={{ fontSize: "0.85rem" }}>{item.maVatTu || "-"}</div>
+                        <div className="fw-medium text-dark text-wrap" style={{ fontSize: "0.8rem", lineHeight: "1.2" }}>{item.tenVatTu}</div>
+                      </td>
                       <td className="px-3 py-2 text-center text-danger fw-bold">{item.totalSoLuong}</td>
                       <td className="px-3 py-2">
                         <div className="d-flex flex-column gap-1">
                           {item.boms.map((b: any, bIdx: number) => (
-                            <span key={bIdx} className="badge bg-light text-secondary border text-start text-truncate" style={{ maxWidth: 250 }} title={b.name}>
+                            <span key={bIdx} className="badge bg-light text-secondary border text-start text-truncate" style={{ maxWidth: 250, fontSize: "0.75rem", fontWeight: "normal" }} title={b.name}>
                               {b.code ? `${b.code} - ` : ""}{b.name}
                             </span>
                           ))}

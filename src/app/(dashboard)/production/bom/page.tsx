@@ -14,6 +14,7 @@ export default function BOMPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [search, setSearch] = useState("");
+  const [filterCategoryId, setFilterCategoryId] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
 
   const [bomData, setBomData] = useState<any>({
@@ -31,24 +32,48 @@ export default function BOMPage() {
   const [searchMaterial, setSearchMaterial] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listGroupRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
 
   // Swap material state
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [swapIndex, setSwapIndex] = useState<number | null>(null);
-  const [swapSearch, setSwapSearch] = useState("");
-  const [swapOptions, setSwapOptions] = useState<any[]>([]);
+  const [swapSearchMode, setSwapSearchMode] = useState<"exact" | "group">("exact");
+  const [swapSearchText, setSwapSearchText] = useState("");
+  const [swapBaseExact, setSwapBaseExact] = useState("");
+  const [swapBaseGroup, setSwapBaseGroup] = useState("");
+  const [swapBaseOptions, setSwapBaseOptions] = useState<any[]>([]);
+  
+  const swapOptions = swapBaseOptions.filter(m => 
+    !swapSearchText || 
+    (m.name || m.tenHang || "").toLowerCase().includes(swapSearchText.toLowerCase()) || 
+    (m.code || "").toLowerCase().includes(swapSearchText.toLowerCase())
+  );
 
   useEffect(() => {
     if (showSwapModal) {
-      const isPureLetters = /^[a-zA-Z]+$/.test(swapSearch);
-      const queryParam = isPureLetters ? `exactLetterPrefix=${encodeURIComponent(swapSearch)}` : `search=${encodeURIComponent(swapSearch)}`;
-      fetch(`/api/production/materials?${queryParam}&page=1`)
+      if (swapSearchMode === "exact" && !swapBaseExact) {
+        setSwapBaseOptions([]);
+        return;
+      }
+      if (swapSearchMode === "group" && !swapBaseGroup) {
+        setSwapBaseOptions([]);
+        return;
+      }
+
+      let url = `/api/production/materials?page=1`;
+      if (swapSearchMode === "exact") {
+        url += `&exactCode=${encodeURIComponent(swapBaseExact)}`;
+      } else if (swapSearchMode === "group") {
+        url += `&categoryId=${encodeURIComponent(swapBaseGroup)}`;
+      }
+      
+      fetch(url)
         .then(res => res.json())
-        .then(data => setSwapOptions(data.items || []))
+        .then(data => setSwapBaseOptions(data.items || []))
         .catch(console.error);
     }
-  }, [swapSearch, showSwapModal]);
+  }, [swapBaseExact, swapBaseGroup, swapSearchMode, showSwapModal]);
 
   const [swapCounts, setSwapCounts] = useState<Record<string, number>>({});
 
@@ -56,9 +81,8 @@ export default function BOMPage() {
     if (bomData?.vatTu?.length > 0) {
       bomData.vatTu.forEach((row: any) => {
         let query = "";
-        if (row.material?.code) {
-          const match = row.material.code.match(/^[a-zA-Z]+/);
-          if (match) query = match[0];
+        if (row.material?.category?.code) {
+          query = row.material.category.code;
         }
         
         // Nếu không có mã thì không gợi ý
@@ -73,7 +97,7 @@ export default function BOMPage() {
           // Mark as fetching with -1 so we don't refetch
           const next = { ...prev, [query]: -1 };
           
-          fetch(`/api/production/materials?exactLetterPrefix=${encodeURIComponent(query)}&page=1`)
+          fetch(`/api/production/materials?search=${encodeURIComponent(query)}&page=1`)
             .then(res => res.json())
             .then(data => {
               setSwapCounts(p => ({ ...p, [query]: data.items?.length || 0 }));
@@ -111,7 +135,7 @@ export default function BOMPage() {
   const [priceSetup, setPriceSetup] = useState({ cost: 0, haoHutPct: 5, chiPhiSxPct: 20, marginPct: 30, finalPrice: 0 });
   const [applyAllPrice, setApplyAllPrice] = useState(false);
   useEffect(() => {
-    fetch("/api/plan-finance/categories?type=nhom_san_pham")
+    fetch("/api/plan-finance/categories?hasBom=true")
       .then(res => res.json())
       .then(data => setProductGroups(data))
       .catch(err => console.error(err));
@@ -198,7 +222,7 @@ export default function BOMPage() {
   const fetchProducts = useCallback(async () => {
     setLoadingProducts(true);
     try {
-      const res = await fetch(`/api/production/manufactured-products?search=${encodeURIComponent(search)}`);
+      const res = await fetch(`/api/production/manufactured-products?search=${encodeURIComponent(search)}&categoryId=${filterCategoryId}`);
       if (res.ok) {
         const data = await res.json();
         setProducts(data.items || []);
@@ -209,7 +233,7 @@ export default function BOMPage() {
     } finally {
       setLoadingProducts(false);
     }
-  }, [search]);
+  }, [search, filterCategoryId]);
 
   useEffect(() => {
     fetchProducts();
@@ -227,6 +251,45 @@ export default function BOMPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products]);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setSaving(true);
+    try {
+      const res = await fetch("/api/production/bom/import-excel", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        let msg = `Đã nhập thành công. Tạo mới ${data.bomsCreated}, Cập nhật ${data.bomsUpdated} định mức, thêm ${data.componentsAdded} vật tư.`;
+        toastSuccess("Import thành công", msg);
+        if (data.missingProducts?.length > 0) {
+          toastInfo("Cảnh báo", `Bỏ qua ${data.missingProducts.length} mã sản phẩm không tồn tại.`);
+        }
+        if (data.missingMaterials?.length > 0) {
+          toastInfo("Cảnh báo", `Thêm ${data.missingMaterials.length} mã vật tư không có trong hệ thống (lưu dạng text).`);
+        }
+        setSelectedProduct(null); // Xoá lựa chọn hiện tại để tự động load lại dữ liệu mới nhất
+        fetchProducts();
+      } else {
+        toastError("Lỗi Import", data.error || "Có lỗi xảy ra khi import");
+      }
+    } catch (e) {
+      console.error(e);
+      toastError("Lỗi", "Không thể kết nối máy chủ");
+    } finally {
+      setSaving(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   const fetchBom = async (bomId: string | null, product: any = null) => {
     if (!bomId) {
@@ -326,7 +389,7 @@ export default function BOMPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...bomData,
-            manufacturedProductId: selectedProduct.id
+            materialItemId: selectedProduct.id
           })
         });
       }
@@ -429,7 +492,7 @@ export default function BOMPage() {
             </div>
             {count === 0 && (
               <div className="mt-1">
-                <span className="badge rounded-pill bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25" style={{ fontSize: "0.6rem", padding: "0.15em 0.4em", fontWeight: 500 }}>Chưa có định mức</span>
+                <span className="badge rounded-pill bg-light text-muted border border-secondary border-opacity-25" style={{ fontSize: "0.6rem", padding: "0.15em 0.4em", fontWeight: 500 }}>Chưa có định mức</span>
               </div>
             )}
           </div>
@@ -456,9 +519,26 @@ export default function BOMPage() {
 
             <div className="d-flex justify-content-between align-items-center mb-3">
               <SectionTitle title="Sản phẩm sản xuất" icon="bi-box" className="mb-0" />
-              <button className="btn btn-sm btn-primary" onClick={() => { resetProductForm(); setShowAddProduct(true); }}>
-                <i className="bi bi-plus-lg"></i>
-              </button>
+              <div className="d-flex gap-2">
+                <input
+                  type="file"
+                  accept=".xlsx, .xls"
+                  className="d-none"
+                  ref={fileInputRef}
+                  onChange={handleImportExcel}
+                />
+                <button
+                  className="btn btn-sm btn-outline-success"
+                  title="Import Excel"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={saving}
+                >
+                  <i className="bi bi-upload"></i>
+                </button>
+                <button className="btn btn-sm btn-primary" onClick={() => { resetProductForm(); setShowAddProduct(true); }}>
+                  <i className="bi bi-plus-lg"></i>
+                </button>
+              </div>
             </div>
 
             {/* Offcanvas Add Product */}
@@ -622,12 +702,25 @@ export default function BOMPage() {
             </div>
             {showPriceOffcanvas && <div className="offcanvas-backdrop fade show" onClick={() => setShowPriceOffcanvas(false)} style={{ zIndex: 1040 }}></div>}
 
-            <div className="mb-3">
-              <SearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder="Tìm mã, tên sản phẩm..."
-              />
+            <div className="mb-3 d-flex gap-2">
+              <select
+                className="form-select form-select-sm"
+                style={{ width: "200px" }}
+                value={filterCategoryId}
+                onChange={(e) => setFilterCategoryId(e.target.value)}
+              >
+                <option value="">-- Tất cả nhóm hàng --</option>
+                {productGroups.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+              <div className="flex-grow-1">
+                <SearchInput
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Tìm kiếm hàng hoá..."
+                />
+              </div>
             </div>
             <div className="flex-grow-1 overflow-auto pe-2">
               <Table
@@ -685,46 +778,48 @@ export default function BOMPage() {
                     <span><i className="bi bi-tag me-1"></i>ĐVT: {selectedProduct.unit}</span>
                     <span><i className="bi bi-building me-1"></i>Kho: {selectedProduct.defaultWarehouse || "N/A"}</span>
                   </div>
-                  <div className="d-flex flex-wrap gap-3 align-items-center bg-light px-2 py-1 rounded w-100 mt-1">
-                    <div className="d-flex align-items-center gap-2">
-                      <span className="text-muted small">Giá vốn vật tư:</span>
-                      <span className="fw-bold text-dark me-3">
-                        {bomData.vatTu.reduce((sum: number, item: any) => sum + (Number(item.soLuong) || 0) * (item.material?.price || item.material?.giaNhap || 0), 0).toLocaleString()} đ
-                      </span>
-                    </div>
-                    <div className="d-flex align-items-center gap-2">
-                      <span className="text-muted small">Giá bán đề xuất:</span>
-                      <span className="fw-bold text-success">{selectedProduct.giaBan ? `${selectedProduct.giaBan.toLocaleString()} đ` : "--- đ"}</span>
-                      <button
-                        className="btn btn-sm btn-outline-success py-0 px-2"
-                        title="Cập nhật giá bán"
-                        onClick={() => {
-                          const cost = bomData.vatTu.reduce((sum: number, item: any) => sum + (Number(item.soLuong) || 0) * (item.material?.price || item.material?.giaNhap || 0), 0);
-                          const suggested = Math.round((cost * 1.30) / 1000) * 1000; // Default 30% margin, rounded to thousands
-                          const finalP = selectedProduct.giaBan || suggested;
-                          setPriceSetup({
-                            cost,
-                            haoHutPct: 0,
-                            chiPhiSxPct: 0,
-                            marginPct: 30,
-                            finalPrice: Math.round(finalP / 1000) * 1000
-                          });
+                  {bomData?.id && (
+                    <div className="d-flex flex-wrap gap-3 align-items-center bg-light px-2 py-1 rounded w-100 mt-1">
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="text-muted small">Giá vốn vật tư:</span>
+                        <span className="fw-bold text-dark me-3">
+                          {bomData.vatTu.reduce((sum: number, item: any) => sum + (Number(item.soLuong) || 0) * (item.material?.price || item.material?.giaNhap || 0), 0).toLocaleString()} đ
+                        </span>
+                      </div>
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="text-muted small">Giá bán đề xuất:</span>
+                        <span className="fw-bold text-success">{selectedProduct.giaBan ? `${selectedProduct.giaBan.toLocaleString()} đ` : "--- đ"}</span>
+                        <button
+                          className="btn btn-sm btn-outline-success py-0 px-2"
+                          title="Cập nhật giá bán"
+                          onClick={() => {
+                            const cost = bomData.vatTu.reduce((sum: number, item: any) => sum + (Number(item.soLuong) || 0) * (item.material?.price || item.material?.giaNhap || 0), 0);
+                            const suggested = Math.round((cost * 1.30) / 1000) * 1000; // Default 30% margin, rounded to thousands
+                            const finalP = selectedProduct.giaBan || suggested;
+                            setPriceSetup({
+                              cost,
+                              haoHutPct: 0,
+                              chiPhiSxPct: 0,
+                              marginPct: 30,
+                              finalPrice: Math.round(finalP / 1000) * 1000
+                            });
 
-                          setMarketPrice(null);
-                          setLoadingMarketPrice(true);
-                          fetch(`/api/production/market-price?name=${encodeURIComponent(selectedProduct.name)}`)
-                            .then(res => res.json())
-                            .then(data => setMarketPrice(data.price))
-                            .catch(() => setMarketPrice(null))
-                            .finally(() => setLoadingMarketPrice(false));
+                            setMarketPrice(null);
+                            setLoadingMarketPrice(true);
+                            fetch(`/api/production/market-price?name=${encodeURIComponent(selectedProduct.name)}`)
+                              .then(res => res.json())
+                              .then(data => setMarketPrice(data.price))
+                              .catch(() => setMarketPrice(null))
+                              .finally(() => setLoadingMarketPrice(false));
 
-                          setShowPriceOffcanvas(true);
-                        }}
-                      >
-                        <i className="bi bi-pencil-square"></i>
-                      </button>
+                            setShowPriceOffcanvas(true);
+                          }}
+                        >
+                          <i className="bi bi-pencil-square"></i>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 <div className="row mb-4">
@@ -898,8 +993,9 @@ export default function BOMPage() {
                           bomData.vatTu.map((row: any, idx: number) => (
                             <tr key={idx}>
                               <td className="text-center align-middle text-muted" style={{ padding: "6px 8px" }}>{idx + 1}</td>
-                              <td className="align-middle fw-medium" style={{ padding: "6px 8px" }}>
-                                {row.tenVatTu}
+                              <td className="align-middle" style={{ padding: "6px 8px" }}>
+                                <div className="fw-medium text-dark">{row.material?.tenHang || row.tenVatTu || "Chưa xác định"}</div>
+                                <div className="small text-muted font-monospace mt-1"><i className="bi bi-upc-scan me-1"></i>{row.material?.code || row.maVatTu || "Không có mã"}</div>
                               </td>
                               <td className="align-middle" style={{ padding: "6px 8px" }}>
                                 <input
@@ -922,21 +1018,24 @@ export default function BOMPage() {
                                 <div className="d-flex align-items-center justify-content-center gap-1">
                                   {(() => {
                                     let query = "";
-                                    if (row.material?.code) {
-                                      const match = row.material.code.match(/^[a-zA-Z]+/);
-                                      if (match) query = match[0];
+                                    if (row.material?.category?.code) {
+                                      query = row.material.category.code;
                                     }
                                     
                                     const count = query ? (swapCounts[query] || 0) : 0;
                                     const isDisabled = count !== -1 && count <= 1;
                                     return (
                                       <button 
-                                        className={`btn btn-sm btn-light text-primary p-1 ${isDisabled ? 'opacity-25' : ''}`} 
-                                        title={isDisabled ? "Không có vật tư cùng loại" : "Đổi vật tư"}
-                                        disabled={isDisabled}
+                                        className="btn btn-sm btn-light text-primary p-1" 
+                                        title="Đổi vật tư"
                                         onClick={() => {
                                           setSwapIndex(idx);
-                                          setSwapSearch(query || "");
+                                          const rowMaThayThe = row.material?.maThayThe || "";
+                                          const rowCategoryId = row.material?.category?.id || "";
+                                          setSwapBaseExact(rowMaThayThe);
+                                          setSwapBaseGroup(rowCategoryId);
+                                          setSwapSearchMode("exact");
+                                          setSwapSearchText("");
                                           setShowSwapModal(true);
                                         }}
                                       >
@@ -1002,13 +1101,39 @@ export default function BOMPage() {
                   type="text"
                   className="form-control form-control-lg bg-light"
                   placeholder="Tìm kiếm vật tư thay thế..."
-                  value={swapSearch}
-                  onChange={e => setSwapSearch(e.target.value)}
+                  value={swapSearchText}
+                  onChange={e => setSwapSearchText(e.target.value)}
                   autoFocus
                 />
-                <div className="form-text text-muted small mt-2">
-                  <i className="bi bi-lightbulb text-warning me-1"></i>
-                  Gợi ý tự động dựa trên các ký tự đầu mã định danh
+                {swapIndex !== null && bomData?.vatTu?.[swapIndex] && (() => {
+                  const r = bomData.vatTu[swapIndex];
+                  const fullName = r.material?.tenHang || r.material?.name || r.tenVatTu;
+                  return (
+                    <div className="mt-2 p-2 bg-white rounded border border-light shadow-sm">
+                      <div className="text-muted small mb-1 fst-italic">
+                        Đang thay đổi cho: <strong className="text-dark">{fullName}</strong>
+                      </div>
+                      <div className="d-flex flex-wrap gap-3 text-secondary" style={{ fontSize: "0.75rem" }}>
+                        <span>Mã TP: <strong className="text-dark">{r.material?.code || "N/A"}</strong></span>
+                        <span>Mã nhóm PM: <strong className="text-dark">{r.material?.category?.code || "N/A"}</strong></span>
+                        <span>Mã thay thế: <strong className="text-dark">{r.material?.maThayThe || "N/A"}</strong></span>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <div className="d-flex align-items-center gap-3 mt-2 ms-1">
+                  <div className="form-check form-check-inline m-0">
+                    <input className="form-check-input" type="radio" name="swapMode" id="modeExact" value="exact" checked={swapSearchMode === "exact"} onChange={() => {
+                      setSwapSearchMode("exact");
+                    }} />
+                    <label className="form-check-label small cursor-pointer" htmlFor="modeExact">Chính xác</label>
+                  </div>
+                  <div className="form-check form-check-inline m-0">
+                    <input className="form-check-input" type="radio" name="swapMode" id="modeGroup" value="group" checked={swapSearchMode === "group"} onChange={() => {
+                      setSwapSearchMode("group");
+                    }} />
+                    <label className="form-check-label small cursor-pointer" htmlFor="modeGroup">Theo nhóm</label>
+                  </div>
                 </div>
               </div>
               

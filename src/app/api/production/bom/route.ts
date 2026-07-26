@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { originalCode, tenDinhMuc, manufacturedProductId, vatTu = [] } = body;
+    const { originalCode, tenDinhMuc, materialItemId, manufacturedProductId, vatTu = [] } = body;
 
     let finalCode = "";
     if (originalCode) {
@@ -42,7 +42,6 @@ export async function POST(req: NextRequest) {
       finalCode = `DM-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     }
 
-    for (const v of vatTu) {
     for (const v of vatTu) {
       if (!v.materialId && (v.maVatTu || v.tenVatTu)) {
         let mat = null;
@@ -77,6 +76,7 @@ export async function POST(req: NextRequest) {
         code: finalCode,
         tenDinhMuc,
         manufacturedProductId: manufacturedProductId || null,
+        materialItemId: materialItemId || null,
         vatTu: {
           create: vatTu.map((v: any) => ({
             materialId: v.materialId || null,

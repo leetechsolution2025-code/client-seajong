@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { useSession }           from "next-auth/react";
 import { SplitLayoutPage }    from "@/components/layout/SplitLayoutPage";
 import { SectionTitle }       from "@/components/ui/SectionTitle";
 import { KPICard }            from "@/components/ui/KPICard";
@@ -512,8 +513,12 @@ function InventoryDetailOffcanvas({ open, item, onClose, onDeleted, onUpdated }:
   };
   const sc = item ? (STATUS_CFG[item.trangThai] ?? STATUS_CFG["con-hang"]) : STATUS_CFG["con-hang"];
 
+  const { data: session } = useSession();
+  const canViewPrice = session?.user?.role === "ADMIN" || session?.user?.permissions?.includes("view_prices");
+
   const fmt    = (n?: number) => (n ?? 0).toLocaleString("vi-VN");
   const fmtVnd = (n?: number) => {
+    if (!canViewPrice) return "*****";
     if (!n) return "0 đ";
     if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2).replace(".", ",") + " tỷ đ";
     if (n >= 1_000_000)     return (n / 1_000_000).toFixed(2).replace(".", ",") + " triệu đ";
@@ -734,24 +739,26 @@ function InventoryDetailOffcanvas({ open, item, onClose, onDeleted, onUpdated }:
                   </div>
 
                   {/* Giá nhập + Giá bán */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Giá nhập (₫)</label>
-                      <CurrencyInput
-                        value={Number(editForm.giaNhap)}
-                        onChange={v => setEditForm(f => ({ ...f, giaNhap: v }))}
-                        style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", borderRadius: 8, fontFamily: "inherit" }}
-                      />
+                  {canViewPrice && (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Giá nhập (₫)</label>
+                        <CurrencyInput
+                          value={Number(editForm.giaNhap)}
+                          onChange={v => setEditForm(f => ({ ...f, giaNhap: v }))}
+                          style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", borderRadius: 8, fontFamily: "inherit" }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Giá bán (₫)</label>
+                        <CurrencyInput
+                          value={Number(editForm.giaBan)}
+                          onChange={v => setEditForm(f => ({ ...f, giaBan: v }))}
+                          style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", borderRadius: 8, fontFamily: "inherit" }}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Giá bán (₫)</label>
-                      <CurrencyInput
-                        value={Number(editForm.giaBan)}
-                        onChange={v => setEditForm(f => ({ ...f, giaBan: v }))}
-                        style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", borderRadius: 8, fontFamily: "inherit" }}
-                      />
-                    </div>
-                  </div>
+                  )}
 
                   {/* Thông số kỹ thuật */}
                   <div>
@@ -1120,8 +1127,12 @@ function InventoryDetailOffcanvas({ open, item, onClose, onDeleted, onUpdated }:
 
 // ── KPI Grid (2×2) ────────────────────────────────────────────────────────────
 function InventoryKpis({ stats, loading }: { stats: InventoryStats | null; loading: boolean }) {
+  const { data: session } = useSession();
+  const canViewPrice = session?.user?.role === "ADMIN" || session?.user?.permissions?.includes("view_prices");
+
   const fmt    = (n: number) => n.toLocaleString("vi-VN");
   const fmtVnd = (n: number) => {
+    if (!canViewPrice) return "*****";
     if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1).replace(".", ",") + " tỷ ₫";
     if (n >= 1_000_000)     return (n / 1_000_000).toFixed(1).replace(".", ",") + " triệu ₫";
     return fmt(n) + " ₫";
@@ -1150,6 +1161,9 @@ function InventoryKpis({ stats, loading }: { stats: InventoryStats | null; loadi
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
   const toast = useToast();
+  const { data: session } = useSession();
+  const canViewPrice = session?.user?.role === "ADMIN" || session?.user?.permissions?.includes("view_prices");
+
   const [stats, setStats]               = React.useState<InventoryStats | null>(null);
   const [loading, setLoading]           = React.useState(true);
   const [chartMode, setChartMode]       = React.useState<"quantity" | "value">("quantity");
@@ -1309,7 +1323,7 @@ export default function InventoryPage() {
               }}>
                 {([
                   { val: "quantity", label: "Số lượng" },
-                  { val: "value",    label: "Giá trị"  },
+                  ...(canViewPrice ? [{ val: "value", label: "Giá trị" }] : []),
                 ] as { val: "quantity" | "value"; label: string }[]).map(opt => (
                   <label
                     key={opt.val}

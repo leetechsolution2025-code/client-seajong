@@ -2,6 +2,7 @@
 
 import React from "react";
 import { X, PackageSearch, Tag, Layers, Info, MapPin, Database, Clock, Package, Trash2, Pencil } from "lucide-react";
+import { HoverImage } from "@/components/ui/HoverImage";
 
 interface Item {
   id: string;
@@ -127,7 +128,7 @@ export function LogisticsItemDetailOffcanvas({ item, open, onClose, onEdit, onDe
               }}
             >
               {item.imageUrl ? (
-                <img src={item.imageUrl} alt={item.tenHang} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <HoverImage src={item.imageUrl} alt={item.tenHang} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
                 <div className="w-100 h-100 d-flex align-items-center justify-content-center text-muted opacity-20">
                   <Package size={48} />

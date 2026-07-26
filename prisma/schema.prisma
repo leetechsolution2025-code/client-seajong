@@ -397,6 +397,7 @@ model Category {
   description          String?
   sortOrder            Int                   @default(0)
   isActive             Boolean               @default(true)
+  hasBom               Boolean               @default(false)
   clientId             String?
   parentId             String?
   createdAt            DateTime              @default(now())
@@ -859,6 +860,7 @@ model Warehouse {
 model InventoryItem {
   id                   String                @id @default(cuid())
   code                 String?               @unique
+  maThayThe            String?
   tenHang              String
   loai                 String?               @default("hang-hoa")
   brand                String?               @default("Seajong")
@@ -904,6 +906,7 @@ model InventoryItem {
 model MaterialItem {
   id             String          @id @default(cuid())
   code           String?         @unique
+  maThayThe      String?
   name           String
   unit           String?         @default("cái")
   price          Float           @default(0)
@@ -924,6 +927,7 @@ model MaterialItem {
   dinhMucVatTu   DinhMucVatTu[]
   category       Category?       @relation(fields: [categoryId], references: [id])
   stocks         MaterialStock[]
+  dinhMucs       DinhMuc[]
 }
 
 model MaterialStock {
@@ -972,8 +976,12 @@ model DinhMuc {
   manufacturedProductId String?
   manufacturedProduct   ManufacturedProduct? @relation(fields: [manufacturedProductId], references: [id], onDelete: Cascade)
 
+  materialItemId String?
+  materialItem   MaterialItem? @relation(fields: [materialItemId], references: [id], onDelete: Cascade)
+
   @@index([code])
   @@index([manufacturedProductId])
+  @@index([materialItemId])
 }
 
 model DinhMucVatTu {
