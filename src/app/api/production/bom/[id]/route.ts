@@ -157,6 +157,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // UPDATE ManufacturedProduct is removed because DinhMuc now references ManufacturedProduct, and deleting DinhMuc handles it.
+    const dm = await prisma.dinhMuc.findUnique({
+      where: { id },
+      include: { materialItem: true }
+    });
+    if (dm && dm.code === `DM-${dm.materialItem?.code}`) {
+      return NextResponse.json({ error: "Không được phép xoá định mức tiêu chuẩn" }, { status: 400 });
+    }
+
     await prisma.$executeRaw`DELETE FROM DinhMucVatTu WHERE dinhMucId = ${id}`;
     await prisma.$executeRaw`DELETE FROM DinhMuc WHERE id = ${id}`;
     return NextResponse.json({ ok: true });

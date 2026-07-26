@@ -147,11 +147,11 @@ export async function POST(req: NextRequest) {
             bomsUpdated++;
           } else {
             // Tạo mới định mức
-            const codeDm = `DM-${rawPCode}-01`;
+            const codeDm = `DM-${rawPCode}`;
             dinhMuc = await prisma.dinhMuc.create({
               data: {
                 code: codeDm,
-                tenDinhMuc: `Định mức ${rawPCode}`,
+                tenDinhMuc: `Định mức tiêu chuẩn ${rawPCode}`,
                 materialItemId: product.id
               }
             });

@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import BomDiffOffcanvas from "@/components/production/BomDiffOffcanvas";
 
 
 export default function BOMPage() {
@@ -22,6 +23,8 @@ export default function BOMPage() {
     tenDinhMuc: "",
     vatTu: []
   });
+  const [standardBomData, setStandardBomData] = useState<any>(null);
+  const [showBomDiff, setShowBomDiff] = useState(false);
   const [loadingBom, setLoadingBom] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showConfirmDeleteBom, setShowConfirmDeleteBom] = useState(false);
@@ -252,6 +255,47 @@ export default function BOMPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products]);
 
+  useEffect(() => {
+    if (selectedProduct && selectedProduct.dinhMucs?.length > 0) {
+      const standardBomCode = `DM-${selectedProduct.code}`;
+      const standardBom = selectedProduct.dinhMucs.find((dm: any) => dm.code === standardBomCode);
+      const targetId = standardBom?.id || selectedProduct.dinhMucs[0].id;
+      
+      fetch(`/api/production/bom/${targetId}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data) setStandardBomData(data);
+          else setStandardBomData(null);
+        })
+        .catch(console.error);
+    } else {
+      setStandardBomData(null);
+    }
+  }, [selectedProduct]);
+
+  const isStandardBom = bomData?.code === `DM-${selectedProduct?.code}`;
+  
+  const isSameAsStandard = useMemo(() => {
+    if (isStandardBom) return false;
+    if (!standardBomData || !bomData.vatTu) return false;
+    
+    const standardVatTu = standardBomData.vatTu || [];
+    const currentVatTu = bomData.vatTu || [];
+    
+    if (standardVatTu.length !== currentVatTu.length) return false;
+    
+    const stdMap = new Map();
+    standardVatTu.forEach((v: any) => stdMap.set(v.material?.code || v.maVatTu, v.soLuong));
+    
+    for (const v of currentVatTu) {
+      const key = v.material?.code || v.maVatTu;
+      if (!stdMap.has(key)) return false;
+      if (stdMap.get(key) !== v.soLuong) return false;
+    }
+    
+    return true;
+  }, [bomData.vatTu, standardBomData, isStandardBom]);
+
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -342,7 +386,7 @@ export default function BOMPage() {
     if (!bomData.id) return;
     setDeletingBom(true);
     try {
-      const res = await fetch(`/api/production/manufactured-products/${selectedProduct.id}`, {
+      const res = await fetch(`/api/production/bom/${bomData.id}`, {
         method: "DELETE"
       });
       if (res.ok) {
@@ -832,13 +876,13 @@ export default function BOMPage() {
                         onChange={(e) => {
                           const val = e.target.value;
                           if (val === "NEW") {
-                            const nextIndex = (selectedProduct?.dinhMucs?.length || 0) + 1;
+                            const nextIndex = selectedProduct?.dinhMucs?.length || 1;
                             const nextSuffix = String(nextIndex).padStart(2, '0');
                             setBomData((prev: any) => ({
                               ...prev,
                               id: undefined,
                               code: `DM-${selectedProduct?.code || Date.now()}-${nextSuffix}`,
-                              tenDinhMuc: `${prev.tenDinhMuc || selectedProduct?.name || ""} (Bản sao)`
+                              tenDinhMuc: `Biến thể của định mức tiêu chuẩn ${selectedProduct?.name || ""}`
                             }));
                           } else {
                             fetchBom(val);
@@ -868,13 +912,25 @@ export default function BOMPage() {
                     )}
                   </div>
                   <div className="col-md-8">
-                    <label className="form-label small text-muted">Tên Định Mức</label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      value={bomData.tenDinhMuc || ""}
-                      onChange={e => setBomData({ ...bomData, tenDinhMuc: e.target.value })}
-                    />
+                    <label className="form-label small text-muted">{isStandardBom ? "Mô tả định mức" : "Mô tả định mức biến thể"}</label>
+                    <div className="input-group input-group-sm">
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={bomData.tenDinhMuc || ""}
+                        onChange={e => setBomData({ ...bomData, tenDinhMuc: e.target.value })}
+                        disabled={isStandardBom}
+                      />
+                      <button 
+                        className="btn btn-outline-secondary" 
+                        type="button"
+                        title={isStandardBom ? "Đây là định mức tiêu chuẩn" : "Đối soát vật tư với tiêu chuẩn"}
+                        disabled={isStandardBom}
+                        onClick={() => setShowBomDiff(true)}
+                      >
+                        <i className="bi bi-three-dots"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -895,6 +951,7 @@ export default function BOMPage() {
                             searchInputRef.current?.focus();
                           }, 100);
                         }}
+                        disabled={isStandardBom}
                       >
                         <i className="bi bi-plus-lg me-1"></i> Thêm vật tư
                       </button>
@@ -960,12 +1017,18 @@ export default function BOMPage() {
                       <button
                         className="btn btn-sm btn-outline-danger"
                         onClick={() => setShowConfirmDeleteBom(true)}
-                        title="Xóa định mức"
+                        title={bomData.code === `DM-${selectedProduct?.code}` ? "Không thể xoá định mức tiêu chuẩn" : "Xóa định mức"}
+                        disabled={bomData.code === `DM-${selectedProduct?.code}`}
                       >
                         <i className="bi bi-trash"></i> Xóa
                       </button>
                     )}
-                    <button className="btn btn-sm btn-primary" onClick={handleSaveBom} disabled={saving}>
+                    <button 
+                      className="btn btn-sm btn-primary" 
+                      onClick={handleSaveBom} 
+                      disabled={saving || isSameAsStandard || isStandardBom}
+                      title={isStandardBom ? "Không thể sửa định mức tiêu chuẩn" : isSameAsStandard ? "Danh sách vật tư trùng khớp hoàn toàn với tiêu chuẩn, vui lòng thay đổi để lưu bản biến thể" : ""}
+                    >
                       {saving ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-save me-2"></i>}
                       Lưu định mức
                     </button>
@@ -1003,6 +1066,7 @@ export default function BOMPage() {
                                   className="form-control form-control-sm border-0 bg-transparent px-1"
                                   value={row.donViTinh}
                                   onChange={e => updateMaterialLine(idx, "donViTinh", e.target.value)}
+                                  disabled={isStandardBom}
                                 />
                               </td>
                               <td className="align-middle" style={{ padding: "6px 8px" }}>
@@ -1012,6 +1076,7 @@ export default function BOMPage() {
                                   value={row.soLuong}
                                   onChange={e => updateMaterialLine(idx, "soLuong", parseFloat(e.target.value) || 0)}
                                   min="0" step="0.1"
+                                  disabled={isStandardBom}
                                 />
                               </td>
                               <td className="text-center align-middle" style={{ padding: "6px 8px" }}>
@@ -1038,12 +1103,13 @@ export default function BOMPage() {
                                           setSwapSearchText("");
                                           setShowSwapModal(true);
                                         }}
+                                        disabled={isDisabled || isStandardBom}
                                       >
                                         <i className="bi bi-arrow-left-right"></i>
                                       </button>
                                     );
                                   })()}
-                                  <button className="btn btn-sm btn-light text-danger p-1" onClick={() => removeMaterialLine(idx)} title="Xóa">
+                                  <button className="btn btn-sm btn-light text-danger p-1" onClick={() => removeMaterialLine(idx)} title="Xóa" disabled={isStandardBom}>
                                     <i className="bi bi-trash"></i>
                                   </button>
                                 </div>
@@ -1189,6 +1255,14 @@ export default function BOMPage() {
           <div className="offcanvas-backdrop fade show" onClick={() => setShowSwapModal(false)} style={{ zIndex: 1050 }}></div>
         </>
       )}
+
+      <BomDiffOffcanvas 
+        show={showBomDiff} 
+        onClose={() => setShowBomDiff(false)} 
+        bomData={bomData} 
+        standardBomData={standardBomData} 
+        productName={selectedProduct?.name || selectedProduct?.tenHang || ""} 
+      />
     </StandardPage>
   );
 }

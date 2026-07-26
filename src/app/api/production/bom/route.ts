@@ -10,35 +10,10 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { originalCode, tenDinhMuc, materialItemId, manufacturedProductId, vatTu = [] } = body;
+    const { code, tenDinhMuc, materialItemId, manufacturedProductId, vatTu = [] } = body;
 
-    let finalCode = "";
-    if (originalCode) {
-      const existingBoms = await prisma.dinhMuc.findMany({
-        where: { code: { startsWith: `${originalCode}-` } },
-        select: { code: true }
-      });
-      const existingNumbers: number[] = [];
-      for (const b of existingBoms) {
-        if (!b.code) continue;
-        const parts = b.code.split('-');
-        const lastPart = parts[parts.length - 1];
-        const num = parseInt(lastPart, 10);
-        if (!isNaN(num) && num > 0) {
-          existingNumbers.push(num);
-        }
-      }
-      existingNumbers.sort((a, b) => a - b);
-      let nextNum = 1;
-      for (const num of existingNumbers) {
-        if (num === nextNum) {
-          nextNum++;
-        } else if (num > nextNum) {
-          break;
-        }
-      }
-      finalCode = `${originalCode}-${String(nextNum).padStart(2, '0')}`;
-    } else {
+    let finalCode = code;
+    if (!finalCode) {
       finalCode = `DM-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     }
 
