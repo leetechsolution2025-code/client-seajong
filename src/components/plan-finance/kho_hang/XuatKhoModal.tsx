@@ -221,7 +221,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
           donVi: null, // we don't have unit directly on SaleOrderItem, wait: inventoryItem has it?
           soLuong: it.soLuong,
           donGia: it.donGia,
-          inventoryItemId: it.inventoryItemId,
+          inventoryItemId: it.inventoryItemId || it.inventoryItem?.id || null,
           inventoryItem: it.inventoryItem ?? null,
         }));
       }
@@ -229,6 +229,25 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
       if (rawLines.length === 0) {
         setLines([emptyLine()]);
         return;
+      }
+
+      // Tự động chuyển Kho xuất sang KVP nếu đơn hàng chủ yếu là Vật tư
+      let overriddenWarehouseId: string | undefined = undefined;
+      if (so.type === "sale-order" && warehouses.length > 0) {
+        let vatTuCount = 0;
+        let hangHoaCount = 0;
+        rawLines.forEach((r: any) => {
+          if (r.inventoryItem?.loai === "vat-tu") vatTuCount++;
+          else hangHoaCount++;
+        });
+
+        if (vatTuCount > 0 && vatTuCount >= hangHoaCount) {
+          const kvp = warehouses.find(w => w.code === "KVP" || w.name.toLowerCase().includes("vật tư"));
+          if (kvp && fromWarehouseId !== kvp.id) {
+            setFromWarehouseId(kvp.id);
+            overriddenWarehouseId = kvp.id;
+          }
+        }
       }
 
       // Map thành StockLine, rồi nếu có inventoryItem → tìm tồn kho theo kho đã chọn
@@ -413,23 +432,32 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
   React.useEffect(() => {
     if (!fromWarehouseId) return;
     setLines(ls => ls.map(l => {
-      if (!l.item) return l;
       // Reset tồn — sẽ được cập nhật khi search lại
       return { ...l, soLuongTon: undefined };
     }));
     // Fetch tồn mới theo kho vừa chọn
-    const cur = lines.filter(l => l.item);
+    const cur = lines.filter(l => l.itemSearch.trim() !== "");
     if (!cur.length) return;
     // Fetch từng item theo kho mới
     cur.forEach(l => {
-      if (!l.item) return;
-      fetch(`/api/plan-finance/inventory/search?q=${encodeURIComponent(l.item.tenHang)}&limit=20&warehouseId=${fromWarehouseId}`)
+      fetch(`/api/plan-finance/inventory/search?q=${encodeURIComponent(l.itemSearch)}&limit=1&warehouseId=${fromWarehouseId}`)
         .then(r => r.json())
-        .then((data: { id: string; soLuongTon?: number }[]) => {
-          const found = Array.isArray(data) ? data.find(x => x.id === l.item!.id) : null;
-          setLines(prev => prev.map(pl =>
-            pl.id === l.id ? { ...pl, soLuongTon: found?.soLuongTon } : pl
-          ));
+        .then((data: { id: string; tenHang: string; soLuongTon?: number; code: string | null; donVi: string | null; giaNhap: number; viTriHang?: string | null; viTriCot?: string | null; viTriTang?: string | null }[]) => {
+          if (!Array.isArray(data) || !data.length) return;
+          const found = data.find(x => x.tenHang.toLowerCase() === l.itemSearch.toLowerCase()) ?? data[0];
+          setLines(prev => prev.map(pl => {
+            if (pl.id !== l.id) return pl;
+            return { 
+              ...pl, 
+              soLuongTon: found.soLuongTon,
+              item: pl.item || {
+                id: found.id, code: found.code, tenHang: found.tenHang,
+                donVi: found.donVi, giaNhap: found.giaNhap,
+                soLuongTon: found.soLuongTon,
+                viTriHang: found.viTriHang, viTriCot: found.viTriCot, viTriTang: found.viTriTang,
+              }
+            };
+          }));
         })
         .catch(() => {});
     });

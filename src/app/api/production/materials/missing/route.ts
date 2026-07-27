@@ -53,8 +53,18 @@ export async function GET(req: NextRequest) {
     }
 
     const items = Array.from(grouped.values()).sort((a, b) => a.tenVatTu.localeCompare(b.tenVatTu));
+    
+    let missingProducts: string[] = [];
+    const fs = require('fs');
+    if (fs.existsSync('missing-products.json')) {
+      try {
+        missingProducts = JSON.parse(fs.readFileSync('missing-products.json', 'utf8'));
+      } catch (err) {
+        console.error("Error reading missing-products.json", err);
+      }
+    }
 
-    return NextResponse.json({ items });
+    return NextResponse.json({ items, missingProducts });
   } catch (error) {
     console.error("[GET /api/production/materials/missing]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

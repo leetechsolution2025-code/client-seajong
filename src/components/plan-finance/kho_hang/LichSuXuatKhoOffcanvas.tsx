@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { PhieuXuatKhoPreview } from "./PhieuXuatKhoPreview";
 
 interface MovementItem {
   id: string;
@@ -50,6 +51,7 @@ export function LichSuXuatKhoOffcanvas({ onClose }: LichSuXuatKhoOffcanvasProps)
   const [loading, setLoading] = React.useState(true);
   const [visible, setVisible] = React.useState(false);
   const [selectedGroup, setSelectedGroup] = React.useState<PhieuXuatGroup | null>(null);
+  const [showPreview, setShowPreview] = React.useState(false);
 
   // Animate in
   React.useEffect(() => {
@@ -472,11 +474,54 @@ export function LichSuXuatKhoOffcanvas({ onClose }: LichSuXuatKhoOffcanvasProps)
                   <span style={{ fontWeight: 700, color: "#f59e0b" }}>TỔNG CỘNG PHIẾU</span>
                   <strong style={{ fontSize: 16, color: "#f59e0b" }}>{fmtVnd(selectedGroup.tongTien)}</strong>
                 </div>
+
+                <button
+                  onClick={() => setShowPreview(true)}
+                  style={{
+                    marginTop: 10,
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    padding: "10px 18px",
+                    borderWidth: "1.5px",
+                    borderStyle: "solid",
+                    borderColor: "#f59e0b",
+                    background: "rgba(245,158,11,0.1)",
+                    color: "#f59e0b",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    borderRadius: 8,
+                    cursor: "pointer",
+                  }}
+                >
+                  <i className="bi bi-printer" style={{ fontSize: 14 }} /> In phiếu xuất kho
+                </button>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {showPreview && selectedGroup && (
+        <PhieuXuatKhoPreview
+          soChungTu={selectedGroup.soChungTu}
+          ngayXuat={selectedGroup.createdAt ? new Date(selectedGroup.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]}
+          khoName={selectedGroup.warehouseName || "—"}
+          lyDo={selectedGroup.lyDo || undefined}
+          nguoiThucHien={selectedGroup.nguoiThucHien || undefined}
+          lines={selectedGroup.movements.map(m => ({
+            tenHang:   m.inventoryItem?.tenHang || "Hàng hoá không xác định",
+            maSku:     m.inventoryItem?.code || "",
+            donVi:     m.inventoryItem?.donVi || "",
+            soLuongYC: m.soLuong,
+            soLuong: m.soLuong,
+            donGia:    m.donGia || 0
+          }))}
+          onClose={() => setShowPreview(false)}
+        />
+      )}
     </>
   );
 }

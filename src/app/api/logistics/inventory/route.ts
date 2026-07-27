@@ -171,13 +171,24 @@ export async function GET(req: Request) {
       }
     }
 
+    // Fetch synced category ids
+    const syncedCategories = await prisma.category.findMany({
+      where: { type: { in: ['danh_muc_thanh_pham', 'vat_tu_san_xuat'] } },
+      select: { id: true }
+    });
+    const syncedIds = syncedCategories.map(c => c.id);
+
     const where: any = {};
 
     if (categoryId) {
       const allCategoryIds = await getCategoryIdsRecursive(categoryId);
       where.categoryId = { in: allCategoryIds };
     } else if (industryProdCategoryIds.length > 0) {
-      where.categoryId = { in: industryProdCategoryIds };
+      where.OR = [
+        { categoryId: { in: industryProdCategoryIds } },
+        { categoryId: { in: syncedIds } },
+        { categoryId: null }
+      ];
     }
 
     // DO NOT filter by physical stocks for normal warehouses to show the full catalog.
@@ -200,6 +211,7 @@ export async function GET(req: Request) {
         include: {
           category: { select: { id: true, name: true } },
           stocks: { include: { warehouse: true } },
+          dinhMuc: true,
         },
         orderBy: { updatedAt: "desc" },
       }) : Promise.resolve([]),
@@ -213,6 +225,7 @@ export async function GET(req: Request) {
         include: {
           category: { select: { id: true, name: true } },
           stocks: { include: { warehouse: true } },
+          dinhMucs: true,
         },
         orderBy: { updatedAt: "desc" },
       }) : Promise.resolve([]),
@@ -269,7 +282,8 @@ export async function GET(req: Request) {
           ...it,
           source: "inventory",
           categoryName: it.category?.name,
-          images: parsedImages
+          images: parsedImages,
+          dinhMucs: it.dinhMuc ? [it.dinhMuc] : []
         };
       }),
       ...matItems.map((it: any) => ({
@@ -287,6 +301,7 @@ export async function GET(req: Request) {
         category: it.category,
         categoryName: it.category?.name,
         stocks: it.stocks,
+        dinhMucs: it.dinhMucs || [],
         updatedAt: it.updatedAt,
         source: "material",
         kieuDang: it.spec,
@@ -315,8 +330,19 @@ export async function GET(req: Request) {
       }))
     ];
 
-    // Không deduplicate nữa, để các nguồn dữ liệu độc lập với nhau
-    const deduplicatedItems = allItems;
+    // Restore deduplication: Merge items with same code/name and COMBINE their stocks
+    const deduplicatedMap = new Map();
+    for (const item of allItems) {
+      const key = item.code ? item.code.toLowerCase() : item.tenHang.toLowerCase();
+      if (deduplicatedMap.has(key)) {
+        const existing = deduplicatedMap.get(key);
+        // Combine stocks
+        existing.stocks = [...existing.stocks, ...item.stocks];
+      } else {
+        deduplicatedMap.set(key, { ...item, stocks: [...item.stocks] });
+      }
+    }
+    const deduplicatedItems = Array.from(deduplicatedMap.values());
 
     // Compute total stats on allItems
     let tongGiaTri = 0;

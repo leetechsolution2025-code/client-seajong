@@ -1604,8 +1604,9 @@ select.app-input {
 }
 
 .login-brand-badge {
-  width: 72px;
-  height: 72px;
+  width: fit-content;
+  height: fit-content;
+  padding: 8px;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(8px);
   border-radius: 16px;
@@ -1617,8 +1618,9 @@ select.app-input {
 }
 
 .login-brand-logo {
-  width: 48px;
-  height: 48px;
+  height: 80px;
+  width: auto;
+  max-width: 240px;
   object-fit: contain;
 }
 

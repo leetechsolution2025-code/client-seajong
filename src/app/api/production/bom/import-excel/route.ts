@@ -192,12 +192,21 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const missingProductsArr = Array.from(missingProducts);
+    
+    // Save to temporary file for displaying in offcanvas
+    if (missingProductsArr.length > 0) {
+      fs.writeFileSync('missing-products.json', JSON.stringify(missingProductsArr));
+    } else if (fs.existsSync('missing-products.json')) {
+      fs.unlinkSync('missing-products.json');
+    }
+
     return NextResponse.json({
       message: "Import thành công",
       bomsCreated,
       bomsUpdated,
       componentsAdded,
-      missingProducts: Array.from(missingProducts),
+      missingProducts: missingProductsArr,
       missingMaterials: Array.from(missingMaterials)
     });
 

@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest) {
       // Đơn bán hàng đang thực hiện và ĐÃ ĐƯỢC KẾ TOÁN DUYỆT (Bao gồm cả đang sản xuất để xuất hàng hoá)
       prisma.saleOrder.findMany({
         where: { 
-          trangThai: { in: ["active", "confirmed", "processing", "in_production"] },
+          trangThai: { in: ["active", "confirmed", "processing", "in_production", "approved"] },
           keToanDuyet: "approved"
         },
         orderBy: { createdAt: "desc" },

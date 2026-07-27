@@ -30,6 +30,7 @@ interface StockRow {
   trangThai:       string;
   categoryId:      string | null;
   categoryName:    string | null;
+  categoryCode:    string | null;
   thongSoKyThuat:  string | null;
   warehouseId?:    string;
   warehouseName?:  string;
@@ -322,7 +323,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
       filterTab === "under"       ? statusOf(r) === "under" :
       filterTab === "over"        ? statusOf(r) === "over"  :
       filterTab === "belowMin"    ? isBelowMin(r) : true;
-    const catOk    = !filterCat || r.categoryId === filterCat;
+    const catOk    = !filterCat || r.categoryId === filterCat || r.categoryCode === filterCat;
     const stOk     = !filterSt  || r.trangThai === filterSt;
     const q        = searchQ.toLowerCase();
     const searchOk = !q || r.tenHang.toLowerCase().includes(q) || (r.maSku ?? "").toLowerCase().includes(q);
@@ -557,6 +558,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
               <p style={{ margin: "0 0 10px", fontWeight: 700, fontSize: 12 }}>📊 Tóm tắt kiểm kê</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {[
+                  { label: "Mã danh mục bộ lọc", value: filterCat || "Không", color: "var(--primary)" },
                   { label: "Tổng mặt hàng",  value: rows.length,        color: "var(--foreground)" },
                   { label: "Đã nhập thực tế", value: entered.length,     color: "#0ea5e9" },
                   { label: "✅ Khớp",          value: matchRows.length,   color: "#10b981" },
@@ -587,6 +589,17 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                     )}
                   </>
                 )}
+
+                <div style={{ marginTop: 16 }}>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", marginBottom: 4 }}>DEBUG: Mã nhóm của 10 SP đầu tiên</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {rows.slice(0, 10).map((r, i) => (
+                      <div key={i} style={{ fontSize: 11, color: "var(--foreground)", background: "var(--muted)", padding: "2px 6px", borderRadius: 4 }}>
+                        {r.tenHang} - <strong style={{ color: "var(--primary)" }}>{r.categoryCode || "Không có mã"}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -647,6 +660,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
               <p style={{ margin: "0 0 10px", fontWeight: 700, fontSize: 12 }}>📊 Tóm tắt kiểm kê</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {[
+                  { label: "Mã danh mục bộ lọc", value: filterCat || "Không", color: "var(--primary)" },
                   { label: "Tổng mặt hàng",  value: rows.length,        color: "var(--foreground)" },
                   { label: "Đã nhập thực tế", value: entered.length,     color: "#0ea5e9" },
                   { label: "✅ Khớp",          value: matchRows.length,   color: "#10b981" },
@@ -677,6 +691,17 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                     )}
                   </>
                 )}
+
+                <div style={{ marginTop: 16 }}>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", marginBottom: 4 }}>DEBUG: Mã nhóm của 10 SP đầu tiên</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    {rows.slice(0, 10).map((r, i) => (
+                      <div key={i} style={{ fontSize: 11, color: "var(--foreground)", background: "var(--muted)", padding: "2px 6px", borderRadius: 4 }}>
+                        {r.tenHang} - <strong style={{ color: "var(--primary)" }}>{r.categoryCode || "Không có mã"}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -717,7 +742,11 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
               disabled={locked}
             />
             <FilterSelect
-              options={categories.map(c => ({ label: c.name, value: c.id }))}
+              options={categories.map(c => ({ 
+                label: (c as any).level > 0 ? "\u00A0\u00A0\u00A0\u00A0".repeat((c as any).level) + c.name : c.name, 
+                value: (c as any).code || c.id,
+                isHeader: (c as any).isHeader
+              }))}
               value={filterCat}
               onChange={setFilterCat}
               placeholder="Danh mục"

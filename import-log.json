@@ -1,0 +1,28 @@
+{
+  "foundHeader": true,
+  "startIndex": 1,
+  "colPCode": 0,
+  "colMCode": 1,
+  "colUnit": 2,
+  "colQty": 3,
+  "firstRows": [
+    [
+      "Mã Thành Phẩm",
+      "Mã nguyên vật liệu",
+      "ĐVT",
+      "Số lượng"
+    ],
+    [
+      "01S",
+      "TS01",
+      "cái",
+      1
+    ],
+    [
+      null,
+      "LS40",
+      "cái",
+      1
+    ]
+  ]
+}

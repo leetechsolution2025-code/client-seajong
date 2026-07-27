@@ -39,7 +39,7 @@ export async function GET(
         customer: { select: { id: true, name: true, dienThoai: true, address: true } },
         saleOrderItems: {
           include: {
-            inventoryItem: { select: { imageUrl: true, code: true } }
+            inventoryItem: { select: { imageUrl: true, code: true, loai: true } }
           }
         },
       },
@@ -125,7 +125,7 @@ export async function GET(
       if (!item.inventoryItem && item.tenHang) {
         const invItem = await prisma.inventoryItem.findFirst({
           where: { tenHang: item.tenHang },
-          select: { imageUrl: true, code: true, soLuong: true, dinhMucId: true }
+          select: { id: true, imageUrl: true, code: true, soLuong: true, dinhMucId: true, loai: true }
         });
         if (invItem) {
           item.inventoryItem = invItem;
@@ -518,14 +518,11 @@ export async function PATCH(
           });
         }
 
-        // Cập nhật trạng thái
-        if (order.trangThaiKho === "in_stock") {
-          orderUpdate = await tx.saleOrder.update({ where: { id: order.id }, data: { trangThai: "approved" } });
-        } else if (order.trangThaiKho === "out_of_stock") {
-          const prItemsToCreate: any[] = [];
-          const extractedMaterials: any[] = [];
-          const itemsToExport: any[] = [];
-          const missingThanhPhamItems: any[] = [];
+        // Bỏ qua rẽ nhánh in_stock hay out_of_stock, xử lý chung để bóc tách vật tư và tạo lệnh xuất kho
+        const prItemsToCreate: any[] = [];
+        const extractedMaterials: any[] = [];
+        const itemsToExport: any[] = [];
+        const missingThanhPhamItems: any[] = [];
           
           // Phân loại các mặt hàng trong đơn
           for (const item of order.saleOrderItems) {
@@ -542,20 +539,24 @@ export async function PATCH(
               }
             } else if (invItem?.loai === "hang-hoa") {
               warehouseCode = "KHO-CHINH";
+            } else if (invItem?.loai === "vat-tu") {
+              warehouseCode = "KVP";
             }
 
             const requiredQty = item.soLuong;
             const isSelectedForProduction = productionItemIds.includes(item.id);
 
+            let bomId = resolvedDinhMucId;
+
             // BƯỚC 1 + 2: QUYẾT ĐỊNH XỬ LÝ HÀNG HOÁ
-            if (warehouseCode === "KHO-THANHPHAM" && isSelectedForProduction && resolvedDinhMucId) {
+            if (isSelectedForProduction && bomId) {
               // CASE A: Sản xuất -> Bóc tách vật tư
               missingThanhPhamItems.push({
                 saleOrderItemId: item.id,
                 tenHang: item.tenHang || "Hàng hoá",
                 donVi: invItem?.donVi || "cái",
                 missingQty: requiredQty,
-                dinhMucId: resolvedDinhMucId
+                dinhMucId: bomId
               });
             } else {
               // CASE B: KHO-CHINH hoặc KHO-THANHPHAM (Không check sản xuất)
@@ -567,7 +568,7 @@ export async function PATCH(
                 tenHang: item.tenHang || "Hàng hoá",
                 soLuong: requiredQty,
                 donVi: invItem?.donVi || "cái",
-                kho: warehouseCode === "KHO-CHINH" ? "Kho Hàng Hoá (KHO-CHINH)" : "Kho Thành Phẩm (KHO-THANHPHAM)",
+                kho: warehouseCode === "KHO-CHINH" ? "Kho Hàng Hoá (KHO-CHINH)" : warehouseCode === "KHO-THANHPHAM" ? "Kho Thành Phẩm (KHO-THANHPHAM)" : "Kho Vật Tư Phụ Kiện (KVP)",
                 inventoryItemId: invItem?.id || null,
                 isShortage
               });
@@ -585,8 +586,10 @@ export async function PATCH(
           }
 
           // B. XỬ LÝ SẢN XUẤT VÀ BÓC TÁCH VẬT TƯ (Cho các item có tick sản xuất)
+          const newTrangThai = missingThanhPhamItems.length > 0 ? "in_production" : "approved";
+          orderUpdate = await tx.saleOrder.update({ where: { id: order.id }, data: { trangThai: newTrangThai } });
+
           if (missingThanhPhamItems.length > 0) {
-            orderUpdate = await tx.saleOrder.update({ where: { id: order.id }, data: { trangThai: "in_production" } });
 
             const allMaterials: any[] = [];
             for (const item of missingThanhPhamItems) {
@@ -827,7 +830,6 @@ export async function PATCH(
             }
           }
         }
-      }
       // [ACCOUNTING] Ghi nhận công nợ và doanh thu chưa thực hiện (Nợ 131 / Có 3387) khi DUYỆT ĐƠN
       if (orderUpdate && (orderUpdate.trangThai === "approved" || orderUpdate.trangThai === "in_production") && order.trangThai !== "approved" && order.trangThai !== "in_production") {
         if (orderUpdate.tongTien > 0) {

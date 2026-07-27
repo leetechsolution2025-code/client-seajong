@@ -1828,10 +1828,9 @@ export default function FinancePage() {
                     header: "",
                     render: (item: any) => {
                       const hasEnoughStock = (item.missingQty || 0) <= 0;
-                      // Khóa checkbox nếu là KHO-CHINH
                       const isKhoChinh = item.warehouseCode === "KHO-CHINH";
-                      const isDisabled = isKhoChinh;
-                      const isProdChecked = isKhoChinh ? false : productionItemIds.includes(item.id);
+                      const isDisabled = selectedOrder?.keToanDuyet === "approved";
+                      const isProdChecked = productionItemIds.includes(item.id);
                       
                       return (
                         <div className="d-flex justify-content-center">

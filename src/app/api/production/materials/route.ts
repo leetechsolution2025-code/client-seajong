@@ -171,6 +171,7 @@ export async function GET(req: NextRequest) {
         trangThai,
         category: item.category,
         categoryId: item.categoryId,
+        maThayThe: (item as any).maThayThe || null,
       };
     });
 

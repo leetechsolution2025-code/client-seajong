@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ui/Toast";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { TrangThaiTonKhoBadge } from "@/components/plan-finance/dung_chung/TrangThaiTonKhoBadge";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { genDocCode } from "@/lib/genDocCode";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -260,6 +261,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   const [savingNewBom, setSavingNewBom] = React.useState(false);
   const [loadingBom, setLoadingBom] = React.useState(false);
   const [altSearch, setAltSearch] = React.useState("");
+  const [swapSearchMode, setSwapSearchMode] = React.useState<"exact" | "group">("group");
   const [previewCode, setPreviewCode] = React.useState("");
   const [confirmDeleteBom, setConfirmDeleteBom] = React.useState(false);
   const [isDeletingBom, setIsDeletingBom] = React.useState(false);
@@ -379,9 +381,9 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       }
       
       const queryParams = new URLSearchParams();
-      if (exactLetterPrefix) {
-        queryParams.append("exactLetterPrefix", exactLetterPrefix);
-      } else if (alternativeTarget.material.category?.id) {
+      if (swapSearchMode === "exact" && ((alternativeTarget.material as any)?.maThayThe || alternativeTarget.material?.code)) {
+        queryParams.append("exactCode", (alternativeTarget.material as any)?.maThayThe || alternativeTarget.material?.code || "");
+      } else if (swapSearchMode === "group" && alternativeTarget.material.category?.id) {
         queryParams.append("categoryId", alternativeTarget.material.category.id);
       }
 
@@ -397,7 +399,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       setAlternativeMaterials([]);
       setAlternativeTarget(null);
     }
-  }, [showAlternative, alternativeTarget]);
+  }, [showAlternative, alternativeTarget, swapSearchMode]);
 
   React.useEffect(() => {
     if (showBomDetail && formItem.dinhMucId) {
@@ -486,7 +488,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       const payload = {
         originalCode: originalBomData.code,
         tenDinhMuc: newBomDescription.trim(),
-        manufacturedProductId: formItem.inventoryId || null,
+        materialItemId: formItem.inventoryId || null,
+        manufacturedProductId: null,
         vatTu: bomDetailData.vatTu.map((v: any) => ({
           materialId: v.materialId || null,
           tenVatTu: v.tenVatTu,
@@ -559,9 +562,14 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name)
                 ? item.stocks[0].warehouse.name
                 : (item.source === "manufactured" ? "Kho thành phẩm"
-                  : item.source === "inventory" ? "Kho hàng hoá"
-                    : item.source === "material" ? "Kho vật tư và phụ kiện" : "");
-              return khoTenStr.toLowerCase().includes("kho hàng hoá") || khoTenStr.toLowerCase().includes("kho thành phẩm") || khoTenStr.toLowerCase().includes("vật tư");
+                  : item.source === "inventory" ? "Kho thương mại"
+                    : item.source === "material" ? "Kho sản xuất và lắp ráp" : "");
+              const lowerKho = khoTenStr.toLowerCase();
+              return lowerKho.includes("kho hàng hoá") 
+                  || lowerKho.includes("kho thành phẩm") 
+                  || lowerKho.includes("vật tư")
+                  || lowerKho.includes("thương mại")
+                  || lowerKho.includes("sản xuất và lắp ráp");
             });
             setSuggest(filtered);
           }
@@ -576,8 +584,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name)
       ? item.stocks[0].warehouse.name
       : (item.source === "manufactured" ? "Kho thành phẩm"
-        : item.source === "inventory" ? "Kho hàng hoá"
-          : item.source === "material" ? "Kho vật tư và phụ kiện" : "");
+        : item.source === "inventory" ? "Kho thương mại"
+          : item.source === "material" ? "Kho sản xuất và lắp ráp" : "");
 
     const updatePayload = {
       ten: item.tenHang,
@@ -1054,11 +1062,10 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               <div style={{ flex: "1 1 100%", display: "flex", gap: 12 }}>
                 <div style={{ flex: "2 1 250px", position: "relative" }}>
                   <FLabel text="Sản phẩm / Dịch vụ" required />
-                  <input
+                  <SearchInput
                     value={formItem.ten}
                     placeholder="Nhập tên hoặc mã SKU sản phẩm..."
-                    onChange={e => {
-                      const v = e.target.value;
+                    onChange={v => {
                       setFormItem(prev => ({ ...prev, ten: v }));
                       if (!v) {
                         setSuggest([]);
@@ -1067,9 +1074,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         fetchSuggest(v, -1);
                       }
                     }}
-                    onFocus={e => { setActiveRowIdSync(-1); fetchSuggest(formItem.ten, -1); e.currentTarget.style.border = "1px solid var(--primary)"; }}
-                    onBlur={e => { e.currentTarget.style.border = "1px solid var(--border)"; setTimeout(() => { if (activeRowIdRef.current === -1) { setSuggest([]); setActiveRowIdSync(null); } }, 200); }}
-                    style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", background: "#fff", outline: "none", borderRadius: 6, fontFamily: "inherit", fontSize: 13, color: "var(--foreground)", transition: "border-color 0.15s" }}
+                    onFocus={e => { setActiveRowIdSync(-1); fetchSuggest(formItem.ten, -1); }}
+                    onBlur={e => { setTimeout(() => { if (activeRowIdRef.current === -1) { setSuggest([]); setActiveRowIdSync(null); } }, 200); }}
                   />
                   {activeRowId === -1 && suggest.length > 0 && (
                     <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
@@ -1433,7 +1439,26 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                   </div>
                   <div className="bg-white p-3 border-bottom rounded-top">
                     <p className="mb-1 text-muted" style={{ fontSize: 12 }}>Đang xem vật tư thay thế cho:</p>
-                    <h6 className="mb-3 fw-semibold">{alternativeTarget?.tenVatTu || alternativeTarget?.material?.name || alternativeTarget?.material?.tenHang}</h6>
+                    <h6 className="mb-3 fw-semibold text-primary">{alternativeTarget?.material?.name || alternativeTarget?.material?.tenHang || alternativeTarget?.tenVatTu}</h6>
+                    <div className="d-flex flex-wrap gap-3 text-secondary mb-3" style={{ fontSize: "0.75rem" }}>
+                      <span>Mã TP: <strong className="text-dark">{alternativeTarget?.material?.code || "N/A"}</strong></span>
+                      <span>Mã nhóm PM: <strong className="text-dark">{alternativeTarget?.material?.category?.code || alternativeTarget?.material?.category?.name || "N/A"}</strong></span>
+                      <span>Mã thay thế: <strong className="text-dark">{(alternativeTarget?.material as any)?.maThayThe || "N/A"}</strong></span>
+                    </div>
+                    <div className="d-flex align-items-center gap-3 mb-3 ms-1">
+                      <div className="form-check form-check-inline m-0">
+                        <input className="form-check-input" type="radio" name="swapMode" id="modeExactAlt" value="exact" checked={swapSearchMode === "exact"} onChange={() => {
+                          setSwapSearchMode("exact");
+                        }} />
+                        <label className="form-check-label small cursor-pointer" htmlFor="modeExactAlt">Chính xác</label>
+                      </div>
+                      <div className="form-check form-check-inline m-0">
+                        <input className="form-check-input" type="radio" name="swapMode" id="modeGroupAlt" value="group" checked={swapSearchMode === "group"} onChange={() => {
+                          setSwapSearchMode("group");
+                        }} />
+                        <label className="form-check-label small cursor-pointer" htmlFor="modeGroupAlt">Theo nhóm</label>
+                      </div>
+                    </div>
                     <div className="input-group input-group-sm">
                       <span className="input-group-text bg-light border-end-0"><i className="bi bi-search text-muted"></i></span>
                       <input 
@@ -1451,30 +1476,60 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         <div className="spinner-border text-primary" role="status"></div>
                       </div>
                     ) : alternativeMaterials.length > 0 ? (
-                      <div className="d-flex flex-column gap-2">
-                        {alternativeMaterials.filter(m => {
-                          if (!altSearch.trim()) return true;
-                          const q = altSearch.toLowerCase();
-                          return (m.name || m.tenHang || "").toLowerCase().includes(q) || (m.code || "").toLowerCase().includes(q);
-                        }).map((alt, idx) => (
-                            <div key={idx} className="p-3 bg-white d-flex align-items-center justify-content-between" style={{ border: "1px solid var(--border)", borderRadius: 8 }}>
-                              <div>
-                                <h6 className="mb-1 fw-semibold" style={{ fontSize: 13 }}>{alt.name || alt.tenHang}</h6>
-                                <span className="text-muted" style={{ fontSize: 11 }}>
-                                  Mã: {alt.code} | Đơn vị: {alt.unit || alt.donVi} <span className="mx-1">|</span> Giá bán: <span className="fw-semibold text-primary">{fmt(alt.giaBan || 0)} ₫</span>
-                                </span>
-                              </div>
-                              <div className="d-flex align-items-center gap-3">
-                                <div className="text-end ps-2 border-start">
-                                  <span className="d-block text-muted" style={{ fontSize: 10 }}>TỒN KHO</span>
-                                  <span className="fw-bold" style={{ fontSize: 14 }}>{alt.stocks?.reduce((acc: any, s: any) => acc + s.soLuong, 0) || 0}</span>
+                      <div className="d-flex flex-column gap-3">
+                        {Object.entries(
+                          alternativeMaterials.filter(m => {
+                            if (!altSearch.trim()) return true;
+                            const q = altSearch.toLowerCase();
+                            return (m.name || m.tenHang || "").toLowerCase().includes(q) || (m.code || "").toLowerCase().includes(q);
+                          }).reduce((acc: any, alt: any) => {
+                            const cat = alt.categoryName || alt.category?.name || "Vật tư khác";
+                            if (!acc[cat]) acc[cat] = [];
+                            acc[cat].push(alt);
+                            return acc;
+                          }, {})
+                        ).map(([catName, items]: [string, any]) => (
+                          <div key={catName} className="mb-2">
+                            <h6 className="mb-2 fw-bold text-uppercase text-muted" style={{ fontSize: 11, letterSpacing: 0.5 }}>
+                              {catName} <span className="badge bg-secondary bg-opacity-10 text-secondary rounded-pill ms-1">{items.length}</span>
+                            </h6>
+                            <div className="d-flex flex-column gap-2">
+                                    {items.map((alt: any, idx: number) => {
+                                      const targetExactCode = ((alternativeTarget.material as any)?.maThayThe || alternativeTarget.material?.code || "").toLowerCase();
+                                      const altMaThayThe = (alt.maThayThe || "").toLowerCase();
+                                      const altCode = (alt.code || "").toLowerCase();
+                                      const isCungLoai = targetExactCode && ((altMaThayThe && altMaThayThe.includes(targetExactCode)) || altCode.includes(targetExactCode));
+                                      
+                                      return (
+                                        <div key={idx} className="p-3 bg-white d-flex align-items-center justify-content-between" style={{ border: "1px solid var(--border)", borderRadius: 8 }}>
+                                          <div>
+                                            <div className="d-flex align-items-center gap-2 mb-1">
+                                              <h6 className="mb-0 fw-semibold" style={{ fontSize: 13 }}>{alt.name || alt.tenHang}</h6>
+                                              {isCungLoai ? (
+                                                <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style={{ fontSize: 10, padding: "2px 6px" }}>Cùng loại</span>
+                                              ) : (
+                                                <span className="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25" style={{ fontSize: 10, padding: "2px 6px" }}>Cùng nhóm</span>
+                                              )}
+                                            </div>
+                                            <span className="text-muted" style={{ fontSize: 11 }}>
+                                              Mã: {alt.code} | Đơn vị: {alt.unit || alt.donVi} <span className="mx-1">|</span> Giá bán: <span className="fw-semibold text-primary">{fmt(alt.giaBan || 0)} ₫</span>
+                                            </span>
+                                          </div>
+                                  <div className="d-flex align-items-center gap-3">
+                                    <div className="text-end ps-2 border-start">
+                                      <span className="d-block text-muted" style={{ fontSize: 10 }}>TỒN KHO</span>
+                                      <span className="fw-bold" style={{ fontSize: 14 }}>{alt.stocks?.reduce((acc: any, s: any) => acc + s.soLuong, 0) || 0}</span>
+                                    </div>
+                                    <button className="btn btn-sm btn-outline-primary" onClick={() => handleSwapMaterial(alt)}>
+                                      Chọn
+                                    </button>
+                                  </div>
                                 </div>
-                                <button className="btn btn-sm btn-outline-primary" onClick={() => handleSwapMaterial(alt)}>
-                                  Chọn
-                                </button>
-                              </div>
-                            </div>
-                          ))}
+                              );
+                            })}
+                          </div>
+                        </div>
+                        ))}
                         </div>
                       ) : (
                         <div className="text-center p-4 text-muted">

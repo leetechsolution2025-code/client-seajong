@@ -75,9 +75,7 @@ export async function GET(req: NextRequest) {
   let whFilter: any = {};
   if (warehouseId) {
     const wh = await prisma.warehouse.findUnique({ where: { id: warehouseId }, select: { code: true } });
-    if (wh?.code === "KHO-THANHPHAM") whFilter = { loai: "thanh-pham" };
-    else if (wh?.code === "KVP") whFilter = { loai: "vat-tu" };
-    else if (wh?.code === "KHO-CHINH") whFilter = { loai: "hang-hoa" };
+    if (wh?.code === "KHO-CHINH") whFilter = { loai: "hang-hoa" };
     else if (wh?.code === "KHO-LOI") whFilter = { stocks: { some: { warehouseId: warehouseId, soLuong: { gt: 0 } } } };
   }
 
@@ -88,7 +86,15 @@ export async function GET(req: NextRequest) {
   });
   const syncedIds = syncedCategories.map(c => c.id);
 
-  const isManufactured = whFilter.loai === "thanh-pham" || whFilter.loai === "vat-tu";
+  const isManufactured = true; // Bỏ ràng buộc, coi như tất cả kho đều hiển thị đủ danh sách để kiểm
+
+  let materialCategoryMap = new Map<string, string | null>();
+  const materials = await (prisma as any).materialItem.findMany({
+    select: { code: true, category: { select: { code: true } } }
+  });
+  materials.forEach((m: any) => {
+    if (m.code) materialCategoryMap.set(m.code, m.category?.code ?? null);
+  });
   
   const items = await prisma.inventoryItem.findMany({
     where: {
@@ -111,7 +117,7 @@ export async function GET(req: NextRequest) {
       thongSoKyThuat:    true,
       trangThai:         true,
       categoryId: true,
-      category:   { select: { name: true } },
+      category:   { select: { name: true, code: true } },
       stocks: warehouseId
         ? {
             where:   { warehouseId },
@@ -140,6 +146,7 @@ export async function GET(req: NextRequest) {
         trangThai:       it.trangThai,
         categoryId:      it.categoryId,
         categoryName:    it.category?.name ?? null,
+        categoryCode:    it.code && materialCategoryMap.has(it.code) ? (materialCategoryMap.get(it.code) ?? it.category?.code ?? null) : (it.category?.code ?? null),
         thongSoKyThuat:  it.thongSoKyThuat ?? null,
         soLuongHeTong:   stock?.soLuong    ?? 0,
         soLuongMin:      Math.max(stock?.soLuongMin ?? 0, it.soLuongMin),
@@ -165,6 +172,7 @@ export async function GET(req: NextRequest) {
         trangThai:       it.trangThai,
         categoryId:      it.categoryId,
         categoryName:    it.category?.name ?? null,
+        categoryCode:    it.code && materialCategoryMap.has(it.code) ? (materialCategoryMap.get(it.code) ?? it.category?.code ?? null) : (it.category?.code ?? null),
         thongSoKyThuat:  it.thongSoKyThuat ?? null,
         soLuongHeTong,
         soLuongMin:      Math.max(soLuongMinKho, it.soLuongMin),

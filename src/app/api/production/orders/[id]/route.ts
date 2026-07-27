@@ -46,7 +46,10 @@ export async function GET(req: Request, props: { params: Promise<{ id: string }>
     const materialMap = new Map<string, any>();
 
     for (const orderItem of order.saleOrderItems) {
-      // Tìm sản phẩm cấu thành (ManufacturedProduct) theo tên hàng
+      let bom = null;
+      let bomId = null;
+
+      // Fallback: Tìm sản phẩm cấu thành (ManufacturedProduct) theo tên hàng
       const product = await prisma.manufacturedProduct.findFirst({
         where: { name: orderItem.tenHang },
         include: {
@@ -62,8 +65,27 @@ export async function GET(req: Request, props: { params: Promise<{ id: string }>
           }
         }
       });
+      bom = product?.dinhMucs?.[0] || null;
 
-      const bom = product?.dinhMucs?.[0] || null;
+      if (!bom) {
+        // Fallback 2: Tìm MaterialItem theo tên hàng
+        const materialItem = await prisma.materialItem.findFirst({
+          where: { name: orderItem.tenHang },
+          include: {
+            dinhMucs: {
+              include: {
+                vatTu: {
+                  include: {
+                    material: true,
+                    category: true
+                  }
+                }
+              }
+            }
+          }
+        });
+        bom = materialItem?.dinhMucs?.[0] || null;
+      }
 
       if (bom) {
         items.push({

@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(dm, { status: 201 });
   } catch (e: any) {
     console.error("[POST /api/production/bom]", e);
+    require('fs').writeFileSync('bom-error.log', String(e.stack || e.message || e));
     if (e.code === "P2002") {
       return NextResponse.json({ error: "Mã định mức đã tồn tại" }, { status: 409 });
     }

@@ -314,7 +314,7 @@ export default function BOMPage() {
         let msg = `Đã nhập thành công. Tạo mới ${data.bomsCreated}, Cập nhật ${data.bomsUpdated} định mức, thêm ${data.componentsAdded} vật tư.`;
         toastSuccess("Import thành công", msg);
         if (data.missingProducts?.length > 0) {
-          toastInfo("Cảnh báo", `Bỏ qua ${data.missingProducts.length} mã sản phẩm không tồn tại.`);
+          toastInfo("Cảnh báo", `Bỏ qua ${data.missingProducts.length} mã sản phẩm không tồn tại: ${data.missingProducts.join(", ")}`);
         }
         if (data.missingMaterials?.length > 0) {
           toastInfo("Cảnh báo", `Thêm ${data.missingMaterials.length} mã vật tư không có trong hệ thống (lưu dạng text).`);
@@ -1095,7 +1095,7 @@ export default function BOMPage() {
                                         title="Đổi vật tư"
                                         onClick={() => {
                                           setSwapIndex(idx);
-                                          const rowMaThayThe = row.material?.maThayThe || "";
+                                          const rowMaThayThe = row.material?.maThayThe || row.material?.code || "";
                                           const rowCategoryId = row.material?.category?.id || "";
                                           setSwapBaseExact(rowMaThayThe);
                                           setSwapBaseGroup(rowCategoryId);

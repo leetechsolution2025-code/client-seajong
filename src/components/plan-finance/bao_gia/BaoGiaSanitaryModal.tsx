@@ -3,6 +3,7 @@
 import React from "react";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ui/Toast";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { TrangThaiTonKhoBadge } from "@/components/plan-finance/dung_chung/TrangThaiTonKhoBadge";
 import { genDocCode } from "@/lib/genDocCode";
@@ -1641,8 +1642,8 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
     const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name)
       ? item.stocks[0].warehouse.name
       : (item.source === "manufactured" ? "Kho thành phẩm"
-        : item.source === "inventory" ? "Kho hàng hoá"
-          : item.source === "material" ? "Kho vật tư và phụ kiện" : "");
+        : item.source === "inventory" ? "Kho thương mại"
+          : item.source === "material" ? "Kho sản xuất và lắp ráp" : "");
 
     const updatePayload = {
       ten: item.tenHang,
@@ -2642,11 +2643,10 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                 <div style={{ flex: "1 1 100%", display: "flex", gap: 12 }}>
                   <div style={{ flex: "2 1 250px", position: "relative" }}>
                     <FLabel text="Sản phẩm / Dịch vụ" required />
-                    <input
+                    <SearchInput
                       value={formItem.ten}
                       placeholder="Nhập tên hoặc mã SKU sản phẩm..."
-                      onChange={e => {
-                        const v = e.target.value;
+                      onChange={v => {
                         setFormItem(prev => ({ ...prev, ten: v }));
                         if (!v) {
                           setSuggest([]);
@@ -2655,9 +2655,8 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                           fetchSuggest(v, -1);
                         }
                       }}
-                      onFocus={e => { setActiveRowIdSync(-1); fetchSuggest(formItem.ten, -1); e.currentTarget.style.border = "1px solid var(--primary)"; }}
-                      onBlur={e => { e.currentTarget.style.border = "1px solid var(--border)"; setTimeout(() => { if (activeRowIdRef.current === -1) { setSuggest([]); setActiveRowIdSync(null); } }, 200); }}
-                      style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", background: "#fff", outline: "none", borderRadius: 6, fontFamily: "inherit", fontSize: 13, color: "var(--foreground)", transition: "border-color 0.15s" }}
+                      onFocus={e => { setActiveRowIdSync(-1); fetchSuggest(formItem.ten, -1); }}
+                      onBlur={e => { setTimeout(() => { if (activeRowIdRef.current === -1) { setSuggest([]); setActiveRowIdSync(null); } }, 200); }}
                     />
                     {activeRowId === -1 && suggest.length > 0 && (
                       <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
