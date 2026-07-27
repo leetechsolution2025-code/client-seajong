@@ -425,7 +425,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
           <div className="flex-shrink-0">
             {row.imageUrl || (row.images && row.images.length > 0) ? (
               <div style={{ width: 42, height: 42, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)", background: "#fff", flexShrink: 0 }}>
-                <HoverImage src={row.imageUrl} images={row.images} alt={row.tenHang} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <HoverImage src={row.imageUrl || (row.images && row.images[0])} images={row.images} alt={row.tenHang} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
             ) : (
               <div className="rounded-3 border bg-light d-flex align-items-center justify-content-center" style={{ width: 42, height: 42 }}>

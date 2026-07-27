@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { SyncReviewModal } from "./SyncReviewModal";
 import { sj_generateSKU } from "@/lib/sku-generator";
 import { AddLogisticsProductModal } from "./AddLogisticsProductModal";
 import { LogisticsItemDetailOffcanvas } from "./LogisticsItemDetailOffcanvas";
@@ -12,6 +13,7 @@ import { ProductDrawer } from "@/components/marketing/ProductDrawer";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useSearchParams } from "next/navigation";
 import { HoverImage } from "@/components/ui/HoverImage";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
 interface Category {
   id: string;
@@ -74,6 +76,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
   const [deleting, setDeleting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncLog, setSyncLog] = useState<any>(null);
+  const [showSyncReview, setShowSyncReview] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [fullWebProduct, setFullWebProduct] = useState<any>(null);
@@ -248,16 +251,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
   }, []);
 
   const handleBulkSync = async () => {
-    if (syncing) return;
-    setSyncing(true);
-    try {
-      const res = await fetch("/api/logistics/sync-web", { method: "POST", body: JSON.stringify({}) });
-      if (!res.ok) throw new Error("Lỗi khởi tạo đồng bộ");
-      fetchSyncStatus();
-    } catch (error: any) {
-      toast.error("Lỗi đồng bộ", error.message);
-      setSyncing(false);
-    }
+    setShowSyncReview(true);
   };
 
   useEffect(() => {
@@ -349,8 +343,8 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
       level: (c as any).level
     }));
 
-  return (
-    <div className="d-flex flex-column gap-3" style={{ height: "100%" }}>
+  const headerContent = (
+    <div className="d-flex flex-column gap-3">
       <div className="d-flex align-items-center justify-content-between mb-0">
         <h6
           className="mb-0 fw-bold text-uppercase d-flex align-items-center gap-2"
@@ -398,7 +392,11 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
           style={{ height: 40 }}
         />
       </div>
+    </div>
+  );
 
+  return (
+    <>
       <AddLogisticsProductModal
         open={isAddModalOpen || !!editingItem}
         onClose={() => {
@@ -485,9 +483,11 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
 
 
       {/* Table */}
-      <div className="app-card overflow-hidden flex-grow-1 d-flex flex-column" style={{ borderRadius: 16, minHeight: 0 }}>
-        <div className="table-responsive flex-grow-1" style={{ overflowY: "auto", maxHeight: "calc(100vh - 290px)", minHeight: "350px" }}>
-          <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
+      <FullWidthTableLayout 
+        header={headerContent}
+        table={
+          <div className="h-100 overflow-auto custom-scrollbar">
+            <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
             <thead className="bg-light" style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--card)" }}>
               <tr style={{ height: 36 }}>
                 <th className="ps-3 border-0" style={{ width: "1%", whiteSpace: "nowrap" }}>
@@ -559,9 +559,9 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
                             boxShadow: "0 2px 5px rgba(0,0,0,0.05)"
                           }}
                         >
-                          {item.imageUrl ? (
+                          {(item.imageUrl || (item.images && item.images.length > 0)) ? (
                             <HoverImage
-                              src={item.imageUrl}
+                              src={item.imageUrl || (item.images && item.images[0])}
                               images={item.images}
                               alt={item.tenHang}
                               style={{ width: "100%", height: "100%", objectFit: "cover" }}
@@ -652,10 +652,9 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
             </tbody>
           </table>
         </div>
-
-        {/* Footer for Actions */}
-        {(!hideAddButton || selectedIds.length > 0) && (
-          <div className="bg-light border-top p-2 d-flex align-items-center justify-content-end gap-3" style={{ backgroundColor: "var(--card)" }}>
+        }
+        footer={(!hideAddButton || selectedIds.length > 0) ? (
+          <div className="d-flex align-items-center justify-content-end gap-3 w-100">
             {fromAdmin && isMaterialWarehouse && (
               <button
                 className="btn btn-sm btn-danger text-white rounded-pill px-4 fw-bold me-auto"
@@ -698,8 +697,8 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
               </button>
             )}
           </div>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {/* Price Ratio Modal */}
       {showPriceModal && (
@@ -768,6 +767,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
         </div>
       )}
 
-    </div>
+      {showSyncReview && <SyncReviewModal onClose={() => setShowSyncReview(false)} />}
+    </>
   );
 }

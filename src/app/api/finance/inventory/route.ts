@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { removeVietnameseTones } from "@/lib/utils";
+import { attachWebImages } from "@/lib/sync-utils";
 
 const PAGE_SIZE = 5;
 
@@ -76,12 +77,14 @@ export async function GET(req: NextRequest) {
         ...item,
         soLuong: soLuongThuc,
         trangThai: trangThaiLive,
-        source: "inventory",
+        source: "inventory"
       };
     });
 
+    const itemsWithImages = await attachWebImages(items);
+
     return NextResponse.json({ 
-      items, 
+      items: itemsWithImages, 
       total, 
       page, 
       totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) 

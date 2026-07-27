@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { BootstrapInit } from "@/components/bootstrap-init";
 import { AuthProvider } from "@/components/auth-provider";
 import { ToastProvider } from "@/components/ui/Toast";
+import { PWAUpdateBanner } from "@/components/ui/PWAUpdateBanner";
 
 const robotoCondensed = Roboto_Condensed({
   variable: "--font-roboto-condensed",
@@ -15,6 +16,7 @@ const robotoCondensed = Roboto_Condensed({
 export const metadata: Metadata = {
   title: "EOS Master - Hệ điều hành Doanh nghiệp",
   description: "Hệ thống quản trị doanh nghiệp thông minh",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -34,6 +36,7 @@ export default function RootLayout({
           <AuthProvider>
             <ToastProvider>
               <BootstrapInit />
+              <PWAUpdateBanner />
               {children}
             </ToastProvider>
           </AuthProvider>

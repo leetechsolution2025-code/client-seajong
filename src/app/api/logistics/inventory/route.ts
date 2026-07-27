@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
+import { attachWebImages } from "@/lib/sync-utils";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteAutoJournalByReference } from "@/lib/accounting-engine";
@@ -255,34 +256,13 @@ export async function GET(req: Request) {
       }) : Promise.resolve(0),
     ]);
 
-    const webProductIds = invItems.map((it: any) => it.webProductId).filter(Boolean);
-    let webProductMap = new Map();
-    if (webProductIds.length > 0) {
-      const webProducts = await prisma.seajongProduct.findMany({
-        where: { id: { in: webProductIds } },
-        select: { id: true, images: true }
-      });
-      webProductMap = new Map(webProducts.map(wp => [wp.id, wp.images]));
-    }
-
     // Map and Merge
     const allItems = [
       ...invItems.map((it: any) => {
-        let parsedImages: string[] = [];
-        if (it.webProductId && webProductMap.has(it.webProductId)) {
-          try {
-            parsedImages = JSON.parse(webProductMap.get(it.webProductId) || "[]");
-          } catch (e) {}
-        }
-        if (parsedImages.length === 0 && it.imageUrl) {
-          parsedImages = [it.imageUrl];
-        }
-
         return {
           ...it,
           source: "inventory",
           categoryName: it.category?.name,
-          images: parsedImages,
           dinhMucs: it.dinhMuc ? [it.dinhMuc] : []
         };
       }),
@@ -397,9 +377,11 @@ export async function GET(req: Request) {
     // Paginate manually
     const total = search ? filteredItems.length : invTotal + matTotal + mfpTotal;
     const paginated = filteredItems.slice(skip, skip + limit);
+    
+    const paginatedWithImages = await attachWebImages(paginated);
 
     return NextResponse.json({
-      items: paginated,
+      items: paginatedWithImages,
       total,
       page,
       totalPages: Math.ceil(total / limit),

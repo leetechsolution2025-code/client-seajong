@@ -17,6 +17,7 @@ interface Item {
   soLuongMin: number;
   trangThai: string;
   imageUrl: string | null;
+  images?: string[];
   categoryName: string | null;
   giaNhap: number;
   giaBan: number;
@@ -127,8 +128,8 @@ export function LogisticsItemDetailOffcanvas({ item, open, onClose, onEdit, onDe
                 boxShadow: "0 8px 24px rgba(0,0,0,0.08)"
               }}
             >
-              {item.imageUrl ? (
-                <HoverImage src={item.imageUrl} alt={item.tenHang} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              {(item.imageUrl || (item.images && item.images.length > 0)) ? (
+                <HoverImage src={item.imageUrl || (item.images && item.images[0])} images={item.images} alt={item.tenHang} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
                 <div className="w-100 h-100 d-flex align-items-center justify-content-center text-muted opacity-20">
                   <Package size={48} />

@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const [contracts, saleOrders, retailInvoices, materialTasks, inboundTasks] = await Promise.all([
+    const [contracts, saleOrders, retailInvoices, materialTasks, inboundTasks, batchPickingTasks] = await Promise.all([
       // Hợp đồng đang thực hiện
       prisma.contract.findMany({
         where: { trangThai: "active" },
@@ -77,7 +77,27 @@ export async function GET(_req: NextRequest) {
           actualResult: true, createdAt: true
         }
       }),
+      // Task gom hàng
+      prisma.task.findMany({
+        where: {
+          deptCode: "logistics",
+          title: { contains: "Gom hàng" }
+        },
+        select: { actualResult: true }
+      })
     ]);
+
+    const assignedOrderIds = new Set<string>();
+    batchPickingTasks.forEach(t => {
+      try {
+        if (t.actualResult) {
+          const ids = JSON.parse(t.actualResult);
+          if (Array.isArray(ids)) {
+            ids.forEach(id => assignedOrderIds.add(id));
+          }
+        }
+      } catch (e) {}
+    });
 
     const result = [
       ...contracts.map(c => ({
@@ -88,6 +108,7 @@ export async function GET(_req: NextRequest) {
         customer:  c.customer?.name ?? null,
         tongTien:  c.giaTriHopDong,
         trangThai: c.trangThai,
+        isAssigned: assignedOrderIds.has(c.id)
       })),
       ...saleOrders.map(so => ({
         id:        so.id,
@@ -97,6 +118,7 @@ export async function GET(_req: NextRequest) {
         customer:  so.customer?.name ?? null,
         tongTien:  so.tongTien,
         trangThai: so.trangThai,
+        isAssigned: assignedOrderIds.has(so.id)
       })),
       ...retailInvoices.map(inv => ({
         id:        inv.id,
@@ -106,6 +128,7 @@ export async function GET(_req: NextRequest) {
         customer:  inv.tenKhach ?? null,
         tongTien:  inv.tongCong,
         trangThai: inv.trangThai,
+        isAssigned: assignedOrderIds.has(inv.id)
       })),
       ...materialTasks.map(t => {
         let parsedItems = [];

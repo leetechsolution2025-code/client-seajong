@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { syncCategoryToInventory } from "@/lib/sync-utils";
 import { removeVietnameseTones } from "@/lib/utils";
+import { attachWebImages } from "@/lib/sync-utils";
 
 const PAGE_SIZE = 50;
 
@@ -64,12 +65,14 @@ export async function GET(req: NextRequest) {
       let trangThai = "het-hang";
       let giaNhap = 0;
       let giaBan = 0;
+      let webProductId = null;
       
       if (item.code) {
         const invItem = invMap.get(item.code) as any;
         if (invItem) {
           giaNhap = invItem.giaNhap || 0;
           giaBan = invItem.giaBan || 0;
+          webProductId = invItem.webProductId;
           if (invItem.stocks) {
             soLuong = invItem.stocks.reduce((sum: number, s: any) => sum + s.soLuong, 0);
             trangThai = soLuong > 0 ? "con-hang" : "het-hang";
@@ -84,6 +87,7 @@ export async function GET(req: NextRequest) {
         category: item.category,
         dinhMuc: item.dinhMucs?.[0] || null,
         source: "manufactured",
+        webProductId,
         soLuong,
         trangThai,
         giaNhap,
@@ -91,8 +95,10 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    const itemsWithImages = await attachWebImages(mappedItems);
+
     return NextResponse.json({ 
-      items: mappedItems, 
+      items: itemsWithImages, 
       total, 
       page, 
       totalPages: Math.ceil(total / PAGE_SIZE) 

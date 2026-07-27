@@ -32,6 +32,7 @@ import { WarehouseSetup } from "@/components/logistics/inventory/WarehouseSetup"
 import { LogisticsInbound } from "@/components/logistics/inbound/LogisticsInbound";
 import { LogisticsInventoryReports } from "@/components/logistics/inventory/LogisticsInventoryReports";
 import { LogisticsAuditLogs } from "@/components/logistics/inventory/LogisticsAuditLogs";
+import { LogisticsBatchPacking } from "@/components/logistics/batch-packing/LogisticsBatchPacking";
 
 export default function LogisticsModulePage() {
   const params = useParams();
@@ -61,6 +62,8 @@ export default function LogisticsModulePage() {
         return <LogisticsInbound onStatsChange={setInboundStats} />;
       case "inventory-reports":
         return <LogisticsInventoryReports />;
+      case "batch-packing":
+        return <LogisticsBatchPacking />;
       case "audit-logs":
         return <LogisticsAuditLogs />;
       default:
@@ -227,8 +230,8 @@ export default function LogisticsModulePage() {
         <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
           <div 
             className={`flex-grow-1 custom-scrollbar ${
-              module === "inbound" || module === "products" || module === "inventory-reports" ? "d-flex flex-column overflow-hidden" : "overflow-auto"
-            } ${module === "inventory-reports" ? "p-0" : "pt-4 px-4 pb-3"}`}
+              module === "inbound" || module === "products" || module === "inventory-reports" || module === "batch-packing" ? "d-flex flex-column overflow-hidden" : "overflow-auto"
+            } ${module === "inventory-reports" || module === "batch-packing" ? "p-0" : "pt-4 px-4 pb-3"}`}
             style={{ minHeight: 0 }}
           >
             {renderModuleContent()}

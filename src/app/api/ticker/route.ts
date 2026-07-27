@@ -466,7 +466,6 @@ export async function GET(req: Request) {
         { text: `• Tổng giá trị đã xuất kho: <strong>${formatMoney(giaTriXuatKho)}</strong>`, type: 'text' },
         { text: `• Số lệnh nhập kho: <strong>${tongNhapKho}</strong>`, type: 'text' },
         { text: `• Tổng giá trị đã nhập kho: <strong>${formatMoney(giaTriNhapKho)}</strong>`, type: 'text' },
-        { text: `• Cảnh báo: Sức chứa kho Vật tư KVP đang đạt 85% công suất tối đa.`, type: 'text' },
       ];
     } else if (moduleStr === "sales_business_results") {
       const currentYear = new Date().getFullYear();

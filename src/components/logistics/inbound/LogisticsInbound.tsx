@@ -29,6 +29,7 @@ interface InventoryItem {
   soLuong: number;
   trangThai: string;
   imageUrl?: string | null;
+  images?: string[];
   categoryName?: string;
   category?: {
     name: string;
@@ -225,9 +226,10 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
               boxShadow: "0 2px 5px rgba(0,0,0,0.05)"
             }}
           >
-            {row.imageUrl ? (
+            {(row.imageUrl || (row.images && row.images.length > 0)) ? (
               <HoverImage 
-                src={row.imageUrl} 
+                src={row.imageUrl || (row.images && row.images[0])} 
+                images={row.images}
                 alt={row.tenHang} 
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />

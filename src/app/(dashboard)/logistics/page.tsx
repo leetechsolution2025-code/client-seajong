@@ -29,6 +29,10 @@ export default function LogisticsOverviewPage() {
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<"orders" | "inventory">("orders");
   
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [selectedStaff, setSelectedStaff] = useState<string>("");
+  const [selectedBatchOrders, setSelectedBatchOrders] = useState<Set<string>>(new Set());
+  
   const toast = useToast();
   const prevOrderIds = useRef<Set<string>>(new Set());
 
@@ -82,7 +86,20 @@ export default function LogisticsOverviewPage() {
       }
     };
 
+    const fetchStaff = async () => {
+      try {
+        const res = await fetch("/api/logistics/staff");
+        if (res.ok) {
+          const data = await res.json();
+          setStaffList(data);
+        }
+      } catch (error) {
+        console.error("Fetch staff error:", error);
+      }
+    };
+
     fetchOrders(false);
+    fetchStaff();
 
     const interval = setInterval(() => {
       // Chỉ poll dữ liệu nếu tab đang hiển thị để tránh lỗi và tiết kiệm tài nguyên
@@ -164,6 +181,45 @@ export default function LogisticsOverviewPage() {
                   rows={orders}
                   onRowClick={handleRowClick}
                   columns={[
+                    {
+                      header: (
+                        <div className="form-check m-0 d-flex justify-content-center">
+                          <input 
+                            className="form-check-input" 
+                            type="checkbox" 
+                            checked={orders.length > 0 && selectedBatchOrders.size === orders.filter(o => !o.isAssigned).length}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedBatchOrders(new Set(orders.filter(o => !o.isAssigned).map(o => o.id)));
+                              } else {
+                                setSelectedBatchOrders(new Set());
+                              }
+                            }}
+                          />
+                        </div>
+                      ),
+                      render: (row: any) => (
+                        <div className="form-check m-0 d-flex justify-content-center" onClick={e => e.stopPropagation()}>
+                          <input 
+                            className="form-check-input" 
+                            type="checkbox" 
+                            disabled={row.isAssigned}
+                            checked={selectedBatchOrders.has(row.id) || row.isAssigned}
+                            onChange={(e) => {
+                              const newSet = new Set(selectedBatchOrders);
+                              if (e.target.checked) {
+                                newSet.add(row.id);
+                              } else {
+                                newSet.delete(row.id);
+                              }
+                              setSelectedBatchOrders(newSet);
+                            }}
+                          />
+                        </div>
+                      ),
+                      width: "40px",
+                      align: "center"
+                    },
                     { 
                       header: "Mã lệnh", 
                       render: (row: any) => (
@@ -177,7 +233,7 @@ export default function LogisticsOverviewPage() {
                           </div>
                         </div>
                       ),
-                      width: "55%" 
+                      width: "50%" 
                     },
                     { 
                       header: "Loại", 
@@ -223,14 +279,72 @@ export default function LogisticsOverviewPage() {
                   wrapperStyle={{ overflowX: "hidden", cursor: "pointer" }}
                 />
               </div>
+              <div className="p-3 border-top bg-light mt-auto" style={{ borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
+                 <div 
+                   className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2"
+                   style={{ 
+                     opacity: selectedBatchOrders.size === 0 ? 0.6 : 1, 
+                     pointerEvents: selectedBatchOrders.size === 0 ? "none" : "auto",
+                     transition: "all 0.3s"
+                   }}
+                 >
+                     <div className="d-flex align-items-center gap-2 flex-grow-1">
+                        <span className="text-muted fw-semibold flex-shrink-0" style={{ fontSize: 13, whiteSpace: "nowrap" }}>Người thực hiện:</span>
+                        <select 
+                          className="form-select form-select-sm border-secondary shadow-sm" 
+                          style={{ minWidth: 150, maxWidth: 220 }}
+                          value={selectedStaff}
+                          onChange={e => setSelectedStaff(e.target.value)}
+                        >
+                           <option value="">Chọn nhân viên</option>
+                           {staffList.map(staff => (
+                             <option key={staff.id} value={staff.id}>{staff.fullName}</option>
+                           ))}
+                        </select>
+                     </div>
+                     <button 
+                       className="btn btn-sm btn-primary px-3 fw-semibold shadow-sm"
+                       disabled={!selectedStaff || selectedBatchOrders.size === 0}
+                       onClick={async () => {
+                         try {
+                           const res = await fetch("/api/logistics/batch-packing/assign", {
+                             method: "POST",
+                             headers: { "Content-Type": "application/json" },
+                             body: JSON.stringify({ 
+                               staffId: selectedStaff, 
+                               orderIds: Array.from(selectedBatchOrders) 
+                             })
+                           });
+                           if (res.ok) {
+                             toast.success("Giao việc thành công", "Đã giao việc gom hàng cho nhân viên.");
+                             setSelectedBatchOrders(new Set());
+                             // Trigger refetch orders
+                             const resOrders = await fetch("/api/plan-finance/sales-active");
+                             const data = await resOrders.json();
+                             setOrders(data);
+                           } else {
+                             toast.error("Lỗi", "Không thể giao việc.");
+                           }
+                         } catch (e) {}
+                       }}
+                     >
+                        <span style={{ whiteSpace: "nowrap" }} className="d-flex align-items-center">
+                          Giao việc 
+                          <span className="badge bg-white text-primary ms-2 rounded-circle shadow-sm d-inline-flex align-items-center justify-content-center" style={{ width: 22, height: 22, padding: 0, fontSize: 12 }}>
+                            {selectedBatchOrders.size}
+                          </span>
+                        </span>
+                     </button>
+                 </div>
+              </div>
             </div>
           </div>
 
           {/* Cột phải (7 phần) */}
           <div className={`col-12 col-xl-7 p-0 ps-xl-2 flex-column h-100 ${activeTab === "inventory" ? "d-flex" : "d-none d-xl-flex"}`} style={{ minHeight: 0 }}>
-            <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
+            <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
               <div 
-                className="flex-grow-1 custom-scrollbar d-flex flex-column overflow-hidden pt-4 px-2 px-md-4 pb-3"
+                className="flex-grow-1 d-flex flex-column overflow-hidden"
                 style={{ minHeight: 0 }}
               >
                 <LogisticsInventory compactMode={true} hideActions={true} />

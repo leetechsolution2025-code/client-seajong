@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================
-# V-LeeTech — Update to VPS Server Script (Chạy từ máy local)
-# Đẩy mã nguồn từ máy cá nhân lên VPS và chạy deploy.sh trên VPS
+# V-LeeTech — Update to VPS Server Script (Local-Build & Push)
+# Build mã nguồn tại máy cá nhân, sau đó ném thành phẩm lên VPS
 # =============================================================
 
 set -e
@@ -34,26 +34,30 @@ if [ -z "${SSH_HOST}" ]; then
     SSH_HOST="${input_host}"
 fi
 
-# Fallbacks if SSH_USER or SSH_DIR are empty
 SSH_USER="${SSH_USER:-root}"
 SSH_DIR="${SSH_DIR:-/root/${APP_NAME}}"
-
-# SSH options: buộc dùng key, tắt hỏi password
 SSH_KEY="${HOME}/.ssh/id_ed25519"
 SSH_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=no -o PasswordAuthentication=no -o BatchMode=yes"
 
-info "Bắt đầu cập nhật lên máy chủ ${SSH_USER}@${SSH_HOST}..."
+info "Bắt đầu cập nhật thông minh lên máy chủ ${SSH_USER}@${SSH_HOST}..."
 info "Thư mục cài đặt trên máy chủ: ${SSH_DIR}"
 
-# ── Đồng bộ mã nguồn lên VPS bằng rsync ─────────────────────
-# Giữ nguyên database, env, và config trên VPS
-info "Đang tải mã nguồn lên máy chủ (đồng bộ rsync)..."
+# ── Bước 1: Build tại Local ────────────────────────────────
+info "Bắt đầu biên dịch (Build) tại máy tính cá nhân..."
+BUILD_START=$(date +%s)
+echo "{\"version\": \"${BUILD_START}\"}" > public/version.json
+npm run build
+BUILD_END=$(date +%s)
+log "Build xong trong $((BUILD_END - BUILD_START)) giây."
+
+# ── Bước 2: Đồng bộ mã nguồn lên VPS bằng rsync ─────────────────────
+# Lần này KHÔNG exclude .next, vì ta muốn đẩy kết quả build lên.
+# Vẫn giữ nguyên DB, env và node_modules trên VPS, không push từ Local qua (tránh lỗi kiến trúc OS)
+info "Đang đẩy thành phẩm (.next) và source code lên máy chủ (đồng bộ rsync)..."
 rsync -avz --delete \
     --exclude="node_modules" \
     --exclude=".git" \
-    --exclude=".next" \
     --exclude="storage" \
-    --exclude="prisma/migrations" \
     --exclude="*.log" \
     --exclude="artifacts" \
     --exclude="scratch" \
@@ -62,16 +66,29 @@ rsync -avz --delete \
     --exclude="scripts/config.sh" \
     --exclude="public/client-logo*" \
     --exclude="public/logo*" \
-    --exclude="package-lock.json" \
     --exclude="prisma/*.db" \
     --exclude="prisma/*.sqlite" \
     --exclude="prisma/*.db-journal" \
     -e "ssh ${SSH_OPTS}" . "${SSH_USER}@${SSH_HOST}:${SSH_DIR}/"
 
-log "Mã nguồn đã đồng bộ thành công lên máy chủ!"
+log "Mã nguồn và thư mục build (.next) đã đồng bộ thành công lên máy chủ!"
 
-# ── Chạy kịch bản deploy trên VPS qua SSH ───────────────────
-info "Đang chạy kịch bản cập nhật và restart trên máy chủ..."
-ssh ${SSH_OPTS} -t "${SSH_USER}@${SSH_HOST}" "SKIP_GIT=1 SKIP_SEED=1 SKIP_DATA_CONVERT=1 bash ${SSH_DIR}/scripts/deploy.sh"
+# ── Bước 3: Restart trên VPS qua SSH ────────────────────────
+info "Đang cấu hình và Restart trên máy chủ..."
+ssh ${SSH_OPTS} -t "${SSH_USER}@${SSH_HOST}" "
+  export NVM_DIR=\"\$HOME/.nvm\"
+  [ -s \"\$NVM_DIR/nvm.sh\" ] && source \"\$NVM_DIR/nvm.sh\"
+  cd ${SSH_DIR}
+  
+  echo -e \"\033[0;34m[→]\033[0m Cài đặt thư viện mới nhất (nếu có)...\"
+  npm install --prefer-offline
 
-log "Cập nhật ứng dụng lên máy chủ thành công!"
+  echo -e \"\033[0;34m[→]\033[0m Tạo Prisma Client và đồng bộ DB...\"
+  npx prisma generate
+  npx prisma db push --accept-data-loss
+
+  echo -e \"\033[0;34m[→]\033[0m Khởi động lại ứng dụng PM2...\"
+  pm2 restart ${APP_NAME} || pm2 start npm --name ${APP_NAME} -- start
+"
+
+log "Cập nhật ứng dụng lên máy chủ thành công bằng phương pháp Smart Deploy!"
