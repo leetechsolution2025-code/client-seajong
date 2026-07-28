@@ -1058,7 +1058,11 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
           {totalPages > 1 && (
             <div className="d-flex justify-content-between align-items-center px-4 py-2 border-top" style={{ flexShrink: 0, background: "var(--card)" }}>
               <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
-                Hiển thị {(currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, filteredRows.length)} trong số {filteredRows.length} mặt hàng
+                {isPhone ? (
+                  <>Hiển thị {Math.min(currentPage * rowsPerPage, filteredRows.length)}/{filteredRows.length}</>
+                ) : (
+                  <>Hiển thị {(currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, filteredRows.length)} trong số {filteredRows.length} mặt hàng</>
+                )}
               </span>
               <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
             </div>
