@@ -187,16 +187,16 @@ export async function GET(req: NextRequest) {
       });
 
     // 5. Fetch Material Stocks & filter warnings matching active industry categories
-    const materialStocks = await prisma.materialStock.findMany({
+    const materialStocks = await prisma.inventoryStock.findMany({
       where: {
-        material: {
+        inventoryItem: {
           categoryId: {
             in: industryCategoryIds
           }
         }
       },
       include: {
-        material: true,
+        inventoryItem: true,
         warehouse: true
       }
     });
@@ -207,11 +207,11 @@ export async function GET(req: NextRequest) {
         const ratio = ms.soLuongMin > 0 ? ms.soLuong / ms.soLuongMin : 1;
         return {
           id: ms.id,
-          name: ms.material.name,
-          desc: ms.material.spec || ms.material.thongSoKyThuat || "Vật tư trong kho",
+          name: ms.inventoryItem.tenHang,
+          desc: ms.inventoryItem.ghiChu || "Vật tư trong kho",
           qty: ms.soLuong,
           min: ms.soLuongMin,
-          unit: ms.material.unit || "cái",
+          unit: ms.inventoryItem.donVi || "cái",
           isLow,
           ratio
         };

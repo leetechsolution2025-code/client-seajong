@@ -50,11 +50,11 @@ export async function GET(req: NextRequest) {
 
   let isMaterial = false;
   if (!item) {
-    const mat = await prisma.materialItem.findUnique({
+    const mat = await prisma.inventoryItem.findUnique({
       where: { id: inventoryItemId },
       select: {
-        id: true, name: true, code: true, unit: true,
-        price: true, minStock: true,
+        id: true, tenHang: true, code: true, donVi: true,
+        giaNhap: true, soLuongMin: true,
         category: { select: { name: true } },
         stocks: warehouseId
           ? { where: { warehouseId }, select: { soLuong: true } }
@@ -65,11 +65,11 @@ export async function GET(req: NextRequest) {
       isMaterial = true;
       item = {
         id: mat.id,
-        tenHang: mat.name,
+        tenHang: mat.tenHang,
         code: mat.code,
-        donVi: mat.unit,
-        giaNhap: mat.price,
-        soLuongMin: mat.minStock,
+        donVi: mat.donVi,
+        giaNhap: mat.giaNhap,
+        soLuongMin: mat.soLuongMin,
         category: mat.category,
         stocks: mat.stocks,
       };
@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
 
   const tonHienTai = warehouseId
     ? (item.stocks[0]?.soLuong ?? 0)
-    : item.stocks.reduce((s, st) => s + st.soLuong, 0);
+    : item.stocks.reduce((s: number, st: any) => s + st.soLuong, 0);
 
   return NextResponse.json({
     item: {

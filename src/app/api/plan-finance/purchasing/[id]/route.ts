@@ -20,7 +20,7 @@ export async function GET(
         supplier: { select: { id: true, name: true, address: true, phone: true, email: true } },
         items: {
           include: {
-            inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true } },
+            inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true, imageUrl: true } },
           },
           orderBy: { sortOrder: "asc" },
         },
@@ -68,7 +68,7 @@ export async function PATCH(
           supplier: { select: { id: true, name: true, address: true, phone: true, email: true } },
           items: {
             include: {
-              inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true } }
+              inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true, imageUrl: true } }
             },
             orderBy: { sortOrder: "asc" }
           }
@@ -388,7 +388,7 @@ export async function PUT(
           supplier: { select: { id: true, name: true, address: true, phone: true, email: true } },
           items: {
             include: {
-              inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true } }
+              inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true, imageUrl: true } }
             },
             orderBy: { sortOrder: "asc" }
           }
@@ -434,7 +434,7 @@ export async function PUT(
           supplier: { select: { id: true, name: true, address: true, phone: true, email: true } },
           items: {
             include: {
-              inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true } }
+              inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true, imageUrl: true } }
             },
             orderBy: { sortOrder: "asc" }
           }

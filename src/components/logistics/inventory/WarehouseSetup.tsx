@@ -300,7 +300,7 @@ export function WarehouseSetup() {
 
                   {/* Dropdown */}
                   {(() => {
-                    const isSystemWh = ["KHO-THANHPHAM", "KHO-PHUKIEN", "KHO-LOI"].includes(wh.code || "");
+                    const isSystemWh = ["KHO-PHUKIEN", "KHO-LOI"].includes(wh.code || "");
                     return (
                       <div className="dropdown">
                         <button

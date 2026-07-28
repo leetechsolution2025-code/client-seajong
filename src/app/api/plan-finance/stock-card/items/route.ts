@@ -22,28 +22,28 @@ export async function GET(req: NextRequest) {
   if (!warehouse) return NextResponse.json({ error: "Không tìm thấy kho hàng" }, { status: 404 });
 
   if (warehouse.type === "MATERIAL") {
-    const stocks = await prisma.materialStock.findMany({
+    const stocks = await prisma.inventoryStock.findMany({
       where:   { warehouseId },
       include: {
-        material: {
+        inventoryItem: {
           include: {
             category: { select: { id: true, name: true } }
           }
         }
       },
-      orderBy: { material: { name: "asc" } },
+      orderBy: { inventoryItem: { tenHang: "asc" } },
     });
 
     return NextResponse.json(
       stocks
-        .filter(s => s.material)
+        .filter(s => s.inventoryItem)
         .map(s => ({
-          id:           s.material.id,
-          tenHang:      s.material.name,
-          code:         s.material.code,
+          id:           s.inventoryItem.id,
+          tenHang:      s.inventoryItem.tenHang,
+          code:         s.inventoryItem.code,
           loai:         "vat-tu",
-          categoryId:   s.material.categoryId,
-          categoryName: s.material.category?.name ?? null,
+          categoryId:   s.inventoryItem.categoryId,
+          categoryName: s.inventoryItem.category?.name ?? null,
         }))
     );
   } else {
@@ -63,12 +63,12 @@ export async function GET(req: NextRequest) {
       stocks
         .filter(s => s.inventoryItem)
         .map(s => ({
-          id:           s.inventoryItem!.id,
-          tenHang:      s.inventoryItem!.tenHang,
-          code:         s.inventoryItem!.code,
-          loai:         s.inventoryItem!.loai,
-          categoryId:   s.inventoryItem!.categoryId,
-          categoryName: s.inventoryItem!.category?.name ?? null,
+          id:           s.inventoryItem.id,
+          tenHang:      s.inventoryItem.tenHang,
+          code:         s.inventoryItem.code,
+          loai:         s.inventoryItem.loai,
+          categoryId:   s.inventoryItem.categoryId,
+          categoryName: s.inventoryItem.category?.name ?? null,
         }))
     );
   }

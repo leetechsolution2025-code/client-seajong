@@ -24,7 +24,6 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
     {
       key: "admin", label: "Quản trị hệ thống", icon: "bi-shield-lock",
       items: [
-        { name: "Thông tin doanh nghiệp", href: "/board/company" },
         { name: "Quản lý danh mục", href: "/board/categories" },
         { name: "Phân quyền người dùng", href: "/board/users" },
         { name: "Nội quy lao động", href: "/board/labor-policy" },
@@ -317,7 +316,7 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
       {
         group: "Báo cáo và phân tích", icon: "bi-bar-chart-line", items: [
           { name: "Kết quả kinh doanh", href: "/sales/business-results", icon: "bi-graph-up-arrow" },
-          { name: "Hoạt động của các đại lý", href: "/sales/partner-activities", icon: "bi-people" },
+          { name: "Báo cáo nội bộ", href: "/sales/internal-reports", icon: "bi-file-earmark-bar-graph" },
         ]
       },
     ],

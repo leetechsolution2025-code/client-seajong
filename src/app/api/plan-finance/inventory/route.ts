@@ -170,7 +170,7 @@ export async function POST(req: NextRequest) {
         ghiChu:         ghiChu          || undefined,
         // Tạo định mức kèm theo nếu có
         ...(dinhMuc && Array.isArray(dinhMuc.vatTu) && dinhMuc.vatTu.length > 0 ? {
-          dinhMuc: {
+          dinhMucs: {
             create: {
               code:        dinhMuc.code        || undefined,
               tenDinhMuc:  dinhMuc.tenDinhMuc  || undefined,
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
         } : {}),
       },
       include: {
-        dinhMuc: { include: { vatTu: true } },
+        dinhMucs: { include: { vatTu: true } },
         category: { select: { name: true } },
       },
     });

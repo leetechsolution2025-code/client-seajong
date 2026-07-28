@@ -11,7 +11,7 @@ export function PWAUpdateBanner() {
     const fetchInitialVersion = async () => {
       try {
         const res = await fetch(`/version.json?t=${Date.now()}`);
-        if (res.ok) {
+        if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
           const data = await res.json();
           initialVersion.current = data.version;
         }
@@ -26,7 +26,7 @@ export function PWAUpdateBanner() {
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/version.json?t=${Date.now()}`);
-        if (res.ok) {
+        if (res.ok && res.headers.get("content-type")?.includes("application/json")) {
           const data = await res.json();
           // If we have an initial version and the server version is different, show prompt!
           if (initialVersion.current && initialVersion.current !== data.version) {

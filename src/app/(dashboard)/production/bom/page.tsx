@@ -5,6 +5,7 @@ import { StandardPage } from "@/components/layout/StandardPage";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { Pagination } from "@/components/ui/Pagination";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import BomDiffOffcanvas from "@/components/production/BomDiffOffcanvas";
@@ -13,6 +14,8 @@ import BomDiffOffcanvas from "@/components/production/BomDiffOffcanvas";
 export default function BOMPage() {
   const { success: toastSuccess, error: toastError, info: toastInfo } = useToast();
   const [products, setProducts] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [search, setSearch] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState("");
@@ -64,7 +67,7 @@ export default function BOMPage() {
         return;
       }
 
-      let url = `/api/production/materials?page=1`;
+      let url = `/api/logistics/inventory?page=1&nolimit=true`;
       if (swapSearchMode === "exact") {
         url += `&exactCode=${encodeURIComponent(swapBaseExact)}`;
       } else if (swapSearchMode === "group") {
@@ -100,7 +103,7 @@ export default function BOMPage() {
           // Mark as fetching with -1 so we don't refetch
           const next = { ...prev, [query]: -1 };
           
-          fetch(`/api/production/materials?search=${encodeURIComponent(query)}&page=1`)
+          fetch(`/api/logistics/inventory?search=${encodeURIComponent(query)}&page=1`)
             .then(res => res.json())
             .then(data => {
               setSwapCounts(p => ({ ...p, [query]: data.items?.length || 0 }));
@@ -146,7 +149,7 @@ export default function BOMPage() {
 
   useEffect(() => {
     if (newProduct.categoryId) {
-      fetch(`/api/production/manufactured-products/generate-code?categoryId=${newProduct.categoryId}`)
+      fetch(`/api/logistics/inventory/generate-code?categoryId=${newProduct.categoryId}`)
         .then(res => res.json())
         .then(data => {
           if (data.code) {
@@ -169,13 +172,13 @@ export default function BOMPage() {
     }
     setSavingProduct(true);
     try {
-      const url = editProductId ? `/api/production/manufactured-products/${editProductId}` : "/api/production/manufactured-products";
+      const url = "/api/logistics/inventory";
       const method = editProductId ? "PUT" : "POST";
 
       const res = await fetch(url, {
         method: method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newProduct)
+        body: JSON.stringify({ ...newProduct, id: editProductId || undefined, warehouseCode: "KHO-THANHPHAM" })
       });
       if (res.ok) {
         toastSuccess("Thành công", editProductId ? "Cập nhật sản phẩm thành công" : "Thêm sản phẩm thành công");
@@ -198,7 +201,7 @@ export default function BOMPage() {
     if (!editProductId) return;
     setDeletingProduct(true);
     try {
-      const res = await fetch(`/api/production/manufactured-products/${editProductId}`, {
+      const res = await fetch(`/api/logistics/inventory/${editProductId}`, {
         method: "DELETE"
       });
       if (res.ok) {
@@ -225,10 +228,11 @@ export default function BOMPage() {
   const fetchProducts = useCallback(async () => {
     setLoadingProducts(true);
     try {
-      const res = await fetch(`/api/production/manufactured-products?search=${encodeURIComponent(search)}&categoryId=${filterCategoryId}`);
+      const res = await fetch(`/api/logistics/inventory?warehouseCode=KVP&limit=20&page=${page}&search=${encodeURIComponent(search)}&categoryId=${filterCategoryId}`);
       if (res.ok) {
         const data = await res.json();
         setProducts(data.items || []);
+        setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 20)));
       }
     } catch (e) {
       console.error(e);
@@ -236,7 +240,7 @@ export default function BOMPage() {
     } finally {
       setLoadingProducts(false);
     }
-  }, [search, filterCategoryId]);
+  }, [search, filterCategoryId, page]);
 
   useEffect(() => {
     fetchProducts();
@@ -342,7 +346,7 @@ export default function BOMPage() {
       setBomData({
         id: undefined,
         code: `DM-${product?.code || Date.now()}-${nextSuffix}`,
-        tenDinhMuc: `Định mức ${product?.name || ""}`,
+        tenDinhMuc: `Định mức ${(product?.tenHang || product?.name) || ""}`,
         vatTu: []
       });
       return;
@@ -374,9 +378,9 @@ export default function BOMPage() {
     setEditProductId(product.id);
     setNewProduct({
       code: product.code || "",
-      name: product.name || "",
+      name: (product.tenHang || product.name) || "",
       categoryId: product.categoryId || "",
-      unit: product.unit || "bộ",
+      unit: (product.donVi || product.unit) || "bộ",
       defaultWarehouse: product.defaultWarehouse || "KHO-THANHPHAM",
       notes: product.notes || ""
     });
@@ -395,7 +399,7 @@ export default function BOMPage() {
         fetchProducts(); // Refresh list to update badge/list
 
         // Reload selected product
-        const updatedRes = await fetch(`/api/production/manufactured-products?search=${selectedProduct.code}`);
+        const updatedRes = await fetch(`/api/logistics/inventory?warehouseCode=KVP&search=${selectedProduct.code}`);
         if (updatedRes.ok) {
           const updatedData = await updatedRes.json();
           const match = updatedData.items.find((p: any) => p.id === selectedProduct.id);
@@ -444,7 +448,7 @@ export default function BOMPage() {
         fetchProducts(); // Refresh to update badge
 
         // Fetch new product info to update selectedProduct dinhMucId
-        const updatedRes = await fetch(`/api/production/manufactured-products?search=${selectedProduct.code}`);
+        const updatedRes = await fetch(`/api/logistics/inventory?warehouseCode=KVP&search=${selectedProduct.code}`);
         if (updatedRes.ok) {
           const updatedData = await updatedRes.json();
           const match = updatedData.items.find((p: any) => p.id === selectedProduct.id);
@@ -467,7 +471,7 @@ export default function BOMPage() {
   // Add material line
   const fetchMaterials = async (q: string) => {
     try {
-      const res = await fetch(`/api/production/materials?search=${encodeURIComponent(q)}&page=1`);
+      const res = await fetch(`/api/logistics/inventory?search=${encodeURIComponent(q)}&page=1`);
       if (res.ok) {
         const data = await res.json();
         setMaterials(data.items || []);
@@ -527,8 +531,8 @@ export default function BOMPage() {
         return (
           <div className="d-flex flex-column align-items-start w-100">
             <div className="d-flex align-items-center gap-2 w-100">
-              <div className="fw-medium text-truncate" title={row.name}>
-                {row.name}
+              <div className="fw-medium text-truncate" title={(row.tenHang || row.name)}>
+                {(row.tenHang || row.name)}
               </div>
               {count > 0 && (
                 <span className="badge bg-success rounded-circle p-0 d-flex align-items-center justify-content-center text-white flex-shrink-0" style={{ width: 16, height: 16, fontSize: '10px' }}>{count}</span>
@@ -562,7 +566,7 @@ export default function BOMPage() {
             <div className="position-absolute border-end d-none d-md-block" style={{ right: 0, top: "24px", bottom: "24px", width: 1, borderColor: "var(--border) !important" }}></div>
 
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <SectionTitle title="Sản phẩm sản xuất" icon="bi-box" className="mb-0" />
+              <SectionTitle title={<>Sản phẩm sản xuất <span className="badge bg-primary rounded-pill ms-2" style={{fontSize: "0.75rem", transform: "translateY(-2px)"}}>{products.length}</span></>} icon="bi-box" className="mb-0" />
               <div className="d-flex gap-2">
                 <input
                   type="file"
@@ -699,7 +703,7 @@ export default function BOMPage() {
                 <button className="btn btn-success w-100" onClick={() => {
                   if (applyAllPrice) {
                     toastInfo("Đang xử lý", "Đang tính toán và áp dụng cho tất cả...");
-                    fetch("/api/production/manufactured-products/apply-price-all", {
+                    fetch("/api/logistics/inventory/update-price-ratio", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ marginPct: priceSetup.marginPct })
@@ -777,6 +781,11 @@ export default function BOMPage() {
                 onRowClick={handleSelectProduct}
                 rowClassName={(row: any) => row.id === selectedProduct?.id ? "table-active cursor-pointer" : "cursor-pointer"}
               />
+              {totalPages > 1 && (
+                <div className="mt-3">
+                  <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+                </div>
+              )}
             </div>
           </div>
 
@@ -797,16 +806,16 @@ export default function BOMPage() {
               <div className="d-flex flex-column h-100">
                 <div className="mb-3 pb-2 border-bottom">
                   <div className="d-flex justify-content-between align-items-start mb-1">
-                    <h5 className="fw-bold text-primary mb-0">{selectedProduct.name}</h5>
+                    <h5 className="fw-bold text-primary mb-0">{(selectedProduct.tenHang || selectedProduct.name)}</h5>
                     <button
                       className="btn btn-sm btn-light text-muted border-0 py-0 px-2"
                       onClick={() => {
                         setEditProductId(selectedProduct.id);
                         setNewProduct({
                           code: selectedProduct.code || "",
-                          name: selectedProduct.name || "",
+                          name: (selectedProduct.tenHang || selectedProduct.name) || "",
                           categoryId: selectedProduct.categoryId || "",
-                          unit: selectedProduct.unit || "bộ",
+                          unit: (selectedProduct.donVi || selectedProduct.unit) || "bộ",
                           defaultWarehouse: selectedProduct.defaultWarehouse || "KHO-THANHPHAM",
                           notes: selectedProduct.notes || ""
                         });
@@ -819,7 +828,7 @@ export default function BOMPage() {
                   </div>
                   <div className="d-flex flex-wrap gap-3 text-muted small mb-1">
                     <span><i className="bi bi-upc-scan me-1"></i>Mã: {selectedProduct.code || "N/A"}</span>
-                    <span><i className="bi bi-tag me-1"></i>ĐVT: {selectedProduct.unit}</span>
+                    <span><i className="bi bi-tag me-1"></i>ĐVT: {(selectedProduct.donVi || selectedProduct.unit)}</span>
                     <span><i className="bi bi-building me-1"></i>Kho: {selectedProduct.defaultWarehouse || "N/A"}</span>
                   </div>
                   {bomData?.id && (
@@ -850,7 +859,7 @@ export default function BOMPage() {
 
                             setMarketPrice(null);
                             setLoadingMarketPrice(true);
-                            fetch(`/api/production/market-price?name=${encodeURIComponent(selectedProduct.name)}`)
+                            fetch(`/api/production/market-price?name=${encodeURIComponent((selectedProduct.tenHang || selectedProduct.name))}`)
                               .then(res => res.json())
                               .then(data => setMarketPrice(data.price))
                               .catch(() => setMarketPrice(null))
@@ -882,7 +891,7 @@ export default function BOMPage() {
                               ...prev,
                               id: undefined,
                               code: `DM-${selectedProduct?.code || Date.now()}-${nextSuffix}`,
-                              tenDinhMuc: `Biến thể của định mức tiêu chuẩn ${selectedProduct?.name || ""}`
+                              tenDinhMuc: `Biến thể của định mức tiêu chuẩn ${(selectedProduct?.tenHang || selectedProduct?.name) || ""}`
                             }));
                           } else {
                             fetchBom(val);
@@ -1103,7 +1112,7 @@ export default function BOMPage() {
                                           setSwapSearchText("");
                                           setShowSwapModal(true);
                                         }}
-                                        disabled={isDisabled || isStandardBom}
+                                        disabled={isStandardBom}
                                       >
                                         <i className="bi bi-arrow-left-right"></i>
                                       </button>
@@ -1261,7 +1270,7 @@ export default function BOMPage() {
         onClose={() => setShowBomDiff(false)} 
         bomData={bomData} 
         standardBomData={standardBomData} 
-        productName={selectedProduct?.name || selectedProduct?.tenHang || ""} 
+        productName={(selectedProduct?.tenHang || selectedProduct?.name) || selectedProduct?.tenHang || ""} 
       />
     </StandardPage>
   );

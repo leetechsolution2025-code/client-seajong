@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   const allInv = await prisma.inventoryItem.findMany({
     include: {
       stocks: { select: { soLuong: true } },
-      dinhMuc: {
+      dinhMucs: {
         include: {
           vatTu: {
             select: { id: true, tenVatTu: true, soLuong: true, donViTinh: true, ghiChu: true },
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     // Nếu có định mức → tính phụ kiện
     let dinhMuc: {
       tenDinhMuc: string | null;
-      vatTu: {
+      items: {
         tenVatTu: string;
         donViTinh: string | null;
         soLuongMoi: number;     // số lượng phụ kiện cho 1 sản phẩm
@@ -62,9 +62,9 @@ export async function POST(req: NextRequest) {
       }[];
     } | null = null;
 
-    if (invItem?.dinhMuc) {
-      const dm = invItem.dinhMuc;
-      const vatTuChecked = dm.vatTu.map((vt) => {
+    if (invItem?.dinhMucs?.[0]) {
+      const dm = invItem.dinhMucs[0];
+      const vatTuChecked = (dm.vatTu || []).map((vt: any) => {
         const canTong   = vt.soLuong * yeuCau;
         const vtInv     = findByName(vt.tenVatTu);
         const vtTon     = vtInv ? tonKhoOf(vtInv) : 0;
@@ -82,13 +82,13 @@ export async function POST(req: NextRequest) {
 
       dinhMuc = {
         tenDinhMuc: dm.tenDinhMuc ?? null,
-        vatTu: vatTuChecked,
+        items: vatTuChecked,
       };
     }
 
     // Thiếu hàng: tự thân thiếu HOẶC phụ kiện thiếu
     const thieuHangThanThan = tonKho < yeuCau;
-    const thieuVatTu = dinhMuc ? dinhMuc.vatTu.some(v => v.canMuaThem > 0) : false;
+    const thieuVatTu = dinhMuc ? dinhMuc.items.some(v => v.canMuaThem > 0) : false;
 
     return {
       tenHang,
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       yeuCau,
       tonKho,
       thieuHang: thieuHangThanThan || thieuVatTu,
-      coBOM:     !!invItem?.dinhMuc,
+      coBOM:     !!invItem?.dinhMucs?.[0],
       dinhMuc,
     };
   });

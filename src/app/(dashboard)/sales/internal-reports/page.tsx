@@ -59,7 +59,12 @@ export default function PartnerActivitiesPage() {
 
   useEffect(() => {
     fetch("/api/sales/partners")
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error("Failed to fetch");
+        }
+        return res.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) {
           setPartners(data);
@@ -75,7 +80,7 @@ export default function PartnerActivitiesPage() {
   if (loading) {
     return (
       <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
-        <PageHeader title="Hoạt động của các đại lý" description="Báo cáo & Phân tích · Tình trạng phát triển đại lý, phễu tuyển dụng & lịch sử chăm sóc" color="blue" icon="bi-people-fill" />
+        <PageHeader title="Báo cáo nội bộ" description="Báo cáo nội bộ phòng kinh doanh" color="blue" icon="bi-file-earmark-bar-graph-fill" />
         <div className="flex-grow-1 d-flex align-items-center justify-content-center text-muted">
           <div className="d-flex flex-column align-items-center gap-2">
             <div className="spinner-border spinner-border-sm text-primary" role="status" />
@@ -90,10 +95,10 @@ export default function PartnerActivitiesPage() {
   return (
     <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
       <PageHeader
-        title="Hoạt động của các đại lý"
-        description="Báo cáo & Phân tích · Phân tích phễu phát triển, mức độ tương tác chăm sóc định kỳ và đánh giá chất lượng đại lý"
+        title="Báo cáo nội bộ"
+        description="Báo cáo nội bộ phòng kinh doanh"
         color="blue"
-        icon="bi-people-fill"
+        icon="bi-file-earmark-bar-graph-fill"
       />
 
       <div className="flex-grow-1 d-flex align-items-center justify-content-center px-4 pb-4 pt-2" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
@@ -105,7 +110,7 @@ export default function PartnerActivitiesPage() {
           </div>
           <h5 className="fw-bold text-dark mb-2">Tính năng đang tạm khoá</h5>
           <p className="text-muted small mb-0">
-            Hệ thống đang tiến hành bảo trì và nâng cấp chức năng phân tích hoạt động đại lý. Vui lòng quay lại sau!
+            Hệ thống đang tiến hành bảo trì và nâng cấp chức năng báo cáo nội bộ. Vui lòng quay lại sau!
           </p>
         </div>
       </div>

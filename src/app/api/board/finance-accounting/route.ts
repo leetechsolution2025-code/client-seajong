@@ -202,14 +202,7 @@ export async function GET(req: NextRequest) {
     });
 
     // ── 3. Fetch Inventory Value, Valuations, and Alerts ────────────────────
-    const [inventoryItems, materialStocks] = await Promise.all([
-      prisma.inventoryItem.findMany({
-        include: { category: true }
-      }),
-      prisma.materialStock.findMany({
-        include: { material: true }
-      })
-    ]);
+    const inventoryItems = await prisma.inventoryItem.findMany({ include: { category: true } });
 
     let sanitaryValue = 0;
     let kitchenValue = 0;
@@ -223,7 +216,9 @@ export async function GET(req: NextRequest) {
 
       const catName = (item.category?.name || "Khác").toLowerCase();
       
-      if (
+      if (item.loai === "vat-tu") {
+        materialValue += itemValue;
+      } else if (
         catName.includes("vệ sinh") || catName.includes("ve sinh") || 
         catName.includes("sen") || catName.includes("vòi") || catName.includes("voi") || 
         catName.includes("chậu") || catName.includes("chau") || catName.includes("lavabo") || 
@@ -238,7 +233,6 @@ export async function GET(req: NextRequest) {
       ) {
         kitchenValue += itemValue;
       } else {
-        // Any other finished goods are grouped into sanitary by default or ignored. Let's group them into sanitaryValue.
         sanitaryValue += itemValue;
       }
 
@@ -260,27 +254,7 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    materialStocks.forEach(stock => {
-      const cost = stock.material?.price || (stock.material?.giaBan || 0) * 0.4 || 0;
-      const stockValue = (stock.soLuong || 0) * cost;
-      materialValue += stockValue;
-      
-      const safeLimit = stock.soLuongMin || stock.material?.minStock || 50;
-      if (stock.soLuong <= safeLimit) {
-         const alertLevel = stock.soLuong <= (safeLimit / 2) ? "Nguy cấp" : "Cảnh báo";
-         const suggestedRestock = Math.max(safeLimit * 2 - stock.soLuong, 100);
-         inventoryAlerts.push({
-          id: stock.id,
-          name: stock.material?.name || "Vật tư",
-          code: stock.material?.code || "MAT-" + stock.id.substring(0,4).toUpperCase(),
-          currentStock: stock.soLuong,
-          safeStock: safeLimit,
-          suggestedRestock: suggestedRestock,
-          level: alertLevel,
-          category: "Vật tư & Linh kiện"
-        });
-      }
-    });
+    
 
     const totalInventoryValue = sanitaryValue + kitchenValue + materialValue;
 

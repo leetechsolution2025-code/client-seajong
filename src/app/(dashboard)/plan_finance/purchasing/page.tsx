@@ -11,6 +11,8 @@ import { Pagination }         from "@/components/ui/Pagination";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { TaoYeuCauMuaHangModal } from "@/components/plan-finance/mua_hang/TaoYeuCauMuaHangModal";
 import TaoDonMuaHangModal        from "@/components/plan-finance/mua_hang/TaoDonMuaHangModal";
+import { TaoDonMuaHangTrucTiepModal } from "@/components/plan-finance/mua_hang/TaoDonMuaHangTrucTiepModal";
+import { ConfirmDialog }         from "@/components/ui/ConfirmDialog";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface PurchaseRequest {
@@ -148,6 +150,7 @@ export default function PurchasingPage() {
   const [ordLoading, setOrdLoading] = React.useState(false);
   const [selectedReq, setSelectedReq] = React.useState<PurchaseRequest | null>(null);
   const [taoYeuCauOpen, setTaoYeuCauOpen] = React.useState(false);
+  const [taoDonTrucTiepOpen, setTaoDonTrucTiepOpen] = React.useState(false);
   // State cho TaoDonMuaHangModal — lift ra page level để offcanvas có thể đóng độc lập
   const [createOrderData, setCreateOrderData] = React.useState<{
     reqId: string; reqCode: string | null;
@@ -219,6 +222,10 @@ export default function PurchasingPage() {
   const reqTotalPages = Math.max(1, Math.ceil(reqTotal / PAGE_SIZE));
   const ordTotalPages = Math.max(1, Math.ceil(ordTotal / PAGE_SIZE));
 
+  const handleAddNewOrder = () => {
+    setTaoDonTrucTiepOpen(true);
+  };
+
   return (
     <>
     <SplitLayoutPage
@@ -279,7 +286,7 @@ export default function PurchasingPage() {
               placeholder={isReq ? "Tìm yêu cầu..." : "Tìm đơn mua..."}
             />
             <button
-              onClick={() => isReq ? setTaoYeuCauOpen(true) : undefined}
+              onClick={() => isReq ? setTaoYeuCauOpen(true) : handleAddNewOrder()}
               style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", border: "none", background: "var(--primary)", color: "#fff", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap", transition: "opacity 0.15s" }}
               onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
@@ -345,6 +352,18 @@ export default function PurchasingPage() {
       />
     )}
 
+    {/* Modal tạo đơn mua hàng trực tiếp */}
+    {taoDonTrucTiepOpen && (
+      <TaoDonMuaHangTrucTiepModal
+        onClose={() => setTaoDonTrucTiepOpen(false)}
+        onSaved={() => {
+          setTaoDonTrucTiepOpen(false);
+          setOrdPage(1);
+          fetchOrders();
+        }}
+      />
+    )}
+
     {/* Modal tạo đơn mua — ở page level, độc lập với offcanvas */}
     {createOrderData && (
       <TaoDonMuaHangModal
@@ -377,7 +396,7 @@ interface ReqDetail {
     inventoryItemId: string | null;
     trangThaiXuLy: string;  // cho-xu-ly | da-tao-don | bo-qua
     supplierId: string | null;
-    inventoryItem: { code: string | null; tenHang: string; donVi: string | null; categoryId: string | null; thongSoKyThuat: string | null } | null;
+    inventoryItem: { code: string | null; tenHang: string; donVi: string | null; categoryId: string | null; thongSoKyThuat: string | null; imageUrl: string | null } | null;
   }>;
 }
 
@@ -391,6 +410,8 @@ function ReqDetailOffcanvas({ req, onClose, onChanged, onOrderCreated, onCreateO
   const [detail, setDetail]       = React.useState<ReqDetail | null>(null);
   const [loading, setLoading]     = React.useState(true);
   const [rejecting, setRejecting] = React.useState(false);
+  const [deleting, setDeleting]   = React.useState(false);
+  const [confirmDel, setConfirmDel] = React.useState(false);
   const [currentStatus, setCurrentStatus] = React.useState(req.trangThai);
 
   React.useEffect(() => {
@@ -445,6 +466,28 @@ function ReqDetailOffcanvas({ req, onClose, onChanged, onOrderCreated, onCreateO
       if (res.ok) { setCurrentStatus("chua-xu-ly"); onChanged?.(); }
     } finally { setReactivating(false); }
   };
+
+  const handleDelete = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/plan-finance/purchase-requests/${req.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        onChanged?.();
+        onClose();
+      } else {
+        alert("Có lỗi xảy ra khi xoá.");
+      }
+    } catch (e) {
+      alert("Có lỗi xảy ra khi xoá.");
+    } finally {
+      setDeleting(false);
+      setConfirmDel(false);
+    }
+  };
+
   const fmtVnd = (n: number) => n > 0 ? n.toLocaleString("vi-VN") + " ₫" : "—";
 
   const handleOrderCreated = () => {
@@ -609,11 +652,21 @@ function ReqDetailOffcanvas({ req, onClose, onChanged, onOrderCreated, onCreateO
         {/* Footer */}
         {currentStatus === "da-xu-ly" ? (
           /* Đã xử lý: khoá hoàn toàn */
-          <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8, background: "var(--muted)" }}>
-            <i className="bi bi-lock-fill" style={{ fontSize: 13, color: "var(--muted-foreground)", flexShrink: 0 }} />
-            <span style={{ fontSize: 12.5, color: "var(--muted-foreground)", fontStyle: "italic" }}>
-              Phiếu đã ở trạng thái <strong style={{ color: s.color }}>{s.label}</strong> — không thể thực hiện thêm hành động.
-            </span>
+          <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "var(--muted)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+              <i className="bi bi-lock-fill" style={{ fontSize: 13, color: "var(--muted-foreground)", flexShrink: 0 }} />
+              <span style={{ fontSize: 12.5, color: "var(--muted-foreground)", fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                Phiếu đã ở trạng thái <strong style={{ color: s.color }}>{s.label}</strong> — không thể thực hiện thêm hành động.
+              </span>
+            </div>
+            <button
+              onClick={() => setConfirmDel(true)}
+              disabled={deleting}
+              style={{ flexShrink: 0, width: 34, height: 34, border: "1px solid #ef4444", background: "rgba(239,68,68,0.08)", color: "#ef4444", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: deleting ? "not-allowed" : "pointer", opacity: deleting ? 0.6 : 1 }}
+              title="Xoá"
+            >
+              {deleting ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 0.8s linear infinite" }} /> : <i className="bi bi-trash" />}
+            </button>
           </div>
         ) : currentStatus === "tu-choi" ? (
           /* Từ chối: khoá nhưng có thể kích hoạt lại */
@@ -633,6 +686,14 @@ function ReqDetailOffcanvas({ req, onClose, onChanged, onOrderCreated, onCreateO
                 ? <><i className="bi bi-arrow-repeat" style={{ animation: "spin 0.8s linear infinite" }} />Đang xử lý...</>
                 : <><i className="bi bi-arrow-counterclockwise" />Kích hoạt lại</>}
             </button>
+            <button
+              onClick={() => setConfirmDel(true)}
+              disabled={deleting}
+              style={{ flexShrink: 0, width: 34, height: 34, border: "1px solid #ef4444", background: "rgba(239,68,68,0.08)", color: "#ef4444", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: deleting ? "not-allowed" : "pointer", opacity: deleting ? 0.6 : 1 }}
+              title="Xoá"
+            >
+              {deleting ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 0.8s linear infinite" }} /> : <i className="bi bi-trash" />}
+            </button>
           </div>
         ) : (
           /* Chưa / đang xử lý: hiện đầy đủ nút */
@@ -651,10 +712,28 @@ function ReqDetailOffcanvas({ req, onClose, onChanged, onOrderCreated, onCreateO
               style={{ flex: 1, padding: "8px", border: "none", background: "var(--primary)", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: (loading || !detail) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, opacity: (loading || !detail) ? 0.7 : 1 }}>
               <i className="bi bi-check2-all" />Tạo đơn mua
             </button>
+            <button
+              onClick={() => setConfirmDel(true)}
+              disabled={deleting}
+              style={{ flexShrink: 0, width: 38, height: 38, border: "1px solid #ef4444", background: "rgba(239,68,68,0.08)", color: "#ef4444", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: deleting ? "not-allowed" : "pointer", opacity: deleting ? 0.6 : 1 }}
+              title="Xoá"
+            >
+              {deleting ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 0.8s linear infinite" }} /> : <i className="bi bi-trash" />}
+            </button>
           </div>
         )}
       </div>
 
+      <ConfirmDialog
+        open={confirmDel}
+        title="Xác nhận xoá"
+        message="Bạn có chắc chắn muốn xoá yêu cầu mua hàng này? Hành động này không thể hoàn tác."
+        confirmLabel="OK"
+        variant="danger"
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDel(false)}
+      />
     </>
   );
 }

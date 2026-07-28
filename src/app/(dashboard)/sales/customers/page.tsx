@@ -899,7 +899,8 @@ export default function SalesCustomersPage() {
                             },
                             yaxis: {
                               labels: {
-                                formatter: (val: number) => {
+                                formatter: (val: number | null | undefined) => {
+                                  if (val == null) return "0";
                                   if (val >= 1000000) return (val / 1000000) + "tr";
                                   return val.toLocaleString();
                                 },
@@ -911,7 +912,7 @@ export default function SalesCustomersPage() {
                               shared: true,
                               intersect: false,
                               y: {
-                                formatter: (val: number) => val.toLocaleString("vi-VN") + " ₫"
+                                formatter: (val: number | null | undefined) => (val || 0).toLocaleString("vi-VN") + " ₫"
                               }
                             }
                           };

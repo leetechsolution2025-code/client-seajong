@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { code, supplierId, ngayDat, ngayNhan, trangThai, tongTien, daThanhToan, ghiChu } = body;
+    const { code, supplierId, ngayDat, ngayNhan, trangThai, tongTien, daThanhToan, ghiChu, items } = body;
 
     const item = await prisma.purchaseOrder.create({
       data: {
@@ -58,6 +58,20 @@ export async function POST(req: NextRequest) {
         ...(supplierId && { supplierId }),
         ...(ngayDat    && { ngayDat: new Date(ngayDat) }),
         ...(ngayNhan   && { ngayNhan: new Date(ngayNhan) }),
+        ...(items && Array.isArray(items) && items.length > 0 && {
+          items: {
+            create: items.map((i: any, index: number) => ({
+              inventoryItemId: i.inventoryItemId || null,
+              tenHang: i.tenHang,
+              donVi: i.donVi || null,
+              soLuong: parseFloat(i.soLuong) || 1,
+              donGia: parseFloat(i.donGia) || 0,
+              thanhTien: parseFloat(i.thanhTien) || 0,
+              ghiChu: i.ghiChu || null,
+              sortOrder: index,
+            }))
+          }
+        }),
         activities: {
           create: {
             loai: "create",

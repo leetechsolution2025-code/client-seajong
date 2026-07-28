@@ -21,7 +21,7 @@ export async function GET() {
 
     const completedTodayOrders = await prisma.saleOrder.findMany({
       where: {
-        trangThai: { in: ["approved", "shipped"] },
+        trangThai: { in: ["completed", "shipped"] },
         ngayHoanThanhSanXuat: {
           gte: today
         }

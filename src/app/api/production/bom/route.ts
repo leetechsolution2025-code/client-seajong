@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { code, tenDinhMuc, materialItemId, manufacturedProductId, vatTu = [] } = body;
+    const { code, tenDinhMuc, targetInventoryItemId, vatTu = [] } = body;
 
     let finalCode = code;
     if (!finalCode) {
@@ -18,30 +18,31 @@ export async function POST(req: NextRequest) {
     }
 
     for (const v of vatTu) {
-      if (!v.materialId && (v.maVatTu || v.tenVatTu)) {
+      if (!v.inventoryItemId && (v.maVatTu || v.tenVatTu)) {
         let mat = null;
         if (v.maVatTu) {
-          mat = await prisma.materialItem.findFirst({ where: { code: v.maVatTu } });
+          mat = await prisma.inventoryItem.findFirst({ where: { code: v.maVatTu } });
         }
         if (!mat && v.tenVatTu) {
-          mat = await prisma.materialItem.findFirst({
-            where: { name: v.tenVatTu }
+          mat = await prisma.inventoryItem.findFirst({
+            where: { tenHang: v.tenVatTu }
           });
         }
         if (!mat) {
           const defaultPrice = 10000 + ((v.tenVatTu || v.maVatTu || "Vattu").length * 2000);
           const giaBan = Math.round((defaultPrice * 1.2) / 1000) * 1000;
-          mat = await prisma.materialItem.create({
+          mat = await prisma.inventoryItem.create({
             data: {
-              name: v.tenVatTu || v.maVatTu || "Chưa có tên",
+              tenHang: v.tenVatTu || v.maVatTu || "Chưa có tên",
               code: v.maVatTu || `AUTO-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-              unit: v.donViTinh || "Cái",
-              price: defaultPrice,
-              giaBan: giaBan
+              donVi: v.donViTinh || "Cái",
+              giaNhap: defaultPrice,
+              giaBan: giaBan,
+              loai: 'vat-tu'
             }
           });
         }
-        v.materialId = mat.id;
+        v.inventoryItemId = mat.id;
       }
     }
 
@@ -50,11 +51,9 @@ export async function POST(req: NextRequest) {
       data: {
         code: finalCode,
         tenDinhMuc,
-        manufacturedProductId: manufacturedProductId || null,
-        materialItemId: materialItemId || null,
         vatTu: {
           create: vatTu.map((v: any) => ({
-            materialId: v.materialId || null,
+            materialId: v.inventoryItemId || null,
             maVatTu: v.maVatTu || null,
             tenVatTu: v.tenVatTu || "Chưa có tên",
             soLuong: v.soLuong || 1,

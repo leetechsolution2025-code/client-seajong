@@ -19,7 +19,7 @@ export async function GET(
       items: {
         orderBy: { sortOrder: "asc" },
         include: {
-          inventoryItem: { select: { code: true, tenHang: true, donVi: true, categoryId: true, thongSoKyThuat: true } },
+          inventoryItem: { select: { code: true, tenHang: true, donVi: true, categoryId: true, thongSoKyThuat: true, imageUrl: true } },
         },
       },
     },
@@ -65,5 +65,26 @@ export async function PATCH(
   });
 
   return NextResponse.json(updated);
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+
+  try {
+    await prisma.$transaction([
+      prisma.purchaseRequestItem.deleteMany({ where: { purchaseRequestId: id } }),
+      prisma.purchaseRequest.delete({ where: { id } })
+    ]);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to delete purchase request:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 

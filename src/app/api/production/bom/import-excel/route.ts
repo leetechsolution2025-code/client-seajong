@@ -92,8 +92,8 @@ export async function POST(req: NextRequest) {
     await prisma.dinhMuc.deleteMany({});
 
     // Tải tất cả MaterialItem
-    const allMaterials = await prisma.materialItem.findMany({
-      select: { id: true, code: true, unit: true, categoryId: true }
+    const allMaterials = await prisma.inventoryItem.findMany({
+      select: { id: true, code: true, donVi: true, categoryId: true }
     });
     const materialMap = new Map();
     allMaterials.forEach(m => {
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
 
           // Tìm định mức cho sản phẩm này
           let dinhMuc = await prisma.dinhMuc.findFirst({
-            where: { materialItemId: product.id }
+            where: { inventoryItemId: product.id }
           });
 
           if (dinhMuc) {
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
               data: {
                 code: codeDm,
                 tenDinhMuc: `Định mức tiêu chuẩn ${rawPCode}`,
-                materialItemId: product.id
+                inventoryItemId: product.id
               }
             });
             currentDinhMucId = dinhMuc.id;
@@ -174,10 +174,10 @@ export async function POST(req: NextRequest) {
         await prisma.dinhMucVatTu.create({
           data: {
             dinhMucId: currentDinhMucId,
-            materialId: material?.id || null,
+            inventoryItemId: material?.id || null,
             maVatTu: mCodeRaw,
-            tenVatTu: material?.name || mNameRaw || mCodeRaw,
-            donViTinh: mUnit || material?.unit || "cái",
+            tenVatTu: material?.tenHang || mNameRaw || mCodeRaw,
+            donViTinh: mUnit || material?.donVi || "cái",
             soLuong: mQty
           }
         });

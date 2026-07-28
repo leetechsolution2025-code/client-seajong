@@ -1,5 +1,6 @@
 import { DefectStatus } from '../mockData';
 import { useState } from 'react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 const getStatusBadge = (status: DefectStatus) => {
   switch (status) {
@@ -22,29 +23,35 @@ interface DefectSummaryOffcanvasProps {
 
 export function DefectSummaryOffcanvas({ defectId, defect, onClose, onRefresh, onOpenProcess }: DefectSummaryOffcanvasProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   const handleDelete = async () => {
     if (!defect) return;
-    if (confirm('Bạn có chắc chắn muốn xoá hồ sơ lỗi này và toàn bộ tập tin đính kèm? Hành động này không thể hoàn tác.')) {
-      setIsDeleting(true);
-      try {
-        const res = await fetch(`/api/production/defects/${defect.id}`, {
-          method: 'DELETE'
-        });
-        if (res.ok) {
-          onClose();
-          if (onRefresh) onRefresh();
-        } else {
-          alert('Xoá thất bại');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Có lỗi xảy ra khi xoá');
-      } finally {
-        setIsDeleting(false);
+    setShowConfirmDelete(true);
+    return;
+  }
+  
+  const executeDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/production/defects/${defect.id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        onClose();
+        if (onRefresh) onRefresh();
+      } else {
+        alert('Xoá thất bại');
       }
+    } catch (err) {
+      alert('Có lỗi xảy ra');
+    } finally {
+      setIsDeleting(false);
+      setShowConfirmDelete(false);
     }
   };
+
+
   // const defect = defectId ? MOCK_DEFECTS.find(d => d.id === defectId) : null;
 
   return (
@@ -141,7 +148,18 @@ export function DefectSummaryOffcanvas({ defectId, defect, onClose, onRefresh, o
                               <div className="position-absolute top-50 start-50 translate-middle text-white bg-dark bg-opacity-75 rounded-circle d-flex align-items-center justify-content-center" style={{ width: '32px', height: '32px' }}>
                                 <i className="bi bi-play-fill fs-5"></i>
                               </div>
-                            </>
+                            
+      <ConfirmDialog
+        open={showConfirmDelete}
+        title="Xoá hồ sơ lỗi"
+        message="Bạn có chắc chắn muốn xoá hồ sơ lỗi này và toàn bộ tập tin đính kèm? Hành động này không thể hoàn tác."
+        confirmLabel="Xoá"
+        cancelLabel="Huỷ"
+        loading={isDeleting}
+        onConfirm={executeDelete}
+        onCancel={() => setShowConfirmDelete(false)}
+      />
+    </>
                           ) : (
                             <img src={url} alt="Lỗi" className="w-100 h-100" style={{ objectFit: 'cover' }} />
                           )}

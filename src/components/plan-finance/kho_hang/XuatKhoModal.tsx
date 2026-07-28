@@ -719,7 +719,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
                   <option value="">-- Chọn lệnh sản xuất --</option>
                   {workOrders.length === 0 && <option disabled value="">Chưa có lệnh sản xuất</option>}
                   {workOrders.map(wo => (
-                    <option key={wo.id} value={wo.id}>{wo.code ?? wo.id}{wo.tenLenhSX ? ` — ${wo.tenLenhSX}` : ""}</option>
+                    <option key={wo.id} value={wo.id}>{wo.code ?? wo.id}</option>
                   ))}
                 </select>
                 <i className="bi bi-chevron-down position-absolute" style={{ right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 12, pointerEvents: "none", color: selectedWo ? "#6366f1" : "var(--muted-foreground)" }} />

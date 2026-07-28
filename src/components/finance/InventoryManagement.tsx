@@ -180,11 +180,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
     try {
       const selectedWH = warehouses.find(w => w.value === warehouseId);
       const whType = selectedWH?.type || "SEAJONG";
-      let apiPath = "/api/logistics/seajong-inventory/stats";
-      if (whType === "MATERIAL") apiPath = "/api/production/materials/stats";
-      else if (whType === "PRODUCT") apiPath = "/api/production/manufactured-products/stats";
-      else if (whType === "DEFECT") apiPath = "/api/logistics/defects/stats";
-      else if (whType === "PRODUCT_SYNC") apiPath = "/api/finance/inventory/stats";
+      let apiPath = "/api/logistics/inventory/stats";
 
       const params = new URLSearchParams({
         mode,
@@ -271,11 +267,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
     try {
       const selectedWH = warehouses.find(w => w.value === warehouseId);
       const whType = selectedWH?.type || "SEAJONG";
-      let apiPath = "/api/logistics/seajong-inventory";
-      if (whType === "MATERIAL") apiPath = "/api/production/materials";
-      else if (whType === "PRODUCT") apiPath = "/api/production/manufactured-products";
-      else if (whType === "DEFECT") apiPath = "/api/logistics/defects";
-      else if (whType === "PRODUCT_SYNC") apiPath = "/api/finance/inventory";
+      let apiPath = "/api/logistics/inventory";
 
       const params = new URLSearchParams({
         page: page.toString(),
@@ -313,13 +305,9 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
     try {
       const selectedWH = warehouses.find(w => w.value === warehouseId);
       const whType = selectedWH?.type || "SEAJONG";
-      let apiPath = "/api/logistics/seajong-inventory";
-      if (whType === "MATERIAL") apiPath = "/api/production/materials";
-      else if (whType === "PRODUCT") apiPath = "/api/production/manufactured-products";
-      else if (whType === "DEFECT") apiPath = "/api/logistics/defects";
-      else if (whType === "PRODUCT_SYNC") apiPath = "/api/finance/inventory";
+      let apiPath = "/api/logistics/inventory";
 
-      const res = await fetch(`${apiPath}/${deletingItem.id}`, { method: "DELETE" });
+      const res = await fetch(`${apiPath}?id=${deletingItem.id}&source=${(deletingItem as any).source || "inventory"}`, { method: "DELETE" });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         throw new Error(d.error || "Xoá thất bại");
@@ -705,7 +693,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
             {/* Footer Actions */}
             <div className="pt-3 mt-auto">
                <div className="d-flex align-items-center justify-content-between mb-3">
-                  <small className="text-muted">Hiển thị <b>{items.length}/{stats.tongMatHang}</b> mặt hàng</small>
+                  <small className="text-muted">Hiển thị <b>{(items || []).length}/{stats.tongMatHang}</b> mặt hàng</small>
                   <Pagination 
                       page={page}
                       totalPages={totalPages}

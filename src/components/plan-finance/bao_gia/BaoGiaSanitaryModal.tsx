@@ -1048,6 +1048,7 @@ function PrintPreviewModal({ open, onClose, customer, items, info, initialAction
                                 {it.imageUrl && (
                                   <HoverImage
                                     src={it.imageUrl.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(it.imageUrl)}` : it.imageUrl}
+                                    images={it.images || [it.imageUrl]}
                                     alt={it.ten}
                                     style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 4, border: "1px solid #e5e7eb", background: "#fff", flexShrink: 0 }}
                                   />
@@ -1111,6 +1112,7 @@ function PrintPreviewModal({ open, onClose, customer, items, info, initialAction
                                     {it.imageUrl && (
                                       <HoverImage
                                         src={it.imageUrl.startsWith("http") ? `/api/image-proxy?url=${encodeURIComponent(it.imageUrl)}` : it.imageUrl}
+                                        images={it.images || [it.imageUrl]}
                                         alt={it.ten}
                                         style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 4, border: "1px solid #e5e7eb", background: "#fff", flexShrink: 0 }}
                                       />

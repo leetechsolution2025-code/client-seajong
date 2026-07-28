@@ -9,7 +9,7 @@ interface ReqItem {
   donVi: string | null;
   soLuong: number;
   inventoryItemId: string | null;
-  inventoryItem: { code: string | null; tenHang: string; donVi: string | null; categoryId: string | null; thongSoKyThuat: string | null } | null;
+  inventoryItem: { code: string | null; tenHang: string; donVi: string | null; categoryId: string | null; thongSoKyThuat: string | null; imageUrl: string | null } | null;
 }
 
 interface Assignment {
@@ -153,8 +153,21 @@ const zhDictionary: Record<string, string> = {
   "HỘP": "盒",
   "THÙNG": "箱",
   "Xe tải": "卡车",
+  "Xe máy": "摩托车",
+  "Xe container": "集装箱车",
+  "Xe khách": "客车",
   "Giao hàng tận nơi": "送货上门",
+  "Nhận tại kho NCC": "供应商仓库自提",
+  "Qua đơn vị vận chuyển": "通过物流公司",
   "Chuyển khoản": "银行转账",
+  "Tiền mặt": "现金",
+  "Công nợ": "挂账",
+  "Khác": "其他",
+  "Vui lòng xác nhận thông tin": "请确认信息",
+  "Vui lòng xác nhận thông tin đơn hàng": "请确认订单信息",
+  "Giao hàng đúng hẹn": "按时交货",
+  "Đóng gói cẩn thận": "小心包装",
+  "Hàng dễ vỡ, xin cẩn thận": "易碎品，请小心"
 };
 
 function translateProduct(name: string, lang: string): string {
@@ -189,6 +202,11 @@ export default function XemTruocDonMuaHangModal({
   const [lang, setLang] = React.useState<"vi" | "zh">("vi");
 
   const [ngayDat, setNgayDat] = React.useState(today);
+  const [isRMB, setIsRMB] = React.useState(true);
+  const [tyGiaStr, setTyGiaStr] = React.useState("3.500");
+  const tyGia = parseFloat(tyGiaStr.replace(/\./g, "").replace(/,/g, "")) || 1;
+  const [tyGiaUpdatedAt, setTyGiaUpdatedAt] = React.useState<string | null>(null);
+  const [showImage, setShowImage] = React.useState(true);
   const [hinhThucTT, setHinhThucTT] = React.useState("Chuyển khoản");
   const [hinhThucGH, setHinhThucGH] = React.useState("Giao hàng tận nơi");
   const [phuongTien, setPhuongTien] = React.useState("Xe tải");
@@ -197,6 +215,25 @@ export default function XemTruocDonMuaHangModal({
   const [nguoiNhan, setNguoiNhan] = React.useState("");
   const [sdtNhan, setSdtNhan] = React.useState("");
   const [ghiChu, setGhiChu] = React.useState("");
+  const [translatedGhiChu, setTranslatedGhiChu] = React.useState("");
+
+  React.useEffect(() => {
+    if (lang === "zh" && ghiChu.trim()) {
+      const timer = setTimeout(() => {
+        fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(ghiChu)}&langpair=vi|zh-CN`)
+          .then(r => r.json())
+          .then(d => {
+            if (d?.responseData?.translatedText) {
+              setTranslatedGhiChu(d.responseData.translatedText);
+            }
+          })
+          .catch(() => {});
+      }, 700);
+      return () => clearTimeout(timer);
+    } else {
+      setTranslatedGhiChu("");
+    }
+  }, [ghiChu, lang]);
 
   React.useEffect(() => {
     fetch("/api/company").then(r => r.json()).then(d => {
@@ -207,6 +244,18 @@ export default function XemTruocDonMuaHangModal({
     }).catch(() => { });
     fetch(`/api/plan-finance/suppliers/${supplierId}`)
       .then(r => r.json()).then(d => setSupplier(d.supplier ?? d)).catch(() => { });
+      
+    // Lấy tỷ giá thực tế
+    fetch("https://open.er-api.com/v6/latest/CNY")
+      .then(r => r.json())
+      .then(d => {
+        if (d?.rates?.VND) {
+          const rate = Math.round(d.rates.VND);
+          setTyGiaStr(rate.toLocaleString("vi-VN"));
+          const date = new Date(d.time_last_update_unix * 1000);
+          setTyGiaUpdatedAt(`Cập nhật: ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')} ${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`);
+        }
+      }).catch(() => {});
   }, [supplierId]);
 
   const orderItems = React.useMemo(() => {
@@ -423,19 +472,54 @@ export default function XemTruocDonMuaHangModal({
           </label>
         </div>
       </SField>
+      <div style={{ display: "flex", gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: "0 0 4px", fontSize: 11 }}>&nbsp;</p>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, height: 34, width: "100%", background: "var(--background)", padding: "0 10px", borderRadius: 8, border: "1px solid var(--border)", cursor: "pointer" }}>
+            <div style={{ width: 32, height: 18, background: isRMB ? "#10b981" : "#cbd5e1", borderRadius: 18, position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+              <div style={{ width: 14, height: 14, background: "#fff", borderRadius: "50%", position: "absolute", top: 2, left: isRMB ? 16 : 2, transition: "left 0.2s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
+            </div>
+            <input type="checkbox" checked={isRMB} onChange={e => setIsRMB(e.target.checked)} style={{ display: "none" }} />
+            <span style={{ fontSize: 11.5, fontWeight: 600 }}>Sử dụng Nhân dân tệ (¥)</span>
+          </label>
+        </div>
+        <div style={{ width: 100 }}>
+          <SField label="Tỷ giá (₫)">
+            <input 
+              type="text" 
+              value={tyGiaStr} 
+              onChange={e => {
+                const val = e.target.value.replace(/[^0-9]/g, "");
+                setTyGiaStr(val ? parseInt(val, 10).toLocaleString("vi-VN") : "");
+              }} 
+              disabled={!isRMB} 
+              style={{ ...inp, opacity: isRMB ? 1 : 0.5, textAlign: "right" }} 
+            />
+          </SField>
+          {tyGiaUpdatedAt && (
+            <p style={{ margin: "4px 0 0", fontSize: 9, color: "var(--muted-foreground)", textAlign: "right", whiteSpace: "nowrap" }}>{tyGiaUpdatedAt}</p>
+          )}
+        </div>
+      </div>
       <SField label="Ngày đặt hàng">
         <input type="date" value={ngayDat} onChange={e => setNgayDat(e.target.value)} style={inp} />
       </SField>
-      <SField label="Hình thức thanh toán">
-        <select value={hinhThucTT} onChange={e => setHinhThucTT(e.target.value)} style={inp}>
-          {["Chuyển khoản", "Tiền mặt", "Công nợ", "Khác"].map(x => <option key={x}>{x}</option>)}
-        </select>
-      </SField>
-      <SField label="Hình thức giao hàng">
-        <select value={hinhThucGH} onChange={e => setHinhThucGH(e.target.value)} style={inp}>
-          {["Giao hàng tận nơi", "Nhận tại kho NCC", "Qua đơn vị vận chuyển"].map(x => <option key={x}>{x}</option>)}
-        </select>
-      </SField>
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <SField label="Thanh toán">
+            <select value={hinhThucTT} onChange={e => setHinhThucTT(e.target.value)} style={{...inp, padding: "8px 6px"}}>
+              {["Chuyển khoản", "Tiền mặt", "Công nợ", "Khác"].map(x => <option key={x}>{x}</option>)}
+            </select>
+          </SField>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <SField label="Giao hàng">
+            <select value={hinhThucGH} onChange={e => setHinhThucGH(e.target.value)} style={{...inp, padding: "8px 6px"}}>
+              {["Giao hàng tận nơi", "Nhận tại kho NCC", "Qua đơn vị vận chuyển"].map(x => <option key={x}>{x}</option>)}
+            </select>
+          </SField>
+        </div>
+      </div>
       <div style={{ display: "flex", gap: 8 }}>
         <div style={{ flex: 2 }}>
           <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Phương tiện</p>
@@ -449,7 +533,13 @@ export default function XemTruocDonMuaHangModal({
         </div>
       </div>
       <div style={{ border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
-        <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em" }}>Giao hàng đến</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em" }}>Giao hàng đến</p>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+            <input type="checkbox" checked={showImage} onChange={e => setShowImage(e.target.checked)} style={{ width: 12, height: 12, margin: 0 }} />
+            <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>Hiện ảnh SP</span>
+          </label>
+        </div>
         <div>
           <p style={{ margin: "0 0 4px", fontSize: 10.5, color: "#64748b" }}>Địa chỉ</p>
           <textarea value={diaDiemGiaoHang} onChange={e => setDiaDiemGiaoHang(e.target.value)} rows={2} placeholder="Nhập địa chỉ..." style={{ ...inp, resize: "vertical", lineHeight: 1.5, minHeight: 48 }} />
@@ -474,17 +564,17 @@ export default function XemTruocDonMuaHangModal({
 
   // ── Document ──────────────────────────────────────────────────────────────
   const doc = (
-    <div className="pdf-content-page" style={{ fontFamily: "'Roboto Condensed', 'Arial Narrow', Arial, sans-serif", fontSize: 13, color: "#000", lineHeight: 1.45 }}>
+    <div className="pdf-content-page" translate="no" style={{ fontFamily: "'Roboto Condensed', 'Arial Narrow', Arial, sans-serif", fontSize: 13, color: "#000", lineHeight: 1.45 }}>
       {/* Header */}
       <table style={{ width: "100%", borderCollapse: "collapse", border: "none", marginBottom: 20 }}>
         <tbody>
           <tr>
             <td style={{ verticalAlign: "top", border: "none" }}>
-              <div style={{ display: "flex", alignItems: "flex-start" }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
                 {company?.logoUrl
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={company.logoUrl} alt="logo" style={{ width: 68, height: 68, objectFit: "contain", flexShrink: 0, marginRight: 12 }} />
-                  : <div style={{ width: 68, height: 68, background: "#e2e8f0", borderRadius: 4, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#94a3b8", marginRight: 12 }}>LOGO</div>
+                  ? <img src={company.logoUrl} alt="logo" style={{ width: 120, height: 65, objectFit: "contain", flexShrink: 0, marginRight: 0 }} />
+                  : <div style={{ width: 120, height: 65, background: "#e2e8f0", borderRadius: 4, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#94a3b8", marginRight: 0 }}>LOGO</div>
                 }
                 <div style={{ fontSize: 10.5 }}>
                   <p style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 12.5, color: "#1e293b", lineHeight: 1.3, textTransform: "uppercase" }}>{companyName}</p>
@@ -496,18 +586,18 @@ export default function XemTruocDonMuaHangModal({
                 </div>
               </div>
             </td>
-            <td style={{ verticalAlign: "top", width: 270, paddingLeft: 20, border: "none" }}>
+            <td style={{ verticalAlign: "top", width: 330, paddingLeft: 20, border: "none" }}>
               <table style={{ borderCollapse: "collapse", width: "100%", border: "2px solid #003087" }}>
                 <tbody>
                   <tr><td colSpan={2} className="pdf-brand-bg" style={{ background: "#003087", color: "#fff", textAlign: "center", padding: "8px 20px", fontWeight: 900, fontSize: 20, letterSpacing: "0.08em" }}>{t.donDatHang}</td></tr>
                   <tr><td colSpan={2} style={{ borderBottom: "1px solid #003087", borderTop: "1px solid #003087", padding: "8px 6px", textAlign: "center", fontSize: 8.2, fontStyle: "italic", color: "#003087", lineHeight: 1.3, whiteSpace: "nowrap" }}>{t.notePO}</td></tr>
                   <tr>
-                    <td className="pdf-brand-light-bg" style={{ width: "50%", borderRight: "1px solid #003087", borderBottom: "1px solid #003087", padding: "6px 14px", fontWeight: 800, fontSize: 11, textAlign: "center", background: "rgba(0, 48, 135, 0.05)", color: "#003087" }}>{t.ngayDatHang}</td>
-                    <td className="pdf-brand-light-bg" style={{ width: "50%", borderBottom: "1px solid #003087", padding: "6px 14px", fontWeight: 800, fontSize: 11, textAlign: "center", background: "rgba(0, 48, 135, 0.05)", color: "#003087" }}>{t.soDonHang}</td>
+                    <td className="pdf-brand-light-bg" style={{ width: "45%", borderRight: "1px solid #003087", borderBottom: "1px solid #003087", padding: "6px 14px", fontWeight: 800, fontSize: 11, textAlign: "center", background: "rgba(0, 48, 135, 0.05)", color: "#003087" }}>{t.ngayDatHang}</td>
+                    <td className="pdf-brand-light-bg" style={{ width: "55%", borderBottom: "1px solid #003087", padding: "6px 14px", fontWeight: 800, fontSize: 11, textAlign: "center", background: "rgba(0, 48, 135, 0.05)", color: "#003087" }}>{t.soDonHang}</td>
                   </tr>
                   <tr>
-                    <td style={{ width: "50%", borderRight: "1px solid #003087", padding: "7px 14px", textAlign: "center", fontSize: 12.5, fontWeight: 700 }}>{ngayStr}</td>
-                    <td style={{ width: "50%", padding: "7px 14px", textAlign: "center", fontSize: 12.5, fontWeight: 700 }}>{poDraft}</td>
+                    <td style={{ width: "45%", borderRight: "1px solid #003087", padding: "7px 14px", textAlign: "center", fontSize: 12.5, fontWeight: 700 }}>{ngayStr}</td>
+                    <td style={{ width: "55%", padding: "7px 14px", textAlign: "center", fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap" }}>{poDraft}</td>
                   </tr>
                 </tbody>
               </table>
@@ -559,11 +649,12 @@ export default function XemTruocDonMuaHangModal({
           <tr style={{ background: "#003087", borderTop: "1.5px solid #003087", borderBottom: "1.5px solid #003087" }}>
             {[
               { h: t.stt, w: 36, align: "center" as const },
+              ...(showImage ? [{ h: "", w: 50, align: "center" as const }] : []),
               { h: t.tenHang, w: 0, align: "left" as const },
               { h: t.dvt, w: 50, align: "center" as const },
               { h: t.soLuong, w: 70, align: "center" as const },
-              { h: t.donGia, w: 90, align: "right" as const },
-              { h: t.thanhTien, w: 96, align: "right" as const }
+              { h: t.donGia + (isRMB ? " (¥)" : " (₫)"), w: 90, align: "right" as const },
+              { h: t.thanhTien + (isRMB ? " (¥)" : " (₫)"), w: 96, align: "right" as const }
             ].map(col => (
               <th key={col.h} style={{ ...secHead, border: "none", borderBottom: "1.5px solid #003087", textAlign: col.align, width: col.w || undefined, fontSize: 11, background: "#003087", color: "#fff" }}>{col.h}</th>
             ))}
@@ -571,11 +662,19 @@ export default function XemTruocDonMuaHangModal({
         </thead>
         <tbody>
           {orderItems.map((x, idx) => {
-            const thanhTien = x.item!.soLuong * x.donGia;
+            const donGiaHienThi = isRMB ? x.donGia / tyGia : x.donGia;
+            const thanhTienHienThi = x.item!.soLuong * donGiaHienThi;
             const rowBorder: React.CSSProperties = { border: "none", borderBottom: "1px solid #cbd5e1" };
             return (
               <tr key={x.itemId} className={idx % 2 === 1 ? "zebra-stripe" : undefined} style={{ background: idx % 2 === 1 ? "#f8fafc" : "#fff" }}>
                 <td style={{ ...bodyCell, ...rowBorder, textAlign: "center", color: "#64748b" }}>{idx + 1}</td>
+                {showImage && (
+                  <td style={{ ...bodyCell, ...rowBorder, textAlign: "center", padding: "4px 8px" }}>
+                    {x.item?.inventoryItem?.imageUrl ? (
+                      <img src={x.item.inventoryItem.imageUrl} style={{ width: 36, height: 36, objectFit: "contain", borderRadius: 4, display: "block", margin: "0 auto" }} alt="" />
+                    ) : <span style={{ color: "#cbd5e1", fontSize: 10 }}>—</span>}
+                  </td>
+                )}
                 <td style={{ ...bodyCell, ...rowBorder }}>
                   <p style={{ margin: 0, fontWeight: 600 }}>{translateProduct(x.item!.tenHang, lang)}</p>
 
@@ -583,8 +682,8 @@ export default function XemTruocDonMuaHangModal({
                 </td>
                 <td style={{ ...bodyCell, ...rowBorder, textAlign: "center" }}>{translateProduct(x.item!.donVi ?? "—", lang)}</td>
                 <td style={{ ...bodyCell, ...rowBorder, textAlign: "center", fontWeight: 700 }}>{x.item!.soLuong.toLocaleString()}</td>
-                <td style={{ ...bodyCell, ...rowBorder, textAlign: "right" }}>{fmtVnd(x.donGia)}</td>
-                <td style={{ ...bodyCell, ...rowBorder, textAlign: "right", fontWeight: 700 }}>{fmtVnd(thanhTien)}</td>
+                <td style={{ ...bodyCell, ...rowBorder, textAlign: "right" }}>{donGiaHienThi.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}</td>
+                <td style={{ ...bodyCell, ...rowBorder, textAlign: "right", fontWeight: 700 }}>{thanhTienHienThi.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}</td>
               </tr>
             );
           })}
@@ -599,21 +698,21 @@ export default function XemTruocDonMuaHangModal({
               <div style={{ fontSize: 11.5, lineHeight: 1.7 }}>
                 <p style={{ margin: "0 0 5px", fontWeight: 700 }}>{t.ghiChuQuanTrong}</p>
                 {t.notes.map(n => <p key={n} style={{ margin: 0 }}>{n}</p>)}
-                {ghiChu && <p style={{ margin: "8px 0 0", color: "#003087", fontWeight: 600 }}>• {t.ghiChu} {ghiChu}</p>}
+                {ghiChu && <p style={{ margin: "8px 0 0", color: "#003087", fontWeight: 600 }}>• {t.ghiChu} {lang === "zh" && translatedGhiChu ? translatedGhiChu : translateProduct(ghiChu, lang)}</p>}
               </div>
             </td>
             <td style={{ verticalAlign: "top", width: 240, border: "none" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
-                  <tr><td style={{ padding: "5px 6px", fontSize: 12.5 }}>{t.congTienHang}</td><td style={{ padding: "5px 6px", fontSize: 12.5, textAlign: "right" }}>{fmtVnd(tongTienHang)}</td></tr>
-                  <tr><td style={{ padding: "5px 6px", fontSize: 12.5 }}>{t.thueGtgt} ({thueVAT}%):</td><td style={{ padding: "5px 6px", fontSize: 12.5, textAlign: "right" }}>{fmtVnd(tienThue)}</td></tr>
+                  <tr><td style={{ padding: "5px 6px", fontSize: 12.5 }}>{t.congTienHang}</td><td style={{ padding: "5px 6px", fontSize: 12.5, textAlign: "right" }}>{(isRMB ? tongTienHang / tyGia : tongTienHang).toLocaleString("vi-VN", { maximumFractionDigits: 2 })} {isRMB ? "¥" : "₫"}</td></tr>
+                  <tr><td style={{ padding: "5px 6px", fontSize: 12.5 }}>{t.thueGtgt} ({thueVAT}%):</td><td style={{ padding: "5px 6px", fontSize: 12.5, textAlign: "right" }}>{(isRMB ? tienThue / tyGia : tienThue).toLocaleString("vi-VN", { maximumFractionDigits: 2 })} {isRMB ? "¥" : "₫"}</td></tr>
                   <tr style={{ borderTop: "1.5px solid #003087" }}>
                     <td style={{ padding: "6px 6px", fontSize: 13.5, fontWeight: 800, color: "#003087" }}>{t.tongCong}</td>
-                    <td style={{ padding: "6px 6px", fontSize: 13.5, fontWeight: 800, color: "#003087", textAlign: "right" }}>{fmtVnd(tongCong)}</td>
+                    <td style={{ padding: "6px 6px", fontSize: 13.5, fontWeight: 800, color: "#003087", textAlign: "right" }}>{(isRMB ? tongCong / tyGia : tongCong).toLocaleString("vi-VN", { maximumFractionDigits: 2 })} {isRMB ? "¥" : "₫"}</td>
                   </tr>
                 </tbody>
               </table>
-              <p style={{ margin: "6px 6px 0", fontSize: 10.5, fontStyle: "italic", color: "#64748b" }}>({t.bangChu} {lang === "zh" ? soThanhChuZh(tongCong) : soThanhChu(tongCong)})</p>
+              <p style={{ margin: "6px 6px 0", fontSize: 10.5, fontStyle: "italic", color: "#64748b" }}>({t.bangChu} {lang === "zh" ? soThanhChuZh(isRMB ? tongCong / tyGia : tongCong) : soThanhChu(isRMB ? tongCong / tyGia : tongCong).replace("đồng", isRMB ? "nhân dân tệ" : "đồng")})</p>
             </td>
           </tr>
         </tbody>

@@ -18,30 +18,33 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         dm.tenDinhMuc  AS dm_tenDinhMuc,
         dm.createdAt   AS dm_createdAt,
         dv.id          AS dv_id,
-        dv.materialId  AS dv_materialId,
+        dv.inventoryItemId  AS dv_inventoryItemId,
         dv.maVatTu     AS dv_maVatTu,
         dv.tenVatTu    AS dv_tenVatTu,
         dv.soLuong     AS dv_soLuong,
         dv.donViTinh   AS dv_donViTinh,
         dv.ghiChu      AS dv_ghiChu,
         mi.id          AS mi_id,
-        mi.name        AS mi_name,
+        mi.tenHang        AS mi_name,
         mi.code        AS mi_code,
-        COALESCE(inv.maThayThe, mi.maThayThe) AS mi_maThayThe,
-        mi.unit        AS mi_unit,
-        mi.material    AS mi_material,
-        mi.spec        AS mi_spec,
+        mi.maThayThe AS mi_maThayThe,
+        mi.donVi        AS mi_unit,
+        NULL            AS mi_material,
+        NULL            AS mi_spec,
         mi.thongSoKyThuat AS mi_thongSoKyThuat,
         mi.imageUrl    AS mi_imageUrl,
         mi.categoryId  AS mi_categoryId,
-        mi.price       AS mi_price,
+        mi.erpCategoryId AS mi_erpCategoryId,
+        mi.giaNhap       AS mi_price,
         ic.name        AS mi_categoryName,
-        ic.code        AS mi_categoryCode
+        ic.code        AS mi_categoryCode,
+        c.name         AS mi_erpCategoryName,
+        c.code         AS mi_erpCategoryCode
       FROM DinhMuc dm
       LEFT JOIN DinhMucVatTu dv ON dv.dinhMucId = dm.id
-      LEFT JOIN MaterialItem mi ON mi.id = dv.materialId
-      LEFT JOIN InventoryItem inv ON inv.code = mi.code
-      LEFT JOIN Category ic ON ic.id = mi.categoryId
+      LEFT JOIN InventoryItem mi ON mi.id = dv.inventoryItemId
+      LEFT JOIN InventoryCategory ic ON ic.id = mi.categoryId
+      LEFT JOIN Category c ON c.id = mi.erpCategoryId
       WHERE dm.id = ${id}
       ORDER BY dv.id ASC
     `;
@@ -60,7 +63,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         .filter((r: any) => r.dv_id)
         .map((r: any) => ({
           id: r.dv_id,
-          materialId: r.dv_materialId,
+          inventoryItemId: r.dv_inventoryItemId,
           maVatTu: r.dv_maVatTu,
           tenVatTu: r.dv_tenVatTu,
           soLuong: r.dv_soLuong,
@@ -72,12 +75,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             code: r.mi_code,
             maThayThe: r.mi_maThayThe,
             donVi: r.mi_unit,
-            price: r.mi_price,
+            giaNhap: r.mi_price,
             material: r.mi_material,
             spec: r.mi_spec,
             thongSoKyThuat: r.mi_thongSoKyThuat,
             imageUrl: r.mi_imageUrl,
-            category: r.mi_categoryName ? { id: r.mi_categoryId, name: r.mi_categoryName, code: r.mi_categoryCode } : null
+            category: (r.mi_categoryId || r.mi_erpCategoryId) ? { 
+              id: r.mi_erpCategoryId || r.mi_categoryId, 
+              tenHang: r.mi_erpCategoryName || r.mi_categoryName, 
+              code: r.mi_erpCategoryCode || r.mi_categoryCode 
+            } : null
           } : null
         }))
     };
@@ -97,48 +104,48 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { code, tenDinhMuc, materialItemId, vatTu = [] } = body;
+    const { code, tenDinhMuc, inventoryItemId, vatTu = [] } = body;
 
     // Xoá toàn bộ dòng cũ rồi tạo lại
     await prisma.$executeRaw`DELETE FROM DinhMucVatTu WHERE dinhMucId = ${id}`;
 
     await prisma.$executeRaw`
       UPDATE DinhMuc 
-      SET code = ${code}, tenDinhMuc = ${tenDinhMuc}, materialItemId = ${materialItemId || null}, updatedAt = CURRENT_TIMESTAMP
+      SET code = ${code}, tenDinhMuc = ${tenDinhMuc}, inventoryItemId = ${inventoryItemId || null}, updatedAt = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
 
     for (const v of vatTu) {
-      if (!v.materialId && (v.maVatTu || v.tenVatTu)) {
+      if (!v.inventoryItemId && (v.maVatTu || v.tenVatTu)) {
         let mat = null;
         if (v.maVatTu) {
-          mat = await prisma.materialItem.findFirst({ where: { code: v.maVatTu } });
+          mat = await prisma.inventoryItem.findFirst({ where: { code: v.maVatTu } });
         }
         if (!mat && v.tenVatTu) {
-          mat = await prisma.materialItem.findFirst({
-            where: { name: v.tenVatTu }
+          mat = await prisma.inventoryItem.findFirst({
+            where: { tenHang: v.tenVatTu }
           });
         }
         if (!mat) {
           const defaultPrice = 10000 + ((v.tenVatTu || v.maVatTu || "Vattu").length * 2000);
           const giaBan = Math.round((defaultPrice * 1.2) / 1000) * 1000;
-          mat = await prisma.materialItem.create({
+          mat = await prisma.inventoryItem.create({
             data: {
-              name: v.tenVatTu || v.maVatTu || "Chưa có tên",
+              tenHang: v.tenVatTu || v.maVatTu || "Chưa có tên",
               code: v.maVatTu || `AUTO-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-              unit: v.donViTinh || "Cái",
-              price: defaultPrice,
+              donVi: v.donViTinh || "Cái",
+              giaNhap: defaultPrice,
               giaBan: giaBan
             }
           });
         }
-        v.materialId = mat.id;
+        v.inventoryItemId = mat.id;
       }
 
       const lineId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       await prisma.$executeRaw`
-        INSERT INTO DinhMucVatTu (id, dinhMucId, materialId, maVatTu, tenVatTu, soLuong, donViTinh, ghiChu)
-        VALUES (${lineId}, ${id}, ${v.materialId || null}, ${v.maVatTu || null}, ${v.tenVatTu || 'Chưa có tên'}, ${v.soLuong || 1}, ${v.donViTinh || ''}, ${v.ghiChu || ''})
+        INSERT INTO DinhMucVatTu (id, dinhMucId, inventoryItemId, maVatTu, tenVatTu, soLuong, donViTinh, ghiChu)
+        VALUES (${lineId}, ${id}, ${v.inventoryItemId || null}, ${v.maVatTu || null}, ${v.tenVatTu || 'Chưa có tên'}, ${v.soLuong || 1}, ${v.donViTinh || ''}, ${v.ghiChu || ''})
       `;
     }
 
@@ -159,9 +166,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     // UPDATE ManufacturedProduct is removed because DinhMuc now references ManufacturedProduct, and deleting DinhMuc handles it.
     const dm = await prisma.dinhMuc.findUnique({
       where: { id },
-      include: { materialItem: true }
+      include: { inventoryItem: true }
     });
-    if (dm && dm.code === `DM-${dm.materialItem?.code}`) {
+    if (dm && dm.inventoryItem && dm.code === `DM-${dm.inventoryItem.code}`) {
       return NextResponse.json({ error: "Không được phép xoá định mức tiêu chuẩn" }, { status: 400 });
     }
 

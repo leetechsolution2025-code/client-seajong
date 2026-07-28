@@ -90,9 +90,8 @@ Hãy tư vấn nghiệp vụ kế toán, luật thuế và phân tích số li�
 
     // --- CONTEXT: SẢN XUẤT (PRODUCTION) ---
     else if (context.includes("/production")) {
-      const [inventory, manufactured] = await Promise.all([
+      const [inventory] = await Promise.all([
         prisma.inventoryItem.findMany({ select: { soLuong: true, soLuongMin: true } }).catch(() => []),
-        prisma.manufacturedProduct.findMany({ take: 50, orderBy: { createdAt: 'desc' } }).catch(() => [])
       ]);
       
       const lowStock = inventory.filter(i => (i.soLuong || 0) < (i.soLuongMin || 0)).length;

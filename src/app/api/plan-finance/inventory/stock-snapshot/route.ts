@@ -89,12 +89,6 @@ export async function GET(req: NextRequest) {
   const isManufactured = true; // Bỏ ràng buộc, coi như tất cả kho đều hiển thị đủ danh sách để kiểm
 
   let materialCategoryMap = new Map<string, string | null>();
-  const materials = await (prisma as any).materialItem.findMany({
-    select: { code: true, category: { select: { code: true } } }
-  });
-  materials.forEach((m: any) => {
-    if (m.code) materialCategoryMap.set(m.code, m.category?.code ?? null);
-  });
   
   const items = await prisma.inventoryItem.findMany({
     where: {
@@ -117,7 +111,9 @@ export async function GET(req: NextRequest) {
       thongSoKyThuat:    true,
       trangThai:         true,
       categoryId: true,
+      erpCategoryId: true,
       category:   { select: { name: true, code: true } },
+      erpCategory: { select: { code: true } },
       stocks: warehouseId
         ? {
             where:   { warehouseId },
@@ -145,8 +141,9 @@ export async function GET(req: NextRequest) {
         giaNhap:         it.giaNhap,
         trangThai:       it.trangThai,
         categoryId:      it.categoryId,
+        erpCategoryId:   (it as any).erpCategoryId ?? null,
         categoryName:    it.category?.name ?? null,
-        categoryCode:    it.code && materialCategoryMap.has(it.code) ? (materialCategoryMap.get(it.code) ?? it.category?.code ?? null) : (it.category?.code ?? null),
+        categoryCode:    (it as any).erpCategory?.code ?? (it.code && materialCategoryMap.has(it.code) ? (materialCategoryMap.get(it.code) ?? it.category?.code ?? null) : (it.category?.code ?? null)),
         thongSoKyThuat:  it.thongSoKyThuat ?? null,
         soLuongHeTong:   stock?.soLuong    ?? 0,
         soLuongMin:      Math.max(stock?.soLuongMin ?? 0, it.soLuongMin),
@@ -171,8 +168,9 @@ export async function GET(req: NextRequest) {
         giaNhap:         it.giaNhap,
         trangThai:       it.trangThai,
         categoryId:      it.categoryId,
+        erpCategoryId:   (it as any).erpCategoryId ?? null,
         categoryName:    it.category?.name ?? null,
-        categoryCode:    it.code && materialCategoryMap.has(it.code) ? (materialCategoryMap.get(it.code) ?? it.category?.code ?? null) : (it.category?.code ?? null),
+        categoryCode:    (it as any).erpCategory?.code ?? (it.code && materialCategoryMap.has(it.code) ? (materialCategoryMap.get(it.code) ?? it.category?.code ?? null) : (it.category?.code ?? null)),
         thongSoKyThuat:  it.thongSoKyThuat ?? null,
         soLuongHeTong,
         soLuongMin:      Math.max(soLuongMinKho, it.soLuongMin),

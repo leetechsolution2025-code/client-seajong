@@ -126,7 +126,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
   const handleBulkDelete = async () => {
     setDeleting(true);
     try {
-      await Promise.all(selectedIds.map(async (id) => {
+      for (const id of selectedIds) {
         const item = items.find(it => it.id === id);
         const source = item?.source || "material";
         const res = await fetch(`/api/logistics/inventory?id=${id}&source=${source}`, { method: "DELETE" });
@@ -134,7 +134,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
           const err = await res.json().catch(() => ({}));
           throw new Error(err.error || `Xoá thất bại ID ${id}`);
         }
-      }));
+      }
 
       toast.success("Thành công", `Đã xoá ${selectedIds.length} hàng hoá`);
       setSelectedIds([]);

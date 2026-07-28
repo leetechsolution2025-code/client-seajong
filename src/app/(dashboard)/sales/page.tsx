@@ -356,7 +356,7 @@ export default function SalesPage() {
   // Chart setup
   const chartSeries = [
     { name: "Doanh thu mục tiêu", data: monthlyTrends.map(t => t.target), color: "#f59e0b" },
-    { name: "Doanh thu thực tế", data: monthlyTrends.map(t => t.actualRevenue), color: "#10b981" }
+    { name: "Doanh thu thực tế", data: monthlyTrends.map(t => t.actualSales), color: "#10b981" }
   ];
 
   const apexOptions: ApexCharts.ApexOptions = {

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { HoverImage } from "@/components/ui/HoverImage";
+import { useSession } from "next-auth/react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface Product {
@@ -60,6 +61,8 @@ export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Pr
   const [isPaused, setIsPaused]   = useState(false);
   const [showAdModal, setShowAdModal] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const { data: session } = useSession();
+  const isMarketing = (session?.user as any)?.department === "marketing";
   
   const [adFormat, setAdFormat]   = useState("Facebook Post");
   const [adStyle, setAdStyle]     = useState("Chuyên nghiệp");
@@ -905,20 +908,6 @@ export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Pr
             Thông tin sản phẩm
           </span>
           <div className="d-flex align-items-center gap-2">
-            {onEdit && (
-              <button
-                onClick={onEdit}
-                style={{
-                  height: 32, borderRadius: 8, padding: "0 12px",
-                  border: "1.5px solid var(--border)", background: "transparent",
-                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "var(--foreground)", fontSize: 13, fontWeight: 600, gap: 6
-                }}
-              >
-                <i className="bi bi-pencil-square" style={{ fontSize: 13 }} />
-                Sửa
-              </button>
-            )}
             <button
               onClick={onClose}
               style={{
@@ -1047,7 +1036,7 @@ export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Pr
                 <i className="bi bi-chat-dots" style={{ fontSize: 12 }} />
                 Tin nhắn Zalo
               </button>
-            ) : (
+            ) : isMarketing ? (
               <button
                 onClick={() => setShowAdModal(true)}
                 style={{
@@ -1065,7 +1054,7 @@ export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Pr
                 <i className="bi bi-stars" style={{ fontSize: 12 }} />
                 Viết bài quảng cáo
               </button>
-            )}
+            ) : null}
           </div>
 
           {/* ── Gallery Slideshow ── */}

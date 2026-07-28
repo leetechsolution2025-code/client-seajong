@@ -1208,6 +1208,18 @@ export default function FinancePage() {
                             <span className="text-muted">Người phụ trách:</span>
                             <span className="text-dark fw-medium">{selectedOrder.nguoiPhuTrachName || "Hệ thống"}</span>
                           </div>
+                          <div className="d-flex align-items-center justify-content-between">
+                            <span className="text-muted">Ngày đặt hàng:</span>
+                            <span className="text-dark fw-medium">
+                              {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleDateString("vi-VN") : "---"}
+                            </span>
+                          </div>
+                          <div className="d-flex align-items-center justify-content-between">
+                            <span className="text-muted">Ngày giao hàng:</span>
+                            <span className="text-dark fw-medium">
+                              {selectedOrder.ngayGiaoHang ? new Date(selectedOrder.ngayGiaoHang).toLocaleDateString("vi-VN") : (selectedOrder.ngayGiao ? new Date(selectedOrder.ngayGiao).toLocaleDateString("vi-VN") : "---")}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -1829,8 +1841,8 @@ export default function FinancePage() {
                     render: (item: any) => {
                       const hasEnoughStock = (item.missingQty || 0) <= 0;
                       const isKhoChinh = item.warehouseCode === "KHO-CHINH";
-                      const isDisabled = selectedOrder?.keToanDuyet === "approved";
-                      const isProdChecked = productionItemIds.includes(item.id);
+                      const isDisabled = selectedOrder?.keToanDuyet === "approved" || !item.isManufactured;
+                      const isProdChecked = productionItemIds.includes(item.id) && item.isManufactured;
                       
                       return (
                         <div className="d-flex justify-content-center">
@@ -1840,6 +1852,7 @@ export default function FinancePage() {
                             style={{ cursor: isDisabled ? "not-allowed" : "pointer", width: "16px", height: "16px" }}
                             disabled={isDisabled}
                             checked={isProdChecked}
+                            title={!item.isManufactured ? "Hàng hoá không có định mức sản xuất, hệ thống sẽ tự tạo phiếu yêu cầu mua sắm" : ""}
                             onChange={(e) => {
                               if (e.target.checked) {
                                 setProductionItemIds(prev => [...prev, item.id]);
@@ -1857,7 +1870,7 @@ export default function FinancePage() {
                     header: "Sản phẩm",
                     render: (item: any) => {
                       const hasEnoughStock = (item.missingQty || 0) <= 0;
-                      const warehouseLabel = item.warehouseCode === "KHO-CHINH" ? "Kho Hàng Hoá (KHO-CHINH)" : item.warehouseCode === "KVP" ? "Kho Vật tư phụ kiện (KVP)" : "Kho Thành Phẩm (KHO-THANHPHAM)";
+                      const warehouseLabel = item.warehouseCode === "KHO-CHINH" ? "Kho Hàng Hoá (KHO-CHINH)" : "Kho Vật Tư Phụ Kiện (KVP)";
                       return (
                         <div className="d-flex flex-column">
                           <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>{item.tenHang || item.name}</span>
@@ -1867,7 +1880,7 @@ export default function FinancePage() {
                               <span className="text-danger fw-semibold" style={{ fontSize: "11px" }}>
                                 <i className="bi bi-exclamation-triangle me-1"></i> Thiếu: {item.missingQty} {item.donVi || item.unit || "cái"}
                               </span>
-                              {item.warehouseCode === "KHO-THANHPHAM" ? (
+                              {item.isManufactured ? (
                                 item.canProduce ? (
                                   <span className="text-success fw-medium mt-1" style={{ fontSize: "11px" }}>
                                     <i className="bi bi-check-circle me-1"></i> Đủ phụ kiện để sản xuất

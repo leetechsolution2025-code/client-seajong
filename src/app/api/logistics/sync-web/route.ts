@@ -348,6 +348,25 @@ async function performDeepSync(logId: string) {
           });
         }
 
+        // Tự động gán vào KHO-CHINH
+        const khoChinh = await prisma.warehouse.findUnique({ where: { code: 'KHO-CHINH' } });
+        if (khoChinh && finalItem) {
+          await prisma.inventoryStock.upsert({
+            where: {
+              inventoryItemId_warehouseId: {
+                inventoryItemId: finalItem.id,
+                warehouseId: khoChinh.id
+              }
+            },
+            update: {},
+            create: {
+              inventoryItemId: finalItem.id,
+              warehouseId: khoChinh.id,
+              soLuong: 0
+            }
+          });
+        }
+
         // GÁN VÀO KHO TƯƠNG ỨNG
         const targetWarehouseId = hangHoaWh?.id || "";
         if (targetWarehouseId) {

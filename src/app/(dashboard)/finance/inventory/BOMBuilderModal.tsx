@@ -104,7 +104,7 @@ export function BOMBuilderModal({ show, onClose, item, onSaved }: BOMBuilderModa
     if (!q.trim()) { setMaterialResults([]); return; }
     setSearching(true);
     try {
-      const res = await fetch(`/api/production/materials?search=${encodeURIComponent(q)}&pageSize=20`);
+      const res = await fetch(`/api/logistics/inventory?search=${encodeURIComponent(q)}&pageSize=20`);
       const data = await res.json();
       setMaterialResults(data.items || []);
       setSelectedIndex(-1);

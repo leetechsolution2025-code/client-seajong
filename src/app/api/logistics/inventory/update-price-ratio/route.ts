@@ -10,9 +10,9 @@ export async function POST(req: Request) {
     }
 
     // Fetch all materials with price > 0
-    const materials = await (prisma as any).materialItem.findMany({
-      where: { price: { gt: 0 } },
-      select: { id: true, price: true }
+    const materials = await prisma.inventoryItem.findMany({
+      where: { giaNhap: { gt: 0 } },
+      select: { id: true, giaNhap: true }
     });
 
     if (materials.length > 0) {
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
       for (let i = 0; i < materials.length; i += chunkSize) {
         const chunk = materials.slice(i, i + chunkSize);
         const updates = chunk.map((m: any) => 
-          (prisma as any).materialItem.update({
+          prisma.inventoryItem.update({
             where: { id: m.id },
             data: { giaBan: m.price * (1 + numRatio / 100) }
           })

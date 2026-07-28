@@ -23,7 +23,7 @@ export async function GET(
             warehouse: { select: { id: true, code: true, name: true, isActive: true } },
           },
         },
-        dinhMuc: {
+        dinhMucs: {
           include: { vatTu: { orderBy: { id: "asc" } } },
         },
       },

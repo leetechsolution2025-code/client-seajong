@@ -351,8 +351,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     if (showAddMaterial) {
       setLoadingAddMaterials(true);
       Promise.all([
-        fetch(`/api/production/materials`).then(res => res.json()),
-        fetch(`/api/production/materials/categories`).then(res => res.json())
+        fetch(`/api/logistics/inventory`).then(res => res.json()),
+        fetch(`/api/logistics/categories`).then(res => res.json())
       ])
         .then(([materialsData, categoriesData]) => {
           setAddMaterials(materialsData.items || []);
@@ -387,7 +387,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         queryParams.append("categoryId", alternativeTarget.material.category.id);
       }
 
-      fetch(`/api/production/materials?${queryParams.toString()}`)
+      fetch(`/api/logistics/inventory?${queryParams.toString()}`)
         .then(res => res.json())
         .then(data => {
           setAlternativeMaterials(data.items || []);
@@ -989,6 +989,20 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                   style={inputSt}
                 />
               </div>
+            </div>
+
+            <div>
+              <FLabel text="Địa chỉ khách hàng" />
+              <input
+                type="text"
+                placeholder="Nhập địa chỉ khách hàng..."
+                value={custInfo.address}
+                onChange={e => {
+                  const val = e.target.value;
+                  setCustInfo(prev => ({ ...prev, address: val }));
+                }}
+                style={inputSt}
+              />
             </div>
 
             <div>

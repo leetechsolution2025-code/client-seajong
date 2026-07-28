@@ -38,25 +38,7 @@ export async function GET() {
       categoryMap[cat.id] = existing.id;
     }
 
-    const materials = await (prisma as any).materialItem.findMany();
-    for (const mat of materials) {
-      if (mat.code && mat.categoryId && categoryMap[mat.categoryId]) {
-        await prisma.inventoryItem.updateMany({
-          where: { code: mat.code, loai: 'vat-tu' },
-          data: { categoryId: categoryMap[mat.categoryId] }
-        });
-      }
-    }
-
-    const products = await prisma.manufacturedProduct.findMany();
-    for (const prod of products) {
-      if (prod.code && prod.productCategoryId && categoryMap[prod.productCategoryId]) {
-        await prisma.inventoryItem.updateMany({
-          where: { code: prod.code, loai: 'thanh-pham' },
-          data: { categoryId: categoryMap[prod.productCategoryId] }
-        });
-      }
-    }
+    // Old sync logic removed as MaterialItem and ManufacturedProduct no longer exist
 
     return NextResponse.json({ success: true, message: `Synced ${count} new categories and updated items.` });
   } catch (error: any) {

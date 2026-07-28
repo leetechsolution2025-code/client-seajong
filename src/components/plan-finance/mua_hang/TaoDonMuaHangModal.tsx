@@ -19,6 +19,7 @@ interface ReqItem {
     donVi: string | null;
     categoryId: string | null;
     thongSoKyThuat: string | null;
+    imageUrl: string | null;
   } | null;
 }
 

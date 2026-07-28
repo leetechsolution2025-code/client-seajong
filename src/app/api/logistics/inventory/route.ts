@@ -7,6 +7,20 @@ import { deleteAutoJournalByReference } from "@/lib/accounting-engine";
 import { syncCategoryToInventory } from "@/lib/sync-utils";
 
 // Hàm đệ quy để lấy toàn bộ ID danh mục con
+async function getErpCategoryIdsRecursive(categoryId: string): Promise<string[]> {
+  const ids = [categoryId];
+  const children = await prisma.category.findMany({
+    where: { parentId: categoryId } as any,
+    select: { id: true },
+  });
+
+  for (const child of children) {
+    const childIds = await getErpCategoryIdsRecursive(child.id);
+    ids.push(...childIds);
+  }
+  return ids;
+}
+
 async function getCategoryIdsRecursive(categoryId: string): Promise<string[]> {
   const ids = [categoryId];
   const children = await prisma.inventoryCategory.findMany({
@@ -50,6 +64,8 @@ export async function GET(req: Request) {
     }
 
     const categoryId = searchParams.get("categoryId");
+    const exactCode = searchParams.get("exactCode");
+    const nolimit = searchParams.get("nolimit") === "true";
     const search = searchParams.get("search");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "15");
@@ -181,9 +197,19 @@ export async function GET(req: Request) {
 
     const where: any = {};
 
-    if (categoryId) {
-      const allCategoryIds = await getCategoryIdsRecursive(categoryId);
-      where.categoryId = { in: allCategoryIds };
+    if (exactCode) {
+      where.OR = [
+        { maThayThe: exactCode },
+        { code: exactCode }
+      ];
+    } else if (categoryId) {
+      if (warehouseType === "MATERIAL" || warehouseType === "PRODUCT") {
+        const allCategoryIds = await getErpCategoryIdsRecursive(categoryId);
+        where.erpCategoryId = { in: allCategoryIds };
+      } else {
+        const allCategoryIds = await getCategoryIdsRecursive(categoryId);
+        where.categoryId = { in: allCategoryIds };
+      }
     } else if (industryProdCategoryIds.length > 0) {
       where.OR = [
         { categoryId: { in: industryProdCategoryIds } },
@@ -198,117 +224,40 @@ export async function GET(req: Request) {
       where.stocks = { some: { warehouseId, soLuong: { gt: 0 } } };
     }
 
-    const mfpWhere: any = {};
-    // Không lọc ManufacturedProduct theo categoryId vì nó dùng bảng Category khác với InventoryCategory
-    // Thay vào đó, nếu không có search (tải danh sách kho) thì không trả về ManufacturedProduct để tránh loãng dữ liệu.
-    // Nếu có search (tìm kiếm gợi ý) thì trả về để lọc in-memory.
     const includeManufactured = searchParams.get("includeManufactured") === "true";
     const excludeMaterials = searchParams.get("excludeMaterials") === "true";
 
-    const [invItems, matItems, invTotal, matTotal, mfpItems, mfpTotal] = await Promise.all([
-      // PRODUCT_SYNC (hoặc DEFECT / ALL) móc bảng InventoryItem
-      warehouseType === "PRODUCT_SYNC" || warehouseType === "DEFECT" || warehouseType === "ALL" ? prisma.inventoryItem.findMany({
-        where,
-        include: {
-          category: { select: { id: true, name: true } },
-          stocks: { include: { warehouse: true } },
-          dinhMuc: true,
-        },
-        orderBy: { updatedAt: "desc" },
-      }) : Promise.resolve([]),
+    if (warehouseType === "PRODUCT_SYNC") {
+      where.loai = "hang-hoa";
+    } else if (warehouseType === "MATERIAL") {
+      where.loai = "vat-tu";
+    } else if (warehouseType === "PRODUCT") {
+      where.loai = "thanh-pham";
+    }
+    
+    if (excludeMaterials && warehouseType === "ALL") {
+      where.loai = { not: "vat-tu" };
+    }
 
-      // MATERIAL (hoặc DEFECT / ALL) móc bảng MaterialItem
-      !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "DEFECT" || warehouseType === "ALL") ? (prisma as any).materialItem.findMany({
-        where: {
-          ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
-          ...(warehouseType === "DEFECT" && warehouseId ? { stocks: { some: { warehouseId, soLuong: { gt: 0 } } } } : {})
-        },
+    const [invItems, invTotal] = await Promise.all([
+      prisma.inventoryItem.findMany({
+        where,
         include: {
           category: { select: { id: true, name: true } },
           stocks: { include: { warehouse: true } },
           dinhMucs: true,
         },
         orderBy: { updatedAt: "desc" },
-      }) : Promise.resolve([]),
-
-      warehouseType === "PRODUCT_SYNC" || warehouseType === "DEFECT" || warehouseType === "ALL" ? prisma.inventoryItem.count({ where }) : Promise.resolve(0),
-      !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "DEFECT" || warehouseType === "ALL") ? (prisma as any).materialItem.count({
-        where: {
-          ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
-          ...(warehouseType === "DEFECT" && warehouseId ? { stocks: { some: { warehouseId, soLuong: { gt: 0 } } } } : {})
-        }
-      }) : Promise.resolve(0),
-
-      // PRODUCT (hoặc explicit includeManufactured) móc bảng ManufacturedProduct
-      (warehouseType === "PRODUCT" || warehouseType === "ALL" || includeManufactured) && warehouseType !== "DEFECT" ? prisma.manufacturedProduct.findMany({
-        where: {
-          ...mfpWhere,
-          ...(categoryId ? { productCategoryId: categoryId } : {})
-        },
-        include: { dinhMucs: true, productCategory: true },
-        orderBy: { updatedAt: "desc" }
-      }) : Promise.resolve([]),
-      (warehouseType === "PRODUCT" || warehouseType === "ALL" || includeManufactured) && warehouseType !== "DEFECT" ? prisma.manufacturedProduct.count({ 
-        where: {
-          ...mfpWhere,
-          ...(categoryId ? { productCategoryId: categoryId } : {})
-        }
-      }) : Promise.resolve(0),
+      }),
+      prisma.inventoryItem.count({ where })
     ]);
 
-    // Map and Merge
-    const allItems = [
-      ...invItems.map((it: any) => {
-        return {
-          ...it,
-          source: "inventory",
-          categoryName: it.category?.name,
-          dinhMucs: it.dinhMuc ? [it.dinhMuc] : []
-        };
-      }),
-      ...matItems.map((it: any) => ({
-        id: it.id,
-        tenHang: it.name,
-        code: it.code,
-        donVi: it.unit,
-        giaNhap: it.price,
-        giaBan: it.giaBan || 0,
-        brand: it.brand,
-        model: it.spec,
-        color: it.brand,
-        soLuongMin: it.minStock,
-        categoryId: it.categoryId,
-        category: it.category,
-        categoryName: it.category?.name,
-        stocks: it.stocks,
-        dinhMucs: it.dinhMucs || [],
-        updatedAt: it.updatedAt,
-        source: "material",
-        kieuDang: it.spec,
-        spec: it.spec,
-        thongSoKyThuat: it.thongSoKyThuat,
-        ghiChu: it.ghiChu,
-        imageUrl: it.imageUrl,
-        chieuDai: it.chieuDai,
-        chieuRong: it.chieuRong,
-        chieuDay: it.chieuDay,
-      })),
-      ...mfpItems.map((m: any) => ({
-        id: m.id,
-        tenHang: m.name,
-        code: m.code,
-        donVi: m.unit,
-        giaNhap: 0,
-        giaBan: m.giaBan || 0,
-        categoryId: m.productCategoryId,
-        category: m.productCategory ? { id: m.productCategory.id, name: m.productCategory.name } : null,
-        stocks: [],
-        dinhMucs: m.dinhMucs || [],
-        updatedAt: m.updatedAt,
-        source: "manufactured",
-        imageUrl: m.imageUrl,
-      }))
-    ];
+    const allItems = invItems.map((it: any) => ({
+      ...it,
+      source: it.loai === "hang-hoa" ? "inventory" : (it.loai === "vat-tu" ? "material" : "manufactured"),
+      categoryName: it.category?.name,
+      dinhMucs: it.dinhMucs || []
+    }));
 
     // Restore deduplication: Merge items with same code/name and COMBINE their stocks
     const deduplicatedMap = new Map();
@@ -358,9 +307,8 @@ export async function GET(req: Request) {
     // Sort combined
     allItemsWithStock.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
 
-
     const removeAccents = (str: string) => {
-      return str ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : '';
+      return str ? str.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase() : '';
     };
 
     let filteredItems = allItemsWithStock;
@@ -369,14 +317,14 @@ export async function GET(req: Request) {
       filteredItems = allItemsWithStock.filter(item => {
         const nameNorm = removeAccents(item.tenHang);
         const codeNorm = removeAccents(item.code);
-        const modelNorm = removeAccents(item.model);
+        const modelNorm = removeAccents(item.model || '');
         return nameNorm.includes(searchNormalized) || codeNorm.includes(searchNormalized) || modelNorm.includes(searchNormalized);
       });
     }
 
     // Paginate manually
-    const total = search ? filteredItems.length : invTotal + matTotal + mfpTotal;
-    const paginated = filteredItems.slice(skip, skip + limit);
+    const total = search ? filteredItems.length : invTotal;
+    const paginated = nolimit ? filteredItems : filteredItems.slice(skip, skip + limit);
     
     const paginatedWithImages = await attachWebImages(paginated);
 
@@ -409,7 +357,7 @@ export async function POST(req: Request) {
         const duplicateItem = await prisma.inventoryItem.findUnique({ where: { code } });
         if (duplicateItem) return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
       } else if (source === "manufactured") {
-        const duplicateManufactured = await prisma.manufacturedProduct.findUnique({ where: { code } });
+        const duplicateManufactured = await prisma.inventoryItem.findUnique({ where: { code } });
         if (duplicateManufactured) return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
       } else {
         const duplicateMaterial = await (prisma as any).materialItem.findUnique({ where: { code } });
@@ -418,11 +366,11 @@ export async function POST(req: Request) {
     }
 
     if (source === "manufactured") {
-      const newItem = await prisma.manufacturedProduct.create({
+      const newItem = await prisma.inventoryItem.create({
         data: {
           code,
           name: tenHang,
-          productCategoryId: categoryId || undefined,
+          categoryId: categoryId || undefined,
           unit: donVi || "bộ",
           defaultWarehouse: warehouseId || "KHO-THANHPHAM",
           notes: ghiChu || undefined,
@@ -433,7 +381,7 @@ export async function POST(req: Request) {
 
       // Tạo InventoryItem đồng bộ
       if (code) {
-        const mappedCategoryId = await syncCategoryToInventory(newItem.productCategoryId);
+        const mappedCategoryId = await syncCategoryToInventory(newItem.categoryId);
         await prisma.inventoryItem.create({
           data: {
             code,
@@ -578,9 +526,9 @@ export async function POST(req: Request) {
 
       // Nếu có warehouseId, tạo tồn kho ban đầu (MaterialStock)
       if (warehouseId) {
-        await prisma.materialStock.create({
+        await prisma.inventoryStock.create({
           data: {
-            materialId: newItem.id,
+            inventoryItemId: newItem.id,
             warehouseId,
             soLuong: 0,
             soLuongMin: Number(soLuongMin) || 0,
@@ -612,7 +560,7 @@ export async function PUT(req: Request) {
         const current = await prisma.inventoryItem.findUnique({ where: { id }, select: { code: true } });
         currentCode = current?.code || "";
       } else if (source === "manufactured") {
-        const current = await prisma.manufacturedProduct.findUnique({ where: { id }, select: { code: true } });
+        const current = await prisma.inventoryItem.findUnique({ where: { id }, select: { code: true } });
         currentCode = current?.code || "";
       } else {
         const current = await (prisma as any).materialItem.findUnique({ where: { id }, select: { code: true } });
@@ -624,7 +572,7 @@ export async function PUT(req: Request) {
           const duplicateItem = await prisma.inventoryItem.findFirst({ where: { code, id: { not: id } } });
           if (duplicateItem) return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
         } else if (source === "manufactured") {
-          const duplicateManufactured = await prisma.manufacturedProduct.findFirst({ where: { code, id: { not: id } } });
+          const duplicateManufactured = await prisma.inventoryItem.findFirst({ where: { code, id: { not: id } } });
           if (duplicateManufactured) return NextResponse.json({ error: "Mã định danh đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác." }, { status: 400 });
         } else if (source === "seajong") {
           const duplicateSeajong = await prisma.seajongProduct.findFirst({ where: { slug: code, id: { not: Number(id) } } });
@@ -660,16 +608,16 @@ export async function PUT(req: Request) {
       });
       return NextResponse.json(updated);
     } else if (source === "manufactured") {
-      const oldProduct = await prisma.manufacturedProduct.findUnique({ where: { id }, select: { code: true } });
+      const oldProduct = await prisma.inventoryItem.findUnique({ where: { id }, select: { code: true } });
       const oldCode = oldProduct?.code;
 
       // Cập nhật ManufacturedProduct
-      const updated = await prisma.manufacturedProduct.update({
+      const updated = await prisma.inventoryItem.update({
         where: { id },
         data: {
           code,
           name: tenHang,
-          productCategoryId: categoryId || undefined,
+          categoryId: categoryId || undefined,
           unit: donVi || "bộ",
           notes: ghiChu || undefined,
           giaBan: Number(giaBan) || 0,
@@ -679,7 +627,7 @@ export async function PUT(req: Request) {
       
       // ĐỒNG BỘ Cập nhật InventoryItem
       if (code) {
-        const mappedCategoryId = await syncCategoryToInventory(updated.productCategoryId);
+        const mappedCategoryId = await syncCategoryToInventory(updated.categoryId);
         
         if (oldCode && oldCode !== code) {
           await prisma.inventoryItem.updateMany({
@@ -821,11 +769,11 @@ export async function DELETE(req: Request) {
       await prisma.stockMovement.deleteMany({ where: { inventoryItemId: id } });
       await prisma.inventoryItem.delete({ where: { id } });
     } else if (source === "manufactured") {
-      const item = await prisma.manufacturedProduct.findUnique({ where: { id } });
+      const item = await prisma.inventoryItem.findUnique({ where: { id } });
       if (item && item.code) {
          await deleteAutoJournalByReference(item.code, "Xoá thành phẩm");
       }
-      await prisma.manufacturedProduct.delete({ where: { id } });
+      await prisma.inventoryItem.delete({ where: { id } });
     } else if (source === "seajong") {
       await prisma.seajongProduct.delete({ where: { id: Number(id) } });
     } else {
@@ -834,10 +782,10 @@ export async function DELETE(req: Request) {
          await deleteAutoJournalByReference(item.code, "Xoá vật tư");
       }
       await prisma.dinhMucVatTu.updateMany({
-        where: { materialId: id },
-        data: { materialId: null }
+        where: { inventoryItemId: id },
+        data: { inventoryItemId: null }
       });
-      await prisma.materialStock.deleteMany({ where: { materialId: id } });
+      await prisma.inventoryStock.deleteMany({ where: { inventoryItemId: id } });
       await (prisma as any).materialItem.delete({ where: { id } });
     }
 

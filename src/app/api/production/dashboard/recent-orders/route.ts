@@ -18,6 +18,10 @@ export async function GET(req: Request) {
     const orders = await prisma.saleOrder.findMany({
       where: {
         keToanDuyet: "approved",
+        OR: [
+          { trangThai: "in_production" },
+          { ngayHoanThanhSanXuat: { not: null } }
+        ]
       },
       orderBy: { updatedAt: 'desc' },
       take: 100, // Tăng limit để có thể lọc
@@ -28,7 +32,7 @@ export async function GET(req: Request) {
 
     let result = orders.map(order => {
       // Phân loại trạng thái lệnh sản xuất dựa trên trạng thái đơn hàng
-      const isCompleted = order.trangThai === "approved" || order.trangThai === "shipped" || order.trangThai === "completed";
+      const isCompleted = order.ngayHoanThanhSanXuat !== null;
       const isRunning = order.trangThai === "in_production";
       
       const qty = order.saleOrderItems.reduce((sum: number, item: any) => sum + item.soLuong, 0);

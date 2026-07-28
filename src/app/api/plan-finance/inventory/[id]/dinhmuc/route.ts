@@ -21,11 +21,11 @@ export async function PUT(
     vatTu: { tenVatTu: string; soLuong: number; donViTinh?: string; ghiChu?: string }[];
   };
 
-  const item = await prisma.inventoryItem.findUnique({ where: { id }, select: { dinhMucId: true } });
+  const item = await prisma.inventoryItem.findUnique({ where: { id }, select: { dinhMucs: { take: 1, select: { id: true } } } });
   if (!item) return NextResponse.json({ error: "Không tìm thấy hàng hoá" }, { status: 404 });
 
   try {
-    let dinhMucId = item.dinhMucId;
+    let dinhMucId = item.dinhMucs?.[0]?.id;
 
     if (dinhMucId) {
       // Đã có định mức → cập nhật header + xoá vatTu cũ, thêm mới
@@ -62,7 +62,7 @@ export async function PUT(
         },
       });
       dinhMucId = dm.id;
-      await prisma.inventoryItem.update({ where: { id }, data: { dinhMucId } });
+      
     }
 
     // Trả về dinhMuc đầy đủ
@@ -86,11 +86,10 @@ export async function DELETE(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const item = await prisma.inventoryItem.findUnique({ where: { id }, select: { dinhMucId: true } });
-  if (!item?.dinhMucId) return NextResponse.json({ ok: true });
+  const item = await prisma.inventoryItem.findUnique({ where: { id }, select: { dinhMucs: { take: 1, select: { id: true } } } });
+  if (!item?.dinhMucs || item.dinhMucs.length === 0) return NextResponse.json({ ok: true });
 
-  await prisma.dinhMuc.delete({ where: { id: item.dinhMucId } });
-  await prisma.inventoryItem.update({ where: { id }, data: { dinhMucId: null } });
+  await prisma.dinhMuc.delete({ where: { id: item.dinhMucs[0].id } });
 
   return NextResponse.json({ ok: true });
 }

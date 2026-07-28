@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
   let whFilter: any = {};
   if (warehouseId) {
     const wh = await prisma.warehouse.findUnique({ where: { id: warehouseId }, select: { code: true } });
-    if (wh?.code === "KHO-THANHPHAM") whFilter = { loai: "thanh-pham" };
-    else if (wh?.code === "KVP") whFilter = { loai: "vat-tu" };
+
+    if (wh?.code === "KVP") whFilter = { loai: "vat-tu" };
     else if (wh?.code === "KHO-CHINH") whFilter = { loai: "hang-hoa" };
     else if (wh?.code === "KHO-LOI") whFilter = { stocks: { some: { warehouseId: warehouseId, soLuong: { gt: 0 } } } };
   }
@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
       giaNhap:   true,
       giaBan:    true,
       trangThai: true,
+      imageUrl:  true,
       // Luôn fetch stocks để tính tồn kho chính xác
       stocks: warehouseId
         ? {
@@ -104,6 +105,7 @@ export async function GET(req: NextRequest) {
       giaNhap:    it.giaNhap,
       giaBan:     it.giaBan,
       trangThai:  it.trangThai,
+      imageUrl:   it.imageUrl,
       soLuongTon,
       viTriHang,
       viTriCot,

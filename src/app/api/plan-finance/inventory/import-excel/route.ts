@@ -49,7 +49,7 @@ function parseVatTu(raw: string) {
     .map(s => {
       const parts = s.split("|");
       return {
-        materialId: undefined as string | undefined,
+        inventoryItemId: undefined as string | undefined,
         tenVatTu:  (parts[0] ?? "").trim(),
         soLuong:   Math.max(0, Number(parts[1] ?? "1") || 1),
         donViTinh: (parts[2] ?? "").trim() || undefined,
@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
     await prisma.inventoryItem.deleteMany({});
     
     // Nếu muốn xóa trắng cả Vật tư (Material) thì mở comment dòng dưới (Lưu ý: sẽ làm đứt liên kết BOM)
-    // await prisma.materialItem.deleteMany({});
+    // await prisma.inventoryItem.deleteMany({});
 
     let created = 0;
     let skipped = 0;
@@ -210,30 +210,31 @@ export async function POST(req: NextRequest) {
 
           // Auto lookup or create MaterialItems for vatTuList
           for (const v of vatTuList) {
-            let mat = await prisma.materialItem.findFirst({
-              where: { name: v.tenVatTu }
+            let mat = await prisma.inventoryItem.findFirst({
+              where: { tenHang: v.tenVatTu }
             });
             if (!mat) {
               const defaultPrice = 10000 + (v.tenVatTu.length * 2000);
               const giaBan = Math.round((defaultPrice * 1.2) / 1000) * 1000;
-              mat = await prisma.materialItem.create({
+              mat = await prisma.inventoryItem.create({
                 data: {
-                  name: v.tenVatTu,
+                  tenHang: v.tenVatTu,
                   code: `AUTO-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
                   maThayThe: itemData.maThayThe || null,
-                  unit: v.donViTinh || "Cái",
-                  price: defaultPrice,
+                  donVi: v.donViTinh || "Cái",
+                  giaNhap: defaultPrice,
+                  loai: "vat-tu",
                   giaBan: giaBan,
                   categoryId: itemData.matCategoryId || null
                 } as any
               });
             } else if (itemData.maThayThe && (mat as any).maThayThe !== itemData.maThayThe) {
-              mat = await prisma.materialItem.update({
+              mat = await prisma.inventoryItem.update({
                 where: { id: mat.id },
                 data: { maThayThe: itemData.maThayThe, categoryId: itemData.matCategoryId || null } as any
               });
             }
-            v.materialId = mat.id;
+            v.inventoryItemId = mat.id;
           }
 
           if (dmCode) {
@@ -290,7 +291,7 @@ export async function POST(req: NextRequest) {
 
         // ĐỒNG BỘ: Cập nhật luôn MaterialItem (Vật tư nền tảng) nếu nó tồn tại để BOM (Định mức) nhận được dữ liệu mới
         if (itemData.code) {
-          await prisma.materialItem.updateMany({
+          await prisma.inventoryItem.updateMany({
             where: { code: itemData.code },
             data: {
               maThayThe: itemData.maThayThe || null,

@@ -8,7 +8,7 @@ export function MissingMaterialsOffcanvas({ show, onClose }: { show: boolean; on
   useEffect(() => {
     if (show) {
       setLoading(true);
-      fetch("/api/production/materials/missing")
+      fetch("/api/logistics/inventory/missing")
         .then(res => res.json())
         .then(data => {
           setItems(data.items || []);

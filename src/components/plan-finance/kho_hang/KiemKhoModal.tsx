@@ -29,6 +29,7 @@ interface StockRow {
   soLuongThucTe:   number | "";   // "" = chưa nhập
   trangThai:       string;
   categoryId:      string | null;
+  erpCategoryId?:  string | null;
   categoryName:    string | null;
   categoryCode:    string | null;
   thongSoKyThuat:  string | null;
@@ -129,7 +130,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
   const [assigning, setAssigning]         = React.useState<string | null>(null); // itemId đang xữ lý
 
   // Filter cục bộ (category / status / search)
-  const [categories, setCategories]   = React.useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories]   = React.useState<{ id: string; name: string; level?: number; code?: string }[]>([]);
   const [filterCat,  setFilterCat]    = React.useState("");
   const [filterSt,   setFilterSt]     = React.useState("");
   const [searchQ,    setSearchQ]      = React.useState("");
@@ -317,13 +318,33 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
 
   // Filter tab (khop / thieu / thua / belowMin)
   const filteredRows = rows.filter(r => {
+    let allowedCatIds = new Set<string>();
+    let selectedCode: string | undefined = undefined;
+
+    if (filterCat) {
+      allowedCatIds.add(filterCat);
+      const catIdx = categories.findIndex(c => c.id === filterCat);
+      if (catIdx !== -1) {
+        selectedCode = categories[catIdx].code;
+        const parentLevel = categories[catIdx].level ?? 0;
+        for (let i = catIdx + 1; i < categories.length; i++) {
+          const c = categories[i];
+          if ((c.level ?? 0) > parentLevel) {
+            allowedCatIds.add(c.id);
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
     const tabOk =
       filterTab === "all"         ? true :
       filterTab === "match"       ? statusOf(r) === "match" :
       filterTab === "under"       ? statusOf(r) === "under" :
       filterTab === "over"        ? statusOf(r) === "over"  :
       filterTab === "belowMin"    ? isBelowMin(r) : true;
-    const catOk    = !filterCat || r.categoryId === filterCat || r.categoryCode === filterCat;
+    const catOk    = !filterCat || (r.categoryId && allowedCatIds.has(r.categoryId)) || (selectedCode && r.categoryCode === selectedCode) || r.erpCategoryId === filterCat || r.categoryCode === filterCat;
     const stOk     = !filterSt  || r.trangThai === filterSt;
     const q        = searchQ.toLowerCase();
     const searchOk = !q || r.tenHang.toLowerCase().includes(q) || (r.maSku ?? "").toLowerCase().includes(q);
@@ -793,6 +814,8 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
               </button>
             )}
           </div>
+
+
 
           {/* Table / Card */}
           <div style={{ flex: 1, overflowY: "auto", paddingTop: isPhone ? 8 : 0, paddingLeft: isPhone ? 8 : 20, paddingRight: isPhone ? 8 : 20, paddingBottom: isMobile ? 72 : 24 }}>

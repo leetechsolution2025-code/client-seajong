@@ -105,7 +105,13 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
 
     setLoading(true);
     fetch(`/api/plan-finance/sales/${orderId}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(async (r) => {
+        if (!r.ok) {
+          const text = await r.text();
+          throw new Error(text || r.statusText);
+        }
+        return r.json();
+      })
       .then((data) => {
         setOrder(data);
       })
@@ -657,8 +663,13 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                         <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", verticalAlign: "middle" }}>{idx + 1}</td>
                         <td style={{ border: "1px solid #1e293b", padding: "8px 12px", verticalAlign: "middle" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            {line.inventoryItem?.imageUrl ? (
-                              <HoverImage src={line.inventoryItem.imageUrl} alt={line.tenHang} style={{ width: 50, height: 50, objectFit: "contain", borderRadius: 6, border: "1px solid #e2e8f0" }} />
+                            {(line.imageUrl || line.inventoryItem?.imageUrl || (line.images && line.images[0])) ? (
+                              <HoverImage 
+                                src={line.imageUrl || line.inventoryItem?.imageUrl || (line.images && line.images[0])} 
+                                images={line.images || line.inventoryItem?.images}
+                                alt={line.tenHang} 
+                                style={{ width: 50, height: 50, objectFit: "contain", borderRadius: 6, border: "1px solid #e2e8f0" }} 
+                              />
                             ) : (
                               <div style={{ width: 50, height: 50, background: "#f1f5f9", borderRadius: 6, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", color: "#cbd5e1" }}>
                                 <i className="bi bi-image" style={{ fontSize: 18 }} />

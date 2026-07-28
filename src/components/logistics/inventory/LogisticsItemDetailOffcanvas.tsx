@@ -48,7 +48,7 @@ export function LogisticsItemDetailOffcanvas({ item, open, onClose, onEdit, onDe
     if (!item?.id) return;
     setSavingPrice(true);
     try {
-      const res = await fetch(`/api/production/materials/${item.id}`, {
+      const res = await fetch(`/api/logistics/inventory/${item.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ giaBan: Number(editPriceVal) })

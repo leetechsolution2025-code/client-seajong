@@ -46,7 +46,7 @@ export async function PATCH(req: Request, props: { params: Promise<any> }) {
     }
 
     const wh = await prisma.warehouse.findUnique({ where: { id } });
-    if (wh && ["KHO-THANHPHAM", "KHO-PHUKIEN", "KHO-LOI"].includes(wh.code || "")) {
+    if (wh && ["KHO-PHUKIEN", "KHO-LOI"].includes(wh.code || "")) {
       if (body.code && body.code !== wh.code) {
         return NextResponse.json({ error: "Không thể thay đổi mã của kho hàng mặc định." }, { status: 400 });
       }
@@ -81,7 +81,7 @@ export async function DELETE(req: Request, props: { params: Promise<any> }) {
     }
 
     const wh = await prisma.warehouse.findUnique({ where: { id } });
-    if (wh && ["KHO-THANHPHAM", "KHO-PHUKIEN", "KHO-LOI"].includes(wh.code || "")) {
+    if (wh && ["KHO-PHUKIEN", "KHO-LOI"].includes(wh.code || "")) {
       return NextResponse.json({ error: "Không thể xoá kho hàng mặc định của hệ thống." }, { status: 400 });
     }
 
@@ -92,7 +92,7 @@ export async function DELETE(req: Request, props: { params: Promise<any> }) {
     });
 
     // Kiểm tra tồn kho > 0 (Vật tư)
-    const materialStocks = await prisma.materialStock.findMany({
+    const materialStocks = await prisma.inventoryStock.findMany({
       where: { warehouseId: id, soLuong: { gt: 0 } },
       select: { soLuong: true },
     });
@@ -116,9 +116,8 @@ export async function DELETE(req: Request, props: { params: Promise<any> }) {
     await prisma.$executeRaw`UPDATE "StockCount" SET "warehouseId" = NULL WHERE "warehouseId" = ${id}`;
     await prisma.$executeRaw`UPDATE "StockCountLine" SET "warehouseId" = NULL WHERE "warehouseId" = ${id}`;
 
-    // Xoá InventoryStock & MaterialStock
+    // Xoá InventoryStock
     await prisma.inventoryStock.deleteMany({ where: { warehouseId: id } });
-    await prisma.materialStock.deleteMany({ where: { warehouseId: id } });
 
     // Xoá kho
     await prisma.warehouse.delete({ where: { id } });

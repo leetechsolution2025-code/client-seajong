@@ -589,7 +589,7 @@ export function PrintPreviewModal({
 
           {/* Document preview area */}
           <div className="preview-document-container" style={{ flex: 1, overflowY: "auto", padding: "32px 0 64px 0", display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
-            <div id={documentId} className="preview-scale-wrapper" style={{
+            <div id={documentId} className="preview-scale-wrapper" translate="no" style={{
               display: "flex",
               flexDirection: "column",
               gap: 32, // Perfect shadowless gap between pages

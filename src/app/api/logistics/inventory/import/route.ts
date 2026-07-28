@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     }
 
     const whCode = warehouse.code;
-    const skippedItems = [];
+    const skippedItems: any[] = [];
     let importedCount = 0;
 
     // Fetch all categories for validation mapping
@@ -54,24 +54,20 @@ export async function POST(req: Request) {
       const catCodeStr = (item.categoryCode || "").trim().toLowerCase();
       const mappedCategoryId = categoryMap.get(catCodeStr) || null;
 
-      if (whCode === "KHO-THANHPHAM") {
-        const existingMfp = await prisma.manufacturedProduct.findUnique({ where: { code: sku } });
-        if (existingMfp) {
-          skippedItems.push({ sku, name: item.name, reason: "Mã SKU đã tồn tại trong Kho thành phẩm" });
-          continue;
-        }
-      } else if (whCode === "KVP") {
-        const existingMat = await prisma.materialItem.findUnique({ where: { code: sku } });
-        if (existingMat) {
-          skippedItems.push({ sku, name: item.name, reason: "Mã SKU đã tồn tại trong Kho vật tư" });
-          continue;
-        }
-      }
 
       await prisma.$transaction(async (tx) => {
         // 1. Create or Reuse InventoryItem
         if (existingInventory) {
           inventoryId = existingInventory.id;
+          // Cập nhật lại thông tin nếu đã tồn tại nhưng thiếu category
+          await tx.inventoryItem.update({
+             where: { id: inventoryId },
+             data: {
+               erpCategoryId: mappedCategoryId,
+               tenHang: item.name,
+               maThayThe: item.alternateCode || null,
+             }
+          });
         } else {
           const newInventory = await tx.inventoryItem.create({
             data: {
@@ -84,59 +80,13 @@ export async function POST(req: Request) {
               brand: item.brand || "Seajong",
               ghiChu: item.note || "",
               maThayThe: item.alternateCode || null,
-              loai: whCode === "KHO-THANHPHAM" ? "thanh-pham" : (whCode === "KVP" ? "vat-tu" : "hang-hoa")
+              loai: whCode === "KVP" ? "vat-tu" : "hang-hoa",
+              erpCategoryId: mappedCategoryId
             }
           });
           inventoryId = newInventory.id;
         }
 
-        // 2. Create specific item type and stock based on Warehouse
-        if (whCode === "KHO-THANHPHAM") {
-          // ManufacturedProduct
-          await tx.manufacturedProduct.create({
-            data: {
-              code: sku,
-              name: item.name,
-              unit: item.unit || "Bộ",
-              giaBan: item.sellPrice || 0,
-              productCategoryId: mappedCategoryId,
-              defaultWarehouse: warehouseId
-            }
-          });
-        } else if (whCode === "KVP") {
-          // MaterialItem
-          const mat = await tx.materialItem.create({
-            data: {
-              code: sku,
-              name: item.name,
-              unit: item.unit || "Cái",
-              price: item.importPrice || 0,
-              giaBan: item.sellPrice || 0,
-              brand: item.brand || "Seajong",
-              ghiChu: item.note || "",
-              maThayThe: item.alternateCode || null,
-              categoryId: mappedCategoryId
-            }
-          });
-
-          // Upsert MaterialStock
-          await tx.materialStock.upsert({
-            where: {
-              materialId_warehouseId: {
-                materialId: mat.id,
-                warehouseId: warehouseId
-              }
-            },
-            update: {
-              soLuong: { increment: item.quantity || 0 }
-            },
-            create: {
-              materialId: mat.id,
-              warehouseId: warehouseId,
-              soLuong: item.quantity || 0
-            }
-          });
-        }
 
         // 3. Upsert InventoryStock
         await tx.inventoryStock.upsert({

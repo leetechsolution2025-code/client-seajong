@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { attachWebImages } from "@/lib/sync-utils";
 
 export async function GET(
   _req: NextRequest,
@@ -22,17 +23,18 @@ export async function GET(
     const resolvedItems = await Promise.all((q.items || []).map(async (item) => {
       const invItem = await prisma.inventoryItem.findFirst({
         where: { tenHang: item.tenHang },
-        select: { imageUrl: true }
+        select: { imageUrl: true, webProductId: true }
       });
       return {
         ...item,
-        imageUrl: invItem?.imageUrl || null
+        imageUrl: invItem?.imageUrl || null,
+        webProductId: invItem?.webProductId
       };
     }));
 
     const responseData = {
       ...q,
-      items: resolvedItems
+      items: await attachWebImages(resolvedItems)
     };
 
     let ngayGiaoHang: Date | null = null;

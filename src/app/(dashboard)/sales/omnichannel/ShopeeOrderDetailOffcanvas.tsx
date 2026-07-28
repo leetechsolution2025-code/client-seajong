@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { BrandButton } from "@/components/ui/BrandButton";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface OrderItem {
   id: string;
@@ -37,6 +38,7 @@ interface ShopeeOrderDetailOffcanvasProps {
 export function ShopeeOrderDetailOffcanvas({ order, onClose, onUpdateStatus, onDelete }: ShopeeOrderDetailOffcanvasProps) {
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -193,9 +195,7 @@ export function ShopeeOrderDetailOffcanvas({ order, onClose, onUpdateStatus, onD
               <BrandButton 
                 variant="outline" 
                 onClick={() => {
-                  if (confirm("Bạn có chắc chắn muốn xoá đơn hàng này?")) {
-                    onDelete(order.id);
-                  }
+                  setShowConfirmDelete(true);
                 }} 
                 style={{ fontSize: 13, height: 38, borderColor: "#dc3545", color: "#dc3545" }} 
                 className="px-4 me-auto" 
@@ -229,7 +229,22 @@ export function ShopeeOrderDetailOffcanvas({ order, onClose, onUpdateStatus, onD
                 >
                   Xác nhận
                 </BrandButton>
-              </>
+              
+      <ConfirmDialog
+        open={showConfirmDelete}
+        title="Xoá đơn hàng"
+        message="Bạn có chắc chắn muốn xoá đơn hàng này?"
+        confirmLabel="Xoá"
+        cancelLabel="Huỷ"
+        onConfirm={() => {
+          if (onDelete && order) {
+            onDelete(order.id);
+          }
+          setShowConfirmDelete(false);
+        }}
+        onCancel={() => setShowConfirmDelete(false)}
+      />
+    </>
             )}
 
             {order.status === "Đã xác nhận" && (

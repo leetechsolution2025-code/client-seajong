@@ -11,6 +11,7 @@ import { TaoDonHangModal } from "@/components/plan-finance/bao_gia/TaoDonHangMod
 import { ChiTietBaoGia } from "@/components/plan-finance/bao_gia/ChiTietBaoGia";
 import { ChiTietDonHang } from "@/components/plan-finance/bao_gia/ChiTietDonHang";
 import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface Quotation {
   id: string;
@@ -134,6 +135,51 @@ export default function QuotationsPage() {
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerAddress, setNewCustomerAddress] = useState("");
   const [isSavingCustomer, setIsSavingCustomer] = useState(false);
+
+  // Bulk delete states
+  const [confirmDeleteBaoGia, setConfirmDeleteBaoGia] = useState(false);
+  const [confirmDeleteDonHang, setConfirmDeleteDonHang] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteBaoGia = async () => {
+    setIsDeleting(true);
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map(id =>
+          fetch(`/api/plan-finance/quotations/${id}`, { method: "DELETE" })
+        )
+      );
+      toast.success("Thành công", "Đã xoá các báo giá được chọn");
+      setSelectedIds(new Set());
+      fetchQuotations();
+    } catch (e) {
+      console.error(e);
+      toast.error("Lỗi", "Không thể xoá báo giá");
+    } finally {
+      setIsDeleting(false);
+      setConfirmDeleteBaoGia(false);
+    }
+  };
+
+  const handleDeleteDonHang = async () => {
+    setIsDeleting(true);
+    try {
+      await Promise.all(
+        Array.from(selectedOrderIds).map(id =>
+          fetch(`/api/plan-finance/sales/${id}`, { method: "DELETE" })
+        )
+      );
+      toast.success("Thành công", "Đã xoá các đơn hàng được chọn");
+      setSelectedOrderIds(new Set());
+      fetchOrders();
+    } catch (e) {
+      console.error(e);
+      toast.error("Lỗi", "Không thể xoá đơn hàng");
+    } finally {
+      setIsDeleting(false);
+      setConfirmDeleteDonHang(false);
+    }
+  };
 
   // Fetch quotations list from backend
   const fetchQuotations = async () => {
@@ -578,7 +624,23 @@ export default function QuotationsPage() {
                   </div>
                 </div>
 
-                {/* Nút thêm mới */}
+                <div className="d-flex align-items-center gap-2">
+                  {selectedIds.size > 0 && (
+                    <button
+                      className="btn btn-danger px-3 d-flex align-items-center justify-content-center gap-2"
+                      style={{
+                        height: 34,
+                        fontSize: "12.5px",
+                        borderRadius: 8,
+                        fontWeight: 700,
+                        whiteSpace: "nowrap"
+                      }}
+                      onClick={() => setConfirmDeleteBaoGia(true)}
+                    >
+                      <i className="bi bi-trash" /> Xoá
+                    </button>
+                  )}
+                  {/* Nút thêm mới */}
                 <button
                   className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
                   style={{
@@ -600,6 +662,7 @@ export default function QuotationsPage() {
                   <i className="bi bi-plus-lg" />
                   Thêm mới
                 </button>
+                </div>
               </div>
 
               {/* Table container */}
@@ -642,28 +705,45 @@ export default function QuotationsPage() {
                   </div>
                 </div>
 
-                {/* Nút thêm mới */}
-                <button
-                  className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
-                  style={{
-                    height: 34,
-                    fontSize: "12.5px",
-                    backgroundColor: "#003087",
-                    borderColor: "#003087",
-                    borderRadius: 8,
-                    fontWeight: 700,
-                    whiteSpace: "nowrap"
-                  }}
-                  onClick={() => {
-                    setIsDirectOrder(true);
-                    setSelectedCustomer(null);
-                    setQuotationEditData(null);
-                    setShowCustomerSelectModal(true);
-                  }}
-                >
-                  <i className="bi bi-plus-lg" />
-                  Thêm mới
-                </button>
+                <div className="d-flex align-items-center gap-2">
+                  {selectedOrderIds.size > 0 && (
+                    <button
+                      className="btn btn-danger px-3 d-flex align-items-center justify-content-center gap-2"
+                      style={{
+                        height: 34,
+                        fontSize: "12.5px",
+                        borderRadius: 8,
+                        fontWeight: 700,
+                        whiteSpace: "nowrap"
+                      }}
+                      onClick={() => setConfirmDeleteDonHang(true)}
+                    >
+                      <i className="bi bi-trash" /> Xoá
+                    </button>
+                  )}
+                  {/* Nút thêm mới */}
+                  <button
+                    className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
+                    style={{
+                      height: 34,
+                      fontSize: "12.5px",
+                      backgroundColor: "#003087",
+                      borderColor: "#003087",
+                      borderRadius: 8,
+                      fontWeight: 700,
+                      whiteSpace: "nowrap"
+                    }}
+                    onClick={() => {
+                      setIsDirectOrder(true);
+                      setSelectedCustomer(null);
+                      setQuotationEditData(null);
+                      setShowCustomerSelectModal(true);
+                    }}
+                  >
+                    <i className="bi bi-plus-lg" />
+                    Thêm mới
+                  </button>
+                </div>
               </div>
 
               {/* Table container */}
@@ -906,6 +986,24 @@ export default function QuotationsPage() {
         orderId={selectedOrderId}
         onClose={() => setSelectedOrderId(null)}
         onSaved={fetchOrders}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteBaoGia}
+        title="Xác nhận xoá"
+        message={`Bạn có chắc chắn muốn xoá ${selectedIds.size} báo giá đã chọn không?`}
+        confirmLabel={isDeleting ? "Đang xoá..." : "Xoá"}
+        onConfirm={handleDeleteBaoGia}
+        onCancel={() => setConfirmDeleteBaoGia(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteDonHang}
+        title="Xác nhận xoá"
+        message={`Bạn có chắc chắn muốn xoá ${selectedOrderIds.size} đơn hàng đã chọn không?`}
+        confirmLabel={isDeleting ? "Đang xoá..." : "Xoá"}
+        onConfirm={handleDeleteDonHang}
+        onCancel={() => setConfirmDeleteDonHang(false)}
       />
     </StandardPage>
   );

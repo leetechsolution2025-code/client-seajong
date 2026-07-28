@@ -126,9 +126,14 @@ export default function LoginForm() {
       <div className="login-left">
         <div className="login-overlay" />
         <div className="login-left-content">
-          <div className="login-brand-badge">
+          <div className="login-brand-badge" style={{ position: "relative" }}>
             {company.logoUrl && (
-              <img src={normalizeImgSrc(company.logoUrl) || ""} alt={company.name ?? "Logo"} className="login-brand-logo" />
+              <>
+                {/* Lớp đổ bóng (Shadow layer) */}
+                <img src={normalizeImgSrc(company.logoUrl) || ""} alt="Logo Shadow" className="login-brand-logo-shadow" />
+                {/* Lớp hiển thị chính màu trắng */}
+                <img src={normalizeImgSrc(company.logoUrl) || ""} alt={company.name ?? "Logo"} className="login-brand-logo" />
+              </>
             )}
           </div>
           <h2 className="login-tagline">Hệ điều hành<br />Doanh nghiệp số</h2>

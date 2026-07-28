@@ -68,6 +68,8 @@ export function LogisticsAuditLogs() {
   
   // Loading & Selected states
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [selectedLog, setSelectedLog] = useState<StockMovement | null>(null);
 
   // Fetch initial warehouses
@@ -88,9 +90,15 @@ export function LogisticsAuditLogs() {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/plan-finance/stock-movements?limit=100");
-      const movements: StockMovement[] = await res.json();
-      setRealMovements(movements);
+      const res = await fetch(`/api/plan-finance/stock-movements?limit=20&page=${page}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setRealMovements(data);
+        setTotalPages(1); // Old API structure fallback
+      } else {
+        setRealMovements(data.items || []);
+        setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 20)));
+      }
     } catch (error) {
       console.error("Failed to load database stock movements:", error);
       toast.error("Lỗi tải dữ liệu", "Không thể tải danh sách nhật ký kho từ máy chủ");
@@ -101,7 +109,7 @@ export function LogisticsAuditLogs() {
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [page]);
 
   // Precompute local date boundaries for filtering
   const now = new Date();

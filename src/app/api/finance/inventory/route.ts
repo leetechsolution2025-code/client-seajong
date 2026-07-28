@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       skip: search ? undefined : (page - 1) * PAGE_SIZE,
       include: {
         category: { select: { name: true } },
-        dinhMuc: { select: { id: true, code: true } },
+        dinhMucs: { select: { id: true, code: true } },
         stocks: warehouseId 
           ? { where: { warehouseId }, select: { soLuong: true, soLuongMin: true } }
           : { select: { soLuong: true, soLuongMin: true } },
@@ -63,10 +63,10 @@ export async function GET(req: NextRequest) {
     const items = paginated.map(item => {
       const hasStocks = item.stocks.length > 0;
       const soLuongThuc = hasStocks
-        ? item.stocks.reduce((sum, s) => sum + s.soLuong, 0)
+        ? item.stocks.reduce((sum: number, s: any) => sum + s.soLuong, 0)
         : item.soLuong;
 
-      const soLuongMinTotal = item.stocks.reduce((sum, s) => sum + s.soLuongMin, 0);
+      const soLuongMinTotal = item.stocks.reduce((sum: number, s: any) => sum + s.soLuongMin, 0);
       const minThreshold = soLuongMinTotal > 0 ? soLuongMinTotal : item.soLuongMin;
 
       const trangThaiLive =
