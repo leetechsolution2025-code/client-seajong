@@ -3479,3 +3479,23 @@ select.app-input {
 }
 
 /* ── END DESIGN SYSTEM v1.0 ──────────────────────────────────  */
+/* iPad & Tablet UI Adjustments */
+@media (max-width: 1200px) {
+  .bg-card.p-4, .app-card {
+    padding: 16px !important;
+  }
+  .table th, .table td, .full-width-table-wrapper th, .full-width-table-wrapper td {
+    padding: 6px 8px !important;
+  }
+  .full-width-table-wrapper table {
+    min-width: 0 !important;
+  }
+  .full-width-table-wrapper thead tr:first-child th:first-child,
+  .full-width-table-wrapper tbody td:first-child {
+    padding-left: 12px !important;
+  }
+  .full-width-table-wrapper thead tr:first-child th:last-child,
+  .full-width-table-wrapper tbody td:last-child {
+    padding-right: 12px !important;
+  }
+}

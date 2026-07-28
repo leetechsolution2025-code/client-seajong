@@ -172,7 +172,7 @@ export default function LogisticsOverviewPage() {
           {/* Cột trái (5 phần) */}
           <div className={`col-12 col-xl-5 p-0 pe-xl-2 mb-3 mb-xl-0 flex-column h-100 ${activeTab === "orders" ? "d-flex" : "d-none d-xl-flex"}`} style={{ minHeight: 0 }}>
             <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
-              <div className="px-4 pt-4 pb-2">
+              <div className="px-3 px-xl-4 pt-3 pt-xl-4 pb-2">
                 <SectionTitle title="Danh sách lệnh xuất nhập kho" icon="bi-card-list" />
               </div>
               <div className="flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
@@ -180,6 +180,9 @@ export default function LogisticsOverviewPage() {
                   loading={loading}
                   rows={orders}
                   onRowClick={handleRowClick}
+                  wrapperClassName="mkt-plan-table-no-min"
+                  fixedLayout={false}
+                  wrapperStyle={{ overflowX: "hidden" }}
                   columns={[
                     {
                       header: (
