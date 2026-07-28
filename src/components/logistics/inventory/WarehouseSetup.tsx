@@ -173,20 +173,22 @@ export function WarehouseSetup() {
       {/* ── Top bar ── */}
       <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
         {/* Summary pills */}
-        <div className="d-flex flex-wrap gap-2">
+        <div className="d-flex flex-nowrap w-100 w-md-auto gap-2">
           {[
-            { label: "Tổng số kho", value: warehouses.length, icon: "bi-building", color: "#3b82f6" },
-            { label: "Đang hoạt động", value: activeCount, icon: "bi-check-circle", color: "#10b981" },
-            { label: "Có sơ đồ layout", value: hasLayout, icon: "bi-map", color: "#8b5cf6" },
+            { label: "Tổng số kho", shortLabel: "Tổng số", value: warehouses.length, icon: "bi-building", color: "#3b82f6" },
+            { label: "Đang hoạt động", shortLabel: "Hoạt động", value: activeCount, icon: "bi-check-circle", color: "#10b981" },
+            { label: "Có sơ đồ layout", shortLabel: "Sơ đồ", value: hasLayout, icon: "bi-map", color: "#8b5cf6" },
           ].map(s => (
-            <div key={s.label} style={{
-              display: "flex", alignItems: "center", gap: 8,
+            <div key={s.label} className="flex-fill d-flex align-items-center justify-content-center justify-content-md-start" style={{
+              gap: 6,
               background: "var(--card)", border: "1px solid var(--border)",
-              borderRadius: 12, padding: "7px 14px",
+              borderRadius: 12, padding: "7px 10px",
+              whiteSpace: "nowrap"
             }}>
               <i className={`bi ${s.icon}`} style={{ fontSize: 14, color: s.color }} />
               <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>{s.value}</span>
-              <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{s.label}</span>
+              <span className="d-none d-md-inline" style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{s.label}</span>
+              <span className="d-inline d-md-none" style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{s.shortLabel}</span>
             </div>
           ))}
         </div>
