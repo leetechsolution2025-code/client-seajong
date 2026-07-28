@@ -23,7 +23,7 @@ export async function POST(req: Request) {
         const updates = chunk.map((m: any) => 
           prisma.inventoryItem.update({
             where: { id: m.id },
-            data: { giaBan: m.price * (1 + numRatio / 100) }
+            data: { giaBan: m.giaNhap * (1 + numRatio / 100) }
           })
         );
         await prisma.$transaction(updates);
