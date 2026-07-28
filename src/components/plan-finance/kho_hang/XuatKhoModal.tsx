@@ -96,6 +96,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
   const [showPreview, setShowPreview]   = React.useState(false);
   const [showLichSu, setShowLichSu]     = React.useState(false);
   const [insufficientItems, setInsufficient] = React.useState<{inventoryItemId:string;tenHang:string;soLuong:number;soLuongTon:number}[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false); // Toggles mobile accordion
 
   // SO / WO
   const [saleOrders, setSaleOrders]     = React.useState<SaleOrderOption[]>([]);
@@ -609,6 +610,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
         @media (max-width: 768px) {
           .xk-sidebar-grid { grid-template-columns: 1fr !important; }
           .xk-sidebar { max-height: none !important; }
+          .xk-sidebar-collapsed { display: none !important; }
         }
       `}</style>
 
@@ -754,16 +756,24 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
         <div className="xk-sidebar" style={{ width: 272, flexShrink: 0, borderRight: "1px solid var(--border)", background: "var(--card)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div style={{ padding: "16px 14px", display: "flex", flexDirection: "column", gap: 14, flex: 1, minHeight: 0 }}>
 
-            {/* Header nhóm */}
-            <div style={{ display: "flex", alignItems: "center", gap: 7, paddingBottom: 10, borderBottom: "1px solid var(--border)" }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(245,158,11,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <i className="bi bi-receipt" style={{ fontSize: 13, color: "#f59e0b" }} />
+            {/* Header nhóm (Clickable on mobile) */}
+            <div 
+              className="xk-sidebar-header-toggle"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              style={{ display: "flex", alignItems: "center", gap: 7, paddingBottom: 10, borderBottom: "1px solid var(--border)", cursor: "pointer", justifyContent: "space-between" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(245,158,11,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <i className="bi bi-receipt" style={{ fontSize: 13, color: "#f59e0b" }} />
+                </div>
+                <span style={{ fontWeight: 800, fontSize: 13 }}>Thông tin phiếu</span>
               </div>
-              <span style={{ fontWeight: 800, fontSize: 13 }}>Thông tin phiếu</span>
+              <i className={`bi bi-chevron-${isSidebarOpen ? 'up' : 'down'} d-md-none`} style={{ fontSize: 14, color: "var(--muted-foreground)" }} />
             </div>
 
-            <div className="xk-sidebar-grid" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {/* Số phiếu — readOnly monospace */}
+            <div className={`xk-sidebar-content ${!isSidebarOpen ? 'xk-sidebar-collapsed' : ''}`} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div className="xk-sidebar-grid" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {/* Số phiếu — readOnly monospace */}
               <div>
                 <label style={CSS.label}>Số phiếu xuất</label>
                 <input value={soChungTu} readOnly style={{ ...CSS.input, background: "var(--muted)", color: "var(--muted-foreground)", cursor: "default", fontFamily: "monospace", fontSize: 12 }} />
@@ -858,6 +868,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
                 ))}
               </div>
             )}
+            </div>
           </div>
         </div>
 

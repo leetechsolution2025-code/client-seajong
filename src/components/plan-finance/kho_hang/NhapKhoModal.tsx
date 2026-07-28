@@ -107,6 +107,7 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
   const [showPreview, setShowPreview] = React.useState(false);
   const [showLichSu, setShowLichSu]   = React.useState(false);
   const [resolvingItems, setResolvingItems] = React.useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false); // Toggles mobile accordion
 
   // Auto-resolve initialItems to real InventoryItems
   React.useEffect(() => {
@@ -357,6 +358,7 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
         @media (max-width: 768px) {
           .nk-sidebar-grid { grid-template-columns: 1fr !important; }
           .nk-sidebar { max-height: none !important; }
+          .nk-sidebar-collapsed { display: none !important; }
         }
       `}</style>
 
@@ -511,15 +513,23 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
           {/* Form fields */}
           <div style={{ padding: "16px 14px", display: "flex", flexDirection: "column", gap: 14, flex: 1, minHeight: 0 }}>
 
-            {/* Header nhóm */}
-            <div style={{ display: "flex", alignItems: "center", gap: 7, paddingBottom: 10, borderBottom: "1px solid var(--border)" }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(16,185,129,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <i className="bi bi-receipt" style={{ fontSize: 13, color: "#10b981" }} />
+            {/* Header nhóm (Clickable on mobile) */}
+            <div 
+              className="nk-sidebar-header-toggle"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 10, borderBottom: "1px solid var(--border)", cursor: "pointer" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(16,185,129,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <i className="bi bi-receipt" style={{ fontSize: 13, color: "#10b981" }} />
+                </div>
+                <span style={{ fontWeight: 800, fontSize: 13, color: "var(--foreground)" }}>Thông tin phiếu</span>
               </div>
-              <span style={{ fontWeight: 800, fontSize: 13, color: "var(--foreground)" }}>Thông tin phiếu</span>
+              <i className={`bi bi-chevron-${isSidebarOpen ? 'up' : 'down'} d-md-none`} style={{ fontSize: 14, color: "var(--muted-foreground)" }} />
             </div>
 
-            <div className="nk-sidebar-grid" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className={`nk-sidebar-content ${!isSidebarOpen ? 'nk-sidebar-collapsed' : ''}`} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div className="nk-sidebar-grid" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {/* Số phiếu */}
               <div>
                 <label style={CSS.label}>Số phiếu nhập</label>
@@ -670,7 +680,9 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
               />
             </div>
           </div>
+          </div>
         </div>
+
 
         {/* ── NỘI DUNG PHẢI: Bảng hàng hoá ──────────────────────────────── */}
         <div className="nk-table-wrapper" style={{ flex: 1, overflowY: !toWarehouseId ? "hidden" : "auto", padding: "16px 20px 24px", position: "relative" }}>
