@@ -58,6 +58,8 @@ rsync -avz --delete \
     --exclude="node_modules" \
     --exclude=".git" \
     --exclude="storage" \
+    --exclude=".next/cache" \
+    --exclude=".next/dev" \
     --exclude="*.log" \
     --exclude="artifacts" \
     --exclude="scratch" \
