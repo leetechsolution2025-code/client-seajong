@@ -1,5 +1,7 @@
 "use client";
 import React from "react";
+import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface StockCountHeader {
@@ -51,6 +53,33 @@ export function LichSuKiemKhoModal({ warehouseId, warehouseName, onClose }: Lich
   const [detail,        setDetail]        = React.useState<StockCountDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = React.useState(false);
   const [visible,       setVisible]       = React.useState(false);
+  const [deleting,      setDeleting]      = React.useState(false);
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const toast = useToast();
+
+  const executeDelete = async () => {
+    if (!selectedId) return;
+    setDeleting(true);
+    setConfirmDelete(false);
+    try {
+      const res = await fetch(`/api/plan-finance/stock-counts/${selectedId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Lỗi xoá phiếu");
+      toast.success("Đã xoá phiếu kiểm kho", "");
+      setDetail(null);
+      setSelectedId("");
+      
+      // Reload list
+      const params = new URLSearchParams({ trangThai: "hoan-thanh" });
+      if (warehouseId) params.set("warehouseId", warehouseId);
+      const listRes = await fetch(`/api/plan-finance/stock-counts?${params}`);
+      const listData = await listRes.json();
+      setList(Array.isArray(listData) ? listData : []);
+    } catch (e) {
+      toast.error("Lỗi", "Không thể xoá phiếu kiểm kho này");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Animate in
   React.useEffect(() => { requestAnimationFrame(() => setVisible(true)); }, []);
@@ -260,7 +289,34 @@ export function LichSuKiemKhoModal({ warehouseId, warehouseName, onClose }: Lich
             </>
           )}
         </div>
+        
+        {/* Footer */}
+        {selectedId && detail && (
+          <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border)", background: "var(--card)", flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={() => setConfirmDelete(true)} disabled={deleting} style={{
+              display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", 
+              border: "none", background: "#fef2f2", color: "#f43f5e", 
+              fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: deleting ? "not-allowed" : "pointer",
+              transition: "all 0.15s"
+            }}>
+              {deleting ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-trash3" />}
+              Xoá phiếu
+            </button>
+          </div>
+        )}
       </div>
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        open={confirmDelete}
+        variant="danger"
+        title="Xoá phiếu kiểm kho"
+        message={<p>Bạn có chắc chắn muốn xoá phiếu kiểm kho này không? Hành động này không thể hoàn tác.</p>}
+        confirmLabel="Xoá phiếu"
+        cancelLabel="Hủy"
+        onConfirm={executeDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </>
   );
 }

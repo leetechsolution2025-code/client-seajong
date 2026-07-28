@@ -45,7 +45,7 @@ export async function GET(
     lines: doc.lines.map(l => ({
       id:              l.id,
       inventoryItemId: l.inventoryItemId,
-      tenHang:         itemMap[l.inventoryItemId]?.tenHang ?? l.inventoryItemId,
+      tenHang:         itemMap[l.inventoryItemId]?.tenHang ?? 'Sản phẩm không xác định (đã xóa/đổi mã)',
       maSku:           itemMap[l.inventoryItemId]?.code    ?? null,
       donVi:           itemMap[l.inventoryItemId]?.donVi   ?? null,
       warehouseId:     l.warehouseId,
@@ -55,4 +55,20 @@ export async function GET(
       ghiChu:          l.ghiChu,
     })),
   });
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  try {
+    await prisma.stockCount.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message || "Failed to delete" }, { status: 500 });
+  }
 }

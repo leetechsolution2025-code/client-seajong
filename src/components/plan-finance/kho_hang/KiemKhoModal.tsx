@@ -828,7 +828,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
 
 
           {/* Table / Card */}
-          <div style={{ flex: 1, overflowY: "auto", paddingTop: isPhone ? 8 : 0, paddingLeft: isPhone ? 8 : 20, paddingRight: isPhone ? 8 : 20, paddingBottom: isMobile ? 72 : 24 }}>
+          <div style={{ flex: 1, overflowY: "auto", paddingTop: isPhone ? 8 : 0, paddingBottom: isMobile ? 72 : 0 }}>
             {loading ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "24px 0" }}>
                 {[...Array(6)].map((_, i) => (
