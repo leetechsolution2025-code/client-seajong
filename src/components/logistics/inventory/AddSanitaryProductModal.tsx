@@ -173,14 +173,33 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
   }, [open, editItem, warehouseId, isMaterialWarehouse, warehouses]);
 
   useEffect(() => {
+    if (open && editItem && categories.length > 0) {
+      const exists = categories.some(c => c.id === form.categoryId);
+      if (!exists && editItem.category?.code) {
+        const matched = categories.find(c => c.code === editItem.category.code);
+        if (matched) {
+          setForm(f => ({ ...f, categoryId: matched.id }));
+        }
+      }
+    }
+  }, [categories, open, editItem]);
+
+  useEffect(() => {
     if (open) {
+      const controller = new AbortController();
       const url = selectedWarehouseId 
         ? `/api/logistics/categories?warehouseId=${selectedWarehouseId}`
         : "/api/logistics/categories";
-      fetch(url)
+      fetch(url, { signal: controller.signal })
         .then(r => r.json())
         .then(data => setCategories(Array.isArray(data) ? data : []))
-        .catch(() => {});
+        .catch(err => {
+          if (err.name !== 'AbortError') {
+            console.error(err);
+          }
+        });
+        
+      return () => controller.abort();
     }
   }, [open, selectedWarehouseId]);
 
