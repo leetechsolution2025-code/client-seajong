@@ -171,9 +171,9 @@ export function WarehouseSetup() {
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* ── Top bar ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
         {/* Summary pills */}
-        <div style={{ display: "flex", gap: 10 }}>
+        <div className="d-flex flex-wrap gap-2">
           {[
             { label: "Tổng số kho", value: warehouses.length, icon: "bi-building", color: "#3b82f6" },
             { label: "Đang hoạt động", value: activeCount, icon: "bi-check-circle", color: "#10b981" },
@@ -198,6 +198,7 @@ export function WarehouseSetup() {
             setFormData({ code: "", name: "", address: "", type: "storage", manager: "" });
             setIsModalOpen(true);
           }}
+          className="w-100 w-md-auto justify-content-center"
           style={{
             display: "flex", alignItems: "center", gap: 8,
             padding: "9px 20px", borderRadius: 12, border: "none", cursor: "pointer",
