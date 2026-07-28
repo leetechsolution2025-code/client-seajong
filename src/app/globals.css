@@ -3516,4 +3516,15 @@ select.app-input {
     right: 16px !important;
     width: auto !important;
   }
+  
+  .mobile-circle-btn {
+    width: 44px !important;
+    height: 44px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+  }
 }
