@@ -759,24 +759,26 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
               placeholder="Danh mục"
               disabled={!warehouseId}
             />
-            <FilterSelect
-              options={[
-                { label: "Còn hàng",  value: "con-hang"  },
-                { label: "Sắp hết",  value: "sap-het"  },
-                { label: "Hết hàng",  value: "het-hang" },
-              ]}
-              value={filterSt}
-              onChange={setFilterSt}
-              placeholder="Trạng thái"
-              disabled={!warehouseId}
-            />
-            <SearchInput
-              value={searchQ}
-              onChange={setSearchQ}
-              placeholder="Tìm hàng hoá, SKU..."
-              disabled={!warehouseId}
-              style={{ width: 280 }}
-            />
+            <div className="d-flex w-100 w-md-auto" style={{ gap: 8, flex: 1 }}>
+              <FilterSelect
+                options={[
+                  { label: "Còn hàng",  value: "con-hang"  },
+                  { label: "Sắp hết",  value: "sap-het"  },
+                  { label: "Hết hàng",  value: "het-hang" },
+                ]}
+                value={filterSt}
+                onChange={setFilterSt}
+                placeholder="Trạng thái"
+                disabled={!warehouseId}
+              />
+              <SearchInput
+                value={searchQ}
+                onChange={setSearchQ}
+                placeholder="Tìm hàng hoá, SKU..."
+                disabled={!warehouseId}
+                style={{ flex: 1, minWidth: 0 }}
+              />
+            </div>
             {(filterCat || filterSt || searchQ) && (
               <button onClick={() => { setFilterCat(""); setFilterSt(""); setSearchQ(""); }}
                 style={{ fontSize: 12, color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}
