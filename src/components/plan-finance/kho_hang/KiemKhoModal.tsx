@@ -741,25 +741,34 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
 
           {/* Filter bar: Warehouse + Category + Status + Search */}
           <div style={{ flexShrink: 0, borderBottom: "1px solid var(--border)", padding: "10px 20px", display: "flex", alignItems: "center", gap: 8, background: "var(--background)", flexWrap: "wrap" }}>
-            <FilterSelect
-              options={warehouses.map(w => ({ label: w.name, value: w.id }))}
-              value={warehouseId}
-              onChange={setWarehouseId}
-              placeholder="Chọn kho"
-              disabled={locked}
-            />
-            <FilterSelect
-              options={categories.map(c => ({ 
-                label: (c as any).level > 0 ? "\u00A0\u00A0\u00A0\u00A0".repeat((c as any).level) + c.name : c.name, 
-                value: (c as any).code || c.id,
-                isHeader: (c as any).isHeader
-              }))}
-              value={filterCat}
-              onChange={setFilterCat}
-              placeholder="Danh mục"
-              disabled={!warehouseId}
-            />
-            <div className="d-flex w-100 w-md-auto" style={{ gap: 8, flex: 1 }}>
+            <div className="d-flex w-100 w-md-auto" style={{ gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <FilterSelect
+                  options={warehouses.map(w => ({ label: w.name, value: w.id }))}
+                  value={warehouseId}
+                  onChange={setWarehouseId}
+                  placeholder="Chọn kho"
+                  disabled={locked}
+                  width="100%"
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <FilterSelect
+                  options={categories.map(c => ({ 
+                    label: (c as any).level > 0 ? "\u00A0\u00A0\u00A0\u00A0".repeat((c as any).level) + c.name : c.name, 
+                    value: (c as any).code || c.id,
+                    isHeader: (c as any).isHeader
+                  }))}
+                  value={filterCat}
+                  onChange={setFilterCat}
+                  placeholder="Danh mục"
+                  disabled={!warehouseId}
+                  width="100%"
+                />
+              </div>
+            </div>
+
+            <div className="d-flex w-100 w-md-auto flex-fill" style={{ gap: 8 }}>
               <FilterSelect
                 options={[
                   { label: "Còn hàng",  value: "con-hang"  },
@@ -778,25 +787,23 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                 disabled={!warehouseId}
                 style={{ flex: 1, minWidth: 0 }}
               />
-            </div>
-            {(filterCat || filterSt || searchQ) && (
-              <button onClick={() => { setFilterCat(""); setFilterSt(""); setSearchQ(""); }}
-                style={{ fontSize: 12, color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}
-                onMouseEnter={e => (e.currentTarget.style.background = "var(--muted)")}
-                onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                <i className="bi bi-x-circle" style={{ fontSize: 12 }} /> Xóa bộ lọc
-              </button>
-            )}
 
-            {warehouseId && (
-              <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
+              {(filterCat || filterSt || searchQ) && (
+                <button onClick={() => { setFilterCat(""); setFilterSt(""); setSearchQ(""); }}
+                  style={{ fontSize: 12, color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--muted)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                  <i className="bi bi-x-circle" style={{ fontSize: 12 }} /> <span className="d-none d-sm-inline">Xóa lọc</span>
+                </button>
+              )}
+
+              {warehouseId && (
                 <button onClick={() => setShowLichSu(true)}
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", border: "1px solid var(--border)", background: "var(--muted)", color: "var(--muted-foreground)", fontSize: 12, fontWeight: 600, borderRadius: 7, cursor: "pointer", height: 34 }}>
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", border: "1px solid var(--border)", background: "var(--muted)", color: "var(--muted-foreground)", fontSize: 12, fontWeight: 600, borderRadius: 7, cursor: "pointer", height: 34, flexShrink: 0 }}>
                   <i className="bi bi-clock-history" style={{ fontSize: 12 }} /> Lịch sử
                 </button>
-
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Filter tabs + badges */}
