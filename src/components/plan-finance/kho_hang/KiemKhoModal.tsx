@@ -874,56 +874,59 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                           {blm && <span style={{ fontSize: 10, fontWeight: 700, color: "#f97316", background: "rgba(249,115,22,0.1)", borderRadius: 8, padding: "2px 8px" }}>⚠️ Dưới Min</span>}
                         </div>
                       </div>
-                      {/* Stats row */}
-                      <div style={{ display: "flex", gap: 12, marginBottom: 12, fontSize: 12 }}>
-                        <div style={{ flex: 1, textAlign: "center", background: "var(--muted)", borderRadius: 8, padding: "6px 0" }}>
-                          <div style={{ color: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}>TỒN HT</div>
-                          <div style={{ fontWeight: 800, fontSize: 16, color: "var(--foreground)" }}>{fmtN(row.soLuongHeTong)}</div>
-                          <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{row.donVi ?? "—"}</div>
-                        </div>
-                        {row.soLuongMin > 0 && (
-                          <div style={{ flex: 1, textAlign: "center", background: blm ? "rgba(249,115,22,0.08)" : "var(--muted)", borderRadius: 8, padding: "6px 0" }}>
-                            <div style={{ color: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}>TỒN MIN</div>
-                            <div style={{ fontWeight: 800, fontSize: 16, color: blm ? "#f97316" : "var(--foreground)" }}>{fmtN(row.soLuongMin)}</div>
+                      {/* Combined Stats and Input row */}
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+                        <div style={{ display: "flex", gap: 8, flex: "0 0 auto" }}>
+                          <div style={{ width: 72, textAlign: "center", background: "var(--muted)", borderRadius: 10, padding: "8px 0" }}>
+                            <div style={{ color: "var(--muted-foreground)", fontSize: 10, fontWeight: 700 }}>TỒN HT</div>
+                            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--foreground)" }}>{fmtN(row.soLuongHeTong)}</div>
                             <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{row.donVi ?? "—"}</div>
                           </div>
-                        )}
-                        {diff !== null && (
-                          <div style={{ flex: 1, textAlign: "center", background: diff === 0 ? "rgba(16,185,129,0.08)" : diff < 0 ? "rgba(244,63,94,0.08)" : "rgba(245,158,11,0.08)", borderRadius: 8, padding: "6px 0" }}>
-                            <div style={{ color: "var(--muted-foreground)", fontSize: 10, fontWeight: 600 }}>CHÊNH LỆCH</div>
-                            <div style={{ fontWeight: 800, fontSize: 16, color: diff === 0 ? "#10b981" : diff < 0 ? "#f43f5e" : "#f59e0b" }}>{diff > 0 ? "+" : ""}{fmtN(diff)}</div>
-                            <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>so HT</div>
-                          </div>
-                        )}
-                      </div>
-                      {/* Input row */}
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", display: "block", marginBottom: 4 }}>THỰC TẾ KIỂM ĐƯỢC</label>
-                          <input type="number" min={0} placeholder="Nhập số lượng..." disabled={locked || row.chuaPhanKho}
-                            value={row.soLuongThucTe}
-                            onChange={e => {
-                              const v = e.target.value === "" ? "" : Math.max(0, parseFloat(e.target.value) || 0);
-                              updateRow(row.inventoryItemId, row.warehouseId, "soLuongThucTe", v as never);
-                            }}
-                            style={{ width: "100%", padding: "10px 14px", borderWidth: 2, borderStyle: "solid", borderColor: st === "under" ? "rgba(244,63,94,0.5)" : st === "over" ? "rgba(245,158,11,0.5)" : blm ? "rgba(249,115,22,0.5)" : "var(--border)", borderRadius: 10, fontSize: 16, fontWeight: 700, background: locked ? "var(--muted)" : "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box", textAlign: "center" }} />
+                          {row.soLuongMin > 0 && (
+                            <div style={{ width: 72, textAlign: "center", background: blm ? "rgba(249,115,22,0.08)" : "var(--muted)", borderRadius: 10, padding: "8px 0" }}>
+                              <div style={{ color: "var(--muted-foreground)", fontSize: 10, fontWeight: 700 }}>MIN</div>
+                              <div style={{ fontWeight: 800, fontSize: 16, color: blm ? "#f97316" : "var(--foreground)" }}>{fmtN(row.soLuongMin)}</div>
+                              <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{row.donVi ?? "—"}</div>
+                            </div>
+                          )}
+                          {diff !== null && (
+                            <div style={{ width: 72, textAlign: "center", background: diff === 0 ? "rgba(16,185,129,0.08)" : diff < 0 ? "rgba(244,63,94,0.08)" : "rgba(245,158,11,0.08)", borderRadius: 10, padding: "8px 0" }}>
+                              <div style={{ color: "var(--muted-foreground)", fontSize: 10, fontWeight: 700 }}>CHÊNH</div>
+                              <div style={{ fontWeight: 800, fontSize: 16, color: diff === 0 ? "#10b981" : diff < 0 ? "#f43f5e" : "#f59e0b" }}>{diff > 0 ? "+" : ""}{fmtN(diff)}</div>
+                              <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>so HT</div>
+                            </div>
+                          )}
                         </div>
-                        {/* Quick match button */}
-                        {!locked && !row.chuaPhanKho && (
-                          <button
-                            onClick={() => updateRow(row.inventoryItemId, row.warehouseId, "soLuongThucTe", row.soLuongHeTong as never)}
-                            title="Khớp HT"
-                            style={{ marginTop: 20, width: 44, height: 44, borderRadius: 10, border: "1.5px solid rgba(16,185,129,0.4)", background: "rgba(16,185,129,0.08)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, fontSize: 18 }}>
-                            ✓
-                          </button>
-                        )}
-                        {/* Clear button */}
-                        {!locked && row.soLuongThucTe !== "" && (
-                          <button onClick={() => updateRow(row.inventoryItemId, row.warehouseId, "soLuongThucTe", "" as never)}
-                            style={{ marginTop: 20, width: 44, height: 44, borderRadius: 10, border: "1.5px solid rgba(244,63,94,0.3)", background: "rgba(244,63,94,0.07)", color: "#f43f5e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-                            <i className="bi bi-x" style={{ fontSize: 18 }} />
-                          </button>
-                        )}
+
+                        {/* Input Group */}
+                        <div style={{ flex: 1, display: "flex", gap: 8, alignItems: "flex-end", minWidth: 160 }}>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", display: "block", marginBottom: 4 }}>Kiểm</label>
+                            <input type="number" min={0} placeholder="SL..." disabled={locked || row.chuaPhanKho}
+                              value={row.soLuongThucTe}
+                              onChange={e => {
+                                const v = e.target.value === "" ? "" : Math.max(0, parseFloat(e.target.value) || 0);
+                                updateRow(row.inventoryItemId, row.warehouseId, "soLuongThucTe", v as never);
+                              }}
+                              style={{ width: "100%", height: 50, padding: "0 10px", borderWidth: 2, borderStyle: "solid", borderColor: st === "under" ? "rgba(244,63,94,0.5)" : st === "over" ? "rgba(245,158,11,0.5)" : blm ? "rgba(249,115,22,0.5)" : "var(--border)", borderRadius: 10, fontSize: 16, fontWeight: 700, background: locked ? "var(--muted)" : "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box", textAlign: "center" }} />
+                          </div>
+                          {/* Quick match button */}
+                          {!locked && !row.chuaPhanKho && (
+                            <button
+                              onClick={() => updateRow(row.inventoryItemId, row.warehouseId, "soLuongThucTe", row.soLuongHeTong as never)}
+                              title="Khớp HT"
+                              style={{ width: 50, height: 50, borderRadius: 10, border: "1.5px solid rgba(16,185,129,0.4)", background: "rgba(16,185,129,0.08)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, fontSize: 20 }}>
+                              ✓
+                            </button>
+                          )}
+                          {/* Clear button */}
+                          {!locked && row.soLuongThucTe !== "" && (
+                            <button onClick={() => updateRow(row.inventoryItemId, row.warehouseId, "soLuongThucTe", "" as never)}
+                              style={{ width: 50, height: 50, borderRadius: 10, border: "1.5px solid rgba(244,63,94,0.3)", background: "rgba(244,63,94,0.07)", color: "#f43f5e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                              <i className="bi bi-x" style={{ fontSize: 20 }} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       {row.chuaPhanKho && (
                         <div style={{ marginTop: 8, fontSize: 11, color: "#8b5cf6", background: "rgba(139,92,246,0.08)", borderRadius: 8, padding: "6px 10px", display: "flex", alignItems: "center", gap: 6 }}>
