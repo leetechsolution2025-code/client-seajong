@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
-    const { ratio } = await req.json();
-    const numRatio = parseFloat(ratio);
+    const { ratio, marginPct } = await req.json();
+    const numRatio = parseFloat(ratio || marginPct);
     if (isNaN(numRatio) || numRatio <= 0) {
       return NextResponse.json({ error: "Tỷ lệ không hợp lệ" }, { status: 400 });
     }
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, updated: materials.length });
+    return NextResponse.json({ success: true, updatedCount: materials.length });
   } catch (err: any) {
     console.error("[update-price-ratio]", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
