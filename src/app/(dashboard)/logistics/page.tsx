@@ -358,29 +358,29 @@ export default function LogisticsOverviewPage() {
       <div className="d-flex d-xl-none position-fixed bottom-0 start-0 w-100 bg-white border-top shadow-lg p-2 justify-content-start align-items-center gap-2" style={{ zIndex: 1030 }}>
         <button 
           onClick={() => setActiveTab("orders")}
-          className={`btn rounded-pill px-4 py-2 fw-semibold ${activeTab === "orders" ? "btn-primary shadow-sm" : "btn-light text-muted"}`}
+          className={`btn rounded-pill px-4 py-2 fw-semibold d-flex align-items-center justify-content-center ${activeTab === "orders" ? "btn-primary shadow-sm" : "btn-light text-muted"}`}
           style={{ fontSize: 14, transition: "all 0.2s" }}
         >
-          <i className="bi bi-card-list me-2"></i>
-          Lệnh kho
+          <i className="bi bi-card-list me-0 me-sm-2"></i>
+          <span className="d-none d-sm-inline">Lệnh kho</span>
         </button>
         <button 
           onClick={() => setActiveTab("inventory")}
-          className={`btn rounded-pill px-4 py-2 fw-semibold ${activeTab === "inventory" ? "btn-primary shadow-sm" : "btn-light text-muted"}`}
+          className={`btn rounded-pill px-4 py-2 fw-semibold d-flex align-items-center justify-content-center ${activeTab === "inventory" ? "btn-primary shadow-sm" : "btn-light text-muted"}`}
           style={{ fontSize: 14, transition: "all 0.2s" }}
         >
-          <i className="bi bi-box-seam me-2"></i>
-          Hàng hoá
+          <i className="bi bi-box-seam me-0 me-sm-2"></i>
+          <span className="d-none d-sm-inline">Hàng hoá</span>
         </button>
 
         {activeTab === "inventory" && (
           <button 
             onClick={() => document.getElementById("logistics-add-item-btn")?.click()}
-            className="btn btn-primary rounded-pill px-4 py-2 fw-semibold shadow-sm"
+            className="btn btn-primary rounded-pill px-4 py-2 fw-semibold shadow-sm d-flex align-items-center justify-content-center"
             style={{ fontSize: 14, backgroundColor: "#011F58", borderColor: "#011F58" }}
           >
-            <i className="bi bi-plus-lg me-2"></i>
-            Thêm
+            <i className="bi bi-plus-lg me-0 me-sm-2"></i>
+            <span className="d-none d-sm-inline">Thêm</span>
           </button>
         )}
       </div>

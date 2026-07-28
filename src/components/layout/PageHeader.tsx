@@ -116,7 +116,7 @@ function PageHeaderInner({ title, description, icon = "bi-grid", color = "rose",
                   boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
                 }}
               >
-                <i className="bi bi-arrow-left" /> Quay về trang chủ
+                <i className="bi bi-arrow-left me-0 me-sm-1" /> <span className="d-none d-sm-inline">Quay về trang chủ</span>
               </button>
             )}
           </div>
