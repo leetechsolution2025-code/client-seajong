@@ -6,6 +6,7 @@ import { ConfirmDialog }             from "@/components/ui/ConfirmDialog";
 import { TaoYeuCauMuaHangModal }     from "@/components/plan-finance/mua_hang/TaoYeuCauMuaHangModal";
 import { FilterSelect }              from "@/components/ui/FilterSelect";
 import { SearchInput }               from "@/components/ui/SearchInput";
+import { Pagination }                from "@/components/ui/Pagination";
 import { genDocCode }                from "@/lib/genDocCode";
 import { BaoCaoKiemKhoPreview }      from "@/components/plan-finance/kho_hang/BaoCaoKiemKhoPreview";
 import { TheKhoModal }               from "@/components/plan-finance/kho_hang/TheKhoModal";
@@ -132,6 +133,8 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
   // Filter cục bộ (category / status / search)
   const [categories, setCategories]   = React.useState<{ id: string; name: string; level?: number; code?: string }[]>([]);
   const [filterCat,  setFilterCat]    = React.useState("");
+  const [page, setPage] = React.useState(1);
+  const rowsPerPage = 50;
   const [filterSt,   setFilterSt]     = React.useState("");
   const [searchQ,    setSearchQ]      = React.useState("");
 
@@ -316,6 +319,8 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
   const tongHaoHut = underRows.reduce((s, r) => s + ((r.soLuongHeTong - (r.soLuongThucTe as number)) * r.giaNhap), 0);
   const tongThua   = overRows.reduce((s, r)  => s + (((r.soLuongThucTe as number) - r.soLuongHeTong) * r.giaNhap), 0);
 
+
+
   // Filter tab (khop / thieu / thua / belowMin)
   const filteredRows = rows.filter(r => {
     let allowedCatIds = new Set<string>();
@@ -350,6 +355,11 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
     const searchOk = !q || r.tenHang.toLowerCase().includes(q) || (r.maSku ?? "").toLowerCase().includes(q);
     return tabOk && catOk && stOk && searchOk;
   });
+
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedRows = filteredRows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   // ── Save ─────────────────────────────────────────────────────────────────────
   const doSave = async () => {
@@ -835,7 +845,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
             ) : isPhone ? (
               /* ══ PHONE: Card view ══ */
               <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 8 }}>
-                {filteredRows.map((row) => {
+                {paginatedRows.map((row) => {
                   const st  = statusOf(row);
                   const blm = isBelowMin(row);
                   const tt  = row.soLuongThucTe === "" ? null : row.soLuongThucTe as number;
@@ -941,7 +951,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
 
                 {/* Rows */}
                 <div style={{ border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 8px 8px", overflow: "visible" }}>
-                  {filteredRows.map((row, idx) => {
+                  {paginatedRows.map((row, idx) => {
                     const st   = statusOf(row);
                     const blm  = isBelowMin(row);
                     const tt   = row.soLuongThucTe === "" ? null : row.soLuongThucTe as number;
@@ -1036,7 +1046,18 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                 </div>
               </>
             )}
+            
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="d-flex justify-content-between align-items-center px-4 py-2 border-top" style={{ flexShrink: 0, background: "var(--card)" }}>
+              <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
+                Hiển thị {(currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, filteredRows.length)} trong số {filteredRows.length} mặt hàng
+              </span>
+              <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+            </div>
+          )}
 
           {/* ── MOBILE: bottom toolbar ────────────────────────────────────── */}
           {isMobile && !success && (

@@ -74,9 +74,14 @@ export async function GET(req: NextRequest) {
 
   let whFilter: any = {};
   if (warehouseId) {
-    const wh = await prisma.warehouse.findUnique({ where: { id: warehouseId }, select: { code: true } });
-    if (wh?.code === "KHO-CHINH") whFilter = { loai: "hang-hoa" };
-    else if (wh?.code === "KHO-LOI") whFilter = { stocks: { some: { warehouseId: warehouseId, soLuong: { gt: 0 } } } };
+    const wh = await prisma.warehouse.findUnique({ where: { id: warehouseId }, select: { code: true, type: true } });
+    if (wh?.code === "KHO-CHINH" || wh?.type === "PRODUCT_SYNC") {
+      whFilter = { loai: "hang-hoa" };
+    } else if (wh?.type === "MATERIAL") {
+      whFilter = { loai: "vat-tu" };
+    } else if (wh?.code === "KHO-LOI" || wh?.type === "DEFECT") {
+      whFilter = { stocks: { some: { warehouseId: warehouseId, soLuong: { gt: 0 } } } };
+    }
   }
 
   // Fetch synced category ids
