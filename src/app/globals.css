@@ -3528,3 +3528,24 @@ select.app-input {
     flex-shrink: 0 !important;
   }
 }
+
+/* Responsive Action Buttons */
+.inbound-action-container {
+  width: 100%;
+  margin-top: 8px;
+}
+.inbound-action-btn {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+@media (min-width: 576px) {
+  .inbound-action-container {
+    width: auto !important;
+    margin-top: 0 !important;
+  }
+  .inbound-action-btn {
+    flex: 0 0 auto !important;
+    justify-content: flex-start !important;
+  }
+}

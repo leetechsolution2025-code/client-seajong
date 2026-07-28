@@ -520,7 +520,7 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
         </div>
 
         {/* Các nút chức năng bên phải */}
-        <div className="d-flex flex-wrap flex-sm-nowrap w-100 w-md-auto gap-2 align-items-center mt-2 mt-md-0">
+        <div className="d-flex flex-wrap flex-sm-nowrap gap-2 align-items-center inbound-action-container">
           {actions.map(action => (
             <button
               key={action.label}
@@ -530,7 +530,7 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
                 else if (action.label === "Luân chuyển") setActiveModal("luan-chuyen");
                 else if (action.label === "Kiểm kho") setActiveModal("kiem");
               }}
-              className="flex-fill flex-sm-grow-0 justify-content-center justify-content-md-start"
+              className="inbound-action-btn"
               style={{
                 display: "flex",
                 alignItems: "center",
