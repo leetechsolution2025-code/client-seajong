@@ -149,6 +149,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       `;
     }
 
+    if (inventoryItemId) {
+      await prisma.$executeRaw`
+        UPDATE InventoryItem
+        SET giaNhap = (
+          SELECT COALESCE(SUM(dv.soLuong * i.giaNhap), 0)
+          FROM DinhMucVatTu dv
+          JOIN InventoryItem i ON dv.inventoryItemId = i.id
+          WHERE dv.dinhMucId = ${id}
+        )
+        WHERE id = ${inventoryItemId}
+      `;
+    }
+
     return NextResponse.json({ ok: true, id });
   } catch (e) {
     console.error("[PUT /api/production/bom/:id]", e);

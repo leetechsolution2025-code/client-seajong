@@ -10,7 +10,8 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { code, tenDinhMuc, targetInventoryItemId, vatTu = [] } = body;
+    const { code, tenDinhMuc, targetInventoryItemId, materialItemId, vatTu = [] } = body;
+    const finalInventoryItemId = targetInventoryItemId || materialItemId || null;
 
     let finalCode = code;
     if (!finalCode) {
@@ -51,9 +52,10 @@ export async function POST(req: NextRequest) {
       data: {
         code: finalCode,
         tenDinhMuc,
+        inventoryItemId: finalInventoryItemId,
         vatTu: {
           create: vatTu.map((v: any) => ({
-            materialId: v.inventoryItemId || null,
+            inventoryItemId: v.inventoryItemId || null,
             maVatTu: v.maVatTu || null,
             tenVatTu: v.tenVatTu || "Chưa có tên",
             soLuong: v.soLuong || 1,
@@ -63,6 +65,19 @@ export async function POST(req: NextRequest) {
         }
       }
     });
+
+    if (finalInventoryItemId) {
+      await prisma.$executeRaw`
+        UPDATE InventoryItem
+        SET giaNhap = (
+          SELECT COALESCE(SUM(dv.soLuong * i.giaNhap), 0)
+          FROM DinhMucVatTu dv
+          JOIN InventoryItem i ON dv.inventoryItemId = i.id
+          WHERE dv.dinhMucId = ${dm.id}
+        )
+        WHERE id = ${finalInventoryItemId}
+      `;
+    }
 
     return NextResponse.json(dm, { status: 201 });
   } catch (e: any) {
