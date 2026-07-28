@@ -108,7 +108,14 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
       if (!editItem) {
         setSelectedWarehouseId(warehouseId || "");
       } else {
-        const whId = (editItem.stocks && editItem.stocks.length > 0) ? editItem.stocks[0].warehouseId : (warehouseId || "");
+        let whId = (editItem.stocks && editItem.stocks.length > 0) ? editItem.stocks[0].warehouseId : (warehouseId || "");
+        
+        if (!whId && warehouses.length > 0) {
+            const isProduct = editItem.source === "manufactured" || editItem.loai === "thanh-pham";
+            const w = warehouses.find(w => w.type === (isProduct ? "PRODUCT" : "MATERIAL"));
+            if (w) whId = w.value;
+        }
+
         setSelectedWarehouseId(whId);
       }
       if (editItem) {
@@ -116,7 +123,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
         setForm({
           tenHang: editItem.tenHang || editItem.name || "",
           code: editItem.code || "",
-          categoryId: editItem.categoryId || "",
+          categoryId: editItem.erpCategoryId || editItem.categoryId || "",
           loai: editItem.source === "inventory" ? "hang-hoa" : "vat-tu",
           brand: editItem.brand || "Seajong",
           model: editItem.model || "",
@@ -163,7 +170,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
       setWebSearch("");
       setWebResults([]);
     }
-  }, [open, editItem, warehouseId, isMaterialWarehouse]);
+  }, [open, editItem, warehouseId, isMaterialWarehouse, warehouses]);
 
   useEffect(() => {
     if (open) {
