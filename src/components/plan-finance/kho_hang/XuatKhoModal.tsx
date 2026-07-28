@@ -604,6 +604,12 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
           .xk-table-inner { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; padding-bottom: 12px; }
           .xk-table-inner > div { min-width: 1100px !important; } /* Increased to widen Item column on iPad */
         }
+
+        /* SPECIFIC MOBILE TWEAKS */
+        @media (max-width: 768px) {
+          .xk-sidebar-grid { grid-template-columns: 1fr !important; }
+          .xk-sidebar { max-height: none !important; }
+        }
       `}</style>
 
       {/* ═══ TOP BAR ══════════════════════════════════════════════════════════ */}

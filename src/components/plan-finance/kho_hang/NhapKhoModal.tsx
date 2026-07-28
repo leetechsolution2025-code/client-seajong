@@ -352,6 +352,12 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
           .nk-table-inner { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; padding-bottom: 12px; }
           .nk-table-inner > div { min-width: 1100px !important; }
         }
+
+        /* SPECIFIC MOBILE TWEAKS */
+        @media (max-width: 768px) {
+          .nk-sidebar-grid { grid-template-columns: 1fr !important; }
+          .nk-sidebar { max-height: none !important; }
+        }
       `}</style>
 
       {/* ═══ TOP BAR ═══════════════════════════════════════════════════════ */}
