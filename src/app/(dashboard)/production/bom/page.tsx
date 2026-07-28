@@ -710,6 +710,7 @@ export default function BOMPage() {
                     }).then(res => res.json()).then(data => {
                       if (data.success) {
                         toastSuccess("Thành công", `Đã cập nhật giá bán cho ${data.updatedCount} sản phẩm`);
+                        setSelectedProduct((prev: any) => prev ? { ...prev, giaBan: priceSetup.finalPrice } : prev);
                         fetchProducts();
                         setShowPriceOffcanvas(false);
                       } else {

@@ -209,6 +209,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         UPDATE DinhMuc SET giaBan = ${giaBan}, updatedAt = CURRENT_TIMESTAMP
         WHERE id = ${id}
       `;
+      await prisma.$executeRaw`
+        UPDATE InventoryItem SET giaBan = ${giaBan}
+        WHERE id = (SELECT inventoryItemId FROM DinhMuc WHERE id = ${id})
+      `;
     }
 
     return NextResponse.json({ ok: true, id });
