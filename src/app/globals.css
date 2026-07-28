@@ -2792,11 +2792,12 @@ select.app-input {
   }
 }
 
-/* Fullscreen offcanvases and custom drawers on mobile/tablet screens (<= 1200px) */
-@media (max-width: 1200px) {
+/* Fullscreen offcanvases and custom drawers on mobile screens (<= 768px) */
+@media (max-width: 768px) {
   .offcanvas,
   .app-custom-drawer {
     width: 100% !important;
+    min-width: 100% !important;
     max-width: 100% !important;
     height: 100% !important;
     border: none !important;

@@ -146,7 +146,7 @@ export function LichSuKiemKhoModal({ warehouseId, warehouseName, onClose }: Lich
       }} />
 
       {/* Offcanvas */}
-      <div className="lich-su-oc" style={{
+      <div className="app-custom-drawer" style={{
         position: "fixed", top: 0, right: 0, bottom: 0, minWidth: 400, maxWidth: 400,
         zIndex: 5200,
         background: "var(--card)",
@@ -154,6 +154,7 @@ export function LichSuKiemKhoModal({ warehouseId, warehouseName, onClose }: Lich
         boxShadow: "-6px 0 28px rgba(0,0,0,0.15)",
         display: "flex", flexDirection: "column",
         transform: visible ? "translateX(0)" : "translateX(100%)",
+        transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
       }}>
 
         {/* ── Header ── */}

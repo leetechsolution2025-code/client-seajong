@@ -128,7 +128,7 @@ export function LichSuNhapKhoOffcanvas({ onClose }: LichSuNhapKhoOffcanvasProps)
 
       {/* Offcanvas Body */}
       <div
-        className="nhap-history-oc"
+        className="nhap-history-oc app-custom-drawer"
         style={{
           position: "fixed",
           top: 0,

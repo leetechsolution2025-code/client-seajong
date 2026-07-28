@@ -130,7 +130,7 @@ export function LichSuXuatKhoOffcanvas({ onClose }: LichSuXuatKhoOffcanvasProps)
 
       {/* Offcanvas Body */}
       <div
-        className="xuat-history-oc"
+        className="xuat-history-oc app-custom-drawer"
         style={{
           position: "fixed",
           top: 0,

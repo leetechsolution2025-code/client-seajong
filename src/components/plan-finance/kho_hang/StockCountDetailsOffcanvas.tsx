@@ -104,7 +104,7 @@ export function StockCountDetailsOffcanvas({ stockCountId, onClose }: StockCount
 
       {/* Offcanvas Body */}
       <div
-        className="audit-detail-oc"
+        className="audit-detail-oc app-custom-drawer"
         style={{
           position: "fixed",
           top: 0,

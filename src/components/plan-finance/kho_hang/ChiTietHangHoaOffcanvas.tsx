@@ -304,7 +304,7 @@ export function ChiTietHangHoaOffcanvas({ open, item, onClose, onDeleted, onUpda
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 4000, background: open ? "rgba(0,0,0,0.35)" : "transparent", pointerEvents: open ? "auto" : "none", transition: "background 0.25s" }} />
 
       {/* Panel */}
-      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 420, background: "var(--card)", boxShadow: "-8px 0 40px rgba(0,0,0,0.18)", zIndex: 4001, display: "flex", flexDirection: "column", transform: open ? "translateX(0)" : "translateX(100%)", transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)" }}>
+      <div className="app-custom-drawer" style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 420, background: "var(--card)", boxShadow: "-8px 0 40px rgba(0,0,0,0.18)", zIndex: 4001, display: "flex", flexDirection: "column", transform: open ? "translateX(0)" : "translateX(100%)", transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)" }}>
         {!displayItem ? (
           detailLoading ? (
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
