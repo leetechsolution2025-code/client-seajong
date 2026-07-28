@@ -264,9 +264,7 @@ export async function GET(req: Request) {
       ];
     } else if (moduleStr === "hr") {
       data = [
-        { text: "• Nhắc nhở: Hạn chót duyệt bảng công tháng này là ngày 05.", type: "text" },
-        { text: "• Chào mừng 3 nhân sự mới gia nhập phòng Kinh doanh tuần này!", type: "text" },
-        { text: "• Chính sách phúc lợi mới: Tăng phụ cấp ăn trưa từ tháng sau.", type: "text" }
+        { text: "Chào mừng đến với phần mềm quản lý doanh nghiệp toàn diện", type: "text" }
       ];
     } else if (moduleStr === "production") {
       const currentYear = new Date().getFullYear();
@@ -365,17 +363,11 @@ export async function GET(req: Request) {
       ];
     } else if (moduleStr === "qa") {
       data = [
-        { text: `• Tỷ lệ hàng lỗi xuất xưởng: <strong>2.5%</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">Giảm 0.3%</span>`, type: 'text' },
-        { text: `• Tỷ lệ hàng lỗi bảo hành: <strong>0.8%</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">&lt; 1%</span>`, type: 'text' },
-        { text: `• Sản phẩm đã kiểm tra: <strong>1,245</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">Tăng 15%</span>`, type: 'text' },
-        { text: `• Hồ sơ lỗi chờ xử lý: <strong>12</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">2 quá hạn SLA</span>`, type: 'text' },
+        { text: "Chào mừng đến với phần mềm quản lý doanh nghiệp toàn diện", type: "text" }
       ];
     } else if (moduleStr === "qa_inspections") {
       data = [
-        { text: `• Số phiếu yêu cầu: <strong>145</strong>`, type: 'text' },
-        { text: `• Đã hoàn thành: <strong>112</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">77.2%</span>`, type: 'text' },
-        { text: `• Chưa thực hiện: <strong>33</strong> <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 ms-1">22.8%</span>`, type: 'text' },
-        { text: `• Số yêu cầu phải hoàn thành hôm nay: <strong>8</strong>`, type: 'text' },
+        { text: "Chào mừng đến với phần mềm quản lý doanh nghiệp toàn diện", type: "text" }
       ];
     } else if (moduleStr === "sales_quotations") {
       const quotations = await prisma.quotation.findMany({
@@ -535,20 +527,12 @@ export async function GET(req: Request) {
       ];
     } else if (moduleStr === "sales") {
       data = [
-        { text: "• Chúc mừng Team Sale 1 vừa chốt thành công hợp đồng 500 triệu!", type: "text" },
-        { text: "• Cập nhật bảng giá mới cho dòng sản phẩm A áp dụng từ ngày 01/08.", type: "text" },
-        { text: "• Mục tiêu doanh số tháng này đã đạt 75%.", type: "text" }
-      ];
-    } else if (moduleStr === "logistics") {
-      data = [
-        { text: "• Thông báo: Lịch kiểm kê kho định kỳ vào chiều Thứ 6 tuần này.", type: "text" },
-        { text: "• Có 3 chuyến hàng nội bộ đang chờ xác nhận luân chuyển.", type: "text" }
+        { text: "Chào mừng đến với phần mềm quản lý doanh nghiệp toàn diện", type: "text" }
       ];
     } else {
       // General Board / Exec / Other
       data = [
-        { text: "• Chào mừng đến với Hệ thống Quản trị Doanh nghiệp Toàn diện.", type: "text" },
-        { text: "• Lịch họp giao ban Ban Giám Đốc vào 9h sáng Thứ Hai tuần tới.", type: "text" }
+        { text: "Chào mừng đến với phần mềm quản lý doanh nghiệp toàn diện", type: "text" }
       ];
     }
 
