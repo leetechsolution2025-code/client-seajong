@@ -353,53 +353,56 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
             ))}
           </select>
 
-          {/* Lọc theo trạng thái */}
-          <select 
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={{
-              height: "32px",
-              padding: "0 10px",
-              borderRadius: "8px",
-              fontSize: "12px",
-              border: "1px solid var(--border)",
-              background: "var(--background)",
-              color: "var(--foreground)",
-              outline: "none",
-              cursor: "pointer",
-              minWidth: "130px"
-            }}
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="con-hang">Còn hàng</option>
-            <option value="sap-het">Sắp hết hàng</option>
-            <option value="het-hang">Đã hết hàng</option>
-          </select>
-
-          {/* Hộp tìm kiếm */}
-          <div style={{ position: "relative", flex: 1, minWidth: "200px" }}>
-            <i className="bi bi-search" style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)", fontSize: "12px" }} />
-            <input 
-              type="text" 
-              placeholder="Tìm theo tên, mã hàng hóa..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+          <div className="d-flex flex-fill w-100 w-md-auto" style={{ gap: "10px" }}>
+            {/* Lọc theo trạng thái */}
+            <select 
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
               style={{
-                width: "100%",
                 height: "32px",
-                padding: "0 12px 0 32px",
+                padding: "0 10px",
                 borderRadius: "8px",
                 fontSize: "12px",
                 border: "1px solid var(--border)",
                 background: "var(--background)",
                 color: "var(--foreground)",
                 outline: "none",
+                cursor: "pointer",
+                minWidth: "120px",
+                flexShrink: 0
               }}
-            />
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="con-hang">Còn hàng</option>
+              <option value="sap-het">Sắp hết hàng</option>
+              <option value="het-hang">Đã hết hàng</option>
+            </select>
+
+            {/* Hộp tìm kiếm */}
+            <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+              <i className="bi bi-search" style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)", fontSize: "12px" }} />
+              <input 
+                type="text" 
+                placeholder="Tìm theo tên, mã hàng hóa..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  width: "100%",
+                  height: "32px",
+                  padding: "0 12px 0 32px",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  border: "1px solid var(--border)",
+                  background: "var(--background)",
+                  color: "var(--foreground)",
+                  outline: "none",
+                }}
+              />
+            </div>
           </div>
 
           {/* Nhóm nút tải file, import, export (chỉ dùng icon) */}
-          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+          <div className="d-none d-md-flex" style={{ gap: "6px", alignItems: "center" }}>
             {/* Tải excel mẫu */}
             <button 
               title="Tải file Excel mẫu"
