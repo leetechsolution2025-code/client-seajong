@@ -260,7 +260,7 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
         <div style={{ width: 1, height: 26, background: "var(--border)", opacity: 0.6, flexShrink: 0, margin: "0 4px" }} />
 
         {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="d-none d-sm-flex align-items-center" style={{ gap: 10 }}>
           {/* Logo box */}
           <div className="topbar-logo-box">
             {clientLogoUrl && !logoLoadError ? (
