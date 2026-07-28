@@ -1,19 +1,9 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-
-async function run() {
-  const plan = await prisma.salesYearlyPlan.findFirst({
-    where: { year: -2026 }
+async function main() {
+  const item = await prisma.inventoryItem.findFirst({
+    where: { tenHang: { contains: 'SJ-580D' } }
   });
-  if (plan) {
-    const data = JSON.parse(plan.planData);
-    console.log("isCalculateByRevenue:", data.isCalculateByRevenue);
-    console.log("costOperationsPercent:", data.costOperationsPercent);
-    console.log("costOperations:", data.costOperations);
-    console.log("costMarketingPercent:", data.costMarketingPercent);
-    console.log("costMarketing:", data.costMarketing);
-  } else {
-    console.log("No plan found for -2026");
-  }
+  console.log(item);
 }
-run().finally(() => prisma.$disconnect());
+main().finally(() => prisma.$disconnect());

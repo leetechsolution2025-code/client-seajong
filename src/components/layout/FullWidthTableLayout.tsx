@@ -19,7 +19,7 @@ export function FullWidthTableLayout({
   return (
     <div className={cn("d-flex flex-column h-100", className)} style={style}>
       {header && (
-        <div className="p-4 pb-0 flex-shrink-0">
+        <div className="px-3 pt-2 pb-0 flex-shrink-0">
           {header}
         </div>
       )}

@@ -13,54 +13,25 @@ export async function GET(req: NextRequest) {
     const levelOrder = session.user.levelOrder ?? 99;
     const position = (session.user.positionName || "").toLowerCase();
     
-    // Giám đốc, Admin, Thủ kho hoặc Quản lý cấp cao đều được quyền xem tất cả
+    // Phân quyền: Giám đốc, Admin, Thủ kho, Quản lý cấp cao
     const isManager = ["SUPERADMIN", "ADMIN", "DIRECTOR", "MANAGER"].includes(userRole) 
       || levelOrder <= 3 
       || position.includes("giám đốc") 
       || position.includes("thủ kho")
       || position.includes("trưởng");
 
-    // Tìm các task gom hàng được giao
-    const tasks = await prisma.task.findMany({
+    const employeeId = session.user.employeeId || session.user.id;
+
+    // Lấy các Phiếu Gom Hàng (BATCH_PACKING)
+    const tickets = await (prisma as any).logisticsTicket.findMany({
       where: {
-        ...(isManager ? {} : { assigneeId: session.user.employeeId || session.user.id }),
-        deptCode: "logistics",
-        title: { contains: "Gom hàng" },
-        status: "pending"
-      }
-    });
-
-    const assignedOrderIds = new Set<string>();
-    tasks.forEach(t => {
-      try {
-        if (t.actualResult) {
-          const ids = JSON.parse(t.actualResult);
-          if (Array.isArray(ids)) {
-            ids.forEach(id => assignedOrderIds.add(id));
-          }
-        }
-      } catch (e) {}
-    });
-
-    // Nếu không có đơn nào được giao
-    if (assignedOrderIds.size === 0) {
-      return NextResponse.json({
-        success: true,
-        items: [],
-        totalOrders: 0
-      });
-    }
-
-    // Lấy các đơn hàng đang chờ xuất kho VÀ đã được giao cho user này
-    const pendingOrders = await prisma.saleOrder.findMany({
-      where: {
-        id: { in: Array.from(assignedOrderIds) },
-        keToanDuyet: "approved",
-        trangThaiKho: "in_stock",
-        trangThai: { notIn: ["cancelled", "draft"] }
+        type: "BATCH_PACKING",
+        status: { in: ["PENDING", "PICKING"] },
+        ...(isManager ? {} : { assignedToId: employeeId }) // Chỉ hiển thị phiếu của mình nếu không phải Manager
       },
       include: {
-        saleOrderItems: {
+        saleOrder: { select: { code: true, ngayGiao: true } },
+        items: {
           include: {
             inventoryItem: {
               include: {
@@ -68,26 +39,25 @@ export async function GET(req: NextRequest) {
               }
             }
           }
-        }
+        },
+        assignedTo: { select: { fullName: true } }
       }
     });
 
-    const activeOrders = pendingOrders;
-
-    // Gom nhóm items
     // Cấu trúc map: inventoryItemId (hoặc tên) -> { tenHang, inventoryItemId, imageUrl, tongSoLuong, orders: [] }
     const batchMap = new Map<string, any>();
 
-    for (const order of activeOrders) {
-      if (!order.saleOrderItems) continue;
+    for (const ticket of tickets) {
+      if (!ticket.items) continue;
       
-      for (const item of order.saleOrderItems) {
-        const key = item.inventoryItemId || item.tenHang;
-        if (!key) continue;
+      for (const item of ticket.items) {
+        const rawKey = item.inventoryItemId || item.id;
+        if (!rawKey) continue;
+        const ngayGiaoStr = ticket.saleOrder?.ngayGiao ? new Date(ticket.saleOrder.ngayGiao).toISOString() : "Không hẹn ngày";
+        const key = `${ngayGiaoStr}_${rawKey}`;
 
         let viTriStr = null;
         if (item.inventoryItem?.stocks && item.inventoryItem.stocks.length > 0) {
-          // Lấy vị trí từ kho đầu tiên có chứa mặt hàng (hoặc gom lại)
           const stock = item.inventoryItem.stocks.find((s: any) => s.viTriHang || s.viTriCot || s.viTriTang);
           if (stock) {
             viTriStr = [stock.viTriTang && `Tầng ${stock.viTriTang}`, stock.viTriCot && `Cột ${stock.viTriCot}`, stock.viTriHang && `Hàng ${stock.viTriHang}`].filter(Boolean).join(" - ");
@@ -97,32 +67,31 @@ export async function GET(req: NextRequest) {
         if (!batchMap.has(key)) {
           batchMap.set(key, {
             id: key,
-            tenHang: item.inventoryItem?.tenHang || item.tenHang,
+            ticketItemId: item.id, // For reporting picked quantity
+            tenHang: item.inventoryItem?.tenHang || "Hàng hóa",
             inventoryItemId: item.inventoryItemId,
+            code: item.inventoryItem?.code,
             webProductId: item.inventoryItem?.webProductId,
             imageUrl: item.inventoryItem?.imageUrl || null,
             images: [],
             viTriKho: viTriStr,
             tongSoLuong: 0,
+            ngayGiao: ticket.saleOrder?.ngayGiao,
             orders: []
           });
         }
 
         const batchItem = batchMap.get(key);
-        batchItem.tongSoLuong += (item.soLuong || 0);
+        batchItem.tongSoLuong += (item.requestedQty || 0);
 
-        // Tránh bị trùng mã đơn trong mảng orders
-        if (!batchItem.orders.find((o: any) => o.code === order.code)) {
-          batchItem.orders.push({
-            id: order.id,
-            code: order.code,
-            soLuongTrongDon: item.soLuong || 0
-          });
-        } else {
-          // Nếu bị trùng (cùng 1 đơn nhưng có 2 dòng giống nhau), thì cộng số lượng
-          const existOrder = batchItem.orders.find((o: any) => o.code === order.code);
-          existOrder.soLuongTrongDon += (item.soLuong || 0);
-        }
+        // Map order info
+        batchItem.orders.push({
+          id: ticket.id,
+          code: ticket.saleOrder?.code || ticket.code,
+          soLuongTrongDon: item.requestedQty || 0,
+          ngayGiao: ticket.saleOrder?.ngayGiao,
+          assignedTo: ticket.assignedTo?.fullName
+        });
       }
     }
 
@@ -132,7 +101,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       items: batchListWithImages,
-      totalOrders: activeOrders.length
+      totalOrders: tickets.length,
+      isManager // Trả về cờ này để UI biết có hiển thị tính năng giao việc không
     });
 
   } catch (error: any) {
@@ -147,19 +117,32 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { action, orderCodes } = body;
+    const { action, ticketId, employeeId, orderCodes } = body;
+
+    if (action === "assign_ticket") {
+      if (!ticketId || !employeeId) {
+         return NextResponse.json({ error: "Thiếu thông tin phân công" }, { status: 400 });
+      }
+      
+      await (prisma as any).logisticsTicket.update({
+        where: { id: ticketId },
+        data: { assignedToId: employeeId }
+      });
+      return NextResponse.json({ success: true, message: "Phân công thành công" });
+    }
 
     if (action === "complete_picking") {
       // In a real system, we would generate StockMovements here.
-      // But for now, since it is a large action and requires warehouse selection, 
-      // let's just mark the orders as "packed" or something. 
-      // Actually, standard Seajong outbound creates a StockMovement and sets trangThaiKho = "out_of_stock".
-      // We will leave this for future expansion or just return success if it's UI only.
-      
-      // We can also create a task for logistics.
+      // But for now, we will just update the ticket status if ticketId is provided.
+      if (ticketId) {
+         await (prisma as any).logisticsTicket.update({
+            where: { id: ticketId },
+            data: { status: "PACKED" }
+         });
+      }
     }
 
-    return NextResponse.json({ success: true, message: "Hoàn tất gom hàng thành công" });
+    return NextResponse.json({ success: true, message: "Thao tác thành công" });
   } catch (error: any) {
     console.error("[POST /api/logistics/batch-packing]", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

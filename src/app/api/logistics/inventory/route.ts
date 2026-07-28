@@ -207,9 +207,11 @@ export async function GET(req: Request) {
     }
 
     const warehouseId = searchParams.get("warehouseId");
+    let reqWarehouseCode = searchParams.get("warehouseCode");
+
     // Xác định loại kho để lọc bảng dữ liệu tương ứng
     let warehouseType = "ALL";
-    let warehouseCode = "";
+    let warehouseCode = reqWarehouseCode || "";
     if (warehouseId) {
       const wh = await prisma.warehouse.findUnique({
         where: { id: warehouseId },
@@ -218,6 +220,14 @@ export async function GET(req: Request) {
       if (wh) {
         warehouseType = (wh as any).type;
         warehouseCode = (wh as any).code || "";
+      }
+    } else if (warehouseCode) {
+      const wh = await prisma.warehouse.findUnique({
+        where: { code: warehouseCode },
+        select: { type: true }
+      } as any);
+      if (wh) {
+        warehouseType = (wh as any).type;
       }
     }
 
@@ -284,6 +294,7 @@ export async function GET(req: Request) {
         where,
         include: {
           category: { select: { id: true, name: true } },
+          erpCategory: { select: { name: true } },
           stocks: { include: { warehouse: true } },
           dinhMucs: true,
         },
@@ -295,7 +306,7 @@ export async function GET(req: Request) {
     const allItems = invItems.map((it: any) => ({
       ...it,
       source: it.loai === "hang-hoa" ? "inventory" : (it.loai === "vat-tu" ? "material" : "manufactured"),
-      categoryName: it.category?.name,
+      categoryName: it.category?.name ?? it.erpCategory?.name,
       dinhMucs: it.dinhMucs || []
     }));
 
@@ -412,7 +423,7 @@ export async function POST(req: Request) {
           name: tenHang,
           categoryId: categoryId || undefined,
           unit: donVi || "bộ",
-          defaultWarehouse: warehouseId || "KHO-THANHPHAM",
+          defaultWarehouse: warehouseId || "KHO-CHINH",
           notes: ghiChu || undefined,
           giaBan: Number(giaBan) || 0,
           imageUrl: imageUrl || null,
@@ -817,7 +828,7 @@ export async function DELETE(req: Request) {
     } else if (source === "seajong") {
       await prisma.seajongProduct.delete({ where: { id: Number(id) } });
     } else {
-      const item = await (prisma as any).materialItem.findUnique({ where: { id } });
+      const item = await prisma.inventoryItem.findUnique({ where: { id } });
       if (item && item.code) {
          await deleteAutoJournalByReference(item.code, "Xoá vật tư");
       }
@@ -826,12 +837,15 @@ export async function DELETE(req: Request) {
         data: { inventoryItemId: null }
       });
       await prisma.inventoryStock.deleteMany({ where: { inventoryItemId: id } });
-      await (prisma as any).materialItem.delete({ where: { id } });
+      await prisma.inventoryItem.delete({ where: { id } });
     }
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {
     console.error("[DELETE /api/logistics/inventory]", error);
+    if (error?.code === "P2003") {
+      return NextResponse.json({ error: "Không thể xoá vì mặt hàng này đang được dùng trong Phiếu kho/Đơn hàng/Định mức." }, { status: 400 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

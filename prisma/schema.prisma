@@ -228,6 +228,7 @@ model Employee {
   probation                EmployeeProbation?
   attendanceConfirmations  AttendanceConfirmation[]
   payrollConfirmations     PayrollConfirmation[]
+  logisticsTickets         LogisticsTicket[]
 }
 
 model LaborContract {
@@ -249,7 +250,6 @@ model LaborContract {
 
   @@index([employeeId])
   @@index([status])
-  
 }
 
 model EmploymentHistory {
@@ -388,25 +388,24 @@ model HrStationeryDepartmentBudget {
 }
 
 model Category {
-  id                   String                @id @default(cuid())
-  type                 String
-  code                 String
-  name                 String
-  color                String?
-  icon                 String?
-  description          String?
-  sortOrder            Int                   @default(0)
-  isActive             Boolean               @default(true)
-  hasBom               Boolean               @default(false)
-  clientId             String?
-  parentId             String?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  parent               Category?             @relation("CategoryParent", fields: [parentId], references: [id])
-  children             Category[]            @relation("CategoryParent")
-  dinhMucVatTus        DinhMucVatTu[]
-  materials            MaterialItem[]
-  manufacturedProducts ManufacturedProduct[] @relation("MfpProdCategory")
+  id             String          @id @default(cuid())
+  type           String
+  code           String
+  name           String
+  color          String?
+  icon           String?
+  description    String?
+  sortOrder      Int             @default(0)
+  isActive       Boolean         @default(true)
+  hasBom         Boolean         @default(false)
+  clientId       String?
+  parentId       String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  parent         Category?       @relation("CategoryParent", fields: [parentId], references: [id])
+  children       Category[]      @relation("CategoryParent")
+  dinhMucVatTus  DinhMucVatTu[]
+  inventoryItems InventoryItem[]
 
   @@unique([type, code])
   @@index([type])
@@ -602,23 +601,24 @@ model SupplierCategory {
 }
 
 model SaleOrder {
-  id                   String          @id @default(cuid())
-  code                 String?         @unique
+  logisticsTickets     LogisticsTicket[]
+  id                   String               @id @default(cuid())
+  code                 String?              @unique
   customerId           String?
   ngayDat              DateTime?
   ngayGiao             DateTime?
   ngayHoanThanhSanXuat DateTime?
   ngayYeuCauQC         DateTime?
-  trangThai            String          @default("draft")
-  tongTien             Float           @default(0)
-  daThanhToan          Float           @default(0)
-  keToanDuyet          String          @default("pending") // "pending" | "approved" | "rejected"
-  trangThaiKho         String          @default("in_stock") // "in_stock" | "out_of_stock"
+  trangThai            String               @default("draft")
+  tongTien             Float                @default(0)
+  daThanhToan          Float                @default(0)
+  keToanDuyet          String               @default("pending") // "pending" | "approved" | "rejected"
+  trangThaiKho         String               @default("in_stock") // "in_stock" | "out_of_stock"
   ghiChu               String?
   nguoiPhuTrach        String?
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
-  customer             Customer?       @relation(fields: [customerId], references: [id])
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  customer             Customer?            @relation(fields: [customerId], references: [id])
   saleOrderItems       SaleOrderItem[]
   incidents            ProductionIncident[]
 
@@ -820,44 +820,45 @@ model Asset {
 }
 
 model InventoryCategory {
-  id                   String                @id @default(cuid())
-  name                 String                @unique
-  code                 String?               @unique
-  sortOrder            Int                   @default(0)
-  isActive             Boolean               @default(true)
-  parentId             String?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  parent               InventoryCategory?    @relation("InvCategoryParent", fields: [parentId], references: [id])
-  children             InventoryCategory[]   @relation("InvCategoryParent")
-  items                InventoryItem[]
-  suppliers            SupplierCategory[]
-  manufacturedProducts ManufacturedProduct[] @relation("MfpCategory")
+  id        String              @id @default(cuid())
+  name      String              @unique
+  code      String?             @unique
+  sortOrder Int                 @default(0)
+  isActive  Boolean             @default(true)
+  parentId  String?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  parent    InventoryCategory?  @relation("InvCategoryParent", fields: [parentId], references: [id])
+  children  InventoryCategory[] @relation("InvCategoryParent")
+  suppliers SupplierCategory[]
+
+  inventoryItems InventoryItem[]
 }
 
 model Warehouse {
-  id             String           @id @default(cuid())
-  code           String?          @unique
-  name           String
-  address        String?
-  phone          String?
-  type           String           @default("PRODUCT")
-  managerId      String?
-  isVirtual      Boolean          @default(false)
-  isActive       Boolean          @default(true)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  layoutJson     String?
-  stocks         InventoryStock[]
-  materialStocks MaterialStock[]
-  stockCounts    StockCount[]
-  movementsTo    StockMovement[]  @relation("MovementTo")
-  movementsFrom  StockMovement[]  @relation("MovementFrom")
+  id         String           @id @default(cuid())
+  code       String?          @unique
+  name       String
+  address    String?
+  phone      String?
+  type       String           @default("PRODUCT")
+  managerId  String?
+  isVirtual  Boolean          @default(false)
+  isActive   Boolean          @default(true)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  layoutJson String?
+  stocks     InventoryStock[]
+
+  stockCounts   StockCount[]
+  movementsTo   StockMovement[] @relation("MovementTo")
+  movementsFrom StockMovement[] @relation("MovementFrom")
 
   @@index([isActive])
 }
 
 model InventoryItem {
+  logisticsTicketItems LogisticsTicketItem[]
   id                   String                @id @default(cuid())
   code                 String?               @unique
   maThayThe            String?
@@ -879,15 +880,16 @@ model InventoryItem {
   webProductId         Int?
   webVariationId       Int?
   ghiChu               String?
-  dinhMucId            String?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   imageUrl             String?
   chieuDai             Float?
   chieuRong            Float?
   chieuDay             Float?
-  dinhMuc              DinhMuc?              @relation(fields: [dinhMucId], references: [id])
+  dinhMucs             DinhMuc[]
   category             InventoryCategory?    @relation(fields: [categoryId], references: [id])
+  erpCategoryId        String?
+  erpCategory          Category?             @relation(fields: [erpCategoryId], references: [id])
   stocks               InventoryStock[]
   purchaseOrderItems   PurchaseOrderItem[]
   purchaseRequestItems PurchaseRequestItem[]
@@ -895,127 +897,66 @@ model InventoryItem {
   movements            StockMovement[]
   saleOrderItems       SaleOrderItem[]
   qualityInspections   QualityInspection[]
+  dinhMucVatTus        DinhMucVatTu[]
 
   @@index([loai])
   @@index([trangThai])
   @@index([categoryId])
   @@index([nhaCungCap])
-  @@index([dinhMucId])
-}
-
-model MaterialItem {
-  id             String          @id @default(cuid())
-  code           String?         @unique
-  maThayThe      String?
-  name           String
-  unit           String?         @default("cái")
-  price          Float           @default(0)
-  giaBan         Float           @default(0)
-  material       String?
-  spec           String?
-  thongSoKyThuat String?
-  minStock       Float           @default(0)
-  brand          String?
-  categoryId     String?
-  imageUrl       String?
-  ghiChu         String?
-  chieuDai       Float?
-  chieuRong      Float?
-  chieuDay       Float?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  dinhMucVatTu   DinhMucVatTu[]
-  category       Category?       @relation(fields: [categoryId], references: [id])
-  stocks         MaterialStock[]
-  dinhMucs       DinhMuc[]
-}
-
-model MaterialStock {
-  id          String       @id @default(cuid())
-  materialId  String
-  warehouseId String
-  soLuong     Float        @default(0)
-  soLuongMin  Float        @default(0)
-  location    String?
-  warehouse   Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  material    MaterialItem @relation(fields: [materialId], references: [id], onDelete: Cascade)
-
-  @@unique([materialId, warehouseId])
-}
-
-model ManufacturedProduct {
-  giaBan           Float?             @default(0)
-  id               String             @id @default(cuid())
-  code             String?            @unique
-  name             String
-  unit             String             @default("bộ")
-  defaultWarehouse String?            @default("KHO-THANHPHAM")
-  categoryId       String? // Bỏ hoặc đổi tên sau
-  category         InventoryCategory? @relation("MfpCategory", fields: [categoryId], references: [id])
-
-  productCategoryId String?
-  productCategory   Category? @relation("MfpProdCategory", fields: [productCategoryId], references: [id])
-  imageUrl          String?
-  notes             String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  dinhMucs DinhMuc[]
 }
 
 model DinhMuc {
-  id         String          @id @default(cuid())
-  code       String?         @unique
-  tenDinhMuc String?
-  giaBan     Float           @default(0)
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-  vatTu      DinhMucVatTu[]
-  items      InventoryItem[]
-
-  manufacturedProductId String?
-  manufacturedProduct   ManufacturedProduct? @relation(fields: [manufacturedProductId], references: [id], onDelete: Cascade)
-
-  materialItemId String?
-  materialItem   MaterialItem? @relation(fields: [materialItemId], references: [id], onDelete: Cascade)
+  id              String         @id @default(cuid())
+  code            String?        @unique
+  tenDinhMuc      String?
+  giaBan          Float          @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  vatTu           DinhMucVatTu[]
+  inventoryItemId String?
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
 
   @@index([code])
-  @@index([manufacturedProductId])
-  @@index([materialItemId])
+  @@index([inventoryItemId])
 }
 
 model DinhMucVatTu {
-  id         String        @id @default(cuid())
-  dinhMucId  String
-  materialId String?
-  maVatTu    String?
-  tenVatTu   String
-  soLuong    Float         @default(1)
-  donViTinh  String?
-  ghiChu     String?
-  categoryId String?
-  category   Category?     @relation(fields: [categoryId], references: [id])
-  material   MaterialItem? @relation(fields: [materialId], references: [id])
-  dinhMuc    DinhMuc       @relation(fields: [dinhMucId], references: [id], onDelete: Cascade)
+  id        String @id @default(cuid())
+  dinhMucId String
+
+  maVatTu         String?
+  tenVatTu        String
+  soLuong         Float          @default(1)
+  donViTinh       String?
+  ghiChu          String?
+  categoryId      String?
+  category        Category?      @relation(fields: [categoryId], references: [id])
+  inventoryItemId String?
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+
+  dinhMuc DinhMuc @relation(fields: [dinhMucId], references: [id], onDelete: Cascade)
 
   @@index([dinhMucId])
+  @@index([inventoryItemId])
 }
 
 model InventoryStock {
-  id              String        @id @default(cuid())
+  reservations    InventoryReservation[]
+  id              String                 @id @default(cuid())
   inventoryItemId String
   warehouseId     String
-  soLuong         Float         @default(0)
-  soLuongMin      Float         @default(0)
-  condition       String        @default("new")
+  soLuong         Float                  @default(0)
+  soLuongMin      Float                  @default(0)
+  condition       String                 @default("new")
+  soLuongGiu      Float                  @default(0)
   viTriHang       String?
   viTriCot        String?
   viTriTang       String?
   ghiChu          String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  warehouse       Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  warehouse       Warehouse              @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  inventoryItem   InventoryItem          @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
 
   @@unique([inventoryItemId, warehouseId])
   @@index([warehouseId])
@@ -2718,19 +2659,18 @@ model OemMasterYearlyPlan {
   @@index([status])
 }
 
-
 // --- MODULE ACCOUNTING (HẠCH TOÁN KẾ TOÁN) ---
 
 model AccountingAccount {
-  id            String  @id @default(cuid())
-  code          String  @unique // Mã TK: 111, 1111, 141.1
-  name          String  // Tên TK: Tiền mặt, Tạm ứng Kinh doanh...
-  level         Int     // Cấp: 1, 2, 3
-  isParent      Boolean @default(false)
-  parentId      String? // FK trỏ tới TK cha
-  type          String  // Loại: ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
-  balance       Float   @default(0) // Số dư hiện tại
-  
+  id       String  @id @default(cuid())
+  code     String  @unique // Mã TK: 111, 1111, 141.1
+  name     String // Tên TK: Tiền mặt, Tạm ứng Kinh doanh...
+  level    Int // Cấp: 1, 2, 3
+  isParent Boolean @default(false)
+  parentId String? // FK trỏ tới TK cha
+  type     String // Loại: ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
+  balance  Float   @default(0) // Số dư hiện tại
+
   parent          AccountingAccount?  @relation("AccountHierarchy", fields: [parentId], references: [id])
   children        AccountingAccount[] @relation("AccountHierarchy")
   journalLines    JournalLine[]
@@ -2738,44 +2678,44 @@ model AccountingAccount {
 }
 
 model MonthlyBalance {
-  id              String   @id @default(cuid())
-  accountId       String
-  month           Int      // 1-12
-  year            Int
-  openingDebit    Float    @default(0)
-  openingCredit   Float    @default(0)
-  arisingDebit    Float    @default(0)
-  arisingCredit   Float    @default(0)
-  closingDebit    Float    @default(0)
-  closingCredit   Float    @default(0)
-  
-  account         AccountingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  
+  id            String @id @default(cuid())
+  accountId     String
+  month         Int // 1-12
+  year          Int
+  openingDebit  Float  @default(0)
+  openingCredit Float  @default(0)
+  arisingDebit  Float  @default(0)
+  arisingCredit Float  @default(0)
+  closingDebit  Float  @default(0)
+  closingCredit Float  @default(0)
+
+  account AccountingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
   @@unique([accountId, month, year])
 }
 
 model JournalEntry {
   id            String   @id @default(cuid())
   entryDate     DateTime @default(now())
-  referenceCode String?  
-  description   String   
-  sourceModule  String   // INVENTORY, SALES, MANUAL
-  totalAmount   Float    
+  referenceCode String?
+  description   String
+  sourceModule  String // INVENTORY, SALES, MANUAL
+  totalAmount   Float
   createdAt     DateTime @default(now())
-  
-  lines         JournalLine[]
+
+  lines JournalLine[]
 }
 
 model JournalLine {
-  id              String   @id @default(cuid())
-  journalEntryId  String
-  accountId       String
-  type            String   // DEBIT hoặc CREDIT
-  amount          Float
-  description     String?
-  
-  journalEntry    JournalEntry      @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  account         AccountingAccount @relation(fields: [accountId], references: [id])
+  id             String  @id @default(cuid())
+  journalEntryId String
+  accountId      String
+  type           String // DEBIT hoặc CREDIT
+  amount         Float
+  description    String?
+
+  journalEntry JournalEntry      @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account      AccountingAccount @relation(fields: [accountId], references: [id])
 }
 
 // ==========================================
@@ -2783,68 +2723,67 @@ model JournalLine {
 // ==========================================
 model DefectRecord {
   activities DefectActivity[]
-  id                 String   @id @default(cuid())
-  code               String   @unique
-  source             String   // INTERNAL, WARRANTY
-  status             String   @default("NEW")
-  
-  productName        String
-  productCode        String
-  quantity           Int
-  description        String
-  mediaUrls          String   @default("[]") 
-  
-  customerName       String?
-  customerPhone      String?
-  customerAddress    String?
-  purchaseDate       DateTime?
-  
-  isRepairable       Boolean?
-  repairPlan         String?
-  materialCosts      Float?
-  
+  id         String           @id @default(cuid())
+  code       String           @unique
+  source     String // INTERNAL, WARRANTY
+  status     String           @default("NEW")
+
+  productName String
+  productCode String
+  quantity    Int
+  description String
+  mediaUrls   String @default("[]")
+
+  customerName    String?
+  customerPhone   String?
+  customerAddress String?
+  purchaseDate    DateTime?
+
+  isRepairable  Boolean?
+  repairPlan    String?
+  materialCosts Float?
+
   reporterName       String
   reporterDepartment String
   assignedTo         String?
-  
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([source])
   @@index([status])
 }
 
-
 model DefectActivity {
-  id          String       @id @default(cuid())
+  id          String   @id @default(cuid())
   defectId    String
-  action      String       // BÁO CÁO, CHẨN ĐOÁN, CHUYỂN TRẠNG THÁI...
-  description String?      // Chi tiết thao tác
+  action      String // BÁO CÁO, CHẨN ĐOÁN, CHUYỂN TRẠNG THÁI...
+  description String? // Chi tiết thao tác
   oldStatus   String?
   newStatus   String?
-  performedBy String       
-  createdAt   DateTime     @default(now())
+  performedBy String
+  createdAt   DateTime @default(now())
 
-  defect      DefectRecord @relation(fields: [defectId], references: [id], onDelete: Cascade)
+  defect DefectRecord @relation(fields: [defectId], references: [id], onDelete: Cascade)
+
   @@index([defectId])
 }
 
 model TaxPolicyNews {
-  id          String   @id @default(cuid())
-  title       String
-  link        String   @unique
-  publishDate DateTime?
-  docType     String?  
-  summary         String?  
+  id              String    @id @default(cuid())
+  title           String
+  link            String    @unique
+  publishDate     DateTime?
+  docType         String?
+  summary         String?
   detailedSummary String?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime  @default(now())
 }
-
 
 model TaxQA {
   id          String    @id @default(cuid())
-  question    String    
-  answer      String    
+  question    String
+  answer      String
   category    String?
   sourceUrl   String?   @unique
   publishDate DateTime?
@@ -2862,62 +2801,142 @@ model SoftSkillQA {
 }
 
 model SalesPolicy {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   docNo     String?
-  status    String   @default("Hiệu lực")
+  status    String    @default("Hiệu lực")
   issueDate DateTime?
   issuer    String?
   summary   String?
   pdfUrl    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([status])
 }
 
 model SalesPromotion {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
   docNo     String?
-  status    String   @default("Hiệu lực")
+  status    String    @default("Hiệu lực")
   startDate DateTime?
   endDate   DateTime?
   summary   String?
   pdfUrl    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([status])
 }
 
 model QualityInspection {
-  id             String    @id @default(cuid())
-  code           String    @unique // e.g., QC-20260717-107
-  type           String    // "IQC" (Đầu vào), "OQC" (Đầu ra), "PQC" (Trong quy trình)
-  status         String    @default("Chưa thực hiện") // "Chưa thực hiện", "Đang thực hiện", "Đã hoàn thành", "Huỷ bỏ"
-  
+  id     String @id @default(cuid())
+  code   String @unique // e.g., QC-20260717-107
+  type   String // "IQC" (Đầu vào), "OQC" (Đầu ra), "PQC" (Trong quy trình)
+  status String @default("Chưa thực hiện") // "Chưa thực hiện", "Đang thực hiện", "Đã hoàn thành", "Huỷ bỏ"
+
   // Sản phẩm / Vật tư liên kết (tuỳ chọn nếu kiểm tra chung chung)
   inventoryItemId String?
   inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
-  productName    String?   // Tên sản phẩm/vật tư (fallback khi không chọn từ danh mục)
+  productName     String? // Tên sản phẩm/vật tư (fallback khi không chọn từ danh mục)
 
   // Người yêu cầu
-  requesterName  String?
-  requesterDept  String?
-  
-  // Thời gian
-  executionTime  DateTime? // Thời gian thực hiện (kế hoạch/thực tế)
-  
-  // Kết quả
-  notes          String?
-  result         String?   // "Đạt" / "Không đạt" / "Lỗi một phần"
-  inspectorName  String?   // Tên người kiểm tra
+  requesterName String?
+  requesterDept String?
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  // Thời gian
+  executionTime DateTime? // Thời gian thực hiện (kế hoạch/thực tế)
+
+  // Kết quả
+  notes         String?
+  result        String? // "Đạt" / "Không đạt" / "Lỗi một phần"
+  inspectorName String? // Tên người kiểm tra
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([type])
   @@index([inventoryItemId])
+}
+
+// --- LOGISTICS TICKET SYSTEM ---
+enum LogisticsTicketType {
+  BATCH_PACKING
+  MATERIAL_PICKING
+}
+
+enum LogisticsTicketStatus {
+  PENDING
+  PICKING
+  PACKED
+  COMPLETED
+  CANCELLED
+}
+
+model LogisticsTicket {
+  id     String                @id @default(cuid())
+  code   String                @unique // Mã phiếu (VD: PK-20260728-001)
+  type   LogisticsTicketType
+  status LogisticsTicketStatus @default(PENDING)
+
+  // Relations to source documents
+  saleOrderId String?
+  saleOrder   SaleOrder? @relation(fields: [saleOrderId], references: [id], onDelete: SetNull)
+  // productionPlanId String? // Có thể thêm Lệnh sản xuất sau
+
+  // Assignments
+  assignedToId String?
+  assignedTo   Employee? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  items LogisticsTicketItem[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@index([type])
+  @@index([status])
+  @@index([saleOrderId])
+  @@index([assignedToId])
+}
+
+model LogisticsTicketItem {
+  id String @id @default(cuid())
+
+  ticketId String
+  ticket   LogisticsTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+
+  requestedQty Float @default(0) // Số lượng yêu cầu (Từ Đơn hàng/Định mức)
+  pickedQty    Float @default(0) // Số lượng thực tế nhân viên đã nhặt
+
+  reservations InventoryReservation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ticketId])
+  @@index([inventoryItemId])
+}
+
+model InventoryReservation {
+  id String @id @default(cuid())
+
+  ticketItemId String
+  ticketItem   LogisticsTicketItem @relation(fields: [ticketItemId], references: [id], onDelete: Cascade)
+
+  inventoryStockId String
+  inventoryStock   InventoryStock @relation(fields: [inventoryStockId], references: [id], onDelete: Cascade)
+
+  reservedQty Float @default(0) // Số lượng đang bị giữ
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ticketItemId])
+  @@index([inventoryStockId])
 }

@@ -14,7 +14,8 @@ const MODULE_CONFIG: Record<string, { title: string; description: string; icon: 
   "warehouse-setup": { title: "Thiết lập hệ thống kho", description: "Cấu hình danh mục kho, sơ đồ layout và phân vùng lưu trữ.", icon: "bi-gear-wide-connected", color: "indigo" },
   "inbound": { title: "Nhập, xuất và kiểm kho", description: "Quản lý nhập kho, xuất kho và kiểm tra đối soát tồn kho thực tế.", icon: "bi-arrow-down-left-square", color: "blue" },
   "batch-packing": { title: "Gom hàng và dán nhãn", description: "Gom đơn soạn hàng loạt, đóng gói và in tem dán nhãn vận chuyển.", icon: "bi-box-seam-fill", color: "blue" },
-  "transfers": { title: "Luân chuyển nội bộ", description: "Điều chuyển hàng hóa giữa các kho và showroom.", icon: "bi-arrow-left-right", color: "amber" },
+  "material-picking": { title: "Cấp phát vật tư", description: "Nhặt linh kiện và cấp phát vật tư cho lệnh sản xuất.", icon: "bi-tools", color: "orange" },
+  // "transfers": { title: "Luân chuyển nội bộ", description: "Điều chuyển hàng hóa giữa các kho và showroom.", icon: "bi-arrow-left-right", color: "amber" },
   "oms": { title: "Đơn hàng tập trung", description: "Kênh gom đơn từ Shopee, Tiki, Website và POS.", icon: "bi-hub", color: "cyan" },
   "api-hub": { title: "Trung tâm API", description: "Cấu hình kết nối sàn TMĐT và đơn vị vận chuyển.", icon: "bi-plugin", color: "indigo" },
   "accounting": { title: "Đối soát & Thanh toán", description: "Kiểm soát dòng tiền từ sàn và COD trả về.", icon: "bi-cash-stack", color: "emerald" },
@@ -33,6 +34,7 @@ import { LogisticsInbound } from "@/components/logistics/inbound/LogisticsInboun
 import { LogisticsInventoryReports } from "@/components/logistics/inventory/LogisticsInventoryReports";
 import { LogisticsAuditLogs } from "@/components/logistics/inventory/LogisticsAuditLogs";
 import { LogisticsBatchPacking } from "@/components/logistics/batch-packing/LogisticsBatchPacking";
+import { LogisticsMaterialPicking } from "@/components/logistics/material-picking/LogisticsMaterialPicking";
 
 export default function LogisticsModulePage() {
   const params = useParams();
@@ -64,6 +66,8 @@ export default function LogisticsModulePage() {
         return <LogisticsInventoryReports />;
       case "batch-packing":
         return <LogisticsBatchPacking />;
+      case "material-picking":
+        return <LogisticsMaterialPicking />;
       case "audit-logs":
         return <LogisticsAuditLogs />;
       default:
@@ -86,7 +90,7 @@ export default function LogisticsModulePage() {
         color={config.color}
       />
 
-      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+      <div className="flex-grow-1 px-3 pb-3 pt-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         {module === "inbound" && (
           <div className="row g-3" style={{ flexShrink: 0, marginBottom: "8px" }}>
             {/* Thẻ 1: Tổng số mặt hàng */}
@@ -231,7 +235,7 @@ export default function LogisticsModulePage() {
           <div 
             className={`flex-grow-1 custom-scrollbar ${
               module === "inbound" || module === "products" || module === "inventory-reports" || module === "batch-packing" ? "d-flex flex-column overflow-hidden" : "overflow-auto"
-            } ${module === "inventory-reports" || module === "batch-packing" ? "p-0" : "pt-4 px-4 pb-3"}`}
+            } ${module === "inventory-reports" || module === "batch-packing" ? "p-0" : "pt-3 px-3 pb-3"}`}
             style={{ minHeight: 0 }}
           >
             {renderModuleContent()}

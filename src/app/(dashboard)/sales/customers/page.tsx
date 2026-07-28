@@ -966,7 +966,6 @@ export default function SalesCustomersPage() {
                 </button>
 
                 <div className="ms-auto d-flex gap-2">
-                  {/* Báo giá và Xoá tạm thời bị ẩn */}
                   <button
                     onClick={() => {
                       setShowPrintModal(true);
@@ -977,6 +976,14 @@ export default function SalesCustomersPage() {
                     title="In báo cáo hoạt động đại lý"
                   >
                     <i className="bi bi-printer me-2" /> Báo cáo
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    className="btn btn-outline-danger d-flex align-items-center justify-content-center px-4"
+                    style={{ borderRadius: "8px", fontWeight: 500 }}
+                    title="Xoá đại lý này"
+                  >
+                    <i className="bi bi-trash3 me-2" /> Xoá
                   </button>
                 </div>
               </div>

@@ -1,8 +1,7 @@
-const { PrismaClient } = require('@prisma/client')
-const prisma = new PrismaClient()
-
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 async function main() {
-  const cats = await prisma.seajongCategory.findMany()
-  console.log(cats.map(c => c.name).join(", "))
+  const cats = await prisma.category.findMany({ where: { name: { contains: 'Sen' } }});
+  console.log("Categories in Category table:", cats);
 }
-main()
+main().catch(console.error).finally(() => prisma.$disconnect());

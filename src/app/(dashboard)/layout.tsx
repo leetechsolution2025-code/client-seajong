@@ -459,8 +459,9 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
       {
         group: "Vận hành kho", icon: "bi-hammer", items: [
           { name: "Nhập, xuất và kiểm kho", href: "/logistics/inbound", icon: "bi-arrow-down-left-square" },
+          { name: "Cấp phát vật tư", href: "/logistics/material-picking", icon: "bi-tools" },
           { name: "Gom hàng và dán nhãn", href: "/logistics/batch-packing", icon: "bi-box-seam-fill" },
-          { name: "Luân chuyển nội bộ", href: "/logistics/transfers", icon: "bi-arrow-left-right" },
+          // { name: "Luân chuyển nội bộ", href: "/logistics/transfers", icon: "bi-arrow-left-right" },
         ]
       },
 

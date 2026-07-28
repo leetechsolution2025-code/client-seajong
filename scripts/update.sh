@@ -83,9 +83,11 @@ ssh ${SSH_OPTS} -t "${SSH_USER}@${SSH_HOST}" "
   echo -e \"\033[0;34m[→]\033[0m Cài đặt thư viện mới nhất (nếu có)...\"
   npm install --prefer-offline
 
-  echo -e \"\033[0;34m[→]\033[0m Tạo Prisma Client và đồng bộ DB...\"
+  echo -e \"\033[0;34m[→]\033[0m Khởi tạo Prisma Client...\"
   npx prisma generate
-  npx prisma db push --accept-data-loss
+
+  echo -e \"\033[0;34m[→]\033[0m Cập nhật CSDL an toàn (DB Push)...\"
+  npx prisma db push
 
   echo -e \"\033[0;34m[→]\033[0m Khởi động lại ứng dụng PM2...\"
   pm2 restart ${APP_NAME} || pm2 start npm --name ${APP_NAME} -- start

@@ -1,23 +1,30 @@
 const fs = require('fs');
-const file = 'src/app/api/logistics/inventory/route.ts';
-let code = fs.readFileSync(file, 'utf8');
+const file = "src/app/api/logistics/inventory/route.ts";
+let content = fs.readFileSync(file, 'utf8');
 
-// The logic should be:
-// If warehouseType === 'DEFECT', we MUST filter by stocks.some.warehouseId === warehouseId
-// For other types, maybe we keep the old logic.
-code = code.replace(
-`    // DO NOT filter by physical stocks. The user explicitly requested to show the full catalog of items belonging to the warehouse type.
-    // if (warehouseId) {
-    //   where.stocks = { some: { warehouseId } };
-    // }`,
-`    // DO NOT filter by physical stocks for normal warehouses to show the full catalog.
-    // BUT for DEFECT warehouses (Kho hàng lỗi), we ONLY show items that actually exist in this warehouse.
-    if (warehouseId && warehouseType === "DEFECT") {
-      where.stocks = { some: { warehouseId, soLuong: { gt: 0 } } };
-    }`
-);
+const oldLogic = `        if (wh && (wh.type === "MATERIAL" || wh.code === "KVP")) {
+          // Kho sản xuất chỉ dùng danh mục ERP nội bộ
+          where.erpCategoryId = categoryId;
+        }`;
 
-// We also need to do this for mfpWhere (ManufacturedProduct)
-// Wait, ManufacturedProduct doesn't have 'stocks'? Oh it does, wait.
-// Ah, ManufacturedProduct has NO stocks field in schema! Wait, does it?
-fs.writeFileSync(file, code);
+const newLogic = `        if (wh && (wh.type === "MATERIAL" || wh.code === "KVP")) {
+          // Kho sản xuất: Lọc theo mã nhóm PM (category code)
+          const erpCat = await prisma.category.findUnique({ where: { id: categoryId } });
+          if (erpCat && erpCat.code) {
+            where.OR = [
+              { erpCategoryId: categoryId },
+              { code: { startsWith: erpCat.code } },
+              { maThayThe: { startsWith: erpCat.code } }
+            ];
+          } else {
+            where.erpCategoryId = categoryId;
+          }
+        }`;
+
+if(content.includes(oldLogic)) {
+    content = content.replace(oldLogic, newLogic);
+    fs.writeFileSync(file, content);
+    console.log("Patched successfully");
+} else {
+    console.log("Could not find the target code to replace.");
+}

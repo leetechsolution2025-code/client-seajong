@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
       categoryId: true,
       erpCategoryId: true,
       category:   { select: { name: true, code: true } },
-      erpCategory: { select: { code: true } },
+      erpCategory: { select: { code: true, name: true } },
       stocks: warehouseId
         ? {
             where:   { warehouseId },
@@ -147,7 +147,7 @@ export async function GET(req: NextRequest) {
         trangThai:       it.trangThai,
         categoryId:      it.categoryId,
         erpCategoryId:   (it as any).erpCategoryId ?? null,
-        categoryName:    it.category?.name ?? null,
+        categoryName:    it.category?.name ?? (it as any).erpCategory?.name ?? null,
         categoryCode:    (it as any).erpCategory?.code ?? (it.code && materialCategoryMap.has(it.code) ? (materialCategoryMap.get(it.code) ?? it.category?.code ?? null) : (it.category?.code ?? null)),
         thongSoKyThuat:  it.thongSoKyThuat ?? null,
         soLuongHeTong:   stock?.soLuong    ?? 0,
@@ -174,7 +174,7 @@ export async function GET(req: NextRequest) {
         trangThai:       it.trangThai,
         categoryId:      it.categoryId,
         erpCategoryId:   (it as any).erpCategoryId ?? null,
-        categoryName:    it.category?.name ?? null,
+        categoryName:    it.category?.name ?? (it as any).erpCategory?.name ?? null,
         categoryCode:    (it as any).erpCategory?.code ?? (it.code && materialCategoryMap.has(it.code) ? (materialCategoryMap.get(it.code) ?? it.category?.code ?? null) : (it.category?.code ?? null)),
         thongSoKyThuat:  it.thongSoKyThuat ?? null,
         soLuongHeTong,

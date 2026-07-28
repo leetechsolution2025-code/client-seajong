@@ -386,6 +386,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       } else if (swapSearchMode === "group" && alternativeTarget.material.category?.id) {
         queryParams.append("categoryId", alternativeTarget.material.category.id);
       }
+      queryParams.append("nolimit", "true");
 
       fetch(`/api/logistics/inventory?${queryParams.toString()}`)
         .then(res => res.json())

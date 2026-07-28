@@ -1,47 +1,51 @@
 const fs = require('fs');
-const file = 'src/app/api/logistics/inventory/route.ts';
-let code = fs.readFileSync(file, 'utf8');
 
-// For MaterialItem, we also need to apply the stock filter if DEFECT
-code = code.replace(
-`      // MATERIAL (hoặc DEFECT / ALL) móc bảng MaterialItem
-      !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "DEFECT" || warehouseType === "ALL") ? (prisma as any).materialItem.findMany({
-        where: {
-          ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
-        },`,
-`      // MATERIAL (hoặc DEFECT / ALL) móc bảng MaterialItem
-      !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "DEFECT" || warehouseType === "ALL") ? (prisma as any).materialItem.findMany({
-        where: {
-          ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
-          ...(warehouseType === "DEFECT" && warehouseId ? { stocks: { some: { warehouseId, soLuong: { gt: 0 } } } } : {})
-        },`
-);
+const routeFile = 'src/app/api/logistics/inventory/route.ts';
+let routeContent = fs.readFileSync(routeFile, 'utf-8');
 
-code = code.replace(
-`      !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "DEFECT" || warehouseType === "ALL") ? (prisma as any).materialItem.count({
-        where: {
-          ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
-        }
-      }) : Promise.resolve(0),`,
-`      !excludeMaterials && (warehouseType === "MATERIAL" || warehouseType === "DEFECT" || warehouseType === "ALL") ? (prisma as any).materialItem.count({
-        where: {
-          ...(categoryId ? { categoryId } : (industryCategoryIds.length > 0 ? { categoryId: { in: industryCategoryIds } } : {})),
-          ...(warehouseType === "DEFECT" && warehouseId ? { stocks: { some: { warehouseId, soLuong: { gt: 0 } } } } : {})
-        }
-      }) : Promise.resolve(0),`
-);
+const oldBlock = `    // DO NOT filter by physical stocks for normal warehouses to show the full catalog.
+    // BUT for DEFECT warehouses (Kho hàng lỗi), we ONLY show items that actually exist in this warehouse.
+    if (warehouseId && warehouseType === "DEFECT") {
+      where.stocks = { some: { warehouseId, soLuong: { gt: 0 } } };
+    }
 
-// For ManufacturedProduct, we should NOT return them for DEFECT warehouse!
-code = code.replace(
-`      // PRODUCT (hoặc explicit includeManufactured) móc bảng ManufacturedProduct
-      warehouseType === "PRODUCT" || warehouseType === "ALL" || includeManufactured ? prisma.manufacturedProduct.findMany({`,
-`      // PRODUCT (hoặc explicit includeManufactured) móc bảng ManufacturedProduct
-      (warehouseType === "PRODUCT" || warehouseType === "ALL" || includeManufactured) && warehouseType !== "DEFECT" ? prisma.manufacturedProduct.findMany({`
-);
+    const mfpWhere: any = {};
+    // Không lọc ManufacturedProduct theo categoryId vì nó dùng bảng Category khác với InventoryCategory
+    // Thay vào đó, nếu không có search (tải danh sách kho) thì không trả về ManufacturedProduct để tránh loãng dữ liệu.
+    // Nếu có search (tìm kiếm gợi ý) thì trả về để lọc in-memory.
+    const includeManufactured = searchParams.get("includeManufactured") === "true";
+    const excludeMaterials = searchParams.get("excludeMaterials") === "true";
 
-code = code.replace(
-`      warehouseType === "PRODUCT" || warehouseType === "ALL" || includeManufactured ? prisma.manufacturedProduct.count({`,
-`      (warehouseType === "PRODUCT" || warehouseType === "ALL" || includeManufactured) && warehouseType !== "DEFECT" ? prisma.manufacturedProduct.count({`
-);
+    // Mọi kho đều hiển thị danh mục Hàng hoá (InventoryItem) - không còn phân biệt vật tư / thành phẩm.
+    const [invItems, invTotal] = await Promise.all([`;
 
-fs.writeFileSync(file, code);
+const newBlock = `    // DO NOT filter by physical stocks for normal warehouses to show the full catalog.
+    // BUT for DEFECT warehouses (Kho hàng lỗi), we ONLY show items that actually exist in this warehouse.
+    if (warehouseId && warehouseType === "DEFECT") {
+      where.stocks = { some: { warehouseId, soLuong: { gt: 0 } } };
+    }
+
+    // Phân loại hàng hoá theo kho
+    if (warehouseType === "PRODUCT_SYNC" || warehouseType === "PRODUCT") {
+      where.loai = { in: ["thanh-pham", "hang-hoa"] };
+    } else if (warehouseType === "MATERIAL") {
+      where.loai = "vat-tu";
+    }
+
+    const mfpWhere: any = {};
+    const includeManufactured = searchParams.get("includeManufactured") === "true";
+    const excludeMaterials = searchParams.get("excludeMaterials") === "true";
+
+    if (excludeMaterials && !where.loai) {
+      where.loai = { not: "vat-tu" };
+    }
+
+    const [invItems, invTotal] = await Promise.all([`;
+
+if (!routeContent.includes(oldBlock)) {
+  console.log("Could not find old block");
+} else {
+  routeContent = routeContent.replace(oldBlock, newBlock);
+  fs.writeFileSync(routeFile, routeContent);
+  console.log("Patched API!");
+}

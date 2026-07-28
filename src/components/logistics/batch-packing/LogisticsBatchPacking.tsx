@@ -1,31 +1,63 @@
+
 "use client";
 
+import { HoverImage } from "@/components/ui/HoverImage";
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
-
 interface BatchItem {
   id: string;
+  ticketItemId: string;
   tenHang: string;
   inventoryItemId: string | null;
+  code?: string | null;
   imageUrl: string | null;
   images?: string[];
   viTriKho: string | null;
   tongSoLuong: number;
+  ngayGiao?: string;
   orders: {
-    id: string;
+    id: string; // Ticket ID
     code: string;
     soLuongTrongDon: number;
+    ngayGiao?: string;
+    assignedTo?: string;
   }[];
+}
+
+interface Employee {
+  id: string;
+  fullName: string;
 }
 
 export function LogisticsBatchPacking() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<BatchItem[]>([]);
   const [totalOrders, setTotalOrders] = useState(0);
+  
+  const [isManager, setIsManager] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+
   const [pickedQuantities, setPickedQuantities] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
+  const [filterDate, setFilterDate] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await fetch("/api/hr/employees");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setEmployees(data.map((e: any) => ({ id: e.id, fullName: e.fullName })));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -35,6 +67,7 @@ export function LogisticsBatchPacking() {
       if (data.success) {
         setItems(data.items);
         setTotalOrders(data.totalOrders);
+        setIsManager(data.isManager || false);
       }
     } catch (e) {
       console.error(e);
@@ -46,6 +79,38 @@ export function LogisticsBatchPacking() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (isManager && employees.length === 0) {
+      fetchEmployees();
+    }
+  }, [isManager]);
+
+  const openAssignModal = (ticketId: string) => {
+    setSelectedTicketId(ticketId);
+    setAssignModalOpen(true);
+  };
+
+  const handleAssignSubmit = async () => {
+    if (!selectedEmployeeId || !selectedTicketId) return;
+    try {
+      const res = await fetch("/api/logistics/batch-packing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "assign_ticket", ticketId: selectedTicketId, employeeId: selectedEmployeeId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Phân công thành công!");
+        setAssignModalOpen(false);
+        fetchData();
+      } else {
+        alert(data.error);
+      }
+    } catch (e) {
+      alert("Đã xảy ra lỗi");
+    }
+  };
 
   const handleTogglePick = (id: string, maxQuantity: number) => {
     setPickedQuantities(prev => {
@@ -90,12 +155,11 @@ export function LogisticsBatchPacking() {
       const res = await fetch("/api/logistics/batch-packing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete_picking" })
+        body: JSON.stringify({ action: "complete_picking" }) // In a real flow, pass pickedQuantities map
       });
       const data = await res.json();
       if (data.success) {
         alert(data.message);
-        // Refresh
         setPickedQuantities({});
         fetchData();
       } else {
@@ -111,38 +175,63 @@ export function LogisticsBatchPacking() {
     (item.inventoryItemId && item.inventoryItemId.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const groupedItems = filteredItems.reduce((acc, item) => {
+    const dateStr = item.ngayGiao ? new Date(item.ngayGiao).toLocaleDateString('vi-VN') : "Không hẹn ngày";
+    if (!acc[dateStr]) acc[dateStr] = [];
+    acc[dateStr].push(item);
+    return acc;
+  }, {} as Record<string, BatchItem[]>);
+  
+  // Sort dates (latest first or earliest first?) Earliest first makes sense for logistics
+  const sortedDates = Object.keys(groupedItems).sort((a, b) => {
+    if (a === "Không hẹn ngày") return 1;
+    if (b === "Không hẹn ngày") return -1;
+    // a and b are vi-VN locale dates like DD/MM/YYYY. Need to parse to compare
+    const [d1, m1, y1] = a.split('/');
+    const [d2, m2, y2] = b.split('/');
+    return new Date(`${y1}-${m1}-${d1}`).getTime() - new Date(`${y2}-${m2}-${d2}`).getTime();
+  });
+
   const pickedCount = Object.keys(pickedQuantities).length;
-  const progress = items.length === 0 ? 0 : Math.round((pickedCount / items.length) * 100);
 
   const headerContent = (
-    <div className="d-flex align-items-center gap-4">
-        <div className="flex-grow-1" style={{ maxWidth: 300 }}>
-          <div className="position-relative">
-            <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
-            <input 
-              type="text" 
-              className="form-control bg-light border-0 ps-5" 
-              placeholder="Tìm tên hàng hoá..."
-              style={{ borderRadius: 10, fontSize: 13.5 }}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
+    <div className="d-flex align-items-center justify-content-between w-100">
+      <div className="d-flex align-items-center gap-3">
+        <div className="d-flex align-items-center gap-2 bg-light px-2 py-1" style={{ borderRadius: 8 }}>
+          <i className="bi bi-calendar-event text-muted ms-2" style={{ fontSize: 14 }} />
+          <input 
+            type="date"
+            className="form-control bg-transparent border-0 px-1 py-0 shadow-none"
+            style={{ width: 130, fontSize: 13 }}
+            value={filterDate}
+            onChange={e => setFilterDate(e.target.value)}
+          />
         </div>
         
-        <div className="flex-grow-1">
-          <div className="d-flex justify-content-between align-items-center mb-1">
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>Tiến độ nhặt hàng</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: progress === 100 ? "#10b981" : "#3b82f6" }}>{progress}%</span>
-          </div>
-          <div className="progress" style={{ height: 8, borderRadius: 4, background: "rgba(0,0,0,0.05)" }}>
-            <div 
-              className={`progress-bar ${progress === 100 ? "bg-success" : "bg-primary"}`} 
-              style={{ width: `${progress}%`, transition: "width 0.3s ease" }} 
-            />
-          </div>
-        </div>
+        <select
+          className="form-select bg-light border-0 py-1 px-3"
+          style={{ width: 160, borderRadius: 8, fontSize: 13 }}
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+        >
+          <option value="all">Tất cả trạng thái</option>
+          <option value="pending">Chưa nhặt xong</option>
+          <option value="done">Đã hoàn thành</option>
+        </select>
       </div>
+
+      <div className="position-relative" style={{ width: 250 }}>
+        <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style={{ fontSize: 13 }} />
+        <input 
+          type="text" 
+          className="form-control bg-light border-0 ps-5 py-1" 
+          placeholder="Tìm tên hàng hoá, mã hàng..."
+          style={{ borderRadius: 8, fontSize: 13 }}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
+    </div>
   );
 
   const tableContent = (
@@ -157,7 +246,7 @@ export function LogisticsBatchPacking() {
         <div className="text-center p-5 mt-5">
           <i className="bi bi-check2-all text-success fs-1 mb-3 d-block" />
           <h5 className="fw-bold">Tuyệt vời!</h5>
-          <p className="text-muted">Tất cả các lệnh xuất kho hiện tại đã được gom xong.</p>
+          <p className="text-muted">Tất cả các phiếu gom hàng hiện tại đã được hoàn tất.</p>
         </div>
       ) : (
         <table className="table table-hover align-middle mb-0 bg-white" style={{ fontSize: 13.5 }}>
@@ -168,8 +257,10 @@ export function LogisticsBatchPacking() {
               </th>
               <th rowSpan={2} style={{ borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold py-3 align-middle">Mặt hàng</th>
               <th colSpan={2} style={{ borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold text-center py-2 border-bottom">SỐ LƯỢNG</th>
-              <th rowSpan={2} style={{ width: 300, borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold py-3 align-middle">Chi tiết theo đơn</th>
-              <th rowSpan={2} style={{ width: 120, borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold text-end py-3 align-middle">Trạng thái</th>
+              <th rowSpan={2} style={{ width: 300, borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold py-3 align-middle">Chi tiết theo phiếu</th>
+              <th rowSpan={2} style={{ width: 120, borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold text-end py-3 align-middle">
+                 <button onClick={handleComplete} className="btn btn-sm btn-primary py-1 px-3">Báo cáo</button>
+              </th>
             </tr>
             <tr>
               <th style={{ width: 90, borderBottomWidth: 1, fontSize: 10, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold text-center py-2">Yêu cầu</th>
@@ -177,14 +268,29 @@ export function LogisticsBatchPacking() {
             </tr>
           </thead>
           <tbody>
-            {filteredItems.map(item => {
-              const pickedQty = pickedQuantities[item.id];
-              const isPicked = pickedQty !== undefined;
-              const isFullyPicked = pickedQty === item.tongSoLuong;
-              
-              return (
-                <tr key={item.id} style={{ transition: "all 0.2s" }} className={isFullyPicked ? "bg-success bg-opacity-10" : isPicked ? "bg-warning bg-opacity-10" : "bg-white"}>
-                  <td className="text-center py-3" style={{ borderBottomColor: "rgba(0,0,0,0.05)", cursor: "pointer" }} onClick={() => handleTogglePick(item.id, item.tongSoLuong)}>
+            {sortedDates.map(dateStr => (
+              <React.Fragment key={dateStr}>
+                <tr style={{ background: "var(--light)" }}>
+                  <td colSpan={6} className="py-2 px-3 fw-bold text-dark border-bottom" style={{ fontSize: 13, background: "#f1f5f9" }}>
+                    <div className="d-flex align-items-center justify-content-between">
+                      <div className="d-flex align-items-center">
+                        <i className="bi bi-calendar-event text-primary me-2" />
+                        Ngày giao: <span className="ms-1 text-primary">{dateStr}</span>
+                        <span className="badge bg-white text-dark border ms-3 rounded-pill" style={{ fontWeight: 500, fontSize: 11 }}>
+                          {groupedItems[dateStr].length} mặt hàng
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+                {groupedItems[dateStr].map(item => {
+                  const pickedQty = pickedQuantities[item.id];
+                  const isPicked = pickedQty !== undefined;
+                  const isFullyPicked = pickedQty === item.tongSoLuong;
+                  
+                  return (
+                    <tr key={item.id} style={{ transition: "all 0.2s" }} className={isFullyPicked ? "bg-success bg-opacity-10" : isPicked ? "bg-warning bg-opacity-10" : "bg-white"}>
+                      <td className="text-center py-3" style={{ borderBottomColor: "rgba(0,0,0,0.05)", cursor: "pointer" }} onClick={() => handleTogglePick(item.id, item.tongSoLuong)}>
                     <div 
                       className={`d-inline-flex align-items-center justify-content-center rounded-circle border ${isFullyPicked ? "bg-success border-success text-white" : isPicked ? "bg-warning border-warning text-white" : "border-secondary text-transparent"}`}
                       style={{ width: 24, height: 24, transition: "all 0.2s" }}
@@ -239,8 +345,19 @@ export function LogisticsBatchPacking() {
                   <td className="py-3" style={{ borderBottomColor: "rgba(0,0,0,0.05)" }}>
                     <div className="d-flex flex-wrap gap-1">
                       {item.orders.map((o, idx) => (
-                        <span key={idx} className="badge bg-light text-dark border" style={{ fontSize: 11, fontWeight: 500 }}>
+                        <span key={idx} className="badge bg-light text-dark border d-inline-flex align-items-center gap-1" style={{ fontSize: 11, fontWeight: 500 }}>
                           {o.code}: {o.soLuongTrongDon}
+                          {o.assignedTo && <span className="text-primary ms-1">({o.assignedTo})</span>}
+                          {isManager && (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); openAssignModal(o.id); }}
+                              className="btn btn-sm btn-link p-0 ms-1 text-decoration-none"
+                              style={{ fontSize: 11 }}
+                              title="Phân công"
+                            >
+                              <i className="bi bi-person-plus text-primary"></i>
+                            </button>
+                          )}
                         </span>
                       ))}
                     </div>
@@ -257,6 +374,8 @@ export function LogisticsBatchPacking() {
                 </tr>
               );
             })}
+            </React.Fragment>
+            ))}
           </tbody>
         </table>
       )}
@@ -264,9 +383,37 @@ export function LogisticsBatchPacking() {
   );
 
   return (
-    <FullWidthTableLayout 
-      header={headerContent}
-      table={tableContent}
-    />
+    <>
+      <FullWidthTableLayout 
+        header={headerContent}
+        table={tableContent}
+      />
+      
+      {assignModalOpen && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header py-2">
+                <h6 className="modal-title">Phân công Phiếu điều phối</h6>
+                <button type="button" className="btn-close" onClick={() => setAssignModalOpen(false)}></button>
+              </div>
+              <div className="modal-body">
+                <label className="form-label fs-6">Chọn nhân viên kho:</label>
+                <select className="form-select" value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)}>
+                  <option value="">-- Chọn nhân viên --</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.fullName}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="modal-footer py-2">
+                <button type="button" className="btn btn-light btn-sm" onClick={() => setAssignModalOpen(false)}>Hủy</button>
+                <button type="button" className="btn btn-primary btn-sm" onClick={handleAssignSubmit}>Phân công</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

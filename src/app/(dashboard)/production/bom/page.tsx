@@ -129,7 +129,7 @@ export default function BOMPage() {
     name: "",
     categoryId: "",
     unit: "bộ",
-    defaultWarehouse: "KHO-THANHPHAM",
+    defaultWarehouse: "KHO-CHINH",
     notes: ""
   });
   const [savingProduct, setSavingProduct] = useState(false);
@@ -161,7 +161,7 @@ export default function BOMPage() {
   }, [newProduct.categoryId]);
 
   const resetProductForm = () => {
-    setNewProduct({ code: "", name: "", categoryId: "", unit: "bộ", defaultWarehouse: "KHO-THANHPHAM", notes: "" });
+    setNewProduct({ code: "", name: "", categoryId: "", unit: "bộ", defaultWarehouse: "KHO-CHINH", notes: "" });
     setEditProductId(null);
   };
 
@@ -178,7 +178,7 @@ export default function BOMPage() {
       const res = await fetch(url, {
         method: method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...newProduct, id: editProductId || undefined, warehouseCode: "KHO-THANHPHAM" })
+        body: JSON.stringify({ ...newProduct, id: editProductId || undefined, warehouseCode: "KHO-CHINH" })
       });
       if (res.ok) {
         toastSuccess("Thành công", editProductId ? "Cập nhật sản phẩm thành công" : "Thêm sản phẩm thành công");
@@ -381,7 +381,7 @@ export default function BOMPage() {
       name: (product.tenHang || product.name) || "",
       categoryId: product.categoryId || "",
       unit: (product.donVi || product.unit) || "bộ",
-      defaultWarehouse: product.defaultWarehouse || "KHO-THANHPHAM",
+      defaultWarehouse: product.defaultWarehouse || "KHO-CHINH",
       notes: product.notes || ""
     });
   };
@@ -558,7 +558,7 @@ export default function BOMPage() {
       useCard={false}
       hideTicker={true}
     >
-      <div className="bg-white rounded-4 shadow-sm border w-100" style={{ height: "calc(100vh - 150px)", overflow: "hidden" }}>
+      <div className="bg-white rounded-4 shadow-sm border w-100 h-100 d-flex flex-column" style={{ overflow: "hidden" }}>
         <div className="row g-0 h-100">
           {/* LEFT COLUMN: PRODUCT LIST */}
           <div className="col-12 col-md-4 col-lg-4 d-flex flex-column position-relative" style={{ padding: "20px", height: "100%" }}>
@@ -770,14 +770,14 @@ export default function BOMPage() {
                 />
               </div>
             </div>
-            <div className="flex-grow-1 overflow-auto pe-2">
+            <div className="flex-grow-1 d-flex flex-column pe-2" style={{ minHeight: 0 }}>
               <Table
                 columns={productColumns}
                 rows={products}
                 loading={loadingProducts}
                 compact={true}
                 fixedLayout={false}
-                wrapperStyle={{ overflowX: "hidden" }}
+                wrapperStyle={{ overflowX: "hidden", overflowY: "auto", flexGrow: 1 }}
                 onRowClick={handleSelectProduct}
                 rowClassName={(row: any) => row.id === selectedProduct?.id ? "table-active cursor-pointer" : "cursor-pointer"}
               />
@@ -816,7 +816,7 @@ export default function BOMPage() {
                           name: (selectedProduct.tenHang || selectedProduct.name) || "",
                           categoryId: selectedProduct.categoryId || "",
                           unit: (selectedProduct.donVi || selectedProduct.unit) || "bộ",
-                          defaultWarehouse: selectedProduct.defaultWarehouse || "KHO-THANHPHAM",
+                          defaultWarehouse: selectedProduct.defaultWarehouse || "KHO-CHINH",
                           notes: selectedProduct.notes || ""
                         });
                         setShowAddProduct(true);
@@ -1044,8 +1044,8 @@ export default function BOMPage() {
                   </div>
                 </div>
 
-                <div className="flex-grow-1 overflow-auto bg-light rounded">
-                  <div className="table-responsive mkt-plan-table-no-min">
+                <div className="flex-grow-1 d-flex flex-column bg-light rounded" style={{ minHeight: 0 }}>
+                  <div className="table-responsive mkt-plan-table-no-min flex-grow-1 overflow-auto">
                     <table className="table table-hover mb-0 bg-white" style={{ fontSize: "0.8125rem" }}>
                       <thead className="table-light sticky-top">
                         <tr>

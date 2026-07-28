@@ -1,10 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-async function main() {
-  const cats = await prisma.category.findMany({ 
-    where: { type: 'danh_muc_thanh_pham' },
-    select: { name: true, code: true, parent: { select: { name: true } } }
-  });
-  console.log(JSON.stringify(cats, null, 2));
-}
-main().catch(console.error).finally(() => prisma.$disconnect());
+const fs = require('fs');
+const schema = fs.readFileSync('prisma/schema.prisma', 'utf8');
+const catMatch = schema.match(/model Category \{[\s\S]*?\}/g);
+const invCatMatch = schema.match(/model InventoryCategory \{[\s\S]*?\}/g);
+console.log(catMatch ? catMatch[0] : 'no Category');
+console.log('---');
+console.log(invCatMatch ? invCatMatch[0] : 'no InventoryCategory');

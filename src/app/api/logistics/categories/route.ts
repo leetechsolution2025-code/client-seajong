@@ -23,8 +23,6 @@ export async function GET(req: Request) {
         const code = (wh as any).code;
         if (code === "KVP") {
           type = "MATERIAL";
-        } else if (code === "KHO-THANHPHAM") {
-          type = "PRODUCT";
         } else if (code === "KHO-LOI") {
           type = "DEFECT";
         } else if (code === "KHO-CHINH") {

@@ -725,6 +725,49 @@ export async function PATCH(
               ...extractedMaterials.map(m => ({ tenHang: m.tenVatTu, soLuong: m.soLuong, donVi: m.donVi || "cái", type: m.kho, isShortage: m.isShortage }))
             ];
 
+            // TẠO PHIẾU ĐIỀU PHỐI (LOGISTICS TICKETS) CHO MÀN HÌNH KHO
+            if (itemsToExport.length > 0) {
+              const bCode = "PK-" + new Date().toISOString().slice(0,10).replace(/-/g,"") + "-" + Math.floor(1000 + Math.random() * 9000);
+              await (tx as any).logisticsTicket.create({
+                data: {
+                  code: bCode,
+                  type: "BATCH_PACKING",
+                  saleOrderId: order.id,
+                  status: "PENDING",
+                  assignedToId: null,
+                  items: {
+                    create: itemsToExport
+                      .filter(i => i.inventoryItemId)
+                      .map(i => ({
+                        inventoryItemId: i.inventoryItemId,
+                        requestedQty: i.soLuong,
+                      }))
+                  }
+                }
+              });
+            }
+
+            if (extractedMaterials.length > 0) {
+              const mCode = "CP-" + new Date().toISOString().slice(0,10).replace(/-/g,"") + "-" + Math.floor(1000 + Math.random() * 9000);
+              await (tx as any).logisticsTicket.create({
+                data: {
+                  code: mCode,
+                  type: "MATERIAL_PICKING",
+                  saleOrderId: order.id,
+                  status: "PENDING",
+                  assignedToId: null,
+                  items: {
+                    create: extractedMaterials
+                      .filter(m => m.inventoryItemId)
+                      .map(m => ({
+                        inventoryItemId: m.inventoryItemId,
+                        requestedQty: m.soLuong,
+                      }))
+                  }
+                }
+              });
+            }
+
             const khoTask = await tx.task.create({
               data: {
                 title: `Lệnh xuất kho cho đơn hàng ${order.code}`,
