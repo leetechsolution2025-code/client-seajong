@@ -317,9 +317,8 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
             
             {/* Switcher Dropdown */}
             {switcherOpen && (
-              <div style={{
-                position: "absolute", top: "calc(100% + 8px)", right: 0,
-                width: 320, background: "var(--background)",
+              <div className="topbar-switcher-dropdown" style={{
+                background: "var(--background)",
                 border: "1px solid var(--border)", borderRadius: 12,
                 boxShadow: "0 10px 40px rgba(0,0,0,0.1)", zIndex: 9999,
                 overflow: "hidden", display: "flex", flexDirection: "column"

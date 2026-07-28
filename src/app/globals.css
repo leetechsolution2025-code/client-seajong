@@ -3499,3 +3499,21 @@ select.app-input {
     padding-right: 12px !important;
   }
 }
+
+/* Topbar Switcher Mobile Dropdown */
+.topbar-switcher-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+}
+
+@media (max-width: 576px) {
+  .topbar-switcher-dropdown {
+    position: fixed !important;
+    top: 66px !important;
+    left: 16px !important;
+    right: 16px !important;
+    width: auto !important;
+  }
+}
