@@ -107,6 +107,9 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
     if (open) {
       if (!editItem) {
         setSelectedWarehouseId(warehouseId || "");
+      } else {
+        const whId = (editItem.stocks && editItem.stocks.length > 0) ? editItem.stocks[0].warehouseId : (warehouseId || "");
+        setSelectedWarehouseId(whId);
       }
       if (editItem) {
         setIsCodeManuallyEdited(true);
