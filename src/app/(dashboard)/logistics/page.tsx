@@ -180,9 +180,6 @@ export default function LogisticsOverviewPage() {
                   loading={loading}
                   rows={orders}
                   onRowClick={handleRowClick}
-                  wrapperClassName="mkt-plan-table-no-min"
-                  fixedLayout={false}
-                  wrapperStyle={{ overflowX: "hidden" }}
                   columns={[
                     {
                       header: (
