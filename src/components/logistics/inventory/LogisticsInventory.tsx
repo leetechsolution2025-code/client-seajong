@@ -14,6 +14,7 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { useSearchParams } from "next/navigation";
 import { HoverImage } from "@/components/ui/HoverImage";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
+import { Pagination } from "@/components/ui/Pagination";
 
 interface Category {
   id: string;
@@ -204,13 +205,13 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
       if (search) params.append("search", search);
       if (filterCategory) params.append("categoryId", filterCategory);
       if (filterWarehouse) params.append("warehouseId", filterWarehouse);
-      params.append("page", "1");
-      params.append("limit", "1000");
+      params.append("page", page.toString());
+      params.append("limit", "50");
 
       const res = await fetch(`/api/logistics/inventory?${params}`, { cache: "no-store" });
       const data = await res.json();
       setItems(data.items || []);
-      setTotalPages(1);
+      setTotalPages(data.totalPages || 1);
       setFilteredCount(data.total || 0);
       // Nếu không có search/filter, cập nhật luôn tổng số hàng hóa
       if (!search && !filterCategory && !filterWarehouse) {
@@ -353,9 +354,28 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
           <i className="bi bi-boxes" style={{ fontSize: 13 }} />
           Danh mục hàng hoá
           <span className="badge bg-danger rounded-pill ms-2" style={{ fontSize: "9px", fontWeight: "bold", padding: "3px 7px", textTransform: "none", letterSpacing: "0.1px" }}>
-            Tổng số: {items.length} sản phẩm
+            Tổng số: {totalItems} sản phẩm
           </span>
         </h6>
+        {!hideAddButton && (
+          <button
+            id="logistics-add-item-btn"
+            className="btn btn-sm rounded-circle d-flex align-items-center justify-content-center text-white"
+            title="Thêm hàng hoá"
+            style={{
+              width: 32,
+              height: 32,
+              backgroundColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
+              borderColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
+              cursor: isDefectWarehouse ? "not-allowed" : "pointer",
+              opacity: isDefectWarehouse ? 0.65 : 1
+            }}
+            onClick={() => !isDefectWarehouse && setIsAddModalOpen(true)}
+            disabled={isDefectWarehouse}
+          >
+            <i className="bi bi-plus-lg" />
+          </button>
+        )}
       </div>
       {/* Search and Filter */}
 
@@ -653,8 +673,12 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
           </table>
         </div>
         }
-        footer={(!hideAddButton || selectedIds.length > 0) ? (
-          <div className="d-flex align-items-center justify-content-end gap-3 w-100">
+        footer={(
+          <div className="d-flex align-items-center justify-content-between w-100">
+            <div className="d-flex align-items-center">
+              <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+            </div>
+            <div className="d-flex align-items-center justify-content-end gap-3">
             {fromAdmin && isMaterialWarehouse && (
               <button
                 className="btn btn-sm btn-danger text-white rounded-pill px-4 fw-bold me-auto"
@@ -677,27 +701,10 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
               </button>
             )}
 
-            {!hideAddButton && (
-              <button
-                id="logistics-add-item-btn"
-                className="btn btn-sm rounded-pill px-4 fw-bold text-white d-none d-xl-flex align-items-center"
-                style={{
-                  fontSize: 13,
-                  height: 32,
-                  backgroundColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
-                  borderColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
-                  cursor: isDefectWarehouse ? "not-allowed" : "pointer",
-                  opacity: isDefectWarehouse ? 0.65 : 1
-                }}
-                onClick={() => !isDefectWarehouse && setIsAddModalOpen(true)}
-                disabled={isDefectWarehouse}
-              >
-                <i className="bi bi-plus-lg me-2" />
-                Thêm hàng hóa
-              </button>
-            )}
+
+            </div>
           </div>
-        ) : undefined}
+        )}
       />
 
       {/* Price Ratio Modal */}

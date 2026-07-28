@@ -35,7 +35,40 @@ async function getCategoryIdsRecursive(categoryId: string): Promise<string[]> {
   return ids;
 }
 
+
+async function buildKvpCategoryFilter(prismaClient: any, categoryId: string) {
+  const cat = await prismaClient.category.findUnique({ where: { id: categoryId }, select: { code: true } });
+  const invCat = await prismaClient.inventoryCategory.findUnique({ where: { id: categoryId }, select: { code: true } });
+  const targetCode = cat?.code || invCat?.code;
+
+  if (targetCode) {
+    return {
+      OR: [
+        { category: { code: targetCode } },
+        { erpCategory: { code: targetCode } }
+      ]
+    };
+  }
+  return {
+    OR: [
+      { categoryId },
+      { erpCategoryId: categoryId }
+    ]
+  };
+}
+
+async function buildKhoChinhCategoryFilter(categoryId: string) {
+  const allCategoryIds = await getCategoryIdsRecursive(categoryId);
+  return {
+    OR: [
+      { categoryId: { in: allCategoryIds } },
+      { erpCategoryId: { in: allCategoryIds } }
+    ]
+  };
+}
+
 export async function GET(req: Request) {
+
   try {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get("action");
@@ -203,12 +236,19 @@ export async function GET(req: Request) {
         { code: exactCode }
       ];
     } else if (categoryId) {
-      if (warehouseType === "MATERIAL" || warehouseType === "PRODUCT") {
-        const allCategoryIds = await getErpCategoryIdsRecursive(categoryId);
-        where.erpCategoryId = { in: allCategoryIds };
+      if (warehouseCode === "KVP" || warehouseType === "MATERIAL") {
+        const filter = await buildKvpCategoryFilter(prisma, categoryId);
+        where.OR = filter.OR;
+      } else if (warehouseCode === "KHO-CHINH" || warehouseType === "PRODUCT_SYNC") {
+        const filter = await buildKhoChinhCategoryFilter(categoryId);
+        where.OR = filter.OR;
       } else {
+        // Mặc định dùng hàm của kho chính hoặc đệ quy
         const allCategoryIds = await getCategoryIdsRecursive(categoryId);
-        where.categoryId = { in: allCategoryIds };
+        where.OR = [
+          { categoryId: { in: allCategoryIds } },
+          { erpCategoryId: { in: allCategoryIds } }
+        ];
       }
     } else if (industryProdCategoryIds.length > 0) {
       where.OR = [
