@@ -520,7 +520,7 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
         </div>
 
         {/* Các nút chức năng bên phải */}
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <div className="d-flex flex-wrap flex-sm-nowrap w-100 w-md-auto gap-2 align-items-center mt-2 mt-md-0">
           {actions.map(action => (
             <button
               key={action.label}
@@ -530,11 +530,12 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
                 else if (action.label === "Luân chuyển") setActiveModal("luan-chuyen");
                 else if (action.label === "Kiểm kho") setActiveModal("kiem");
               }}
+              className="flex-fill flex-sm-grow-0 justify-content-center justify-content-md-start"
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                padding: "7px 16px",
+                padding: "8px 14px",
                 borderRadius: 10,
                 border: "none",
                 cursor: "pointer",
@@ -544,6 +545,7 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
                 fontWeight: 700,
                 boxShadow: `0 4px 10px ${action.shadow}`,
                 transition: "transform 0.2s, box-shadow 0.2s",
+                whiteSpace: "nowrap"
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = "translateY(-1.5px)";
@@ -555,7 +557,8 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
               }}
             >
               <i className={`bi ${action.icon}`} style={{ fontSize: 13.5 }} />
-              {action.label}
+              <span className="d-none d-sm-inline">{action.label}</span>
+              <span className="d-inline d-sm-none">{action.label.split(" ")[0]}</span>
             </button>
           ))}
         </div>
