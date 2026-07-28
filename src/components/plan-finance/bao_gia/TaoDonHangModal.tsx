@@ -592,7 +592,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       ten: item.tenHang,
       khoTen: khoTenStr,
       dvt: item.donVi ?? "cái",
-      donGia: defaultDinhMuc ? (defaultDinhMuc.giaBan ?? item.giaBan) : item.giaBan,
+      donGia: defaultDinhMuc ? (defaultDinhMuc.giaBan || item.giaBan) : item.giaBan,
       soLuongTon,
       trangThaiKho: item.trangThai,
       inventoryId: item.id,
@@ -1122,7 +1122,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         ...p,
                         dinhMucId: dmId,
                         dinhMucTen: dm ? dm.tenDinhMuc : null,
-                        donGia: dm ? (dm.giaBan ?? 0) : p.donGia
+                        donGia: dm ? (dm.giaBan || p.donGia) : p.donGia
                       }));
                     }}
                     disabled={formItem.source === "inventory"}

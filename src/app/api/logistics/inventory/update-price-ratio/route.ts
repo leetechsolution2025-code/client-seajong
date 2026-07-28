@@ -28,6 +28,15 @@ export async function POST(req: Request) {
         );
         await prisma.$transaction(updates);
       }
+      
+      // Also sync DinhMuc.giaBan to match the new InventoryItem.giaBan
+      await prisma.$executeRaw`
+        UPDATE DinhMuc
+        SET giaBan = (
+          SELECT giaBan FROM InventoryItem WHERE InventoryItem.id = DinhMuc.inventoryItemId
+        )
+        WHERE inventoryItemId IS NOT NULL
+      `;
     }
 
     return NextResponse.json({ success: true, updatedCount: materials.length });
