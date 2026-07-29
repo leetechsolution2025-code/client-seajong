@@ -51,7 +51,7 @@ export async function POST(req: Request) {
           return prisma.inventoryItem.update({
             where: { id: m.id },
             data: { 
-              giaBan: Math.round(newPrice),
+              giaBan: Math.round(newPrice / 1000) * 1000,
               loiNhuanKyVong: numRatio,
               phuongPhapTinhLoiNhuan: marginType === "revenue" ? "revenue" : "cost"
             } as any

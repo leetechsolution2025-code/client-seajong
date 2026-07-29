@@ -10,6 +10,7 @@ import UpdatePriceOffcanvas from "@/components/ui/UpdatePriceOffcanvas";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import BomDiffOffcanvas from "@/components/production/BomDiffOffcanvas";
+import BOMPriceDetailsOffcanvas from "@/components/production/BOMPriceDetailsOffcanvas";
 
 
 export default function BOMPage() {
@@ -122,6 +123,7 @@ export default function BOMPage() {
   // New product state
   const [productGroups, setProductGroups] = useState<{ id: string, name: string }[]>([]);
   const [showAddProduct, setShowAddProduct] = useState(false);
+  const [showPriceDetails, setShowPriceDetails] = useState(false);
   const [editProductId, setEditProductId] = useState<string | null>(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState(false);
@@ -648,6 +650,15 @@ export default function BOMPage() {
               </div>
             </div>
             {showAddProduct && <div className="offcanvas-backdrop fade show" onClick={() => { setShowAddProduct(false); resetProductForm(); }} style={{ zIndex: 1040 }}></div>}
+            {showPriceDetails && <div className="offcanvas-backdrop fade show" onClick={() => setShowPriceDetails(false)} style={{ zIndex: 1040 }}></div>}
+
+            <BOMPriceDetailsOffcanvas
+              show={showPriceDetails}
+              onClose={() => setShowPriceDetails(false)}
+              bomData={bomData}
+              selectedProduct={selectedProduct}
+              initialCost={bomData.vatTu.reduce((sum: number, item: any) => sum + (Number(item.soLuong) || 0) * (item.material?.price || item.material?.giaNhap || 0), 0)}
+            />
 
             <UpdatePriceOffcanvas
               show={showPriceOffcanvas}
@@ -768,21 +779,10 @@ export default function BOMPage() {
                     <h5 className="fw-bold text-primary mb-0">{(selectedProduct.tenHang || selectedProduct.name)}</h5>
                     <button
                       className="btn btn-sm btn-light text-muted border-0 py-0 px-2"
-                      onClick={() => {
-                        setEditProductId(selectedProduct.id);
-                        setNewProduct({
-                          code: selectedProduct.code || "",
-                          name: (selectedProduct.tenHang || selectedProduct.name) || "",
-                          categoryId: selectedProduct.categoryId || "",
-                          unit: (selectedProduct.donVi || selectedProduct.unit) || "bộ",
-                          defaultWarehouse: selectedProduct.defaultWarehouse || "KHO-CHINH",
-                          notes: selectedProduct.notes || ""
-                        });
-                        setShowAddProduct(true);
-                      }}
-                      title="Cập nhật sản phẩm"
+                      onClick={() => setShowPriceDetails(true)}
+                      title="Chi tiết cấu thành giá bán"
                     >
-                      <i className="bi bi-pencil-square"></i>
+                      <i className="bi bi-receipt"></i>
                     </button>
                   </div>
                   <div className="d-flex flex-wrap gap-3 text-muted small mb-1">
@@ -799,7 +799,7 @@ export default function BOMPage() {
                         </span>
                       </div>
                       <div className="d-flex align-items-center gap-2">
-                        <span className="text-muted small">Giá bán đề xuất:</span>
+                        <span className="text-muted small">Giá bán hiện tại:</span>
                         <span className="fw-bold text-success">{selectedProduct.giaBan ? `${selectedProduct.giaBan.toLocaleString()} đ` : "--- đ"}</span>
                         <button
                           className="btn btn-sm btn-outline-success py-0 px-2"

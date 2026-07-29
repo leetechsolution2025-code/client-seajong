@@ -51,8 +51,8 @@ export default function UpdatePriceOffcanvas({
       // Nếu đã có giá bán lưu trong DB, ta giữ nguyên giá bán đó
       // Còn giá tính toán sẽ dựa trên marginPct và marginType đang lưu (hoặc mặc định)
       let calculatedPrice = marginType === "revenue" 
-        ? (marginPct < 100 ? Math.round(initialCost / (1 - marginPct / 100)) : 0)
-        : Math.round(initialCost * (1 + marginPct / 100));
+        ? (marginPct < 100 ? Math.round((initialCost / (1 - marginPct / 100)) / 1000) * 1000 : 0)
+        : Math.round((initialCost * (1 + marginPct / 100)) / 1000) * 1000;
       
       setPriceSetup({
         cost: initialCost,
@@ -94,8 +94,8 @@ export default function UpdatePriceOffcanvas({
               <input type="number" step="0.1" className="form-control" value={priceSetup.marginPct} onChange={(e) => {
                 const val = Number(e.target.value);
                 const calculated = priceSetup.marginType === "revenue" 
-                  ? (val < 100 ? Math.round(priceSetup.cost / (1 - val / 100)) : 0)
-                  : Math.round(priceSetup.cost * (1 + val / 100));
+                  ? (val < 100 ? Math.round((priceSetup.cost / (1 - val / 100)) / 1000) * 1000 : 0)
+                  : Math.round((priceSetup.cost * (1 + val / 100)) / 1000) * 1000;
                 setPriceSetup(prev => ({ ...prev, marginPct: val, finalPrice: calculated, calculatedPrice: calculated }));
               }} />
             </div>
@@ -104,8 +104,8 @@ export default function UpdatePriceOffcanvas({
               <select className="form-select form-select-sm" value={priceSetup.marginType} onChange={(e) => {
                 const newType = e.target.value;
                 const calculated = newType === "revenue" 
-                  ? (priceSetup.marginPct < 100 ? Math.round(priceSetup.cost / (1 - priceSetup.marginPct / 100)) : 0)
-                  : Math.round(priceSetup.cost * (1 + priceSetup.marginPct / 100));
+                  ? (priceSetup.marginPct < 100 ? Math.round((priceSetup.cost / (1 - priceSetup.marginPct / 100)) / 1000) * 1000 : 0)
+                  : Math.round((priceSetup.cost * (1 + priceSetup.marginPct / 100)) / 1000) * 1000;
                 setPriceSetup(prev => ({ ...prev, marginType: newType, finalPrice: calculated, calculatedPrice: calculated }));
               }}>
                 <option value="cost">Trên giá vốn (Giá bán = Giá vốn x (1 + %Lợi nhuận))</option>

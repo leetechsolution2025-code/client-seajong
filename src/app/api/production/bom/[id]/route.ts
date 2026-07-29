@@ -160,6 +160,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         )
         WHERE id = ${inventoryItemId}
       `;
+
+      // Tự động tính toán lại giá bán dựa trên giá vốn mới và cấu hình lợi nhuận
+      await prisma.$executeRaw`
+        UPDATE InventoryItem
+        SET giaBan = CASE 
+          WHEN phuongPhapTinhLoiNhuan = 'revenue' AND loiNhuanKyVong < 100 THEN ROUND((giaNhap / (1.0 - loiNhuanKyVong / 100.0)) / 1000.0) * 1000
+          WHEN phuongPhapTinhLoiNhuan = 'cost' THEN ROUND((giaNhap * (1.0 + loiNhuanKyVong / 100.0)) / 1000.0) * 1000
+          ELSE ROUND((giaNhap * 1.3) / 1000.0) * 1000
+        END
+        WHERE id = ${inventoryItemId}
+      `;
     }
 
     return NextResponse.json({ ok: true, id });
