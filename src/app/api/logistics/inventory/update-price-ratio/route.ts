@@ -3,10 +3,13 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
-    const { ratio, marginPct } = await req.json();
+    const { ratio, marginPct, marginType = "cost" } = await req.json();
     const numRatio = parseFloat(ratio || marginPct);
     if (isNaN(numRatio) || numRatio <= 0) {
       return NextResponse.json({ error: "Tỷ lệ không hợp lệ" }, { status: 400 });
+    }
+    if (marginType === "revenue" && numRatio >= 100) {
+      return NextResponse.json({ error: "Lợi nhuận trên doanh thu phải < 100%" }, { status: 400 });
     }
 
     // Fetch all materials with price > 0
@@ -20,12 +23,16 @@ export async function POST(req: Request) {
       const chunkSize = 100;
       for (let i = 0; i < materials.length; i += chunkSize) {
         const chunk = materials.slice(i, i + chunkSize);
-        const updates = chunk.map((m: any) => 
-          prisma.inventoryItem.update({
+        const updates = chunk.map((m: any) => {
+          let newPrice = m.giaNhap * (1 + numRatio / 100);
+          if (marginType === "revenue") {
+             newPrice = m.giaNhap / (1 - numRatio / 100);
+          }
+          return prisma.inventoryItem.update({
             where: { id: m.id },
-            data: { giaBan: m.giaNhap * (1 + numRatio / 100) }
-          })
-        );
+            data: { giaBan: Math.round(newPrice) }
+          });
+        });
         await prisma.$transaction(updates);
       }
       

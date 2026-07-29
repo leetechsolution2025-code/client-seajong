@@ -138,7 +138,7 @@ export default function BOMPage() {
   const [showPriceOffcanvas, setShowPriceOffcanvas] = useState(false);
   const [marketPrice, setMarketPrice] = useState<number | null>(null);
   const [loadingMarketPrice, setLoadingMarketPrice] = useState(false);
-  const [priceSetup, setPriceSetup] = useState({ cost: 0, haoHutPct: 5, chiPhiSxPct: 20, marginPct: 30, finalPrice: 0 });
+  const [priceSetup, setPriceSetup] = useState({ cost: 0, haoHutPct: 5, chiPhiSxPct: 20, marginPct: 30, marginType: "cost", finalPrice: 0 });
   const [applyAllPrice, setApplyAllPrice] = useState(false);
   useEffect(() => {
     fetch("/api/plan-finance/categories?hasBom=true")
@@ -667,15 +667,30 @@ export default function BOMPage() {
                     <label className="form-label small fw-medium">Lợi nhuận kỳ vọng (%)</label>
                     <input type="number" step="0.1" className="form-control" value={priceSetup.marginPct} onChange={(e) => {
                       const val = Number(e.target.value);
-                      const calculated = Math.round(priceSetup.cost * (1 + val / 100));
+                      const calculated = priceSetup.marginType === "revenue" 
+                        ? (val < 100 ? Math.round(priceSetup.cost / (1 - val / 100)) : 0)
+                        : Math.round(priceSetup.cost * (1 + val / 100));
                       setPriceSetup(prev => ({ ...prev, marginPct: val, finalPrice: calculated }));
                     }} />
+                  </div>
+                  <div className="col-12 mt-2">
+                    <label className="form-label small fw-medium">Phương pháp tính lợi nhuận</label>
+                    <select className="form-select form-select-sm" value={priceSetup.marginType} onChange={(e) => {
+                      const newType = e.target.value;
+                      const calculated = newType === "revenue" 
+                        ? (priceSetup.marginPct < 100 ? Math.round(priceSetup.cost / (1 - priceSetup.marginPct / 100)) : 0)
+                        : Math.round(priceSetup.cost * (1 + priceSetup.marginPct / 100));
+                      setPriceSetup(prev => ({ ...prev, marginType: newType, finalPrice: calculated }));
+                    }}>
+                      <option value="cost">Trên giá vốn (Giá bán = Giá vốn x (1 + %Lợi nhuận))</option>
+                      <option value="revenue">Trên doanh thu (Giá bán = Giá vốn / (1 - %Lợi nhuận))</option>
+                    </select>
                   </div>
                 </div>
 
                 <div className="mb-3">
-                  <label className="form-label small fw-medium text-primary">Giá bán tính toán (Giá vốn + Lợi nhuận)</label>
-                  <input type="text" className="form-control text-primary fw-bold bg-light" disabled value={`${Math.round(priceSetup.cost * (1 + priceSetup.marginPct / 100)).toLocaleString()} đ`} />
+                  <label className="form-label small fw-medium text-primary">Giá bán tính toán</label>
+                  <input type="text" className="form-control text-primary fw-bold bg-light" disabled value={`${(priceSetup.marginType === "revenue" ? (priceSetup.marginPct < 100 ? Math.round(priceSetup.cost / (1 - priceSetup.marginPct / 100)) : 0) : Math.round(priceSetup.cost * (1 + priceSetup.marginPct / 100))).toLocaleString()} đ`} />
                 </div>
                 <hr className="my-3" />
                 <div className="mb-3">
@@ -706,7 +721,7 @@ export default function BOMPage() {
                     fetch("/api/logistics/inventory/update-price-ratio", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ marginPct: priceSetup.marginPct })
+                      body: JSON.stringify({ marginPct: priceSetup.marginPct, marginType: priceSetup.marginType })
                     }).then(res => res.json()).then(data => {
                       if (data.success) {
                         toastSuccess("Thành công", `Đã cập nhật giá bán cho ${data.updatedCount} sản phẩm`);
@@ -855,6 +870,7 @@ export default function BOMPage() {
                               haoHutPct: 0,
                               chiPhiSxPct: 0,
                               marginPct: 30,
+                              marginType: "cost",
                               finalPrice: Math.round(finalP / 1000) * 1000
                             });
 
