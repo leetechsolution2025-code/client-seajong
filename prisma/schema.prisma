@@ -229,6 +229,8 @@ model Employee {
   attendanceConfirmations  AttendanceConfirmation[]
   payrollConfirmations     PayrollConfirmation[]
   logisticsTickets         LogisticsTicket[]
+  internalKpiReports       InternalKpiReport[]
+  internalIncomeReports    InternalIncomeReport[]
 }
 
 model LaborContract {
@@ -2942,4 +2944,74 @@ model InventoryReservation {
 
   @@index([ticketItemId])
   @@index([inventoryStockId])
+}
+
+// Cấu hình danh mục tiêu chí KPI
+model InternalKpiCriteria {
+  id          String   @id @default(cuid())
+  month       Int
+  year        Int
+  code        String?  // Mã tiêu chí (nếu có)
+  name        String   // Tên tiêu chí đánh giá
+  type        String   // Loại: "MANAGER" (Lãnh đạo phòng) hoặc "STAFF" (Nhân viên)
+  targetValue Float    // Chỉ tiêu mục tiêu (VD: 8000000000)
+  weight      Float    // Trọng số (VD: 30)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  details     InternalKpiReportDetail[]
+}
+
+// Báo cáo tổng quan KPI hàng tháng
+model InternalKpiReport {
+  id          String   @id @default(cuid())
+  month       Int      // Tháng (1-12)
+  year        Int      // Năm
+  employeeId  String?  // Tham chiếu ID nhân viên (nếu có)
+  type        String   // "MANAGER" hoặc "STAFF"
+  totalScore  Float    // Tổng điểm hiệu suất
+  status      String   @default("DRAFT") // Trạng thái: DRAFT, PUBLISHED (Ban hành)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  details     InternalKpiReportDetail[]
+  
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+}
+
+// Chi tiết điểm KPI từng tiêu chí trong tháng
+model InternalKpiReportDetail {
+  id             String      @id @default(cuid())
+  reportId       String
+  criteriaId     String
+  targetValue    Float       // Chỉ tiêu tại thời điểm làm báo cáo
+  actualValue    Float       // Thực tế đạt được
+  weight         Float       // Trọng số tại thời điểm làm báo cáo
+  score          Float       // Điểm số tính được
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  report         InternalKpiReport   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  criteria       InternalKpiCriteria @relation(fields: [criteriaId], references: [id], onDelete: Cascade)
+}
+
+// Báo cáo Khung thu nhập
+model InternalIncomeReport {
+  id               String   @id @default(cuid())
+  month            Int
+  year             Int
+  employeeId       String?  
+  type             String   // "MANAGER" hoặc "STAFF"
+  
+  baseSalary       Float    @default(0) // Lương cơ bản
+  performanceBonus Float    @default(0) // Lương hiệu suất
+  allowance        Float    @default(0) // Phụ cấp
+  salesCommission  Float    @default(0) // Hoa hồng bán hàng
+  totalIncome      Float    @default(0) // Tổng thu nhập
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  employee         Employee? @relation(fields: [employeeId], references: [id])
 }

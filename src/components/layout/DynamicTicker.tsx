@@ -153,8 +153,8 @@ export function DynamicTicker({ pageTitle, customNews }: { pageTitle?: string, c
 
   const formatTickerText = (text: string) => {
     if (!text) return "";
-    // Wrap numbers (not inside HTML tags) with bold and #003087
-    return text.replace(/(^|[^\w])([+-]?\d+(?:[.,]\d+)*(?:\s*[đ₫%])?)(?![^<]*>)/gi, '$1<span style="font-weight: bold; color: #003087;">$2</span>');
+    // Wrap numbers (not inside HTML tags) with bold and a specific class
+    return text.replace(/(^|[^\w])([+-]?\d+(?:[.,]\d+)*(?:\s*[đ₫%])?)(?![^<]*>)/gi, '$1<span class="ticker-number">$2</span>');
   };
 
   return (

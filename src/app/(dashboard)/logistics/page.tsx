@@ -12,7 +12,8 @@ import { useToast } from "@/components/ui/Toast";
 import { DynamicTicker } from "@/components/layout/DynamicTicker";
 
 export default function LogisticsOverviewPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [rawOrders, setRawOrders] = useState<any[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [readOrderIds, setReadOrderIds] = useState<Set<string>>(new Set());
   
@@ -54,33 +55,11 @@ export default function LogisticsOverviewPage() {
             return { ...d, exportCode };
           });
           
-          // Group logistics tickets by saleOrderCode
-          const logisticsTickets = mapped.filter((d: any) => d.type === 'logistics-ticket' && d.saleOrderCode);
-          const others = mapped.filter((d: any) => d.type !== 'logistics-ticket' || !d.saleOrderCode);
-          
-          const grouped = logisticsTickets.reduce((acc: Record<string, any[]>, curr: any) => {
-            if (!acc[curr.saleOrderCode]) acc[curr.saleOrderCode] = [];
-            acc[curr.saleOrderCode].push(curr);
-            return acc;
-          }, {});
-          
-          const finalOrders = [];
-          for (const [saleOrderCode, tickets] of Object.entries(grouped)) {
-            finalOrders.push({
-              id: `group-${saleOrderCode}`,
-              isFullWidth: true,
-              isGroupHeader: true,
-              fullWidthContent: `Đơn bán hàng ${saleOrderCode} - ${(tickets as any[]).length} lệnh`,
-              isAssigned: true // to prevent selection logic issues
-            });
-            finalOrders.push(...(tickets as any[]));
-          }
-          finalOrders.push(...others);
-          
+          // Update raw orders directly, grouping and collapse logic is handled in render
           if (!mounted) return;
 
           if (isPolling) {
-            const newIds = new Set<string>(finalOrders.map((m: any) => m.id as string));
+            const newIds = new Set<string>(mapped.map((m: any) => m.id as string));
             if (prevOrderIds.current.size > 0) { // Only notify if it's not the initial load masquerading as polling
               const addedOrders = mapped.filter((m: any) => !prevOrderIds.current.has(m.id));
               if (addedOrders.length > 0) {
@@ -92,12 +71,12 @@ export default function LogisticsOverviewPage() {
             }
             prevOrderIds.current = newIds;
             // Dùng JSON.stringify so sánh để tránh render lại nếu data không đổi (tuỳ chọn)
-            setOrders(mapped);
+            setRawOrders(mapped);
           } else {
             prevOrderIds.current = new Set<string>(mapped.map((m: any) => m.id as string));
             // Đánh dấu tất cả là đã đọc ở lần tải đầu tiên để ẩn chữ "Mới"
             setReadOrderIds(new Set<string>(mapped.map((m: any) => m.id as string)));
-            setOrders(mapped);
+            setRawOrders(mapped);
             setLoading(false);
           }
         }
@@ -180,6 +159,58 @@ export default function LogisticsOverviewPage() {
       setFetchingDetails(false);
     }
   };
+
+  const orders = React.useMemo(() => {
+    const grouped = rawOrders.reduce((acc: Record<string, any[]>, curr: any) => {
+      const code = curr.saleOrderCode || curr.code || "Khác";
+      if (!acc[code]) acc[code] = [];
+      acc[code].push(curr);
+      return acc;
+    }, {});
+    
+    const finalOrders = [];
+    for (const [orderCode, items] of Object.entries(grouped)) {
+      if (orderCode === "Khác") {
+        finalOrders.push(...(items as any[]));
+        continue;
+      }
+      
+      const isCollapsed = collapsedGroups.has(orderCode);
+      
+      finalOrders.push({
+        id: `group-${orderCode}`,
+        isFullWidth: true,
+        isGroupHeader: true,
+        fullWidthContent: (
+          <div 
+             className="d-flex align-items-center justify-content-between w-100 pe-2" 
+             style={{ cursor: 'pointer', userSelect: 'none' }}
+             onClick={(e) => {
+               e.stopPropagation();
+               setCollapsedGroups(prev => {
+                 const newSet = new Set(prev);
+                 if (newSet.has(orderCode)) newSet.delete(orderCode);
+                 else newSet.add(orderCode);
+                 return newSet;
+               });
+             }}
+          >
+            <span>
+              <i className={`bi ${isCollapsed ? 'bi-caret-right-fill' : 'bi-caret-down-fill'} me-2 text-muted`}></i> 
+              Số hiệu đơn hàng: <span className="text-primary">{orderCode}</span>
+            </span>
+            <span className="badge bg-secondary rounded-pill fw-normal" style={{ fontSize: 10 }}>{items.length} lệnh</span>
+          </div>
+        ),
+        isAssigned: true
+      });
+      
+      if (!isCollapsed) {
+        finalOrders.push(...(items as any[]));
+      }
+    }
+    return finalOrders;
+  }, [rawOrders, collapsedGroups]);
 
   return (
     <div className="d-flex flex-column h-100" style={{ background: "var(--background)", position: "relative" }}>
@@ -362,30 +393,8 @@ export default function LogisticsOverviewPage() {
                                return { ...d, exportCode };
                              });
                              
-                             // Group logistics tickets by saleOrderCode
-                             const logisticsTickets = mapped.filter((d: any) => d.type === 'logistics-ticket' && d.saleOrderCode);
-                             const others = mapped.filter((d: any) => d.type !== 'logistics-ticket' || !d.saleOrderCode);
-                             
-                             const grouped = logisticsTickets.reduce((acc: Record<string, any[]>, curr: any) => {
-                               if (!acc[curr.saleOrderCode]) acc[curr.saleOrderCode] = [];
-                               acc[curr.saleOrderCode].push(curr);
-                               return acc;
-                             }, {});
-                             
-                             const finalOrders = [];
-                             for (const [saleOrderCode, tickets] of Object.entries(grouped)) {
-                               finalOrders.push({
-                                 id: `group-${saleOrderCode}`,
-                                 isFullWidth: true,
-                                 isGroupHeader: true,
-                                 fullWidthContent: `Đơn bán hàng ${saleOrderCode} - ${(tickets as any[]).length} lệnh`,
-                                 isAssigned: true
-                               });
-                               finalOrders.push(...(tickets as any[]));
-                             }
-                             finalOrders.push(...others);
-                             
-                             setOrders(finalOrders);
+                             // Update raw orders
+                             setRawOrders(mapped);
                            } else {
                              toast.error("Lỗi", "Không thể giao việc.");
                            }

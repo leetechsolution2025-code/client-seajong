@@ -827,7 +827,6 @@ export default function FinancePage() {
       icon="bi-cash-stack"
       color="emerald"
       useCard={false}
-      paddingClassName="px-3 px-sm-4 pb-3 pb-sm-4 pt-0"
     >
       {error && (
         <div className="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
@@ -836,7 +835,7 @@ export default function FinancePage() {
         </div>
       )}
 
-      <div className="row g-3 gy-2 mt-0">
+      <div className="row g-2 mt-0">
         {loading
           ? Array(4)
               .fill(0)
@@ -875,11 +874,11 @@ export default function FinancePage() {
             ))}
       </div>
 
-      <div className="row g-4 mt-0 flex-grow-1 flex-lg-nowrap" style={{ minHeight: 0 }}>
+      <div className="row g-3 mt-0 flex-grow-1 flex-lg-nowrap" style={{ minHeight: 0 }}>
         {/* Vùng bên trái - chiếm tỷ lệ 7/12 */}
         <div className="col-12 col-lg-7 d-flex flex-column" style={{ minHeight: 0 }}>
           <WorkflowCard
-            contentPadding="px-4 pb-4 pt-2"
+            contentPadding="p-3 pt-2"
             stepper={
               <ModernStepper
                 steps={stepperSteps}
@@ -1019,7 +1018,7 @@ export default function FinancePage() {
         {/* Vùng bên phải - chiếm tỷ lệ 5/12 */}
         <div className="col-12 col-lg-5 d-flex flex-column" style={{ minHeight: 0 }}>
           <div
-            className="bg-white rounded-4 shadow-sm border p-4 flex-grow-1 d-flex flex-column overflow-hidden"
+            className="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column overflow-hidden"
             style={{ minHeight: 0 }}
           >
             {currentStep === 1 ? (

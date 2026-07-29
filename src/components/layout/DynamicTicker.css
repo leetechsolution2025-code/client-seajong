@@ -34,3 +34,12 @@
   color: #003087 !important;
   border-color: rgba(0, 48, 135, 0.2) !important;
 }
+
+.ticker-number {
+  font-weight: bold;
+  color: #003087;
+}
+
+.badge .ticker-number {
+  color: inherit !important;
+}

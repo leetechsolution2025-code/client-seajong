@@ -510,17 +510,19 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
               </div>
 
               {/* Thông tin doanh nghiệp */}
-              <div className="user-dropdown-section">
-                <Link
-                  href="/board/company"
-                  className="user-dropdown-item"
-                  style={{ textDecoration: "none" }}
-                  onClick={() => setUserMenuOpen(false)}
-                >
-                  <i className="bi bi-building-gear user-dropdown-icon" />
-                  <span>Thông tin doanh nghiệp</span>
-                </Link>
-              </div>
+              {userPositionName?.toLowerCase().includes("giám đốc") && (
+                <div className="user-dropdown-section">
+                  <Link
+                    href="/board/company"
+                    className="user-dropdown-item"
+                    style={{ textDecoration: "none" }}
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <i className="bi bi-building-gear user-dropdown-icon" />
+                    <span>Thông tin doanh nghiệp</span>
+                  </Link>
+                </div>
+              )}
 
               {/* Admin panel — phân biệt SUPERADMIN (master) và ADMIN (client) */}
               {(userRole === "SUPERADMIN" || userRole === "ADMIN") && (

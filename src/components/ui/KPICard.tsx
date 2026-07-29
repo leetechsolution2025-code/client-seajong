@@ -16,7 +16,15 @@ export function KPICard({
 }: KPICardProps) {
   return (
     <div className={colClass}>
-      <div className="app-card p-2 ps-2.5 ps-md-3 d-flex align-items-center gap-2 gap-md-3">
+      <style>{`
+        .kpi-card-inner {
+          padding-top: 6px !important;
+          padding-bottom: 6px !important;
+        }
+      `}</style>
+      <div 
+        className="app-card kpi-card-inner ps-2.5 ps-md-3 pe-2 d-flex align-items-center gap-2 gap-md-3" 
+      >
         {/* Icon */}
         <div
           className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0 kpi-icon-box"

@@ -7,29 +7,16 @@ import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
+import { useToast } from "@/components/ui/Toast";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-const step1KpiCriteriaData = [
-  { name: "Doanh thu phòng đạt được", target: "8,000,000,000", actual: "7,500,000,000", weight: "30%", score: "93" },
-  { name: "Số đại lý phát triển trong tháng", target: "10", actual: "8", weight: "25%", score: "80" },
-  { name: "Doanh số bình quân từ đại lý mới", target: "200,000,000", actual: "210,000,000", weight: "15%", score: "100" },
-  { name: "Tỷ lệ đại lý phát sinh đơn hàng", target: "80%", actual: "75%", weight: "10%", score: "93" },
-  { name: "Tỷ lệ thu hồi công nợ", target: "90%", actual: "88%", weight: "15%", score: "97" },
-  { name: "Tỷ lệ nhân viên hoàn thành KPI", target: "100%", actual: "90%", weight: "5%", score: "90" },
-];
-
-const step2KpiCriteriaData = [
-  { name: "Doanh số", target: "1,500,000,000", actual: "1,450,000,000", weight: "25%", score: "96" },
-  { name: "Doanh thu", target: "1,200,000,000", actual: "1,100,000,000", weight: "25%", score: "91" },
-  { name: "Số đại lý phát triển trong tháng", target: "3", actual: "2", weight: "15%", score: "66" },
-  { name: "Tỷ lệ chăm sóc đúng hạn", target: "90%", actual: "85%", weight: "15%", score: "94" },
-  { name: "Tỷ lệ chuyển đổi", target: "20%", actual: "18%", weight: "10%", score: "90" },
-  { name: "Thu hồi công nợ", target: "95%", actual: "90%", weight: "10%", score: "94" },
-];
+const step1KpiCriteriaData: any[] = [];
+const step2KpiCriteriaData: any[] = [];
 
 export default function PartnerActivitiesPage() {
   const { data: session } = useSession();
+  const toast = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [employee, setEmployee] = useState<any>(null);
   const [positions, setPositions] = useState<{code: string, name: string}[]>([]);
@@ -38,8 +25,16 @@ export default function PartnerActivitiesPage() {
   const [salesEmployees, setSalesEmployees] = useState<any[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [applyAllYear, setApplyAllYear] = useState(false);
-  const [step1KpiConfig, setStep1KpiConfig] = useState(step1KpiCriteriaData);
-  const [step2KpiConfig, setStep2KpiConfig] = useState(step2KpiCriteriaData);
+  const [step1KpiConfig, setStep1KpiConfig] = useState<any[]>([]);
+  const [step2KpiConfig, setStep2KpiConfig] = useState<any[]>([]);
+  const [incomeData, setIncomeData] = useState({
+    baseSalary: 0,
+    performanceBonus: 0,
+    allowance: 0,
+    salesCommission: 0,
+    totalIncome: 0
+  });
+  const [yearlyKpi, setYearlyKpi] = useState<any[]>(Array(12).fill(null));
 
   const handlePrevMonth = () => setReportMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   const handleNextMonth = () => setReportMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
@@ -58,7 +53,87 @@ export default function PartnerActivitiesPage() {
         }
       })
       .catch(() => {});
+
   }, []);
+
+  useEffect(() => {
+    const month = reportMonth.getMonth() + 1;
+    const year = reportMonth.getFullYear();
+
+    // Fetch Manager Report
+    fetch(`/api/sales/internal-reports/reports?month=${month}&year=${year}&type=MANAGER`)
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success && d.data) {
+          const formatCriteria = (c: any) => ({
+            id: c.id,
+            name: c.name,
+            target: c.target.toLocaleString("en-US"),
+            actual: c.actual.toLocaleString("en-US"),
+            weight: c.weight + "%",
+            score: c.score.toString()
+          });
+          setStep1KpiConfig(d.data.map(formatCriteria));
+        }
+      })
+      .catch(console.error);
+
+    // Fetch Staff Report
+    let staffUrl = `/api/sales/internal-reports/reports?month=${month}&year=${year}&type=STAFF`;
+    if (selectedEmployeeId) {
+      staffUrl += `&employeeId=${selectedEmployeeId}`;
+    }
+    fetch(staffUrl)
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success && d.data) {
+          const formatCriteria = (c: any) => ({
+            id: c.id,
+            name: c.name,
+            target: c.target.toLocaleString("en-US"),
+            actual: c.actual.toLocaleString("en-US"),
+            weight: c.weight + "%",
+            score: c.score.toString()
+          });
+          setStep2KpiConfig(d.data.map(formatCriteria));
+        }
+      })
+      .catch(console.error);
+
+    // Fetch Income
+    let incomeUrl = `/api/sales/internal-reports/income?month=${month}&year=${year}&type=${currentStep === 1 ? 'MANAGER' : 'STAFF'}`;
+    if (selectedEmployeeId) incomeUrl += `&employeeId=${selectedEmployeeId}`;
+    fetch(incomeUrl)
+      .then(r => r.json())
+      .then(d => {
+         if(d?.success && d.data) setIncomeData(d.data);
+      })
+      .catch(console.error);
+
+    // Fetch Yearly KPI
+    let yearlyUrl = `/api/sales/internal-reports/reports/yearly?year=${year}&type=${currentStep === 1 ? 'MANAGER' : 'STAFF'}`;
+    if (selectedEmployeeId) yearlyUrl += `&employeeId=${selectedEmployeeId}`;
+    fetch(yearlyUrl)
+      .then(r => r.json())
+      .then(d => {
+         if(d?.success && d.data) setYearlyKpi(d.data);
+      })
+      .catch(console.error);
+
+  }, [reportMonth, selectedEmployeeId, currentStep]);
+
+  // Snap back to current month if user switches to step 1/2 from a future month in step 3
+  useEffect(() => {
+    if (currentStep === 1 || currentStep === 2) {
+      const now = new Date();
+      if (
+        reportMonth.getFullYear() > now.getFullYear() ||
+        (reportMonth.getFullYear() === now.getFullYear() && reportMonth.getMonth() > now.getMonth())
+      ) {
+        setReportMonth(new Date());
+      }
+    }
+  }, [currentStep, reportMonth]);
 
   const getPositionName = (code: string | undefined | null) => {
     if (!code) return "Nhân viên";
@@ -66,10 +141,41 @@ export default function PartnerActivitiesPage() {
     return pos ? pos.name : code;
   };
 
+  const displayedEmployee = React.useMemo(() => {
+    if (currentStep === 1) {
+      // Báo cáo lãnh đạo phòng: Phải hiển thị Trưởng phòng kinh doanh
+      return salesEmployees.find(e => getPositionName(e.position).toLowerCase().includes("trưởng phòng")) || employee;
+    } else if (currentStep === 2) {
+      // Báo cáo nhân viên: Hiển thị nhân viên được chọn, nếu không thì hiển thị employee (nếu họ là nhân viên)
+      return salesEmployees.find(e => e.id === selectedEmployeeId) || employee;
+    }
+    return employee;
+  }, [currentStep, selectedEmployeeId, salesEmployees, employee, positions]);
+
+  const calculatedIncome = React.useMemo(() => {
+    const baseSalary = displayedEmployee?.baseSalary || 0;
+    const allowance = (displayedEmployee?.mealAllowance || 0) + 
+                      (displayedEmployee?.fuelAllowance || 0) + 
+                      (displayedEmployee?.phoneAllowance || 0) + 
+                      (displayedEmployee?.seniorityAllowance || 0);
+    const performanceBonus = incomeData.performanceBonus || 0;
+    const salesCommission = incomeData.salesCommission || 0;
+    
+    const totalIncome = baseSalary + allowance + performanceBonus + salesCommission;
+    
+    return {
+      baseSalary,
+      allowance,
+      performanceBonus,
+      salesCommission,
+      totalIncome
+    };
+  }, [displayedEmployee, incomeData]);
+
   const getLocationName = (code: string | undefined | null) => {
     if (!code) return "Chưa cập nhật";
     if (code === "main") return "Trụ sở chính";
-    const loc = workLocations.find(l => l.code === code);
+    const loc = workLocations.find((l: any) => l.code === code);
     return loc ? loc.name : code;
   };
 
@@ -97,8 +203,7 @@ export default function PartnerActivitiesPage() {
   }, [session]);
 
   const currentMonth = new Date().getMonth() + 1;
-  const fullKpiData = [85, 78, 92, 88, 76, 89, 94, 82, 85, 90, 88, 91];
-  const validData = fullKpiData.slice(0, currentMonth);
+  const validData = yearlyKpi.filter(val => val !== null);
   const avgKpi = validData.length > 0 ? Math.round(validData.reduce((a, b) => a + b, 0) / validData.length) : 0;
   
   const kpiCategories = Array.from({ length: 12 }, (_, i) => `${i + 1}`);
@@ -128,8 +233,16 @@ export default function PartnerActivitiesPage() {
   const step2TotalScore = step2KpiCriteria.reduce((sum, item) => sum + calculateScore(item.target, item.actual, item.weight), 0);
 
   const selectedMonthIndex = reportMonth.getMonth();
-  const kpiData1 = Array.from({ length: 12 }, (_, i) => i < currentMonth ? (i === selectedMonthIndex ? Math.round(step1TotalScore) : fullKpiData[i]) : null);
-  const kpiData2 = Array.from({ length: 12 }, (_, i) => i < currentMonth ? (i === selectedMonthIndex ? Math.round(step2TotalScore) : fullKpiData[i]) : null);
+  const kpiData1 = Array.from({ length: 12 }, (_, i) => {
+    if (i === selectedMonthIndex) {
+      return currentStep === 1 ? Math.round(step1TotalScore) : Math.round(step2TotalScore);
+    }
+    return yearlyKpi[i];
+  });
+  const kpiData2 = Array.from({ length: 12 }, (_, i) => {
+    if (i === selectedMonthIndex) return Math.round(step2TotalScore);
+    return yearlyKpi[i];
+  });
   
   const computeAvg = (data: (number | null)[]) => {
     const valid = data.filter(v => v !== null) as number[];
@@ -217,31 +330,31 @@ export default function PartnerActivitiesPage() {
                     <div className="d-flex flex-column justify-content-center h-100 ps-2">
                       <h6 className="fw-bold text-dark mb-3" style={{ fontSize: 13 }}>THÔNG TIN NHÂN VIÊN</h6>
                       <div className="d-flex align-items-center mb-3 pb-3 border-bottom" style={{ borderBottomStyle: "dashed" }}>
-                        {employee?.avatarUrl ? (
-                          <img src={employee.avatarUrl} alt="Avatar" className="rounded-circle me-3 shadow-sm" style={{ width: 42, height: 42, objectFit: "cover" }} />
+                        {displayedEmployee?.avatarUrl ? (
+                          <img src={displayedEmployee.avatarUrl} alt="Avatar" className="rounded-circle me-3 shadow-sm" style={{ width: 42, height: 42, objectFit: "cover" }} />
                         ) : (
                           <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold me-3 shadow-sm" style={{ width: 42, height: 42, fontSize: 15 }}>
-                            {getAvatarInitials(employee?.fullName)}
+                            {getAvatarInitials(displayedEmployee?.fullName)}
                           </div>
                         )}
                         <div>
-                          <div className="fw-bold text-dark" style={{ fontSize: 14 }}>{employee?.fullName || "Đang tải..."}</div>
-                          <div className="text-secondary" style={{ fontSize: 11 }}>{getPositionName(employee?.position)}</div>
+                          <div className="fw-bold text-dark" style={{ fontSize: 14 }}>{displayedEmployee?.fullName || "Đang tải..."}</div>
+                          <div className="text-secondary" style={{ fontSize: 11 }}>{getPositionName(displayedEmployee?.position)}</div>
                         </div>
                       </div>
                       
                       <div className="d-flex flex-column gap-2" style={{ fontSize: 11.5 }}>
                         <div className="d-flex justify-content-between align-items-center">
                           <span className="text-muted"><i className="bi bi-telephone me-2 text-secondary"></i>Điện thoại:</span>
-                          <span className="fw-medium text-dark">{employee?.phone || "Chưa cập nhật"}</span>
+                          <span className="fw-medium text-dark">{displayedEmployee?.phone || "Chưa cập nhật"}</span>
                         </div>
                         <div className="d-flex justify-content-between align-items-center">
                           <span className="text-muted"><i className="bi bi-envelope me-2 text-secondary"></i>Email:</span>
-                          <span className="fw-medium text-dark">{employee?.workEmail || employee?.personalEmail || "Chưa cập nhật"}</span>
+                          <span className="fw-medium text-dark">{displayedEmployee?.workEmail || displayedEmployee?.personalEmail || "Chưa cập nhật"}</span>
                         </div>
                         <div className="d-flex justify-content-between align-items-center">
                           <span className="text-muted"><i className="bi bi-geo-alt me-2 text-secondary"></i>Địa điểm làm việc:</span>
-                          <span className="fw-medium text-dark">{getLocationName(employee?.workLocation)}</span>
+                          <span className="fw-medium text-dark">{getLocationName(displayedEmployee?.workLocation)}</span>
                         </div>
                       </div>
                     </div>
@@ -309,7 +422,7 @@ export default function PartnerActivitiesPage() {
                     <span className="fw-bold px-3 py-1 bg-white border rounded shadow-sm text-dark" style={{ fontSize: 14 }}>
                       Tháng {reportMonth.getMonth() + 1}, {reportMonth.getFullYear()}
                     </span>
-                    <button className="btn btn-sm btn-light border shadow-sm" onClick={handleNextMonth} style={{ width: 32, height: 32, padding: 0 }} disabled={reportMonth.getMonth() === new Date().getMonth() && reportMonth.getFullYear() === new Date().getFullYear()}>
+                    <button className="btn btn-sm btn-light border shadow-sm" onClick={handleNextMonth} style={{ width: 32, height: 32, padding: 0 }} disabled={reportMonth.getFullYear() > new Date().getFullYear() || (reportMonth.getFullYear() === new Date().getFullYear() && reportMonth.getMonth() >= new Date().getMonth())}>
                       <i className="bi bi-chevron-right"></i>
                     </button>
                   </div>
@@ -355,25 +468,25 @@ export default function PartnerActivitiesPage() {
                           <div className="row g-3 align-items-center">
                             <div className="col-md-5 border-end">
                               <div className="text-muted mb-1 text-uppercase" style={{ fontSize: 11, fontWeight: 600 }}>Tổng thu nhập</div>
-                              <div className="fw-bold text-primary" style={{ fontSize: 24 }}>35,500,000 <span style={{ fontSize: 14 }}>đ</span></div>
+                              <div className="fw-bold text-primary" style={{ fontSize: 24 }}>{calculatedIncome.totalIncome.toLocaleString()} <span style={{ fontSize: 14 }}>đ</span></div>
                             </div>
                             <div className="col-md-7">
                               <div className="row g-3">
                                 <div className="col-6">
                                   <div className="text-muted mb-1" style={{ fontSize: 11 }}>Lương cơ bản</div>
-                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>15,000,000 đ</div>
+                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>{calculatedIncome.baseSalary.toLocaleString()} đ</div>
                                 </div>
                                 <div className="col-6">
                                   <div className="text-muted mb-1" style={{ fontSize: 11 }}>Lương hiệu suất</div>
-                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>12,000,000 đ</div>
+                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>{calculatedIncome.performanceBonus.toLocaleString()} đ</div>
                                 </div>
                                 <div className="col-6">
                                   <div className="text-muted mb-1" style={{ fontSize: 11 }}>Phụ cấp</div>
-                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>3,500,000 đ</div>
+                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>{calculatedIncome.allowance.toLocaleString()} đ</div>
                                 </div>
                                 <div className="col-6">
                                   <div className="text-muted mb-1" style={{ fontSize: 11 }}>Hoa hồng bán hàng</div>
-                                  <div className="fw-bold text-success" style={{ fontSize: 13 }}>5,000,000 đ</div>
+                                  <div className="fw-bold text-success" style={{ fontSize: 13 }}>{calculatedIncome.salesCommission.toLocaleString()} đ</div>
                                 </div>
                               </div>
                             </div>
@@ -438,31 +551,31 @@ export default function PartnerActivitiesPage() {
                     <div className="d-flex flex-column justify-content-center h-100 ps-2">
                       <h6 className="fw-bold text-dark mb-3" style={{ fontSize: 13 }}>THÔNG TIN NHÂN VIÊN</h6>
                       <div className="d-flex align-items-center mb-3 pb-3 border-bottom" style={{ borderBottomStyle: "dashed" }}>
-                        {employee?.avatarUrl ? (
-                          <img src={employee.avatarUrl} alt="Avatar" className="rounded-circle me-3 shadow-sm" style={{ width: 42, height: 42, objectFit: "cover" }} />
+                        {displayedEmployee?.avatarUrl ? (
+                          <img src={displayedEmployee.avatarUrl} alt="Avatar" className="rounded-circle me-3 shadow-sm" style={{ width: 42, height: 42, objectFit: "cover" }} />
                         ) : (
                           <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold me-3 shadow-sm" style={{ width: 42, height: 42, fontSize: 15 }}>
-                            {getAvatarInitials(employee?.fullName)}
+                            {getAvatarInitials(displayedEmployee?.fullName)}
                           </div>
                         )}
                         <div>
-                          <div className="fw-bold text-dark" style={{ fontSize: 14 }}>{employee?.fullName || "Đang tải..."}</div>
-                          <div className="text-secondary" style={{ fontSize: 11 }}>{getPositionName(employee?.position)}</div>
+                          <div className="fw-bold text-dark" style={{ fontSize: 14 }}>{displayedEmployee?.fullName || "Đang tải..."}</div>
+                          <div className="text-secondary" style={{ fontSize: 11 }}>{getPositionName(displayedEmployee?.position)}</div>
                         </div>
                       </div>
                       
                       <div className="d-flex flex-column gap-2" style={{ fontSize: 11.5 }}>
                         <div className="d-flex justify-content-between align-items-center">
                           <span className="text-muted"><i className="bi bi-telephone me-2 text-secondary"></i>Điện thoại:</span>
-                          <span className="fw-medium text-dark">{employee?.phone || "Chưa cập nhật"}</span>
+                          <span className="fw-medium text-dark">{displayedEmployee?.phone || "Chưa cập nhật"}</span>
                         </div>
                         <div className="d-flex justify-content-between align-items-center">
                           <span className="text-muted"><i className="bi bi-envelope me-2 text-secondary"></i>Email:</span>
-                          <span className="fw-medium text-dark">{employee?.workEmail || employee?.personalEmail || "Chưa cập nhật"}</span>
+                          <span className="fw-medium text-dark">{displayedEmployee?.workEmail || displayedEmployee?.personalEmail || "Chưa cập nhật"}</span>
                         </div>
                         <div className="d-flex justify-content-between align-items-center">
                           <span className="text-muted"><i className="bi bi-geo-alt me-2 text-secondary"></i>Địa điểm làm việc:</span>
-                          <span className="fw-medium text-dark">{getLocationName(employee?.workLocation)}</span>
+                          <span className="fw-medium text-dark">{getLocationName(displayedEmployee?.workLocation)}</span>
                         </div>
                       </div>
                     </div>
@@ -530,7 +643,7 @@ export default function PartnerActivitiesPage() {
                     <span className="fw-bold px-3 py-1 bg-white border rounded shadow-sm text-dark" style={{ fontSize: 14 }}>
                       Tháng {reportMonth.getMonth() + 1}, {reportMonth.getFullYear()}
                     </span>
-                    <button className="btn btn-sm btn-light border shadow-sm" onClick={handleNextMonth} style={{ width: 32, height: 32, padding: 0 }} disabled={reportMonth.getMonth() === new Date().getMonth() && reportMonth.getFullYear() === new Date().getFullYear()}>
+                    <button className="btn btn-sm btn-light border shadow-sm" onClick={handleNextMonth} style={{ width: 32, height: 32, padding: 0 }} disabled={reportMonth.getFullYear() > new Date().getFullYear() || (reportMonth.getFullYear() === new Date().getFullYear() && reportMonth.getMonth() >= new Date().getMonth())}>
                       <i className="bi bi-chevron-right"></i>
                     </button>
                   </div>
@@ -589,25 +702,25 @@ export default function PartnerActivitiesPage() {
                           <div className="row g-3 align-items-center">
                             <div className="col-md-5 border-end">
                               <div className="text-muted mb-1 text-uppercase" style={{ fontSize: 11, fontWeight: 600 }}>Tổng thu nhập</div>
-                              <div className="fw-bold text-primary" style={{ fontSize: 24 }}>35,500,000 <span style={{ fontSize: 14 }}>đ</span></div>
+                              <div className="fw-bold text-primary" style={{ fontSize: 24 }}>{calculatedIncome.totalIncome.toLocaleString()} <span style={{ fontSize: 14 }}>đ</span></div>
                             </div>
                             <div className="col-md-7">
                               <div className="row g-3">
                                 <div className="col-6">
                                   <div className="text-muted mb-1" style={{ fontSize: 11 }}>Lương cơ bản</div>
-                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>15,000,000 đ</div>
+                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>{calculatedIncome.baseSalary.toLocaleString()} đ</div>
                                 </div>
                                 <div className="col-6">
                                   <div className="text-muted mb-1" style={{ fontSize: 11 }}>Lương hiệu suất</div>
-                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>12,000,000 đ</div>
+                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>{calculatedIncome.performanceBonus.toLocaleString()} đ</div>
                                 </div>
                                 <div className="col-6">
                                   <div className="text-muted mb-1" style={{ fontSize: 11 }}>Phụ cấp</div>
-                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>3,500,000 đ</div>
+                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>{calculatedIncome.allowance.toLocaleString()} đ</div>
                                 </div>
                                 <div className="col-6">
                                   <div className="text-muted mb-1" style={{ fontSize: 11 }}>Hoa hồng bán hàng</div>
-                                  <div className="fw-bold text-success" style={{ fontSize: 13 }}>5,000,000 đ</div>
+                                  <div className="fw-bold text-success" style={{ fontSize: 13 }}>{calculatedIncome.salesCommission.toLocaleString()} đ</div>
                                 </div>
                               </div>
                             </div>
@@ -633,7 +746,7 @@ export default function PartnerActivitiesPage() {
                     <span className="fw-bold px-3 py-1 bg-white border rounded shadow-sm text-dark" style={{ fontSize: 14 }}>
                       Tháng {reportMonth.getMonth() + 1}, {reportMonth.getFullYear()}
                     </span>
-                    <button className="btn btn-sm btn-light border shadow-sm" onClick={handleNextMonth} style={{ width: 32, height: 32, padding: 0 }} disabled={reportMonth.getMonth() === new Date().getMonth() && reportMonth.getFullYear() === new Date().getFullYear()}>
+                    <button className="btn btn-sm btn-light border shadow-sm" onClick={handleNextMonth} style={{ width: 32, height: 32, padding: 0 }}>
                       <i className="bi bi-chevron-right"></i>
                     </button>
                   </div>
@@ -650,8 +763,56 @@ export default function PartnerActivitiesPage() {
                     <label className="form-check-label text-muted fw-medium" htmlFor="applyAllYearSwitch" style={{ fontSize: 13, userSelect: 'none', cursor: 'pointer', paddingTop: 2 }}>Áp dụng cho cả năm</label>
                   </div>
                 </div>
-                <div>
-                  <button className="btn btn-primary btn-sm px-4 shadow-sm d-flex align-items-center" style={{ fontWeight: 500 }}>
+                <div className="d-flex align-items-center">
+                  <button className="btn btn-light btn-sm px-3 shadow-sm border me-2 d-flex align-items-center" style={{ fontWeight: 500 }} onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/sales/internal-reports/criteria/copy?month=${reportMonth.getMonth() + 1}&year=${reportMonth.getFullYear()}`);
+                      const data = await res.json();
+                      if (data.success) {
+                        const formatCriteria = (c: any) => ({
+                          id: c.id,
+                          name: c.name,
+                          target: c.targetValue.toLocaleString("en-US"),
+                          actual: "0",
+                          weight: c.weight + "%",
+                          score: "0"
+                        });
+                        setStep1KpiConfig(data.data.manager.map(formatCriteria));
+                        setStep2KpiConfig(data.data.staff.map(formatCriteria));
+                        toast.success("Thành công", "Đã sao chép cấu hình tháng trước!");
+                      } else {
+                        toast.error("Lỗi", "Lỗi sao chép: " + data.error);
+                      }
+                    } catch (e: any) {
+                      toast.error("Lỗi", e.message);
+                    }
+                  }}>
+                    <i className="bi bi-files me-2" style={{ fontSize: 15 }}></i>Sao chép cấu hình
+                  </button>
+                  <button className="btn btn-primary btn-sm px-4 shadow-sm d-flex align-items-center" style={{ fontWeight: 500 }} onClick={async () => {
+                    try {
+                      const payload = {
+                        month: reportMonth.getMonth() + 1,
+                        year: reportMonth.getFullYear(),
+                        applyAllYear,
+                        manager: step1KpiConfig.map(c => ({ name: (c as any).name, targetValue: Number(c.target.replace(/,/g, "")), weight: Number(c.weight.replace(/%/g, "")) })),
+                        staff: step2KpiConfig.map(c => ({ name: (c as any).name, targetValue: Number(c.target.replace(/,/g, "")), weight: Number(c.weight.replace(/%/g, "")) }))
+                      };
+                      const res = await fetch("/api/sales/internal-reports/criteria", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        toast.success("Thành công", "Cập nhật cấu hình thành công!");
+                      } else {
+                        toast.error("Lỗi", "Lỗi cập nhật cấu hình: " + data.error);
+                      }
+                    } catch (e: any) {
+                      toast.error("Lỗi", e.message);
+                    }
+                  }}>
                     <i className="bi bi-check2-circle me-2" style={{ fontSize: 16 }}></i>Ban hành
                   </button>
                 </div>
@@ -669,13 +830,20 @@ export default function PartnerActivitiesPage() {
                             <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Tiêu chí đánh giá</th>
                             <th className="border-0 text-center text-uppercase" style={{ width: 140, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Chỉ tiêu</th>
                             <th className="border-0 text-center text-uppercase" style={{ width: 80, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Trọng số</th>
+                            <th className="border-0 text-center text-uppercase" style={{ width: 40, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}></th>
                           </tr>
                         </thead>
                         <tbody>
                           {step1KpiCriteria.map((item, idx) => (
                             <tr key={idx}>
                               <td className="text-center text-muted">{idx + 1}</td>
-                              <td className="fw-medium text-dark">{item.name}</td>
+                              <td>
+                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.name || ""} style={{ borderColor: "var(--border)" }} onChange={(e) => {
+                                  const newData = [...step1KpiConfig];
+                                  newData[idx] = { ...newData[idx], name: e.target.value };
+                                  setStep1KpiConfig(newData);
+                                }} />
+                              </td>
                               <td>
                                 <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.target || ""} style={{ borderColor: "var(--border)" }} onChange={(e) => {
                                   const newData = [...step1KpiConfig];
@@ -690,10 +858,26 @@ export default function PartnerActivitiesPage() {
                                   setStep1KpiConfig(newData);
                                 }} />
                               </td>
+                              <td className="text-center">
+                                <button className="btn btn-sm btn-light text-danger p-1" onClick={() => {
+                                  const newData = [...step1KpiConfig];
+                                  newData.splice(idx, 1);
+                                  setStep1KpiConfig(newData);
+                                }}>
+                                  <i className="bi bi-trash"></i>
+                                </button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
+                      <div className="text-center p-2 border-top">
+                        <button className="btn btn-sm btn-light text-primary border" onClick={() => {
+                          setStep1KpiConfig([...step1KpiConfig, { name: "", target: "0", weight: "0" }]);
+                        }}>
+                          <i className="bi bi-plus-lg me-1"></i>Thêm tiêu chí
+                        </button>
+                      </div>
                     </div>
                     {step1TotalWeight > 100 && (
                       <div className="text-danger mt-2 fw-medium" style={{ fontSize: 12 }}>
@@ -712,13 +896,20 @@ export default function PartnerActivitiesPage() {
                             <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Tiêu chí đánh giá</th>
                             <th className="border-0 text-center text-uppercase" style={{ width: 140, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Chỉ tiêu</th>
                             <th className="border-0 text-center text-uppercase" style={{ width: 80, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Trọng số</th>
+                            <th className="border-0 text-center text-uppercase" style={{ width: 40, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}></th>
                           </tr>
                         </thead>
                         <tbody>
                           {step2KpiCriteria.map((item, idx) => (
                             <tr key={idx}>
                               <td className="text-center text-muted">{idx + 1}</td>
-                              <td className="fw-medium text-dark">{item.name}</td>
+                              <td>
+                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.name || ""} style={{ borderColor: "var(--border)" }} onChange={(e) => {
+                                  const newData = [...step2KpiConfig];
+                                  newData[idx] = { ...newData[idx], name: e.target.value };
+                                  setStep2KpiConfig(newData);
+                                }} />
+                              </td>
                               <td>
                                 <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.target || ""} style={{ borderColor: "var(--border)" }} onChange={(e) => {
                                   const newData = [...step2KpiConfig];
@@ -733,10 +924,26 @@ export default function PartnerActivitiesPage() {
                                   setStep2KpiConfig(newData);
                                 }} />
                               </td>
+                              <td className="text-center">
+                                <button className="btn btn-sm btn-light text-danger p-1" onClick={() => {
+                                  const newData = [...step2KpiConfig];
+                                  newData.splice(idx, 1);
+                                  setStep2KpiConfig(newData);
+                                }}>
+                                  <i className="bi bi-trash"></i>
+                                </button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
+                      <div className="text-center p-2 border-top">
+                        <button className="btn btn-sm btn-light text-primary border" onClick={() => {
+                          setStep2KpiConfig([...step2KpiConfig, { name: "", target: "0", weight: "0" }]);
+                        }}>
+                          <i className="bi bi-plus-lg me-1"></i>Thêm tiêu chí
+                        </button>
+                      </div>
                     </div>
                     {step2TotalWeight > 100 && (
                       <div className="text-danger mt-2 fw-medium" style={{ fontSize: 12 }}>

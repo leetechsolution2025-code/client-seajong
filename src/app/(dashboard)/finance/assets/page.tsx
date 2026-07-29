@@ -11,6 +11,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { AssetFormOffcanvas } from "./AssetFormOffcanvas";
 
 // Types
@@ -328,67 +329,68 @@ export default function AssetsPage() {
         </div>
 
         {/* ── Nội dung chính ── */}
-        <div className="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column overflow-hidden">
-          
-          {/* ── Toolbar ── */}
-          <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-            <div className="d-flex align-items-center gap-3 flex-grow-1">
-              <FilterSelect 
-                options={CATEGORY_OPTIONS} 
-                value={category} 
-                onChange={setCategory} 
-                placeholder="Tất cả loại tài sản"
-                width={180}
-              />
-              <FilterSelect 
-                options={STATUS_OPTIONS} 
-                value={status} 
-                onChange={setStatus} 
-                placeholder="Tất cả trạng thái"
-                width={180}
-              />
-              <SearchInput 
-                value={searchTerm} 
-                onChange={setSearchTerm} 
-                placeholder="Tìm tên, mã tài sản..." 
-                className="flex-grow-1"
+        <FullWidthTableLayout
+          className="bg-white rounded-4 shadow-sm border flex-grow-1 overflow-hidden"
+          header={
+            <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+              <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 650 }}>
+                <FilterSelect 
+                  options={CATEGORY_OPTIONS} 
+                  value={category} 
+                  onChange={setCategory} 
+                  placeholder="Tất cả loại tài sản"
+                  width={180}
+                />
+                <FilterSelect 
+                  options={STATUS_OPTIONS} 
+                  value={status} 
+                  onChange={setStatus} 
+                  placeholder="Tất cả trạng thái"
+                  width={180}
+                />
+                <div className="flex-grow-1" style={{ maxWidth: 300 }}>
+                  <SearchInput 
+                    value={searchTerm} 
+                    onChange={setSearchTerm} 
+                    placeholder="Tìm tên, mã tài sản..." 
+                  />
+                </div>
+              </div>
+              
+              <div className="d-flex align-items-center gap-2">
+                <BrandButton variant="outline" icon="bi-bar-chart">
+                  Báo cáo
+                </BrandButton>
+                <BrandButton variant="outline" icon="bi-download">
+                  Xuất Excel
+                </BrandButton>
+                <BrandButton 
+                  icon="bi-plus-lg" 
+                  onClick={() => {
+                    setEditingAsset(null);
+                    setIsFormOpen(true);
+                  }}
+                >
+                  Thêm mới
+                </BrandButton>
+              </div>
+            </div>
+          }
+          table={
+            <div className="flex-grow-1 d-flex flex-column position-relative" style={{ minHeight: 400 }}>
+              <Table 
+                rows={assets} 
+                columns={columns} 
+                loading={loading}
+                emptyText="Không tìm thấy tài sản nào phù hợp"
+                wrapperStyle={{ flexGrow: 1, minHeight: 0 }}
+                compact={true}
               />
             </div>
-            
-            <div className="d-flex align-items-center gap-2">
-              <BrandButton variant="outline" icon="bi-bar-chart">
-                Báo cáo
-              </BrandButton>
-              <BrandButton variant="outline" icon="bi-download">
-                Xuất Excel
-              </BrandButton>
-              <BrandButton 
-                icon="bi-plus-lg" 
-                onClick={() => {
-                  setEditingAsset(null);
-                  setIsFormOpen(true);
-                }}
-              >
-                Thêm mới
-              </BrandButton>
-            </div>
-          </div>
-
-          {/* ── Table ── */}
-          <div className="flex-grow-1" style={{ minHeight: 400, overflow: "visible" }}>
-            <Table 
-              rows={assets} 
-              columns={columns} 
-              loading={loading}
-              emptyText="Không tìm thấy tài sản nào phù hợp"
-              wrapperStyle={{ minHeight: 300 }}
-            />
-          </div>
-
-          {/* ── Pagination ── */}
-          <div className="pt-2">
-            <div className="d-flex align-items-center justify-content-between">
-              <small className="text-muted">
+          }
+          footer={
+            <div className="d-flex w-100 align-items-center justify-content-between">
+              <small className="text-muted mb-0">
                 Hiển thị <b>{assets.length}</b> tài sản
               </small>
               <Pagination 
@@ -397,9 +399,8 @@ export default function AssetsPage() {
                 onChange={setPage} 
               />
             </div>
-          </div>
-
-        </div>
+          }
+        />
 
       </div>
 

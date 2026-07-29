@@ -251,7 +251,13 @@ export default function SalesPage() {
 
   useEffect(() => {
     fetch("/api/sales/dashboard")
-      .then(res => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`API Error: ${res.status}`);
+        }
+        const text = await res.text();
+        return text ? JSON.parse(text) : {};
+      })
       .then(d => {
         setData(d);
         setLoading(false);
@@ -262,7 +268,13 @@ export default function SalesPage() {
       });
 
     fetch("/api/sales/partners")
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`API Error: ${res.status}`);
+        }
+        const text = await res.text();
+        return text ? JSON.parse(text) : [];
+      })
       .then((data) => {
         if (Array.isArray(data)) {
           const now = new Date();

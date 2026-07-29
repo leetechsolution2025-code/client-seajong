@@ -92,7 +92,7 @@ export async function GET(req: Request) {
 
       const formatMoney = (val: number) => new Intl.NumberFormat("vi-VN").format(Math.round(val)) + " đ";
       const percent = totalInitialValue > 0 ? Math.round(((totalInitialValue - totalValue) / totalInitialValue) * 100) : 0;
-      const percentText = percent > 0 ? ` <span class="badge bg-danger ms-1" style="font-size: 0.7rem; padding: 0.3em 0.5em; font-weight: 600; vertical-align: middle;">↓ ${percent}%</span>` : '';
+      const percentText = percent > 0 ? ` <span class="badge bg-danger ms-1" style="font-size: 0.7rem; padding: 0.3em 0.5em; font-weight: 600; vertical-align: middle; color: white !important;">↓ ${percent}%</span>` : '';
 
       data = [
         { text: `• Tổng số tài sản: ${assets.length}`, type: 'text' },

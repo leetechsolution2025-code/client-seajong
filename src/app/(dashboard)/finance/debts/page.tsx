@@ -18,6 +18,7 @@ import { ExpenseFormOffcanvas } from "./ExpenseFormOffcanvas";
 import { DebtPaymentOffcanvas, parseDebtDescription } from "./DebtPaymentOffcanvas";
 import { DebtReconciliationModal } from "./DebtReconciliationModal";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
 // Types
 interface DebtData {
@@ -533,178 +534,104 @@ export default function DebtsPage() {
         icon="bi-receipt"
         color="indigo"
         useCard={false}
-        paddingClassName="px-4 pb-2 pt-1"
+        paddingClassName="px-2 pb-2 pt-1"
       >
         <div className="d-flex flex-column h-100 flex-grow-1 overflow-hidden">
-          <WorkflowCard
-            contentPadding="px-4 pb-4 pt-2"
-            stepper={
-              <ModernStepper 
-                steps={DEBT_STEPS} 
-                currentStep={currentStep} 
-                onStepChange={setCurrentStep} 
-                paddingX={0}
-                paddingY={8}
-              />
-            }
-            toolbar={
-              currentStepId === "EXPENSE" ? (
-                <div className="d-flex flex-column gap-2 w-100">
-                  {/* Nhóm chi phí */}
-                  <div className="d-flex align-items-center gap-2 flex-wrap mb-1">
-                    <button 
-                      onClick={() => { setStatus(""); setSelectedSubCategory(""); }}
-                      className={cn(
-                        "btn btn-sm rounded-pill px-3 py-1 fw-bold",
-                        status === "" ? "btn-success" : "btn-light text-muted border"
-                      )}
-                      style={{ fontSize: 11 }}
-                    >
-                      Tất cả
-                    </button>
-                    {categories
-                      .filter(c => !c.parentId)
-                      .map((cat, i) => (
-                        <button 
-                          key={i} 
-                          onClick={() => { setStatus(cat.code); setSelectedSubCategory(""); }}
-                          className={cn(
-                            "btn btn-sm rounded-pill px-3 py-1 fw-bold",
-                            status === cat.code ? "btn-success" : "btn-light text-muted border"
-                          )}
-                          style={{ fontSize: 11 }}
-                        >
-                          {cat.name}
-                        </button>
-                      ))}
-                  </div>
-
-                  {/* Dropdown & Search */}
-                  <div className="d-flex align-items-center gap-2">
-                    <FilterSelect
-                      options={categories
-                        .filter(c => {
-                          if (!status) return false;
-                          const parent = categories.find(p => p.code === status);
-                          return c.parentId === parent?.id;
-                        })
-                        .map(c => ({ label: c.name, value: c.code }))
-                      }
-                      value={selectedSubCategory}
-                      onChange={setSelectedSubCategory}
-                      width={200}
-                      className="rounded-pill"
-                      placeholder="Tất cả loại chi phí"
-                    />
-                    <div className="position-relative flex-grow-1">
-                      <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
-                      <input 
-                        type="text" 
-                        className="form-control form-control-sm ps-5 rounded-pill border-light bg-light"
-                        placeholder="Tìm khoản chi, người phụ trách..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{ fontSize: 11.5, height: 34 }}
-                      />
-                    </div>
-                    <FilterSelect 
-                      options={expenseStatuses.map(s => ({ label: s.name, value: s.code }))}
-                      value={selectedExpenseStatus}
-                      onChange={setSelectedExpenseStatus}
-                      width={180}
-                      className="rounded-pill"
-                      placeholder="Tất cả trạng thái"
-                    />
-                    <BrandButton 
-                      icon="bi-plus-lg" 
-                      className="rounded-pill px-4" 
-                      style={{ height: 34, fontSize: 12 }}
-                      onClick={() => {
-                        setEditingItem(null);
-                        setShowExpenseForm(true);
-                      }}
-                    >
-                      Ghi phí
-                    </BrandButton>
-                  </div>
+          <FullWidthTableLayout
+            className="bg-white rounded-4 shadow-sm border flex-grow-1 overflow-hidden"
+            header={
+              <>
+                <div className="px-4 py-1 border-bottom flex-shrink-0 bg-white workflow-card-stepper-container">
+                  <ModernStepper 
+                    steps={DEBT_STEPS} 
+                    currentStep={currentStep} 
+                    onStepChange={setCurrentStep} 
+                    paddingX={0}
+                    paddingY={8}
+                  />
                 </div>
-              ) : (
-                <div className="d-flex flex-column gap-2 w-100">
-                  {currentStepId !== "LOAN" && (
-                    <div className="d-flex align-items-center gap-2 flex-wrap mb-1">
-                      {[
-                        { label: "Tất cả", value: "ALL", count: stats.countByFilter.ALL },
-                        { label: "Quá hạn", value: "OVERDUE", count: stats.countByFilter.OVERDUE },
-                        { label: "Trong 30 ngày", value: "30_DAYS", count: stats.countByFilter.DAYS_30 },
-                        { label: "30-60 ngày", value: "30_60_DAYS", count: stats.countByFilter.DAYS_30_60 },
-                        { label: "> 60 ngày", value: "OVER_60_DAYS", count: stats.countByFilter.OVER_60 },
-                      ].map((pill, i) => (
-                        <button 
-                          key={i} 
-                          onClick={() => setDaysFilter(pill.value)}
-                          className={cn(
-                            "btn btn-sm rounded-pill px-3 py-1 fw-bold d-flex align-items-center gap-2",
-                            daysFilter === pill.value ? "btn-success" : "btn-light text-muted border"
-                          )}
-                          style={{ fontSize: 11 }}
-                        >
-                          {pill.label}
-                          <span 
-                            className={cn("rounded-pill px-1.5 d-flex align-items-center justify-content-center", daysFilter === pill.value ? "bg-white text-success" : "bg-secondary-subtle")} 
-                            style={{ fontSize: 10, minWidth: 20, height: 18, lineHeight: 1 }}
-                          >
-                            {pill.count}
-                          </span>
-                        </button>
-                      ))}
+                <div className="px-4 pt-3 pb-2 flex-shrink-0">
+                  {currentStepId === "EXPENSE" ? (
+                    <div className="d-flex align-items-center flex-wrap gap-2 w-100">
+                      {/* Dropdown & Search */}
+                      <FilterSelect
+                        options={[
+                          { label: "Tất cả loại chi phí", value: "" },
+                          ...categories
+                            .filter(c => !c.parentId)
+                            .map(c => ({ label: c.name, value: c.code }))
+                        ]}
+                        value={status}
+                        onChange={setStatus}
+                        width={180}
+                      />
+                      <div className="flex-grow-1" style={{ minWidth: 200 }}>
+                        <SearchInput 
+                          placeholder="Tìm khoản chi, người phụ trách..."
+                          value={searchTerm}
+                          onChange={setSearchTerm}
+                        />
+                      </div>
+                      <FilterSelect 
+                        options={expenseStatuses.map(s => ({ label: s.name, value: s.code }))}
+                        value={selectedExpenseStatus}
+                        onChange={setSelectedExpenseStatus}
+                        width={160}
+                        placeholder="Tất cả trạng thái"
+                      />
+                      <BrandButton 
+                        icon="bi-plus-lg" 
+                        style={{ height: 34, fontSize: 12, padding: "0 16px" }}
+                        onClick={() => {
+                          setEditingItem(null);
+                          setShowExpenseForm(true);
+                        }}
+                      >
+                        Ghi phí
+                      </BrandButton>
+                    </div>
+                  ) : (
+                    <div className="d-flex align-items-center flex-wrap gap-2 w-100">
+                      <div className="flex-grow-1" style={{ minWidth: 200 }}>
+                        <SearchInput 
+                          placeholder={
+                            currentStepId === "RECEIVABLE" ? "Tìm khách hàng, số điện thoại..." : 
+                            currentStepId === "PAYABLE" ? "Tìm nhà cung cấp, số hóa đơn..." : 
+                            "Tìm gói vay, ngân hàng..."
+                          }
+                          value={searchTerm}
+                          onChange={setSearchTerm}
+                        />
+                      </div>
+                      <FilterSelect 
+                        options={[
+                          { label: "Trạng thái", value: "" },
+                          ...STATUS_OPTIONS
+                        ]} 
+                        value={status} 
+                        onChange={setStatus} 
+                        width={140}
+                      />
+                      <BrandButton 
+                        icon="bi-plus-lg" 
+                        style={{ height: 34, fontSize: 12, padding: "0 16px" }}
+                        onClick={() => {
+                          setEditingItem(null);
+                          if (currentStepId === "EXPENSE") {
+                            setShowExpenseForm(true);
+                          } else {
+                            setShowDebtForm(true);
+                          }
+                        }}
+                      >
+                        Thêm
+                      </BrandButton>
                     </div>
                   )}
-                  <div className="d-flex align-items-center gap-2">
-                    <div className="position-relative flex-grow-1">
-                      <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
-                      <input 
-                        type="text" 
-                        className="form-control form-control-sm ps-5 rounded-pill border-light bg-light"
-                        placeholder={
-                          currentStepId === "RECEIVABLE" ? "Tìm khách hàng, số điện thoại..." : 
-                          currentStepId === "PAYABLE" ? "Tìm nhà cung cấp, số hóa đơn..." : 
-                          "Tìm gói vay, ngân hàng..."
-                        }
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{ fontSize: 11.5, height: 34 }}
-                      />
-                    </div>
-                    <FilterSelect 
-                      options={[
-                        { label: "Trạng thái", value: "" },
-                        ...STATUS_OPTIONS
-                      ]} 
-                      value={status} 
-                      onChange={setStatus} 
-                      width={150}
-                      className="rounded-pill"
-                    />
-                    <BrandButton 
-                      icon="bi-plus-lg" 
-                      className="rounded-pill px-4" 
-                      style={{ height: 34, fontSize: 12 }}
-                      onClick={() => {
-                        setEditingItem(null);
-                        if (currentStepId === "EXPENSE") {
-                          setShowExpenseForm(true);
-                        } else {
-                          setShowDebtForm(true);
-                        }
-                      }}
-                    >
-                      Thêm
-                    </BrandButton>
-                  </div>
                 </div>
-              )
+              </>
             }
-            bottomToolbar={
+            footer={
               <div className="d-flex justify-content-end w-100">
                 <Pagination 
                   page={1} 
@@ -713,10 +640,11 @@ export default function DebtsPage() {
                 />
               </div>
             }
-          >
-            {(() => {
-              if (currentStepId === "RECEIVABLE" || currentStepId === "PAYABLE" || currentStepId === "EXPENSE") {
-                if (debts.length === 0) return (
+            table={
+              <div className="flex-grow-1 d-flex flex-column position-relative" style={{ minHeight: 400 }}>
+                {(() => {
+                  if (currentStepId === "RECEIVABLE" || currentStepId === "PAYABLE" || currentStepId === "EXPENSE") {
+                    if (debts.length === 0) return (
                   <Table columns={columns} rows={[]} loading={loading} emptyText={currentStepId === "EXPENSE" ? "Không tìm thấy khoản chi nào" : "Không tìm thấy khoản công nợ nào"} />
                 );
 
@@ -835,8 +763,10 @@ export default function DebtsPage() {
                   />
                 );
               }
-            })()}
-          </WorkflowCard>
+              })()}
+              </div>
+            }
+          />
         </div>
       </StandardPage>
 

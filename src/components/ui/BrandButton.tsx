@@ -23,7 +23,7 @@ export const BrandButton = ({
 
   return (
     <button
-      className={`btn shadow-sm rounded-pill px-3 d-flex align-items-center justify-content-center gap-2 ${isOutline ? 'btn-outline-primary border' : 'text-white'} ${className}`}
+      className={`btn shadow-sm rounded-3 px-3 d-flex align-items-center justify-content-center gap-2 ${isOutline ? 'btn-outline-primary border' : 'text-white'} ${className}`}
       disabled={disabled || loading}
       style={{
         height: 38,
