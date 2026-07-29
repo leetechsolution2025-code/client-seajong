@@ -876,6 +876,7 @@ model InventoryItem {
   giaBan               Float                 @default(0)
   nhaCungCap           String?
   thongSoKyThuat       String?
+  chatLieu             String?
   trangThai            String                @default("con-hang")
   webProductId         Int?
   webVariationId       Int?

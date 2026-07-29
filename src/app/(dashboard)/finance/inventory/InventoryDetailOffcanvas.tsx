@@ -231,7 +231,7 @@ export function InventoryDetailOffcanvas({ show, onClose, item, isMaterial, onRe
                 <i className="bi bi-gear-fill" /> Thông số kỹ thuật
               </h6>
               <div className="vstack gap-2">
-                <InfoRow label="Chất liệu" value={item.material} />
+                <InfoRow label="Chất liệu" value={item.chatLieu || item.material} />
                 <InfoRow label="Quy cách" value={item.spec} />
                 <InfoRow label="Mức tồn tối thiểu" value={`${item.soLuongMin || 0} ${item.donVi || 'cái'}`} highlight />
               </div>

@@ -138,7 +138,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
           ghiChu: editItem.ghiChu || editItem.notes || "",
           kieuDang: editItem.model || editItem.kieuDang || editItem.spec || "",
           maThayThe: editItem.maThayThe || editItem.version || "",
-          material: editItem.material || "",
+          material: editItem.chatLieu || editItem.material || "",
           webProductId: editItem.webProductId || null,
           imageUrl: editItem.imageUrl || null,
         });

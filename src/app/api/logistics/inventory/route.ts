@@ -387,7 +387,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, warehouseId, chieuDai, chieuRong, chieuDay, source, material, maThayThe } = body;
+    const { tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, warehouseId, chieuDai, chieuRong, chieuDay, source, material, maThayThe, chatLieu } = body;
 
     if (!tenHang) return NextResponse.json({ error: "Thiếu tên hàng hoá" }, { status: 400 });
 
@@ -433,6 +433,7 @@ export async function POST(req: Request) {
             chieuRong: chieuRong ? parseFloat(chieuRong) : null,
             chieuDay: chieuDay ? parseFloat(chieuDay) : null,
             maThayThe: maThayThe || null,
+            chatLieu: chatLieu || material || null,
             loai
         } as any
     });
@@ -461,7 +462,7 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const {
       id, tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, source,
-      chieuDai, chieuRong, chieuDay, material, maThayThe
+      chieuDai, chieuRong, chieuDay, material, maThayThe, chatLieu
     } = body;
 
     if (!id) return NextResponse.json({ error: "Thiếu ID hàng hoá" }, { status: 400 });
@@ -529,7 +530,8 @@ export async function PUT(req: Request) {
           chieuDai: chieuDai ? parseFloat(chieuDai) : null,
           chieuRong: chieuRong ? parseFloat(chieuRong) : null,
           chieuDay: chieuDay ? parseFloat(chieuDay) : null,
-          maThayThe: maThayThe || null
+          maThayThe: maThayThe || null,
+          chatLieu: chatLieu !== undefined ? chatLieu : (material !== undefined ? material : undefined)
         } as any,
       });
 
