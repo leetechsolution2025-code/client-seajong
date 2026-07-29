@@ -426,7 +426,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
             <div className="d-flex align-items-center gap-2 overflow-hidden w-100">
               <small className="text-primary fw-medium flex-shrink-0" style={{ fontSize: 10, letterSpacing: 0.5 }}>{row.code || "SKU-AUTO"}</small>
               <span className="text-muted flex-shrink-0" style={{ fontSize: 10 }}>•</span>
-              <small className="text-muted text-truncate flex-grow-1" style={{ fontSize: 10.5 }} title={row.category?.name}>{row.category?.name || "Chưa phân loại"}</small>
+              <small className="text-muted text-truncate flex-grow-1" style={{ fontSize: 10.5 }} title={row.categoryName || row.category?.name || row.erpCategory?.name}>{row.categoryName || row.category?.name || row.erpCategory?.name || "Chưa phân loại"}</small>
             </div>
           </div>
         </div>

@@ -149,7 +149,7 @@ export function InventoryDetailOffcanvas({ show, onClose, item, isMaterial, onRe
             <div className="vstack gap-2 px-2">
               <InfoRow label="Tên gọi" value={item.tenHang || item.name} />
               <InfoRow label="Mã sản phẩm" value={item.code} />
-              <InfoRow label="Danh mục" value={item.category?.name || "Chưa phân loại"} />
+              <InfoRow label="Danh mục" value={item.categoryName || item.category?.name || item.erpCategory?.name || "Chưa phân loại"} />
               <InfoRow label="Đơn vị tính" value={item.donVi || "Cái"} />
               <InfoRow label="Thương hiệu" value={item.brand || "Seajong"} />
               <div className="d-flex justify-content-between align-items-start gap-2">
@@ -233,7 +233,7 @@ export function InventoryDetailOffcanvas({ show, onClose, item, isMaterial, onRe
               <div className="vstack gap-2">
                 <InfoRow label="Chất liệu" value={item.material} />
                 <InfoRow label="Quy cách" value={item.spec} />
-                <InfoRow label="Mức tồn tối thiểu" value={`${item.minStock} ${item.donVi}`} highlight />
+                <InfoRow label="Mức tồn tối thiểu" value={`${item.soLuongMin || 0} ${item.donVi || 'cái'}`} highlight />
               </div>
             </div>
           )}

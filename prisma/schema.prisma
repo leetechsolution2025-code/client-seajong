@@ -2883,7 +2883,7 @@ model LogisticsTicket {
 
   // Relations to source documents
   saleOrderId String?
-  saleOrder   SaleOrder? @relation(fields: [saleOrderId], references: [id], onDelete: SetNull)
+  saleOrder   SaleOrder? @relation(fields: [saleOrderId], references: [id], onDelete: Cascade)
   // productionPlanId String? // Có thể thêm Lệnh sản xuất sau
 
   // Assignments

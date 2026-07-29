@@ -15,6 +15,7 @@ import { useSearchParams } from "next/navigation";
 import { HoverImage } from "@/components/ui/HoverImage";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { Pagination } from "@/components/ui/Pagination";
+import { KVPItemTable } from "./KVPItemTable";
 
 interface Category {
   id: string;
@@ -80,6 +81,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
   const [showSyncReview, setShowSyncReview] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [confirmClearWarehouse, setConfirmClearWarehouse] = useState(false);
   const [fullWebProduct, setFullWebProduct] = useState<any>(null);
   const [fetchingWebProduct, setFetchingWebProduct] = useState(false);
 
@@ -143,6 +145,26 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
       fetchItems();
     } catch (error: any) {
       toast.error("Lỗi xoá hàng loạt", error.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleClearWarehouse = async () => {
+    if (!filterWarehouse) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/logistics/inventory/clear-warehouse?warehouseId=${filterWarehouse}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Xoá cả kho thất bại");
+      }
+      toast.success("Thành công", "Đã xoá toàn bộ hàng hoá trong kho");
+      setSelectedIds([]);
+      setConfirmClearWarehouse(false);
+      fetchItems();
+    } catch (error: any) {
+      toast.error("Lỗi xoá kho", error.message);
     } finally {
       setDeleting(false);
     }
@@ -501,11 +523,34 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
         onCancel={() => setConfirmBulkDelete(false)}
       />
 
+      <ConfirmDialog
+        open={confirmClearWarehouse}
+        variant="danger"
+        title="Xoá toàn bộ hàng hoá trong kho?"
+        message="Bạn có chắc chắn muốn xoá toàn bộ hàng hoá trong kho này? Thao tác này sẽ xoá lịch sử nhập xuất, số lượng tồn kho và các hàng hoá không còn trong kho nào khác. Hành động này không thể hoàn tác!"
+        confirmLabel="Xoá cả kho"
+        loading={deleting}
+        onConfirm={handleClearWarehouse}
+        onCancel={() => setConfirmClearWarehouse(false)}
+      />
+
 
       {/* Table */}
       <FullWidthTableLayout 
         header={headerContent}
         table={
+          isMaterialWarehouse ? (
+            <KVPItemTable
+              items={items}
+              loading={loading}
+              selectedIds={selectedIds}
+              setSelectedIds={setSelectedIds}
+              compactMode={compactMode}
+              hideActions={hideActions}
+              syncLog={syncLog}
+              setSelectedItem={setSelectedItem}
+            />
+          ) : (
           <div className="h-100 overflow-auto custom-scrollbar">
             <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
             <thead className="bg-light" style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--card)" }}>
@@ -672,6 +717,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
             </tbody>
           </table>
         </div>
+        )
         }
         footer={(
           <div className="d-flex align-items-center justify-content-between w-100">
@@ -679,14 +725,15 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
               <Pagination page={page} totalPages={totalPages} onChange={setPage} />
             </div>
             <div className="d-flex align-items-center justify-content-end gap-3">
-            {fromAdmin && isMaterialWarehouse && (
+            {fromAdmin && isMaterialWarehouse && filterWarehouse && (
               <button
                 className="btn btn-sm btn-danger text-white rounded-pill px-4 fw-bold me-auto"
                 style={{ fontSize: 13, height: 32, border: 'none' }}
-                onClick={() => setShowPriceModal(true)}
+                onClick={() => setConfirmClearWarehouse(true)}
+                disabled={deleting}
               >
-                <i className="bi bi-tag me-2" />
-                Cập nhật giá bán
+                <i className="bi bi-trash me-2" />
+                Xoá cả kho
               </button>
             )}
 

@@ -509,12 +509,30 @@ export async function PATCH(
           // Phân loại các mặt hàng trong đơn
           for (const item of order.saleOrderItems) {
             let warehouseCode = "KHO-CHINH";
-            const invItem = item.inventoryItemId ? await tx.inventoryItem.findFirst({ where: { id: item.inventoryItemId } }) : null;
-            let resolvedDinhMucId = invItem?.dinhMucId || null;
+            
+            // Tự động match inventoryItemId nếu bị thiếu (do frontend không gửi)
+            let matchedInvItemId = item.inventoryItemId;
+            if (!matchedInvItemId && item.tenHang) {
+               const matched = await tx.inventoryItem.findFirst({
+                 where: {
+                   OR: [
+                     { code: item.tenHang },
+                     { tenHang: item.tenHang }
+                   ]
+                 }
+               });
+               if (matched) {
+                 matchedInvItemId = matched.id;
+                 await tx.saleOrderItem.update({ where: { id: item.id }, data: { inventoryItemId: matchedInvItemId } });
+               }
+            }
+
+            const invItem = matchedInvItemId ? await tx.inventoryItem.findFirst({ where: { id: matchedInvItemId } }) : null;
+            let resolvedDinhMucId = (invItem as any)?.dinhMucId || null;
             
             if (!resolvedDinhMucId && invItem) {
               const dm = await tx.dinhMuc.findFirst({
-                where: { inventoryItems: { some: { id: invItem.id } } }
+                where: { inventoryItemId: invItem.id }
               });
               if (dm) resolvedDinhMucId = dm.id;
             }
@@ -573,7 +591,7 @@ export async function PATCH(
               if (item.dinhMucId) {
                 const dm = await tx.dinhMuc.findUnique({
                   where: { id: item.dinhMucId },
-                  include: { items: { include: { inventoryItem: true } } }
+                  include: { vatTu: { include: { inventoryItem: true } } }
                 });
                 if (dm && dm.vatTu) {
                 for (const m of dm.vatTu) {
@@ -953,7 +971,10 @@ export async function DELETE(
         where: { referenceId: order.id },
       });
 
-      // Xoá đơn hàng
+      // Xoá đơn hàng và các phiếu logistics liên đới
+      await tx.logisticsTicket.deleteMany({
+        where: { saleOrderId: id }
+      });
       await tx.saleOrder.delete({
         where: { id },
       });

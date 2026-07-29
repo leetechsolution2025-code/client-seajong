@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
     const errors: string[] = [];
 
     type RowData = {
-      tenHang: string; code?: string; maThayThe?: string; categoryId?: string; matCategoryId?: string; donVi?: string;
+      tenHang: string; code?: string; maThayThe?: string; categoryId?: string; erpCategoryId?: string; donVi?: string;
       soLuong: number; soLuongMin: number; giaNhap: number; giaBan: number;
       nhaCungCap?: string; thongSoKyThuat?: string; ghiChu?: string; trangThai: string;
       dmCode?: string; dmTen?: string; dmVatTu?: string;
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
         code:           String(getVal(row, COL_SKUS) ?? "").trim() || undefined,
         maThayThe:      String(getVal(row, COL_MATHAYTHES) ?? "").trim() || undefined,
         categoryId:     catId,
-        matCategoryId:  matCategoryId,
+        erpCategoryId:  matCategoryId,
         donVi:          dvt,
         soLuong,
         soLuongMin,
@@ -225,13 +225,13 @@ export async function POST(req: NextRequest) {
                   giaNhap: defaultPrice,
                   loai: "vat-tu",
                   giaBan: giaBan,
-                  categoryId: itemData.matCategoryId || null
+                  categoryId: itemData.erpCategoryId || null
                 } as any
               });
             } else if (itemData.maThayThe && (mat as any).maThayThe !== itemData.maThayThe) {
               mat = await prisma.inventoryItem.update({
                 where: { id: mat.id },
-                data: { maThayThe: itemData.maThayThe, categoryId: itemData.matCategoryId || null } as any
+                data: { maThayThe: itemData.maThayThe, categoryId: itemData.erpCategoryId || null } as any
               });
             }
             v.inventoryItemId = mat.id;
@@ -295,7 +295,7 @@ export async function POST(req: NextRequest) {
             where: { code: itemData.code },
             data: {
               maThayThe: itemData.maThayThe || null,
-              categoryId: itemData.matCategoryId || null,
+              erpCategoryId: itemData.erpCategoryId || null,
             }
           });
         }

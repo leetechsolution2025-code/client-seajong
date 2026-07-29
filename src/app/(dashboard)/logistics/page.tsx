@@ -40,7 +40,7 @@ export default function LogisticsOverviewPage() {
     let mounted = true;
     const fetchOrders = async (isPolling = false) => {
       try {
-        const res = await fetch("/api/plan-finance/sales-active");
+        const res = await fetch("/api/logistics/overview-orders");
         if (res.ok) {
           const data = await res.json();
           const mapped = data.map((d: any, index: number) => {
@@ -50,13 +50,37 @@ export default function LogisticsOverviewPage() {
             let exportCode = `LXK-202607-${suffix}`;
             if (d.type === "material-export") exportCode = `LXK-VATTU-${suffix}`;
             if (d.type === "material-import") exportCode = `LNK-OQC-${suffix}`;
+            if (d.type === "logistics-ticket") exportCode = d.code;
             return { ...d, exportCode };
           });
+          
+          // Group logistics tickets by saleOrderCode
+          const logisticsTickets = mapped.filter((d: any) => d.type === 'logistics-ticket' && d.saleOrderCode);
+          const others = mapped.filter((d: any) => d.type !== 'logistics-ticket' || !d.saleOrderCode);
+          
+          const grouped = logisticsTickets.reduce((acc: Record<string, any[]>, curr: any) => {
+            if (!acc[curr.saleOrderCode]) acc[curr.saleOrderCode] = [];
+            acc[curr.saleOrderCode].push(curr);
+            return acc;
+          }, {});
+          
+          const finalOrders = [];
+          for (const [saleOrderCode, tickets] of Object.entries(grouped)) {
+            finalOrders.push({
+              id: `group-${saleOrderCode}`,
+              isFullWidth: true,
+              isGroupHeader: true,
+              fullWidthContent: `Đơn bán hàng ${saleOrderCode} - ${(tickets as any[]).length} lệnh`,
+              isAssigned: true // to prevent selection logic issues
+            });
+            finalOrders.push(...(tickets as any[]));
+          }
+          finalOrders.push(...others);
           
           if (!mounted) return;
 
           if (isPolling) {
-            const newIds = new Set<string>(mapped.map((m: any) => m.id as string));
+            const newIds = new Set<string>(finalOrders.map((m: any) => m.id as string));
             if (prevOrderIds.current.size > 0) { // Only notify if it's not the initial load masquerading as polling
               const addedOrders = mapped.filter((m: any) => !prevOrderIds.current.has(m.id));
               if (addedOrders.length > 0) {
@@ -145,8 +169,8 @@ export default function LogisticsOverviewPage() {
             items = (detail.saleOrderItems ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.inventoryItem?.donVi }));
           }
         }
-      } else if (row.type === "material-export" || row.type === "material-import") {
-        // Dữ liệu items đã có sẵn từ API sales-active
+      } else if (row.type === "material-export" || row.type === "material-import" || row.type === "logistics-ticket") {
+        // Dữ liệu items đã có sẵn từ API overview-orders
         items = (row.items ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type }));
       }
       setOrderDetails(items);
@@ -229,8 +253,14 @@ export default function LogisticsOverviewPage() {
                             {!readOrderIds.has(row.id) && <span className="badge bg-danger rounded-pill" style={{ fontSize: 9, padding: "2px 6px" }}>Mới</span>}
                           </div>
                           <div className="text-muted text-truncate" style={{ fontSize: 12, maxWidth: 200 }}>
-                            {row.typeLabel} {row.code} {row.customer ? `- ${row.customer}` : ""}
+                            {row.typeLabel} {row.saleOrderCode || row.code} {row.customer ? `- ${row.customer}` : ""}
                           </div>
+                          {row.requestedDate && (
+                            <div className="text-muted" style={{ fontSize: 11, marginTop: 2 }}>
+                              <i className="bi bi-calendar-event me-1" />
+                              Yêu cầu: {new Date(row.requestedDate).toLocaleDateString('vi-VN')}
+                            </div>
+                          )}
                         </div>
                       ),
                       width: "50%" 
@@ -319,9 +349,43 @@ export default function LogisticsOverviewPage() {
                              toast.success("Giao việc thành công", "Đã giao việc gom hàng cho nhân viên.");
                              setSelectedBatchOrders(new Set());
                              // Trigger refetch orders
-                             const resOrders = await fetch("/api/plan-finance/sales-active");
+                             const resOrders = await fetch("/api/logistics/overview-orders");
                              const data = await resOrders.json();
-                             setOrders(data);
+                             const mapped = data.map((d: any, index: number) => {
+                               const rawId = d.code || d.id;
+                               const parts = rawId.split('-');
+                               const suffix = parts[parts.length - 1] || `${index}`;
+                               let exportCode = `LXK-202607-${suffix}`;
+                               if (d.type === "material-export") exportCode = `LXK-VATTU-${suffix}`;
+                               if (d.type === "material-import") exportCode = `LNK-OQC-${suffix}`;
+                               if (d.type === "logistics-ticket") exportCode = d.code;
+                               return { ...d, exportCode };
+                             });
+                             
+                             // Group logistics tickets by saleOrderCode
+                             const logisticsTickets = mapped.filter((d: any) => d.type === 'logistics-ticket' && d.saleOrderCode);
+                             const others = mapped.filter((d: any) => d.type !== 'logistics-ticket' || !d.saleOrderCode);
+                             
+                             const grouped = logisticsTickets.reduce((acc: Record<string, any[]>, curr: any) => {
+                               if (!acc[curr.saleOrderCode]) acc[curr.saleOrderCode] = [];
+                               acc[curr.saleOrderCode].push(curr);
+                               return acc;
+                             }, {});
+                             
+                             const finalOrders = [];
+                             for (const [saleOrderCode, tickets] of Object.entries(grouped)) {
+                               finalOrders.push({
+                                 id: `group-${saleOrderCode}`,
+                                 isFullWidth: true,
+                                 isGroupHeader: true,
+                                 fullWidthContent: `Đơn bán hàng ${saleOrderCode} - ${(tickets as any[]).length} lệnh`,
+                                 isAssigned: true
+                               });
+                               finalOrders.push(...(tickets as any[]));
+                             }
+                             finalOrders.push(...others);
+                             
+                             setOrders(finalOrders);
                            } else {
                              toast.error("Lỗi", "Không thể giao việc.");
                            }
