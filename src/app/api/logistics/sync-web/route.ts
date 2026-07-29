@@ -149,20 +149,30 @@ async function performDeepSync(logId: string) {
           console.error("Scrape error for", p.link, e);
         }
 
-        const productData = {
-          slug: p.slug, url: p.link, name: (p.title?.rendered || "").replace(/<[^>]+>/g, "").trim(),
-          excerpt: (p.excerpt?.rendered || "").replace(/<[^>]+>/g, "").substring(0, 500),
-          description: html.replace(/<[^>]+>/g, " ").substring(0, 2000),
-          specs: JSON.stringify(specs),
-          imageUrl,
-          promotions: JSON.stringify(scrapedPromotions),
-          policies: JSON.stringify(scrapedPolicies),
-          priceHtml: scrapedPriceHtml,
-          variations: JSON.stringify(scrapedVariations),
-          variationData: scrapedVariationData,
-          updatedAt: new Date(p.modified), syncedAt: new Date(),
-        };
-        await prisma.seajongProduct.upsert({ where: { id: p.id }, create: { id: p.id, ...productData }, update: productData });
+          // Parse numeric price from scrapedPriceHtml (e.g. "5.000.000 ₫" -> 5000000)
+          let numericPrice = 0;
+          if (scrapedPriceHtml) {
+            const matches = scrapedPriceHtml.match(/\d[0-9\.]*/g);
+            if (matches && matches.length > 0) {
+              numericPrice = parseInt(matches[0].replace(/\./g, '')) || 0;
+            }
+          }
+
+          const productData = {
+            slug: p.slug, url: p.link, name: (p.title?.rendered || "").replace(/<[^>]+>/g, "").trim(),
+            excerpt: (p.excerpt?.rendered || "").replace(/<[^>]+>/g, "").substring(0, 500),
+            description: html.replace(/<[^>]+>/g, " ").substring(0, 2000),
+            specs: JSON.stringify(specs),
+            imageUrl,
+            promotions: JSON.stringify(scrapedPromotions),
+            policies: JSON.stringify(scrapedPolicies),
+            priceHtml: scrapedPriceHtml,
+            price: numericPrice,
+            variations: JSON.stringify(scrapedVariations),
+            variationData: scrapedVariationData,
+            updatedAt: new Date(p.modified), syncedAt: new Date(),
+          };
+          await prisma.seajongProduct.upsert({ where: { id: p.id }, create: { id: p.id, ...productData }, update: productData });
         if (p.product_cat) {
           await prisma.seajongProduct.update({ where: { id: p.id }, data: { categories: { set: p.product_cat.map((id: number) => ({ id })) } } });
         }

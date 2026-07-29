@@ -97,6 +97,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   type?: string;
   editOrder?: any;
 }) {
+  const toast = useToast();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
+  const isKinhDoanh = session?.user?.departmentName?.toLowerCase().includes("kinh doanh") || session?.user?.departmentCode === "KD";
+
   const today = new Date();
   const fmtDate = (d: Date) => d.toISOString().split("T")[0];
   const defaultNgayLap = fmtDate(today);
@@ -565,12 +570,17 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 : (item.source === "manufactured" ? "Kho thành phẩm"
                   : item.source === "inventory" ? "Kho thương mại"
                     : item.source === "material" ? "Kho sản xuất và lắp ráp" : "");
-              const lowerKho = khoTenStr.toLowerCase();
-              return lowerKho.includes("kho hàng hoá") 
-                  || lowerKho.includes("kho thành phẩm") 
-                  || lowerKho.includes("vật tư")
-                  || lowerKho.includes("thương mại")
-                  || lowerKho.includes("sản xuất và lắp ráp");
+              
+              const whCode = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.code)
+                ? item.stocks[0].warehouse.code
+                : item.defaultWarehouse;
+
+              if (isKinhDoanh) {
+                // Phòng kinh doanh chỉ thấy KHO-CHINH
+                return whCode === "KHO-CHINH";
+              }
+              // Các bộ phận khác: KHO-CHINH và KVP
+              return whCode === "KHO-CHINH" || whCode === "KVP";
             });
             setSuggest(filtered);
           }
@@ -643,9 +653,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   const thueTien = truocThue * info.thue / 100;
   const tongCong = truocThue + thueTien;
 
-  const toast = useToast();
-  const { data: session } = useSession();
-  const isAdmin = session?.user?.role?.toUpperCase() === "ADMIN";
 
   const handleSave = async () => {
     if (!info.soPhieu.trim()) {
