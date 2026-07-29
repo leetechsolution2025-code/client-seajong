@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
+import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Table, TableColumn } from "@/components/ui/Table";
@@ -586,19 +587,18 @@ export function QuotationsContent() {
 
   return (
     <>
-      <div className="bg-white rounded-4 shadow-sm border flex-grow-1 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
-        {/* Stepper container */}
-        <div className="border-bottom pb-3 pt-3 px-3 px-sm-4 flex-shrink-0">
+      <WorkflowCard
+        contentPadding="p-0"
+        stepper={
           <ModernStepper
             steps={STEP_ITEMS}
             currentStep={currentStep}
             onStepChange={setCurrentStep}
             paddingX={0}
-            paddingY={0}
+            paddingY={8}
           />
-        </div>
-
-        {/* Step Contents */}
+        }
+      >
         <div className="flex-grow-1 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
           {currentStep === 1 && (
             <FullWidthTableLayout
@@ -802,7 +802,7 @@ export function QuotationsContent() {
             <OmnichannelContent />
           )}
         </div>
-      </div>
+      </WorkflowCard>
 
       {/* Customer Selection Offcanvas */}
       {showCustomerSelectModal && (

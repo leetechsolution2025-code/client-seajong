@@ -33,7 +33,7 @@ export function StandardPage({
   headerActions,
   background = "#EBF0F5",
   useCard = true,
-  paddingClassName = "px-3 px-sm-4 pb-3 pb-sm-4 pt-2",
+  paddingClassName = "p-2",
   afterHeader,
   hideTicker = false,
   customTickerNews,

@@ -1,569 +1,624 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { StandardPage } from "@/components/layout/StandardPage";
+import { ModernStepper } from "@/components/ui/ModernStepper";
+import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import dynamic from "next/dynamic";
+import { useSession } from "next-auth/react";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-interface PartnerProcessItem {
-  id: string;
-  name: string;
-  contact: string;
-  contactEmail?: string;
-  area: string;
-  source: string;
-  date: string;
-  scale: string;
-  needs: string;
-  step: number;
-  stars: number;
-  careStaff: string;
-  lastCareDate: string;
-  careChannel: string;
-  careNote: string;
-  nextSchedule: string;
-  quoteCode: string;
-  quoteValue: number;
-  discountRate: number;
-  quoteStatus: string;
-  contractNo: string;
-  contractValue: number;
-  creditLimit: number;
-  signDate: string;
-  contractStatus: string;
-  contractPdf: string;
-  showroomArea: number;
-  designStatus: string;
-  constructionProgress: number;
-  estOpeningDate: string;
-  constructionStatus: string;
-  consTimeline1?: string;
-  consTimeline2?: string;
-  consTimeline3?: string;
-  consTimeline4?: string;
-  consTimeline5?: string;
-  consProgress1?: number;
-  consProgress2?: number;
-  consProgress3?: number;
-  consProgress4?: number;
-  consProgress5?: number;
-  careHistories: any[];
-}
-
 export default function PartnerActivitiesPage() {
-  const [partners, setPartners] = useState<PartnerProcessItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [filterStep, setFilterStep] = useState<string>("all");
+  const { data: session } = useSession();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [employee, setEmployee] = useState<any>(null);
+  const [positions, setPositions] = useState<{code: string, name: string}[]>([]);
+  const [workLocations, setWorkLocations] = useState<{code: string, name: string}[]>([]);
+  const [reportMonth, setReportMonth] = useState(new Date());
+  const [salesEmployees, setSalesEmployees] = useState<any[]>([]);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
+
+  const handlePrevMonth = () => setReportMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  const handleNextMonth = () => setReportMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
 
   useEffect(() => {
-    fetch("/api/sales/partners")
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error("Failed to fetch");
+    fetch("/api/board/categories?type=position").then(r => r.json()).then(d => setPositions(d || [])).catch(() => {});
+    fetch("/api/board/categories?type=dia_diem_lam_viec").then(r => r.json()).then(d => setWorkLocations(d || [])).catch(() => {});
+    
+    // Lấy danh sách nhân viên phòng kinh doanh
+    fetch("/api/hr/employees?pageSize=1000")
+      .then(r => r.json())
+      .then(d => {
+        if (d?.employees) {
+          const salesEmp = d.employees.filter((e: any) => e.departmentName && e.departmentName.toLowerCase().includes("kinh doanh"));
+          setSalesEmployees(salesEmp);
         }
-        return res.json();
       })
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setPartners(data);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error loading partner activities:", err);
-        setLoading(false);
-      });
+      .catch(() => {});
   }, []);
 
-  if (loading) {
-    return (
-      <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
-        <PageHeader title="Báo cáo nội bộ" description="Báo cáo nội bộ phòng kinh doanh" color="blue" icon="bi-file-earmark-bar-graph-fill" />
-        <div className="flex-grow-1 d-flex align-items-center justify-content-center text-muted">
-          <div className="d-flex flex-column align-items-center gap-2">
-            <div className="spinner-border spinner-border-sm text-primary" role="status" />
-            <span style={{ fontSize: 13 }}>Đang tải báo cáo hoạt động đại lý...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // --- TEMPORARY LOCK UI ---
-  return (
-    <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
-      <PageHeader
-        title="Báo cáo nội bộ"
-        description="Báo cáo nội bộ phòng kinh doanh"
-        color="blue"
-        icon="bi-file-earmark-bar-graph-fill"
-      />
-
-      <div className="flex-grow-1 d-flex align-items-center justify-content-center px-4 pb-4 pt-2" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
-        <div className="text-center p-5 bg-white border rounded-4 shadow-sm" style={{ maxWidth: 400 }}>
-          <div className="mb-3">
-            <div className="d-inline-flex align-items-center justify-content-center bg-light rounded-circle" style={{ width: 80, height: 80 }}>
-              <i className="bi bi-lock-fill text-muted" style={{ fontSize: 36 }}></i>
-            </div>
-          </div>
-          <h5 className="fw-bold text-dark mb-2">Tính năng đang tạm khoá</h5>
-          <p className="text-muted small mb-0">
-            Hệ thống đang tiến hành bảo trì và nâng cấp chức năng báo cáo nội bộ. Vui lòng quay lại sau!
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-  // -------------------------
-
-  // 1. Calculate Core Metrics
-  const totalPartners = partners.length;
-  const officialDealers = partners.filter((p) => p.step >= 4).length;
-  
-  // Total care interactions across all partners
-  const totalInteractions = partners.reduce((sum, p) => sum + (p.careHistories?.length || 0), 0);
-  
-  // Average star rating
-  const avgStars = totalPartners > 0
-    ? parseFloat((partners.reduce((sum, p) => sum + p.stars, 0) / totalPartners).toFixed(1))
-    : 0;
-
-  // 2. Funnel Distribution (Step 1 to 5)
-  const funnelCounts = [0, 0, 0, 0, 0];
-  partners.forEach((p) => {
-    const s = Math.min(Math.max(p.step || 1, 1), 5);
-    funnelCounts[s - 1]++;
-  });
-
-  const funnelChartOptions: ApexCharts.ApexOptions = {
-    chart: {
-      type: "bar",
-      height: 300,
-      toolbar: { show: false },
-      fontFamily: "inherit",
-    },
-    plotOptions: {
-      bar: {
-        borderRadius: 6,
-        horizontal: false,
-        columnWidth: "45%",
-        distributed: true,
-      }
-    },
-    colors: ["#64748b", "#3b82f6", "#8b5cf6", "#f59e0b", "#10b981"], // slate, blue, purple, orange, emerald
-    dataLabels: {
-      enabled: true,
-      formatter: (val: number) => `${val} đại lý`,
-      style: { fontSize: "11px", fontWeight: "bold" }
-    },
-    xaxis: {
-      categories: [
-        "B1: Tiếp cận",
-        "B2: Báo giá",
-        "B3: Ký Biên bản",
-        "B4: Ký Hợp đồng",
-        "B5: Khai trương"
-      ],
-      labels: { style: { colors: "#64748b", fontSize: "11px", fontWeight: "bold" } },
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-    },
-    yaxis: {
-      labels: {
-        style: { colors: "#64748b", fontSize: "11px" },
-        formatter: (val: number) => Math.round(val).toString()
-      }
-    },
-    grid: { borderColor: "rgba(100, 116, 139, 0.08)", strokeDashArray: 4 },
-    legend: { show: false },
-    tooltip: {
-      y: { formatter: (val: number) => `${val} đại lý đang ở bước này` }
-    }
+  const getPositionName = (code: string | undefined | null) => {
+    if (!code) return "Nhân viên";
+    const pos = positions.find(p => p.code === code);
+    return pos ? pos.name : code;
   };
 
-  const funnelSeries = [
-    {
-      name: "Số lượng đại lý",
-      data: funnelCounts
+  const getLocationName = (code: string | undefined | null) => {
+    if (!code) return "Chưa cập nhật";
+    if (code === "main") return "Trụ sở chính";
+    const loc = workLocations.find(l => l.code === code);
+    return loc ? loc.name : code;
+  };
+
+  const getAvatarInitials = (fullName: string | undefined | null) => {
+    if (!fullName) return "NV";
+    const parts = fullName.trim().split(" ");
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
-  ];
+    return fullName.substring(0, 2).toUpperCase();
+  };
 
-  // 3. Stars Distribution (Dealers Quality)
-  const starCounts = [0, 0, 0, 0, 0]; // 1-star to 5-star
-  partners.forEach((p) => {
-    const starIndex = Math.min(Math.max(p.stars || 3, 1), 5) - 1;
-    starCounts[starIndex]++;
-  });
-
-  const starsDonutOptions: ApexCharts.ApexOptions = {
-    chart: {
-      type: "donut",
-      fontFamily: "inherit",
-    },
-    labels: ["1 Sao (Tiềm năng thấp)", "2 Sao (Bình thường)", "3 Sao (Khá tốt)", "4 Sao (Rất tốt)", "5 Sao (VIP/Cam kết cao)"],
-    colors: ["#ef4444", "#f97316", "#eab308", "#3b82f6", "#10b981"], // red, orange, yellow, blue, green
-    stroke: { width: 2, colors: ["var(--card)"] },
-    legend: {
-      position: "bottom",
-      fontSize: "11px",
-      labels: { colors: "var(--foreground)" }
-    },
-    dataLabels: { enabled: true, style: { fontSize: "10.5px" } },
-    plotOptions: {
-      pie: {
-        donut: {
-          size: "60%",
-          labels: {
-            show: true,
-            total: {
-              show: true,
-              label: "Đánh giá trung bình",
-              fontSize: "11px",
-              color: "#64748b",
-              formatter: () => `${avgStars} ⭐`
-            }
+  useEffect(() => {
+    const empId = (session?.user as any)?.employeeId;
+    if (empId) {
+      fetch(`/api/hr/employees/${empId}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d?.employee) {
+            setEmployee(d.employee);
           }
-        }
-      }
-    },
-    tooltip: {
-      y: { formatter: (val: number) => `${val} đại lý` }
+        })
+        .catch(console.error);
     }
+  }, [session]);
+
+  const currentMonth = new Date().getMonth() + 1;
+  const fullKpiData = [85, 78, 92, 88, 76, 89, 94, 82, 85, 90, 88, 91];
+  const validData = fullKpiData.slice(0, currentMonth);
+  const avgKpi = validData.length > 0 ? Math.round(validData.reduce((a, b) => a + b, 0) / validData.length) : 0;
+  
+  const kpiCategories = Array.from({ length: 12 }, (_, i) => `${i + 1}`);
+
+  const calculateScore = (targetStr: string, actualStr: string, weightStr: string) => {
+    const parseNumber = (str: string) => Number(str.replace(/,/g, "").replace(/%/g, "").trim());
+    const target = parseNumber(targetStr);
+    const actual = parseNumber(actualStr);
+    const weight = parseNumber(weightStr);
+
+    if (target === 0 || isNaN(target) || isNaN(actual) || isNaN(weight)) return 0;
+    
+    // Điểm = (Thực tế / Chỉ tiêu) * Trọng số
+    const completion = actual / target;
+    const score = completion * weight;
+    
+    return Math.round(score);
   };
 
-  // 4. Care timeline group by Month (last 6 months)
-  const careTimelineMap: Record<string, number> = {};
-  partners.forEach((p) => {
-    (p.careHistories || []).forEach((h) => {
-      if (h.executionDate) {
-        const dateObj = new Date(h.executionDate);
-        if (!isNaN(dateObj.getTime())) {
-          const monthYear = dateObj.toLocaleDateString("vi-VN", { month: "short", year: "2-digit" });
-          careTimelineMap[monthYear] = (careTimelineMap[monthYear] || 0) + 1;
-        }
-      }
-    });
-  });
-
-  // Sort months chronologically
-  const timelineCategories = Object.keys(careTimelineMap).sort((a, b) => {
-    const parseMonth = (str: string) => {
-      const parts = str.split(" ");
-      const m = parseInt(parts[1]) || 1;
-      const y = parseInt(parts[3]) || 26;
-      return y * 12 + m;
-    };
-    return parseMonth(a) - parseMonth(b);
-  }).slice(-6); // Last 6 months
-
-  // If empty, generate standard placeholders
-  const timelineCategoriesFinal = timelineCategories.length > 0 ? timelineCategories : ["Tháng 1/26", "Tháng 2/26", "Tháng 3/26", "Tháng 4/26", "Tháng 5/26", "Tháng 6/26"];
-  const timelineDataFinal = timelineCategories.length > 0 
-    ? timelineCategories.map((c) => careTimelineMap[c] || 0)
-    : [12, 18, 25, 34, 42, totalInteractions > 0 ? totalInteractions : 48];
-
-  const timelineChartOptions: ApexCharts.ApexOptions = {
-    chart: {
-      type: "line",
-      height: 250,
-      toolbar: { show: false },
-      fontFamily: "inherit",
-    },
-    stroke: { curve: "smooth", width: 3 },
-    colors: ["#003087"],
-    markers: { size: 4, colors: ["#003087"], strokeColors: "#fff", strokeWidth: 2 },
-    dataLabels: { enabled: true, style: { fontSize: "10.5px" } },
-    xaxis: {
-      categories: timelineCategoriesFinal,
-      labels: { style: { colors: "#64748b", fontSize: "11px" } },
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-    },
-    yaxis: {
-      labels: { style: { colors: "#64748b", fontSize: "11px" } }
-    },
-    grid: { borderColor: "rgba(100, 116, 139, 0.08)", strokeDashArray: 4 },
-    tooltip: {
-      y: { formatter: (val: number) => `${val} lượt chăm sóc` }
-    }
-  };
-
-  const timelineSeries = [
-    {
-      name: "Tương tác chăm sóc",
-      data: timelineDataFinal
-    }
+  const step1KpiCriteria = [
+    { name: "Doanh thu phòng đạt được", target: "8,000,000,000", actual: "7,500,000,000", weight: "30%", score: "93" },
+    { name: "Số đại lý phát triển trong tháng", target: "10", actual: "8", weight: "25%", score: "80" },
+    { name: "Doanh số bình quân từ đại lý mới", target: "200,000,000", actual: "210,000,000", weight: "15%", score: "100" },
+    { name: "Tỷ lệ đại lý phát sinh đơn hàng", target: "80%", actual: "75%", weight: "10%", score: "93" },
+    { name: "Tỷ lệ thu hồi công nợ", target: "90%", actual: "88%", weight: "15%", score: "97" },
+    { name: "Tỷ lệ nhân viên hoàn thành KPI", target: "100%", actual: "90%", weight: "5%", score: "90" },
   ];
 
-  // 5. Filtered partners list
-  const filteredPartners = partners.filter((p) => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.area.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.contact && p.contact.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesStep = filterStep === "all" || String(p.step) === filterStep;
-    return matchesSearch && matchesStep;
-  });
+  const step2KpiCriteria = [
+    { name: "Doanh số", target: "1,500,000,000", actual: "1,450,000,000", weight: "25%", score: "96" },
+    { name: "Doanh thu", target: "1,200,000,000", actual: "1,100,000,000", weight: "25%", score: "91" },
+    { name: "Số đại lý phát triển trong tháng", target: "3", actual: "2", weight: "15%", score: "66" },
+    { name: "Tỷ lệ chăm sóc đúng hạn", target: "90%", actual: "85%", weight: "15%", score: "94" },
+    { name: "Tỷ lệ chuyển đổi", target: "20%", actual: "18%", weight: "10%", score: "90" },
+    { name: "Thu hồi công nợ", target: "95%", actual: "90%", weight: "10%", score: "94" },
+  ];
 
-  const getStepBadge = (step: number) => {
-    const stepLabels: Record<number, { text: string; bg: string; color: string }> = {
-      1: { text: "Bước 1: Tiếp cận", bg: "rgba(100, 116, 139, 0.1)", color: "#475569" },
-      2: { text: "Bước 2: Báo giá", bg: "rgba(59, 130, 246, 0.1)", color: "#1d4ed8" },
-      3: { text: "Bước 3: Biên bản", bg: "rgba(139, 92, 246, 0.1)", color: "#6d28d9" },
-      4: { text: "Bước 4: Hợp đồng", bg: "rgba(245, 158, 11, 0.1)", color: "#b45309" },
-      5: { text: "Bước 5: Khai trương", bg: "rgba(16, 185, 129, 0.1)", color: "#047857" },
-    };
-    const current = stepLabels[step] || { text: `Bước ${step}`, bg: "rgba(100, 116, 139, 0.1)", color: "#475569" };
-    return (
-      <span className="badge fw-bold" style={{ backgroundColor: current.bg, color: current.color, fontSize: 10.5, padding: "3.5px 8px", borderRadius: 6 }}>
-        {current.text}
-      </span>
-    );
+  const step1TotalScore = step1KpiCriteria.reduce((sum, item) => sum + calculateScore(item.target, item.actual, item.weight), 0);
+  const step2TotalScore = step2KpiCriteria.reduce((sum, item) => sum + calculateScore(item.target, item.actual, item.weight), 0);
+
+  const selectedMonthIndex = reportMonth.getMonth();
+  const kpiData1 = Array.from({ length: 12 }, (_, i) => i < currentMonth ? (i === selectedMonthIndex ? Math.round(step1TotalScore) : fullKpiData[i]) : null);
+  const kpiData2 = Array.from({ length: 12 }, (_, i) => i < currentMonth ? (i === selectedMonthIndex ? Math.round(step2TotalScore) : fullKpiData[i]) : null);
+  
+  const computeAvg = (data: (number | null)[]) => {
+    const valid = data.filter(v => v !== null) as number[];
+    return valid.length > 0 ? Math.round(valid.reduce((a, b) => a + b, 0) / valid.length) : 0;
   };
+  
+  const avgData1 = Array.from({ length: 12 }, (_, i) => i < currentMonth ? computeAvg(kpiData1) : null);
+  const avgData2 = Array.from({ length: 12 }, (_, i) => i < currentMonth ? computeAvg(kpiData2) : null);
+
+  const STEPS = [
+    { num: 1, id: "manager", title: "Lãnh đạo phòng", desc: "Báo cáo tổng hợp cho quản lý", icon: "bi-person-badge" },
+    { num: 2, id: "staff", title: "Nhân viên phòng", desc: "Báo cáo chi tiết theo nhân sự", icon: "bi-people" },
+    { num: 3, id: "settings", title: "Thiết lập thông số", desc: "Cấu hình chỉ số báo cáo", icon: "bi-gear" },
+  ];
 
   return (
-    <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
-      <PageHeader
-        title="Hoạt động các đại lý"
-        description="Báo cáo & Phân tích · Phân tích phễu phát triển, mức độ tương tác chăm sóc định kỳ và đánh giá chất lượng đại lý"
-        color="blue"
-        icon="bi-people-fill"
-      />
-
-      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column custom-scrollbar overflow-auto" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0, gap: 16 }}>
-        
-        {/* Core KPI Cards */}
-        <div className="row g-3">
-          <div className="col-12 col-sm-6 col-xl-3">
-            <div className="app-card bg-card border rounded-4 shadow-sm py-2.5 px-3 position-relative overflow-hidden transition h-100">
-              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "#64748b" }} />
-              <div className="ps-1">
-                <span className="text-uppercase text-muted-foreground fw-bold" style={{ fontSize: 9, letterSpacing: "0.06em" }}>Tổng đại lý trong phễu</span>
-                <h3 className="m-0 mt-1 fw-extrabold text-dark" style={{ fontSize: 17 }}>{totalPartners} đối tác</h3>
-                <span className="text-secondary" style={{ fontSize: 10 }}>
-                  Đang theo dõi & phát triển tích cực
-                </span>
-                <div className="mt-2 text-muted" style={{ fontSize: 10 }}>
-                  <i className="bi bi-funnel me-1" />
-                  Bao gồm 5 bước quy trình chuẩn
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-12 col-sm-6 col-xl-3">
-            <div className="app-card bg-card border rounded-4 shadow-sm py-2.5 px-3 position-relative overflow-hidden transition h-100">
-              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "#10b981" }} />
-              <div className="ps-1">
-                <span className="text-uppercase text-muted-foreground fw-bold" style={{ fontSize: 9, letterSpacing: "0.06em" }}>Đại lý chính thức</span>
-                <h3 className="m-0 mt-1 fw-extrabold text-emerald" style={{ fontSize: 17 }}>{officialDealers} đại lý</h3>
-                <span className="text-secondary" style={{ fontSize: 10 }}>
-                  Đã ký Biên bản (B3) hoặc Hợp đồng (B4, B5)
-                </span>
-                <div className="mt-2">
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 9.5 }}>
-                    <span className="text-secondary">Tỷ lệ chính thức hóa</span>
-                    <span className="fw-bold text-success">{totalPartners > 0 ? Math.round((officialDealers / totalPartners) * 100) : 0}%</span>
+    <StandardPage
+      title="Báo cáo nội bộ"
+      description="Báo cáo nội bộ phòng kinh doanh"
+      color="blue"
+      icon="bi-file-earmark-bar-graph-fill"
+      useCard={false}
+    >
+      <WorkflowCard
+        contentPadding="p-0"
+        stepper={
+          <ModernStepper
+            steps={STEPS}
+            currentStep={currentStep}
+            onStepChange={setCurrentStep}
+            paddingX={0}
+            paddingY={8}
+          />
+        }
+      >
+        <div className="flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ minHeight: 0 }}>
+          {currentStep === 1 && (
+            <div className="flex-grow-1 h-100 d-flex w-100 overflow-hidden" style={{ minHeight: 0 }}>
+              {/* Cột trái (tỷ lệ 5/12) */}
+              <div className="flex-shrink-0 h-100 d-flex flex-column custom-scrollbar overflow-auto" style={{ width: "41.666667%", padding: "20px 24px" }}>
+                <div className="row g-3">
+                  <div className="col-5">
+                    <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: 220 }}>
+                      <span className="fw-bold text-muted mb-1" style={{ fontSize: 12 }}>ĐIỂM HIỆU SUẤT</span>
+                      <div style={{ marginTop: -15, marginBottom: -25 }}>
+                        <ReactApexChart 
+                          type="radialBar" 
+                          height={190} 
+                          series={[Math.round(step1TotalScore)]}
+                          options={{
+                            chart: { fontFamily: "inherit", sparkline: { enabled: true } },
+                            plotOptions: {
+                              radialBar: {
+                                hollow: { size: "60%" },
+                                track: { background: "rgba(0,0,0,0.04)" },
+                                dataLabels: {
+                                  name: { show: false },
+                                  value: {
+                                    offsetY: 8,
+                                    fontSize: "28px",
+                                    fontWeight: 800,
+                                    color: "var(--foreground)",
+                                    formatter: (val) => `${val}`
+                                  }
+                                }
+                              }
+                            },
+                            fill: {
+                              type: "gradient",
+                              gradient: {
+                                shade: "dark",
+                                type: "horizontal",
+                                gradientToColors: ["#8b5cf6"],
+                                stops: [0, 100]
+                              }
+                            },
+                            colors: ["#3b82f6"],
+                            stroke: { lineCap: "round" }
+                          }} 
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ height: 4, borderRadius: 99, background: "rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${totalPartners > 0 ? Math.round((officialDealers / totalPartners) * 100) : 0}%`, background: "#10b981", borderRadius: 99 }} />
+                  <div className="col-7">
+                    <div className="d-flex flex-column justify-content-center h-100 ps-2">
+                      <h6 className="fw-bold text-dark mb-3" style={{ fontSize: 13 }}>THÔNG TIN NHÂN VIÊN</h6>
+                      <div className="d-flex align-items-center mb-3 pb-3 border-bottom" style={{ borderBottomStyle: "dashed" }}>
+                        {employee?.avatarUrl ? (
+                          <img src={employee.avatarUrl} alt="Avatar" className="rounded-circle me-3 shadow-sm" style={{ width: 42, height: 42, objectFit: "cover" }} />
+                        ) : (
+                          <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold me-3 shadow-sm" style={{ width: 42, height: 42, fontSize: 15 }}>
+                            {getAvatarInitials(employee?.fullName)}
+                          </div>
+                        )}
+                        <div>
+                          <div className="fw-bold text-dark" style={{ fontSize: 14 }}>{employee?.fullName || "Đang tải..."}</div>
+                          <div className="text-secondary" style={{ fontSize: 11 }}>{getPositionName(employee?.position)}</div>
+                        </div>
+                      </div>
+                      
+                      <div className="d-flex flex-column gap-2" style={{ fontSize: 11.5 }}>
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="text-muted"><i className="bi bi-telephone me-2 text-secondary"></i>Điện thoại:</span>
+                          <span className="fw-medium text-dark">{employee?.phone || "Chưa cập nhật"}</span>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="text-muted"><i className="bi bi-envelope me-2 text-secondary"></i>Email:</span>
+                          <span className="fw-medium text-dark">{employee?.workEmail || employee?.personalEmail || "Chưa cập nhật"}</span>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="text-muted"><i className="bi bi-geo-alt me-2 text-secondary"></i>Địa điểm làm việc:</span>
+                          <span className="fw-medium text-dark">{getLocationName(employee?.workLocation)}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
 
-          <div className="col-12 col-sm-6 col-xl-3">
-            <div className="app-card bg-card border rounded-4 shadow-sm py-2.5 px-3 position-relative overflow-hidden transition h-100">
-              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "#003087" }} />
-              <div className="ps-1">
-                <span className="text-uppercase text-muted-foreground fw-bold" style={{ fontSize: 9, letterSpacing: "0.06em" }}>Hoạt động chăm sóc</span>
-                <h3 className="m-0 mt-1 fw-extrabold text-primary" style={{ fontSize: 17 }}>{totalInteractions} lượt tương tác</h3>
-                <span className="text-secondary" style={{ fontSize: 10 }}>
-                  Cuộc gọi, gặp mặt & tư vấn trực tiếp
-                </span>
-                <div className="mt-2 text-muted" style={{ fontSize: 10 }}>
-                  <i className="bi bi-chat-dots-fill me-1" />
-                  Trung bình {totalPartners > 0 ? (totalInteractions / totalPartners).toFixed(1) : 0} lượt/đại lý
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-12 col-sm-6 col-xl-3">
-            <div className="app-card bg-card border rounded-4 shadow-sm py-2.5 px-3 position-relative overflow-hidden transition h-100">
-              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "#f59e0b" }} />
-              <div className="ps-1">
-                <span className="text-uppercase text-muted-foreground fw-bold" style={{ fontSize: 9, letterSpacing: "0.06em" }}>Đánh giá chất lượng</span>
-                <h3 className="m-0 mt-1 fw-extrabold text-amber" style={{ fontSize: 17 }}>{avgStars} / 5.0 Sao</h3>
-                <span className="text-secondary" style={{ fontSize: 10 }}>
-                  Sao trung bình của tập khách hàng
-                </span>
-                <div className="mt-2 text-muted" style={{ fontSize: 10 }}>
-                  <span className="text-amber">{"★".repeat(Math.round(avgStars)) + "☆".repeat(5 - Math.round(avgStars))}</span>
-                  <span className="ms-2">Dựa trên tiềm năng đại lý</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Charts Section */}
-        <div className="row g-3">
-          {/* Funnel distribution chart */}
-          <div className="col-12 col-xl-7">
-            <div className="bg-card border rounded-4 p-4 shadow-sm h-100 d-flex flex-column">
-              <div className="mb-3">
-                <span className="fw-extrabold text-dark d-block" style={{ fontSize: 14 }}>
-                  <i className="bi bi-filter-square text-primary me-2" />
-                  Phân bố đại lý theo 5 giai đoạn phát triển
-                </span>
-                <span className="text-muted" style={{ fontSize: 11.5 }}>
-                  Biểu đồ cột thể hiện số lượng đại lý hiện có ở từng bước trong quy trình chăm sóc
-                </span>
-              </div>
-              <div style={{ flex: 1, minHeight: 300 }}>
-                <ReactApexChart options={funnelChartOptions} series={funnelSeries} type="bar" height={300} />
-              </div>
-            </div>
-          </div>
-
-          {/* Star ratings distribution */}
-          <div className="col-12 col-xl-5">
-            <div className="bg-card border rounded-4 p-4 shadow-sm h-100 d-flex flex-column">
-              <div className="mb-3">
-                <span className="fw-extrabold text-dark d-block" style={{ fontSize: 14 }}>
-                  <i className="bi bi-star-fill text-warning me-2" />
-                  Phân bổ chất lượng / tiềm năng đại lý
-                </span>
-                <span className="text-muted" style={{ fontSize: 11.5 }}>
-                  Số lượng đại lý tương ứng theo phân cấp xếp hạng tiềm năng (sao)
-                </span>
-              </div>
-              <div className="d-flex align-items-center justify-content-center" style={{ flex: 1, minHeight: 280 }}>
-                <ReactApexChart options={starsDonutOptions} series={starCounts} type="donut" width="100%" height={300} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="row g-3">
-          {/* Care timeline trend */}
-          <div className="col-12 col-xl-4">
-            <div className="bg-card border rounded-4 p-4 shadow-sm h-100 d-flex flex-column">
-              <div className="mb-2">
-                <span className="fw-extrabold text-dark d-block" style={{ fontSize: 14 }}>
-                  <i className="bi bi-activity text-danger me-2" />
-                  Tần suất hoạt động chăm sóc đại lý
-                </span>
-                <span className="text-muted" style={{ fontSize: 11.5 }}>
-                  Số lượt tương tác ghi nhận theo dòng thời gian (6 tháng gần đây)
-                </span>
-              </div>
-              <div style={{ flex: 1, minHeight: 250 }}>
-                <ReactApexChart options={timelineChartOptions} series={timelineSeries} type="line" height={250} />
-              </div>
-            </div>
-          </div>
-
-          {/* Details Table & Search */}
-          <div className="col-12 col-xl-8">
-            <div className="bg-card border rounded-4 p-4 shadow-sm h-100 d-flex flex-column">
-              <div className="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
-                <div>
-                  <span className="fw-extrabold text-dark d-block" style={{ fontSize: 14 }}>
-                    <i className="bi bi-card-list text-purple me-2" />
-                    Danh sách theo dõi tiến trình của từng đại lý
-                  </span>
-                  <span className="text-muted" style={{ fontSize: 11.5 }}>
-                    Bộ lọc và tìm kiếm nhanh trạng thái hiện tại của đối tác
-                  </span>
-                </div>
-              </div>
-
-              {/* Filters header */}
-              <div className="row g-2 mb-3">
-                <div className="col-12 col-sm-8">
-                  <div className="input-group input-group-sm">
-                    <span className="input-group-text bg-light border-end-0"><i className="bi bi-search text-muted" /></span>
-                    <input
-                      type="text"
-                      className="form-control bg-light border-start-0"
-                      placeholder="Tìm kiếm theo tên đại lý, khu vực, điện thoại..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      style={{ fontSize: 12.5 }}
+                <div className="mt-4 border-top pt-4">
+                  <h6 className="fw-bold text-dark mb-3" style={{ fontSize: 13 }}>CHI TIẾT ĐIỂM KPI CÁC THÁNG</h6>
+                  <div style={{ marginLeft: -15, marginRight: -15 }}>
+                    <ReactApexChart 
+                      type="line"
+                      height={210}
+                      series={[
+                        { name: "Điểm KPI", type: "column", data: kpiData1 },
+                        { name: "Trung bình", type: "line", data: avgData1 }
+                      ]}
+                      options={{
+                        chart: { fontFamily: "inherit", toolbar: { show: false }, zoom: { enabled: false } },
+                        plotOptions: {
+                          bar: { 
+                            borderRadius: 4, 
+                            columnWidth: "40%",
+                            colors: {
+                              ranges: [
+                                { from: 0, to: 49.99, color: '#ef4444' },
+                                { from: 50, to: 80, color: '#f59e0b' },
+                                { from: 80.01, to: 100, color: '#3b82f6' }
+                              ]
+                            }
+                          }
+                        },
+                        colors: ["#3b82f6", "#f59e0b"],
+                        stroke: { width: [0, 2], curve: "smooth", dashArray: [0, 4] },
+                        xaxis: { categories: kpiCategories, labels: { style: { colors: "var(--bs-gray-500)", fontSize: "11px" } } },
+                        yaxis: { max: 100, min: 0, tickAmount: 5, labels: { style: { colors: "var(--bs-gray-500)", fontSize: "11px" } } },
+                        dataLabels: { enabled: false },
+                        legend: { position: "top", horizontalAlign: "right", fontSize: "12px" },
+                        grid: { strokeDashArray: 3, borderColor: "var(--border)" }
+                      }}
                     />
                   </div>
                 </div>
-                <div className="col-12 col-sm-4">
-                  <select
-                    className="form-select form-select-sm bg-light"
-                    value={filterStep}
-                    onChange={(e) => setFilterStep(e.target.value)}
-                    style={{ fontSize: 12.5 }}
-                  >
-                    <option value="all">Tất cả các bước</option>
-                    <option value="1">Bước 1: Tiếp cận</option>
-                    <option value="2">Bước 2: Báo giá</option>
-                    <option value="3">Bước 3: Ký Biên bản</option>
-                    <option value="4">Bước 4: Ký Hợp đồng</option>
-                    <option value="5">Bước 5: Khai trương</option>
-                  </select>
+              </div>
+
+              {/* Đường ngăn cách (có khoảng trống 2 đầu, hiệu ứng chìm) */}
+              <div 
+                className="my-4 flex-shrink-0" 
+                style={{ 
+                  width: 2, 
+                  backgroundColor: "var(--border)", 
+                  opacity: 0.8,
+                  borderRight: "1px solid rgba(255, 255, 255, 0.7)", 
+                  boxShadow: "inset 1px 0 2px rgba(0,0,0,0.05)" 
+                }} 
+              />
+
+              {/* Cột phải (tỷ lệ 7/12) */}
+              <div className="flex-grow-1 h-100 d-flex flex-column custom-scrollbar overflow-auto" style={{ padding: "20px 24px" }}>
+                <h6 className="fw-bold text-dark mb-4 text-uppercase" style={{ fontSize: 13 }}>Hệ thống đánh giá kết quả công việc</h6>
+                <div className="d-flex align-items-center mb-4">
+                  <div className="d-flex align-items-center gap-2">
+                    <button className="btn btn-sm btn-light border shadow-sm" onClick={handlePrevMonth} style={{ width: 32, height: 32, padding: 0 }}>
+                      <i className="bi bi-chevron-left"></i>
+                    </button>
+                    <span className="fw-bold px-3 py-1 bg-white border rounded shadow-sm text-dark" style={{ fontSize: 14 }}>
+                      Tháng {reportMonth.getMonth() + 1}, {reportMonth.getFullYear()}
+                    </span>
+                    <button className="btn btn-sm btn-light border shadow-sm" onClick={handleNextMonth} style={{ width: 32, height: 32, padding: 0 }} disabled={reportMonth.getMonth() === new Date().getMonth() && reportMonth.getFullYear() === new Date().getFullYear()}>
+                      <i className="bi bi-chevron-right"></i>
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-grow-1 overflow-hidden d-flex flex-column" style={{ minHeight: 0 }}>
+                  <div className="flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
+                    <FullWidthTableLayout
+                    table={
+                      <div className="h-100 overflow-auto custom-scrollbar full-width-table-wrapper">
+                        <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
+                          <thead className="bg-light" style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--card)" }}>
+                            <tr style={{ height: 36 }}>
+                              <th className="border-0 text-center" style={{ width: "5%", minWidth: "50px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>STT</th>
+                              <th className="border-0 text-uppercase" style={{ width: "35%", minWidth: "150px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Tiêu chí đánh giá</th>
+                              <th className="border-0 text-uppercase text-center" style={{ width: "15%", minWidth: "80px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Chỉ tiêu</th>
+                              <th className="border-0 text-uppercase text-center" style={{ width: "15%", minWidth: "80px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Thực tế</th>
+                              <th className="border-0 text-uppercase text-center" style={{ width: "15%", minWidth: "80px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Trọng số</th>
+                              <th className="border-0 text-uppercase text-center" style={{ width: "15%", minWidth: "80px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Điểm số</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {step1KpiCriteria.map((item, idx) => {
+                              const score = calculateScore(item.target, item.actual, item.weight);
+                              const maxScore = Number(item.weight.replace("%", ""));
+                              const completionPercent = (score / maxScore) * 100;
+                              return (
+                                <tr key={idx}>
+                                  <td className="text-center text-muted">{idx + 1}</td>
+                                  <td className="fw-medium text-dark">{item.name}</td>
+                                  <td className="text-center text-muted">{item.target}</td>
+                                  <td className="text-center fw-medium" style={{ color: "var(--bs-primary)" }}>{item.actual}</td>
+                                  <td className="text-center text-muted">{item.weight}</td>
+                                  <td className="text-center fw-bold" style={{ color: completionPercent >= 90 ? "var(--bs-success)" : completionPercent >= 80 ? "var(--bs-warning)" : "var(--bs-danger)" }}>
+                                    {score}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        <div className="mt-4 pb-3 flex-shrink-0" style={{ paddingLeft: 8, paddingRight: 8 }}>
+                          <h6 className="fw-bold text-dark text-uppercase mb-3" style={{ fontSize: 13 }}>Khung thu nhập</h6>
+                          <div className="row g-3 align-items-center">
+                            <div className="col-md-5 border-end">
+                              <div className="text-muted mb-1 text-uppercase" style={{ fontSize: 11, fontWeight: 600 }}>Tổng thu nhập</div>
+                              <div className="fw-bold text-primary" style={{ fontSize: 24 }}>35,500,000 <span style={{ fontSize: 14 }}>đ</span></div>
+                            </div>
+                            <div className="col-md-7">
+                              <div className="row g-3">
+                                <div className="col-6">
+                                  <div className="text-muted mb-1" style={{ fontSize: 11 }}>Lương cơ bản</div>
+                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>15,000,000 đ</div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="text-muted mb-1" style={{ fontSize: 11 }}>Lương hiệu suất</div>
+                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>12,000,000 đ</div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="text-muted mb-1" style={{ fontSize: 11 }}>Phụ cấp</div>
+                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>3,500,000 đ</div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="text-muted mb-1" style={{ fontSize: 11 }}>Hoa hồng bán hàng</div>
+                                  <div className="fw-bold text-success" style={{ fontSize: 13 }}>5,000,000 đ</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {currentStep === 2 && (
+            <div className="flex-grow-1 h-100 d-flex w-100 overflow-hidden" style={{ minHeight: 0 }}>
+              {/* Cột trái (tỷ lệ 5/12) */}
+              <div className="flex-shrink-0 h-100 d-flex flex-column custom-scrollbar overflow-auto" style={{ width: "41.666667%", padding: "20px 24px" }}>
+                <div className="row g-3">
+                  <div className="col-5">
+                    <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: 220 }}>
+                      <span className="fw-bold text-muted mb-1" style={{ fontSize: 12 }}>ĐIỂM HIỆU SUẤT</span>
+                      <div style={{ marginTop: -15, marginBottom: -25 }}>
+                        <ReactApexChart 
+                          type="radialBar" 
+                          height={190} 
+                          series={[Math.round(step2TotalScore)]}
+                          options={{
+                            chart: { fontFamily: "inherit", sparkline: { enabled: true } },
+                            plotOptions: {
+                              radialBar: {
+                                hollow: { size: "60%" },
+                                track: { background: "rgba(0,0,0,0.04)" },
+                                dataLabels: {
+                                  name: { show: false },
+                                  value: {
+                                    offsetY: 8,
+                                    fontSize: "28px",
+                                    fontWeight: 800,
+                                    color: "var(--foreground)",
+                                    formatter: (val) => `${val}`
+                                  }
+                                }
+                              }
+                            },
+                            fill: {
+                              type: "gradient",
+                              gradient: {
+                                shade: "dark",
+                                type: "horizontal",
+                                gradientToColors: ["#8b5cf6"],
+                                stops: [0, 100]
+                              }
+                            },
+                            colors: ["#3b82f6"],
+                            stroke: { lineCap: "round" }
+                          }} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-7">
+                    <div className="d-flex flex-column justify-content-center h-100 ps-2">
+                      <h6 className="fw-bold text-dark mb-3" style={{ fontSize: 13 }}>THÔNG TIN NHÂN VIÊN</h6>
+                      <div className="d-flex align-items-center mb-3 pb-3 border-bottom" style={{ borderBottomStyle: "dashed" }}>
+                        {employee?.avatarUrl ? (
+                          <img src={employee.avatarUrl} alt="Avatar" className="rounded-circle me-3 shadow-sm" style={{ width: 42, height: 42, objectFit: "cover" }} />
+                        ) : (
+                          <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold me-3 shadow-sm" style={{ width: 42, height: 42, fontSize: 15 }}>
+                            {getAvatarInitials(employee?.fullName)}
+                          </div>
+                        )}
+                        <div>
+                          <div className="fw-bold text-dark" style={{ fontSize: 14 }}>{employee?.fullName || "Đang tải..."}</div>
+                          <div className="text-secondary" style={{ fontSize: 11 }}>{getPositionName(employee?.position)}</div>
+                        </div>
+                      </div>
+                      
+                      <div className="d-flex flex-column gap-2" style={{ fontSize: 11.5 }}>
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="text-muted"><i className="bi bi-telephone me-2 text-secondary"></i>Điện thoại:</span>
+                          <span className="fw-medium text-dark">{employee?.phone || "Chưa cập nhật"}</span>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="text-muted"><i className="bi bi-envelope me-2 text-secondary"></i>Email:</span>
+                          <span className="fw-medium text-dark">{employee?.workEmail || employee?.personalEmail || "Chưa cập nhật"}</span>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="text-muted"><i className="bi bi-geo-alt me-2 text-secondary"></i>Địa điểm làm việc:</span>
+                          <span className="fw-medium text-dark">{getLocationName(employee?.workLocation)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 border-top pt-4">
+                  <h6 className="fw-bold text-dark mb-3" style={{ fontSize: 13 }}>CHI TIẾT ĐIỂM KPI CÁC THÁNG</h6>
+                  <div style={{ marginLeft: -15, marginRight: -15 }}>
+                    <ReactApexChart 
+                      type="line"
+                      height={210}
+                      series={[
+                        { name: "Điểm KPI", type: "column", data: kpiData2 },
+                        { name: "Trung bình", type: "line", data: avgData2 }
+                      ]}
+                      options={{
+                        chart: { fontFamily: "inherit", toolbar: { show: false }, zoom: { enabled: false } },
+                        plotOptions: {
+                          bar: { 
+                            borderRadius: 4, 
+                            columnWidth: "40%",
+                            colors: {
+                              ranges: [
+                                { from: 0, to: 49.99, color: '#ef4444' },
+                                { from: 50, to: 80, color: '#f59e0b' },
+                                { from: 80.01, to: 100, color: '#3b82f6' }
+                              ]
+                            }
+                          }
+                        },
+                        colors: ["#3b82f6", "#f59e0b"],
+                        stroke: { width: [0, 2], curve: "smooth", dashArray: [0, 4] },
+                        xaxis: { categories: kpiCategories, labels: { style: { colors: "var(--bs-gray-500)", fontSize: "11px" } } },
+                        yaxis: { max: 100, min: 0, tickAmount: 5, labels: { style: { colors: "var(--bs-gray-500)", fontSize: "11px" } } },
+                        dataLabels: { enabled: false },
+                        legend: { position: "top", horizontalAlign: "right", fontSize: "12px" },
+                        grid: { strokeDashArray: 3, borderColor: "var(--border)" }
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="table-responsive flex-grow-1 custom-scrollbar overflow-auto" style={{ maxHeight: 220 }}>
-                <table className="table table-hover align-middle mb-0" style={{ fontSize: 12.5 }}>
-                  <thead>
-                    <tr className="text-secondary" style={{ borderBottom: "1px solid var(--border)", fontSize: 11 }}>
-                      <th className="py-2">Tên đại lý</th>
-                      <th className="py-2">Khu vực</th>
-                      <th className="py-2 text-center">Giai đoạn</th>
-                      <th className="py-2 text-center">Tiềm năng</th>
-                      <th className="py-2 text-center">Tương tác cuối</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPartners.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="text-center py-4 text-muted">
-                          Không tìm thấy đại lý nào phù hợp
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredPartners.map((p) => (
-                        <tr key={p.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                          <td className="py-2 fw-semibold text-primary">{p.name}</td>
-                          <td className="py-2 text-muted">{p.area || "—"}</td>
-                          <td className="py-2 text-center">{getStepBadge(p.step)}</td>
-                          <td className="py-2 text-center text-amber" style={{ fontSize: 11 }}>
-                            {"★".repeat(p.stars) + "☆".repeat(5 - p.stars)}
-                          </td>
-                          <td className="py-2 text-center text-muted" style={{ fontSize: 11 }}>
-                            {p.lastCareDate ? new Date(p.lastCareDate).toLocaleDateString("vi-VN") : "Chưa có"}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+              {/* Đường ngăn cách */}
+              <div 
+                className="my-4 flex-shrink-0" 
+                style={{ 
+                  width: 2, 
+                  backgroundColor: "var(--border)", 
+                  opacity: 0.8,
+                  borderRight: "1px solid rgba(255, 255, 255, 0.7)", 
+                  boxShadow: "inset 1px 0 2px rgba(0,0,0,0.05)" 
+                }} 
+              />
+
+              {/* Cột phải (tỷ lệ 7/12) */}
+              <div className="flex-grow-1 h-100 d-flex flex-column custom-scrollbar overflow-auto" style={{ padding: "20px 24px" }}>
+                <h6 className="fw-bold text-dark mb-4 text-uppercase" style={{ fontSize: 13 }}>Hệ thống đánh giá kết quả công việc</h6>
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <div className="d-flex align-items-center gap-2">
+                    <button className="btn btn-sm btn-light border shadow-sm" onClick={handlePrevMonth} style={{ width: 32, height: 32, padding: 0 }}>
+                      <i className="bi bi-chevron-left"></i>
+                    </button>
+                    <span className="fw-bold px-3 py-1 bg-white border rounded shadow-sm text-dark" style={{ fontSize: 14 }}>
+                      Tháng {reportMonth.getMonth() + 1}, {reportMonth.getFullYear()}
+                    </span>
+                    <button className="btn btn-sm btn-light border shadow-sm" onClick={handleNextMonth} style={{ width: 32, height: 32, padding: 0 }} disabled={reportMonth.getMonth() === new Date().getMonth() && reportMonth.getFullYear() === new Date().getFullYear()}>
+                      <i className="bi bi-chevron-right"></i>
+                    </button>
+                  </div>
+                  <div>
+                    <select 
+                      className="form-select form-select-sm shadow-sm" 
+                      style={{ minWidth: 220, cursor: "pointer", borderColor: "var(--border)" }}
+                      value={selectedEmployeeId}
+                      onChange={e => setSelectedEmployeeId(e.target.value)}
+                    >
+                      <option value="">-- Chọn nhân viên --</option>
+                      {salesEmployees.map(e => (
+                        <option key={e.id} value={e.id}>{e.fullName}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex-grow-1 overflow-hidden d-flex flex-column" style={{ minHeight: 0 }}>
+                  <div className="flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
+                    <FullWidthTableLayout
+                    table={
+                      <div className="h-100 overflow-auto custom-scrollbar full-width-table-wrapper">
+                        <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
+                          <thead className="bg-light" style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--card)" }}>
+                            <tr style={{ height: 36 }}>
+                              <th className="border-0 text-center" style={{ width: "5%", minWidth: "50px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>STT</th>
+                              <th className="border-0 text-uppercase" style={{ width: "35%", minWidth: "150px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Tiêu chí đánh giá</th>
+                              <th className="border-0 text-uppercase text-center" style={{ width: "15%", minWidth: "80px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Chỉ tiêu</th>
+                              <th className="border-0 text-uppercase text-center" style={{ width: "15%", minWidth: "80px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Thực tế</th>
+                              <th className="border-0 text-uppercase text-center" style={{ width: "15%", minWidth: "80px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Trọng số</th>
+                              <th className="border-0 text-uppercase text-center" style={{ width: "15%", minWidth: "80px", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Điểm số</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {step2KpiCriteria.map((item, idx) => {
+                              const score = calculateScore(item.target, item.actual, item.weight);
+                              const maxScore = Number(item.weight.replace("%", ""));
+                              const completionPercent = (score / maxScore) * 100;
+                              return (
+                                <tr key={idx}>
+                                  <td className="text-center text-muted">{idx + 1}</td>
+                                  <td className="fw-medium text-dark">{item.name}</td>
+                                  <td className="text-center text-muted">{item.target}</td>
+                                  <td className="text-center fw-medium" style={{ color: "var(--bs-primary)" }}>{item.actual}</td>
+                                  <td className="text-center text-muted">{item.weight}</td>
+                                  <td className="text-center fw-bold" style={{ color: completionPercent >= 90 ? "var(--bs-success)" : completionPercent >= 80 ? "var(--bs-warning)" : "var(--bs-danger)" }}>
+                                    {score}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        <div className="mt-4 pb-3 flex-shrink-0" style={{ paddingLeft: 8, paddingRight: 8 }}>
+                          <h6 className="fw-bold text-dark text-uppercase mb-3" style={{ fontSize: 13 }}>Khung thu nhập</h6>
+                          <div className="row g-3 align-items-center">
+                            <div className="col-md-5 border-end">
+                              <div className="text-muted mb-1 text-uppercase" style={{ fontSize: 11, fontWeight: 600 }}>Tổng thu nhập</div>
+                              <div className="fw-bold text-primary" style={{ fontSize: 24 }}>35,500,000 <span style={{ fontSize: 14 }}>đ</span></div>
+                            </div>
+                            <div className="col-md-7">
+                              <div className="row g-3">
+                                <div className="col-6">
+                                  <div className="text-muted mb-1" style={{ fontSize: 11 }}>Lương cơ bản</div>
+                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>15,000,000 đ</div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="text-muted mb-1" style={{ fontSize: 11 }}>Lương hiệu suất</div>
+                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>12,000,000 đ</div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="text-muted mb-1" style={{ fontSize: 11 }}>Phụ cấp</div>
+                                  <div className="fw-bold text-dark" style={{ fontSize: 13 }}>3,500,000 đ</div>
+                                </div>
+                                <div className="col-6">
+                                  <div className="text-muted mb-1" style={{ fontSize: 11 }}>Hoa hồng bán hàng</div>
+                                  <div className="fw-bold text-success" style={{ fontSize: 13 }}>5,000,000 đ</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+          {currentStep === 3 && (
+            <div className="d-flex align-items-center justify-content-center w-100 h-100" style={{ minHeight: 400 }}>
+              <div className="text-center text-muted">Cấu hình chỉ số báo cáo (Đang phát triển)</div>
+            </div>
+          )}
         </div>
-      </div>
-      <style>{`
-        .app-card {
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .app-card:hover {
-          transform: translateY(-2.5px);
-          box-shadow: 0 10px 24px rgba(0,0,0,0.08) !important;
-        }
-      `}</style>
-    </div>
+      </WorkflowCard>
+    </StandardPage>
   );
 }

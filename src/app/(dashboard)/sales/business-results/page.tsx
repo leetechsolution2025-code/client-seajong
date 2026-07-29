@@ -116,21 +116,18 @@ export default function BusinessResultsPage() {
   const apiSummary = data?.summary || { totalRevenue: 0, targetRevenue: 0, totalOrdersCount: 0, totalDebt: 0, customersCount: 0, dealersCount: 0 };
   const apiTrends = data?.monthlyTrends || Array.from({ length: 12 }, (_, i) => ({ month: `Tháng ${i + 1}`, target: 0, actualRevenue: (i + 1) > (new Date().getMonth() + 1) ? null : 0 }));
 
-  // Standard plan fallback if yearly target hasn't been set yet (to avoid 0 values on target metrics)
-  const targetRevenue = apiSummary.targetRevenue > 0 ? apiSummary.targetRevenue : 4500000000;
+  const targetRevenue = apiSummary.targetRevenue || 0;
   const totalRevenue = apiSummary.totalRevenue || 0;
 
   // Calculate achievement percentage
-  const achievementRate = targetRevenue > 0 ? Math.round((totalRevenue / targetRevenue) * 100) : 0;
+  const achievementRate = targetRevenue > 0 ? Math.round((totalRevenue / targetRevenue) * 100) : (totalRevenue > 0 ? 100 : 0);
 
   // Average Order Value
   const avgOrderVal = apiSummary.totalOrdersCount > 0 ? Math.round(totalRevenue / apiSummary.totalOrdersCount) : 0;
 
-  // Let's refine monthly trends to ensure it has realistic target values if the database plan was empty
-  const monthlyTrends = apiTrends.map((t: any, idx: number) => {
-    // If DB target is empty, distribute the distributed target (e.g. 350M - 420M per month)
-    const fallbackTarget = (targetRevenue / 12) * (1 + Math.sin(idx / 2) * 0.1);
-    const targetVal = t.target > 0 ? t.target : Math.round(fallbackTarget);
+  // Use real data from API for monthly trends
+  const monthlyTrends = apiTrends.map((t: any) => {
+    const targetVal = t.target || 0;
     
     // API returns actualRevenue, but we safely fallback to actual or actualSales if present
     const actualVal = t.actualRevenue !== undefined ? t.actualRevenue : (t.actual !== undefined ? t.actual : (t.actualSales || null));
@@ -139,13 +136,13 @@ export default function BusinessResultsPage() {
       month: t.month,
       target: targetVal,
       actual: actualVal,
-      achievement: (actualVal !== null && targetVal > 0) ? Math.round((actualVal / targetVal) * 100) : 0
+      achievement: (actualVal !== null && targetVal > 0) ? Math.round((actualVal / targetVal) * 100) : (actualVal > 0 && targetVal === 0 ? 100 : 0)
     };
   });
 
-  // Calculate profit margin (simulated average of 24.5% based on actual orders)
-  const profitMargin = 24.5;
-  const profitValue = Math.round(totalRevenue * (profitMargin / 100));
+  // Calculate profit margin (currently not provided by API, default to 0)
+  const profitMargin = 0;
+  const profitValue = 0;
 
   const now = new Date();
   const currentMonthIdx = now.getMonth(); // 0-11
