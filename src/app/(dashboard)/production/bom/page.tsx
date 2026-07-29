@@ -655,15 +655,22 @@ export default function BOMPage() {
               itemName={selectedProduct?.tenHang || selectedProduct?.name || ""}
               initialCost={initialCost}
               initialPrice={selectedProduct?.giaBan || 0}
+              initialMarginPct={selectedProduct?.loiNhuanKyVong}
+              initialMarginType={selectedProduct?.phuongPhapTinhLoiNhuan}
               applyAllLabel="Áp dụng cho tất cả Thành phẩm (có định mức)"
               onSaveSingle={async (finalPrice, marginPct, marginType) => {
                 const res = await fetch(`/api/production/bom/${bomData.id}`, {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ giaBan: finalPrice })
+                  body: JSON.stringify({ giaBan: finalPrice, marginPct, marginType })
                 });
                 if (res.ok) {
-                  setSelectedProduct((prev: any) => prev ? { ...prev, giaBan: finalPrice } : prev);
+                  setSelectedProduct((prev: any) => prev ? { 
+                    ...prev, 
+                    giaBan: finalPrice,
+                    loiNhuanKyVong: marginPct,
+                    phuongPhapTinhLoiNhuan: marginType
+                  } : prev);
                   fetchProducts();
                   setShowPriceOffcanvas(false);
                   toastSuccess("Thành công", "Cập nhật giá bán thành công");
@@ -688,7 +695,12 @@ export default function BOMPage() {
                     ? (marginPct < 100 ? Math.round(initialCost / (1 - marginPct / 100)) : 0)
                     : Math.round(initialCost * (1 + marginPct / 100));
                   
-                  setSelectedProduct((prev: any) => prev ? { ...prev, giaBan: calculatedFinalPrice } : prev);
+                  setSelectedProduct((prev: any) => prev ? { 
+                    ...prev, 
+                    giaBan: calculatedFinalPrice,
+                    loiNhuanKyVong: marginPct,
+                    phuongPhapTinhLoiNhuan: marginType
+                  } : prev);
                   fetchProducts();
                   setShowPriceOffcanvas(false);
                 } else {

@@ -12,8 +12,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Lợi nhuận trên doanh thu phải < 100%" }, { status: 400 });
     }
 
-    const whereClause: any = { giaNhap: { gt: 0 } };
+    let whereClause: any = { giaNhap: { gt: 0 } };
     if (scope === "bom") {
+      // Trước khi tính toán BOM, cập nhật lại toàn bộ giaNhap (giá vốn) cho các BOM
+      await prisma.$executeRaw`
+        UPDATE InventoryItem
+        SET giaNhap = COALESCE((
+          SELECT SUM(dv.soLuong * i.giaNhap)
+          FROM DinhMucVatTu dv
+          JOIN InventoryItem i ON dv.inventoryItemId = i.id
+          JOIN DinhMuc dm ON dv.dinhMucId = dm.id
+          WHERE dm.inventoryItemId = InventoryItem.id
+        ), 0)
+        WHERE id IN (SELECT inventoryItemId FROM DinhMuc WHERE inventoryItemId IS NOT NULL)
+      `;
+      whereClause = {}; // We update all BOMs, even if cost is 0
       whereClause.dinhMucs = { some: {} }; // Only items that have a BOM
     } else if (scope === "material") {
       whereClause.dinhMucs = { none: {} }; // Only items without a BOM
@@ -37,7 +50,11 @@ export async function POST(req: Request) {
           }
           return prisma.inventoryItem.update({
             where: { id: m.id },
-            data: { giaBan: Math.round(newPrice) }
+            data: { 
+              giaBan: Math.round(newPrice),
+              loiNhuanKyVong: numRatio,
+              phuongPhapTinhLoiNhuan: marginType === "revenue" ? "revenue" : "cost"
+            }
           });
         });
         await prisma.$transaction(updates);

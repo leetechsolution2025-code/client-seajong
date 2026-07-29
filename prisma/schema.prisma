@@ -874,6 +874,8 @@ model InventoryItem {
   soLuongMin           Float                 @default(0)
   giaNhap              Float                 @default(0)
   giaBan               Float                 @default(0)
+  loiNhuanKyVong       Float                 @default(30)
+  phuongPhapTinhLoiNhuan String              @default("cost")
   nhaCungCap           String?
   thongSoKyThuat       String?
   chatLieu             String?

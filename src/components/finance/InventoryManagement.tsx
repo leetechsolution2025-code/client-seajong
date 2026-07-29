@@ -745,7 +745,9 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
         onClose={() => setShowPriceOffcanvas(false)}
         itemName="Áp dụng linh kiện"
         initialCost={0}
+        costLabel="Giá nhập"
         initialPrice={0}
+        isBulkOnly={true}
         applyAllLabel="Áp dụng cho tất cả Linh kiện, Vật tư (không có định mức)"
         onSaveSingle={async () => {
           // No single save available for KVP bulk button right now

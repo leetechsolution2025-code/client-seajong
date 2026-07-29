@@ -202,17 +202,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { giaBan } = body;
+    const { giaBan, marginPct, marginType } = body;
 
     if (giaBan !== undefined) {
       await prisma.$executeRaw`
         UPDATE DinhMuc SET giaBan = ${giaBan}, updatedAt = CURRENT_TIMESTAMP
         WHERE id = ${id}
       `;
-      await prisma.$executeRaw`
-        UPDATE InventoryItem SET giaBan = ${giaBan}
-        WHERE id = (SELECT inventoryItemId FROM DinhMuc WHERE id = ${id})
-      `;
+      if (marginPct !== undefined && marginType !== undefined) {
+        await prisma.$executeRaw`
+          UPDATE InventoryItem 
+          SET giaBan = ${giaBan}, 
+              loiNhuanKyVong = ${marginPct}, 
+              phuongPhapTinhLoiNhuan = ${marginType === "revenue" ? "revenue" : "cost"}
+          WHERE id = (SELECT inventoryItemId FROM DinhMuc WHERE id = ${id})
+        `;
+      } else {
+        await prisma.$executeRaw`
+          UPDATE InventoryItem SET giaBan = ${giaBan}
+          WHERE id = (SELECT inventoryItemId FROM DinhMuc WHERE id = ${id})
+        `;
+      }
     }
 
     return NextResponse.json({ ok: true, id });
