@@ -6,6 +6,7 @@ import { Table, TableColumn } from "@/components/ui/Table";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Pagination } from "@/components/ui/Pagination";
+import UpdatePriceOffcanvas from "@/components/ui/UpdatePriceOffcanvas";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import BomDiffOffcanvas from "@/components/production/BomDiffOffcanvas";
@@ -136,10 +137,7 @@ export default function BOMPage() {
 
   // Price setup state
   const [showPriceOffcanvas, setShowPriceOffcanvas] = useState(false);
-  const [marketPrice, setMarketPrice] = useState<number | null>(null);
-  const [loadingMarketPrice, setLoadingMarketPrice] = useState(false);
-  const [priceSetup, setPriceSetup] = useState({ cost: 0, haoHutPct: 5, chiPhiSxPct: 20, marginPct: 30, marginType: "cost", finalPrice: 0 });
-  const [applyAllPrice, setApplyAllPrice] = useState(false);
+  const [initialCost, setInitialCost] = useState(0);
   useEffect(() => {
     fetch("/api/plan-finance/categories?hasBom=true")
       .then(res => res.json())
@@ -651,120 +649,53 @@ export default function BOMPage() {
             </div>
             {showAddProduct && <div className="offcanvas-backdrop fade show" onClick={() => { setShowAddProduct(false); resetProductForm(); }} style={{ zIndex: 1040 }}></div>}
 
-            {/* Offcanvas Update Price */}
-            <div className={`offcanvas offcanvas-end shadow ${showPriceOffcanvas ? "show" : ""}`} tabIndex={-1} style={{ width: "400px", visibility: showPriceOffcanvas ? "visible" : "hidden", zIndex: 1050 }}>
-              <div className="offcanvas-header border-bottom">
-                <h6 className="offcanvas-title fw-bold">Tính và cập nhật giá bán</h6>
-                <button type="button" className="btn-close" onClick={() => setShowPriceOffcanvas(false)}></button>
-              </div>
-              <div className="offcanvas-body">
-                <div className="row g-2 mb-3">
-                  <div className="col-6">
-                    <label className="form-label small fw-medium">Giá vốn vật tư</label>
-                    <input type="text" className="form-control bg-light" disabled value={`${Math.round(priceSetup.cost).toLocaleString()} đ`} />
-                  </div>
-                  <div className="col-6">
-                    <label className="form-label small fw-medium">Lợi nhuận kỳ vọng (%)</label>
-                    <input type="number" step="0.1" className="form-control" value={priceSetup.marginPct} onChange={(e) => {
-                      const val = Number(e.target.value);
-                      const calculated = priceSetup.marginType === "revenue" 
-                        ? (val < 100 ? Math.round(priceSetup.cost / (1 - val / 100)) : 0)
-                        : Math.round(priceSetup.cost * (1 + val / 100));
-                      setPriceSetup(prev => ({ ...prev, marginPct: val, finalPrice: calculated }));
-                    }} />
-                  </div>
-                  <div className="col-12 mt-2">
-                    <label className="form-label small fw-medium">Phương pháp tính lợi nhuận</label>
-                    <select className="form-select form-select-sm" value={priceSetup.marginType} onChange={(e) => {
-                      const newType = e.target.value;
-                      const calculated = newType === "revenue" 
-                        ? (priceSetup.marginPct < 100 ? Math.round(priceSetup.cost / (1 - priceSetup.marginPct / 100)) : 0)
-                        : Math.round(priceSetup.cost * (1 + priceSetup.marginPct / 100));
-                      setPriceSetup(prev => ({ ...prev, marginType: newType, finalPrice: calculated }));
-                    }}>
-                      <option value="cost">Trên giá vốn (Giá bán = Giá vốn x (1 + %Lợi nhuận))</option>
-                      <option value="revenue">Trên doanh thu (Giá bán = Giá vốn / (1 - %Lợi nhuận))</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label small fw-medium text-primary">Giá bán tính toán</label>
-                  <input type="text" className="form-control text-primary fw-bold bg-light" disabled value={`${(priceSetup.marginType === "revenue" ? (priceSetup.marginPct < 100 ? Math.round(priceSetup.cost / (1 - priceSetup.marginPct / 100)) : 0) : Math.round(priceSetup.cost * (1 + priceSetup.marginPct / 100))).toLocaleString()} đ`} />
-                </div>
-                <hr className="my-3" />
-                <div className="mb-3">
-                  <label className="form-label small fw-bold text-success">Giá bán chính thức áp dụng *</label>
-                  <input type="text" className="form-control form-control-lg text-success fw-bold" value={(priceSetup.finalPrice || 0).toLocaleString()} onChange={(e) => {
-                    const val = Number(e.target.value.replace(/[^0-9]/g, ''));
-                    setPriceSetup(prev => ({ ...prev, finalPrice: val }));
-                  }} />
-                  <div className="form-text text-muted" style={{ fontSize: '11px' }}>
-                    {loadingMarketPrice ? (
-                      <span><span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" style={{width: '10px', height: '10px'}}></span> Đang tra cứu giá thị trường...</span>
-                    ) : (
-                      marketPrice ? `Giá phổ biến trên thị trường: ${marketPrice.toLocaleString()} đồng. Giá trị này chỉ mang tính tham khảo.` : "Giá phổ biến trên thị trường: Không rõ. Giá trị này chỉ mang tính tham khảo."
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="offcanvas-footer p-3 border-top mt-auto bg-light">
-                <div className="form-check mb-2 text-start">
-                  <input className="form-check-input" type="checkbox" id="applyAllPrice" checked={applyAllPrice} onChange={e => setApplyAllPrice(e.target.checked)} />
-                  <label className="form-check-label small" htmlFor="applyAllPrice">
-                    Áp dụng cho tất cả sản phẩm
-                  </label>
-                </div>
-                <button className="btn btn-success w-100" onClick={() => {
-                  if (applyAllPrice) {
-                    toastInfo("Đang xử lý", "Đang tính toán và áp dụng cho tất cả...");
-                    fetch("/api/logistics/inventory/update-price-ratio", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ marginPct: priceSetup.marginPct, marginType: priceSetup.marginType })
-                    }).then(res => res.json()).then(data => {
-                      if (data.success) {
-                        toastSuccess("Thành công", `Đã cập nhật giá bán cho ${data.updatedCount} sản phẩm`);
-                        setSelectedProduct((prev: any) => prev ? { ...prev, giaBan: priceSetup.finalPrice } : prev);
-                        fetchProducts();
-                        setShowPriceOffcanvas(false);
-                      } else {
-                        toastError("Lỗi", data.error || "Có lỗi xảy ra");
-                      }
-                    }).catch(e => {
-                      console.error(e);
-                      toastError("Lỗi", "Lỗi kết nối máy chủ");
-                    });
-                    return;
-                  }
-
-                  fetch(`/api/production/bom/${bomData.id}`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ giaBan: priceSetup.finalPrice })
-                  })
-                    .then(async res => {
-                      if (res.ok) {
-                        setSelectedProduct((prev: any) => prev ? { ...prev, giaBan: priceSetup.finalPrice } : prev);
-                        fetchProducts(); // Refresh list to get updated giaBan
-                        setShowPriceOffcanvas(false);
-                        toastSuccess("Thành công", "Cập nhật giá bán thành công");
-                      } else {
-                        const data = await res.json().catch(() => ({}));
-                        toastError("Lỗi", data.error || "Có lỗi xảy ra khi lưu giá bán");
-                      }
-                    })
-                    .catch(e => {
-                      console.error("Lưu giá bán lỗi:", e);
-                      toastError("Lỗi", "Lỗi kết nối máy chủ");
-                    });
-                }}>
-                  <i className="bi bi-check2-circle me-2"></i>
-                  Lưu giá bán
-                </button>
-              </div>
-            </div>
-            {showPriceOffcanvas && <div className="offcanvas-backdrop fade show" onClick={() => setShowPriceOffcanvas(false)} style={{ zIndex: 1040 }}></div>}
+            <UpdatePriceOffcanvas
+              show={showPriceOffcanvas}
+              onClose={() => setShowPriceOffcanvas(false)}
+              itemName={selectedProduct?.tenHang || selectedProduct?.name || ""}
+              initialCost={initialCost}
+              initialPrice={selectedProduct?.giaBan || 0}
+              applyAllLabel="Áp dụng cho tất cả Thành phẩm (có định mức)"
+              onSaveSingle={async (finalPrice, marginPct, marginType) => {
+                const res = await fetch(`/api/production/bom/${bomData.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ giaBan: finalPrice })
+                });
+                if (res.ok) {
+                  setSelectedProduct((prev: any) => prev ? { ...prev, giaBan: finalPrice } : prev);
+                  fetchProducts();
+                  setShowPriceOffcanvas(false);
+                  toastSuccess("Thành công", "Cập nhật giá bán thành công");
+                } else {
+                  const data = await res.json().catch(() => ({}));
+                  toastError("Lỗi", data.error || "Có lỗi xảy ra khi lưu giá bán");
+                }
+              }}
+              onSaveAll={async (marginPct, marginType) => {
+                toastInfo("Đang xử lý", "Đang tính toán và áp dụng cho tất cả...");
+                const res = await fetch("/api/logistics/inventory/update-price-ratio", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ marginPct, marginType, scope: "bom" })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (data.success) {
+                  toastSuccess("Thành công", `Đã cập nhật giá bán cho ${data.updatedCount} sản phẩm`);
+                  
+                  // Calculate the specific finalPrice for the currently selected product
+                  const calculatedFinalPrice = marginType === "revenue"
+                    ? (marginPct < 100 ? Math.round(initialCost / (1 - marginPct / 100)) : 0)
+                    : Math.round(initialCost * (1 + marginPct / 100));
+                  
+                  setSelectedProduct((prev: any) => prev ? { ...prev, giaBan: calculatedFinalPrice } : prev);
+                  fetchProducts();
+                  setShowPriceOffcanvas(false);
+                } else {
+                  toastError("Lỗi", data.error || "Có lỗi xảy ra");
+                }
+              }}
+            />
 
             <div className="mb-3 d-flex gap-2">
               <select
@@ -863,25 +794,7 @@ export default function BOMPage() {
                           title="Cập nhật giá bán"
                           onClick={() => {
                             const cost = bomData.vatTu.reduce((sum: number, item: any) => sum + (Number(item.soLuong) || 0) * (item.material?.price || item.material?.giaNhap || 0), 0);
-                            const suggested = Math.round((cost * 1.30) / 1000) * 1000; // Default 30% margin, rounded to thousands
-                            const finalP = selectedProduct.giaBan || suggested;
-                            setPriceSetup({
-                              cost,
-                              haoHutPct: 0,
-                              chiPhiSxPct: 0,
-                              marginPct: 30,
-                              marginType: "cost",
-                              finalPrice: Math.round(finalP / 1000) * 1000
-                            });
-
-                            setMarketPrice(null);
-                            setLoadingMarketPrice(true);
-                            fetch(`/api/production/market-price?name=${encodeURIComponent((selectedProduct.tenHang || selectedProduct.name))}`)
-                              .then(res => res.json())
-                              .then(data => setMarketPrice(data.price))
-                              .catch(() => setMarketPrice(null))
-                              .finally(() => setLoadingMarketPrice(false));
-
+                            setInitialCost(cost);
                             setShowPriceOffcanvas(true);
                           }}
                         >

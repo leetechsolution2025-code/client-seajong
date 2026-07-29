@@ -18,6 +18,7 @@ import { MissingMaterialsOffcanvas } from "@/components/finance/MissingMaterials
 import { ImportIssuesOffcanvas } from "@/components/finance/ImportIssuesOffcanvas";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/Toast";
+import UpdatePriceOffcanvas from "@/components/ui/UpdatePriceOffcanvas";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -83,6 +84,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
   const [showDetail, setShowDetail] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showMissingMaterials, setShowMissingMaterials] = useState(false);
+  const [showPriceOffcanvas, setShowPriceOffcanvas] = useState(false);
   const [editItem, setEditItem] = useState<any>(null);
   
   const [deletingItem, setDeletingItem] = useState<InventoryItem | null>(null);
@@ -515,6 +517,8 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
     return true;
   });
 
+  const selectedWHCode = warehouses.find(w => w.value === warehouseId)?.code;
+
   return (
     <div className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0, gap: "1rem" }}>
       {/* KPI Cards */}
@@ -620,6 +624,15 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                     placeholder="Tìm theo tên, SKU..."
                 />
               </div>
+              {selectedWHCode === "KVP" && (
+                <button 
+                  className="btn btn-outline-primary btn-sm flex-shrink-0 d-flex align-items-center gap-2"
+                  style={{ height: '36px', padding: '0 16px', fontWeight: 600, borderRadius: '8px' }}
+                  onClick={() => setShowPriceOffcanvas(true)}
+                >
+                  <i className="bi bi-tag"></i> Giá bán linh kiện
+                </button>
+              )}
               {allowAdd && <BrandButton icon="bi-plus-lg" className="flex-shrink-0" onClick={() => setShowAddModal(true)}>Thêm hàng hoá</BrandButton>}
             </div>
 
@@ -725,6 +738,34 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
         show={showSkippedOffcanvas}
         onClose={() => setShowSkippedOffcanvas(false)}
         skippedItems={skippedItems}
+      />
+
+      <UpdatePriceOffcanvas
+        show={showPriceOffcanvas}
+        onClose={() => setShowPriceOffcanvas(false)}
+        itemName="Áp dụng linh kiện"
+        initialCost={0}
+        initialPrice={0}
+        applyAllLabel="Áp dụng cho tất cả Linh kiện, Vật tư (không có định mức)"
+        onSaveSingle={async () => {
+          // No single save available for KVP bulk button right now
+        }}
+        onSaveAll={async (marginPct, marginType) => {
+          success("Đang tính toán và áp dụng cho tất cả linh kiện...");
+          const res = await fetch("/api/logistics/inventory/update-price-ratio", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ marginPct, marginType, scope: "material" })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (data.success) {
+            success(`Đã cập nhật giá bán cho ${data.updatedCount} linh kiện`);
+            fetchItems();
+            setShowPriceOffcanvas(false);
+          } else {
+            error(data.error || "Có lỗi xảy ra");
+          }
+        }}
       />
     </div>
   );

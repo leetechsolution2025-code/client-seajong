@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
-    const { ratio, marginPct, marginType = "cost" } = await req.json();
+    const { ratio, marginPct, marginType = "cost", scope = "all" } = await req.json();
     const numRatio = parseFloat(ratio || marginPct);
     if (isNaN(numRatio) || numRatio <= 0) {
       return NextResponse.json({ error: "Tỷ lệ không hợp lệ" }, { status: 400 });
@@ -12,9 +12,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Lợi nhuận trên doanh thu phải < 100%" }, { status: 400 });
     }
 
-    // Fetch all materials with price > 0
+    const whereClause: any = { giaNhap: { gt: 0 } };
+    if (scope === "bom") {
+      whereClause.dinhMucs = { some: {} }; // Only items that have a BOM
+    } else if (scope === "material") {
+      whereClause.dinhMucs = { none: {} }; // Only items without a BOM
+    }
+
+    // Fetch all materials with price > 0 matching the scope
     const materials = await prisma.inventoryItem.findMany({
-      where: { giaNhap: { gt: 0 } },
+      where: whereClause,
       select: { id: true, giaNhap: true }
     });
 

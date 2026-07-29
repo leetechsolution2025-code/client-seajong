@@ -1,0 +1,12 @@
+--- src/app/api/plan-finance/sales/[id]/route.ts
++++ src/app/api/plan-finance/sales/[id]/route.ts
+@@ -623,7 +623,7 @@
+                     tenVatTu: matName,
+                     donVi: matUnit,
+                     soLuongCan: m.soLuong * item.missingQty
+-                    }
+-                  }
++                  });
+                 }
+               }
+             }
