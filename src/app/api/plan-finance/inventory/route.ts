@@ -69,15 +69,12 @@ export async function GET(req: NextRequest) {
     }
 
     const where = {
-      ...(trangThai  && { trangThai }),
       ...(categoryId ? { categoryId } : (industryProdCategoryIds.length > 0 ? { categoryId: { in: industryProdCategoryIds } } : {})),
     };
 
     const rawItems = await prisma.inventoryItem.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      take: search ? undefined : FETCH_LIMIT,
-      skip: search ? undefined : (page - 1) * PAGE_SIZE,
       include: {
         category: { select: { name: true } },
         stocks: { select: { soLuong: true, soLuongMin: true } },
@@ -85,45 +82,41 @@ export async function GET(req: NextRequest) {
     });
 
     // Filter JS-side nếu có search
-    const filtered = search
-      ? rawItems.filter(it => {
-          const nameNorm = removeVietnameseTones(it.tenHang);
-          const codeNorm = removeVietnameseTones(it.code ?? "");
-          const searchWords = searchNorm.split(/\s+/).filter(Boolean);
-          return searchWords.every(word => nameNorm.includes(word) || codeNorm.includes(word));
-        })
-      : rawItems;
+    let items = rawItems
+      .filter(it => {
+        if (!search) return true;
+        const nameNorm = removeVietnameseTones(it.tenHang);
+        const codeNorm = removeVietnameseTones(it.code ?? "");
+        const searchWords = searchNorm.split(/\s+/).filter(Boolean);
+        return searchWords.every(word => nameNorm.includes(word) || codeNorm.includes(word));
+      })
+      .map(item => {
+        const hasStocks = item.stocks.length > 0;
+        const soLuongThuc = hasStocks
+          ? item.stocks.reduce((sum, s) => sum + s.soLuong, 0)
+          : item.soLuong;
+        const soLuongMinKho = item.stocks.reduce((sum, s) => sum + s.soLuongMin, 0);
+        const minThreshold = soLuongMinKho > 0 ? soLuongMinKho : item.soLuongMin;
+        const trangThaiLive =
+          soLuongThuc === 0 ? "het-hang" :
+          minThreshold > 0 && soLuongThuc <= minThreshold ? "sap-het" : "con-hang";
 
-    const total = search ? filtered.length : await prisma.inventoryItem.count({ where });
-    const paginated = search
-      ? filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-      : filtered;
+        return {
+          ...item,
+          soLuongThuc,
+          soLuong: soLuongThuc,
+          trangThai: trangThaiLive,
+        };
+      });
 
-    // Tính tổng tồn kho thực và trangThai live cho từng item
-    const items = paginated.map(item => {
-      // Nếu có bản ghi InventoryStock → tính từ stocks
-      // Nếu chưa có stock nào (nhập legacy/Excel) → fallback về soLuong cũ
-      const hasStocks = item.stocks.length > 0;
-      const soLuongThuc = hasStocks
-        ? item.stocks.reduce((sum, s) => sum + s.soLuong, 0)
-        : item.soLuong; // fallback: dùng trường legacy
+    if (trangThai) {
+      items = items.filter(it => it.trangThai === trangThai);
+    }
 
-      const soLuongMinKho = item.stocks.reduce((sum, s) => sum + s.soLuongMin, 0);
-      const minThreshold = soLuongMinKho > 0 ? soLuongMinKho : item.soLuongMin;
+    const total = items.length;
+    const paginated = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-      const trangThaiLive =
-        soLuongThuc === 0                                ? "het-hang" :
-        minThreshold > 0 && soLuongThuc <= minThreshold ? "sap-het"  : "con-hang";
-
-      return {
-        ...item,
-        soLuongThuc,
-        soLuong: soLuongThuc,
-        trangThai: trangThaiLive,
-      };
-    });
-
-    return NextResponse.json({ items, total, page, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) });
+    return NextResponse.json({ items: paginated, total, page, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) });
   } catch (e: unknown) {
     console.error("[GET /inventory]", e);
     return NextResponse.json({ items: [], total: 0, page: 1, totalPages: 1 });

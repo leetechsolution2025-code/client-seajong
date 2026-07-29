@@ -100,6 +100,7 @@ export async function GET(req: Request) {
     const exactCode = searchParams.get("exactCode");
     const nolimit = searchParams.get("nolimit") === "true";
     const search = searchParams.get("search");
+    const reqTrangThai = searchParams.get("trangThai");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "15");
     const skip = (page - 1) * limit;
@@ -361,8 +362,12 @@ export async function GET(req: Request) {
       });
     }
 
+    if (reqTrangThai) {
+      filteredItems = filteredItems.filter(item => item.trangThai === reqTrangThai);
+    }
+
     // Paginate manually
-    const total = search ? filteredItems.length : invTotal;
+    const total = filteredItems.length;
     const paginated = nolimit ? filteredItems : filteredItems.slice(skip, skip + limit);
 
     const paginatedWithImages = await attachWebImages(paginated);

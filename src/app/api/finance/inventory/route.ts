@@ -24,7 +24,6 @@ export async function GET(req: NextRequest) {
 
     const where: any = {
       loai: "hang-hoa",
-      ...(trangThai  && { trangThai }),
       ...(categoryId && { categoryId }),
     };
 
@@ -35,8 +34,6 @@ export async function GET(req: NextRequest) {
     const rawItems = await prisma.inventoryItem.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      take: search ? undefined : FETCH_LIMIT,
-      skip: search ? undefined : (page - 1) * PAGE_SIZE,
       include: {
         category: { select: { name: true } },
         dinhMucs: { select: { id: true, code: true } },
@@ -47,7 +44,7 @@ export async function GET(req: NextRequest) {
     });
 
     // JS-side search filtering
-    const filtered = search
+    let filtered = search
       ? rawItems.filter(it => {
           const nameNorm = removeVietnameseTones(it.tenHang);
           const codeNorm = removeVietnameseTones(it.code ?? "");
@@ -55,12 +52,7 @@ export async function GET(req: NextRequest) {
         })
       : rawItems;
 
-    const total = search ? filtered.length : await prisma.inventoryItem.count({ where });
-    const paginated = search
-      ? filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-      : filtered;
-
-    const items = paginated.map(item => {
+    let items = filtered.map(item => {
       const hasStocks = item.stocks.length > 0;
       const soLuongThuc = hasStocks
         ? item.stocks.reduce((sum: number, s: any) => sum + s.soLuong, 0)
@@ -81,7 +73,14 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const itemsWithImages = await attachWebImages(items);
+    if (trangThai) {
+      items = items.filter(it => it.trangThai === trangThai);
+    }
+
+    const total = items.length;
+    const paginated = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+    const itemsWithImages = await attachWebImages(paginated);
 
     return NextResponse.json({ 
       items: itemsWithImages, 
