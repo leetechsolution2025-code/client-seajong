@@ -10,6 +10,24 @@ import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
+const step1KpiCriteriaData = [
+  { name: "Doanh thu phòng đạt được", target: "8,000,000,000", actual: "7,500,000,000", weight: "30%", score: "93" },
+  { name: "Số đại lý phát triển trong tháng", target: "10", actual: "8", weight: "25%", score: "80" },
+  { name: "Doanh số bình quân từ đại lý mới", target: "200,000,000", actual: "210,000,000", weight: "15%", score: "100" },
+  { name: "Tỷ lệ đại lý phát sinh đơn hàng", target: "80%", actual: "75%", weight: "10%", score: "93" },
+  { name: "Tỷ lệ thu hồi công nợ", target: "90%", actual: "88%", weight: "15%", score: "97" },
+  { name: "Tỷ lệ nhân viên hoàn thành KPI", target: "100%", actual: "90%", weight: "5%", score: "90" },
+];
+
+const step2KpiCriteriaData = [
+  { name: "Doanh số", target: "1,500,000,000", actual: "1,450,000,000", weight: "25%", score: "96" },
+  { name: "Doanh thu", target: "1,200,000,000", actual: "1,100,000,000", weight: "25%", score: "91" },
+  { name: "Số đại lý phát triển trong tháng", target: "3", actual: "2", weight: "15%", score: "66" },
+  { name: "Tỷ lệ chăm sóc đúng hạn", target: "90%", actual: "85%", weight: "15%", score: "94" },
+  { name: "Tỷ lệ chuyển đổi", target: "20%", actual: "18%", weight: "10%", score: "90" },
+  { name: "Thu hồi công nợ", target: "95%", actual: "90%", weight: "10%", score: "94" },
+];
+
 export default function PartnerActivitiesPage() {
   const { data: session } = useSession();
   const [currentStep, setCurrentStep] = useState(1);
@@ -19,6 +37,9 @@ export default function PartnerActivitiesPage() {
   const [reportMonth, setReportMonth] = useState(new Date());
   const [salesEmployees, setSalesEmployees] = useState<any[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
+  const [applyAllYear, setApplyAllYear] = useState(false);
+  const [step1KpiConfig, setStep1KpiConfig] = useState(step1KpiCriteriaData);
+  const [step2KpiConfig, setStep2KpiConfig] = useState(step2KpiCriteriaData);
 
   const handlePrevMonth = () => setReportMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   const handleNextMonth = () => setReportMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
@@ -97,23 +118,11 @@ export default function PartnerActivitiesPage() {
     return Math.round(score);
   };
 
-  const step1KpiCriteria = [
-    { name: "Doanh thu phòng đạt được", target: "8,000,000,000", actual: "7,500,000,000", weight: "30%", score: "93" },
-    { name: "Số đại lý phát triển trong tháng", target: "10", actual: "8", weight: "25%", score: "80" },
-    { name: "Doanh số bình quân từ đại lý mới", target: "200,000,000", actual: "210,000,000", weight: "15%", score: "100" },
-    { name: "Tỷ lệ đại lý phát sinh đơn hàng", target: "80%", actual: "75%", weight: "10%", score: "93" },
-    { name: "Tỷ lệ thu hồi công nợ", target: "90%", actual: "88%", weight: "15%", score: "97" },
-    { name: "Tỷ lệ nhân viên hoàn thành KPI", target: "100%", actual: "90%", weight: "5%", score: "90" },
-  ];
+  const step1KpiCriteria = step1KpiConfig;
+  const step2KpiCriteria = step2KpiConfig;
 
-  const step2KpiCriteria = [
-    { name: "Doanh số", target: "1,500,000,000", actual: "1,450,000,000", weight: "25%", score: "96" },
-    { name: "Doanh thu", target: "1,200,000,000", actual: "1,100,000,000", weight: "25%", score: "91" },
-    { name: "Số đại lý phát triển trong tháng", target: "3", actual: "2", weight: "15%", score: "66" },
-    { name: "Tỷ lệ chăm sóc đúng hạn", target: "90%", actual: "85%", weight: "15%", score: "94" },
-    { name: "Tỷ lệ chuyển đổi", target: "20%", actual: "18%", weight: "10%", score: "90" },
-    { name: "Thu hồi công nợ", target: "95%", actual: "90%", weight: "10%", score: "94" },
-  ];
+  const step1TotalWeight = step1KpiConfig.reduce((sum, item) => sum + (parseFloat(item.weight.replace(/%/g, '')) || 0), 0);
+  const step2TotalWeight = step2KpiConfig.reduce((sum, item) => sum + (parseFloat(item.weight.replace(/%/g, '')) || 0), 0);
 
   const step1TotalScore = step1KpiCriteria.reduce((sum, item) => sum + calculateScore(item.target, item.actual, item.weight), 0);
   const step2TotalScore = step2KpiCriteria.reduce((sum, item) => sum + calculateScore(item.target, item.actual, item.weight), 0);
@@ -613,8 +622,130 @@ export default function PartnerActivitiesPage() {
             </div>
           )}
           {currentStep === 3 && (
-            <div className="d-flex align-items-center justify-content-center w-100 h-100" style={{ minHeight: 400 }}>
-              <div className="text-center text-muted">Cấu hình chỉ số báo cáo (Đang phát triển)</div>
+            <div className="d-flex flex-column w-100 h-100 p-4">
+              <h6 className="fw-bold text-dark mb-4 text-uppercase" style={{ fontSize: 13 }}>Cấu hình hệ thống đánh giá</h6>
+              <div className="d-flex align-items-center justify-content-between mb-4">
+                <div className="d-flex align-items-center">
+                  <div className="d-flex align-items-center gap-2">
+                    <button className="btn btn-sm btn-light border shadow-sm" onClick={handlePrevMonth} style={{ width: 32, height: 32, padding: 0 }}>
+                      <i className="bi bi-chevron-left"></i>
+                    </button>
+                    <span className="fw-bold px-3 py-1 bg-white border rounded shadow-sm text-dark" style={{ fontSize: 14 }}>
+                      Tháng {reportMonth.getMonth() + 1}, {reportMonth.getFullYear()}
+                    </span>
+                    <button className="btn btn-sm btn-light border shadow-sm" onClick={handleNextMonth} style={{ width: 32, height: 32, padding: 0 }} disabled={reportMonth.getMonth() === new Date().getMonth() && reportMonth.getFullYear() === new Date().getFullYear()}>
+                      <i className="bi bi-chevron-right"></i>
+                    </button>
+                  </div>
+                  <div className="form-check form-switch ms-4 mb-0 d-flex align-items-center gap-2">
+                    <input 
+                      className="form-check-input mt-0" 
+                      type="checkbox" 
+                      role="switch" 
+                      id="applyAllYearSwitch" 
+                      checked={applyAllYear} 
+                      onChange={e => setApplyAllYear(e.target.checked)} 
+                      style={{ cursor: "pointer" }}
+                    />
+                    <label className="form-check-label text-muted fw-medium" htmlFor="applyAllYearSwitch" style={{ fontSize: 13, userSelect: 'none', cursor: 'pointer', paddingTop: 2 }}>Áp dụng cho cả năm</label>
+                  </div>
+                </div>
+                <div>
+                  <button className="btn btn-primary btn-sm px-4 shadow-sm d-flex align-items-center" style={{ fontWeight: 500 }}>
+                    <i className="bi bi-check2-circle me-2" style={{ fontSize: 16 }}></i>Ban hành
+                  </button>
+                </div>
+              </div>
+              <div className="flex-grow-1 overflow-hidden d-flex">
+                <div className="row w-100 m-0 h-100">
+                  {/* Cột trái */}
+                  <div className="col-6 h-100 d-flex flex-column border-end pe-4">
+                    <h6 className="fw-bold text-primary mb-3 text-uppercase" style={{ fontSize: 13 }}>Danh sách KPI Lãnh đạo phòng</h6>
+                    <div className="table-responsive flex-grow-1 custom-scrollbar border rounded">
+                      <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
+                        <thead className="bg-light" style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--card)" }}>
+                          <tr style={{ height: 36 }}>
+                            <th className="border-0 text-center text-uppercase" style={{ width: 50, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>STT</th>
+                            <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Tiêu chí đánh giá</th>
+                            <th className="border-0 text-center text-uppercase" style={{ width: 140, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Chỉ tiêu</th>
+                            <th className="border-0 text-center text-uppercase" style={{ width: 80, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Trọng số</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {step1KpiCriteria.map((item, idx) => (
+                            <tr key={idx}>
+                              <td className="text-center text-muted">{idx + 1}</td>
+                              <td className="fw-medium text-dark">{item.name}</td>
+                              <td>
+                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.target || ""} style={{ borderColor: "var(--border)" }} onChange={(e) => {
+                                  const newData = [...step1KpiConfig];
+                                  newData[idx] = { ...newData[idx], target: e.target.value };
+                                  setStep1KpiConfig(newData);
+                                }} />
+                              </td>
+                              <td>
+                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.weight || ""} style={{ borderColor: step1TotalWeight > 100 ? "var(--bs-danger)" : "var(--border)", color: step1TotalWeight > 100 ? "var(--bs-danger)" : "inherit" }} onChange={(e) => {
+                                  const newData = [...step1KpiConfig];
+                                  newData[idx] = { ...newData[idx], weight: e.target.value };
+                                  setStep1KpiConfig(newData);
+                                }} />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {step1TotalWeight > 100 && (
+                      <div className="text-danger mt-2 fw-medium" style={{ fontSize: 12 }}>
+                        <i className="bi bi-exclamation-circle me-1"></i> Tổng trọng số đang là {step1TotalWeight}%, vượt quá 100%. Vui lòng điều chỉnh.
+                      </div>
+                    )}
+                  </div>
+                  {/* Cột phải */}
+                  <div className="col-6 h-100 d-flex flex-column ps-4">
+                    <h6 className="fw-bold text-primary mb-3 text-uppercase" style={{ fontSize: 13 }}>Danh sách KPI Nhân viên phòng</h6>
+                    <div className="table-responsive flex-grow-1 custom-scrollbar border rounded">
+                      <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
+                        <thead className="bg-light" style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--card)" }}>
+                          <tr style={{ height: 36 }}>
+                            <th className="border-0 text-center text-uppercase" style={{ width: 50, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>STT</th>
+                            <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Tiêu chí đánh giá</th>
+                            <th className="border-0 text-center text-uppercase" style={{ width: 140, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Chỉ tiêu</th>
+                            <th className="border-0 text-center text-uppercase" style={{ width: 80, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Trọng số</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {step2KpiCriteria.map((item, idx) => (
+                            <tr key={idx}>
+                              <td className="text-center text-muted">{idx + 1}</td>
+                              <td className="fw-medium text-dark">{item.name}</td>
+                              <td>
+                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.target || ""} style={{ borderColor: "var(--border)" }} onChange={(e) => {
+                                  const newData = [...step2KpiConfig];
+                                  newData[idx] = { ...newData[idx], target: e.target.value };
+                                  setStep2KpiConfig(newData);
+                                }} />
+                              </td>
+                              <td>
+                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.weight || ""} style={{ borderColor: step2TotalWeight > 100 ? "var(--bs-danger)" : "var(--border)", color: step2TotalWeight > 100 ? "var(--bs-danger)" : "inherit" }} onChange={(e) => {
+                                  const newData = [...step2KpiConfig];
+                                  newData[idx] = { ...newData[idx], weight: e.target.value };
+                                  setStep2KpiConfig(newData);
+                                }} />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {step2TotalWeight > 100 && (
+                      <div className="text-danger mt-2 fw-medium" style={{ fontSize: 12 }}>
+                        <i className="bi bi-exclamation-circle me-1"></i> Tổng trọng số đang là {step2TotalWeight}%, vượt quá 100%. Vui lòng điều chỉnh.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
