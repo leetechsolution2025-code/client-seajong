@@ -6,6 +6,9 @@ import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterSelect } from "@/components/ui/FilterSelect";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { PolicyOffcanvas } from "./PolicyOffcanvas";
 import { PromotionOffcanvas } from "./PromotionOffcanvas";
 import { QAAddModal } from "./QAAddModal";
@@ -89,7 +92,7 @@ const getPromotionColumns = (
     </div>
   ) },
   { header: "Thời gian hiệu lực", render: (row: PolicyItem) => (
-    <div style={{ fontSize: "14px" }}>
+    <div>
       <div><span className="text-muted">Bắt đầu:</span> {row.startDate}</div>
       <div><span className="text-muted">Kết thúc:</span> {row.endDate}</div>
     </div>
@@ -394,9 +397,9 @@ export default function PricingPage() {
         color="violet"
       />
       
-      <div className="flex-grow-1 px-3 px-md-4 pb-4 pt-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+      <div className="flex-grow-1 p-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         <WorkflowCard
-          contentPadding="px-4 pb-4 pt-1"
+          contentPadding="p-0"
           stepper={
             <ModernStepper
               steps={STEPS}
@@ -408,121 +411,131 @@ export default function PricingPage() {
           }
         >
           {currentStep === 1 && (
-            <div className="d-flex flex-column h-100">
-              <div className="d-flex justify-content-between align-items-center mb-2 mt-2 gap-2 flex-wrap">
-                <div className="d-flex align-items-center gap-2">
-                  <select 
-                    className="form-select form-select-sm text-muted" 
-                    style={{ width: "160px" }}
-                    value={policyStatus}
-                    onChange={(e) => setPolicyStatus(e.target.value)}
-                  >
-                    <option value="all">Tất cả trạng thái</option>
-                    <option value="active">Hiệu lực</option>
-                    <option value="inactive">Hết hiệu lực</option>
-                  </select>
-                  <div className="input-group input-group-sm" style={{ width: "250px" }}>
-                    <span className="input-group-text bg-white border-end-0 text-muted">
-                      <i className="bi bi-search"></i>
-                    </span>
-                    <input 
-                      type="text" 
-                      className="form-control border-start-0 ps-0" 
-                      placeholder="Tìm kiếm văn bản..." 
-                      value={policySearch}
-                      onChange={(e) => setPolicySearch(e.target.value)}
+            <FullWidthTableLayout
+              className="flex-grow-1 overflow-hidden full-width-table-wrapper"
+              style={{ minHeight: 0 }}
+              header={
+                <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 w-100">
+                  <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
+                    <FilterSelect
+                      options={[
+                        { label: "Tất cả trạng thái", value: "all" },
+                        { label: "Hiệu lực", value: "active" },
+                        { label: "Hết hiệu lực", value: "inactive" }
+                      ]}
+                      value={policyStatus}
+                      onChange={setPolicyStatus}
+                      placeholder="Trạng thái"
+                      width={160}
                     />
+                    <div className="flex-grow-1">
+                      <SearchInput
+                        placeholder="Tìm kiếm văn bản..."
+                        value={policySearch}
+                        onChange={setPolicySearch}
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="d-flex align-items-center gap-2">
-                  {selectedPolicyIds.length > 0 && (
+                  <div className="d-flex align-items-center gap-2">
+                    {selectedPolicyIds.length > 0 && (
+                      <button 
+                        className="btn btn-outline-danger d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                        style={{ height: 34, fontSize: "12.5px", borderRadius: 8, fontWeight: 700 }}
+                        onClick={handleDeletePolicies}
+                        disabled={isDeletingPolicy}
+                        title="Xóa các mục đã chọn"
+                      >
+                        {isDeletingPolicy ? <span className="spinner-border spinner-border-sm" role="status"></span> : <i className="bi bi-trash"></i>}
+                      </button>
+                    )}
                     <button 
-                      className="btn btn-outline-danger btn-sm px-2 flex-shrink-0"
-                      onClick={handleDeletePolicies}
-                      disabled={isDeletingPolicy}
-                      title="Xóa các mục đã chọn"
+                      className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                      style={{ height: 34, fontSize: "12.5px", backgroundColor: "#003087", borderColor: "#003087", borderRadius: 8, fontWeight: 700, whiteSpace: "nowrap" }}
+                      onClick={() => setIsPolicyOffcanvasOpen(true)}
                     >
-                      {isDeletingPolicy ? <span className="spinner-border spinner-border-sm" role="status"></span> : <i className="bi bi-trash"></i>}
+                      <i className="bi bi-plus-lg"></i> 
+                      <span>Thêm chính sách</span>
                     </button>
-                  )}
-                  <button 
-                    className="btn btn-primary btn-sm px-3 flex-shrink-0"
-                    onClick={() => setIsPolicyOffcanvasOpen(true)}
-                  >
-                    <i className="bi bi-plus-lg me-1"></i> Thêm chính sách
-                  </button>
-                </div>
-              </div>
-              <div className="flex-grow-1 overflow-auto bg-white">
-                {loadingPolicies ? (
-                  <div className="text-center p-4 text-muted">
-                    <div className="spinner-border spinner-border-sm me-2 text-primary"></div>
-                    Đang tải danh sách chính sách...
                   </div>
-                ) : (
-                  <Table columns={getPolicyColumns(setPreviewPdfItem, selectedPolicyIds, togglePolicySelection)} rows={filteredPolicies} compact />
-                )}
-              </div>
-            </div>
+                </div>
+              }
+              table={
+                <div className="h-100 border-top bg-white overflow-auto d-flex flex-column" style={{ minHeight: 0 }}>
+                  {loadingPolicies ? (
+                    <div className="text-center p-4 text-muted">
+                      <div className="spinner-border spinner-border-sm me-2 text-primary"></div>
+                      Đang tải danh sách chính sách...
+                    </div>
+                  ) : (
+                    <Table columns={getPolicyColumns(setPreviewPdfItem, selectedPolicyIds, togglePolicySelection)} rows={filteredPolicies} compact />
+                  )}
+                </div>
+              }
+            />
           )}
           
           {currentStep === 2 && (
-            <div className="d-flex flex-column h-100">
-              <div className="d-flex justify-content-between align-items-center mb-2 mt-2 gap-2 flex-wrap">
-                <div className="d-flex align-items-center gap-2">
-                  <select 
-                    className="form-select form-select-sm text-muted" 
-                    style={{ width: "160px" }}
-                    value={promotionStatus}
-                    onChange={(e) => setPromotionStatus(e.target.value)}
-                  >
-                    <option value="all">Tất cả trạng thái</option>
-                    <option value="active">Hiệu lực</option>
-                    <option value="inactive">Hết hiệu lực</option>
-                  </select>
-                  <div className="input-group input-group-sm" style={{ width: "250px" }}>
-                    <span className="input-group-text bg-white border-end-0 text-muted">
-                      <i className="bi bi-search"></i>
-                    </span>
-                    <input 
-                      type="text" 
-                      className="form-control border-start-0 ps-0" 
-                      placeholder="Tìm kiếm chương trình..." 
-                      value={promotionSearch}
-                      onChange={(e) => setPromotionSearch(e.target.value)}
+            <FullWidthTableLayout
+              className="flex-grow-1 overflow-hidden full-width-table-wrapper"
+              style={{ minHeight: 0 }}
+              header={
+                <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 w-100">
+                  <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
+                    <FilterSelect
+                      options={[
+                        { label: "Tất cả trạng thái", value: "all" },
+                        { label: "Hiệu lực", value: "active" },
+                        { label: "Hết hiệu lực", value: "inactive" }
+                      ]}
+                      value={promotionStatus}
+                      onChange={setPromotionStatus}
+                      placeholder="Trạng thái"
+                      width={160}
                     />
+                    <div className="flex-grow-1">
+                      <SearchInput
+                        placeholder="Tìm kiếm chương trình..."
+                        value={promotionSearch}
+                        onChange={setPromotionSearch}
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="d-flex align-items-center gap-2">
-                  {selectedPromotionIds.length > 0 && (
+                  <div className="d-flex align-items-center gap-2">
+                    {selectedPromotionIds.length > 0 && (
+                      <button 
+                        className="btn btn-outline-danger d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                        style={{ height: 34, fontSize: "12.5px", borderRadius: 8, fontWeight: 700 }}
+                        onClick={handleDeletePromotions}
+                        disabled={isDeletingPromotion}
+                        title="Xóa các mục đã chọn"
+                      >
+                        {isDeletingPromotion ? <span className="spinner-border spinner-border-sm" role="status"></span> : <i className="bi bi-trash"></i>}
+                      </button>
+                    )}
                     <button 
-                      className="btn btn-outline-danger btn-sm px-2 flex-shrink-0"
-                      onClick={handleDeletePromotions}
-                      disabled={isDeletingPromotion}
-                      title="Xóa các mục đã chọn"
+                      className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                      style={{ height: 34, fontSize: "12.5px", backgroundColor: "#003087", borderColor: "#003087", borderRadius: 8, fontWeight: 700, whiteSpace: "nowrap" }}
+                      onClick={() => setIsPromotionOffcanvasOpen(true)}
                     >
-                      {isDeletingPromotion ? <span className="spinner-border spinner-border-sm" role="status"></span> : <i className="bi bi-trash"></i>}
+                      <i className="bi bi-plus-lg"></i>
+                      <span>Thêm khuyến mãi</span>
                     </button>
-                  )}
-                  <button 
-                    className="btn btn-primary btn-sm px-3 flex-shrink-0"
-                    onClick={() => setIsPromotionOffcanvasOpen(true)}
-                  >
-                    <i className="bi bi-plus-lg me-1"></i> Thêm khuyến mãi
-                  </button>
-                </div>
-              </div>
-              <div className="flex-grow-1 overflow-auto bg-white">
-                {loadingPromotions ? (
-                  <div className="text-center p-4 text-muted">
-                    <div className="spinner-border spinner-border-sm me-2 text-primary"></div>
-                    Đang tải danh sách khuyến mãi...
                   </div>
-                ) : (
-                  <Table columns={getPromotionColumns(setPreviewPdfItem, selectedPromotionIds, togglePromotionSelection)} rows={filteredPromotions} compact />
-                )}
-              </div>
-            </div>
+                </div>
+              }
+              table={
+                <div className="h-100 border-top bg-white overflow-auto d-flex flex-column" style={{ minHeight: 0 }}>
+                  {loadingPromotions ? (
+                    <div className="text-center p-4 text-muted">
+                      <div className="spinner-border spinner-border-sm me-2 text-primary"></div>
+                      Đang tải danh sách khuyến mãi...
+                    </div>
+                  ) : (
+                    <Table columns={getPromotionColumns(setPreviewPdfItem, selectedPromotionIds, togglePromotionSelection)} rows={filteredPromotions} compact />
+                  )}
+                </div>
+              }
+            />
           )}
           
           {currentStep === 3 && (
@@ -554,25 +567,21 @@ export default function PricingPage() {
               </div>
               
               <div className="col-7 h-100 d-flex flex-column ps-4">
-                <div className="d-flex justify-content-between align-items-center mb-3 mt-1 gap-2 flex-wrap">
-                  <div className="d-flex align-items-center gap-2 flex-grow-1">
-                    <div className="input-group input-group-sm w-100">
-                      <span className="input-group-text bg-white border-end-0 text-muted">
-                        <i className="bi bi-search"></i>
-                      </span>
-                      <input 
-                        type="text" 
-                        className="form-control border-start-0 ps-0" 
-                        placeholder="Tìm kiếm câu hỏi..." 
+                <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 w-100 mb-3 mt-3">
+                  <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
+                    <div className="flex-grow-1">
+                      <SearchInput
+                        placeholder="Tìm kiếm câu hỏi..."
                         value={qaSearch}
-                        onChange={(e) => setQaSearch(e.target.value)}
+                        onChange={setQaSearch}
                       />
                     </div>
                   </div>
                   <div className="d-flex align-items-center gap-2">
                     {selectedQaIds.length > 0 && (
                       <button 
-                        className="btn btn-outline-danger btn-sm px-2 flex-shrink-0"
+                        className="btn btn-outline-danger d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                        style={{ height: 34, fontSize: "12.5px", borderRadius: 8, fontWeight: 700 }}
                         onClick={handleDeleteQa}
                         disabled={isDeletingQa}
                         title="Xóa các mục đã chọn"
@@ -581,10 +590,12 @@ export default function PricingPage() {
                       </button>
                     )}
                     <button 
-                      className="btn btn-primary btn-sm px-3 flex-shrink-0"
+                      className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                      style={{ height: 34, fontSize: "12.5px", backgroundColor: "#003087", borderColor: "#003087", borderRadius: 8, fontWeight: 700, whiteSpace: "nowrap" }}
                       onClick={() => setIsQaModalOpen(true)}
                     >
-                      <i className="bi bi-plus-lg me-1"></i> Thêm câu hỏi
+                      <i className="bi bi-plus-lg"></i>
+                      <span>Thêm câu hỏi</span>
                     </button>
                   </div>
                 </div>

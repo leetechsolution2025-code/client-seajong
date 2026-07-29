@@ -162,8 +162,10 @@ export function GlobalAIAssistant() {
       const padding = 24;
       const btnSize = 56;
       
-      const maxOffsetX = window.innerWidth - btnSize - padding * 2;
-      const minOffsetX = 0;
+      const halfW = window.innerWidth / 2;
+      const maxOffsetX = halfW - padding - btnSize / 2;
+      const minOffsetX = -maxOffsetX;
+
       const maxOffsetY = window.innerHeight - btnSize - padding * 2;
       const minOffsetY = 0;
 
@@ -774,7 +776,8 @@ export function GlobalAIAssistant() {
           style={{
             position: "fixed", 
             bottom: 24 + offset.y, 
-            right: 24 + offset.x, 
+            left: `calc(50% - ${offset.x}px)`,
+            transform: "translateX(-50%)",
             zIndex: 1200,
             width: 56, height: 56, borderRadius: "50%", border: "none",
             background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT2})`,
@@ -793,7 +796,8 @@ export function GlobalAIAssistant() {
         <div className={`ai-panel${closing ? " ai-panel-closing" : ""}`} style={{
           position: "fixed", 
           bottom: viewportOffsetBottom, 
-          right: isMobile ? 0 : 24, 
+          left: isMobile ? 0 : "50%", 
+          transform: isMobile ? "none" : "translateX(-50%)",
           zIndex: 1199,
           width: isMobile ? "100%" : 420, 
           maxHeight: viewportHeight 

@@ -21,8 +21,8 @@ async function main() {
     where: { loai: { in: ['thanh-pham', 'vat-tu'] } }
   });
   
-  await prisma.manufacturedProduct.deleteMany();
-  await (prisma as any).materialItem.deleteMany();
+  await (prisma as any).manufacturedProduct?.deleteMany?.();
+  await (prisma as any).materialItem?.deleteMany?.();
   
   await prisma.category.deleteMany({
     where: { type: { in: ['danh_muc_thanh_pham', 'vat_tu_san_xuat'] } }
@@ -50,8 +50,8 @@ async function main() {
     });
   }
 
-  await (prisma as any).materialItem.createMany({ data: data.MaterialItem });
-  await prisma.manufacturedProduct.createMany({ data: data.ManufacturedProduct });
+  await (prisma as any).materialItem?.createMany?.({ data: data.MaterialItem || [] });
+  await (prisma as any).manufacturedProduct?.createMany?.({ data: data.ManufacturedProduct || [] });
   await prisma.dinhMuc.createMany({ data: data.DinhMuc });
   await prisma.dinhMucVatTu.createMany({ data: data.DinhMucVatTu });
   for (const item of data.InventoryItem) {

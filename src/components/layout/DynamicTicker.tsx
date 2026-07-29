@@ -159,9 +159,8 @@ export function DynamicTicker({ pageTitle, customNews }: { pageTitle?: string, c
 
   return (
     <div className={`dynamic-ticker-container border-bottom px-3 flex-shrink-0 d-flex align-items-center ${colorClass}`}>
-      <div className={`d-flex align-items-center me-3 fw-bold text-nowrap flex-shrink-0`} style={{ fontSize: '0.875rem' }}>
-        <i className={`bi ${iconClass} me-2`}></i>
-        {title}
+      <div className={`d-flex align-items-center me-3 fw-bold text-nowrap flex-shrink-0`} style={{ fontSize: '1rem' }}>
+        <i className={`bi bi-megaphone-fill`}></i>
       </div>
       <div ref={wrapperRef} className="dynamic-ticker-scroll-wrapper flex-grow-1 overflow-hidden" style={{ fontSize: '0.875rem' }}>
         <div ref={contentRef} className="dynamic-ticker-content" style={{ animationDuration: `${duration}s` }}>

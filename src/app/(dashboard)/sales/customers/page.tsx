@@ -8,6 +8,7 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { Pagination } from "@/components/ui/Pagination";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import Link from "next/link";
 import { BaoGiaSanitaryModal } from "@/components/plan-finance/bao_gia/BaoGiaSanitaryModal";
 import { TaoDonHangModal } from "@/components/plan-finance/bao_gia/TaoDonHangModal";
@@ -668,80 +669,90 @@ export default function SalesCustomersPage() {
         icon="bi-people"
       />
       <DynamicTicker pageTitle="Danh sách đại lý" customNews={tickerNews} />
-      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+      <div className="flex-grow-1 p-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column flex-lg-row overflow-hidden" style={{ minHeight: 0 }}>
           {/* Cột chính - full width */}
-          <div className="col-12 d-flex flex-column p-4" style={{ minHeight: 0 }}>
-
-            {/* Tiêu đề vùng */}
-            <SectionTitle title="Danh sách đại lý" />
-
-            {/* Thanh công cụ Toolbar */}
-            <div className="d-flex align-items-center gap-2 mb-3">
-              <FilterSelect
-                options={nguonOptions}
-                value={nguonFilter}
-                onChange={setNguonFilter}
-                placeholder="Nguồn"
-                width={120}
-              />
-              <FilterSelect
-                options={hangOptions}
-                value={hangFilter}
-                onChange={setHangFilter}
-                placeholder="Hạng"
-                width={120}
-              />
-              <div className="flex-grow-1">
-                <SearchInput
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  placeholder="Tìm kiếm đại lý..."
-                />
-              </div>
-              <button
-                onClick={handleOpenCreate}
-                className="btn btn-sm btn-primary d-flex align-items-center gap-1"
-                style={{
-                  height: 34,
-                  padding: "0 14px",
-                  backgroundColor: "var(--primary)",
-                  borderColor: "var(--primary)",
-                  borderRadius: 8
-                }}
-              >
-                <i className="bi bi-plus-lg" />
-                Thêm mới
-              </button>
-            </div>
-
-            {/* Bảng danh sách khách hàng */}
-            <div className="flex-grow-1" style={{ minHeight: 0, position: "relative" }}>
-              <Table
-                columns={columns}
-                rows={customers}
-                loading={loading}
-                rowKey={(row) => row.id}
-                emptyText="Không tìm thấy đại lý nào"
-                compact
-                onRowClick={(row) => {
-                  setSelectedCustomer(row);
-                  setShowDetailOffcanvas(true);
-                }}
-                wrapperStyle={{ height: "100%", overflowY: "auto" }}
-              />
-            </div>
-
-            {/* Điều hướng phân trang */}
-            {totalPages > 1 && (
-              <div className="d-flex justify-content-end mt-3 flex-shrink-0">
-                <Pagination
-                  page={page}
-                  totalPages={totalPages}
-                  onChange={setPage}
-                />
-              </div>
-            )}
+          <div className="col-12 d-flex flex-column" style={{ minHeight: 0 }}>
+            <FullWidthTableLayout
+              className="flex-grow-1 overflow-hidden full-width-table-wrapper"
+              header={
+                <div className="d-flex flex-column gap-3 mb-2 mt-2">
+                  {/* Thanh công cụ Toolbar */}
+                  <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 w-100">
+                    <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
+                      <FilterSelect
+                        options={nguonOptions}
+                        value={nguonFilter}
+                        onChange={setNguonFilter}
+                        placeholder="Nguồn"
+                        width={120}
+                      />
+                      <FilterSelect
+                        options={hangOptions}
+                        value={hangFilter}
+                        onChange={setHangFilter}
+                        placeholder="Hạng"
+                        width={120}
+                      />
+                      <div className="flex-grow-1">
+                        <SearchInput
+                          value={searchQuery}
+                          onChange={setSearchQuery}
+                          placeholder="Tìm kiếm đại lý..."
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="d-flex align-items-center gap-2">
+                      <button
+                        onClick={handleOpenCreate}
+                        className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                        style={{
+                          height: 34,
+                          fontSize: "12.5px",
+                          backgroundColor: "#003087",
+                          borderColor: "#003087",
+                          borderRadius: 8,
+                          fontWeight: 700,
+                          whiteSpace: "nowrap"
+                        }}
+                      >
+                        <i className="bi bi-plus-lg" />
+                        <span>Thêm mới</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              }
+              table={
+                <div className="h-100 border-top bg-white overflow-auto d-flex flex-column" style={{ minHeight: 0 }}>
+                  <Table
+                    columns={columns}
+                    rows={customers}
+                    loading={loading}
+                    rowKey={(row) => row.id}
+                    emptyText="Không tìm thấy đại lý nào"
+                    compact
+                    onRowClick={(row) => {
+                      setSelectedCustomer(row);
+                      setShowDetailOffcanvas(true);
+                    }}
+                    wrapperStyle={{ height: "100%", overflowY: "auto" }}
+                  />
+                </div>
+              }
+              footer={
+                totalPages > 1 ? (
+                  <div className="d-flex justify-content-end p-3 flex-shrink-0 border-top bg-white">
+                    <Pagination
+                      page={page}
+                      totalPages={totalPages}
+                      onChange={setPage}
+                    />
+                  </div>
+                ) : null
+              }
+            />
           </div>
         </div>
       </div>

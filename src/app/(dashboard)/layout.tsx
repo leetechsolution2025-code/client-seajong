@@ -302,12 +302,7 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
         ]
       },
 
-      {
-        group: "Bán hàng", icon: "bi-shop", items: [
-          { name: "Bán giá và đơn hàng", href: "/sales/quotations", icon: "bi-file-text" },
-          { name: "Phễu đơn hàng đa kênh", href: "/sales/omnichannel", icon: "bi-funnel" },
-        ]
-      },
+
       {
         group: "Lập kế hoạch", flat: true, items: [
           { name: "Lập kế hoạch sale", href: "/sales/plan", icon: "bi-calendar-check" },

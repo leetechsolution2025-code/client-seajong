@@ -55,7 +55,7 @@ export function Pagination({ page, totalPages, onChange, siblingCount = 1 }: Pag
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4, padding: "12px 0 0", flexWrap: "wrap" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4, padding: 0, flexWrap: "wrap" }}>
       {/* Prev */}
       <button
         style={page <= 1 ? btnDisabled : btnBase}

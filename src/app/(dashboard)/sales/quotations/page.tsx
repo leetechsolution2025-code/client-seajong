@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Table, TableColumn } from "@/components/ui/Table";
@@ -12,6 +13,7 @@ import { ChiTietBaoGia } from "@/components/plan-finance/bao_gia/ChiTietBaoGia";
 import { ChiTietDonHang } from "@/components/plan-finance/bao_gia/ChiTietDonHang";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { OmnichannelContent } from "../omnichannel/page";
 
 interface Quotation {
   id: string;
@@ -90,22 +92,24 @@ const STEP_ITEMS: ModernStepItem[] = [
   },
   {
     num: 3,
-    id: "RESERVATION",
-    title: "Báo giữ hàng",
-    desc: "Quản lý giữ hàng & cọc",
-    icon: "bi-bookmark-star",
+    id: "OMNICHANNEL",
+    title: "Bán hàng đa kênh",
+    desc: "Gom đơn từ Shopee, Lazada, TikTok và Showroom",
+    icon: "bi-shop",
   },
 ];
 
-export default function QuotationsPage() {
+export function QuotationsContent() {
   const toast = useToast();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(2);
   const [statusFilter, setStatusFilter] = useState("");
+  const [timeFilter, setTimeFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Step 2: Orders state
   const [orderStatusFilter, setOrderStatusFilter] = useState("");
+  const [orderTimeFilter, setOrderTimeFilter] = useState("");
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orders, setOrders] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -188,6 +192,7 @@ export default function QuotationsPage() {
       const params = new URLSearchParams();
       params.append("type", "retail");
       if (statusFilter) params.append("trangThai", statusFilter);
+      if (timeFilter) params.append("time", timeFilter);
       if (searchTerm) params.append("search", searchTerm);
       params.append("page", "1");
 
@@ -215,13 +220,14 @@ export default function QuotationsPage() {
 
   useEffect(() => {
     fetchQuotations();
-  }, [statusFilter, searchTerm]);
+  }, [statusFilter, searchTerm, timeFilter]);
 
   const fetchOrders = async () => {
     setOrdersLoading(true);
     try {
       const params = new URLSearchParams();
       if (orderStatusFilter) params.append("trangThai", orderStatusFilter);
+      if (orderTimeFilter) params.append("time", orderTimeFilter);
       if (orderSearchTerm) params.append("search", orderSearchTerm);
       params.append("page", "1");
 
@@ -252,7 +258,7 @@ export default function QuotationsPage() {
     if (currentStep === 2) {
       fetchOrders();
     }
-  }, [currentStep, orderStatusFilter, orderSearchTerm]);
+  }, [currentStep, orderStatusFilter, orderSearchTerm, orderTimeFilter]);
 
   // Fetch customers list for autocomplete search
   useEffect(() => {
@@ -579,16 +585,10 @@ export default function QuotationsPage() {
   }, [quotations, selectedIds]);
 
   return (
-    <StandardPage
-      title="Bán hàng"
-      description="Khởi tạo báo giá và chuyển đổi đơn hàng nhanh chóng"
-      icon="bi-file-text"
-      color="cyan"
-      useCard={false}
-    >
-      <div className="bg-white rounded-4 shadow-sm border p-3 p-sm-4 flex-grow-1 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
+    <>
+      <div className="bg-white rounded-4 shadow-sm border flex-grow-1 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
         {/* Stepper container */}
-        <div className="border-bottom pb-1 mb-2 flex-shrink-0">
+        <div className="border-bottom pb-3 pt-3 px-3 px-sm-4 flex-shrink-0">
           <ModernStepper
             steps={STEP_ITEMS}
             currentStep={currentStep}
@@ -601,9 +601,11 @@ export default function QuotationsPage() {
         {/* Step Contents */}
         <div className="flex-grow-1 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
           {currentStep === 1 && (
-            <div className="py-2 d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
-              {/* Toolbar */}
-              <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3 flex-shrink-0">
+            <FullWidthTableLayout
+              className="flex-grow-1 overflow-hidden"
+              style={{ minHeight: 0 }}
+              header={
+                <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
                 <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
                   {/* Bộ lọc theo trạng thái */}
                   <FilterSelect
@@ -622,6 +624,23 @@ export default function QuotationsPage() {
                       onChange={setSearchTerm}
                     />
                   </div>
+                  
+                  {/* Bộ lọc thời gian */}
+                  <FilterSelect 
+                    options={[
+                      { label: "Hôm nay", value: "today" },
+                      { label: "Hôm qua", value: "yesterday" },
+                      { label: "Tuần này", value: "this_week" },
+                      { label: "Tuần trước", value: "last_week" },
+                      { label: "Tháng này", value: "this_month" },
+                      { label: "Tháng trước", value: "last_month" },
+                      { label: "Năm nay", value: "this_year" },
+                    ]}
+                    value={timeFilter}
+                    onChange={setTimeFilter}
+                    placeholder="Thời gian"
+                    width={150}
+                  />
                 </div>
 
                 <div className="d-flex align-items-center gap-2">
@@ -663,10 +682,9 @@ export default function QuotationsPage() {
                   Thêm mới
                 </button>
                 </div>
-              </div>
-
-              {/* Table container */}
-              <div className="flex-grow-1 d-flex flex-column rounded-3 bg-white" style={{ minHeight: 0 }}>
+                </div>
+              }
+              table={
                 <Table
                   columns={columns}
                   rows={quotations}
@@ -678,13 +696,15 @@ export default function QuotationsPage() {
                   onRowClick={setSelectedQ}
                   wrapperStyle={{ overflowY: "auto", flex: 1, minHeight: 0 }}
                 />
-              </div>
-            </div>
+              }
+            />
           )}
           {currentStep === 2 && (
-            <div className="py-2 d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
-              {/* Toolbar */}
-              <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3 flex-shrink-0">
+            <FullWidthTableLayout
+              className="flex-grow-1 overflow-hidden"
+              style={{ minHeight: 0 }}
+              header={
+                <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
                 <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
                   {/* Bộ lọc theo trạng thái */}
                   <FilterSelect
@@ -697,12 +717,29 @@ export default function QuotationsPage() {
 
                   {/* Hộp tìm kiếm */}
                   <div className="flex-grow-1" style={{ maxWidth: 300 }}>
-                    <SearchInput
+                    <SearchInput 
                       placeholder="Tìm kiếm..."
                       value={orderSearchTerm}
                       onChange={setOrderSearchTerm}
                     />
                   </div>
+
+                  {/* Bộ lọc thời gian */}
+                  <FilterSelect 
+                    options={[
+                      { label: "Hôm nay", value: "today" },
+                      { label: "Hôm qua", value: "yesterday" },
+                      { label: "Tuần này", value: "this_week" },
+                      { label: "Tuần trước", value: "last_week" },
+                      { label: "Tháng này", value: "this_month" },
+                      { label: "Tháng trước", value: "last_month" },
+                      { label: "Năm nay", value: "this_year" },
+                    ]}
+                    value={orderTimeFilter}
+                    onChange={setOrderTimeFilter}
+                    placeholder="Thời gian"
+                    width={150}
+                  />
                 </div>
 
                 <div className="d-flex align-items-center gap-2">
@@ -744,10 +781,9 @@ export default function QuotationsPage() {
                     Thêm mới
                   </button>
                 </div>
-              </div>
-
-              {/* Table container */}
-              <div className="flex-grow-1 d-flex flex-column rounded-3 bg-white" style={{ minHeight: 0 }}>
+                </div>
+              }
+              table={
                 <Table
                   columns={orderColumns}
                   rows={orders}
@@ -759,27 +795,24 @@ export default function QuotationsPage() {
                   onRowClick={(row) => setSelectedOrderId(row.id)}
                   wrapperStyle={{ overflowY: "auto", flex: 1, minHeight: 0 }}
                 />
-              </div>
-            </div>
+              }
+            />
           )}
           {currentStep === 3 && (
-            <div className="py-2 flex-grow-1 overflow-auto">
-              <h5 className="fw-bold mb-3">Quản lý Báo giữ hàng</h5>
-              <p className="text-muted">Nội dung chi tiết của bước Báo giữ hàng sẽ được thiết kế tại đây.</p>
-            </div>
+            <OmnichannelContent />
           )}
         </div>
       </div>
 
-      {/* Customer Selection Modal Overlay */}
+      {/* Customer Selection Offcanvas */}
       {showCustomerSelectModal && (
-        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.55)", zIndex: 1060 }}>
-          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 500 }}>
-            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-              <div className="modal-header bg-light border-0 py-3 px-4">
-                <h5 className="modal-title fw-bold text-dark" style={{ fontSize: 15 }}>
-                  {isCreatingNewCustomer ? "Tạo khách hàng mới" : (isDirectOrder ? "Chọn khách hàng cho đơn hàng" : "Chọn khách hàng cho báo giá")}
-                </h5>
+        <>
+          <div className="offcanvas-backdrop fade show" style={{ zIndex: 1050 }} onClick={() => setShowCustomerSelectModal(false)}></div>
+          <div className="offcanvas offcanvas-end show d-flex flex-column shadow-lg border-start-0" style={{ width: 400, zIndex: 1060, visibility: "visible" }} tabIndex={-1}>
+            <div className="offcanvas-header bg-light border-bottom py-3 px-4 flex-shrink-0">
+              <h5 className="offcanvas-title fw-bold text-dark" style={{ fontSize: 15 }}>
+                {isCreatingNewCustomer ? "Tạo khách hàng mới" : (isDirectOrder ? "Chọn khách hàng cho đơn hàng" : "Chọn khách hàng cho báo giá")}
+              </h5>
                 <button
                   type="button"
                   className="btn-close shadow-none"
@@ -789,7 +822,7 @@ export default function QuotationsPage() {
                   }}
                 />
               </div>
-              <div className="modal-body p-4">
+              <div className="offcanvas-body p-4 d-flex flex-column overflow-y-auto">
                 {!isCreatingNewCustomer ? (
                   <div className="d-flex flex-column gap-3">
                     <div className="d-flex gap-2">
@@ -928,10 +961,9 @@ export default function QuotationsPage() {
                     </div>
                   </form>
                 )}
-              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Main Fullscreen Quotation Creator Modal */}
@@ -1005,6 +1037,20 @@ export default function QuotationsPage() {
         onConfirm={handleDeleteDonHang}
         onCancel={() => setConfirmDeleteDonHang(false)}
       />
+    </>
+  );
+}
+
+export default function QuotationsPage() {
+  return (
+    <StandardPage
+      title="Bán hàng"
+      description="Khởi tạo báo giá và chuyển đổi đơn hàng nhanh chóng"
+      icon="bi-file-text"
+      color="cyan"
+      useCard={false}
+    >
+      <QuotationsContent />
     </StandardPage>
   );
 }

@@ -45,12 +45,12 @@ export function FullWidthTableLayout({
           padding-right: 1.5rem !important;
         }
       `}</style>
-      <div className="full-width-table-wrapper mt-3 border-top" style={{ flexGrow: 1, overflow: "hidden", minHeight: 0 }}>
+      <div className="full-width-table-wrapper mt-2 border-top d-flex flex-column" style={{ flexGrow: 1, overflow: "hidden", minHeight: 0 }}>
         {table}
       </div>
 
       {footer && (
-        <div className="d-flex align-items-center justify-content-end gap-2 p-4 pt-3 border-top bg-card mt-auto flex-shrink-0">
+        <div className="d-flex align-items-center justify-content-end gap-2 border-top mt-auto flex-shrink-0" style={{ padding: "19px 16px", backgroundColor: "#f8f9fa" }}>
           {footer}
         </div>
       )}

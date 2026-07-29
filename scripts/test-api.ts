@@ -2,9 +2,9 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const paginated = await prisma.manufacturedProduct.findMany({
+  const paginated = await (prisma as any).manufacturedProduct?.findMany?.({
     take: 50,
-  });
+  }) || [];
   
   const mappedItems = await Promise.all(paginated.map(async (item: any) => {
     let soLuong = 0;

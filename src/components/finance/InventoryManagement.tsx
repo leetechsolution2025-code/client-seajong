@@ -21,6 +21,7 @@ import { useToast } from "@/components/ui/Toast";
 import UpdatePriceOffcanvas from "@/components/ui/UpdatePriceOffcanvas";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
 // Types
 export interface InventoryItem {
@@ -555,90 +556,95 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
 
       <div className="row g-3 flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
         <div className="col-12 d-flex flex-column h-100" style={{ minHeight: 0 }}>
-          <div className="bg-white rounded-4 shadow-sm border p-3 h-100 d-flex flex-column overflow-hidden">
-            <SectionTitle 
-              title="Danh sách hàng hoá" 
-              action={
-                <div className="d-flex gap-2">
-                  <input type="file" accept=".xlsx, .xls" hidden ref={fileInputRef} onChange={handleUploadExcel} />
-                  <button 
-                    className="btn btn-light btn-sm border shadow-sm px-2 py-1" 
-                    title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để tải file mẫu" : "Tải file mẫu"} 
-                    onClick={handleDownloadTemplate}
-                    disabled={isProcessingExcel || !warehouseId}
-                  >
-                    <i className="bi bi-file-earmark-arrow-down" />
-                  </button>
-                  <button 
-                    className="btn btn-light btn-sm border shadow-sm px-2 py-1" 
-                    title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để Import" : "Import Excel"} 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isProcessingExcel || !warehouseId}
-                  >
-                    {isProcessingExcel ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-file-earmark-arrow-up" />}
-                  </button>
-                  <button className="btn btn-light btn-sm border shadow-sm px-2 py-1"><i className="bi bi-printer" /></button>
-                  <button 
-                    className="btn btn-light btn-sm border shadow-sm px-2 py-1 text-danger position-relative" 
-                    onClick={() => setShowMissingMaterials(true)}
-                    title="Kiểm tra vật tư bị thiếu"
-                  >
-                    <i className="bi bi-exclamation-triangle-fill" />
-                  </button>
+          <div className="bg-white rounded-4 shadow-sm border h-100 d-flex flex-column overflow-hidden">
+            <FullWidthTableLayout
+              className="flex-grow-1 overflow-hidden"
+              style={{ minHeight: 0 }}
+              header={
+                <div className="d-flex flex-column gap-1">
+                  <SectionTitle 
+                    title="Danh sách hàng hoá" 
+                    action={
+                      <div className="d-flex gap-2">
+                        <input type="file" accept=".xlsx, .xls" hidden ref={fileInputRef} onChange={handleUploadExcel} />
+                        <button 
+                          className="btn btn-light btn-sm border shadow-sm px-2 py-1" 
+                          title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để tải file mẫu" : "Tải file mẫu"} 
+                          onClick={handleDownloadTemplate}
+                          disabled={isProcessingExcel || !warehouseId}
+                        >
+                          <i className="bi bi-file-earmark-arrow-down" />
+                        </button>
+                        <button 
+                          className="btn btn-light btn-sm border shadow-sm px-2 py-1" 
+                          title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để Import" : "Import Excel"} 
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isProcessingExcel || !warehouseId}
+                        >
+                          {isProcessingExcel ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-file-earmark-arrow-up" />}
+                        </button>
+                        <button className="btn btn-light btn-sm border shadow-sm px-2 py-1"><i className="bi bi-printer" /></button>
+                        <button 
+                          className="btn btn-light btn-sm border shadow-sm px-2 py-1 text-danger position-relative" 
+                          onClick={() => setShowMissingMaterials(true)}
+                          title="Kiểm tra vật tư bị thiếu"
+                        >
+                          <i className="bi bi-exclamation-triangle-fill" />
+                        </button>
+                      </div>
+                    }
+                  />
+
+                  {/* Filters */}
+                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                    <FilterSelect 
+                        options={warehouses}
+                        value={warehouseId}
+                        onChange={setWarehouseId}
+                        placeholder="Tất cả kho"
+                        width={200}
+                    />
+                    <TreeFilterSelect 
+                        options={categories}
+                        value={categoryId}
+                        onChange={setCategoryId}
+                        placeholder="Tất cả các loại hàng hoá"
+                        width={240}
+                    />
+                    <FilterSelect 
+                        options={[
+                            { label: "Còn hàng", value: "con-hang" },
+                            { label: "Sắp hết", value: "sap-het" },
+                            { label: "Hết hàng", value: "het-hang" },
+                        ]}
+                        value={trangThai}
+                        onChange={setTrangThai}
+                        placeholder="Trạng thái"
+                        width={150}
+                    />
+                    <div className="flex-grow-1">
+                      <SearchInput 
+                          value={searchTerm}
+                          onChange={setSearchTerm}
+                          onKeyDown={handleSearchKeyDown}
+                          placeholder="Tìm theo tên, SKU..."
+                      />
+                    </div>
+                    {selectedWHCode === "KVP" && (
+                      <button 
+                        className="btn btn-outline-primary btn-sm flex-shrink-0 d-flex align-items-center gap-2"
+                        style={{ height: '36px', padding: '0 16px', fontWeight: 600, borderRadius: '8px' }}
+                        onClick={() => setShowPriceOffcanvas(true)}
+                      >
+                        <i className="bi bi-tag"></i> Giá bán linh kiện
+                      </button>
+                    )}
+                    {allowAdd && <BrandButton icon="bi-plus-lg" className="flex-shrink-0" onClick={() => setShowAddModal(true)}>Thêm hàng hoá</BrandButton>}
+                  </div>
                 </div>
               }
-            />
-
-            {/* Filters */}
-            <div className="d-flex align-items-center gap-2 mb-3 flex-wrap">
-              <FilterSelect 
-                  options={warehouses}
-                  value={warehouseId}
-                  onChange={setWarehouseId}
-                  placeholder="Tất cả kho"
-                  width={200}
-              />
-              <TreeFilterSelect 
-                  options={categories}
-                  value={categoryId}
-                  onChange={setCategoryId}
-                  placeholder="Tất cả các loại hàng hoá"
-                  width={240}
-              />
-              <FilterSelect 
-                  options={[
-                      { label: "Còn hàng", value: "con-hang" },
-                      { label: "Sắp hết", value: "sap-het" },
-                      { label: "Hết hàng", value: "het-hang" },
-                  ]}
-                  value={trangThai}
-                  onChange={setTrangThai}
-                  placeholder="Trạng thái"
-                  width={150}
-              />
-              <div className="flex-grow-1">
-                <SearchInput 
-                    value={searchTerm}
-                    onChange={setSearchTerm}
-                    onKeyDown={handleSearchKeyDown}
-                    placeholder="Tìm theo tên, SKU..."
-                />
-              </div>
-              {selectedWHCode === "KVP" && (
-                <button 
-                  className="btn btn-outline-primary btn-sm flex-shrink-0 d-flex align-items-center gap-2"
-                  style={{ height: '36px', padding: '0 16px', fontWeight: 600, borderRadius: '8px' }}
-                  onClick={() => setShowPriceOffcanvas(true)}
-                >
-                  <i className="bi bi-tag"></i> Giá bán linh kiện
-                </button>
-              )}
-              {allowAdd && <BrandButton icon="bi-plus-lg" className="flex-shrink-0" onClick={() => setShowAddModal(true)}>Thêm hàng hoá</BrandButton>}
-            </div>
-
-            {/* Table */}
-            <div ref={tableRef} className="flex-grow-1 overflow-auto border rounded-3 bg-light/30 shadow-inner">
-              <Table 
+              table={
+                <Table 
                   rows={items}
                   columns={columns}
                   loading={loading}
@@ -647,9 +653,24 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                   compact={true}
                   stickyHeader={true}
                   emptyText="Không có hàng hoá nào trong kho"
-              />
-            </div>
+                  wrapperStyle={{ overflowY: "auto", flex: 1, minHeight: 0 }}
+                />
+              }
+              footer={
+                <div className="d-flex align-items-center justify-content-between w-100 m-0 p-0">
+                  <small className="text-muted m-0 p-0">Hiển thị <b>{(items || []).length}/{stats.tongMatHang}</b> mặt hàng</small>
+                  <Pagination 
+                      page={page}
+                      totalPages={totalPages}
+                      onChange={setPage}
+                  />
+                </div>
+              }
+            />
             
+            {/* Drawers and Modals */}
+          </div>
+          
             {isKhoHangHoa && showDetail && selectedItem && (
               <ProductDrawer 
                 p={{
@@ -703,18 +724,6 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
               editItem={editItem} 
             />
 
-            {/* Footer Actions */}
-            <div className="pt-3 mt-auto">
-               <div className="d-flex align-items-center justify-content-between mb-3">
-                  <small className="text-muted">Hiển thị <b>{(items || []).length}/{stats.tongMatHang}</b> mặt hàng</small>
-                  <Pagination 
-                      page={page}
-                      totalPages={totalPages}
-                      onChange={setPage}
-                  />
-               </div>
-            </div>
-          </div>
         </div>
       </div>
       

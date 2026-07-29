@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { KPICard } from "@/components/ui/KPICard";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -24,7 +25,7 @@ interface ShopeeOrder {
   shippingDate?: string;
 }
 
-export default function OmnichannelPage() {
+export function OmnichannelContent() {
   const [orders, setOrders] = useState<ShopeeOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -32,13 +33,19 @@ export default function OmnichannelPage() {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ShopeeOrder | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [timeFilter, setTimeFilter] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
 
   // Lấy dữ liệu từ API
   const fetchOrders = () => {
     setLoading(true);
-    fetch("/api/sales/omnichannel/orders")
+    const params = new URLSearchParams();
+    if (timeFilter) params.append("time", timeFilter);
+    
+    fetch(`/api/sales/omnichannel/orders?${params.toString()}`)
       .then(res => {
         if (!res.ok) throw new Error("Lỗi tải danh sách đơn hàng");
+        setIsConnected(true);
         return res.json();
       })
       .then(data => {
@@ -47,13 +54,14 @@ export default function OmnichannelPage() {
       })
       .catch(err => {
         console.error(err);
+        setIsConnected(false);
         setLoading(false);
       });
   };
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [timeFilter]);
 
   const toggleSelectAll = () => {
     const validOrders = orders.filter(o => o.status === "Đã xác nhận");
@@ -250,13 +258,7 @@ export default function OmnichannelPage() {
   }) : [];
 
   return (
-    <StandardPage
-      title="Bán hàng đa kênh"
-      description="Gom đơn từ Shopee, Lazada, TikTok và Showroom"
-      icon="bi-funnel-fill"
-      color="rose"
-      useCard={false}
-    >
+    <>
       <style>{`
         @keyframes live-blink {
           0% { opacity: 1; transform: scale(1); }
@@ -275,75 +277,119 @@ export default function OmnichannelPage() {
           display: inline-block;
           animation: live-blink 2s infinite ease-in-out;
         }
+        .live-status-dot-offline {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background-color: #ef4444;
+          display: inline-block;
+        }
       `}</style>
 
       <div className="d-flex flex-column h-100">
 
         {/* Main Content Card */}
-        <div className="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column overflow-hidden">
-          
-          <SectionTitle 
-            title="Danh sách đơn hàng" 
-            className="mb-3 px-1"
-            action={
-              <div className="d-flex align-items-center gap-2 bg-success-subtle px-2 py-1 rounded-pill border border-success-subtle shadow-xs" title="Shopee: Kết nối ổn định">
-                 <span className="live-status-dot" />
-                 <span className="fw-bold text-success" style={{ fontSize: 10 }}>LIVE</span>
-                 <i className="bi bi-shop text-success ms-1" style={{ fontSize: 11 }} />
-              </div>
-            }
-          />
-
-          {/* ── Toolbar ── */}
-          <div className="d-flex align-items-center justify-content-between mb-3 gap-3">
-            <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 500 }}>
-              <FilterSelect 
-                options={[
-                  { label: "Tất cả trạng thái", value: "" },
-                  { label: "Chờ xác nhận", value: "Chờ xác nhận" },
-                  { label: "Đã xác nhận", value: "Đã xác nhận" },
-                  { label: "Đã chuyển", value: "Đã chuyển" },
-                  { label: "Từ chối", value: "Từ chối" },
-                  { label: "Huỷ bỏ", value: "Huỷ bỏ" },
-                ]} 
-                value={statusFilter} 
-                onChange={setStatusFilter} 
-                placeholder="Trạng thái"
-                width={160}
-              />
-              <SearchInput 
-                value={searchTerm} 
-                onChange={setSearchTerm} 
-                placeholder="Tìm mã đơn, tên khách..." 
-              />
-            </div>
+        <FullWidthTableLayout
+          className="flex-grow-1 overflow-hidden"
+          style={{ minHeight: 0 }}
+          header={
+            <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+              <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
+                <FilterSelect 
+                  options={[
+                    { label: "Tất cả trạng thái", value: "" },
+                    { label: "Chờ xác nhận", value: "Chờ xác nhận" },
+                    { label: "Đã xác nhận", value: "Đã xác nhận" },
+                    { label: "Đã chuyển", value: "Đã chuyển" },
+                    { label: "Từ chối", value: "Từ chối" },
+                    { label: "Huỷ bỏ", value: "Huỷ bỏ" },
+                  ]} 
+                  value={statusFilter} 
+                  onChange={setStatusFilter} 
+                  placeholder="Tất cả trạng thái"
+                  width={180}
+                />
+                  <div className="flex-grow-1" style={{ maxWidth: 300 }}>
+                    <SearchInput 
+                      value={searchTerm} 
+                      onChange={setSearchTerm} 
+                      placeholder="Tìm kiếm..." 
+                    />
+                  </div>
+                  <FilterSelect 
+                    options={[
+                      { label: "Hôm nay", value: "today" },
+                      { label: "Hôm qua", value: "yesterday" },
+                      { label: "Tuần này", value: "this_week" },
+                      { label: "Tuần trước", value: "last_week" },
+                      { label: "Tháng này", value: "this_month" },
+                      { label: "Tháng trước", value: "last_month" },
+                      { label: "Năm nay", value: "this_year" },
+                    ]}
+                    value={timeFilter}
+                    onChange={setTimeFilter}
+                    placeholder="Thời gian"
+                    width={150}
+                  />
+                </div>
             
-            <div className="d-flex align-items-center gap-2">
-              {selectedIds.length > 0 && (
-                <BrandButton 
-                  variant="outline" 
-                  icon="bi-send-fill" 
-                  onClick={handleTransfer}
-                  style={{ 
-                    animation: "fadeIn 0.2s ease-in-out",
-                    color: "var(--bs-danger)",
-                    borderColor: "var(--bs-danger)"
+              <div className="d-flex align-items-center gap-2">
+                <div className="d-flex align-items-center gap-2 me-3" title={isConnected ? "Shopee: Kết nối ổn định" : "Chưa kết nối..."}>
+                   <span className={isConnected ? "live-status-dot" : "live-status-dot-offline"} />
+                   <span className={`fw-bold ${isConnected ? "text-success" : "text-danger"}`} style={{ fontSize: 12, letterSpacing: "0.5px" }}>{isConnected ? "LIVE" : "OFFLINE"}</span>
+                </div>
+                {selectedIds.length > 0 && (
+                  <button
+                    className="btn btn-danger px-3 d-flex align-items-center justify-content-center gap-2"
+                    style={{
+                      height: 34,
+                      fontSize: "12.5px",
+                      borderRadius: 8,
+                      fontWeight: 700,
+                      whiteSpace: "nowrap"
+                    }}
+                    onClick={handleTransfer}
+                  >
+                    <i className="bi bi-send-fill" />
+                    Chuyển <span className="badge rounded-pill bg-white text-danger ms-1" style={{ fontSize: 10 }}>{selectedIds.length}</span>
+                  </button>
+                )}
+                <button
+                  className="btn btn-outline-primary px-3 d-flex align-items-center justify-content-center gap-2"
+                  style={{
+                    height: 34,
+                    fontSize: "12.5px",
+                    borderRadius: 8,
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                    border: "1px solid #003087",
+                    color: "#003087",
+                    backgroundColor: "transparent"
+                  }}
+                  onClick={() => setIsConfigOpen(true)}
+                >
+                  <i className="bi bi-gear" />
+                  Cấu hình
+                </button>
+                <button
+                  className="btn btn-primary px-3 d-flex align-items-center justify-content-center gap-2"
+                  style={{
+                    height: 34,
+                    fontSize: "12.5px",
+                    backgroundColor: "#003087",
+                    borderColor: "#003087",
+                    borderRadius: 8,
+                    fontWeight: 700,
+                    whiteSpace: "nowrap"
                   }}
                 >
-                  Chuyển <span className="badge rounded-pill bg-danger ms-1" style={{ fontSize: 10 }}>{selectedIds.length}</span>
-                </BrandButton>
-              )}
-              <BrandButton variant="outline" icon="bi-gear" onClick={() => setIsConfigOpen(true)}>
-                Cấu hình
-              </BrandButton>
-              <BrandButton icon="bi-arrow-repeat">
-                Đồng bộ đơn
-              </BrandButton>
+                  <i className="bi bi-arrow-repeat" />
+                  Đồng bộ đơn
+                </button>
+              </div>
             </div>
-          </div>
-
-          {/* ── Table ── */}
-          <div className="flex-grow-1 overflow-auto">
+        }
+        table={
             <Table 
               rows={filteredOrders} 
               columns={columns} 
@@ -351,8 +397,8 @@ export default function OmnichannelPage() {
               onRowClick={setSelectedOrder}
               compact
             />
-          </div>
-        </div>
+          }
+        />
       </div>
 
       <ShopeeConfigOffcanvas 
@@ -367,6 +413,20 @@ export default function OmnichannelPage() {
         onUpdateStatus={handleUpdateStatus}
         onDelete={handleDeleteOrder}
       />
+    </>
+  );
+}
+
+export default function OmnichannelPage() {
+  return (
+    <StandardPage
+      title="Bán hàng đa kênh"
+      description="Gom đơn từ Shopee, Lazada, TikTok và Showroom"
+      icon="bi-funnel-fill"
+      color="rose"
+      useCard={false}
+    >
+      <OmnichannelContent />
     </StandardPage>
   );
 }

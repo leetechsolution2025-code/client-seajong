@@ -7,6 +7,7 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
+import { QuotationsContent } from "./quotations/page";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -127,12 +128,12 @@ export default function SalesPage() {
     { id: '1', isFullWidth: true, fullWidthContent: "A- PHÁT TRIỂN HỆ THỐNG ĐẠI LÝ (45 ĐIỂM)", disableContentChange: true, disableAdd: true },
     { id: '1.1', chiTieu: "Đại lý Showroom đạt chuẩn", donVi: "Đại lý", mucTieu: "3", trongSo: "30%", thucTe: "-", diem: "30", hoanThanh: "100%", stt: "A.1" },
     { id: '1.2', chiTieu: "Doanh số tối thiểu", donVi: "VNĐ", mucTieu: "200,000,000", trongSo: "50%", thucTe: "-", diem: "50", hoanThanh: "100%", stt: "A.2" },
-    
+
     { id: '2', isFullWidth: true, fullWidthContent: "B- KÍCH HOẠT VÀ DOANH SỐ ĐẠI LÝ (30 ĐIỂM)", disableContentChange: true, disableAdd: true },
     { id: '2.1', chiTieu: "Tỷ lệ đại lý có đơn trong 30 ngày", donVi: "%", mucTieu: "90%", trongSo: "5%", thucTe: "-", diem: "5", hoanThanh: "100%", stt: "B.1" },
     { id: '2.2', chiTieu: "Doanh số bình quân đại lý mới", donVi: "VNĐ", mucTieu: "50,000,000", trongSo: "5%", thucTe: "-", diem: "5", hoanThanh: "100%", stt: "B.2" },
     { id: '2.3', chiTieu: "Tỷ lệ đại lý phát sinh đơn hàng trong tháng", donVi: "%", mucTieu: "100%", trongSo: "5%", thucTe: "-", diem: "5", hoanThanh: "100%", stt: "B.3" },
-    
+
     { id: '3', isFullWidth: true, fullWidthContent: "C- KỶ LUẬT VÀ HỆ THỐNG (10 ĐIỂM)", disableContentChange: true, disableAdd: true },
     { id: '3.1', chiTieu: "Kế hoạch và báo cáo", donVi: "Check list", mucTieu: "đúng hạn", trongSo: "2%", thucTe: "-", diem: "3", hoanThanh: "100%", stt: "C.1" },
     { id: '3.2', chiTieu: "Báo cáo insight thị trường", donVi: "Check list", mucTieu: "có", trongSo: "1%", thucTe: "-", diem: "3", hoanThanh: "100%", stt: "C.2" },
@@ -147,8 +148,8 @@ export default function SalesPage() {
     { header: 'Trọng số', render: (row) => row?.trongSo || '-' },
     { header: 'Thực tế', render: (row) => row?.thucTe || '-' },
     { header: 'Điểm', render: (row) => row?.diem || '-', align: 'center' },
-    { 
-      header: 'Hoàn thành', 
+    {
+      header: 'Hoàn thành',
       align: 'center',
       render: (row) => {
         if (!row?.thucTe || row.thucTe === '-' || !row?.chiTieu || row.chiTieu === '-') return '-';
@@ -159,7 +160,7 @@ export default function SalesPage() {
 
         const thucTeVal = parseFloat(row.thucTe.toString().replace(/,/g, ''));
         const chiTieuVal = parseFloat(row.chiTieu.toString().replace(/,/g, ''));
-        
+
         if (!isNaN(thucTeVal) && !isNaN(chiTieuVal) && chiTieuVal !== 0) {
           return Math.round((thucTeVal / chiTieuVal) * 100) + '%';
         }
@@ -180,9 +181,9 @@ export default function SalesPage() {
   const kpiChartOptions: any = {
     chart: { type: 'bar', height: 250, toolbar: { show: false }, fontFamily: 'inherit' },
     plotOptions: {
-      bar: { 
-        borderRadius: 4, 
-        columnWidth: '40%', 
+      bar: {
+        borderRadius: 4,
+        columnWidth: '40%',
         dataLabels: { position: 'top' },
         distributed: true
       }
@@ -200,7 +201,7 @@ export default function SalesPage() {
       labels: { style: { colors: '#a1a1aa', fontSize: '11px', fontWeight: 500 } }
     },
     yaxis: {
-      max: 120, 
+      max: 120,
       labels: { show: false }
     },
     grid: { show: false },
@@ -469,9 +470,9 @@ export default function SalesPage() {
   const renderRevenueChart = () => (
     <div className="bg-card border rounded-4 p-3 d-flex flex-column h-100 shadow-sm" style={{ border: "none" }}>
       <div className="mb-2">
-        <SectionTitle 
-          title="Xu hướng doanh thu" 
-          icon="bi-activity text-emerald" 
+        <SectionTitle
+          title="Xu hướng doanh thu"
+          icon="bi-activity text-emerald"
           className="mb-1"
           action={
             <button onClick={() => setShowKpiModal(true)} className="btn btn-sm btn-danger shadow-sm d-flex align-items-center gap-1 text-white border-0" style={{ fontSize: 11, padding: "3px 10px" }}>
@@ -493,9 +494,9 @@ export default function SalesPage() {
   const renderCategoryPie = () => (
     <div className="bg-card border rounded-4 p-3 d-flex flex-column justify-content-between h-100 shadow-sm" style={{ border: "none" }}>
       <div>
-        <SectionTitle 
-          title="Cơ cấu dòng sản phẩm" 
-          icon="bi-pie-chart text-info" 
+        <SectionTitle
+          title="Cơ cấu dòng sản phẩm"
+          icon="bi-pie-chart text-info"
           className="mb-1"
         />
         <span className="text-muted d-block mb-3" style={{ fontSize: 11 }}>
@@ -510,9 +511,9 @@ export default function SalesPage() {
 
   const renderRecentOrders = () => (
     <div className="bg-card border rounded-4 p-3 d-flex flex-column h-100 shadow-sm" style={{ border: "none" }}>
-      <SectionTitle 
-        title="Đơn hàng mới" 
-        icon="bi-bag-check-fill text-purple" 
+      <SectionTitle
+        title="Đơn hàng mới"
+        icon="bi-bag-check-fill text-purple"
         className="mb-3"
         action={
           <a href="/sales/orders" className="text-decoration-none fw-semibold" style={{ fontSize: 11.5, color: "#10b981" }}>
@@ -585,9 +586,9 @@ export default function SalesPage() {
 
   const renderRecentCare = () => (
     <div className="bg-card border rounded-4 p-3 d-flex flex-column h-100 shadow-sm" style={{ border: "none" }}>
-      <SectionTitle 
-        title="Hoạt động CSKH" 
-        icon="bi-chat-heart-fill text-danger" 
+      <SectionTitle
+        title="Hoạt động CSKH"
+        icon="bi-chat-heart-fill text-danger"
         className="mb-3"
         action={
           <a href="/sales/customers" className="text-decoration-none fw-semibold" style={{ fontSize: 11.5, color: "#10b981" }}>
@@ -629,447 +630,15 @@ export default function SalesPage() {
     <div className="d-flex flex-column h-100" style={{ background: "var(--background)" }}>
       <PageHeader
         title="Phòng Kinh doanh"
-        description="Sales · Quản lý bán hàng & doanh thu"
+        description="Quản lý bán hàng, doanh thu và đại lý"
         color="emerald"
         icon="bi-graph-up-arrow"
       />
       <DynamicTicker pageTitle="Phòng Kinh doanh" customNews={customTickerNews} />
 
-      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column custom-scrollbar overflow-auto" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0, gap: 16 }}>
-
-        {/* ── Chart & Shortcuts ── */}
-        <div className="d-none d-xl-grid sales-mid-grid">
-          {renderRevenueChart()}
-          {renderCategoryPie()}
-        </div>
-
-        {/* ── Chart & Shortcuts (Mobile Tabs) ── */}
-        <div className="d-block d-xl-none bg-card border rounded-4 p-2 shadow-sm mb-2">
-          <ul className="nav nav-pills nav-fill mb-2" style={{ background: "var(--muted)", borderRadius: 12, padding: 4 }}>
-            <li className="nav-item">
-              <button 
-                className={`nav-link rounded-3 fw-bold ${midTab === "chart" ? "active bg-white text-dark shadow-sm" : "text-muted"}`}
-                onClick={() => setMidTab("chart")}
-                style={{ fontSize: 12 }}
-              >
-                <i className="bi bi-activity me-1" /> Xu hướng
-              </button>
-            </li>
-            <li className="nav-item">
-              <button 
-                className={`nav-link rounded-3 fw-bold ${midTab === "pie" ? "active bg-white text-dark shadow-sm" : "text-muted"}`}
-                onClick={() => setMidTab("pie")}
-                style={{ fontSize: 12 }}
-              >
-                <i className="bi bi-pie-chart me-1" /> Cơ cấu
-              </button>
-            </li>
-          </ul>
-          <div>
-            {midTab === "chart" ? renderRevenueChart() : renderCategoryPie()}
-          </div>
-        </div>
-
-        {/* ── Feed Rows (Orders & Care Logs) ── */}
-        <div className="d-none d-xl-grid sales-bottom-grid">
-          {renderRecentOrders()}
-          {renderRecentCare()}
-        </div>
-
-        {/* ── Feed Rows (Mobile Tabs) ── */}
-        <div className="d-block d-xl-none bg-card border rounded-4 p-2 shadow-sm mb-2">
-          <ul className="nav nav-pills nav-fill mb-2" style={{ background: "var(--muted)", borderRadius: 12, padding: 4 }}>
-            <li className="nav-item">
-              <button 
-                className={`nav-link rounded-3 fw-bold ${bottomTab === "orders" ? "active bg-white text-dark shadow-sm" : "text-muted"}`}
-                onClick={() => setBottomTab("orders")}
-                style={{ fontSize: 12 }}
-              >
-                <i className="bi bi-bag-check-fill me-1" /> Đơn hàng
-              </button>
-            </li>
-            <li className="nav-item">
-              <button 
-                className={`nav-link rounded-3 fw-bold ${bottomTab === "care" ? "active bg-white text-dark shadow-sm" : "text-muted"}`}
-                onClick={() => setBottomTab("care")}
-                style={{ fontSize: 12 }}
-              >
-                <i className="bi bi-chat-heart-fill me-1" /> Chăm sóc KH
-              </button>
-            </li>
-          </ul>
-          <div>
-            {bottomTab === "orders" ? renderRecentOrders() : renderRecentCare()}
-          </div>
-        </div>
-
+      <div className="flex-grow-1 p-1 p-sm-2 d-flex flex-column min-h-0" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", overflow: "hidden" }}>
+        <QuotationsContent />
       </div>
-
-      <style>{`
-        .sales-kpi-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
-        }
-        .sales-mid-grid {
-          display: grid;
-          grid-template-columns: 1fr 340px;
-          gap: 16px;
-        }
-        .sales-bottom-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-        }
-        .app-card {
-          transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .app-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(0,0,0,0.06) !important;
-        }
-        @media (max-width: 1200px) {
-          .sales-mid-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-        @media (max-width: 992px) {
-          .sales-kpi-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-          .sales-bottom-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-        @media (max-width: 576px) {
-          .sales-kpi-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-      
-      {/* KPI Modal */}
-      {showKpiModal && <div className="modal-backdrop fade show" style={{ zIndex: 1040 }}></div>}
-
-      {/* Offcanvas for Manager KPI Rules */}
-      <div 
-        className={`offcanvas offcanvas-end ${showManagerKpiRules ? 'show' : ''}`} 
-        tabIndex={-1} 
-        style={{ width: "400px", zIndex: 1070, ...(showManagerKpiRules ? { visibility: 'visible' } : {}) }}
-      >
-        <div className="offcanvas-header border-bottom bg-light">
-          <h5 className="offcanvas-title fw-bold text-primary">
-            <i className="bi bi-info-circle me-2"></i>Quy định tính KPI
-          </h5>
-          <button type="button" className="btn-close" onClick={() => setShowManagerKpiRules(false)}></button>
-        </div>
-        <div className="offcanvas-body p-4 bg-light overflow-auto">
-          <div className="d-flex flex-column gap-4">
-            <div className="bg-white border rounded-4 p-4 shadow-sm position-relative overflow-hidden transition" style={{ border: "1px solid rgba(0,0,0,0.05)" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "#3b82f6" }} />
-              <SectionTitle 
-                title="Ngưỡng tính KPI" 
-                icon="bi-bullseye text-primary" 
-                className="mb-4"
-              />
-
-              <div className="bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-3 p-3 mb-4 d-flex align-items-center justify-content-center shadow-sm">
-                <i className="bi bi-star-fill text-warning fs-5 me-2"></i>
-                <span className="fw-semibold text-primary" style={{ fontSize: 14 }}>Tổng điểm KPI tháng {selectedMonth}:</span>
-                <span className="fw-bold text-primary ms-2" style={{ fontSize: 22, lineHeight: 1 }}>
-                  {Math.min(mockManagerKpiData.reduce((sum, item) => sum + (parseFloat(item.diem as string) || 0), 0), 100)}
-                </span>
-                <span className="text-secondary fw-semibold ms-1" style={{ fontSize: 14 }}>/ 100</span>
-              </div>
-
-              <ul className="text-secondary ps-3 mb-0 d-flex flex-column gap-3" style={{ fontSize: 13, listStyleType: "circle", lineHeight: 1.6 }}>
-                <li><strong>Thang điểm đánh giá:</strong> KPI được chấm theo thang 100 điểm/tháng. Điểm trần tối đa là 100 điểm (không tính vượt mức).</li>
-                <li><strong>Cơ sở chi trả:</strong> Điểm số KPI đạt được trong tháng sẽ là căn cứ trực tiếp để tính toán và chi trả phần lương hiệu suất theo tỷ lệ phần trăm tương ứng.</li>
-                <li><strong>Mức điểm tối thiểu:</strong> Nếu KPI <span className="text-danger fw-bold">&lt;80 điểm</span>, nhân viên sẽ bị xếp loại Không đạt và <strong className="text-danger">không được hưởng lương hiệu suất</strong> (0%) trong tháng đó.</li>
-              </ul>
-            </div>
-
-            <div className="bg-white border rounded-4 p-4 shadow-sm position-relative overflow-hidden transition" style={{ border: "1px solid rgba(0,0,0,0.05)" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "#10b981" }} />
-              <SectionTitle 
-                title="Cách tính lương hiệu suất (KPI)" 
-                icon="bi-cash-coin text-success" 
-                className="mb-4"
-              />
-              
-              <div className="bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3 p-3 mb-4 d-flex align-items-center justify-content-center shadow-sm">
-                <i className="bi bi-award-fill text-success fs-5 me-2"></i>
-                <span className="fw-semibold text-success" style={{ fontSize: 14 }}>Thưởng KPI tháng tối đa:</span>
-                <span className="fw-bold text-success ms-2" style={{ fontSize: 22, lineHeight: 1 }}>5,000,000</span>
-                <span className="text-secondary fw-semibold ms-1" style={{ fontSize: 14 }}>VNĐ</span>
-              </div>
-
-              <ul className="text-secondary ps-3 mb-0 d-flex flex-column gap-2" style={{ fontSize: 13, listStyleType: "circle", lineHeight: 1.6 }}>
-                <li><strong>Thực nhận =</strong> Lương hợp đồng &times; Tỷ lệ hưởng</li>
-                <li>
-                  Tỷ lệ hưởng theo xếp hạng:
-                  <div className="d-flex flex-wrap gap-2 mt-2">
-                    <div className="flex-fill bg-white border rounded-3 p-2 text-center shadow-sm">
-                      <div className="text-muted mb-1" style={{ fontSize: 11 }}>80–89 đ</div>
-                      <div className="fw-bold text-dark" style={{ fontSize: 12 }}>Đạt/Khá: 80%</div>
-                    </div>
-                    <div className="flex-fill bg-white border rounded-3 p-2 text-center shadow-sm">
-                      <div className="text-muted mb-1" style={{ fontSize: 11 }}>90–94 đ</div>
-                      <div className="fw-bold text-primary" style={{ fontSize: 12 }}>Tốt: 90%</div>
-                    </div>
-                    <div className="flex-fill bg-white border rounded-3 p-2 text-center shadow-sm">
-                      <div className="text-muted mb-1" style={{ fontSize: 11 }}>95–99 đ</div>
-                      <div className="fw-bold text-info" style={{ fontSize: 12 }}>Giỏi: 95%</div>
-                    </div>
-                    <div className="flex-fill bg-white border border-success rounded-3 p-2 text-center shadow-sm bg-success bg-opacity-10">
-                      <div className="text-success mb-1" style={{ fontSize: 11 }}>100 đ</div>
-                      <div className="fw-bold text-success" style={{ fontSize: 12 }}>Xuất sắc: 100%</div>
-                    </div>
-                  </div>
-                </li>
-                <li className="text-muted mt-2" style={{ fontSize: 12, listStyleType: "none", marginLeft: "-1rem" }}>
-                  <div className="p-2 bg-light rounded-3 d-flex align-items-center gap-2 text-secondary">
-                    <i className="bi bi-info-circle-fill text-warning"></i>
-                    <span><strong>Ghi chú:</strong> Không chi trả lương hiệu suất nếu KPI &lt;80 điểm.</span>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-      {showManagerKpiRules && <div className="offcanvas-backdrop fade show" onClick={() => setShowManagerKpiRules(false)} style={{ zIndex: 1065 }}></div>}
-
-      {showKpiModal && (
-        <div className="modal d-block fade show" tabIndex={-1} style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-          <div className="modal-dialog modal-fullscreen">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title fw-bold">
-                  <i className="bi bi-bar-chart-line text-primary me-2"></i>
-                  Theo dõi KPI
-                </h5>
-                <button type="button" className="btn-close" onClick={() => setShowKpiModal(false)} aria-label="Close"></button>
-              </div>
-              <div className="modal-body bg-light p-0">
-                <div className="row g-0 h-100">
-                  {/* Left column - 4/12 */}
-                  <div className="col-4 p-4 border-end bg-white" style={{ borderColor: "#e5e7eb" }}>
-                    <SectionTitle title="Thông tin chung" icon="bi-info-circle" className="mb-4" />
-                    <div className="d-flex flex-column gap-3 mt-4">
-                      <div className="d-flex align-items-center justify-content-between">
-                        <div className="d-flex align-items-center">
-                          <div className="rounded-circle bg-light border d-flex align-items-center justify-content-center me-3 shadow-sm" style={{ width: 48, height: 48 }}>
-                            <i className="bi bi-person text-primary fs-4"></i>
-                          </div>
-                          <div>
-                            <div className="text-muted" style={{ fontSize: 11 }}>Họ tên nhân viên</div>
-                            <div className="fw-bold text-dark" style={{ fontSize: 14 }}>{session?.user?.name || "---"}</div>
-                          </div>
-                        </div>
-                        {kpiActiveTab === 'manager' && (
-                          <button 
-                            type="button" 
-                            className="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm"
-                            onClick={() => setShowManagerKpiRules(true)}
-                          >
-                            <i className="bi bi-info-circle me-1"></i>Xem chi tiết
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="border rounded-3 p-3 bg-light mt-2">
-                        <div className="mb-3">
-                          <div className="text-muted mb-1" style={{ fontSize: 12 }}>Phòng ban:</div>
-                          <div className="fw-semibold text-dark" style={{ fontSize: 13 }}>{session?.user?.departmentName || "---"}</div>
-                        </div>
-                        <div className="row g-2">
-                          <div className="col-6 border-end">
-                            <div className="text-muted mb-1" style={{ fontSize: 12 }}>Chức vụ:</div>
-                            <div className="fw-semibold text-dark" style={{ fontSize: 13 }}>{session?.user?.positionName || "---"}</div>
-                          </div>
-                          <div className="col-6 ps-3">
-                            <div className="text-muted mb-1" style={{ fontSize: 12 }}>Số điện/Email:</div>
-                            <div className="fw-semibold text-dark" style={{ fontSize: 13, wordBreak: "break-all" }}>{session?.user?.email || "---"}</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-2">
-                        <SectionTitle title={`Kết quả KPI các tháng trong năm ${new Date().getFullYear()}`} icon="bi-calendar3" className="mb-3" />
-                        <div className="border rounded-3 bg-white shadow-sm pt-4 px-2 mb-4" style={{ height: "250px" }}>
-                          <ReactApexChart options={kpiChartOptions} series={kpiChartSeries} type="bar" height="100%" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Right column - 8/12 */}
-                  <div className="col-8 p-4 bg-light">
-                    <div className="d-flex justify-content-between align-items-center mb-4">
-                      <SectionTitle title="Chi tiết mức độ hoàn thành KPI" icon="bi-bar-chart-steps" className="mb-0" />
-                      
-                      <div className="d-flex bg-white border rounded-pill p-1 shadow-sm align-items-center">
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
-                          const isCurrent = m === selectedMonth;
-                          const isFuture = m > new Date().getMonth() + 1;
-                          return (
-                            <button 
-                              key={m} 
-                              className={`btn rounded-circle p-0 mx-1 d-flex align-items-center justify-content-center ${
-                                isFuture 
-                                  ? 'btn-light text-muted opacity-50' 
-                                  : isCurrent 
-                                    ? 'btn-primary fw-bold shadow-sm' 
-                                    : 'btn-white text-dark hover-bg-light border-0'
-                              }`} 
-                              style={{ 
-                                fontSize: 11, 
-                                width: "30px",
-                                height: "30px", 
-                                transition: "all 0.2s",
-                                cursor: isFuture ? 'not-allowed' : 'pointer'
-                              }}
-                              onClick={() => {
-                                if (!isFuture) setSelectedMonth(m);
-                              }}
-                              disabled={isFuture}
-                            >
-                              T{m}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <ul className="nav nav-tabs mb-4">
-                      <li className="nav-item">
-                        <button 
-                          className={`nav-link ${kpiActiveTab === 'manager' ? 'active fw-bold text-primary' : 'text-muted'}`} 
-                          onClick={() => setKpiActiveTab('manager')}
-                        >
-                          <i className="bi bi-person-badge me-2"></i>Tài khoản trưởng phòng
-                        </button>
-                      </li>
-                      <li className="nav-item">
-                        <button 
-                          className={`nav-link ${kpiActiveTab === 'employee' ? 'active fw-bold text-primary' : 'text-muted'}`} 
-                          onClick={() => setKpiActiveTab('employee')}
-                        >
-                          <i className="bi bi-person me-2"></i>Tài khoản nhân viên
-                        </button>
-                      </li>
-                    </ul>
-
-                    {kpiActiveTab === 'manager' ? (
-                      <div className="mt-4">
-                        <Table 
-                          columns={managerKpiColumns} 
-                          rows={mockManagerKpiData} 
-                          rowKey={(r) => r.id}
-                          emptyText="Chưa có dữ liệu KPI" 
-                          wrapperClassName="mkt-plan-table-no-min"
-                          fixedLayout={false}
-                          compact={true}
-                        />
-                      </div>
-                    ) : (
-                      <div className="mt-4">
-                        <Table 
-                          columns={employeeKpiColumns} 
-                          rows={mockEmployeeKpiData} 
-                          rowKey={(r) => r.id}
-                          emptyText="Chưa có dữ liệu KPI" 
-                          wrapperClassName="mkt-plan-table-no-min"
-                          fixedLayout={false}
-                          compact={true}
-                        />
-
-                        <div className="row g-3 mt-3">
-                          <div className="col-12 col-xl-6">
-                            <div className="bg-white border rounded-4 p-4 h-100 shadow-sm position-relative overflow-hidden transition" style={{ border: "1px solid rgba(0,0,0,0.05)" }}>
-                              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "#3b82f6" }} />
-                              <SectionTitle 
-                                title="Ngưỡng tính KPI" 
-                                icon="bi-bullseye text-primary" 
-                                className="mb-4"
-                              />
-
-                              <div className="bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded-3 p-3 mb-4 d-flex align-items-center justify-content-center shadow-sm">
-                                <i className="bi bi-star-fill text-warning fs-5 me-2"></i>
-                                <span className="fw-semibold text-primary" style={{ fontSize: 14 }}>Tổng điểm KPI tháng {selectedMonth}:</span>
-                                <span className="fw-bold text-primary ms-2" style={{ fontSize: 22, lineHeight: 1 }}>
-                                  {mockEmployeeKpiData.reduce((sum, item) => sum + parseFloat(item.diem || '0'), 0)}
-                                </span>
-                                <span className="text-secondary fw-semibold ms-1" style={{ fontSize: 14 }}>/ 100</span>
-                              </div>
-
-                              <ul className="text-secondary ps-3 mb-0 d-flex flex-column gap-3" style={{ fontSize: 13, listStyleType: "circle", lineHeight: 1.6 }}>
-                                <li><strong>Thang điểm đánh giá:</strong> KPI được chấm theo thang 100 điểm/tháng. Điểm trần tối đa là 100 điểm (không tính vượt mức).</li>
-                                <li><strong>Cơ sở chi trả:</strong> Điểm số KPI đạt được trong tháng sẽ là căn cứ trực tiếp để tính toán và chi trả phần lương hiệu suất theo tỷ lệ phần trăm tương ứng.</li>
-                                <li><strong>Mức điểm tối thiểu:</strong> Nếu KPI <span className="text-danger fw-bold">&lt;80 điểm</span>, nhân viên sẽ bị xếp loại Không đạt và <strong className="text-danger">không được hưởng lương hiệu suất</strong> (0%) trong tháng đó.</li>
-                              </ul>
-                            </div>
-                          </div>
-
-                          <div className="col-12 col-xl-6">
-                            <div className="bg-white border rounded-4 p-4 h-100 shadow-sm position-relative overflow-hidden transition" style={{ border: "1px solid rgba(0,0,0,0.05)" }}>
-                              <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: "#10b981" }} />
-                              <SectionTitle 
-                                title="Cách tính lương hiệu suất (KPI)" 
-                                icon="bi-cash-coin text-success" 
-                                className="mb-4"
-                              />
-                              
-                              <div className="bg-success bg-opacity-10 border border-success border-opacity-25 rounded-3 p-3 mb-4 d-flex align-items-center justify-content-center shadow-sm">
-                                <i className="bi bi-award-fill text-success fs-5 me-2"></i>
-                                <span className="fw-semibold text-success" style={{ fontSize: 14 }}>Thưởng KPI tháng tối đa:</span>
-                                <span className="fw-bold text-success ms-2" style={{ fontSize: 22, lineHeight: 1 }}>5,000,000</span>
-                                <span className="text-secondary fw-semibold ms-1" style={{ fontSize: 14 }}>VNĐ</span>
-                              </div>
-
-                              <ul className="text-secondary ps-3 mb-0 d-flex flex-column gap-2" style={{ fontSize: 13, listStyleType: "circle", lineHeight: 1.6 }}>
-                                <li><strong>Thực nhận =</strong> Lương hợp đồng &times; Tỷ lệ hưởng</li>
-                                <li>
-                                  Tỷ lệ hưởng theo xếp hạng:
-                                  <div className="d-flex flex-wrap gap-2 mt-2">
-                                    <div className="flex-fill bg-white border rounded-3 p-2 text-center shadow-sm">
-                                      <div className="text-muted mb-1" style={{ fontSize: 11 }}>80–89 đ</div>
-                                      <div className="fw-bold text-dark" style={{ fontSize: 12 }}>Đạt/Khá: 80%</div>
-                                    </div>
-                                    <div className="flex-fill bg-white border rounded-3 p-2 text-center shadow-sm">
-                                      <div className="text-muted mb-1" style={{ fontSize: 11 }}>90–94 đ</div>
-                                      <div className="fw-bold text-primary" style={{ fontSize: 12 }}>Tốt: 90%</div>
-                                    </div>
-                                    <div className="flex-fill bg-white border rounded-3 p-2 text-center shadow-sm">
-                                      <div className="text-muted mb-1" style={{ fontSize: 11 }}>95–99 đ</div>
-                                      <div className="fw-bold text-info" style={{ fontSize: 12 }}>Giỏi: 95%</div>
-                                    </div>
-                                    <div className="flex-fill bg-white border border-success rounded-3 p-2 text-center shadow-sm bg-success bg-opacity-10">
-                                      <div className="text-success mb-1" style={{ fontSize: 11 }}>100 đ</div>
-                                      <div className="fw-bold text-success" style={{ fontSize: 12 }}>Xuất sắc: 100%</div>
-                                    </div>
-                                  </div>
-                                </li>
-                                <li className="text-muted mt-2" style={{ fontSize: 12, listStyleType: "none", marginLeft: "-1rem" }}>
-                                  <div className="p-2 bg-light rounded-3 d-flex align-items-center gap-2 text-secondary">
-                                    <i className="bi bi-info-circle-fill text-warning"></i>
-                                    <span><strong>Ghi chú:</strong> Không chi trả lương hiệu suất nếu KPI &lt;80 điểm.</span>
-                                  </div>
-                                </li>
-                              </ul>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

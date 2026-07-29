@@ -10,6 +10,9 @@ import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { GanttChart } from "@/components/ui/GanttChart";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterSelect } from "@/components/ui/FilterSelect";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ui/Toast";
@@ -6300,7 +6303,7 @@ export default function PartnersPage() {
         color="blue"
       />
       <DynamicTicker pageTitle="Phát triển đại lý" customNews={tickerNews} />
-      <div className="flex-grow-1 px-3 px-md-4 pb-4 pt-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+      <div className="flex-grow-1 p-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         <WorkflowCard
           contentPadding="p-0"
           bottomToolbar={BottomToolbarContent}
@@ -6312,66 +6315,68 @@ export default function PartnersPage() {
               paddingX={0}
             />
           }
-          toolbar={
-            <div className="px-4 pt-0 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2 w-100">
-              <div className="d-flex align-items-center gap-2">
-                {/* Search */}
-                <div className="position-relative" style={{ width: "280px" }}>
-                  <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style={{ fontSize: "13px" }}></i>
-                  <input
-                    type="text"
-                    className="form-control border-0 shadow-sm rounded-pill ps-5 pe-4"
-                    style={{ height: 38, background: "var(--card)", fontSize: 13, border: "1px solid var(--border)" }}
-                    placeholder="Tìm tên, mã, số liên hệ..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+          toolbar={null}
+        >
+          <FullWidthTableLayout
+            className="flex-grow-1 overflow-hidden full-width-table-wrapper"
+            style={{ minHeight: 0 }}
+            header={
+              <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 w-100">
+                <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
+                  {/* Area Filter */}
+                  <FilterSelect
+                    options={[
+                      { label: "Tất cả khu vực", value: "" },
+                      ...areas.map(a => ({ label: a, value: a }))
+                    ]}
+                    value={areaFilter}
+                    onChange={setAreaFilter}
+                    placeholder="Tất cả khu vực"
+                    width={180}
                   />
+
+                  {/* Search */}
+                  <div className="flex-grow-1" style={{ maxWidth: 300 }}>
+                    <SearchInput
+                      placeholder="Tìm tên, mã, số liên hệ..."
+                      value={searchTerm}
+                      onChange={setSearchTerm}
+                    />
+                  </div>
                 </div>
 
-                {/* Area Filter */}
-                <select
-                  className="form-select border-0 shadow-sm rounded-pill px-3"
-                  style={{ width: "auto", minWidth: "160px", fontSize: 13, height: 38, background: "var(--card)", border: "1px solid var(--border)" }}
-                  value={areaFilter}
-                  onChange={(e) => setAreaFilter(e.target.value)}
-                >
-                  <option value="">Tất cả khu vực</option>
-                  {areas.map(a => (
-                    <option key={a} value={a}>{a}</option>
-                  ))}
-                </select>
+                {/* Add Lead button - Only in Step 1 */}
+                <div className="d-flex align-items-center gap-2">
+                  {Number(currentStep) === 1 && (
+                    <button
+                      className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                      style={{ height: 34, fontSize: "12.5px", backgroundColor: "#003087", borderColor: "#003087", borderRadius: 8, fontWeight: 700, whiteSpace: "nowrap" }}
+                      onClick={() => {
+                        setEditingPartner(null);
+                        setNewName("");
+                        setNewArea("");
+                        setNewContact("");
+                        setNewRole("Ông chủ");
+                        setNewPhone("");
+                        setNewContactEmail("");
+                        setNewBusinessAddress("");
+                        setNewScale("");
+                        setNewNeeds("");
+                        setNewCareStaff(currentUserName || crmEmployees[0]?.fullName || "Vũ Hoàng Long");
+                        setNewCreationTime(new Date());
+                        setShowCreateModal(true);
+                      }}
+                    >
+                      <i className="bi bi-plus-lg" />
+                      <span>Thêm khách hàng</span>
+                    </button>
+                  )}
+                </div>
               </div>
-
-              {/* Add Lead button - Only in Step 1 */}
-              {Number(currentStep) === 1 && (
-                <button
-                  className="btn btn-primary btn-sm rounded-pill px-3 shadow-sm d-flex align-items-center gap-2"
-                  style={{ height: 32, fontSize: 12, fontWeight: 600 }}
-                  onClick={() => {
-                    setEditingPartner(null);
-                    setNewName("");
-                    setNewArea("");
-                    setNewContact("");
-                    setNewRole("Ông chủ");
-                    setNewPhone("");
-                    setNewContactEmail("");
-                    setNewBusinessAddress("");
-                    setNewScale("");
-                    setNewNeeds("");
-                    setNewCareStaff(currentUserName || crmEmployees[0]?.fullName || "Vũ Hoàng Long");
-                    setNewCreationTime(new Date());
-                    setShowCreateModal(true);
-                  }}
-                >
-                  <i className="bi bi-plus-lg" style={{ fontSize: 11 }} />
-                  <span>Thêm khách hàng</span>
-                </button>
-              )}
-            </div>
-          }
-        >
-          <div className="h-100 bg-white border-top overflow-auto d-flex flex-column" style={{ minHeight: 0 }}>
-            {Number(currentStep) === 5 ? (
+            }
+            table={
+              <div className="h-100 bg-white border-top overflow-auto d-flex flex-column" style={{ minHeight: 0 }}>
+                {Number(currentStep) === 5 ? (
               <>
                 {/* Month selectors container */}
                 <div style={{
@@ -6477,8 +6482,10 @@ export default function PartnersPage() {
                 onRowClick={(row) => setSelectedPartner(row)}
                 emptyText={`Không có đại lý nào ở bước ${STEPS.find(s => s.num === Number(currentStep))?.title}`}
               />
-            )}
-          </div>
+                )}
+              </div>
+            }
+          />
         </WorkflowCard>
       </div>
 

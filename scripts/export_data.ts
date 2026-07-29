@@ -15,7 +15,7 @@ async function main() {
       price: Number(item.price),
       giaBan: Number(item.giaBan)
     })),
-    ManufacturedProduct: await prisma.manufacturedProduct.findMany(),
+    ManufacturedProduct: await (prisma as any).manufacturedProduct?.findMany?.() || [],
     DinhMuc: await prisma.dinhMuc.findMany(),
     DinhMucVatTu: (await prisma.dinhMucVatTu.findMany()).map((item: any) => ({
       ...item,

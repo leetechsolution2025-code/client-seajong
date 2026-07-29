@@ -14,6 +14,7 @@ export default function SalesInventoryPage() {
       icon="bi-box-seam"
       color="emerald"
       useCard={false}
+      paddingClassName="p-1 p-sm-2"
       customTickerNews={customTickerNews}
     >
       <InventoryManagement 
