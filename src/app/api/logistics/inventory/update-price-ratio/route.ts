@@ -54,7 +54,7 @@ export async function POST(req: Request) {
               giaBan: Math.round(newPrice),
               loiNhuanKyVong: numRatio,
               phuongPhapTinhLoiNhuan: marginType === "revenue" ? "revenue" : "cost"
-            }
+            } as any
           });
         });
         await prisma.$transaction(updates);
