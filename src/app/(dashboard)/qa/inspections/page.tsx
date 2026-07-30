@@ -155,7 +155,8 @@ export default function QaInspectionsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           result: oqcFormData.result === "pass" ? "Đạt" : "Không đạt",
-          notes: oqcFormData.rejectReason || ""
+          notes: oqcFormData.rejectReason || "",
+          passedQuantity: parseInt(oqcFormData.totalQuantity.toString()) || 1
         })
       });
       if (res.ok) {

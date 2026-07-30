@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     const params = await props.params;
     const { id } = params;
     const body = await req.json();
-    const { result, notes } = body;
+    const { result, notes, passedQuantity } = body;
 
     const inspection = await prisma.qualityInspection.findUnique({
       where: { code: id } // Note: The frontend passes 'code' as 'id' in selectedInspection
@@ -68,6 +68,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         });
         const storekeeperUserIds = storekeepers.map(u => u.userId).filter(Boolean) as string[];
 
+        // Ghi nhận số lượng thực tế
+        const finalQuantity = passedQuantity || (inspection.metadata ? JSON.parse(inspection.metadata as string).totalQuantity : 1) || 1;
+
         // Tạo Task
         const khoTask = await tx.task.create({
           data: {
@@ -79,7 +82,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
             priority: "high",
             status: "pending",
             actualResult: JSON.stringify([
-              { tenHang: inspection.productName, soLuong: 1, donVi: "Lô", type: "Kho Thành Phẩm", isShortage: false }
+              { tenHang: inspection.productName, soLuong: finalQuantity, donVi: "Bộ", type: "Kho Thành Phẩm", isShortage: false }
             ])
           }
         });

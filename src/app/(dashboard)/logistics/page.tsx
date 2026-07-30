@@ -214,19 +214,25 @@ export default function LogisticsOverviewPage() {
           if (time > latestDate) latestDate = time;
         });
         
-        let groupStatusText = "Chưa xuất kho";
+        const isGroupImport = items.length > 0 && items.every(it => 
+          it.type === 'material-import' || 
+          it.ticketType === 'MATERIAL_IMPORT' || 
+          orderCode.startsWith('QC-')
+        );
+
+        let groupStatusText = isGroupImport ? "Chưa nhập kho" : "Chưa xuất kho";
         let groupStatusColor = "bg-secondary text-white";
         
         if (completedCount === totalTickets && totalTickets > 0) {
-          groupStatusText = "Đã xuất kho";
+          groupStatusText = isGroupImport ? "Đã nhập kho" : "Đã xuất kho";
           groupStatusColor = "bg-success text-white";
         } else if (completedCount > 0) {
-          groupStatusText = "Đã xuất một phần";
+          groupStatusText = isGroupImport ? "Đã nhập một phần" : "Đã xuất một phần";
           groupStatusColor = "bg-warning text-dark";
         }
         
         // Priority: 0 for incomplete (Chưa xuất kho, Đã xuất một phần), 1 for complete (Đã xuất kho)
-        const priority = groupStatusText === "Đã xuất kho" ? 1 : 0;
+        const priority = (groupStatusText.includes("Đã xuất kho") || groupStatusText.includes("Đã nhập kho")) ? 1 : 0;
         
         return {
           orderCode,
