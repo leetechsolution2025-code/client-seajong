@@ -601,7 +601,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
 
                 {/* Title */}
                 <div style={{ textAlign: "right", maxWidth: "40%" }}>
-                  <h2 style={{ margin: "0 0 4px 0", fontSize: 20, fontWeight: 900, color: "#1e293b", textTransform: "uppercase" }}>ĐƠN BÁN HÀNG BÁN LẺ</h2>
+                  <h2 style={{ margin: "0 0 4px 0", fontSize: 20, fontWeight: 900, color: "#1e293b", textTransform: "uppercase" }}>Hoá đơn bán hàng</h2>
                   <p style={{ margin: "0 0 2px 0", fontSize: 11, color: "#1e293b" }}><strong>Số đơn:</strong> <span style={{ color: "#3b82f6", fontWeight: 700 }}>{order.code || order.id}</span></p>
                   <p style={{ margin: "0 0 2px 0", fontSize: 10, color: "#64748b" }}>Ngày lập: {fmtDate(order.ngayDat)}</p>
                 </div>
