@@ -266,8 +266,8 @@ export async function PATCH(
         // Cập nhật trạng thái hoàn thành cho Task giao việc tương ứng
         const taskTitle = `Lệnh sản xuất cho đơn hàng ${order.code || order.id}`;
         await tx.task.updateMany({
-          where: { title: taskTitle, status: { not: "completed" } },
-          data: { status: "completed", completedAt: new Date() }
+          where: { title: taskTitle, status: { not: "done" } },
+          data: { status: "done", completedAt: new Date() }
         });
 
         // Find QA users
