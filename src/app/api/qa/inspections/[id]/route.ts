@@ -69,12 +69,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         const storekeeperUserIds = storekeepers.map(u => u.userId).filter(Boolean) as string[];
 
         // Ghi nhận số lượng thực tế
-        const finalQuantity = passedQuantity || (inspection.metadata ? JSON.parse(inspection.metadata as string).totalQuantity : 1) || 1;
+        const finalQuantity = passedQuantity || ( (inspection as any).metadata ? JSON.parse((inspection as any).metadata as string).totalQuantity : 1) || 1;
 
         // Tạo Task
         const khoTask = await tx.task.create({
           data: {
-            title: `Nhập kho thành phẩm sau OQC (${inspection.code})`,
+            title: `Yêu cầu nhập kho thành phẩm (${inspection.code})`,
             description: `Kiểm tra OQC đạt yêu cầu. Đề nghị bộ phận Kho vận tiến hành nhập kho thành phẩm.\nSản phẩm: ${inspection.productName}`,
             assigneeId: storekeeperUserIds[0] || session.user.id,
             creatorId: session.user.id,
