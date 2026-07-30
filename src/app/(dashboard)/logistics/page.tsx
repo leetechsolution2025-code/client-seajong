@@ -201,6 +201,26 @@ export default function LogisticsOverviewPage() {
       
       const isCollapsed = collapsedGroups.has(orderCode);
       
+      let completedCount = 0;
+      let totalTickets = items.length;
+      items.forEach(it => {
+        const lowerStatus = (it.trangThai || "").toLowerCase();
+        if (lowerStatus === "completed" || lowerStatus === "done") {
+          completedCount++;
+        }
+      });
+      
+      let groupStatusText = "Chưa xuất kho";
+      let groupStatusColor = "bg-secondary text-white";
+      
+      if (completedCount === totalTickets && totalTickets > 0) {
+        groupStatusText = "Đã xuất kho";
+        groupStatusColor = "bg-success text-white";
+      } else if (completedCount > 0) {
+        groupStatusText = "Đã xuất một phần";
+        groupStatusColor = "bg-warning text-dark";
+      }
+      
       finalOrders.push({
         id: `group-${orderCode}`,
         isFullWidth: true,
@@ -219,11 +239,11 @@ export default function LogisticsOverviewPage() {
                });
              }}
           >
-            <span>
-              <i className={`bi ${isCollapsed ? 'bi-caret-right-fill' : 'bi-caret-down-fill'} me-2 text-muted`}></i> 
-              Số hiệu đơn hàng: <span className="text-primary">{orderCode}</span>
-            </span>
-            <span className="badge bg-secondary rounded-pill fw-normal" style={{ fontSize: 10 }}>{items.length} lệnh</span>
+            <div className="d-flex align-items-center gap-2">
+              <i className={`bi ${isCollapsed ? 'bi-caret-right-fill' : 'bi-caret-down-fill'} text-muted`}></i> 
+              <span className="fw-bold" style={{ fontSize: 12 }}>SỐ HIỆU ĐƠN HÀNG: <span className="text-primary">{orderCode}</span></span>
+              <span className={`badge ${groupStatusColor} rounded-pill fw-normal`} style={{ fontSize: 10 }}>{groupStatusText}</span>
+            </div>
           </div>
         ),
         isAssigned: true
@@ -351,6 +371,9 @@ export default function LogisticsOverviewPage() {
                         } else if (lowerStatus === "completed" || lowerStatus === "done") {
                           statusColor = "bg-success";
                           statusText = "Hoàn thành";
+                        } else if (lowerStatus === "packed") {
+                          statusColor = "bg-success";
+                          statusText = "Đã gom đủ hàng";
                         }
 
                         return <span className={`badge ${statusColor} rounded-pill`} style={{ fontSize: 10 }}>{statusText}</span>;
@@ -517,6 +540,23 @@ export default function LogisticsOverviewPage() {
               </div>
             ) : orderDetails.length > 0 ? (
               <div>
+                {selectedOrder?.type === "logistics-ticket" && (
+                  <div className="mb-3 p-3 bg-light rounded-3 border">
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span className="text-muted" style={{ fontSize: 13 }}>Tiến độ gom hàng:</span>
+                      <span className="fw-bold text-primary">
+                        {orderDetails.filter(it => (it.pickedQty || 0) >= (it.qty || 0)).length} / {orderDetails.length} 
+                        <span className="fw-normal text-muted ms-1" style={{ fontSize: 12 }}>mặt hàng</span>
+                      </span>
+                    </div>
+                    <div className="progress" style={{ height: 6 }}>
+                      <div 
+                        className={`progress-bar ${orderDetails.filter(it => (it.pickedQty || 0) >= (it.qty || 0)).length === orderDetails.length ? 'bg-success' : 'bg-primary'}`} 
+                        style={{ width: `${orderDetails.length > 0 ? Math.round((orderDetails.filter(it => (it.pickedQty || 0) >= (it.qty || 0)).length / orderDetails.length) * 100) : 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
                 <Table
                   rows={orderDetails}
                   columns={[
@@ -567,7 +607,7 @@ export default function LogisticsOverviewPage() {
         <div className="offcanvas-footer p-3 border-top bg-light">
           <button 
             className="btn btn-primary w-100" 
-            disabled={selectedOrder?.type === "logistics-ticket" && orderDetails.some(it => it.isShortage)}
+            disabled={selectedOrder?.type === "logistics-ticket" && selectedOrder.trangThai !== "PACKED"}
             onClick={() => {
               if (selectedOrder?.type === "material-import") {
                 setNhapKhoTaskId(selectedOrder.id);
@@ -582,7 +622,7 @@ export default function LogisticsOverviewPage() {
               setSelectedOrder(null);
             }}
           >
-            {selectedOrder?.type === "logistics-ticket" && orderDetails.some(it => it.isShortage) 
+            {selectedOrder?.type === "logistics-ticket" && selectedOrder.trangThai !== "PACKED" 
               ? "Chưa nhặt đủ hàng" : "Thực hiện"}
           </button>
         </div>

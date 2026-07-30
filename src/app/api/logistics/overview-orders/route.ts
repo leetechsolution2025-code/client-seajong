@@ -128,7 +128,7 @@ export async function GET(_req: NextRequest) {
         customer:  t.saleOrder?.customer?.name ?? null,
         tongTien:  null,
         trangThai: t.status,
-        isAssigned: false,
+        isAssigned: assignedOrderIds.has(t.id),
         ticketType: t.type,
         saleOrderId: t.saleOrder?.id,
         saleOrderCode: t.saleOrder?.code,
@@ -136,6 +136,8 @@ export async function GET(_req: NextRequest) {
         items: t.items?.map((it: any) => ({
           tenHang: it.inventoryItem?.tenHang || "Vật tư",
           soLuong: it.requestedQty || 0,
+          requestedQty: it.requestedQty || 0,
+          pickedQty: it.pickedQty || 0,
           donVi: it.inventoryItem?.donVi || "cái"
         }))
       })),
