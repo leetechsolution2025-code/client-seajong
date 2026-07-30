@@ -288,11 +288,49 @@ export async function PATCH(
           .filter(Boolean) as string[];
 
         let producedItems: string[] = [];
+        let totalQty = 0;
 
-        const productNameDesc =
-          producedItems.length > 0
-            ? producedItems.join(", ")
-            : `Thành phẩm lệnh sản xuất ${order.code || order.id}`;
+        const prodTask = await tx.task.findFirst({
+          where: {
+            deptCode: "production",
+            title: { contains: order.code || "" }
+          }
+        });
+
+        if (prodTask && prodTask.actualResult) {
+          try {
+            const parsed = JSON.parse(prodTask.actualResult);
+            for (const pt of parsed) {
+              if (pt.tenHang) producedItems.push(pt.tenHang);
+              if (pt.missingQty) totalQty += pt.missingQty;
+            }
+          } catch (e) {}
+        } else if (prodTask && prodTask.description) {
+          const lines = prodTask.description.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('- ')) {
+              const parts = line.substring(2).split(': ');
+              if (parts.length === 2) {
+                const tenHang = parts[0].trim();
+                const qtyStr = parts[1].trim().split(' ')[0];
+                const qty = parseFloat(qtyStr);
+                if (!isNaN(qty)) {
+                  producedItems.push(tenHang);
+                  totalQty += qty;
+                }
+              }
+            }
+          }
+        }
+
+        const fallbackItems = (order.saleOrderItems || []).map((i: any) => i.tenHang);
+        const finalItems = producedItems.length > 0 ? producedItems : fallbackItems;
+        const fallbackQty = (order.saleOrderItems || []).reduce((acc: number, i: any) => acc + i.soLuong, 0);
+        const finalQty = totalQty > 0 ? totalQty : fallbackQty;
+
+        const productNameDesc = finalItems.length > 0 
+          ? finalItems.join(", ") 
+          : `Thành phẩm lệnh sản xuất ${order.code || order.id}`;
 
         const qcCode =
           "QC-" +
@@ -314,8 +352,8 @@ export async function PATCH(
             metadata: JSON.stringify({
               productionOrder: order.code,
               bomCode: "BOM-" + (order.code || "").replace("DBH-", ""),
-              model: (order.saleOrderItems || []).map((i: any) => i.tenHang).join(", "),
-              totalQuantity: (order.saleOrderItems || []).reduce((acc: number, i: any) => acc + i.soLuong, 0),
+              model: finalItems[0] || productNameDesc,
+              totalQuantity: finalQty,
               batch: "LOT-" + new Date().toISOString().slice(0, 10).replace(/-/g, ""),
               assemblyTeam: "Tổ lắp ráp - Ca ngày"
             })
