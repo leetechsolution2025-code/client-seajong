@@ -33,6 +33,25 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         }
       });
 
+      // 1.5. Cập nhật trạng thái Công việc (Task) tương ứng
+      const qcTasks = await tx.task.findMany({
+        where: {
+          deptCode: "qa",
+          status: { in: ["pending", "in_progress", "todo"] },
+          description: { contains: inspection.code }
+        }
+      });
+      
+      for (const task of qcTasks) {
+        await tx.task.update({
+          where: { id: task.id },
+          data: {
+            status: "completed",
+            actualResult: JSON.stringify([{ msg: `Đã đánh giá chất lượng: ${result}. Phiếu: ${inspection.code}`, date: new Date().toISOString() }])
+          }
+        });
+      }
+
       // 2. Nếu đạt yêu cầu và là OQC -> Tạo lệnh nhập kho
       if (result === "Đạt" && inspection.type === "OQC") {
         const storekeepers = await tx.employee.findMany({
