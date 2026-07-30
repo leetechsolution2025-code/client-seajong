@@ -10,17 +10,27 @@ export async function POST(req: Request, props: { params: Promise<{ id: string }
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const orderId = params.id;
-    const dbOrderId = orderId.replace('LSX', 'DHBL');
-    const { message } = await req.json();
+    const codeCandidates = [
+      orderId,
+      orderId.replace("LSX", "DBH"),
+      orderId.replace("LSX", "DHBL"),
+      orderId.replace("LSX", "DH"),
+    ];
 
+    const { message } = await req.json();
     if (!message || message.trim() === "") {
       return NextResponse.json({ error: "Nội dung báo cáo không được để trống" }, { status: 400 });
     }
 
     // Find order
-    let order = await prisma.saleOrder.findUnique({ where: { id: dbOrderId } });
+    let order = null;
+    order = await prisma.saleOrder.findUnique({ where: { id: orderId } });
+    
     if (!order) {
-      order = await prisma.saleOrder.findUnique({ where: { code: dbOrderId } });
+      for (const candidate of codeCandidates) {
+        order = await prisma.saleOrder.findUnique({ where: { code: candidate } });
+        if (order) break;
+      }
     }
 
     if (!order) {

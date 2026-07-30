@@ -267,7 +267,7 @@ export default function ProductionDashboardPage() {
                               onClick={(e) => { e.preventDefault(); setSelectedOrderId(incident.saleOrder?.id || incident.orderId); setShowDetail(true); }}
                               className="text-decoration-none fw-bold text-primary"
                             >
-                              {incident.saleOrder?.code ? incident.saleOrder.code.replace('DHBL', 'LSX') : "-"}
+                              {incident.saleOrder?.code ? incident.saleOrder.code.replace(/^(DHBL|DBH|DH)/, 'LSX') : "-"}
                             </a>
                             <span className="text-muted small">{timeStr}</span>
                           </div>
