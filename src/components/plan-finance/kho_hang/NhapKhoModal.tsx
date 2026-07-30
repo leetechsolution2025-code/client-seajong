@@ -68,7 +68,7 @@ const CSS: Record<string, React.CSSProperties> = {
 // ── Component ─────────────────────────────────────────────────────────────────
 export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: NhapKhoModalProps) {
   const { data: session } = useSession();
-  const [mode, setMode] = React.useState<"manual" | "po">("manual");
+  const [mode, setMode] = React.useState<"manual" | "po" | "production">(initialItems && initialItems.length > 0 ? "production" : "manual");
 
   // Header fields
   const [soChungTu, setSoChungTu] = React.useState(() => {
@@ -82,6 +82,11 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
   const [nguoiThucHien, setNguoiThucHien] = React.useState("");
   const [lyDo, setLyDo] = React.useState(initialItems && initialItems.length > 0 ? "Nhập kho thành phẩm OQC" : "Nhập kho hàng hoá");
   const [loaiNhapKho, setLoaiNhapKho] = React.useState(initialItems && initialItems.length > 0 ? "Nhập từ sản xuất" : "Nhập mua hàng");
+
+  React.useEffect(() => {
+    if (mode === "production") setLoaiNhapKho("Nhập từ sản xuất");
+    else if (mode === "po") setLoaiNhapKho("Nhập mua hàng");
+  }, [mode]);
   const [ghiChu, setGhiChu] = React.useState("");
   const [chiPhiVanChuyen, setChiPhiVanChuyen] = React.useState(0);
 
@@ -149,7 +154,12 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
       .then((d: Warehouse[]) => {
         const active = Array.isArray(d) ? d.filter(w => w.isActive) : [];
         setWarehouses(active);
-        if (active.length === 1) setToWarehouseId(active[0].id);
+        const kvp = active.find(w => w.code === "KVP");
+        if (kvp) {
+          setToWarehouseId(kvp.id);
+        } else if (active.length > 0) {
+          setToWarehouseId(active[0].id);
+        }
       }).catch(() => { });
 
     fetch("/api/plan-finance/stock-movements/next-code?type=nhap")
@@ -380,7 +390,8 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
           {/* Mode toggle */}
           <div className="nk-mode-select" style={{ display: "flex", background: "var(--muted)", padding: 4, borderRadius: 10, gap: 4, border: "1px solid rgba(0,0,0,0.05)" }}>
             {([{ val: "manual" as const, label: "Nhập thủ công", icon: "bi-pencil" },
-            { val: "po" as const, label: "Theo đơn mua", icon: "bi-file-earmark-text" }]).map(m => (
+            { val: "po" as const, label: "Theo đơn mua", icon: "bi-file-earmark-text" },
+            { val: "production" as const, label: "Thành phẩm sản xuất", icon: "bi-box-seam" }]).map(m => (
               <button key={m.val} onClick={() => setMode(m.val)} style={{
                 display: "flex", alignItems: "center", gap: 6, flex: 1, justifyContent: "center",
                 padding: "6px 16px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
