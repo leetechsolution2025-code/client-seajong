@@ -90,7 +90,10 @@ export default function LogisticsModulePage() {
         color={config.color}
       />
 
-      <div className="flex-grow-1 px-2 px-md-3 pb-3 pt-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+      <div 
+        className="flex-grow-1 pb-5 pb-xl-2 pt-2 px-xl-2 px-2 d-flex flex-column" 
+        style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}
+      >
         {module === "inbound" && (
           <div className="row g-3 d-none d-sm-flex" style={{ flexShrink: 0, marginBottom: "8px" }}>
             {/* Thẻ 1: Tổng số mặt hàng */}
@@ -231,11 +234,11 @@ export default function LogisticsModulePage() {
           </div>
         )}
 
-        <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
+        <div className="bg-card flex-grow-1 d-flex flex-column rounded-4 shadow-sm border" style={{ minHeight: 0 }}>
           <div 
             className={`flex-grow-1 custom-scrollbar ${
               module === "inbound" || module === "products" || module === "inventory-reports" || module === "batch-packing" || module === "material-picking" ? "d-flex flex-column overflow-hidden" : "overflow-auto"
-            } ${module === "inventory-reports" || module === "batch-packing" || module === "material-picking" ? "p-0" : "pt-3 px-2 px-md-3 pb-3"}`}
+            } ${module === "inventory-reports" || module === "batch-packing" || module === "material-picking" ? "p-0 rounded-4" : "pt-3 px-2 px-md-3 pb-3"}`}
             style={{ minHeight: 0 }}
           >
             {renderModuleContent()}

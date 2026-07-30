@@ -39,8 +39,9 @@ export function LogisticsBatchPacking() {
   const [isManager, setIsManager] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [ticketIdsToAssign, setTicketIdsToAssign] = useState<string[] | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [assigning, setAssigning] = useState(false);
 
   const [pickedQuantities, setPickedQuantities] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
@@ -60,10 +61,10 @@ export function LogisticsBatchPacking() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch("/api/hr/employees");
+      const res = await fetch("/api/hr/employees?department=logistics&pageSize=100");
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setEmployees(data.map((e: any) => ({ id: e.id, fullName: e.fullName })));
+      if (data && Array.isArray(data.employees)) {
+        setEmployees(data.employees.map((e: any) => ({ id: e.id, fullName: e.fullName })));
       }
     } catch (e) {
       console.error(e);
@@ -97,23 +98,31 @@ export function LogisticsBatchPacking() {
     }
   }, [isManager]);
 
-  const openAssignModal = (ticketId: string) => {
-    setSelectedTicketId(ticketId);
+  const openAssignModal = (ticketIds: string | string[]) => {
+    setTicketIdsToAssign(Array.isArray(ticketIds) ? ticketIds : [ticketIds]);
     setAssignModalOpen(true);
   };
 
-  const handleAssignSubmit = async () => {
-    if (!selectedEmployeeId || !selectedTicketId) return;
+  const handleAssign = async () => {
+    if (!ticketIdsToAssign || ticketIdsToAssign.length === 0 || !selectedEmployeeId) {
+      alert("Vui lòng chọn nhân viên");
+      return;
+    }
     try {
       const res = await fetch("/api/logistics/batch-packing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "assign_ticket", ticketId: selectedTicketId, employeeId: selectedEmployeeId })
+        body: JSON.stringify({ 
+          action: "assign_ticket", 
+          ticketIds: ticketIdsToAssign, 
+          employeeId: selectedEmployeeId 
+        })
       });
       const data = await res.json();
       if (data.success) {
         alert("Phân công thành công!");
         setAssignModalOpen(false);
+        setTicketIdsToAssign(null);
         fetchData();
       } else {
         alert(data.error);
@@ -268,9 +277,11 @@ export function LogisticsBatchPacking() {
               </th>
               <th rowSpan={2} style={{ borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold py-3 align-middle">Mặt hàng</th>
               <th colSpan={2} style={{ borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold text-center py-2 border-bottom">SỐ LƯỢNG</th>
-              <th rowSpan={2} style={{ width: 300, borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold py-3 align-middle">Chi tiết theo phiếu</th>
-              <th rowSpan={2} style={{ width: 120, borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold text-end py-3 align-middle">
-                 <button onClick={handleComplete} className="btn btn-sm btn-primary py-1 px-3">Báo cáo</button>
+              <th rowSpan={2} style={{ borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold py-3 align-middle">
+                <div className="d-flex align-items-center justify-content-between">
+                  <span>Chi tiết theo phiếu</span>
+                  <button onClick={handleComplete} className="btn btn-sm btn-primary py-1 px-3">Báo cáo</button>
+                </div>
               </th>
             </tr>
             <tr>
@@ -281,20 +292,56 @@ export function LogisticsBatchPacking() {
           <tbody>
             {sortedDates.map(dateStr => (
               <React.Fragment key={dateStr}>
-                <tr style={{ background: "var(--light)", cursor: "pointer" }} onClick={() => toggleDate(dateStr)}>
-                  <td colSpan={6} className="py-2 px-3 fw-bold text-dark border-bottom" style={{ fontSize: 13, background: "#f1f5f9" }}>
-                    <div className="d-flex align-items-center justify-content-between">
-                      <div className="d-flex align-items-center">
-                        <i className={`bi bi-chevron-${collapsedDates.has(dateStr) ? 'right' : 'down'} text-secondary me-2`} style={{ fontSize: 12 }} />
-                        <i className="bi bi-calendar-event text-primary me-2" />
-                        Ngày giao: <span className="ms-1 text-primary">{dateStr}</span>
-                        <span className="badge bg-white text-dark border ms-3 rounded-pill" style={{ fontWeight: 500, fontSize: 11 }}>
-                          {groupedItems[dateStr].length} mặt hàng
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
+                {(() => {
+                  const ticketIdsForDate = Array.from(new Set(groupedItems[dateStr].flatMap(item => item.orders.map((o: any) => o.id))));
+                  const dateAssignees = Array.from(new Set(groupedItems[dateStr].flatMap(item => item.orders.map((o: any) => o.assignedTo).filter(Boolean))));
+                  return (
+                    <tr style={{ background: "var(--light)", cursor: "pointer" }} onClick={() => toggleDate(dateStr)}>
+                      <td colSpan={5} className="py-2 px-3 fw-bold text-dark border-bottom" style={{ fontSize: 13, background: "#f1f5f9" }}>
+                        <div className="d-flex align-items-center justify-content-between">
+                          <div className="d-flex align-items-center">
+                            <i className={`bi bi-chevron-${collapsedDates.has(dateStr) ? 'right' : 'down'} text-secondary me-2`} style={{ fontSize: 12 }} />
+                            <i className="bi bi-calendar-event text-primary me-2" />
+                            Ngày giao: <span className="ms-1 text-primary">{dateStr}</span>
+                            <span className="badge bg-white text-dark border ms-3 rounded-pill" style={{ fontWeight: 500, fontSize: 11 }}>
+                              {groupedItems[dateStr].length} mặt hàng
+                            </span>
+                            {dateAssignees.length > 0 ? (
+                              <span 
+                                className="badge bg-primary bg-opacity-10 text-primary border border-primary ms-3"
+                                style={{ fontWeight: 500, cursor: isManager ? "pointer" : "default" }}
+                                onClick={(e) => {
+                                  if (isManager) {
+                                    e.stopPropagation();
+                                    openAssignModal(ticketIdsForDate);
+                                  }
+                                }}
+                                title={isManager ? "Nhấn để phân công lại" : ""}
+                              >
+                                <i className="bi bi-person-fill me-1"></i>
+                                {dateAssignees.join(", ")}
+                              </span>
+                            ) : (
+                              isManager && (
+                                <button 
+                                  className="btn btn-sm btn-outline-primary py-0 px-2 ms-3 rounded-pill"
+                                  style={{ fontSize: 11 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openAssignModal(ticketIdsForDate);
+                                  }}
+                                >
+                                  <i className="bi bi-person-plus me-1"></i>
+                                  Phân công
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })()}
                 {!collapsedDates.has(dateStr) && groupedItems[dateStr].map(item => {
                   const pickedQty = pickedQuantities[item.id];
                   const isPicked = pickedQty !== undefined;
@@ -341,6 +388,13 @@ export function LogisticsBatchPacking() {
                               Không có thông tin vị trí
                             </span>
                           )}
+                          {isFullyPicked ? (
+                            <span className="badge bg-light text-success border border-success border-opacity-25" style={{ fontSize: 10, fontWeight: 500 }}><i className="bi bi-check-circle-fill me-1" /> Đủ hàng</span>
+                          ) : isPicked ? (
+                            <span className="badge bg-light text-warning border border-warning border-opacity-25" style={{ fontSize: 10, fontWeight: 500 }}><i className="bi bi-exclamation-triangle-fill me-1" /> Thiếu hàng</span>
+                          ) : (
+                            <span className="badge bg-light text-muted border border-secondary border-opacity-25" style={{ fontSize: 10, fontWeight: 500 }}><i className="bi bi-circle me-1" /> Chờ nhặt</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -364,29 +418,9 @@ export function LogisticsBatchPacking() {
                       {item.orders.map((o, idx) => (
                         <span key={idx} className="badge bg-light text-dark border d-inline-flex align-items-center gap-1" style={{ fontSize: 11, fontWeight: 500 }}>
                           {o.code}: {o.soLuongTrongDon}
-                          {o.assignedTo && <span className="text-primary ms-1">({o.assignedTo})</span>}
-                          {isManager && (
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); openAssignModal(o.id); }}
-                              className="btn btn-sm btn-link p-0 ms-1 text-decoration-none"
-                              style={{ fontSize: 11 }}
-                              title="Phân công"
-                            >
-                              <i className="bi bi-person-plus text-primary"></i>
-                            </button>
-                          )}
                         </span>
                       ))}
                     </div>
-                  </td>
-                  <td className="text-end py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)" }}>
-                    {isFullyPicked ? (
-                      <span className="text-success fw-bold"><i className="bi bi-check-circle-fill me-1" /> Đủ hàng</span>
-                    ) : isPicked ? (
-                      <span className="text-warning fw-bold"><i className="bi bi-exclamation-triangle-fill me-1" /> Thiếu hàng</span>
-                    ) : (
-                      <span className="text-muted"><i className="bi bi-circle me-1" /> Chờ nhặt</span>
-                    )}
                   </td>
                 </tr>
               );
@@ -424,8 +458,10 @@ export function LogisticsBatchPacking() {
                 </select>
               </div>
               <div className="modal-footer py-2">
-                <button type="button" className="btn btn-light btn-sm" onClick={() => setAssignModalOpen(false)}>Hủy</button>
-                <button type="button" className="btn btn-primary btn-sm" onClick={handleAssignSubmit}>Phân công</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setAssignModalOpen(false)}>Hủy</button>
+                <button type="button" className="btn btn-primary" onClick={handleAssign} disabled={assigning}>
+                  {assigning ? "Đang xử lý..." : "Phân công"}
+                </button>
               </div>
             </div>
           </div>

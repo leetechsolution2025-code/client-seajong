@@ -150,15 +150,16 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { action, ticketId, employeeId, orderCodes } = body;
+    const { action, ticketId, ticketIds, employeeId, orderCodes } = body;
 
     if (action === "assign_ticket") {
-      if (!ticketId || !employeeId) {
+      const idsToUpdate = ticketIds || (ticketId ? [ticketId] : []);
+      if (idsToUpdate.length === 0 || !employeeId) {
          return NextResponse.json({ error: "Thiếu thông tin phân công" }, { status: 400 });
       }
       
-      await (prisma as any).logisticsTicket.update({
-        where: { id: ticketId },
+      await (prisma as any).logisticsTicket.updateMany({
+        where: { id: { in: idsToUpdate } },
         data: { assignedToId: employeeId }
       });
       return NextResponse.json({ success: true, message: "Phân công thành công" });
