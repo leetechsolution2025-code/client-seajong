@@ -1286,7 +1286,7 @@ export function MyTasks({
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState<"table" | "gantt">("table");
+  const [viewMode, setViewMode] = useState<"table" | "gantt">("gantt");
   const ITEMS_PER_PAGE = compact ? (maxItems ?? 5) : 50;
 
   // Lấy tên từ session hoặc prop
@@ -1342,22 +1342,10 @@ export function MyTasks({
     const nameMatch = !employeeName || t.assigneeName === employeeName;
     const planMonth = t.monthlyPlan?.month;
     const dl = t.deadline ? new Date(t.deadline) : null;
-    const taskMonth = planMonth || (dl ? dl.getMonth() + 1 : null);
+    const taskMonth = planMonth || (dl ? dl.getMonth() + 1 : (t.createdAt ? new Date(t.createdAt).getMonth() + 1 : new Date().getMonth() + 1));
     
-    // Logic mới: Xuất hiện ở tất cả các tháng từ lúc tạo đến lúc kết thúc
-    const today = new Date();
-    const start = t.createdAt ? new Date(t.createdAt) : today;
-    const end = dl || start;
-
-    const startMonthVal = start.getFullYear() * 12 + start.getMonth();
-    const endMonthVal = end.getFullYear() * 12 + end.getMonth();
-    const currentFilterMonthVal = today.getFullYear() * 12 + (filterMonth - 1);
-    
-    // Nếu là Generic Task (Mentor, Interview...) thì dùng logic dải thời gian
-    const isWithinRange = currentFilterMonthVal >= startMonthVal && currentFilterMonthVal <= endMonthVal;
-    
-    // Nếu là Marketing Task thì vẫn ưu tiên theo tháng kế hoạch (planMonth)
-    const monthMatch = t.isGeneric ? isWithinRange : (taskMonth === filterMonth);
+    // Chỉ hiển thị đúng vào tháng của Hạn chót (Deadline) hoặc tháng tạo công việc
+    const monthMatch = taskMonth === filterMonth;
     
     return nameMatch && monthMatch;
   });
@@ -1427,7 +1415,7 @@ export function MyTasks({
       )}
 
       {/* Main content */}
-      <div style={{ flex: 1, overflow: "hidden", padding: compact ? "12px" : "20px 24px", display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, overflow: "hidden", padding: "8px", display: "flex", flexDirection: "column" }}>
 
         {/* ── Year + Month timeline ── */}
         <div style={{

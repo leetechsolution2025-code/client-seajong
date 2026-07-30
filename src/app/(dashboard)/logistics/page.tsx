@@ -30,6 +30,7 @@ export default function LogisticsOverviewPage() {
   
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<"orders" | "inventory">("orders");
+  const [typeFilter, setTypeFilter] = useState<"ALL" | "IMPORT" | "EXPORT">("ALL");
   
   const [staffList, setStaffList] = useState<any[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string>("");
@@ -187,6 +188,10 @@ export default function LogisticsOverviewPage() {
 
   const orders = React.useMemo(() => {
     const grouped = rawOrders.reduce((acc: Record<string, any[]>, curr: any) => {
+      const isImport = curr.type === 'material-import';
+      if (typeFilter === "IMPORT" && !isImport) return acc;
+      if (typeFilter === "EXPORT" && isImport) return acc;
+
       const code = curr.saleOrderCode || curr.code || "Khác";
       if (!acc[code]) acc[code] = [];
       acc[code].push(curr);
@@ -286,7 +291,7 @@ export default function LogisticsOverviewPage() {
     }
     
     return finalOrders;
-  }, [rawOrders, collapsedGroups]);
+  }, [rawOrders, collapsedGroups, typeFilter]);
 
   return (
     <div className="d-flex flex-column h-100" style={{ background: "var(--background)", position: "relative" }}>
@@ -303,8 +308,18 @@ export default function LogisticsOverviewPage() {
           {/* Cột trái (5 phần) */}
           <div className={`col-12 col-xl-5 p-0 pe-xl-2 mb-3 mb-xl-0 flex-column h-100 ${activeTab === "orders" ? "d-flex" : "d-none d-xl-flex"}`} style={{ minHeight: 0 }}>
             <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
-              <div className="px-3 px-xl-4 pt-3 pt-xl-4 pb-2">
-                <SectionTitle title="Danh sách lệnh xuất nhập kho" icon="bi-card-list" />
+              <div className="px-3 px-xl-4 pt-3 pt-xl-4 pb-2 d-flex justify-content-between align-items-center">
+                <SectionTitle title="Danh sách lệnh xuất nhập kho" icon="bi-card-list" className="mb-0" />
+                <select 
+                  className="form-select form-select-sm shadow-sm mb-0"
+                  style={{ width: "120px", fontSize: 12, borderRadius: 8, cursor: "pointer" }}
+                  value={typeFilter}
+                  onChange={e => setTypeFilter(e.target.value as any)}
+                >
+                  <option value="ALL">Tất cả</option>
+                  <option value="IMPORT">Nhập kho</option>
+                  <option value="EXPORT">Xuất kho</option>
+                </select>
               </div>
               <div className="flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
                 <Table

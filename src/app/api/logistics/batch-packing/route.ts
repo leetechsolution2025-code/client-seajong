@@ -252,6 +252,36 @@ export async function POST(req: NextRequest) {
              data: { status: "PICKING" }
            });
         }
+        
+        // Cập nhật trạng thái của Task giao việc liên quan
+        const relatedTasks = await prisma.task.findMany({
+          where: { deptCode: "logistics", actualResult: { contains: tId } }
+        });
+        
+        for (const task of relatedTasks) {
+          try {
+            const orderIds = JSON.parse(task.actualResult || "[]");
+            if (!Array.isArray(orderIds)) continue;
+            
+            const tickets = await (prisma as any).logisticsTicket.findMany({
+              where: { id: { in: orderIds } },
+              select: { status: true }
+            });
+            
+            const allPacked = tickets.every((tk: any) => tk.status === "PACKED" || tk.status === "COMPLETED");
+            if (allPacked && tickets.length > 0) {
+              await prisma.task.update({
+                where: { id: task.id },
+                data: { status: "done", completedAt: new Date() }
+              });
+            } else if (tickets.some((tk: any) => tk.status === "PICKING" || tk.status === "PACKED" || tk.status === "COMPLETED")) {
+              await prisma.task.update({
+                where: { id: task.id },
+                data: { status: "in_progress" }
+              });
+            }
+          } catch(e) {}
+        }
       }
     }
 

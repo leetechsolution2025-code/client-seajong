@@ -327,8 +327,15 @@ export function LogisticsBatchPacking() {
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="text-center p-5 mt-5">
-          <i className="bi bi-check2-all text-success fs-1 mb-3 d-block" />
-          <h5 className="fw-bold">Tuyệt vời!</h5>
+          <div className="mx-auto mb-4 d-flex align-items-center justify-content-center position-relative" style={{ width: 100, height: 100 }}>
+             <div className="position-absolute w-100 h-100" style={{ background: "#10b981", opacity: 0.1, borderRadius: "50%" }}></div>
+             <div className="position-absolute" style={{ width: 70, height: 70, background: "#10b981", opacity: 0.15, borderRadius: "50%" }}></div>
+             <i className="bi bi-box-seam position-relative" style={{ fontSize: 42, color: "#10b981" }} />
+             <div className="position-absolute bg-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style={{ width: 28, height: 28, bottom: 15, right: 15 }}>
+               <i className="bi bi-check-lg" style={{ color: "#10b981", fontSize: 18, fontWeight: "bold" }} />
+             </div>
+          </div>
+          <h5 className="fw-bold" style={{ color: "#1e293b" }}>Tuyệt vời!</h5>
           <p className="text-muted">Tất cả các phiếu gom hàng hiện tại đã được hoàn tất.</p>
         </div>
       ) : (

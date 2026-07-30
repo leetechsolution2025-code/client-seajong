@@ -961,11 +961,48 @@ export async function DELETE(
         await tx.purchaseRequest.deleteMany({
           where: { lyDo: { contains: order.code } }
         });
-        
-        // Xoá lệnh sản xuất / xuất kho KVP (Task) liên quan
-        await tx.task.deleteMany({
+
+        // Lấy danh sách phiếu LogisticsTicket liên quan sẽ bị xoá
+        const ticketsToDelete = await tx.logisticsTicket.findMany({
+          where: { saleOrderId: id },
+          select: { id: true }
+        });
+        const ticketIdsToDelete = ticketsToDelete.map(t => t.id);
+
+        // Xử lý lệnh sản xuất / xuất kho KVP (Task) liên quan
+        const relatedTasks = await tx.task.findMany({
           where: { title: { contains: order.code } }
         });
+
+        for (const task of relatedTasks) {
+          if (task.title.startsWith("Gom hàng:")) {
+            // Xử lý actualResult để xoá ticketId tương ứng
+            let parsedResult = [];
+            try { parsedResult = JSON.parse(task.actualResult || "[]"); } catch(e) {}
+            let updatedResult = parsedResult;
+            if (Array.isArray(parsedResult)) {
+              updatedResult = parsedResult.filter(tid => !ticketIdsToDelete.includes(tid));
+            }
+
+            // Xoá mã đơn hàng khỏi title và description
+            let newTitle = task.title.replace(order.code, "").replace(/,\s*,/g, ",").replace(/:\s*,/, ": ").replace(/,\s*$/, "").trim();
+            let newDesc = (task.description || "").replace(order.code, "").replace(/,\s*,/g, ",").replace(/:\s*,/, ": ").replace(/,\s*$/, "").trim();
+
+            if (newTitle === "Gom hàng:" || (Array.isArray(parsedResult) && parsedResult.length > 0 && updatedResult.length === 0)) {
+              // Nếu không còn đơn nào thì xoá luôn task
+              await tx.task.delete({ where: { id: task.id } });
+            } else {
+              // Cập nhật lại task để giữ lại các đơn còn lại
+              await tx.task.update({
+                where: { id: task.id },
+                data: { title: newTitle, description: newDesc, actualResult: JSON.stringify(updatedResult) }
+              });
+            }
+          } else {
+            // Đối với các loại task khác (như Lệnh sản xuất) thì xoá luôn
+            await tx.task.delete({ where: { id: task.id } });
+          }
+        }
       }
       await tx.debt.deleteMany({
         where: { referenceId: order.id },
