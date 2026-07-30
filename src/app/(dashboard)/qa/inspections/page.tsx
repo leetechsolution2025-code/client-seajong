@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Table, TableColumn } from "@/components/ui/Table";
+import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
 import toast from "react-hot-toast";
 
 export default function QaInspectionsPage() {
@@ -526,6 +527,7 @@ export default function QaInspectionsPage() {
                   {/* Right Panel - A4 Preview */}
                   <div className="flex-grow-1 p-4 p-md-5 custom-scrollbar" style={{ overflowY: "auto" }}>
                     <div 
+                      id="iqc-preview-doc"
                       className="bg-white shadow border mx-auto position-relative" 
                       style={{ 
                         width: "21cm", 
@@ -557,7 +559,7 @@ export default function QaInspectionsPage() {
                       <div className="col-4 text-end">
                         <div style={{ fontSize: "11pt" }}>
                           <div>Số phiếu: <span className="fw-bold">{selectedInspection.id}</span></div>
-                          <div className="fst-italic">Ngày lập: {selectedInspection.date.split(' ')[0]}</div>
+                          <div className="fst-italic">Ngày lập: {selectedInspection.date}</div>
                         </div>
                       </div>
                     </div>
@@ -768,7 +770,7 @@ export default function QaInspectionsPage() {
               </div>
               <div className="modal-footer bg-white border-top p-3 d-flex justify-content-end gap-2">
                  <button className="btn btn-light border px-4" onClick={() => { setShowIqcModal(false); setSelectedInspection(null); }}>Hủy</button>
-                 <button className="btn btn-primary px-4"><i className="bi bi-printer me-2"></i>In biên bản</button>
+                 <button className="btn btn-primary px-4" onClick={() => printDocumentById("iqc-preview-doc", "portrait", "IQC-" + selectedInspection.id)}><i className="bi bi-printer me-2"></i>In biên bản</button>
                  <button className="btn btn-success px-4" onClick={() => { setShowIqcModal(false); setSelectedInspection(null); }}><i className="bi bi-floppy me-2"></i>Lưu kết quả</button>
               </div>
             </div>
@@ -828,6 +830,7 @@ export default function QaInspectionsPage() {
                   {/* Right Panel - A4 Preview */}
                   <div className="flex-grow-1 p-4 p-md-5 custom-scrollbar" style={{ overflowY: "auto" }}>
                     <div 
+                      id="oqc-preview-doc"
                       className="bg-white shadow border mx-auto position-relative" 
                       style={{ 
                         width: "21cm", 
@@ -859,7 +862,7 @@ export default function QaInspectionsPage() {
                       <div className="col-4 text-end">
                         <div style={{ fontSize: "11pt" }}>
                           <div>Số phiếu: <span className="fw-bold">{selectedInspection.id}</span></div>
-                          <div className="fst-italic">Ngày lập: {selectedInspection.date.split(' ')[0]}</div>
+                          <div className="fst-italic">Ngày lập: {selectedInspection.date}</div>
                         </div>
                       </div>
                     </div>
@@ -1088,7 +1091,7 @@ export default function QaInspectionsPage() {
               </div>
               <div className="modal-footer bg-white border-top p-3 d-flex justify-content-end gap-2">
                  <button className="btn btn-light border px-4" onClick={() => { setShowOqcModal(false); setSelectedInspection(null); }}>Hủy</button>
-                 <button className="btn btn-primary px-4"><i className="bi bi-printer me-2"></i>In biên bản</button>
+                 <button className="btn btn-primary px-4" onClick={() => printDocumentById("oqc-preview-doc", "portrait", "OQC-" + selectedInspection.id)}><i className="bi bi-printer me-2"></i>In biên bản</button>
                  <button className="btn btn-success px-4" onClick={handleSaveOqcResult}><i className="bi bi-floppy me-2"></i>Lưu kết quả</button>
               </div>
             </div>
