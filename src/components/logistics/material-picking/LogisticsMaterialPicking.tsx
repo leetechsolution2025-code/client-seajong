@@ -24,6 +24,7 @@ interface BatchItem {
     code: string;
     soLuongTrongDon: number;
     ngayGiao?: string;
+    createdAt?: string;
     assignedTo?: string;
   }[];
 }
@@ -61,6 +62,26 @@ export function LogisticsMaterialPicking() {
       else next.add(dateStr);
       return next;
     });
+  };
+
+  const handleUpdateDeadline = async (dateStr: string, newDate: string) => {
+    if (!newDate) return;
+    const ticketIds = Array.from(new Set(groupedItems[dateStr].flatMap(item => item.orders.map((o: any) => o.id))));
+    try {
+      const res = await fetch("/api/logistics/tickets/update-deadline", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketIds, newDate })
+      });
+      if (res.ok) {
+        toast.success("Đã cập nhật Hạn hoàn thành thành công!");
+        fetchData(); // Reload data
+      } else {
+        toast.error("Cập nhật thất bại.");
+      }
+    } catch (e) {
+      toast.error("Đã xảy ra lỗi khi cập nhật.");
+    }
   };
 
   const fetchEmployees = async () => {
@@ -259,6 +280,25 @@ export function LogisticsMaterialPicking() {
     (item.inventoryItemId && item.inventoryItemId.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const getRelativeDateText = (dateString: string) => {
+    if (dateString === "Ngay lập tức" || dateString === "Không hẹn ngày") return dateString;
+    const parts = dateString.split('/');
+    if (parts.length === 3) {
+      const [d, m, y] = parts;
+      const targetDate = new Date(Number(y), Number(m) - 1, Number(d));
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diffTime = targetDate.getTime() - today.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) return "Hôm nay";
+      if (diffDays === 1) return "Ngày mai";
+      if (diffDays > 1) return `${diffDays} ngày nữa`;
+      if (diffDays < 0) return `Trễ ${Math.abs(diffDays)} ngày`;
+    }
+    return dateString;
+  };
+
   const groupedItems = filteredItems.reduce((acc, item) => {
     let dateStr = "Không hẹn ngày";
     if (item.ngayGiao) {
@@ -380,8 +420,38 @@ export function LogisticsMaterialPicking() {
                         <div className="d-flex align-items-center justify-content-between">
                           <div className="d-flex align-items-center">
                             <i className={`bi bi-chevron-${collapsedDates.has(dateStr) ? 'right' : 'down'} text-secondary me-2`} style={{ fontSize: 12 }} />
-                            <i className="bi bi-calendar-event text-primary me-2" />
-                            Ngày giao: <span className="ms-1 text-primary">{dateStr}</span>
+                            
+                            {(() => {
+                               const dates = groupedItems[dateStr].flatMap(i => i.orders.map(o => o.createdAt)).filter((d): d is string => !!d);
+                               dates.sort();
+                               const groupCreatedAtStr = dates.length > 0 ? new Date(dates[0]).toLocaleDateString('vi-VN') : "Không rõ";
+                               return (
+                                 <span className="me-3 text-secondary" style={{ fontSize: 12.5 }}>Ngày giao: <b>{groupCreatedAtStr}</b></span>
+                               );
+                            })()}
+
+                            <i className="bi bi-calendar-event text-primary me-2 ms-2 border-start ps-3" />
+                            <span 
+                              className="text-primary fw-bolder position-relative" 
+                              style={{ cursor: "pointer" }}
+                              title="Nhấn để thay đổi Hạn hoàn thành"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const picker = document.getElementById(`date-picker-${dateStr}`) as HTMLInputElement;
+                                if (picker) {
+                                  try { picker.showPicker(); } catch (err) { picker.click(); }
+                                }
+                              }}
+                            >
+                              Hạn hoàn thành: <span className="ms-1">{getRelativeDateText(dateStr)}</span>
+                              <input 
+                                type="date" 
+                                id={`date-picker-${dateStr}`}
+                                style={{ opacity: 0, position: 'absolute', width: 0, height: 0, left: 0, top: 0 }}
+                                onChange={(e) => handleUpdateDeadline(dateStr, e.target.value)}
+                              />
+                            </span>
+                            <span className="text-muted ms-1" style={{ fontSize: 11 }}>| {dateStr}</span>
                             <span className="badge bg-white text-dark border ms-3 rounded-pill" style={{ fontWeight: 500, fontSize: 11 }}>
                               {groupedItems[dateStr].length} mặt hàng
                             </span>
@@ -580,7 +650,7 @@ export function LogisticsMaterialPicking() {
       <ConfirmDialog 
         open={!!completingDate}
         title="Xác nhận báo cáo"
-        message={completingDate ? `Bạn có chắc chắn đã hoàn tất gom ${groupedItems[completingDate]?.filter(item => pickedQuantities[item.id] !== undefined).length || 0} mặt hàng của Ngày giao: ${completingDate}?` : ""}
+        message={completingDate ? `Bạn có chắc chắn đã hoàn tất gom ${groupedItems[completingDate]?.filter(item => pickedQuantities[item.id] !== undefined).length || 0} mặt hàng của Hạn hoàn thành: ${getRelativeDateText(completingDate)}?` : ""}
         confirmLabel="OK"
         cancelLabel="Huỷ"
         loading={isSubmitting}

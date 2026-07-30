@@ -110,6 +110,9 @@ function getTaskProgress(task: any): number {
   const weeksArr = [task.week1, task.week2, task.week3, task.week4];
   const weeksDone = weeksArr.filter(Boolean).length;
   if (task.status === "in_progress") {
+    if (weeksDone === 0 && (!task.week1 && !task.week2 && !task.week3 && !task.week4)) {
+      return 50; // Trạng thái đang thực hiện cho công việc không chia tuần
+    }
     return Math.round((weeksDone / 4) * 100);
   }
   return 0;
@@ -1338,7 +1341,6 @@ export function MyTasks({
 
   // Filter tasks belonging to this employee
   const myTasks = tasks.filter(t => {
-    if (!t.week1 && !t.week2 && !t.week3 && !t.week4) return false;
     const nameMatch = !employeeName || t.assigneeName === employeeName;
     const planMonth = t.monthlyPlan?.month;
     const dl = t.deadline ? new Date(t.deadline) : null;

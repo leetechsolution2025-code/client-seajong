@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     
     // Phân quyền: Giám đốc, Admin, Thủ kho, Quản lý cấp cao
     const isManager = ["SUPERADMIN", "ADMIN", "DIRECTOR", "MANAGER"].includes(userRole) 
-      || levelOrder <= 3 
+      || levelOrder < 3 
       || position.includes("giám đốc") 
       || position.includes("thủ kho")
       || position.includes("trưởng");
@@ -144,6 +144,7 @@ export async function GET(req: NextRequest) {
           code: ticket.saleOrder?.code || ticket.code,
           soLuongTrongDon: item.requestedQty || 0,
           ngayGiao: ticket.saleOrder?.ngayGiao,
+          createdAt: ticket.createdAt,
           assignedTo: ticket.assignedTo?.fullName
         });
       }

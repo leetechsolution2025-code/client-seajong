@@ -67,13 +67,6 @@ export async function GET() {
         w2 = parsedWeeks.w2;
         w3 = parsedWeeks.w3;
         w4 = parsedWeeks.w4;
-      } else {
-        // Fallback: Calculate week based on day of month
-        // Week 1: 1-7, Week 2: 8-14, Week 3: 15-21, Week 4: 22+
-        if (day <= 7) w1 = true;
-        else if (day <= 14) w2 = true;
-        else if (day <= 21) w3 = true;
-        else w4 = true;
       }
 
       return {
