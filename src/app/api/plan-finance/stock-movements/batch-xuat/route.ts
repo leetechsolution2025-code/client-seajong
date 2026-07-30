@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
       nguoiThucHien?:  string;
       salesOrderId?:   string;
       workOrderId?:    string;
+      ticketId?:       string;
       lines: {
         inventoryItemId: string;
         soLuong:         number;
@@ -200,12 +201,23 @@ export async function POST(req: NextRequest) {
         event: "INVENTORY_ISSUE",
         amount: totalBatchValue,
         referenceCode: soChungTu,
-        description: lyDo || `Xuất kho theo chứng từ ${soChungTu || 'N/A'}`
+        description: `Xuất kho hàng hoá/vật tư - Phiếu ${soChungTu || 'N/A'}`
       });
     }
 
-    return NextResponse.json({ ok: true, count: movements.length, movements });
-  } catch (e) {
+    if (body.ticketId) {
+      try {
+        await prisma.logisticsTicket.update({
+          where: { id: body.ticketId },
+          data: { status: "COMPLETED" }
+        });
+      } catch (err) {
+        console.error("Failed to update ticket status:", err);
+      }
+    }
+
+    return NextResponse.json({ ok: true, count: lines.length, movements });
+  } catch (e: any) {
     console.error("[POST /stock-movements/batch-xuat]", e);
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: msg }, { status: 500 });

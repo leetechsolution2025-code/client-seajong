@@ -40,7 +40,7 @@ interface StockLine {
   error?:      string;
 }
 
-interface XuatKhoModalProps { onClose: () => void; onSaved: () => void; initialMode?: "manual" | "so" | "wo"; initialSoId?: string; initialWoId?: string; }
+interface XuatKhoModalProps { onClose: () => void; onSaved: () => void; initialMode?: "manual" | "so" | "wo"; initialSoId?: string; initialWoId?: string; initialTicketId?: string; }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const uid       = () => Math.random().toString(36).slice(2);
@@ -65,7 +65,7 @@ const CSS: Record<string, React.CSSProperties> = {
 const GRID = "28px 1fr 60px 80px 80px 60px 60px 60px 110px 110px 32px";
 
 // ── Main Component ─────────────────────────────────────────────────────────────
-export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initialWoId }: XuatKhoModalProps) {
+export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initialWoId, initialTicketId }: XuatKhoModalProps) {
   const { data: session } = useSession();
   const toast = useToast();
 
@@ -91,11 +91,13 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
   }, [session, nguoiThucHien]);
   const [lines, setLines]               = React.useState<StockLine[]>([emptyLine()]);
   const [saving, setSaving]             = React.useState(false);
+  const [saveWithPrint, setSaveWithPrint] = React.useState(false);
   const [success, setSuccess]           = React.useState(false);
   const [confirmOpen, setConfirmOpen]   = React.useState(false);
   const [showPreview, setShowPreview]   = React.useState(false);
   const [showLichSu, setShowLichSu]     = React.useState(false);
   const [insufficientItems, setInsufficient] = React.useState<{inventoryItemId:string;tenHang:string;soLuong:number;soLuongTon:number}[]>([]);
+  const [allowExportShortage, setAllowExportShortage] = React.useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false); // Toggles mobile accordion
 
   // SO / WO
@@ -344,10 +346,23 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
 
       setLines(newLines);
 
-      if (fromWarehouseId) {
+      let currentWhId: string | undefined = fromWarehouseId;
+      if (!currentWhId) {
+        let whList = warehouses;
+        if (whList.length === 0) {
+          try {
+            const r = await fetch("/api/plan-finance/warehouses");
+            const d = await r.json();
+            if (Array.isArray(d)) whList = d;
+          } catch (e) { /* ignore */ }
+        }
+        currentWhId = whList.find((w: any) => w.code === "KVP" || w.name.toLowerCase().includes("vật tư"))?.id;
+      }
+
+      if (currentWhId) {
         rawLines.forEach((raw: any, idx: number) => {
           if (!raw.tenHang) return;
-          const warehouseParam = `&warehouseId=${fromWarehouseId}`;
+          const warehouseParam = `&warehouseId=${currentWhId}`;
           fetch(`/api/plan-finance/inventory/search?q=${encodeURIComponent(raw.tenHang)}&limit=5${warehouseParam}`)
             .then(r => r.json())
             .then((searchData) => {
@@ -518,7 +533,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
   };
 
   // ── Save ────────────────────────────────────────────────────────────────────
-  const doSave = async () => {
+  const doSave = async (printAfter: boolean) => {
     setSaving(true); setInsufficient([]);
     try {
       const res = await fetch("/api/plan-finance/stock-movements/batch-xuat", {
@@ -528,6 +543,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
           soChungTu:     soChungTu     || undefined,
           lyDo:          [loaiXuatKho, lyDo, ghiChu ? `Ghi chú: ${ghiChu}` : ""].filter(Boolean).join(" - ") || undefined,
           nguoiThucHien: nguoiThucHien || undefined,
+          ticketId:      initialTicketId,
           lines: validLines.map(l => ({
             inventoryItemId: l.item!.id,
             soLuong:   l.soLuong,
@@ -555,14 +571,19 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
         throw new Error(data.error ?? "Lỗi lưu");
       }
       toast.success("✅ Xuất kho thành công!", `Phiếu ${soChungTu} đã được xác nhận`, 5000);
-      setSuccess(true);
-      onSaved();
+      if (printAfter) {
+        setSuccess(true);
+        setShowPreview(true);
+      } else {
+        onSaved();
+      }
     } catch (e) {
       toast.error("Xuất kho thất bại", e instanceof Error ? e.message : "Lỗi không xác định");
     } finally { setSaving(false); }
   };
 
-  const handleSave = () => {
+  const handleSave = (printAfter: boolean) => {
+    setSaveWithPrint(printAfter);
     if (!fromWarehouseId) { toast.error("Thiếu thông tin", "Vui lòng chọn kho xuất"); return; }
     if (!validLines.length) { toast.error("Chưa có hàng hoá", "Cần ít nhất 1 dòng hợp lệ"); return; }
     // Tất cả hàng đều thiếu tồn → không thể xuất, cảnh báo và đóng modal
@@ -577,7 +598,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
     }
     // Một phần thiếu → hỏi xem có muốn xuất thiếu không
     if (stockStatus === "insufficient") { setConfirmOpen(true); return; }
-    doSave();
+    doSave(printAfter);
   };
 
   const locked = success;
@@ -750,7 +771,10 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
           <div style={{ width: 1, height: 24, background: "var(--border)", margin: "0 4px" }} className="d-none d-lg-block" />
 
           {/* Close Button Top Right */}
-          <button onClick={onClose} className="xk-top-close" style={{ width: 36, height: 36, border: "none", background: "var(--muted)", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", transition: "all 0.2s" }}>
+          <button onClick={() => {
+            if (success) onSaved();
+            else onClose();
+          }} className="xk-top-close" style={{ width: 36, height: 36, border: "none", background: "var(--muted)", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", transition: "all 0.2s" }}>
             <i className="bi bi-x-lg" style={{ fontSize: 16 }} />
           </button>
         </div>
@@ -1029,9 +1053,29 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
           }
 
           return (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 8, background: stockStatusBg, color: stockStatusColor, fontSize: 13.5, fontWeight: 700 }}>
-              <i className={`bi ${stockStatusIcon}`} style={{ fontSize: 16 }} />
-              {stockStatusLabel}
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 8, background: stockStatusBg, color: stockStatusColor, fontSize: 13.5, fontWeight: 700 }}>
+                <i className={`bi ${stockStatusIcon}`} style={{ fontSize: 16 }} />
+                {stockStatusLabel}
+              </div>
+              
+              {missingItemsCount > 0 && totalItemsCount > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 10px", background: "rgba(245, 158, 11, 0.05)", border: "1px dashed rgba(245, 158, 11, 0.3)", borderRadius: 8 }}>
+                  <div className="form-check form-switch m-0" style={{ minHeight: "auto", display: "flex", alignItems: "center" }}>
+                    <input 
+                      className="form-check-input m-0" 
+                      type="checkbox" 
+                      id="allowExportShortage"
+                      checked={allowExportShortage}
+                      onChange={(e) => setAllowExportShortage(e.target.checked)}
+                      style={{ cursor: "pointer", width: 32, height: 18 }}
+                    />
+                  </div>
+                  <label htmlFor="allowExportShortage" style={{ cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "var(--muted-foreground)", userSelect: "none", margin: 0 }}>
+                    Xuất thiếu hàng
+                  </label>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -1053,27 +1097,48 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
             const canSave = !saving && validLines.length > 0 && !!fromWarehouseId
               && !(mode === "so" && !selectedSo)
               && !(mode === "wo" && !selectedWo)
-              && missingItemsCount === 0;
+              && (missingItemsCount === 0 || allowExportShortage);
             return (
-              <button onClick={handleSave} disabled={!canSave} title={
-                mode === "so" && !selectedSo ? "Vui lòng chọn đơn bán hàng" :
-                mode === "wo" && !selectedWo ? "Vui lòng chọn lệnh sản xuất" :
-                validLines.length === 0 ? "Chưa có hàng hoá" :
-                missingItemsCount > 0 ? "Kho không đủ hàng" : undefined
-              } style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "8px 24px", border: "none", borderRadius: 8,
-                background: canSave ? "#f59e0b" : "var(--muted)",
-                color: canSave ? "#fff" : "var(--muted-foreground)",
-                fontSize: 13, fontWeight: 700,
-                cursor: canSave ? "pointer" : "not-allowed",
-                opacity: canSave ? 1 : 0.6, transition: "all 0.15s",
-              }}>
-                {saving
-                  ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} />
-                  : <i className="bi bi-check2-all" style={{ fontSize: 14 }} />}
-                Xác nhận
-              </button>
+              <>
+                <button onClick={() => handleSave(true)} disabled={!canSave} title={
+                  mode === "so" && !selectedSo ? "Vui lòng chọn đơn bán hàng" :
+                  mode === "wo" && !selectedWo ? "Vui lòng chọn lệnh sản xuất" :
+                  validLines.length === 0 ? "Chưa có hàng hoá" :
+                  (missingItemsCount > 0 && !allowExportShortage) ? "Kho không đủ hàng" : undefined
+                } style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "8px 18px", border: "1.5px solid #f59e0b", borderRadius: 8,
+                  background: canSave ? "rgba(245,158,11,0.1)" : "var(--muted)",
+                  color: canSave ? "#f59e0b" : "var(--muted-foreground)",
+                  fontSize: 13, fontWeight: 700,
+                  cursor: canSave ? "pointer" : "not-allowed",
+                  opacity: canSave ? 1 : 0.6, transition: "all 0.15s",
+                }}>
+                  {saving && saveWithPrint
+                    ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite", fontSize: 14 }} />
+                    : <i className="bi bi-printer" style={{ fontSize: 14 }} />}
+                  Xác nhận & In phiếu
+                </button>
+                <button onClick={() => handleSave(false)} disabled={!canSave} title={
+                  mode === "so" && !selectedSo ? "Vui lòng chọn đơn bán hàng" :
+                  mode === "wo" && !selectedWo ? "Vui lòng chọn lệnh sản xuất" :
+                  validLines.length === 0 ? "Chưa có hàng hoá" :
+                  (missingItemsCount > 0 && !allowExportShortage) ? "Kho không đủ hàng" : undefined
+                } style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "8px 24px", border: "none", borderRadius: 8,
+                  background: canSave ? "#f59e0b" : "var(--muted)",
+                  color: canSave ? "#fff" : "var(--muted-foreground)",
+                  fontSize: 13, fontWeight: 700,
+                  cursor: canSave ? "pointer" : "not-allowed",
+                  opacity: canSave ? 1 : 0.6, transition: "all 0.15s",
+                }}>
+                  {saving && !saveWithPrint
+                    ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite", fontSize: 14 }} />
+                    : <i className="bi bi-check2-all" style={{ fontSize: 14 }} />}
+                  Xác nhận
+                </button>
+              </>
             );
           })()}
         </div>
@@ -1106,7 +1171,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
         confirmLabel="Xuất kho ngay"
         cancelLabel="Đợi đủ hàng"
         loading={saving}
-        onConfirm={() => { setConfirmOpen(false); doSave(); }}
+        onConfirm={() => { setConfirmOpen(false); doSave(saveWithPrint); }}
         onCancel={() => setConfirmOpen(false)}
       />
 

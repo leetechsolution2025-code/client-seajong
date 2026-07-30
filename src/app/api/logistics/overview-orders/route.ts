@@ -88,9 +88,6 @@ export async function GET(_req: NextRequest) {
       }),
       // Logistics Tickets (MỚI)
       (prisma as any).logisticsTicket.findMany({
-        where: {
-          status: { in: ["PENDING", "PICKING", "PACKED"] }
-        },
         orderBy: { createdAt: "desc" },
         take: 100,
         select: {

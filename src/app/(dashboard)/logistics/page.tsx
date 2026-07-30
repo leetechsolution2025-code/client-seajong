@@ -24,6 +24,7 @@ export default function LogisticsOverviewPage() {
   const [xuatKhoOrderType, setXuatKhoOrderType] = useState<"so" | "wo" | "manual">("manual");
   const [xuatKhoSoId, setXuatKhoSoId] = useState<string | undefined>(undefined);
   const [xuatKhoWoId, setXuatKhoWoId] = useState<string | undefined>(undefined);
+  const [xuatKhoTicketId, setXuatKhoTicketId] = useState<string | undefined>(undefined);
   const [showNhapKhoModal, setShowNhapKhoModal] = useState(false);
   const [nhapKhoTaskId, setNhapKhoTaskId] = useState<string | undefined>(undefined);
   
@@ -370,7 +371,7 @@ export default function LogisticsOverviewPage() {
                           statusText = "Đang sản xuất";
                         } else if (lowerStatus === "completed" || lowerStatus === "done") {
                           statusColor = "bg-success";
-                          statusText = "Hoàn thành";
+                          statusText = "Đã xuất kho";
                         } else if (lowerStatus === "packed") {
                           statusColor = "bg-success";
                           statusText = "Đã gom đủ hàng";
@@ -632,13 +633,17 @@ export default function LogisticsOverviewPage() {
                 setXuatKhoOrderType(isSo ? "so" : "wo");
                 setXuatKhoSoId(isSo ? targetId : undefined);
                 setXuatKhoWoId(!isSo ? targetId : undefined);
+                setXuatKhoTicketId(selectedOrder?.type === "logistics-ticket" ? selectedOrder.id : undefined);
                 setShowXuatKhoModal(true);
               }
               setSelectedOrder(null);
             }}
           >
-            {selectedOrder?.type === "logistics-ticket" && selectedOrder.trangThai !== "PACKED" 
-              ? "Chưa nhặt đủ hàng" : "Thực hiện"}
+            {selectedOrder?.type === "logistics-ticket" 
+              ? (selectedOrder.trangThai === "PACKED" ? "Thực hiện" 
+                : selectedOrder.trangThai === "COMPLETED" || selectedOrder.trangThai === "DONE" ? "Đã xuất kho" 
+                : "Chưa nhặt đủ hàng") 
+              : "Thực hiện"}
           </button>
         </div>
       </div>
@@ -648,6 +653,7 @@ export default function LogisticsOverviewPage() {
           initialMode={xuatKhoOrderType}
           initialSoId={xuatKhoSoId}
           initialWoId={xuatKhoWoId}
+          initialTicketId={xuatKhoTicketId}
           onClose={() => setShowXuatKhoModal(false)}
           onSaved={() => {
             setShowXuatKhoModal(false);
