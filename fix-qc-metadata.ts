@@ -16,11 +16,11 @@ async function main() {
     assemblyTeam: "Tổ lắp ráp - Ca ngày"
   });
 
-  await prisma.qualityInspection.updateMany({
-    where: { notes: { contains: "DBH-20260730-01" } },
+  await prisma.qualityInspection.update({
+    where: { code: "QC-20260730-482" },
     data: { metadata }
   });
 
-  console.log("Updated metadata for DBH-20260730-01");
+  console.log("Updated metadata for QC-20260730-482");
 }
 main();

@@ -174,7 +174,8 @@ export default function QaInspectionsPage() {
               result: d.status === "Chưa thực hiện" ? "Pending" : (d.result === "Đạt" ? "Pass" : "Fail"),
               notes: d.notes,
               poNumber: "",
-              deliveryNote: ""
+              deliveryNote: "",
+              metadata: d.metadata ? JSON.parse(d.metadata) : null
             })));
           }
         });
@@ -204,7 +205,8 @@ export default function QaInspectionsPage() {
             result: d.status === "Chưa thực hiện" ? "Pending" : (d.result === "Đạt" ? "Pass" : "Fail"),
             notes: d.notes,
             poNumber: "",
-            deliveryNote: ""
+            deliveryNote: "",
+            metadata: d.metadata ? (typeof d.metadata === 'string' ? JSON.parse(d.metadata) : d.metadata) : null
           }));
           setInspections(formatted);
         }
