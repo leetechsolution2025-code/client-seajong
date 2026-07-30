@@ -69,20 +69,22 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         const storekeeperUserIds = storekeepers.map(u => u.userId).filter(Boolean) as string[];
 
         // Ghi nhận số lượng thực tế
-        const finalQuantity = passedQuantity || ( (inspection as any).metadata ? JSON.parse((inspection as any).metadata as string).totalQuantity : 1) || 1;
+        const meta = (inspection as any).metadata ? JSON.parse((inspection as any).metadata as string) : {};
+        const finalQuantity = passedQuantity || meta.totalQuantity || 1;
+        const itemName = meta.model ? meta.model.split(',')[0].trim() : inspection.productName;
 
         // Tạo Task
         const khoTask = await tx.task.create({
           data: {
             title: `Yêu cầu nhập kho thành phẩm (${inspection.code})`,
-            description: `Kiểm tra OQC đạt yêu cầu. Đề nghị bộ phận Kho vận tiến hành nhập kho thành phẩm.\nSản phẩm: ${inspection.productName}`,
+            description: `Kiểm tra OQC đạt yêu cầu. Đề nghị bộ phận Kho vận tiến hành nhập kho thành phẩm.\nSản phẩm: ${itemName}`,
             assigneeId: storekeeperUserIds[0] || session.user.id,
             creatorId: session.user.id,
             deptCode: "logistics",
             priority: "high",
             status: "pending",
             actualResult: JSON.stringify([
-              { tenHang: inspection.productName, soLuong: finalQuantity, donVi: "Bộ", type: "Kho Thành Phẩm", isShortage: false }
+              { tenHang: itemName, soLuong: finalQuantity, donVi: "Bộ", type: "Kho Thành Phẩm", isShortage: false }
             ])
           }
         });
