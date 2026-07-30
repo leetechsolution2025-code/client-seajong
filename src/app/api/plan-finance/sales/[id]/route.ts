@@ -220,6 +220,22 @@ export async function GET(
         logisticsItems = JSON.parse(logisticsTask.actualResult);
       } catch (e) { }
     }
+    
+    // Fetch production task to get actual productionItems
+    const prodTask = await prisma.task.findFirst({
+      where: {
+        deptCode: "production",
+        title: { contains: order.code || "" }
+      }
+    });
+
+    let productionItemIds: string[] = [];
+    if (prodTask && prodTask.actualResult) {
+      try {
+        const prodItems = JSON.parse(prodTask.actualResult);
+        productionItemIds = prodItems.map((pi: any) => pi.saleOrderItemId).filter(Boolean);
+      } catch (e) {}
+    }
 
     const resolvedOrder = {
       ...order,
@@ -230,6 +246,7 @@ export async function GET(
       hasLệnhXuatKho: !!notif || (order.keToanDuyet === "approved" && order.trangThaiKho === "in_stock"),
       items: await attachWebImages(orderItems),
       logisticsItems,
+      productionItemIds,
       customer: order.customer || (guest ? {
         id: null,
         name: guest.name,

@@ -50,9 +50,15 @@ export default function FinancePage() {
       if (res.ok) {
         const detail = await res.json();
         setOrderDetails(detail.items || []);
-        // Auto-check items that can be produced
-        const prodIds = (detail.items || []).filter((it: any) => it.missingQty > 0 && it.isManufactured && it.canProduce).map((it: any) => it.id);
-        setProductionItemIds(prodIds);
+        
+        if (orderToView.keToanDuyet === "approved" && detail.productionItemIds) {
+          // If already approved, load the actual selected items from the production task
+          setProductionItemIds(detail.productionItemIds);
+        } else {
+          // Auto-check items that can be produced (default behavior for pending orders)
+          const prodIds = (detail.items || []).filter((it: any) => it.missingQty > 0 && it.isManufactured && it.canProduce).map((it: any) => it.id);
+          setProductionItemIds(prodIds);
+        }
       } else {
         setOrderDetails([]);
       }
