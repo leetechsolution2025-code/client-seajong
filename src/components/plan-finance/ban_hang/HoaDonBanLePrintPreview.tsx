@@ -98,7 +98,7 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
 
   const totalLinesQty = invoiceData.lines.reduce((s, l) => s + l.qty, 0);
   const tongTienHoaDon = invoiceData.total;
-  const noCu: number = 0; // Giả sử ko có nợ cũ ở giao diện tạo mới
+  const noCu: number = invoiceData.conNo || 0;
   const tongPhaiTra = tongTienHoaDon + chiPhiKhac + noCu;
   
   const paymentMethodLabel = invoiceData.payMethod === "transfer" ? "Chuyển khoản" :

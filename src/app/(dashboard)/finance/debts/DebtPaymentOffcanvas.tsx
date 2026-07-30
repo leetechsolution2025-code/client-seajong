@@ -27,7 +27,7 @@ interface DebtPaymentOffcanvasProps {
 // Helper to convert numbers to Vietnamese words
 export function docSoTien(soTien: number): string {
   if (soTien === 0) return "Không đồng";
-  const target = Math.abs(soTien);
+  const target = Math.round(Math.abs(soTien));
   const chuSo = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
 
   function docBlock3(n: number, isFirst: boolean): string {
