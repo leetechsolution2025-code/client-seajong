@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       if (o.ngayGiao && new Date(o.ngayGiao) > maxDueDate) maxDueDate = new Date(o.ngayGiao);
     });
 
-    tickets.forEach(t => {
+    tickets.forEach((t: any) => {
       if (t.code) codes.push(t.code);
       if (t.createdAt && new Date(t.createdAt) > maxDueDate) maxDueDate = new Date(t.createdAt);
       if (t.saleOrder?.ngayGiao && new Date(t.saleOrder.ngayGiao) > maxDueDate) maxDueDate = new Date(t.saleOrder.ngayGiao);
