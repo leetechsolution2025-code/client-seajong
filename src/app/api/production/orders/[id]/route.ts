@@ -310,15 +310,43 @@ export async function PATCH(
             requesterDept: "Sản xuất",
             // @ts-ignore
             executionTime: order.ngayYeuCauQC || order.ngayGiao || new Date(),
-            notes: `Yêu cầu kiểm tra chất lượng đầu ra cho đơn hàng ${order.code || order.id}`,
+            notes: `Yêu cầu kiểm soát chất lượng cho đơn hàng ${order.code || order.id}`,
           },
         });
 
         if (qaUserIds.length > 0) {
+          // Tìm trưởng phòng QC để giao việc, nếu không thì giao cho người đầu tiên
+          const qaHead = await tx.employee.findFirst({
+            where: {
+              status: "active",
+              OR: [
+                { departmentCode: { contains: "qa" }, position: { contains: "Trưởng" } },
+                { departmentName: { contains: "chất lượng" }, position: { contains: "Trưởng" } },
+                { departmentName: { contains: "Chất lượng" }, position: { contains: "Trưởng" } },
+              ],
+            },
+            select: { userId: true },
+          });
+          const assigneeId = qaHead?.userId || qaUserIds[0];
+
+          // Tự động tạo Task cho bộ phận QC
+          await tx.task.create({
+            data: {
+              title: `Yêu cầu kiểm soát chất lượng cho đơn hàng ${order.code || order.id}`,
+              description: `Mã phiếu QC: ${qcCode}\nThành phẩm: ${productNameDesc}`,
+              assigneeId: assigneeId,
+              creatorId: session.user.id,
+              deptCode: "qa",
+              priority: "high",
+              status: "pending",
+              dueDate: order.ngayYeuCauQC || order.ngayGiao || new Date(),
+            },
+          });
+
           const qcNotif = await tx.notification.create({
             data: {
-              title: `🔬 Yêu cầu kiểm tra chất lượng đầu ra`,
-              content: `Yêu cầu kiểm tra chất lượng đầu ra cho đơn hàng ${order.code || order.id}. (Mã phiếu: ${qcCode}).`,
+              title: `🔬 Yêu cầu kiểm soát chất lượng`,
+              content: `Yêu cầu kiểm soát chất lượng cho đơn hàng ${order.code || order.id}. (Mã phiếu: ${qcCode}).`,
               type: "warning",
               priority: "high",
               audienceType: "group",
