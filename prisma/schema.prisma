@@ -2857,6 +2857,7 @@ model QualityInspection {
   notes         String?
   result        String? // "Đạt" / "Không đạt" / "Lỗi một phần"
   inspectorName String? // Tên người kiểm tra
+  metadata      String? // JSON string for extra data like order info
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

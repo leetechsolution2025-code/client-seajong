@@ -95,6 +95,21 @@ export default function QaInspectionsPage() {
     setShowRejectModal(true);
   };
 
+  useEffect(() => {
+    if (showOqcModal && selectedInspection && selectedInspection.metadata) {
+      setOqcFormData(prev => ({
+        ...prev,
+        assemblyTeam: selectedInspection.metadata.assemblyTeam || "",
+        productionOrder: selectedInspection.metadata.productionOrder || "",
+        bomCode: selectedInspection.metadata.bomCode || "",
+        model: selectedInspection.metadata.model || "",
+        batch: selectedInspection.metadata.batch || "",
+        totalQuantity: selectedInspection.metadata.totalQuantity?.toString() || "",
+        sampleQuantity: selectedInspection.metadata.sampleQuantity?.toString() || "",
+      }));
+    }
+  }, [showOqcModal, selectedInspection]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
