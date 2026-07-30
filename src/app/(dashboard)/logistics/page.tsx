@@ -193,34 +193,60 @@ export default function LogisticsOverviewPage() {
       return acc;
     }, {});
     
-    const finalOrders = [];
-    for (const [orderCode, items] of Object.entries(grouped)) {
-      if (orderCode === "Khác") {
-        finalOrders.push(...(items as any[]));
-        continue;
-      }
-      
-      const isCollapsed = collapsedGroups.has(orderCode);
-      
-      let completedCount = 0;
-      let totalTickets = items.length;
-      items.forEach(it => {
-        const lowerStatus = (it.trangThai || "").toLowerCase();
-        if (lowerStatus === "completed" || lowerStatus === "done") {
-          completedCount++;
+    const groupArray = Object.entries(grouped)
+      .filter(([code]) => code !== "Khác")
+      .map(([orderCode, items]) => {
+        let completedCount = 0;
+        let totalTickets = items.length;
+        let latestDate = 0;
+        
+        items.forEach(it => {
+          const lowerStatus = (it.trangThai || "").toLowerCase();
+          if (lowerStatus === "completed" || lowerStatus === "done") {
+            completedCount++;
+          }
+          const time = new Date(it.ngayGiao || it.createdAt).getTime();
+          if (time > latestDate) latestDate = time;
+        });
+        
+        let groupStatusText = "Chưa xuất kho";
+        let groupStatusColor = "bg-secondary text-white";
+        
+        if (completedCount === totalTickets && totalTickets > 0) {
+          groupStatusText = "Đã xuất kho";
+          groupStatusColor = "bg-success text-white";
+        } else if (completedCount > 0) {
+          groupStatusText = "Đã xuất một phần";
+          groupStatusColor = "bg-warning text-dark";
         }
+        
+        // Priority: 0 for incomplete (Chưa xuất kho, Đã xuất một phần), 1 for complete (Đã xuất kho)
+        const priority = groupStatusText === "Đã xuất kho" ? 1 : 0;
+        
+        return {
+          orderCode,
+          items,
+          completedCount,
+          totalTickets,
+          groupStatusText,
+          groupStatusColor,
+          priority,
+          latestDate
+        };
       });
       
-      let groupStatusText = "Chưa xuất kho";
-      let groupStatusColor = "bg-secondary text-white";
+    // Sort groups
+    groupArray.sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      return b.latestDate - a.latestDate;
+    });
+
+    const finalOrders = [];
+    groupArray.forEach((group, index) => {
+      const { orderCode, items, groupStatusText, groupStatusColor } = group;
       
-      if (completedCount === totalTickets && totalTickets > 0) {
-        groupStatusText = "Đã xuất kho";
-        groupStatusColor = "bg-success text-white";
-      } else if (completedCount > 0) {
-        groupStatusText = "Đã xuất một phần";
-        groupStatusColor = "bg-warning text-dark";
-      }
+      const isToggled = collapsedGroups.has(orderCode);
+      const isCollapsed = index === 0 ? isToggled : !isToggled;
       
       finalOrders.push({
         id: `group-${orderCode}`,
@@ -253,7 +279,12 @@ export default function LogisticsOverviewPage() {
       if (!isCollapsed) {
         finalOrders.push(...(items as any[]));
       }
+    });
+
+    if (grouped["Khác"]) {
+      finalOrders.push(...(grouped["Khác"] as any[]));
     }
+    
     return finalOrders;
   }, [rawOrders, collapsedGroups]);
 
