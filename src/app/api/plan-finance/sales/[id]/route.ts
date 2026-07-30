@@ -685,7 +685,6 @@ export async function PATCH(
             let dueDate;
             if (order.ngayGiao) {
               dueDate = new Date(order.ngayGiao);
-              dueDate.setDate(dueDate.getDate() - 2);
             }
 
             const prodTask = await tx.task.create({

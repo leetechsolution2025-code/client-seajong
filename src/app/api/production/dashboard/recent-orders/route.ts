@@ -40,11 +40,13 @@ export async function GET(req: Request) {
 
       const orderCode = order.code ? order.code.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX') : order.id;
 
+      let deadline = order.ngayGiao ? new Date(order.ngayGiao) : null;
+
       return {
         id: orderCode,
         saleOrderCode: order.code || "N/A",
         ngayDat: order.ngayDat,
-        ngayHoanThanh: order.ngayHoanThanhSanXuat || order.ngayGiao || null,
+        ngayHoanThanh: order.ngayHoanThanhSanXuat || deadline || null,
         progress: isCompleted ? 100 : 0,
         status: isCompleted ? "completed" : (isRunning ? "running" : "pending"),
         updatedAt: order.updatedAt,
