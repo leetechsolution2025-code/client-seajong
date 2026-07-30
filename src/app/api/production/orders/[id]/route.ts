@@ -263,6 +263,13 @@ export async function PATCH(
       });
 
       if (newTrangThai === "completed") {
+        // Cập nhật trạng thái hoàn thành cho Task giao việc tương ứng
+        const taskTitle = `Lệnh sản xuất cho đơn hàng ${order.code || order.id}`;
+        await tx.task.updateMany({
+          where: { title: taskTitle, status: { not: "completed" } },
+          data: { status: "completed", completedAt: new Date() }
+        });
+
         // Find QA users
         const qaUsers = await tx.employee.findMany({
           where: {
