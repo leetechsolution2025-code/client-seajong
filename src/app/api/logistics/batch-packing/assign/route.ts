@@ -31,12 +31,12 @@ export async function POST(req: NextRequest) {
     let maxDueDate = new Date(0);
 
     orders.forEach(o => {
-      codes.push(o.code);
+      if (o.code) codes.push(o.code);
       if (o.ngayGiao && new Date(o.ngayGiao) > maxDueDate) maxDueDate = new Date(o.ngayGiao);
     });
 
     tickets.forEach(t => {
-      codes.push(t.code);
+      if (t.code) codes.push(t.code);
       if (t.createdAt && new Date(t.createdAt) > maxDueDate) maxDueDate = new Date(t.createdAt);
       if (t.saleOrder?.ngayGiao && new Date(t.saleOrder.ngayGiao) > maxDueDate) maxDueDate = new Date(t.saleOrder.ngayGiao);
     });
