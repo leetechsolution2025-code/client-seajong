@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const tickets = await (prisma as any).logisticsTicket.findMany({
       where: {
         type: "BATCH_PACKING",
-        status: { in: ["PENDING", "PICKING"] },
+        status: { in: ["PENDING", "PICKING", "PACKED"] },
         ...(isManager ? {} : { assignedToId: employeeId }) // Chỉ hiển thị phiếu của mình nếu không phải Manager
       },
       include: {
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
       
       // Fallback cho ticket bị lỗi thiếu mã vật tư (không có item trong CSDL)
       if (items.length === 0 && ticket.saleOrder?.code) {
-        const task = await prisma.task.findFirst({
+        const task = await (prisma as any).task.findFirst({
           where: { deptCode: "logistics", title: { contains: ticket.saleOrder.code } }
         });
         if (task && task.actualResult) {
@@ -60,22 +60,41 @@ export async function GET(req: NextRequest) {
             const parsed = JSON.parse(task.actualResult);
             const relevantItems = parsed.filter((it: any) => it.type === "Kho Hàng Hoá (KHO-CHINH)");
             for (const p of relevantItems) {
-              const matchedInvItem = await prisma.inventoryItem.findFirst({
-                where: { tenHang: p.tenHang }
+              const matchedInvItem = await (prisma as any).inventoryItem.findFirst({
+                where: { tenHang: p.tenHang },
+                include: { stocks: true }
               });
-              items.push({
-                id: `fallback-${ticket.id}-${p.tenHang}`,
-                inventoryItemId: null,
-                requestedQty: p.soLuong || 1,
-                inventoryItem: {
-                  tenHang: p.tenHang,
-                  donVi: p.donVi,
-                  imageUrl: matchedInvItem?.imageUrl || null,
-                  code: matchedInvItem?.code || null,
-                  webProductId: matchedInvItem?.webProductId || null,
-                  stocks: []
-                }
-              } as any);
+              
+              if (matchedInvItem) {
+                // Tự động vá lỗi vào DB luôn
+                const newItem = await (prisma as any).logisticsTicketItem.create({
+                  data: {
+                    ticketId: ticket.id,
+                    inventoryItemId: matchedInvItem.id,
+                    requestedQty: p.soLuong || 1,
+                    pickedQty: 0
+                  },
+                  include: {
+                    inventoryItem: { include: { stocks: true } }
+                  }
+                });
+                items.push(newItem);
+              } else {
+                // Nếu vẫn ko map được, fallback tạm
+                items.push({
+                  id: `fallback-${ticket.id}-${p.tenHang}`,
+                  inventoryItemId: null,
+                  requestedQty: p.soLuong || 1,
+                  inventoryItem: {
+                    tenHang: p.tenHang,
+                    donVi: p.donVi,
+                    imageUrl: null,
+                    code: null,
+                    webProductId: null,
+                    stocks: []
+                  }
+                } as any);
+              }
             }
           } catch (e) {}
         }
@@ -109,6 +128,7 @@ export async function GET(req: NextRequest) {
             images: [],
             viTriKho: viTriStr,
             tongSoLuong: 0,
+            tongDaNhat: 0,
             ngayGiao: ticket.saleOrder?.ngayGiao,
             orders: []
           });
@@ -116,10 +136,11 @@ export async function GET(req: NextRequest) {
 
         const batchItem = batchMap.get(key);
         batchItem.tongSoLuong += (item.requestedQty || 0);
+        batchItem.tongDaNhat += (item.pickedQty || 0);
 
-        // Map order info
         batchItem.orders.push({
           id: ticket.id,
+          ticketItemId: item.id,
           code: ticket.saleOrder?.code || ticket.code,
           soLuongTrongDon: item.requestedQty || 0,
           ngayGiao: ticket.saleOrder?.ngayGiao,
@@ -166,13 +187,71 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "complete_picking") {
-      // In a real system, we would generate StockMovements here.
-      // But for now, we will just update the ticket status if ticketId is provided.
-      if (ticketId) {
-         await (prisma as any).logisticsTicket.update({
-            where: { id: ticketId },
-            data: { status: "PACKED" }
-         });
+      const { pickedQuantities } = body;
+      
+      if (!pickedQuantities || Object.keys(pickedQuantities).length === 0) {
+        return NextResponse.json({ error: "Không có dữ liệu báo cáo" }, { status: 400 });
+      }
+
+      const affectedTicketIds = new Set<string>();
+
+      for (const [ticketItemId, addQty] of Object.entries(pickedQuantities)) {
+        if (typeof addQty !== "number" || addQty < 0) continue;
+
+        const ticketItem = await (prisma as any).logisticsTicketItem.findUnique({
+          where: { id: ticketItemId },
+          include: { ticket: true }
+        });
+
+        if (!ticketItem) continue;
+        
+        const currentPicked = ticketItem.pickedQty || 0;
+        const delta = addQty - currentPicked;
+
+        if (delta === 0) continue; // Không có sự thay đổi
+
+        affectedTicketIds.add(ticketItem.ticketId);
+
+        // Update pickedQty tuyệt đối
+        await (prisma as any).logisticsTicketItem.update({
+          where: { id: ticketItemId },
+          data: { pickedQty: addQty }
+        });
+
+        // Reserve stock (Tăng/giảm số lượng Đã giữ dựa trên delta)
+        const stocks = await (prisma as any).inventoryStock.findMany({
+          where: { inventoryItemId: ticketItem.inventoryItemId },
+          orderBy: { soLuong: "desc" }
+        });
+        
+        if (stocks.length > 0) {
+          const targetStock = stocks[0];
+          await (prisma as any).inventoryStock.update({
+             where: { id: targetStock.id },
+             data: { soLuongGiu: (targetStock.soLuongGiu || 0) + delta }
+          });
+        }
+      }
+
+      // Đánh giá lại trạng thái của các lệnh bị ảnh hưởng
+      for (const tId of affectedTicketIds) {
+        const ticketItems = await (prisma as any).logisticsTicketItem.findMany({
+          where: { ticketId: tId }
+        });
+        
+        const allFullyPicked = ticketItems.length > 0 && ticketItems.every((it: any) => (it.pickedQty || 0) >= it.requestedQty);
+        
+        if (allFullyPicked) {
+           await (prisma as any).logisticsTicket.update({
+             where: { id: tId },
+             data: { status: "PACKED" }
+           });
+        } else {
+           await (prisma as any).logisticsTicket.update({
+             where: { id: tId },
+             data: { status: "PICKING" }
+           });
+        }
       }
     }
 

@@ -1,10 +1,13 @@
-
 "use client";
 
 import { HoverImage } from "@/components/ui/HoverImage";
+import { Search, Loader2 } from "lucide-react";
+import Image from "next/image";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { toast } from "react-toastify";
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
 interface BatchItem {
   id: string;
@@ -16,6 +19,7 @@ interface BatchItem {
   images?: string[];
   viTriKho: string | null;
   tongSoLuong: number;
+  tongDaNhat: number;
   ngayGiao?: string;
   orders: {
     id: string; // Ticket ID
@@ -43,6 +47,11 @@ export function LogisticsBatchPacking() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [assigning, setAssigning] = useState(false);
 
+  const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
+  
+  // Trạng thái ConfirmDialog báo cáo
+  const [completingDate, setCompletingDate] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [pickedQuantities, setPickedQuantities] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
   const [filterDate, setFilterDate] = useState("");
@@ -91,6 +100,31 @@ export function LogisticsBatchPacking() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (items.length > 0) {
+      const newCollapsed = new Set<string>();
+      const groups: Record<string, BatchItem[]> = {};
+      
+      items.forEach(item => {
+        const dateStr = item.ngayGiao ? new Date(item.ngayGiao).toLocaleDateString('vi-VN') : "Không hẹn ngày";
+        if (!groups[dateStr]) groups[dateStr] = [];
+        groups[dateStr].push(item);
+      });
+
+      Object.entries(groups).forEach(([dateStr, groupItems]) => {
+        let pickedCount = 0;
+        groupItems.forEach(item => {
+          if ((item.tongDaNhat || 0) > 0) pickedCount++;
+        });
+        if (pickedCount > 0) {
+          newCollapsed.add(dateStr);
+        }
+      });
+      
+      setCollapsedDates(newCollapsed);
+    }
+  }, [items]);
 
   useEffect(() => {
     if (isManager && employees.length === 0) {
@@ -162,34 +196,6 @@ export function LogisticsBatchPacking() {
     }
   };
 
-  const handleComplete = async () => {
-    const pickedCount = Object.keys(pickedQuantities).length;
-    if (pickedCount === 0) {
-      alert("Vui lòng nhập số lượng cho ít nhất 1 mặt hàng đã gom xong.");
-      return;
-    }
-    const confirm = window.confirm(`Bạn có chắc chắn đã hoàn tất gom ${pickedCount} mặt hàng này?`);
-    if (!confirm) return;
-
-    try {
-      const res = await fetch("/api/logistics/batch-packing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete_picking" }) // In a real flow, pass pickedQuantities map
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert(data.message);
-        setPickedQuantities({});
-        fetchData();
-      } else {
-        alert(data.error || "Có lỗi xảy ra");
-      }
-    } catch (e) {
-      alert("Có lỗi xảy ra");
-    }
-  };
-
   const filteredItems = items.filter(item => 
     item.tenHang.toLowerCase().includes(search.toLowerCase()) || 
     (item.inventoryItemId && item.inventoryItemId.toLowerCase().includes(search.toLowerCase()))
@@ -211,6 +217,63 @@ export function LogisticsBatchPacking() {
     const [d2, m2, y2] = b.split('/');
     return new Date(`${y1}-${m1}-${d1}`).getTime() - new Date(`${y2}-${m2}-${d2}`).getTime();
   });
+
+  const handleCompleteClick = (dateStr: string) => {
+    const groupItems = groupedItems[dateStr] || [];
+    const pickedItemsForDate = groupItems.filter(item => pickedQuantities[item.id] !== undefined);
+    
+    if (pickedItemsForDate.length === 0) {
+      toast.warning("Vui lòng nhập số lượng cho ít nhất 1 mặt hàng trong ngày này.");
+      return;
+    }
+    
+    setCompletingDate(dateStr);
+  };
+
+  const executeComplete = async (dateStr: string) => {
+    setIsSubmitting(true);
+    const groupItems = groupedItems[dateStr] || [];
+      const pickedItemsForDate = groupItems.filter(item => pickedQuantities[item.id] !== undefined);
+      
+      const payloadPickedQuantities: Record<string, number> = {};
+    pickedItemsForDate.forEach(batchItem => {
+      let remainingQty = pickedQuantities[batchItem.id];
+      batchItem.orders.forEach((order: any) => {
+        if (remainingQty < 0) return;
+        const fulfillQty = Math.min(remainingQty, order.soLuongTrongDon);
+        payloadPickedQuantities[order.ticketItemId] = fulfillQty;
+        remainingQty -= fulfillQty;
+      });
+    });
+
+    try {
+      const res = await fetch("/api/logistics/batch-packing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete_picking", date: dateStr, pickedQuantities: payloadPickedQuantities })
+
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message);
+        // Remove only the submitted quantities from local state
+        setPickedQuantities(prev => {
+          const next = { ...prev };
+          pickedItemsForDate.forEach(item => delete next[item.id]);
+          return next;
+        });
+        fetchData();
+      } else {
+        toast.error(data.error || "Có lỗi xảy ra");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Lỗi kết nối");
+    } finally {
+      setIsSubmitting(false);
+      setCompletingDate(null);
+    }
+  };
 
   const pickedCount = Object.keys(pickedQuantities).length;
 
@@ -278,10 +341,7 @@ export function LogisticsBatchPacking() {
               <th rowSpan={2} style={{ borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold py-3 align-middle">Mặt hàng</th>
               <th colSpan={2} style={{ borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold text-center py-2 border-bottom">SỐ LƯỢNG</th>
               <th rowSpan={2} style={{ borderBottomWidth: 1, fontSize: 11, letterSpacing: 0.5 }} className="border-0 text-secondary text-uppercase fw-semibold py-3 align-middle">
-                <div className="d-flex align-items-center justify-content-between">
-                  <span>Chi tiết theo phiếu</span>
-                  <button onClick={handleComplete} className="btn btn-sm btn-primary py-1 px-3">Báo cáo</button>
-                </div>
+                Chi tiết theo phiếu
               </th>
             </tr>
             <tr>
@@ -311,8 +371,8 @@ export function LogisticsBatchPacking() {
                               let pickedCount = 0;
                               let fullyPickedCount = 0;
                               groupItems.forEach(item => {
-                                const qty = pickedQuantities[item.id];
-                                if (qty !== undefined) {
+                                const qty = pickedQuantities[item.id] !== undefined ? pickedQuantities[item.id] : (item.tongDaNhat || 0);
+                                if (qty > 0) {
                                   pickedCount++;
                                   if (qty >= item.tongSoLuong) {
                                     fullyPickedCount++;
@@ -322,9 +382,9 @@ export function LogisticsBatchPacking() {
                               const isGroupFullyPicked = fullyPickedCount === groupItems.length;
                               const isGroupPicked = pickedCount > 0;
                               return isGroupFullyPicked ? (
-                                <span className="badge bg-light text-success border border-success border-opacity-25 ms-3 rounded-pill" style={{ fontSize: 11, fontWeight: 500 }}><i className="bi bi-check-circle-fill me-1" /> Đã thực hiện</span>
+                                <span className="badge bg-light text-success border border-success border-opacity-25 ms-3 rounded-pill" style={{ fontSize: 11, fontWeight: 500 }}><i className="bi bi-check-circle-fill me-1" /> Đã thực hiện | Đủ hàng</span>
                               ) : isGroupPicked ? (
-                                <span className="badge bg-light text-warning border border-warning border-opacity-25 ms-3 rounded-pill" style={{ fontSize: 11, fontWeight: 500 }}><i className="bi bi-exclamation-triangle-fill me-1" /> Đang thực hiện</span>
+                                <span className="badge bg-light text-warning border border-warning border-opacity-25 ms-3 rounded-pill" style={{ fontSize: 11, fontWeight: 500 }}><i className="bi bi-exclamation-triangle-fill me-1" /> Đã thực hiện | Thiếu hàng</span>
                               ) : (
                                 <span className="badge bg-light text-muted border border-secondary border-opacity-25 ms-3 rounded-pill" style={{ fontSize: 11, fontWeight: 500 }}><i className="bi bi-circle me-1" /> Chưa thực hiện</span>
                               );
@@ -360,15 +420,26 @@ export function LogisticsBatchPacking() {
                               )
                             )}
                           </div>
+                          <div>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleCompleteClick(dateStr); }} 
+                              className="btn btn-sm btn-primary py-1 px-3 shadow-sm"
+                              style={{ fontWeight: 500, fontSize: 12 }}
+                              disabled={Object.keys(pickedQuantities).filter(id => groupedItems[dateStr].find(item => item.id === id)).length === 0}
+                            >
+                              <i className="bi bi-send me-1"></i> Báo cáo
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
                   );
                 })()}
                 {!collapsedDates.has(dateStr) && groupedItems[dateStr].map(item => {
-                  const pickedQty = pickedQuantities[item.id];
-                  const isPicked = pickedQty !== undefined;
-                  const isFullyPicked = pickedQty === item.tongSoLuong;
+                  const currentInputQty = pickedQuantities[item.id] !== undefined ? pickedQuantities[item.id] : (item.tongDaNhat || 0);
+                  const isPicked = currentInputQty > 0;
+                  const isFullyPicked = currentInputQty === item.tongSoLuong;
+                  const isEdited = pickedQuantities[item.id] !== undefined;
                   
                   return (
                     <tr key={item.id} style={{ transition: "all 0.2s" }} className={isFullyPicked ? "bg-success bg-opacity-10" : isPicked ? "bg-warning bg-opacity-10" : "bg-white"}>
@@ -397,9 +468,7 @@ export function LogisticsBatchPacking() {
                       <div>
                         <div className={`fw-bold ${isFullyPicked ? "text-success" : isPicked ? "text-warning" : "text-dark"}`}>{item.tenHang}</div>
                         <div className="d-flex align-items-center gap-2 mt-1">
-                          {item.inventoryItemId && (
-                            <div className="text-muted" style={{ fontSize: 11, fontFamily: "monospace" }}>{item.inventoryItemId}</div>
-                          )}
+
                           {item.viTriKho ? (
                             <span className="badge bg-light text-primary border border-primary border-opacity-25" style={{ fontSize: 10, fontWeight: 500 }}>
                               <i className="bi bi-geo-alt me-1"></i>
@@ -428,8 +497,8 @@ export function LogisticsBatchPacking() {
                   <td className="text-center py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)", width: 100 }}>
                     <input 
                       type="number"
-                      className={`form-control form-control-sm text-center fw-bold ${isFullyPicked ? "text-success border-success" : isPicked ? "text-warning border-warning" : "text-muted"}`}
-                      value={pickedQty !== undefined ? pickedQty : ""}
+                      className={`form-control form-control-sm text-center fw-bold ${isFullyPicked ? "text-success border-success" : isPicked ? "text-warning border-warning" : "text-muted"} ${isEdited ? "bg-warning bg-opacity-10" : ""}`}
+                      value={currentInputQty > 0 || isEdited ? currentInputQty : ""}
                       onChange={e => handleQuantityChange(item.id, e.target.value, item.tongSoLuong)}
                       style={{ width: 70, margin: "0 auto" }}
                       min={0}
@@ -490,6 +559,19 @@ export function LogisticsBatchPacking() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog 
+        open={!!completingDate}
+        title="Xác nhận báo cáo"
+        message={completingDate ? `Bạn có chắc chắn đã hoàn tất gom ${groupedItems[completingDate]?.filter(item => pickedQuantities[item.id] !== undefined).length || 0} mặt hàng của Ngày giao: ${completingDate}?` : ""}
+        confirmLabel="OK"
+        cancelLabel="Huỷ"
+        loading={isSubmitting}
+        onConfirm={() => {
+          if (completingDate) executeComplete(completingDate);
+        }}
+        onCancel={() => setCompletingDate(null)}
+      />
     </>
   );
 }

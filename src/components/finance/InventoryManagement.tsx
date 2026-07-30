@@ -455,16 +455,42 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
       )
     },
     {
-      header: "Tồn kho",
+      header: "Thực tồn",
       width: 100,
+      align: "right" as const,
+      render: (row) => {
+        const thucTon = row.thucTon || 0;
+        return (
+          <span className={cn(
+            "fw-bold",
+            thucTon <= 0 ? "text-danger" : "text-dark"
+          )}>
+            {thucTon.toLocaleString("vi-VN")}
+          </span>
+        );
+      }
+    },
+    {
+      header: "Đã giữ",
+      width: 90,
+      align: "right" as const,
+      render: (row) => {
+        const soLuongGiu = row.soLuongGiu || 0;
+        return (
+          <span className="fw-medium text-warning">
+            {soLuongGiu.toLocaleString("vi-VN")}
+          </span>
+        );
+      }
+    },
+    {
+      header: "Tổng tồn",
+      width: 90,
       align: "right" as const,
       render: (row) => {
         const soLuong = row.soLuong || 0;
         return (
-          <span className={cn(
-            "fw-bold",
-            soLuong <= 0 ? "text-danger" : "text-dark"
-          )}>
+          <span className="fw-medium text-muted">
             {soLuong.toLocaleString("vi-VN")}
           </span>
         );

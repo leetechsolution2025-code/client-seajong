@@ -324,8 +324,11 @@ export async function GET(req: Request) {
         : item.stocks;
 
       const soLuong = relevantStocks.reduce((acc: number, s: any) => acc + s.soLuong, 0);
+      const soLuongGiu = relevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);
+      const thucTon = Math.max(0, soLuong - soLuongGiu);
+
       let trangThai = "con-hang";
-      if (soLuong === 0) trangThai = "het-hang";
+      if (thucTon === 0) trangThai = "het-hang";
       else if ((item.soLuongMin || 0) > 0 && soLuong <= (item.soLuongMin || 0)) trangThai = "sap-het";
 
       const price = item.giaNhap || item.giaBan || 0;
@@ -340,6 +343,8 @@ export async function GET(req: Request) {
       return {
         ...item,
         soLuong,
+        soLuongGiu,
+        thucTon,
         trangThai,
       };
     });

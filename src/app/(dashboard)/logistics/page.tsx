@@ -150,7 +150,17 @@ export default function LogisticsOverviewPage() {
         }
       } else if (row.type === "material-export" || row.type === "material-import" || row.type === "logistics-ticket") {
         // Dữ liệu items đã có sẵn từ API overview-orders
-        items = (row.items ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type }));
+        items = (row.items ?? []).map((it: any) => {
+          const isLacking = row.type === "logistics-ticket" ? (it.pickedQty || 0) < (it.requestedQty || 0) : it.isShortage;
+          return { 
+            name: it.tenHang || it.inventoryItem?.tenHang, 
+            qty: it.soLuong || it.requestedQty, 
+            pickedQty: it.pickedQty,
+            unit: it.donVi || it.inventoryItem?.donVi, 
+            type: it.type, 
+            isShortage: isLacking 
+          };
+        });
         
         // Nếu là logistics-ticket nhưng không có items (do thiếu mã vật tư khi tạo) thì fallback lấy từ đơn hàng
         if (items.length === 0 && row.type === "logistics-ticket" && row.saleOrderId) {
@@ -523,7 +533,23 @@ export default function LogisticsOverviewPage() {
                       ), 
                       width: "70%" 
                     },
-                    { header: "SL", render: (row: any) => <div className="text-end fw-bold text-primary">{row.qty} <span className="fw-normal text-muted" style={{ fontSize: 11 }}>{row.unit || "cái"}</span></div>, align: "right", width: "30%" }
+                    { 
+                      header: "SL", 
+                      render: (row: any) => (
+                        <div className="text-end fw-bold text-primary">
+                          {row.pickedQty !== undefined ? (
+                            <span className={row.pickedQty < row.qty ? "text-danger" : "text-success"}>
+                              {row.pickedQty} / {row.qty}
+                            </span>
+                          ) : (
+                            row.qty
+                          )}
+                          <span className="fw-normal text-muted ms-1" style={{ fontSize: 11 }}>{row.unit || "cái"}</span>
+                        </div>
+                      ), 
+                      align: "right", 
+                      width: "30%" 
+                    }
                   ]}
                   fixedLayout={false}
                   fontSize={12}
@@ -539,20 +565,25 @@ export default function LogisticsOverviewPage() {
           </div>
         </div>
         <div className="offcanvas-footer p-3 border-top bg-light">
-          <button className="btn btn-primary w-100" onClick={() => {
-            if (selectedOrder?.type === "material-import") {
-              setNhapKhoTaskId(selectedOrder.id);
-              setShowNhapKhoModal(true);
-            } else {
-              const isSo = selectedOrder?.type === "sale-order";
-              setXuatKhoOrderType(isSo ? "so" : "wo");
-              setXuatKhoSoId(isSo ? selectedOrder?.id : undefined);
-              setXuatKhoWoId(!isSo ? selectedOrder?.id : undefined);
-              setShowXuatKhoModal(true);
-            }
-            setSelectedOrder(null);
-          }}>
-            Thực hiện
+          <button 
+            className="btn btn-primary w-100" 
+            disabled={selectedOrder?.type === "logistics-ticket" && orderDetails.some(it => it.isShortage)}
+            onClick={() => {
+              if (selectedOrder?.type === "material-import") {
+                setNhapKhoTaskId(selectedOrder.id);
+                setShowNhapKhoModal(true);
+              } else {
+                const isSo = selectedOrder?.type === "sale-order";
+                setXuatKhoOrderType(isSo ? "so" : "wo");
+                setXuatKhoSoId(isSo ? selectedOrder?.id : undefined);
+                setXuatKhoWoId(!isSo ? selectedOrder?.id : undefined);
+                setShowXuatKhoModal(true);
+              }
+              setSelectedOrder(null);
+            }}
+          >
+            {selectedOrder?.type === "logistics-ticket" && orderDetails.some(it => it.isShortage) 
+              ? "Chưa nhặt đủ hàng" : "Thực hiện"}
           </button>
         </div>
       </div>
