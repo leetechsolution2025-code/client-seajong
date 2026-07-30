@@ -306,6 +306,29 @@ export function LogisticsBatchPacking() {
                             <span className="badge bg-white text-dark border ms-3 rounded-pill" style={{ fontWeight: 500, fontSize: 11 }}>
                               {groupedItems[dateStr].length} mặt hàng
                             </span>
+                            {(() => {
+                              const groupItems = groupedItems[dateStr];
+                              let pickedCount = 0;
+                              let fullyPickedCount = 0;
+                              groupItems.forEach(item => {
+                                const qty = pickedQuantities[item.id];
+                                if (qty !== undefined) {
+                                  pickedCount++;
+                                  if (qty >= item.tongSoLuong) {
+                                    fullyPickedCount++;
+                                  }
+                                }
+                              });
+                              const isGroupFullyPicked = fullyPickedCount === groupItems.length;
+                              const isGroupPicked = pickedCount > 0;
+                              return isGroupFullyPicked ? (
+                                <span className="badge bg-light text-success border border-success border-opacity-25 ms-3 rounded-pill" style={{ fontSize: 11, fontWeight: 500 }}><i className="bi bi-check-circle-fill me-1" /> Đã thực hiện</span>
+                              ) : isGroupPicked ? (
+                                <span className="badge bg-light text-warning border border-warning border-opacity-25 ms-3 rounded-pill" style={{ fontSize: 11, fontWeight: 500 }}><i className="bi bi-exclamation-triangle-fill me-1" /> Đang thực hiện</span>
+                              ) : (
+                                <span className="badge bg-light text-muted border border-secondary border-opacity-25 ms-3 rounded-pill" style={{ fontSize: 11, fontWeight: 500 }}><i className="bi bi-circle me-1" /> Chưa thực hiện</span>
+                              );
+                            })()}
                             {dateAssignees.length > 0 ? (
                               <span 
                                 className="badge bg-primary bg-opacity-10 text-primary border border-primary ms-3"
