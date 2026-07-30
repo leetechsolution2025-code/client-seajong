@@ -303,15 +303,15 @@ export async function PATCH(
             requesterDept: "Sản xuất",
             // @ts-ignore
             executionTime: order.ngayYeuCauQC || order.ngayGiao || new Date(),
-            notes: `Yêu cầu kiểm tra chất lượng thành phẩm sau khi hoàn thành sản xuất đơn hàng ${order.code || order.id}`,
+            notes: `Yêu cầu kiểm tra chất lượng đầu ra cho đơn hàng ${order.code || order.id}`,
           },
         });
 
         if (qaUserIds.length > 0) {
           const qcNotif = await tx.notification.create({
             data: {
-              title: `🔬 Yêu cầu kiểm tra chất lượng (OQC) mới`,
-              content: `Lệnh sản xuất ${order.code || order.id} đã hoàn thành. Vui lòng kiểm tra chất lượng (Mã phiếu: ${qcCode}).`,
+              title: `🔬 Yêu cầu kiểm tra chất lượng đầu ra`,
+              content: `Yêu cầu kiểm tra chất lượng đầu ra cho đơn hàng ${order.code || order.id}. (Mã phiếu: ${qcCode}).`,
               type: "warning",
               priority: "high",
               audienceType: "group",
