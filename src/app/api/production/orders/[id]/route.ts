@@ -281,53 +281,6 @@ export async function PATCH(
           .filter(Boolean) as string[];
 
         let producedItems: string[] = [];
-        for (const item of order.saleOrderItems) {
-          const invItem = await tx.inventoryItem.findFirst({
-            where: { tenHang: item.tenHang },
-          });
-
-          if (invItem) {
-            const ws = "KHO-CHINH";
-            // 3. Cập nhật tồn kho InventoryStock (+ số lượng)
-            await tx.inventoryStock.upsert({
-              where: {
-                inventoryItemId_warehouseId: {
-                  inventoryItemId: invItem.id,
-                  warehouseId: ws,
-                },
-              },
-              create: {
-                inventoryItemId: invItem.id,
-                warehouseId: ws,
-                soLuong: item.soLuong,
-              },
-              update: { soLuong: { increment: item.soLuong } },
-            });
-
-            // Cập nhật tổng số lượng
-            const allStocks = await tx.inventoryStock.findMany({
-              where: { inventoryItemId: invItem.id },
-            });
-            const tongSL =
-              allStocks.reduce((a, b) => a + b.soLuong, 0) + item.soLuong;
-            await tx.inventoryItem.update({
-              where: { id: invItem.id },
-              data: { soLuong: tongSL },
-            });
-
-            // Ghi lịch sử nhập kho thành phẩm (StockMovement)
-            await tx.stockMovement.create({
-              data: {
-                inventoryItemId: invItem.id,
-                toWarehouseId: ws,
-                type: "nhap",
-                soLuong: item.soLuong,
-                lyDo: "Nhập kho thành phẩm",
-                soChungTu: `Hoàn thành SX ${order.code}`,
-              },
-            });
-          }
-        }
 
         const productNameDesc =
           producedItems.length > 0
