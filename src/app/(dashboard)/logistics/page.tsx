@@ -613,10 +613,25 @@ export default function LogisticsOverviewPage() {
                 setNhapKhoTaskId(selectedOrder.id);
                 setShowNhapKhoModal(true);
               } else {
-                const isSo = selectedOrder?.type === "sale-order";
+                let isSo = false;
+                let targetId = selectedOrder?.id;
+
+                if (selectedOrder?.type === "sale-order") {
+                  isSo = true;
+                } else if (selectedOrder?.type === "logistics-ticket") {
+                  isSo = selectedOrder.ticketType === "BATCH_PACKING"; 
+                  if (isSo) {
+                    targetId = selectedOrder.saleOrderId;
+                  } else {
+                    targetId = selectedOrder.saleOrderCode 
+                      ? selectedOrder.saleOrderCode.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX')
+                      : selectedOrder.saleOrderId;
+                  }
+                }
+                
                 setXuatKhoOrderType(isSo ? "so" : "wo");
-                setXuatKhoSoId(isSo ? selectedOrder?.id : undefined);
-                setXuatKhoWoId(!isSo ? selectedOrder?.id : undefined);
+                setXuatKhoSoId(isSo ? targetId : undefined);
+                setXuatKhoWoId(!isSo ? targetId : undefined);
                 setShowXuatKhoModal(true);
               }
               setSelectedOrder(null);

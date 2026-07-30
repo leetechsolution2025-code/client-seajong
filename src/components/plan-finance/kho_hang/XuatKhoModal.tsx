@@ -162,7 +162,6 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
       .finally(() => setListLoading(false));
   }, [mode]);
 
-  // Auto-fill khi pick SO
   const hasAutoSelected = React.useRef(false);
   React.useEffect(() => {
     if (initialMode === "so" && initialSoId && saleOrders.length > 0 && !hasAutoSelected.current) {
@@ -170,6 +169,14 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
       onSelectSo(initialSoId);
     }
   }, [initialMode, initialSoId, saleOrders]);
+
+  const hasAutoSelectedWo = React.useRef(false);
+  React.useEffect(() => {
+    if (initialMode === "wo" && initialWoId && workOrders.length > 0 && !hasAutoSelectedWo.current) {
+      hasAutoSelectedWo.current = true;
+      onSelectWo(initialWoId);
+    }
+  }, [initialMode, initialWoId, workOrders]);
 
   const onSelectSo = (id: string) => {
     if (!id) { setSelectedSo(null); setLines([emptyLine()]); return; }
