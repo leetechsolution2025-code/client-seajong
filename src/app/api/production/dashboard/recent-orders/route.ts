@@ -43,6 +43,7 @@ export async function GET(req: Request) {
       return {
         id: orderCode,
         saleOrderCode: order.code || "N/A",
+        ngayDat: order.ngayDat,
         ngayHoanThanh: order.ngayHoanThanhSanXuat || order.ngayGiao || null,
         progress: isCompleted ? 100 : 0,
         status: isCompleted ? "completed" : (isRunning ? "running" : "pending"),

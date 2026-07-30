@@ -164,7 +164,7 @@ export default function ProductionDashboardPage() {
                 <thead className="table-light">
                   <tr>
                     <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>MÃ LỆNH</th>
-                    <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>NGÀY HOÀN THÀNH</th>
+                    <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>THỜI GIAN</th>
                     <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>TIẾN ĐỘ</th>
                     <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>TRẠNG THÁI</th>
                   </tr>
@@ -195,7 +195,16 @@ export default function ProductionDashboardPage() {
                           </div>
                         )}
                       </td>
-                      <td>{order.ngayHoanThanh ? new Date(order.ngayHoanThanh).toLocaleDateString("vi-VN") : "Chưa xác định"}</td>
+                      <td>
+                        <div style={{ fontSize: 11, marginBottom: 2 }}>
+                          <span className="text-muted">Bắt đầu: </span>
+                          <span className="fw-medium text-dark">{order.ngayDat ? new Date(order.ngayDat).toLocaleDateString("vi-VN") : "—"}</span>
+                        </div>
+                        <div style={{ fontSize: 11 }}>
+                          <span className="text-muted">Hoàn thành: </span>
+                          <span className="fw-bold text-primary">{order.ngayHoanThanh ? new Date(order.ngayHoanThanh).toLocaleDateString("vi-VN") : "—"}</span>
+                        </div>
+                      </td>
                       <td style={{ width: 140 }}>
                         <div className="d-flex align-items-center gap-2">
                           <div className="flex-grow-1" style={{ height: 6, borderRadius: 3, background: "var(--muted)", overflow: "hidden" }}>
