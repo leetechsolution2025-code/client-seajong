@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     // Ở đây ta cứ lưu mảng orderIds vào actualResult
     const codeList = orders.map(o => o.code).join(", ");
 
-    // Tạo Task
+    // Tạo Task chung cho sự kiện giao việc (theo dõi tiến độ)
     const task = await prisma.task.create({
       data: {
         title: `Gom hàng cho các lệnh xuất kho`,
@@ -37,6 +37,19 @@ export async function POST(req: NextRequest) {
         creatorId: session.user.id,
         actualResult: JSON.stringify(orderIds)
       }
+    });
+
+    // Quan trọng: Phải cập nhật người phụ trách (assignee) trực tiếp vào chính các Phiếu điều phối
+    // 1. Cập nhật cho bảng LogisticsTicket (phiên bản mới)
+    await (prisma as any).logisticsTicket.updateMany({
+      where: { id: { in: orderIds } },
+      data: { assignedToId: staffId }
+    });
+
+    // 2. Cập nhật cho bảng Task (phiên bản cũ, các lệnh material-export được lưu dưới dạng Task)
+    await prisma.task.updateMany({
+      where: { id: { in: orderIds }, deptCode: "logistics" },
+      data: { assigneeId: staffId }
     });
 
     return NextResponse.json({ success: true, task });

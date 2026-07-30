@@ -47,6 +47,17 @@ export function LogisticsBatchPacking() {
   const [filterDate, setFilterDate] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
+  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set());
+
+  const toggleDate = (dateStr: string) => {
+    setCollapsedDates(prev => {
+      const next = new Set(prev);
+      if (next.has(dateStr)) next.delete(dateStr);
+      else next.add(dateStr);
+      return next;
+    });
+  };
+
   const fetchEmployees = async () => {
     try {
       const res = await fetch("/api/hr/employees");
@@ -270,10 +281,11 @@ export function LogisticsBatchPacking() {
           <tbody>
             {sortedDates.map(dateStr => (
               <React.Fragment key={dateStr}>
-                <tr style={{ background: "var(--light)" }}>
+                <tr style={{ background: "var(--light)", cursor: "pointer" }} onClick={() => toggleDate(dateStr)}>
                   <td colSpan={6} className="py-2 px-3 fw-bold text-dark border-bottom" style={{ fontSize: 13, background: "#f1f5f9" }}>
                     <div className="d-flex align-items-center justify-content-between">
                       <div className="d-flex align-items-center">
+                        <i className={`bi bi-chevron-${collapsedDates.has(dateStr) ? 'right' : 'down'} text-secondary me-2`} style={{ fontSize: 12 }} />
                         <i className="bi bi-calendar-event text-primary me-2" />
                         Ngày giao: <span className="ms-1 text-primary">{dateStr}</span>
                         <span className="badge bg-white text-dark border ms-3 rounded-pill" style={{ fontWeight: 500, fontSize: 11 }}>
@@ -283,26 +295,31 @@ export function LogisticsBatchPacking() {
                     </div>
                   </td>
                 </tr>
-                {groupedItems[dateStr].map(item => {
+                {!collapsedDates.has(dateStr) && groupedItems[dateStr].map(item => {
                   const pickedQty = pickedQuantities[item.id];
                   const isPicked = pickedQty !== undefined;
                   const isFullyPicked = pickedQty === item.tongSoLuong;
                   
                   return (
                     <tr key={item.id} style={{ transition: "all 0.2s" }} className={isFullyPicked ? "bg-success bg-opacity-10" : isPicked ? "bg-warning bg-opacity-10" : "bg-white"}>
-                      <td className="text-center py-3" style={{ borderBottomColor: "rgba(0,0,0,0.05)", cursor: "pointer" }} onClick={() => handleTogglePick(item.id, item.tongSoLuong)}>
+                      <td className="text-center py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)", cursor: "pointer" }} onClick={() => handleTogglePick(item.id, item.tongSoLuong)}>
                     <div 
                       className={`d-inline-flex align-items-center justify-content-center rounded-circle border ${isFullyPicked ? "bg-success border-success text-white" : isPicked ? "bg-warning border-warning text-white" : "border-secondary text-transparent"}`}
-                      style={{ width: 24, height: 24, transition: "all 0.2s" }}
+                      style={{ width: 20, height: 20, transition: "all 0.2s" }}
                     >
-                      <i className="bi bi-check" style={{ fontSize: 16 }} />
+                      <i className="bi bi-check" style={{ fontSize: 14 }} />
                     </div>
                   </td>
-                  <td className="py-3" style={{ borderBottomColor: "rgba(0,0,0,0.05)" }}>
+                  <td className="py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)" }}>
                     <div className="d-flex align-items-center gap-3">
-                      <div style={{ width: 40, height: 40, borderRadius: 8, background: "#f8f9fa", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", border: "1px solid rgba(0,0,0,0.05)" }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: "#f8f9fa", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", border: "1px solid rgba(0,0,0,0.05)" }}>
                         {(item.imageUrl || (item.images && item.images.length > 0)) ? (
-                          <img src={item.imageUrl || (item.images && item.images[0])} alt={item.tenHang} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          <HoverImage 
+                            src={item.imageUrl || (item.images && item.images[0]) || ""} 
+                            alt={item.tenHang} 
+                            images={item.images?.length ? item.images : (item.imageUrl ? [item.imageUrl] : [])}
+                            style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "pointer" }} 
+                          />
                         ) : (
                           <i className="bi bi-box-seam text-muted" />
                         )}
@@ -311,7 +328,7 @@ export function LogisticsBatchPacking() {
                         <div className={`fw-bold ${isFullyPicked ? "text-success" : isPicked ? "text-warning" : "text-dark"}`}>{item.tenHang}</div>
                         <div className="d-flex align-items-center gap-2 mt-1">
                           {item.inventoryItemId && (
-                            <div className="text-muted" style={{ fontSize: 12, fontFamily: "monospace" }}>{item.inventoryItemId}</div>
+                            <div className="text-muted" style={{ fontSize: 11, fontFamily: "monospace" }}>{item.inventoryItemId}</div>
                           )}
                           {item.viTriKho ? (
                             <span className="badge bg-light text-primary border border-primary border-opacity-25" style={{ fontSize: 10, fontWeight: 500 }}>
@@ -328,10 +345,10 @@ export function LogisticsBatchPacking() {
                       </div>
                     </div>
                   </td>
-                  <td className="text-center py-3" style={{ borderBottomColor: "rgba(0,0,0,0.05)" }}>
+                  <td className="text-center py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)" }}>
                     <span className="fw-semibold text-dark fs-6">{item.tongSoLuong}</span>
                   </td>
-                  <td className="text-center py-3" style={{ borderBottomColor: "rgba(0,0,0,0.05)", width: 100 }}>
+                  <td className="text-center py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)", width: 100 }}>
                     <input 
                       type="number"
                       className={`form-control form-control-sm text-center fw-bold ${isFullyPicked ? "text-success border-success" : isPicked ? "text-warning border-warning" : "text-muted"}`}
@@ -342,7 +359,7 @@ export function LogisticsBatchPacking() {
                       max={item.tongSoLuong}
                     />
                   </td>
-                  <td className="py-3" style={{ borderBottomColor: "rgba(0,0,0,0.05)" }}>
+                  <td className="py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)" }}>
                     <div className="d-flex flex-wrap gap-1">
                       {item.orders.map((o, idx) => (
                         <span key={idx} className="badge bg-light text-dark border d-inline-flex align-items-center gap-1" style={{ fontSize: 11, fontWeight: 500 }}>
@@ -362,7 +379,7 @@ export function LogisticsBatchPacking() {
                       ))}
                     </div>
                   </td>
-                  <td className="text-end py-3" style={{ borderBottomColor: "rgba(0,0,0,0.05)" }}>
+                  <td className="text-end py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)" }}>
                     {isFullyPicked ? (
                       <span className="text-success fw-bold"><i className="bi bi-check-circle-fill me-1" /> Đủ hàng</span>
                     ) : isPicked ? (

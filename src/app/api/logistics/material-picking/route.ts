@@ -47,9 +47,42 @@ export async function GET(req: NextRequest) {
     const batchMap = new Map<string, any>();
 
     for (const ticket of tickets) {
-      if (!ticket.items) continue;
+      let items = ticket.items || [];
       
-      for (const item of ticket.items) {
+      // Fallback cho ticket bị lỗi thiếu mã vật tư (không có item trong CSDL)
+      if (items.length === 0 && ticket.saleOrder?.code) {
+        const task = await prisma.task.findFirst({
+          where: { deptCode: "logistics", title: { contains: ticket.saleOrder.code } }
+        });
+        if (task && task.actualResult) {
+          try {
+            const parsed = JSON.parse(task.actualResult);
+            const relevantItems = parsed.filter((it: any) => it.type === "Kho Vật Tư Phụ Kiện (KVP)");
+            for (const p of relevantItems) {
+              const matchedInvItem = await prisma.inventoryItem.findFirst({
+                where: { tenHang: p.tenHang }
+              });
+              items.push({
+                id: `fallback-${ticket.id}-${p.tenHang}`,
+                inventoryItemId: null,
+                requestedQty: p.soLuong || 1,
+                inventoryItem: {
+                  tenHang: p.tenHang,
+                  donVi: p.donVi,
+                  imageUrl: matchedInvItem?.imageUrl || null,
+                  code: matchedInvItem?.code || null,
+                  webProductId: matchedInvItem?.webProductId || null,
+                  stocks: []
+                }
+              } as any);
+            }
+          } catch (e) {}
+        }
+      }
+
+      if (items.length === 0) continue;
+      
+      for (const item of items) {
         const rawKey = item.inventoryItemId || item.id;
         if (!rawKey) continue;
         // Vật tư sản xuất cần xuất ngay lập tức (lấy theo ngày tạo lệnh) thay vì ngày giao hàng của đơn bán

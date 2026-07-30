@@ -95,7 +95,7 @@ export async function GET(_req: NextRequest) {
         take: 100,
         select: {
           id: true, code: true, status: true, type: true, createdAt: true,
-          saleOrder: { select: { code: true, ngayGiao: true, customer: { select: { name: true } } } },
+          saleOrder: { select: { id: true, code: true, ngayGiao: true, customer: { select: { name: true } } } },
           items: {
             select: {
               requestedQty: true,
@@ -129,6 +129,7 @@ export async function GET(_req: NextRequest) {
         trangThai: t.status,
         isAssigned: false,
         ticketType: t.type,
+        saleOrderId: t.saleOrder?.id,
         saleOrderCode: t.saleOrder?.code,
         requestedDate: t.type === "BATCH_PACKING" ? (t.saleOrder?.ngayGiao ?? t.createdAt) : t.createdAt,
         items: t.items?.map((it: any) => ({

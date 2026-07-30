@@ -151,6 +151,20 @@ export default function LogisticsOverviewPage() {
       } else if (row.type === "material-export" || row.type === "material-import" || row.type === "logistics-ticket") {
         // Dữ liệu items đã có sẵn từ API overview-orders
         items = (row.items ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type }));
+        
+        // Nếu là logistics-ticket nhưng không có items (do thiếu mã vật tư khi tạo) thì fallback lấy từ đơn hàng
+        if (items.length === 0 && row.type === "logistics-ticket" && row.saleOrderId) {
+          const res = await fetch(`/api/plan-finance/sales/${row.saleOrderId}`);
+          if (res.ok) {
+            const detail = await res.json();
+            if (detail.logisticsItems) {
+              const filterType = row.ticketType === "MATERIAL_PICKING" ? "Kho Vật Tư Phụ Kiện (KVP)" : "Kho Hàng Hoá (KHO-CHINH)";
+              items = detail.logisticsItems
+                .filter((it: any) => it.type === filterType)
+                .map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type, isShortage: it.isShortage }));
+            }
+          }
+        }
       }
       setOrderDetails(items);
     } catch (error) {
@@ -222,7 +236,7 @@ export default function LogisticsOverviewPage() {
       />
       <DynamicTicker pageTitle="Quản lý hệ thống kho" />
 
-      <div className="flex-grow-1 pb-5 pb-xl-4 pt-2 px-xl-4 px-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+      <div className="flex-grow-1 pb-5 pb-xl-2 pt-2 px-xl-2 px-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         <div className="row flex-grow-1 m-0 h-100" style={{ minHeight: 0 }}>
           {/* Cột trái (5 phần) */}
           <div className={`col-12 col-xl-5 p-0 pe-xl-2 mb-3 mb-xl-0 flex-column h-100 ${activeTab === "orders" ? "d-flex" : "d-none d-xl-flex"}`} style={{ minHeight: 0 }}>
@@ -279,19 +293,19 @@ export default function LogisticsOverviewPage() {
                       header: "Mã lệnh", 
                       render: (row: any) => (
                         <div className="position-relative">
-                          <div className="d-flex align-items-center gap-2 mb-1">
+                          <div className="d-flex align-items-center flex-wrap gap-2">
                             <div className="fw-bold text-primary">{row.exportCode}</div>
+                            {row.requestedDate && (
+                              <div className="text-muted" style={{ fontSize: 11 }}>
+                                <i className="bi bi-calendar-event me-1" />
+                                {new Date(row.requestedDate).toLocaleDateString('vi-VN')}
+                              </div>
+                            )}
                             {!readOrderIds.has(row.id) && <span className="badge bg-danger rounded-pill" style={{ fontSize: 9, padding: "2px 6px" }}>Mới</span>}
                           </div>
-                          <div className="text-muted text-truncate" style={{ fontSize: 12, maxWidth: 200 }}>
+                          <div className="text-muted text-truncate mt-1" style={{ fontSize: 12, maxWidth: 200 }}>
                             {row.typeLabel} {row.saleOrderCode || row.code} {row.customer ? `- ${row.customer}` : ""}
                           </div>
-                          {row.requestedDate && (
-                            <div className="text-muted" style={{ fontSize: 11, marginTop: 2 }}>
-                              <i className="bi bi-calendar-event me-1" />
-                              Yêu cầu: {new Date(row.requestedDate).toLocaleDateString('vi-VN')}
-                            </div>
-                          )}
                         </div>
                       ),
                       width: "50%" 
@@ -310,20 +324,21 @@ export default function LogisticsOverviewPage() {
                       render: (row: any) => {
                         let statusColor = "bg-secondary";
                         let statusText = row.trangThai;
+                        const lowerStatus = (row.trangThai || "").toLowerCase();
                         
-                        if (row.trangThai === "active" || row.trangThai === "processing" || row.trangThai === "partial") {
+                        if (lowerStatus === "active" || lowerStatus === "processing" || lowerStatus === "partial" || lowerStatus === "picking" || lowerStatus === "packing") {
                           statusColor = "bg-warning";
                           statusText = "Đang xử lý";
-                        } else if (row.trangThai === "confirmed" || row.trangThai === "approved") {
+                        } else if (lowerStatus === "confirmed" || lowerStatus === "approved") {
                           statusColor = "bg-info";
                           statusText = "Đã xác nhận";
-                        } else if (row.trangThai === "pending" || row.trangThai === "unpaid") {
+                        } else if (lowerStatus === "pending" || lowerStatus === "unpaid") {
                           statusColor = "bg-danger";
                           statusText = "Chờ xử lý";
-                        } else if (row.trangThai === "in_production") {
+                        } else if (lowerStatus === "in_production") {
                           statusColor = "bg-secondary";
                           statusText = "Đang sản xuất";
-                        } else if (row.trangThai === "completed" || row.trangThai === "done") {
+                        } else if (lowerStatus === "completed" || lowerStatus === "done") {
                           statusColor = "bg-success";
                           statusText = "Hoàn thành";
                         }
@@ -336,6 +351,8 @@ export default function LogisticsOverviewPage() {
                   emptyText="Chưa có lệnh xuất/nhập kho nào"
                   emptyIcon="bi-inbox"
                   fixedLayout={false}
+                  compact={true}
+                  cellStyle={() => ({ padding: "4px 8px" })}
                   wrapperClassName="mkt-plan-table-no-min flex-grow-1 table-hover"
                   wrapperStyle={{ overflowX: "hidden", cursor: "pointer" }}
                 />
