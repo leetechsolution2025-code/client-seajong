@@ -57,7 +57,7 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
       key: "recruitment", label: "Tuyển dụng", icon: "bi-person-plus",
       items: [
         { name: "Quản trị tuyển dụng", href: "/hr/recruitment" },
-        { name: "Phỏng vấn ứng viên", href: "/my/interviews" }, 
+        { name: "Phỏng vấn ứng viên", href: "/my/interviews" },
       ],
     },
     {
@@ -799,7 +799,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         ]
                       });
                     }
-  
+
                     // Apply dynamic isLocked for "Duyệt yêu cầu"
                     const isHRManager = session?.user?.role === "SUPERADMIN" || session?.user?.role === "admin" || (
                       session?.user?.departmentCode?.toLowerCase() === "hr" &&

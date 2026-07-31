@@ -20,6 +20,7 @@ interface ReqItem {
     categoryId: string | null;
     thongSoKyThuat: string | null;
     imageUrl: string | null;
+    giaNhap?: number;
   } | null;
 }
 
@@ -78,7 +79,7 @@ export default function TaoDonMuaHangModal({
     items.map(i => ({
       itemId:     i.id,
       supplierId: editSupplierId ?? null,
-      donGia:     i.donGiaDK,
+      donGia:     i.donGiaDK > 0 ? i.donGiaDK : (i.inventoryItem?.giaNhap ?? 0),
       ngayGiao:   i.ngayGiao ? i.ngayGiao.slice(0, 10) : (editNgayNhan ? editNgayNhan.slice(0, 10) : today),
       // Items đã xử lý: đánh dấu skip ngay từ đầu
       skip: !editOrderId && (i.trangThaiXuLy === "da-tao-don" || i.trangThaiXuLy === "bo-qua"),
@@ -480,7 +481,7 @@ export default function TaoDonMuaHangModal({
                       
                       const thanhTien = gItem.originalItems.reduce((sum, oi) => {
                         const oiAssign = assignments.find(assign => assign.itemId === oi.id);
-                        return sum + oi.soLuong * (oiAssign?.donGia ?? oi.donGiaDK);
+                        return sum + oi.soLuong * (oiAssign?.donGia ?? (oi.donGiaDK > 0 ? oi.donGiaDK : (oi.inventoryItem?.giaNhap ?? 0)));
                       }, 0);
 
                       const isHighlighted = activeSupId && a.supplierId === activeSupId;

@@ -19,7 +19,7 @@ export async function GET(
       items: {
         orderBy: { sortOrder: "asc" },
         include: {
-          inventoryItem: { select: { code: true, tenHang: true, donVi: true, categoryId: true, thongSoKyThuat: true, imageUrl: true } },
+          inventoryItem: { select: { code: true, tenHang: true, donVi: true, categoryId: true, thongSoKyThuat: true, imageUrl: true, giaNhap: true } },
         },
       },
     },

@@ -406,7 +406,7 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
 
         const currentModule = pathname.split("/")[1] || "";
         const isKhoHangActive = pathname.includes("/inventory");
-        const href = ["sales", "board", "cs", "finance", "plan_finance"].includes(currentModule) ? `/${currentModule}/inventory` : "/logistics";
+        const href = ["sales", "board", "cs", "finance", "plan_finance", "purchase", "production"].includes(currentModule) ? `/${currentModule}/inventory` : "/logistics";
         
         return (
           <Link
