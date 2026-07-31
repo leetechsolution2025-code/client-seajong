@@ -319,7 +319,7 @@ export default function FinancePage() {
     try {
       const params = new URLSearchParams();
       params.set("page", String(requestPage));
-      params.set("entityType", "purchase_order,marketing_proposal,marketing_monthly_plan");
+      params.set("entityType", "purchase_order,marketing_proposal,marketing_monthly_plan,purchase_request");
       if (requestSearch) params.set("search", requestSearch);
       if (requestStatus) params.set("status", requestStatus);
 
@@ -419,6 +419,10 @@ export default function FinancePage() {
         } else {
           setRequestDetail(null);
         }
+      } else if (currentSelected.entityType === "purchase_request") {
+        const res = await fetch(`/api/plan-finance/purchase-requests/${currentSelected.entityId}`);
+        const data = await res.json();
+        setRequestDetail(data);
       } else {
         const res = await fetch(`/api/plan-finance/purchasing/${currentSelected.entityId}`);
         const data = await res.json();
@@ -1409,6 +1413,58 @@ export default function FinancePage() {
                                 </a>
                               </div>
                             )}
+                          </div>
+                        ) : selectedRequest.entityType === "purchase_request" ? (
+                          <div className="d-flex flex-column gap-2">
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Đơn vị đề xuất:</span>
+                              <span className="text-dark fw-semibold">{requestDetail.donVi || "—"}</span>
+                            </div>
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Người đề xuất:</span>
+                              <span className="text-dark fw-semibold">{requestDetail.nguoiYeuCau || selectedRequest.requestedByName || "—"}</span>
+                            </div>
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Ngày tạo đơn:</span>
+                              <span className="text-dark fw-medium">
+                                {requestDetail.createdAt ? new Date(requestDetail.createdAt).toLocaleDateString("vi-VN") : "—"}
+                              </span>
+                            </div>
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Ngày cần có:</span>
+                              <span className="text-dark fw-medium">
+                                {requestDetail.ngayCanCo ? new Date(requestDetail.ngayCanCo).toLocaleDateString("vi-VN") : "—"}
+                              </span>
+                            </div>
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Trạng thái duyệt:</span>
+                              <span>
+                                {(() => {
+                                  const status = selectedRequest.status || "pending";
+                                  let color = "#f59e0b"; // Warning/Orange
+                                  let bg = "rgba(245, 158, 11, 0.1)";
+                                  let text = "Chờ duyệt";
+                                  if (status === "approved") {
+                                    color = "#10b981"; // Success/Green
+                                    bg = "rgba(16, 185, 129, 0.1)";
+                                    text = "Đã duyệt";
+                                  } else if (status === "on_hold") {
+                                    color = "#6366f1"; // Indigo
+                                    bg = "rgba(99, 102, 241, 0.1)";
+                                    text = "Tạm giữ";
+                                  } else if (status === "rejected") {
+                                    color = "#ef4444"; // Danger/Red
+                                    bg = "rgba(239, 68, 68, 0.1)";
+                                    text = "Từ chối";
+                                  }
+                                  return (
+                                    <span className="badge rounded-pill fw-bold" style={{ color, background: bg, padding: "3px 10px", fontSize: "11px" }}>
+                                      {text}
+                                    </span>
+                                  );
+                                })()}
+                              </span>
+                            </div>
                           </div>
                         ) : (
                           <div className="d-flex flex-column gap-2">

@@ -229,6 +229,74 @@ export async function PATCH(
       }
     }
 
+    // Gửi thông báo và yêu cầu kiểm tra chất lượng (QC) khi nhận hàng (received)
+    if (trangThai === "received" && oldPo.trangThai !== "received") {
+      try {
+        const poCode = po.code ?? id;
+        const supplierName = po.supplier?.name ?? "Nhà cung cấp";
+        
+        // 1. Tạo 1 yêu cầu QualityInspection gộp cho toàn bộ đơn hàng
+        const poItemsMeta = po.items.map((item: any) => ({
+          id: item.id,
+          productName: item.tenHang,
+          inventoryItemId: item.inventoryItem?.id || null,
+          quantity: item.soLuong,
+          unit: item.donVi
+        }));
+
+        await prisma.qualityInspection.create({
+          data: {
+            code: `QC-IQC-${poCode}-${Date.now().toString().slice(-4)}`,
+            type: "IQC",
+            status: "Chưa thực hiện",
+            productName: `Đơn hàng ${poCode}`,
+            requesterName: session.user?.name ?? "Hệ thống",
+            requesterDept: "Phòng Mua hàng",
+            metadata: JSON.stringify({ 
+              purchaseOrderId: id, 
+              purchaseOrderCode: poCode, 
+              supplierName, 
+              items: poItemsMeta
+            }),
+            executionTime: new Date()
+          }
+        });
+
+        // 2. Gửi thông báo cho bộ phận QA/QC
+        const qaEmployees = await prisma.employee.findMany({
+          where: { departmentCode: "qa" },
+          select: { userId: true }
+        });
+        const qaUserIds = qaEmployees.map(e => e.userId).filter(Boolean) as string[];
+
+        const qaNotif = await prisma.notification.create({
+          data: {
+            title: `Yêu cầu kiểm tra IQC: Đơn mua hàng ${poCode}`,
+            content: `Đơn mua hàng **${poCode}** từ nhà cung cấp **${supplierName}** đã được cập nhật trạng thái Nhận hàng.\n` +
+              `Hệ thống đã tự động tạo một yêu cầu Kiểm tra chất lượng đầu vào (IQC). Vui lòng bộ phận QC tiến hành lấy mẫu và kiểm tra chất lượng lô hàng này.`,
+            type: "warning",
+            priority: "high",
+            audienceType: "department",
+            audienceValue: "qa",
+            createdById: session.user?.id ?? "system",
+          }
+        });
+
+        const uniqueQaIds = [...new Set(qaUserIds)];
+        if (uniqueQaIds.length > 0) {
+          await Promise.allSettled(
+            uniqueQaIds.map(uid =>
+              prisma.notificationRecipient.create({
+                data: { notificationId: qaNotif.id, userId: uid }
+              })
+            )
+          );
+        }
+      } catch (err) {
+        console.error("[PATCH /purchasing/[id]] Failed to create QC inspection and notification:", err);
+      }
+    }
+
     return NextResponse.json(po);
   } catch (e) {
     console.error("[PATCH /purchasing/[id]]", e);

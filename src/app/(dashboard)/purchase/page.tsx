@@ -1543,6 +1543,9 @@ function OrderDetailOffcanvas({ order, onClose, onChanged, onEditOrder, onPrintO
         setDetail(updated);
         onChanged?.(); // Refresh list table
         refreshDetailAndActivities(true);
+        if (status === "received") {
+          onClose();
+        }
       } else {
         const err = await res.json();
         alert("Lỗi cập nhật trạng thái: " + (err.error ?? "Không thể cập nhật"));

@@ -135,54 +135,90 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Gửi thông báo đến Trưởng phòng Tài chính - Kế toán (chỉ khi yêu cầu từ bộ phận "Mua hàng")
-  if (donVi === "Mua hàng") {
-    try {
-      const accountingManagers = await prisma.employee.findMany({
-        where: {
-          status: "active",
-          OR: [
-            { departmentCode: "finance" },
-            { departmentName: { contains: "Kế toán" } },
-            { departmentName: { contains: "Tài chính" } }
-          ],
-          position: "vtr-20260401-1964-sbmg" // Trưởng phòng
-        },
-        select: { userId: true }
+  // Tạo ApprovalRequest để yêu cầu duyệt hiển thị bên trang Tài chính
+  let approvalRequest = null;
+  try {
+    const accountingManagers = await prisma.employee.findMany({
+      where: {
+        status: "active",
+        OR: [
+          { departmentCode: "finance" },
+          { departmentName: { contains: "Kế toán" } },
+          { departmentName: { contains: "Tài chính" } }
+        ],
+        position: "vtr-20260401-1964-sbmg" // Trưởng phòng
+      },
+      select: { userId: true }
+    });
+
+    const validUserIds = Array.from(
+      new Set(accountingManagers.map((m) => m.userId).filter(Boolean))
+    ) as string[];
+
+    approvalRequest = await prisma.approvalRequest.create({
+      data: {
+        entityId: created.id,
+        entityType: "purchase_request",
+        entityCode: code,
+        entityTitle: `Yêu cầu mua hàng: ${code} - ${lyDo || "Không có lý do"}`,
+        department: donVi,
+        requestedById: session.user.id,
+        requestedByName: nguoiYeuCau,
+        status: "pending",
+        priority: "high",
+        approverId: null, // Broadcast cho những người vào trang Kế toán (như cách purchase_order đang làm)
+      }
+    });
+  } catch (err) {
+    console.error("Failed to create approval request for purchase request:", err);
+  }
+
+  // Gửi thông báo đến Trưởng phòng Tài chính - Kế toán để phê duyệt yêu cầu mua hàng
+  try {
+    const accountingManagers = await prisma.employee.findMany({
+      where: {
+        status: "active",
+        OR: [
+          { departmentCode: "finance" },
+          { departmentName: { contains: "Kế toán" } },
+          { departmentName: { contains: "Tài chính" } }
+        ],
+        position: "vtr-20260401-1964-sbmg" // Trưởng phòng
+      },
+      select: { userId: true }
+    });
+
+    const validUserIds = Array.from(
+      new Set(accountingManagers.map((m) => m.userId).filter(Boolean))
+    ) as string[];
+
+    if (validUserIds.length > 0) {
+      const notif = await prisma.notification.create({
+        data: {
+          title: `Yêu cầu mua hàng mới cần duyệt: ${code}`,
+          content: `Nhân viên **${nguoiYeuCau}** thuộc bộ phận **${donVi}** đã gửi một yêu cầu mua hàng mới: **${code}** (Lý do: ${lyDo || "Không có"}). Vui lòng xem xét và phê duyệt.`,
+          type: "info",
+          priority: "high",
+          audienceType: validUserIds.length > 1 ? "group" : "individual",
+          audienceValue: validUserIds.length > 1 ? JSON.stringify(validUserIds) : validUserIds[0],
+          createdById: session.user.id
+        }
       });
 
-      const validUserIds = Array.from(
-        new Set(accountingManagers.map((m) => m.userId).filter(Boolean))
-      ) as string[];
-
-      if (validUserIds.length > 0) {
-        const notif = await prisma.notification.create({
-          data: {
-            title: `Yêu cầu mua hàng mới cần duyệt: ${code}`,
-            content: `Nhân viên **${nguoiYeuCau}** thuộc bộ phận **${donVi}** đã gửi một yêu cầu mua hàng mới: **${code}** (Lý do: ${lyDo || "Không có"}). Vui lòng xem xét và phê duyệt.`,
-            type: "info",
-            priority: "high",
-            audienceType: validUserIds.length > 1 ? "group" : "individual",
-            audienceValue: validUserIds.length > 1 ? JSON.stringify(validUserIds) : validUserIds[0],
-            createdById: session.user.id
-          }
-        });
-
-        await Promise.all(
-          validUserIds.map((userId) =>
-            prisma.notificationRecipient.create({
-              data: {
-                notificationId: notif.id,
-                userId: userId,
-                isRead: false
-              }
-            })
-          )
-        );
-      }
-    } catch (err) {
-      console.error("Failed to send purchase request notification to accounting managers:", err);
+      await Promise.all(
+        validUserIds.map((userId) =>
+          prisma.notificationRecipient.create({
+            data: {
+              notificationId: notif.id,
+              userId: userId,
+              isRead: false
+            }
+          })
+        )
+      );
     }
+  } catch (err) {
+    console.error("Failed to send purchase request notification to accounting managers:", err);
   }
 
   return NextResponse.json(created, { status: 201 });

@@ -33,10 +33,7 @@ export default function QaInspectionsPage() {
 
   const [iqcFormData, setIqcFormData] = useState({
     supplier: "",
-    model: "",
-    batch: "",
-    totalQuantity: "",
-    sampleQuantity: "",
+    items: [] as any[],
     check1: "pass",
     check2: "pass",
     check3: "pass",
@@ -110,6 +107,35 @@ export default function QaInspectionsPage() {
       }));
     }
   }, [showOqcModal, selectedInspection]);
+
+  useEffect(() => {
+    if (showIqcModal && selectedInspection && selectedInspection.metadata) {
+      let items = [];
+      if (selectedInspection.metadata.items && Array.isArray(selectedInspection.metadata.items)) {
+        items = selectedInspection.metadata.items.map((it: any) => ({
+          ...it,
+          model: "",
+          batch: "",
+          sampleQuantity: ""
+        }));
+      } else {
+        // Fallback cho bản ghi cũ
+        items = [{
+          productName: selectedInspection.product || "",
+          model: "",
+          batch: "",
+          quantity: selectedInspection.metadata.quantity || "",
+          sampleQuantity: ""
+        }];
+      }
+
+      setIqcFormData(prev => ({
+        ...prev,
+        supplier: selectedInspection.metadata.supplierName || "",
+        items
+      }));
+    }
+  }, [showIqcModal, selectedInspection]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -505,24 +531,71 @@ export default function QaInspectionsPage() {
                       <label className="form-label small fw-medium">Nhà cung cấp</label>
                       <input type="text" className="form-control form-control-sm" name="supplier" value={iqcFormData.supplier} onChange={handleIqcChange} />
                     </div>
-                    <div className="mb-3">
-                      <label className="form-label small fw-medium">Mã sản phẩm (Model/SKU)</label>
-                      <input type="text" className="form-control form-control-sm" name="model" value={iqcFormData.model} onChange={handleIqcChange} />
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label small fw-medium">Mã số lô hàng (Batch/Lot)</label>
-                      <input type="text" className="form-control form-control-sm" name="batch" value={iqcFormData.batch} onChange={handleIqcChange} />
-                    </div>
-                    <div className="row g-2 mb-4">
-                      <div className="col-6">
-                        <label className="form-label small fw-medium">SL giao (N)</label>
-                        <input type="number" className="form-control form-control-sm" name="totalQuantity" value={iqcFormData.totalQuantity} onChange={handleIqcChange} />
+                    
+                    <hr className="my-4 text-muted" />
+                    <h6 className="fw-bold mb-3">CHI TIẾT VẬT TƯ</h6>
+                    
+                    {iqcFormData.items.map((item, idx) => (
+                      <div key={idx} className="mb-4 p-3 bg-light border rounded">
+                        <div className="fw-bold text-primary mb-2" style={{ fontSize: "13px" }}>
+                          {idx + 1}. {item.productName}
+                        </div>
+                        <div className="mb-2">
+                          <label className="form-label small fw-medium">Mã sản phẩm (Model/SKU)</label>
+                          <input 
+                            type="text" 
+                            className="form-control form-control-sm" 
+                            value={item.model || ""} 
+                            onChange={(e) => {
+                              const newItems = [...iqcFormData.items];
+                              newItems[idx].model = e.target.value;
+                              setIqcFormData(prev => ({ ...prev, items: newItems }));
+                            }} 
+                          />
+                        </div>
+                        <div className="mb-2">
+                          <label className="form-label small fw-medium">Mã số lô hàng (Batch/Lot)</label>
+                          <input 
+                            type="text" 
+                            className="form-control form-control-sm" 
+                            value={item.batch || ""} 
+                            onChange={(e) => {
+                              const newItems = [...iqcFormData.items];
+                              newItems[idx].batch = e.target.value;
+                              setIqcFormData(prev => ({ ...prev, items: newItems }));
+                            }} 
+                          />
+                        </div>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <label className="form-label small fw-medium">SL giao (N)</label>
+                            <input 
+                              type="number" 
+                              className="form-control form-control-sm" 
+                              value={item.quantity || ""} 
+                              onChange={(e) => {
+                                const newItems = [...iqcFormData.items];
+                                newItems[idx].quantity = e.target.value;
+                                setIqcFormData(prev => ({ ...prev, items: newItems }));
+                              }} 
+                            />
+                          </div>
+                          <div className="col-6">
+                            <label className="form-label small fw-medium">Mẫu rút (n)</label>
+                            <input 
+                              type="number" 
+                              className="form-control form-control-sm" 
+                              value={item.sampleQuantity || ""} 
+                              onChange={(e) => {
+                                const newItems = [...iqcFormData.items];
+                                newItems[idx].sampleQuantity = e.target.value;
+                                setIqcFormData(prev => ({ ...prev, items: newItems }));
+                              }} 
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div className="col-6">
-                        <label className="form-label small fw-medium">Mẫu rút (n)</label>
-                        <input type="number" className="form-control form-control-sm" name="sampleQuantity" value={iqcFormData.sampleQuantity} onChange={handleIqcChange} />
-                      </div>
-                    </div>
+                    ))}
                   </div>
 
                   {/* Right Panel - A4 Preview */}
@@ -600,14 +673,16 @@ export default function QaInspectionsPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              <tr>
-                                <td className="border-dark">1</td>
-                                <td className="border-dark text-start fw-bold">{selectedInspection.product}</td>
-                                <td className="border-dark fw-bold">{iqcFormData.model}</td>
-                                <td className="border-dark fw-bold">{iqcFormData.batch}</td>
-                                <td className="border-dark fw-bold">{iqcFormData.totalQuantity}</td>
-                                <td className="border-dark fw-bold">{iqcFormData.sampleQuantity}</td>
-                              </tr>
+                              {iqcFormData.items.map((item, idx) => (
+                                <tr key={idx}>
+                                  <td className="border-dark">{idx + 1}</td>
+                                  <td className="border-dark text-start fw-bold">{item.productName}</td>
+                                  <td className="border-dark fw-bold">{item.model}</td>
+                                  <td className="border-dark fw-bold">{item.batch}</td>
+                                  <td className="border-dark fw-bold">{item.quantity}</td>
+                                  <td className="border-dark fw-bold">{item.sampleQuantity}</td>
+                                </tr>
+                              ))}
                             </tbody>
                           </table>
                         </div>
@@ -713,39 +788,41 @@ export default function QaInspectionsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          <tr>
-                            <td className="border-dark">1</td>
-                            <td className="border-dark text-start">
-                              <div className="fw-bold">{selectedInspection.product}</div>
-                              {iqcFormData.result === "fail" && (
-                                <div className="text-danger small mt-1 fst-italic">
-                                  Lý do: [{iqcFormData.rejectCategories.join(", ")}] {iqcFormData.rejectReason}
-                                </div>
-                              )}
-                            </td>
-                            <td className="border-dark fw-bold">
-                              <input 
-                                type="checkbox" 
-                                className="form-check-input border-dark" 
-                                style={{ transform: "scale(1.2)" }}
-                                checked={iqcFormData.result === "pass"} 
-                                onChange={handlePassCheck} 
-                              />
-                            </td>
-                            <td className="border-dark fw-bold">
-                              <input 
-                                type="checkbox" 
-                                className="form-check-input border-dark" 
-                                style={{ transform: "scale(1.2)" }}
-                                checked={iqcFormData.result === "fail"} 
-                                onChange={handleFailCheck} 
-                              />
-                            </td>
-                            <td className="border-dark fw-bold">
-                              {iqcFormData.result === "pass" ? "CHẤP NHẬN" : ""}
-                              {iqcFormData.result === "fail" ? "TỪ CHỐI" : ""}
-                            </td>
-                          </tr>
+                          {iqcFormData.items.map((item, idx) => (
+                            <tr key={idx}>
+                              <td className="border-dark">{idx + 1}</td>
+                              <td className="border-dark text-start">
+                                <div className="fw-bold">{item.productName}</div>
+                                {iqcFormData.result === "fail" && (
+                                  <div className="text-danger small mt-1 fst-italic">
+                                    Lý do: [{iqcFormData.rejectCategories.join(", ")}] {iqcFormData.rejectReason}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="border-dark fw-bold">
+                                <input 
+                                  type="checkbox" 
+                                  className="form-check-input border-dark" 
+                                  style={{ transform: "scale(1.2)" }}
+                                  checked={iqcFormData.result === "pass"} 
+                                  onChange={handlePassCheck} 
+                                />
+                              </td>
+                              <td className="border-dark fw-bold">
+                                <input 
+                                  type="checkbox" 
+                                  className="form-check-input border-dark" 
+                                  style={{ transform: "scale(1.2)" }}
+                                  checked={iqcFormData.result === "fail"} 
+                                  onChange={handleFailCheck} 
+                                />
+                              </td>
+                              <td className="border-dark fw-bold">
+                                {iqcFormData.result === "pass" ? "CHẤP NHẬN" : ""}
+                                {iqcFormData.result === "fail" ? "TỪ CHỐI" : ""}
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
 
@@ -1127,7 +1204,11 @@ export default function QaInspectionsPage() {
                 </div>
                 <div className="d-flex justify-content-between">
                   <span className="text-muted">Mã lô (Batch):</span>
-                  <span className="fw-medium">{iqcFormData.batch || "N/A"}</span>
+                  <span className="fw-medium">
+                    {showIqcModal 
+                      ? (iqcFormData.items.map((i: any) => i.batch).filter(Boolean).join(", ") || "N/A") 
+                      : (oqcFormData.batch || "N/A")}
+                  </span>
                 </div>
               </div>
             </div>

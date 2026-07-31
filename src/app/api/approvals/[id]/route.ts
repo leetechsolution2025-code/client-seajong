@@ -488,6 +488,28 @@ async function syncEntityStatus(
         });
         break;
       }
+      case "purchase_request": {
+        const statusMap: Record<string, string> = {
+          approve: "dang-xu-ly",
+          reject: "tu-choi",
+          recall: "chua-xu-ly",
+          on_hold: "chua-xu-ly",
+        };
+        const nextStatus = statusMap[action] || "chua-xu-ly";
+
+        const pr = await prisma.purchaseRequest.findUnique({
+          where: { id: entityId },
+          select: { trangThai: true }
+        });
+
+        if (pr && pr.trangThai !== nextStatus) {
+          await prisma.purchaseRequest.update({
+            where: { id: entityId },
+            data: { trangThai: nextStatus }
+          });
+        }
+        break;
+      }
       case "purchase_order": {
         const statusMap: Record<string, string> = {
           approve: "ordered",
