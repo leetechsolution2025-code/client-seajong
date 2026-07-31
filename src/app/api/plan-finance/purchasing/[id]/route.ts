@@ -240,6 +240,7 @@ export async function PATCH(
           id: item.id,
           productName: item.tenHang,
           inventoryItemId: item.inventoryItem?.id || null,
+          model: item.inventoryItem?.code || null,
           quantity: item.soLuong,
           unit: item.donVi
         }));
@@ -255,6 +256,7 @@ export async function PATCH(
             metadata: JSON.stringify({ 
               purchaseOrderId: id, 
               purchaseOrderCode: poCode, 
+              poNumber: poCode,
               supplierName, 
               items: poItemsMeta
             }),

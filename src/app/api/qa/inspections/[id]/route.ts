@@ -122,3 +122,30 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  try {
+    const params = await props.params;
+    const { id } = params;
+
+    const inspection = await prisma.qualityInspection.findUnique({
+      where: { code: id }
+    });
+
+    if (!inspection) {
+      return NextResponse.json({ error: "Không tìm thấy phiếu kiểm tra" }, { status: 404 });
+    }
+
+    await prisma.qualityInspection.delete({
+      where: { id: inspection.id }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("QA Inspection DELETE Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
