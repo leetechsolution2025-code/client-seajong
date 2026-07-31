@@ -992,3 +992,33 @@ async function syncEntityStatus(
     console.error(`[syncEntityStatus] entityType=${entityType} id=${entityId}`, e);
   }
 }
+
+// ── DELETE /api/approvals/[id] ────────────────────────────────────────────────
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { id } = await params;
+
+    const request = await prisma.approvalRequest.findUnique({
+      where: { id }
+    });
+
+    if (!request) {
+      return NextResponse.json({ error: "Không tìm thấy yêu cầu" }, { status: 404 });
+    }
+
+    await prisma.approvalRequest.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    console.error("[DELETE /api/approvals/[id]]", e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}

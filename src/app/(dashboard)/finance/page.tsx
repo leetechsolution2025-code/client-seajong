@@ -11,6 +11,7 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { Pagination } from "@/components/ui/Pagination";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface KPIData {
   pendingOrders: number;
@@ -24,9 +25,11 @@ export default function FinancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // States for Sales Orders (step 1)
   const [orders, setOrders] = useState<any[]>([]);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderSearch, setOrderSearch] = useState("");
   const [orderStatus, setOrderStatus] = useState("");
@@ -71,6 +74,8 @@ export default function FinancePage() {
 
   // States for Purchase Requests (step 2)
   const [requests, setRequests] = useState<any[]>([]);
+  const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
+  const [showRequestDeleteConfirm, setShowRequestDeleteConfirm] = useState(false);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestSearch, setRequestSearch] = useState("");
   const [requestStatus, setRequestStatus] = useState("");
@@ -608,6 +613,38 @@ export default function FinancePage() {
 
   const orderColumns: TableColumn<any>[] = [
     {
+      header: (
+        <input 
+          type="checkbox" 
+          className="form-check-input m-0"
+          checked={orders.length > 0 && selectedOrderIds.length === orders.length}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedOrderIds(orders.map(o => o.id));
+            } else {
+              setSelectedOrderIds([]);
+            }
+          }}
+        />
+      ),
+      width: "40px",
+      render: (row) => (
+        <input 
+          type="checkbox" 
+          className="form-check-input m-0"
+          checked={selectedOrderIds.includes(row.id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedOrderIds(prev => [...prev, row.id]);
+            } else {
+              setSelectedOrderIds(prev => prev.filter(id => id !== row.id));
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      )
+    },
+    {
       header: "Mã đơn hàng",
       render: (row) => {
         const dateStr = row.createdAt ? new Date(row.createdAt).toLocaleDateString("vi-VN") : "—";
@@ -686,6 +723,38 @@ export default function FinancePage() {
   ];
 
   const requestColumns: TableColumn<any>[] = [
+    {
+      header: (
+        <input 
+          type="checkbox" 
+          className="form-check-input m-0"
+          checked={requests.length > 0 && selectedRequestIds.length === requests.length}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedRequestIds(requests.map(r => r.id));
+            } else {
+              setSelectedRequestIds([]);
+            }
+          }}
+        />
+      ),
+      width: "40px",
+      render: (row) => (
+        <input 
+          type="checkbox" 
+          className="form-check-input m-0"
+          checked={selectedRequestIds.includes(row.id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedRequestIds(prev => [...prev, row.id]);
+            } else {
+              setSelectedRequestIds(prev => prev.filter(id => id !== row.id));
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      )
+    },
     {
       header: "Mã yêu cầu",
       render: (row) => {
@@ -1058,6 +1127,20 @@ export default function FinancePage() {
                         <i className="bi bi-send" />
                         Trình giám đốc
                       </button>
+                      <button 
+                        className="btn btn-sm btn-danger fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1"
+                        onClick={() => {
+                          if (selectedOrder) {
+                            setShowDeleteConfirm(true);
+                          } else if (selectedOrderIds.length > 0) {
+                            setShowDeleteConfirm(true);
+                          }
+                        }}
+                        style={{ fontSize: "11.5px", border: "none" }}
+                      >
+                        <i className="bi bi-trash" />
+                        Xóa
+                      </button>
                     </div>
                   </div>
 
@@ -1323,26 +1406,42 @@ export default function FinancePage() {
                         {requestDetail.code || "Đơn hàng mới"}
                       </h6>
                     </div>
-                    {selectedRequest.status === "pending" && (
-                      <div className="d-flex align-items-center gap-2">
-                        <button 
-                          className="btn btn-sm btn-success fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1"
-                          onClick={handleApproveRequest}
-                          style={{ fontSize: "11.5px", border: "none" }}
-                        >
-                          <i className="bi bi-check-lg" />
-                          Duyệt
-                        </button>
-                        <button 
-                          className="btn btn-sm btn-danger fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1"
-                          onClick={handleRejectRequest}
-                          style={{ fontSize: "11.5px", border: "none" }}
-                        >
-                          <i className="bi bi-x-lg" />
-                          Từ chối
-                        </button>
-                      </div>
-                    )}
+                    <div className="d-flex align-items-center gap-2">
+                      {selectedRequest.status === "pending" && (
+                        <>
+                          <button 
+                            className="btn btn-sm btn-success fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1"
+                            onClick={handleApproveRequest}
+                            style={{ fontSize: "11.5px", border: "none" }}
+                          >
+                            <i className="bi bi-check-lg" />
+                            Duyệt
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-warning fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1 text-white"
+                            onClick={handleRejectRequest}
+                            style={{ fontSize: "11.5px", border: "none" }}
+                          >
+                            <i className="bi bi-x-lg" />
+                            Từ chối
+                          </button>
+                        </>
+                      )}
+                      <button 
+                        className="btn btn-sm btn-danger fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1"
+                        onClick={() => {
+                          if (selectedRequest) {
+                            setShowRequestDeleteConfirm(true);
+                          } else if (selectedRequestIds.length > 0) {
+                            setShowRequestDeleteConfirm(true);
+                          }
+                        }}
+                        style={{ fontSize: "11.5px", border: "none" }}
+                      >
+                        <i className="bi bi-trash" />
+                        Xóa
+                      </button>
+                    </div>
                   </div>
 
                   {/* Content */}
@@ -2016,6 +2115,79 @@ export default function FinancePage() {
         </div>
       </div>
 
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Xác nhận xóa"
+        message={
+          <div className="text-dark">
+            Bạn có chắc chắn muốn xóa {selectedOrderIds.length > 0 ? `${selectedOrderIds.length} đơn hàng đã chọn` : "đơn hàng này"} không?<br/>
+            Hành động này không thể hoàn tác.
+          </div>
+        }
+        confirmLabel="Xóa"
+        cancelLabel="Hủy"
+        variant="danger"
+        onConfirm={async () => {
+          setShowDeleteConfirm(false);
+          try {
+            if (selectedOrderIds.length > 0) {
+              await Promise.all(selectedOrderIds.map(id => 
+                fetch(`/api/plan-finance/sales/${id}`, { method: 'DELETE' })
+              ));
+              setOrders(prev => prev.filter(o => !selectedOrderIds.includes(o.id)));
+              if (selectedOrder && selectedOrderIds.includes(selectedOrder.id)) {
+                setSelectedOrder(null);
+              }
+              setSelectedOrderIds([]);
+            } else if (selectedOrder) {
+              await fetch(`/api/plan-finance/sales/${selectedOrder.id}`, { method: 'DELETE' });
+              setOrders(prev => prev.filter(o => o.id !== selectedOrder.id));
+              setSelectedOrder(null);
+            }
+            toast.success("Đã xóa đơn hàng thành công!");
+          } catch (e) {
+            toast.error("Lỗi khi xóa đơn hàng");
+          }
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      <ConfirmDialog
+        open={showRequestDeleteConfirm}
+        title="Xác nhận xóa"
+        message={
+          <div className="text-dark">
+            Bạn có chắc chắn muốn xóa {selectedRequestIds.length > 0 ? `${selectedRequestIds.length} yêu cầu đã chọn` : "yêu cầu này"} không?<br/>
+            Hành động này không thể hoàn tác.
+          </div>
+        }
+        confirmLabel="Xóa"
+        cancelLabel="Hủy"
+        variant="danger"
+        onConfirm={async () => {
+          setShowRequestDeleteConfirm(false);
+          try {
+            if (selectedRequestIds.length > 0) {
+              await Promise.all(selectedRequestIds.map(id => 
+                fetch(`/api/approvals/${id}`, { method: 'DELETE' })
+              ));
+              setRequests(prev => prev.filter(r => !selectedRequestIds.includes(r.id)));
+              if (selectedRequest && selectedRequestIds.includes(selectedRequest.id)) {
+                setSelectedRequest(null);
+              }
+              setSelectedRequestIds([]);
+            } else if (selectedRequest) {
+              await fetch(`/api/approvals/${selectedRequest.id}`, { method: 'DELETE' });
+              setRequests(prev => prev.filter(r => r.id !== selectedRequest.id));
+              setSelectedRequest(null);
+            }
+            toast.success("Đã xóa yêu cầu thành công!");
+          } catch (e) {
+            toast.error("Lỗi khi xóa yêu cầu");
+          }
+        }}
+        onCancel={() => setShowRequestDeleteConfirm(false)}
+      />
     </StandardPage>
   );
 }
