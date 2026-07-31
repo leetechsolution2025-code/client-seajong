@@ -10,6 +10,7 @@ import { XuatKhoModal } from "@/components/plan-finance/kho_hang/XuatKhoModal";
 import { NhapKhoModal } from "@/components/plan-finance/kho_hang/NhapKhoModal";
 import { useToast } from "@/components/ui/Toast";
 import { DynamicTicker } from "@/components/layout/DynamicTicker";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export default function LogisticsOverviewPage() {
   const [rawOrders, setRawOrders] = useState<any[]>([]);
@@ -27,6 +28,8 @@ export default function LogisticsOverviewPage() {
   const [xuatKhoTicketId, setXuatKhoTicketId] = useState<string | undefined>(undefined);
   const [showNhapKhoModal, setShowNhapKhoModal] = useState(false);
   const [nhapKhoTaskId, setNhapKhoTaskId] = useState<string | undefined>(undefined);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<"orders" | "inventory">("orders");
@@ -183,6 +186,26 @@ export default function LogisticsOverviewPage() {
       console.error(error);
     } finally {
       setFetchingDetails(false);
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!selectedOrder) return;
+    setIsDeleting(true);
+    try {
+      if (selectedOrder.type === "logistics-ticket") {
+        await fetch(`/api/logistics/tickets/${selectedOrder.id}`, { method: "DELETE" });
+      } else {
+        await fetch(`/api/board/tasks/${selectedOrder.id}`, { method: "DELETE" });
+      }
+      toast.success("Thành công", "Đã xóa lệnh thành công");
+      setConfirmDeleteId(null);
+      setSelectedOrder(null);
+      fetch("/api/logistics/overview-orders").then(r => r.json()).then(setRawOrders);
+    } catch (e) {
+      toast.error("Lỗi", "Xóa thất bại");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -657,7 +680,14 @@ export default function LogisticsOverviewPage() {
             )}
           </div>
         </div>
-        <div className="offcanvas-footer p-3 border-top bg-light">
+        <div className="offcanvas-footer p-3 border-top bg-light d-flex gap-2">
+          <button 
+            className="btn btn-outline-danger flex-shrink-0"
+            onClick={() => setConfirmDeleteId(selectedOrder.id)}
+            title="Xóa lệnh này"
+          >
+            <i className="bi bi-trash3"></i>
+          </button>
           <button 
             className="btn btn-primary w-100" 
             disabled={selectedOrder?.type === "logistics-ticket" && selectedOrder.trangThai !== "PACKED"}
@@ -725,6 +755,18 @@ export default function LogisticsOverviewPage() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        variant="danger"
+        title="Xác nhận xóa lệnh"
+        message="Bạn có chắc chắn muốn xóa lệnh xuất/nhập kho này? Thao tác này không thể hoàn tác."
+        confirmLabel="Xóa lệnh"
+        cancelLabel="Hủy"
+        loading={isDeleting}
+        onConfirm={handleDeleteOrder}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }
