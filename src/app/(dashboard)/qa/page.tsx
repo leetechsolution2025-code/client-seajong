@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
-import { SectionTitle } from "@/components/ui/SectionTitle";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
 import toast from "react-hot-toast";
@@ -351,8 +351,10 @@ export default function QaPage() {
         .qa-inspections-table .badge { font-size: 11.5px !important; }
         .border-dotted { border-style: dotted !important; }
       `}</style>
-      <div className="bg-white rounded-top-4 shadow-sm border border-bottom-0 p-3 mb-0 qa-inspections-toolbar">
-        <div className="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3">
+      <FullWidthTableLayout
+        className="bg-white rounded-4 shadow-sm border flex-grow-1"
+        header={
+          <div className="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3 qa-inspections-toolbar py-2">
           {/* Các bộ lọc */}
           <div className="d-flex flex-column flex-md-row gap-2">
             {/* Bộ phận yêu cầu */}
@@ -405,20 +407,18 @@ export default function QaPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-bottom-4 shadow-sm border p-4 flex-grow-1 overflow-hidden d-flex flex-column">
-        <SectionTitle title="Danh sách các yêu cầu đánh giá chất lượng" icon="bi-clipboard-check" className="mb-4" />
-
-        <Table 
-          columns={columns}
-          rows={filteredInspections}
-          wrapperClassName="qa-inspections-table"
-          compact={true}
-          onRowClick={(row) => setSelectedInspection(row)}
-        />
-      </div>
+          </div>
+        }
+        table={
+          <Table 
+            columns={columns}
+            rows={filteredInspections}
+            wrapperClassName="qa-inspections-table"
+            compact={true}
+            onRowClick={(row) => setSelectedInspection(row)}
+          />
+        }
+      />
 
       {selectedInspection && !showIqcModal && !showOqcModal && (
         <>
