@@ -40,7 +40,7 @@ interface StockLine {
 interface NhapKhoModalProps { 
   onClose: () => void; 
   onSaved: () => void; 
-  initialItems?: { name: string, qty: number, unit?: string }[];
+  initialItems?: { name?: string, tenHang?: string, qty?: number, soLuong?: number, unit?: string }[];
   initialTaskId?: string;
 }
 
@@ -120,7 +120,8 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
       setResolvingItems(true);
       Promise.all(initialItems.map(async (it) => {
         // Remove (xN) suffix from QA tests if present
-        const cleanName = it.name.replace(/\s*\(x\d+\)$/, "");
+        const rawName = typeof it.name === 'string' ? it.name : (typeof it.tenHang === 'string' ? it.tenHang : "");
+        const cleanName = rawName.replace(/\s*\(x\d+\)$/, "");
         try {
           const res = await fetch(`/api/plan-finance/inventory/search?q=${encodeURIComponent(cleanName)}&limit=1`);
           const data = await res.json();
@@ -131,8 +132,8 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
             itemSearch: found ? found.tenHang : cleanName,
             suggestions: [],
             showSugg: false,
-            soLuong: it.qty,
-            soLuongThucTe: it.qty,
+            soLuong: it.qty || it.soLuong || 1,
+            soLuongThucTe: it.qty || it.soLuong || 1,
             donGia: found ? found.giaNhap : 0,
             viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
           } as StockLine;

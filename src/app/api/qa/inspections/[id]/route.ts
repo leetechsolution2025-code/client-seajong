@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     const params = await props.params;
     const { id } = params;
     const body = await req.json();
-    const { result, notes, passedQuantity } = body;
+    const { result, notes, passedQuantity, items } = body;
 
     const inspection = await prisma.qualityInspection.findUnique({
       where: { code: id } // Note: The frontend passes 'code' as 'id' in selectedInspection
@@ -112,6 +112,73 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
               })
             )
           );
+        }
+      }
+
+      // 3. Nếu là IQC và có items đạt -> Tạo lệnh nhập kho vật tư
+      if (inspection.type === "IQC" && passedQuantity > 0 && Array.isArray(items)) {
+        const storekeepers = await tx.employee.findMany({
+          where: {
+            status: "active",
+            OR: [
+              { departmentCode: { contains: "logistics" } },
+              { departmentName: { contains: "kho" } },
+              { departmentName: { contains: "Kho" } },
+              { position: { contains: "thủ kho" } }
+            ]
+          },
+          select: { userId: true }
+        });
+        const storekeeperUserIds = storekeepers.map((u: any) => u.userId).filter(Boolean) as string[];
+
+        const passedItems = items.filter((it: any) => parseInt(it.passQuantity?.toString() || "0", 10) > 0);
+        
+        if (passedItems.length > 0) {
+          const taskItems = passedItems.map((it: any) => ({
+            tenHang: it.name || it.productName || it.tenHang || "Vật tư không tên",
+            soLuong: parseInt(it.passQuantity?.toString() || "0", 10),
+            donVi: "Cái", // Defaulting to Cái, can be extended if needed
+            type: "Kho Vật Tư / Linh kiện",
+            isShortage: false
+          }));
+
+          const khoTask = await tx.task.create({
+            data: {
+              title: `Yêu cầu nhập kho vật tư (${inspection.code})`,
+              description: `Kiểm tra IQC có hàng hóa đạt yêu cầu. Đề nghị bộ phận Kho vận tiến hành nhập kho vật tư / linh kiện.\nTừ đơn: ${inspection.productName || "N/A"}`,
+              assigneeId: storekeeperUserIds[0] || session.user.id,
+              creatorId: session.user.id,
+              deptCode: "logistics",
+              priority: "high",
+              status: "pending",
+              actualResult: JSON.stringify(taskItems)
+            }
+          });
+
+          // Gửi Notification
+          if (storekeeperUserIds.length > 0) {
+            const khoNotif = await tx.notification.create({
+              data: {
+                title: `📦 Yêu cầu nhập kho vật tư mới`,
+                content: `Hàng hóa nhập từ nhà cung cấp đã vượt qua kiểm định IQC (${inspection.code}). Vui lòng tiến hành nhập kho vật tư / linh kiện.`,
+                type: "success",
+                priority: "high",
+                audienceType: "group",
+                audienceValue: JSON.stringify(storekeeperUserIds),
+                createdById: session.user.id
+              }
+            });
+            
+            await Promise.all(
+              storekeeperUserIds.map(uid =>
+                tx.notificationRecipient.upsert({
+                  where: { notificationId_userId: { notificationId: khoNotif.id, userId: uid } },
+                  update: {},
+                  create: { notificationId: khoNotif.id, userId: uid }
+                })
+              )
+            );
+          }
         }
       }
     });

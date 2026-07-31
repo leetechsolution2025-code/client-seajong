@@ -227,6 +227,65 @@ export default function QaPage() {
       toast.error("Lỗi hệ thống");
     }
   };
+  const handleSaveIqcResult = async () => {
+    if (!selectedInspection) return;
+    try {
+      // Calculate total passed
+      let totalPassed = 0;
+      let totalFailed = 0;
+      iqcFormData.items.forEach(item => {
+        totalPassed += parseInt(item.passQuantity?.toString() || "0", 10);
+        totalFailed += parseInt(item.failQuantity?.toString() || "0", 10);
+      });
+      
+      let overallResult = "Đạt";
+      if (totalPassed === 0 && totalFailed > 0) overallResult = "Không đạt";
+      else if (totalFailed > 0) overallResult = "Lỗi một phần";
+
+      const res = await fetch(`/api/qa/inspections/${selectedInspection.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          result: overallResult,
+          passedQuantity: totalPassed,
+          items: iqcFormData.items
+        })
+      });
+      if (res.ok) {
+        toast.success("Đã lưu kết quả IQC!");
+        setShowIqcModal(false);
+        setSelectedInspection(null);
+        // refresh list
+        fetch('/api/qa/inspections').then(r=>r.json()).then(data => {
+          if (Array.isArray(data)) {
+            setInspections(data.map(d => {
+              const meta = d.metadata ? (typeof d.metadata === 'string' ? JSON.parse(d.metadata) : d.metadata) : null;
+              return {
+                id: d.code,
+                type: d.type,
+                product: d.productName || d.inventoryItem?.tenHang || "Không xác định",
+                model: d.inventoryItem?.code || "",
+                inspector: d.requesterName || d.inspectorName || "Không xác định",
+                department: d.requesterDept || "Khác",
+                date: new Date(d.executionTime).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }),
+                result: d.status === "Chưa thực hiện" ? "Pending" : (d.result === "Đạt" ? "Pass" : "Fail"),
+                notes: d.notes,
+                poNumber: meta?.poNumber || meta?.purchaseOrderCode || "",
+                deliveryNote: meta?.deliveryNote || "",
+                metadata: meta
+              };
+            }));
+          }
+        });
+      } else {
+        toast.error("Lỗi khi lưu kết quả IQC");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Lỗi hệ thống");
+    }
+  };
+
 
   const [inspections, setInspections] = useState<any[]>([]);
 
@@ -704,7 +763,7 @@ export default function QaPage() {
                     <div className="p-2 border-top bg-light d-flex justify-content-between gap-2">
                        <button className="btn btn-light btn-sm border flex-grow-1" onClick={() => { setShowIqcModal(false); setSelectedInspection(null); }}>Hủy</button>
                        <button className="btn btn-primary btn-sm flex-grow-1" onClick={() => printDocumentById("iqc-preview-doc", "portrait", "IQC-" + selectedInspection.id)}><i className="bi bi-printer me-1"></i>In</button>
-                       <button className="btn btn-success btn-sm flex-grow-1" onClick={() => { setShowIqcModal(false); setSelectedInspection(null); }}><i className="bi bi-floppy me-1"></i>Lưu</button>
+                       <button className="btn btn-success btn-sm flex-grow-1" onClick={handleSaveIqcResult}><i className="bi bi-floppy me-1"></i>Lưu</button>
                     </div>
                   </div>
 

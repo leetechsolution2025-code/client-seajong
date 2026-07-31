@@ -54,7 +54,7 @@ export async function GET(_req: NextRequest) {
       prisma.task.findMany({
         where: {
           deptCode: "logistics",
-          status: "pending",
+          status: { in: ["pending", "completed", "done"] },
           title: { contains: "Lệnh xuất kho KVP" }
         },
         orderBy: { createdAt: "desc" },
@@ -64,12 +64,15 @@ export async function GET(_req: NextRequest) {
           actualResult: true, createdAt: true
         }
       }),
-      // Lệnh nhập kho thành phẩm (Task)
+      // Lệnh nhập kho thành phẩm / vật tư (Task)
       prisma.task.findMany({
         where: {
           deptCode: "logistics",
-          status: "pending",
-          title: { contains: "Nhập kho thành phẩm" }
+          status: { in: ["pending", "completed", "done"] },
+          OR: [
+            { title: { contains: "Nhập kho thành phẩm" } },
+            { title: { contains: "nhập kho vật tư" } }
+          ]
         },
         orderBy: { createdAt: "desc" },
         take: 100,
@@ -197,13 +200,13 @@ export async function GET(_req: NextRequest) {
         } catch(e) {}
         
         const qcCodeMatch = t.title.match(/\((QC-\S+)\)/);
-        const code = qcCodeMatch ? qcCodeMatch[1] : "OQC";
+        const code = qcCodeMatch ? qcCodeMatch[1] : "Nhập kho";
 
         return {
           id:        t.id,
           code:      code,
           type:      "material-import" as const,
-          typeLabel: "Nhập kho thành phẩm",
+          typeLabel: t.title.includes("thành phẩm") ? "Nhập kho thành phẩm" : "Nhập kho vật tư",
           customer:  null,
           tongTien:  null,
           trangThai: t.status,

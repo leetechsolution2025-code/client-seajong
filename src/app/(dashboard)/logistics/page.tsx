@@ -339,10 +339,10 @@ export default function LogisticsOverviewPage() {
                           <input 
                             className="form-check-input" 
                             type="checkbox" 
-                            checked={orders.length > 0 && selectedBatchOrders.size === orders.filter(o => !o.isAssigned).length}
+                            checked={orders.length > 0 && selectedBatchOrders.size === orders.filter(o => !o.isAssigned && o.type !== 'material-import').length}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedBatchOrders(new Set(orders.filter(o => !o.isAssigned).map(o => o.id)));
+                                setSelectedBatchOrders(new Set(orders.filter(o => !o.isAssigned && o.type !== 'material-import').map(o => o.id)));
                               } else {
                                 setSelectedBatchOrders(new Set());
                               }
@@ -355,8 +355,8 @@ export default function LogisticsOverviewPage() {
                           <input 
                             className="form-check-input" 
                             type="checkbox" 
-                            disabled={row.isAssigned}
-                            checked={selectedBatchOrders.has(row.id) || row.isAssigned}
+                            disabled={row.isAssigned || row.type === 'material-import'}
+                            checked={selectedBatchOrders.has(row.id) || Boolean(row.isAssigned)}
                             onChange={(e) => {
                               const newSet = new Set(selectedBatchOrders);
                               if (e.target.checked) {
@@ -423,7 +423,7 @@ export default function LogisticsOverviewPage() {
                           statusText = "Đang sản xuất";
                         } else if (lowerStatus === "completed" || lowerStatus === "done") {
                           statusColor = "bg-success";
-                          statusText = "Đã xuất kho";
+                          statusText = row.type === 'material-import' ? "Đã nhập kho" : "Đã xuất kho";
                         } else if (lowerStatus === "packed") {
                           statusColor = "bg-success";
                           statusText = "Đã gom đủ hàng";
@@ -708,8 +708,8 @@ export default function LogisticsOverviewPage() {
           initialTicketId={xuatKhoTicketId}
           onClose={() => setShowXuatKhoModal(false)}
           onSaved={() => {
-            setShowXuatKhoModal(false);
-            window.location.reload();
+            // refresh data without closing modal
+            fetch("/api/logistics/overview-orders").then(r => r.json()).then(setOrderDetails);
           }}
         />
       )}
@@ -720,8 +720,8 @@ export default function LogisticsOverviewPage() {
           initialTaskId={nhapKhoTaskId}
           onClose={() => setShowNhapKhoModal(false)}
           onSaved={() => {
-            setShowNhapKhoModal(false);
-            window.location.reload();
+            // refresh data without closing modal
+            fetch("/api/logistics/overview-orders").then(r => r.json()).then(setOrderDetails);
           }}
         />
       )}
