@@ -67,6 +67,8 @@ export default function QaPage() {
     batch: "",
     totalQuantity: "",
     sampleQuantity: "",
+    passQuantity: "",
+    failQuantity: "",
     check1: "pass",
     check2: "pass",
     check3: "pass",
@@ -116,7 +118,9 @@ export default function QaPage() {
           ...it,
           model: "",
           batch: "",
-          sampleQuantity: ""
+          sampleQuantity: "",
+          passQuantity: "",
+          failQuantity: ""
         }));
       } else {
         // Fallback cho bản ghi cũ
@@ -125,7 +129,9 @@ export default function QaPage() {
           model: "",
           batch: "",
           quantity: selectedInspection.metadata.quantity || "",
-          sampleQuantity: ""
+          sampleQuantity: "",
+          passQuantity: "",
+          failQuantity: ""
         }];
       }
 
@@ -594,6 +600,34 @@ export default function QaPage() {
                             />
                           </div>
                         </div>
+                        <div className="row g-2 mt-1">
+                          <div className="col-6">
+                            <label className="form-label small fw-medium">SL Đạt</label>
+                            <input 
+                              type="number" 
+                              className="form-control form-control-sm text-success fw-bold" 
+                              value={item.passQuantity || ""} 
+                              onChange={(e) => {
+                                const newItems = [...iqcFormData.items];
+                                newItems[idx].passQuantity = e.target.value;
+                                setIqcFormData(prev => ({ ...prev, items: newItems }));
+                              }} 
+                            />
+                          </div>
+                          <div className="col-6">
+                            <label className="form-label small fw-medium">SL Không đạt</label>
+                            <input 
+                              type="number" 
+                              className="form-control form-control-sm text-danger fw-bold" 
+                              value={item.failQuantity || ""} 
+                              onChange={(e) => {
+                                const newItems = [...iqcFormData.items];
+                                newItems[idx].failQuantity = e.target.value;
+                                setIqcFormData(prev => ({ ...prev, items: newItems }));
+                              }} 
+                            />
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -782,8 +816,8 @@ export default function QaPage() {
                           <tr>
                             <th className="border-dark" style={{ width: "5%" }}>STT</th>
                             <th className="border-dark" style={{ width: "40%" }}>Tên linh kiện / Sản phẩm</th>
-                            <th className="border-dark" style={{ width: "15%" }}>Đạt</th>
-                            <th className="border-dark" style={{ width: "15%" }}>Không đạt</th>
+                            <th className="border-dark" style={{ width: "15%" }}>SL Đạt</th>
+                            <th className="border-dark" style={{ width: "15%" }}>SL Không đạt</th>
                             <th className="border-dark" style={{ width: "25%" }}>Kết luận</th>
                           </tr>
                         </thead>
@@ -799,23 +833,11 @@ export default function QaPage() {
                                   </div>
                                 )}
                               </td>
-                              <td className="border-dark fw-bold">
-                                <input 
-                                  type="checkbox" 
-                                  className="form-check-input border-dark" 
-                                  style={{ transform: "scale(1.2)" }}
-                                  checked={iqcFormData.result === "pass"} 
-                                  onChange={handlePassCheck} 
-                                />
+                              <td className="border-dark fw-bold text-success fs-6">
+                                {item.passQuantity}
                               </td>
-                              <td className="border-dark fw-bold">
-                                <input 
-                                  type="checkbox" 
-                                  className="form-check-input border-dark" 
-                                  style={{ transform: "scale(1.2)" }}
-                                  checked={iqcFormData.result === "fail"} 
-                                  onChange={handleFailCheck} 
-                                />
+                              <td className="border-dark fw-bold text-danger fs-6">
+                                {item.failQuantity}
                               </td>
                               <td className="border-dark fw-bold">
                                 {iqcFormData.result === "pass" ? "CHẤP NHẬN" : ""}
@@ -827,16 +849,12 @@ export default function QaPage() {
                       </table>
 
                       <div className="row text-center mt-5 pt-4">
-                        <div className="col-4">
-                          <div className="fw-bold">ĐẠI DIỆN GIAO HÀNG</div>
+                        <div className="col-6">
+                          <div className="fw-bold text-uppercase">Bộ phận Mua hàng</div>
                           <div className="fst-italic" style={{ fontSize: "10pt" }}>(Ký và ghi rõ họ tên)</div>
                         </div>
-                        <div className="col-4">
-                          <div className="fw-bold">THỦ KHO</div>
-                          <div className="fst-italic" style={{ fontSize: "10pt" }}>(Ký và ghi rõ họ tên)</div>
-                        </div>
-                        <div className="col-4">
-                          <div className="fw-bold">NGƯỜI LẬP</div>
+                        <div className="col-6">
+                          <div className="fw-bold text-uppercase">Bộ phận Quản lý Chất lượng</div>
                           <div className="fst-italic" style={{ fontSize: "10pt" }}>(Ký và ghi rõ họ tên)</div>
                         </div>
                       </div>
@@ -901,6 +919,14 @@ export default function QaPage() {
                       <div className="col-6">
                         <label className="form-label small fw-medium">Số lượng mẫu</label>
                         <input type="number" className="form-control form-control-sm" name="sampleQuantity" value={oqcFormData.sampleQuantity} onChange={handleOqcChange} />
+                      </div>
+                      <div className="col-6">
+                        <label className="form-label small fw-medium">SL Đạt</label>
+                        <input type="number" className="form-control form-control-sm text-success fw-bold" name="passQuantity" value={oqcFormData.passQuantity} onChange={handleOqcChange} />
+                      </div>
+                      <div className="col-6">
+                        <label className="form-label small fw-medium">SL Không đạt</label>
+                        <input type="number" className="form-control form-control-sm text-danger fw-bold" name="failQuantity" value={oqcFormData.failQuantity} onChange={handleOqcChange} />
                       </div>
                     </div>
                   </div>
@@ -1105,8 +1131,8 @@ export default function QaPage() {
                           <tr>
                             <th className="border-dark" style={{ width: "5%" }}>STT</th>
                             <th className="border-dark" style={{ width: "40%" }}>Tên linh kiện / Sản phẩm</th>
-                            <th className="border-dark" style={{ width: "15%" }}>Đạt</th>
-                            <th className="border-dark" style={{ width: "15%" }}>Không đạt</th>
+                            <th className="border-dark" style={{ width: "15%" }}>SL Đạt</th>
+                            <th className="border-dark" style={{ width: "15%" }}>SL Không đạt</th>
                             <th className="border-dark" style={{ width: "25%" }}>Kết luận</th>
                           </tr>
                         </thead>
@@ -1121,23 +1147,11 @@ export default function QaPage() {
                                 </div>
                               )}
                             </td>
-                            <td className="border-dark fw-bold">
-                              <input 
-                                type="checkbox" 
-                                className="form-check-input border-dark" 
-                                style={{ transform: "scale(1.2)" }}
-                                checked={oqcFormData.result === "pass"} 
-                                onChange={handleOqcPassCheck} 
-                              />
+                            <td className="border-dark fw-bold text-success fs-6">
+                              {oqcFormData.passQuantity}
                             </td>
-                            <td className="border-dark fw-bold">
-                              <input 
-                                type="checkbox" 
-                                className="form-check-input border-dark" 
-                                style={{ transform: "scale(1.2)" }}
-                                checked={oqcFormData.result === "fail"} 
-                                onChange={handleOqcFailCheck} 
-                              />
+                            <td className="border-dark fw-bold text-danger fs-6">
+                              {oqcFormData.failQuantity}
                             </td>
                             <td className="border-dark fw-bold">
                               {oqcFormData.result === "pass" ? "CHẤP NHẬN" : ""}
@@ -1148,16 +1162,12 @@ export default function QaPage() {
                       </table>
 
                       <div className="row text-center mt-5 pt-4">
-                        <div className="col-4">
-                          <div className="fw-bold">QUẢN ĐỐC PHÂN XƯỞNG</div>
+                        <div className="col-6">
+                          <div className="fw-bold text-uppercase">Bộ phận Sản xuất</div>
                           <div className="fst-italic" style={{ fontSize: "10pt" }}>(Ký và ghi rõ họ tên)</div>
                         </div>
-                        <div className="col-4">
-                          <div className="fw-bold">NHÂN VIÊN OQC</div>
-                          <div className="fst-italic" style={{ fontSize: "10pt" }}>(Ký và ghi rõ họ tên)</div>
-                        </div>
-                        <div className="col-4">
-                          <div className="fw-bold">TRƯỞNG BỘ PHẬN QC</div>
+                        <div className="col-6">
+                          <div className="fw-bold text-uppercase">Bộ phận Quản lý Chất lượng</div>
                           <div className="fst-italic" style={{ fontSize: "10pt" }}>(Ký và ghi rõ họ tên)</div>
                         </div>
                       </div>
