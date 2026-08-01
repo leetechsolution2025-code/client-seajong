@@ -223,8 +223,8 @@ export function PhieuXuatKhoPreview({
                 <td style={{ border: B1, padding: "5px 4px", textAlign: "center", fontWeight: 700, color: diff !== 0 ? "#b45309" : "#000" }}>
                   {l.soLuong.toLocaleString()}
                 </td>
-                <td style={{ border: B1, padding: "5px 6px", textAlign: "right" }}>{l.donGia > 0 ? fmtVnd(l.donGia) : ""}</td>
-                <td style={{ border: B1, padding: "5px 6px", textAlign: "right", fontWeight: 600 }}>{fmtVnd(tt)}</td>
+                <td style={{ border: B1, padding: "5px 6px", textAlign: "center" }}>***</td>
+                <td style={{ border: B1, padding: "5px 6px", textAlign: "center", fontWeight: 600 }}>***</td>
               </tr>
             );
           })}
@@ -245,7 +245,7 @@ export function PhieuXuatKhoPreview({
             <td style={{ border: B1, padding: "5px 4px", textAlign: "center" }}>{tongSLYC > 0 ? tongSLYC.toLocaleString() : <b>0</b>}</td>
             <td style={{ border: B1, padding: "5px 4px", textAlign: "center" }}>{tongSL > 0 ? tongSL.toLocaleString() : <b>0</b>}</td>
             <td style={{ border: B1, padding: "5px 4px" }}>&nbsp;</td>
-            <td style={{ border: B1, padding: "5px 6px", textAlign: "right" }}><b>{fmtVnd(tongTien)}</b></td>
+            <td style={{ border: B1, padding: "5px 6px", textAlign: "center" }}><b>***</b></td>
           </tr>
         </tbody>
       </table>
@@ -253,7 +253,7 @@ export function PhieuXuatKhoPreview({
       {/* Tổng tiền bằng chữ */}
       <p style={{ margin: "6px 0", fontSize: 13 }}>
         - Tổng số tiền (viết bằng chữ):&nbsp;
-        <strong style={{ fontStyle: "italic" }}>{soThanhChu(tongTien)}</strong>
+        <strong style={{ fontStyle: "italic" }}>***</strong>
       </p>
 
       {/* Số chứng từ gốc */}

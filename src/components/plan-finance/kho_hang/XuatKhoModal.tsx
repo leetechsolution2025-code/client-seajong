@@ -955,7 +955,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
               <div style={{ width: 1, height: 28, background: "var(--border)" }} />
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Giá trị</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#f59e0b", lineHeight: 1.2 }}>{fmtVnd(tongTien)}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#f59e0b", lineHeight: 1.2 }}>***</div>
               </div>
             </div>
           </div>
@@ -1302,11 +1302,11 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
       <input placeholder="Tầng" value={line.viTriTang} onChange={e => !locked && onUpdate("viTriTang", e.target.value)} readOnly={locked} style={{ ...cellInput, textAlign: "center" }} title="Tầng" />
 
       {/* Đơn giá */}
-      <CurrencyInput value={line.donGia} onChange={v => !locked && onUpdate("donGia", v)} placeholder="0" style={{ ...cellInput, textAlign: "right" }} />
+      <input value="***" readOnly title="Bảo mật giá" style={{ ...cellInput, textAlign: "right", background: "var(--muted)", color: "var(--muted-foreground)", cursor: "not-allowed" }} />
 
       {/* Thành tiền */}
-      <div style={{ textAlign: "right", fontSize: 12.5, fontWeight: 700, color: thanhTien > 0 ? "var(--foreground)" : "var(--muted-foreground)" }}>
-        {thanhTien > 0 ? thanhTien.toLocaleString("vi-VN") + " ₫" : "—"}
+      <div style={{ textAlign: "right", fontSize: 12.5, fontWeight: 700, color: "var(--muted-foreground)" }}>
+        ***
       </div>
 
       {/* Remove */}

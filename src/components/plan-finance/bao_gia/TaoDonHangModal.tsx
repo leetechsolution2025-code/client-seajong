@@ -311,12 +311,12 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
   const totalBomCost = React.useMemo(() => {
     if (!bomDetailData || !bomDetailData.vatTu) return 0;
-    return bomDetailData.vatTu.reduce((acc: number, vt: any) => acc + (vt.material?.giaBan || vt.material?.price || 0) * (vt.soLuong || 0), 0);
+    return bomDetailData.vatTu.reduce((acc: number, vt: any) => acc + (vt.material?.giaNhap || 0) * (vt.soLuong || 0), 0);
   }, [bomDetailData]);
 
   const proposedDonGia = React.useMemo(() => {
     if (!originalBomData || !hasBomChanged) return formItem.donGia;
-    const origCost = originalBomData.vatTu?.reduce((acc: number, vt: any) => acc + (vt.material?.giaBan || vt.material?.price || 0) * (vt.soLuong || 0), 0) || 0;
+    const origCost = originalBomData.vatTu?.reduce((acc: number, vt: any) => acc + (vt.material?.giaNhap || 0) * (vt.soLuong || 0), 0) || 0;
     if (origCost > 0) {
       const ratio = initialDonGiaRef.current / origCost;
       return Math.round(totalBomCost * ratio);
@@ -445,6 +445,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           unit: altMaterial.unit || altMaterial.donVi,
           donVi: altMaterial.unit || altMaterial.donVi,
           price: altMaterial.giaNhap || altMaterial.price || 0,
+          giaNhap: altMaterial.giaNhap || altMaterial.price || 0,
           giaBan: altMaterial.giaBan || 0,
         }
       };
@@ -478,6 +479,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         unit: newMaterial.unit || newMaterial.donVi,
         donVi: newMaterial.unit || newMaterial.donVi,
         price: newMaterial.giaNhap || newMaterial.price || 0,
+        giaNhap: newMaterial.giaNhap || newMaterial.price || 0,
         giaBan: newMaterial.giaBan || 0,
       }
     };
@@ -492,13 +494,15 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     setSavingNewBom(true);
     try {
       const payload = {
+        code: previewCode || undefined,
         originalCode: originalBomData.code,
         tenDinhMuc: newBomDescription.trim(),
         materialItemId: formItem.inventoryId || null,
         manufacturedProductId: null,
         vatTu: bomDetailData.vatTu.map((v: any) => ({
-          materialId: v.materialId || null,
-          tenVatTu: v.tenVatTu,
+          inventoryItemId: v.material?.id || v.inventoryItemId || null,
+          maVatTu: v.material?.code || v.maVatTu || null,
+          tenVatTu: v.material?.tenHang || v.material?.name || v.tenVatTu,
           soLuong: v.soLuong,
           donViTinh: v.donViTinh || v.material?.unit || v.material?.donVi || "",
           ghiChu: v.ghiChu || ""
@@ -1317,10 +1321,10 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         {originalBomData?.tenDinhMuc || bomDetailData.tenDinhMuc}
                       </p>
                       <div className="text-end text-muted" style={{ fontSize: 12 }}>
-                        Giá vốn: <span className="fw-semibold text-danger">{fmt(Number(totalBomCost || 0))} ₫</span>
+                        Giá vốn: <span className="fw-semibold text-danger">*** ₫</span>
                         <span className="mx-1">|</span>
                         Tỷ lệ: <span className="fw-semibold text-success">
-                          {totalBomCost > 0 ? (Number(proposedDonGia || 0) / Number(totalBomCost)).toFixed(2) : "0.00"}x
+                          ***x
                         </span>
                       </div>
                     </div>
@@ -1370,7 +1374,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                               </div>
                               <div>
                                 <h6 className="mb-0 fw-semibold" style={{ fontSize: 13, color: "var(--foreground)" }}>
-                                  {vt.tenVatTu || vt.material?.name || vt.material?.tenHang}
+                                  {vt.material?.tenHang || vt.material?.name || vt.tenVatTu}
                                 </h6>
                                 <span className="text-muted" style={{ fontSize: 11 }}>
                                   Mã: {vt.material?.code || "---"}
