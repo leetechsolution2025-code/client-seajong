@@ -579,11 +579,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 ? item.stocks[0].warehouse.code
                 : item.defaultWarehouse;
 
-              if (isKinhDoanh) {
-                // Phòng kinh doanh chỉ thấy KHO-CHINH
-                return whCode === "KHO-CHINH";
-              }
-              // Các bộ phận khác: KHO-CHINH và KVP
               return whCode === "KHO-CHINH" || whCode === "KVP";
             });
             setSuggest(filtered);
@@ -1158,9 +1153,9 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         type="button"
                         className="btn btn-light border dropdown-toggle"
                         data-bs-toggle="dropdown"
-                        disabled={!formItem.dinhMucId}
+                        disabled={!formItem.dinhMucId || isKinhDoanh}
                         style={{ padding: "7px 12px", borderRadius: 6 }}
-                        title="Tuỳ chọn định mức"
+                        title={isKinhDoanh ? "Không có quyền chỉnh sửa định mức" : "Tuỳ chọn định mức"}
                       >
                         <i className="bi bi-three-dots"></i>
                       </button>
