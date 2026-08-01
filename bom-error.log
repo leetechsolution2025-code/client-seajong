@@ -1,0 +1,33 @@
+PrismaClientKnownRequestError: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dinhMuc.create()` invocation in
+/Users/leanhvan/client-seajong/.next/dev/server/chunks/[root-of-the-server]__389d99be._.js:422:163
+
+  419     }
+  420 }
+  421 // Tạo định mức mới
+→ 422 const dm = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dinhMuc.create(
+Unique constraint failed on the fields: (`code`)
+    at ei.handleRequestError (/Users/leanhvan/client-seajong/node_modules/@prisma/client/runtime/library.js:121:7268)
+    at ei.handleAndLogRequestError (/Users/leanhvan/client-seajong/node_modules/@prisma/client/runtime/library.js:121:6593)
+    at ei.request (/Users/leanhvan/client-seajong/node_modules/@prisma/client/runtime/library.js:121:6300)
+    at async a (/Users/leanhvan/client-seajong/node_modules/@prisma/client/runtime/library.js:130:9551)
+    at async POST (/Users/leanhvan/client-seajong/.next/dev/server/chunks/[root-of-the-server]__389d99be._.js:422:20)
+    at async AppRouteRouteModule.do (/Users/leanhvan/client-seajong/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:37866)
+    at async AppRouteRouteModule.handle (/Users/leanhvan/client-seajong/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:45156)
+    at async responseGenerator (/Users/leanhvan/client-seajong/.next/dev/server/chunks/node_modules_next_62331262._.js:16529:38)
+    at async AppRouteRouteModule.handleResponse (/Users/leanhvan/client-seajong/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:1:191938)
+    at async handleResponse (/Users/leanhvan/client-seajong/.next/dev/server/chunks/node_modules_next_62331262._.js:16592:32)
+    at async Module.handler (/Users/leanhvan/client-seajong/.next/dev/server/chunks/node_modules_next_62331262._.js:16645:13)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/leanhvan/client-seajong/node_modules/next/dist/server/base-server.js:1442:9)
+    at async DevServer.renderPageComponent (/Users/leanhvan/client-seajong/node_modules/next/dist/server/base-server.js:1494:24)
+    at async DevServer.renderToResponseImpl (/Users/leanhvan/client-seajong/node_modules/next/dist/server/base-server.js:1544:32)
+    at async DevServer.pipeImpl (/Users/leanhvan/client-seajong/node_modules/next/dist/server/base-server.js:1038:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/leanhvan/client-seajong/node_modules/next/dist/server/next-server.js:395:17)
+    at async DevServer.handleRequestImpl (/Users/leanhvan/client-seajong/node_modules/next/dist/server/base-server.js:929:17)
+    at async /Users/leanhvan/client-seajong/node_modules/next/dist/server/dev/next-dev-server.js:387:20
+    at async Span.traceAsyncFn (/Users/leanhvan/client-seajong/node_modules/next/dist/trace/trace.js:157:20)
+    at async DevServer.handleRequest (/Users/leanhvan/client-seajong/node_modules/next/dist/server/dev/next-dev-server.js:383:24)
+    at async invokeRender (/Users/leanhvan/client-seajong/node_modules/next/dist/server/lib/router-server.js:248:21)
+    at async handleRequest (/Users/leanhvan/client-seajong/node_modules/next/dist/server/lib/router-server.js:447:24)
+    at async requestHandlerImpl (/Users/leanhvan/client-seajong/node_modules/next/dist/server/lib/router-server.js:496:13)
+    at async Server.requestListener (/Users/leanhvan/client-seajong/node_modules/next/dist/server/lib/start-server.js:226:13)

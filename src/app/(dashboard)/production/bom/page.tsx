@@ -341,12 +341,10 @@ export default function BOMPage() {
 
   const fetchBom = async (bomId: string | null, product: any = null) => {
     if (!bomId) {
-      const nextIndex = (product?.dinhMucs?.length || 0) + 1;
-      const nextSuffix = String(nextIndex).padStart(2, '0');
       setBomData({
         id: undefined,
-        code: `DM-${product?.code || Date.now()}-${nextSuffix}`,
-        tenDinhMuc: `Định mức ${(product?.tenHang || product?.name) || ""}`,
+        code: `DM-${product?.code || Date.now()}`,
+        tenDinhMuc: `Định mức tiêu chuẩn ${(product?.tenHang || product?.name) || ""}`,
         vatTu: []
       });
       return;
@@ -426,7 +424,7 @@ export default function BOMPage() {
     try {
       let res;
       if (bomData.id) {
-        res = await fetch(`/api/production/bom/${selectedProduct?.id || bomData?.id}`, {
+        res = await fetch(`/api/production/bom/${bomData.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(bomData)
@@ -496,6 +494,8 @@ export default function BOMPage() {
         ...prev.vatTu,
         {
           materialId: material.id,
+          inventoryItemId: material.id,
+          maVatTu: material.code,
           tenVatTu: material.tenHang || material.name,
           soLuong: 1,
           donViTinh: material.donVi || material.unit || "cái",
@@ -827,14 +827,27 @@ export default function BOMPage() {
                         onChange={(e) => {
                           const val = e.target.value;
                           if (val === "NEW") {
-                            const nextIndex = selectedProduct?.dinhMucs?.length || 1;
-                            const nextSuffix = String(nextIndex).padStart(2, '0');
-                            setBomData((prev: any) => ({
-                              ...prev,
-                              id: undefined,
-                              code: `DM-${selectedProduct?.code || Date.now()}-${nextSuffix}`,
-                              tenDinhMuc: `Biến thể của định mức tiêu chuẩn ${(selectedProduct?.tenHang || selectedProduct?.name) || ""}`
-                            }));
+                            const originalCode = `DM-${selectedProduct?.code || Date.now()}`;
+                            fetch(`/api/production/bom/next-code?originalCode=${originalCode}`)
+                              .then(r => r.json())
+                              .then(d => {
+                                setBomData((prev: any) => ({
+                                  ...prev,
+                                  id: undefined,
+                                  code: d.nextCode || `${originalCode}-01`,
+                                  tenDinhMuc: `Biến thể của định mức tiêu chuẩn ${(selectedProduct?.tenHang || selectedProduct?.name) || ""}`
+                                }));
+                              })
+                              .catch(() => {
+                                const nextIndex = (selectedProduct?.dinhMucs?.length || 0) + 1;
+                                const nextSuffix = String(nextIndex).padStart(2, '0');
+                                setBomData((prev: any) => ({
+                                  ...prev,
+                                  id: undefined,
+                                  code: `${originalCode}-${nextSuffix}`,
+                                  tenDinhMuc: `Biến thể của định mức tiêu chuẩn ${(selectedProduct?.tenHang || selectedProduct?.name) || ""}`
+                                }));
+                              });
                           } else {
                             fetchBom(val);
                           }
@@ -1173,6 +1186,8 @@ export default function BOMPage() {
                             newVatTu[swapIndex] = {
                               ...newVatTu[swapIndex],
                               materialId: m.id,
+                              inventoryItemId: m.id,
+                              maVatTu: m.code,
                               tenVatTu: m.tenHang || m.name,
                               donViTinh: m.donVi || m.unit || "cái",
                               material: m
