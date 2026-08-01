@@ -218,13 +218,13 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
           { name: "Tạm ứng và chi phí", href: "/finance/advances", icon: "bi-cash" },
         ]
       },
-      {
-        group: "Kế toán thuế", items: [
-          { name: "Lập tờ khai và báo cáo thuế", href: "/finance/tax/declarations-reports", icon: "bi-file-earmark-text" },
-          { name: "Kiểm tra hoá đơn", href: "/finance/tax/invoices-check", icon: "bi-receipt-cutoff" },
-          { name: "Tính toán và tối ưu", href: "/finance/tax/optimization", icon: "bi-calculator" },
-        ]
-      },
+      // {
+      //   group: "Kế toán thuế", items: [
+      //     { name: "Lập tờ khai và báo cáo thuế", href: "/finance/tax/declarations-reports", icon: "bi-file-earmark-text" },
+      //     { name: "Kiểm tra hoá đơn", href: "/finance/tax/invoices-check", icon: "bi-receipt-cutoff" },
+      //     { name: "Tính toán và tối ưu", href: "/finance/tax/optimization", icon: "bi-calculator" },
+      //   ]
+      // },
       {
         group: "Báo cáo và phân tích", items: [
           { name: "Báo cáo tài chính", href: "/finance/reports", icon: "bi-file-earmark-bar-graph", requiredOrder: 2 },

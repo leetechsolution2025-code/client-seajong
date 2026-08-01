@@ -262,7 +262,8 @@ export async function GET(
       const debts = await prisma.debt.findMany({
         where: {
           type: { in: ["phai-thu", "RECEIVABLE"] },
-          partnerName: customerName,
+          partnerName: { startsWith: customerName },
+          referenceId: { notIn: [order.code, order.id].filter(Boolean) as string[] }
         },
         select: { amount: true, paidAmount: true }
       });
