@@ -85,12 +85,27 @@ export async function GET(req: NextRequest) {
 
   // Nếu showAll (tắt "Có biến động"), lấy TOÀN BỘ danh mục vật tư/hàng hóa đang active
   if (showAll) {
-    const allItems = await prisma.inventoryItem.findMany({
-      select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true }
-    });
-    for (const it of allItems) {
-      if (!itemStockMap.has(it.id)) {
-        itemStockMap.set(it.id, { item: it, currentSL: 0 });
+    const wh = await prisma.warehouse.findUnique({ where: { id: warehouseId } });
+    let itemFilter: any = {};
+    if (wh?.code === "KHO-CHINH") {
+      itemFilter = { loai: "hang-hoa" };
+    } else if (wh?.code === "KVP") {
+      itemFilter = { loai: "vat-tu" };
+    } else if (wh?.code === "KHO-LOI") {
+      // Kho lỗi không có danh mục cụ thể, không cần load toàn bộ 
+      // để tránh rác báo cáo bằng hàng nghìn dòng rỗng.
+      itemFilter = { id: "none" }; 
+    }
+
+    if (itemFilter.id !== "none") {
+      const allItems = await prisma.inventoryItem.findMany({
+        where: itemFilter,
+        select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true }
+      });
+      for (const it of allItems) {
+        if (!itemStockMap.has(it.id)) {
+          itemStockMap.set(it.id, { item: it, currentSL: 0 });
+        }
       }
     }
   }
