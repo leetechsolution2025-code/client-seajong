@@ -353,7 +353,7 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
             ))}
           </select>
 
-          <div className="d-flex flex-fill w-100 w-md-auto" style={{ gap: "10px" }}>
+          <div className="d-flex flex-fill" style={{ gap: "10px", minWidth: 0 }}>
             {/* Lọc theo trạng thái */}
             <select 
               value={filterStatus}
