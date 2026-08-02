@@ -93,11 +93,11 @@ export function printDocumentById(
     .pdf-cover-page { 
       margin: 0 !important; 
       width: auto; 
-      height: 297mm; 
+      min-height: 297mm; 
       padding: 0 !important; 
       page-break-after: always; 
       position: relative; 
-      overflow: hidden; 
+      overflow: visible; 
       background: #ffffff !important; 
     }
     .pdf-content-page { 
@@ -235,7 +235,7 @@ export function PrintPreviewModal({
         /* Print layout classes for screen mode (mimicking pages) */
         .pdf-cover-page {
           width: ${pageWidth};
-          height: ${pageHeight}; 
+          min-height: ${pageHeight}; 
           background: #ffffff;
           box-shadow: 0 4px 16px rgba(0,0,0,0.1);
           flex-shrink: 0;
@@ -441,13 +441,13 @@ export function PrintPreviewModal({
           .pdf-cover-page { 
             margin: 0 !important; 
             width: auto; 
-            height: 297mm; 
+            min-height: 297mm; 
             padding: 0 !important; 
             page-break-after: always; 
             box-shadow: none; 
             border: none;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
             background: #ffffff !important;
             -webkit-print-color-adjust: exact;
           }

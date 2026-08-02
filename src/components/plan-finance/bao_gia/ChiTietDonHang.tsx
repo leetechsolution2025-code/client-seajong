@@ -677,7 +677,6 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                             )}
                             <div>
                               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: "#1e293b" }}>{line.tenHang}</div>
-                              {line.inventoryItem?.code && <div style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace" }}>Mã: {line.inventoryItem.code}</div>}
                             </div>
                           </div>
                         </td>

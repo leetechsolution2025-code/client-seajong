@@ -278,7 +278,6 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
                       )}
                       <div>
                         <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: "#1e293b" }}>{line.name}</div>
-                        {(line as any).code && <div style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace" }}>Mã: {(line as any).code}</div>}
                       </div>
                     </div>
                   </td>

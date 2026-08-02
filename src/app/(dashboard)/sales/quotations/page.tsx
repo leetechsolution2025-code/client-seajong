@@ -822,10 +822,10 @@ export function QuotationsContent() {
                   }}
                 />
               </div>
-              <div className="offcanvas-body p-4 d-flex flex-column overflow-y-auto">
+              <div className="offcanvas-body p-4 d-flex flex-column overflow-hidden">
                 {!isCreatingNewCustomer ? (
-                  <div className="d-flex flex-column gap-3">
-                    <div className="d-flex gap-2">
+                  <div className="d-flex flex-column gap-3 h-100">
+                    <div className="d-flex gap-2 flex-shrink-0">
                       <div className="position-relative flex-grow-1">
                         <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style={{ fontSize: 13 }} />
                         <input
@@ -853,7 +853,7 @@ export function QuotationsContent() {
                     </div>
 
                     <button
-                      className="btn w-100 d-flex align-items-center justify-content-between p-3 rounded-3 border text-start shadow-sm"
+                      className="btn w-100 d-flex align-items-center justify-content-between p-3 rounded-3 border text-start shadow-sm flex-shrink-0"
                       onClick={handleSelectWalkIn}
                       style={{
                         backgroundColor: "rgba(0, 48, 135, 0.04)",
@@ -875,9 +875,9 @@ export function QuotationsContent() {
                       <i className="bi bi-chevron-right" />
                     </button>
 
-                    <div className="border-top pt-2 mt-1">
-                      <div className="text-muted small fw-bold text-uppercase mb-2" style={{ letterSpacing: "0.04em", fontSize: 10 }}>Khách hàng hiện tại</div>
-                      <div className="overflow-auto list-group rounded-0" style={{ maxHeight: 220 }}>
+                    <div className="border-top pt-2 mt-1 d-flex flex-column flex-grow-1" style={{ minHeight: 0 }}>
+                      <div className="text-muted small fw-bold text-uppercase mb-2 flex-shrink-0" style={{ letterSpacing: "0.04em", fontSize: 10 }}>Khách hàng hiện tại</div>
+                      <div className="overflow-auto list-group rounded-0 flex-grow-1">
                         {customersList.length === 0 ? (
                           <div className="text-center py-4 text-muted small">
                             <i className="bi bi-inbox fs-4 d-block mb-1 opacity-50" />
@@ -905,7 +905,7 @@ export function QuotationsContent() {
                     </div>
                   </div>
                 ) : (
-                  <form onSubmit={handleCreateCustomerSubmit} className="d-flex flex-column gap-3">
+                  <form onSubmit={handleCreateCustomerSubmit} className="d-flex flex-column gap-3 h-100 overflow-y-auto">
                     <div>
                       <label className="form-label fw-bold text-muted text-uppercase mb-1" style={{ fontSize: 10.5, letterSpacing: "0.04em" }}>Tên khách hàng *</label>
                       <input
@@ -941,7 +941,7 @@ export function QuotationsContent() {
                       />
                     </div>
 
-                    <div className="d-flex justify-content-end gap-2 border-top pt-3 mt-2">
+                    <div className="d-flex justify-content-end gap-2 border-top pt-3 mt-auto flex-shrink-0">
                       <button
                         type="button"
                         className="btn btn-light rounded-3"
