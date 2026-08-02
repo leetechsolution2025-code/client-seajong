@@ -23,19 +23,25 @@ export async function POST(req: NextRequest) {
         let mat = null;
         if (v.maVatTu) {
           mat = await prisma.inventoryItem.findFirst({ where: { code: v.maVatTu } });
-        }
-        if (!mat && v.tenVatTu) {
+        } else if (v.tenVatTu) {
+          // Sometimes tenVatTu is actually the code
           mat = await prisma.inventoryItem.findFirst({
-            where: { tenHang: v.tenVatTu }
+            where: {
+              OR: [
+                { tenHang: v.tenVatTu },
+                { code: v.tenVatTu }
+              ]
+            }
           });
         }
+        
         if (!mat) {
           const defaultPrice = 10000 + ((v.tenVatTu || v.maVatTu || "Vattu").length * 2000);
           const giaBan = Math.round((defaultPrice * 1.2) / 1000) * 1000;
           mat = await prisma.inventoryItem.create({
             data: {
               tenHang: v.tenVatTu || v.maVatTu || "Chưa có tên",
-              code: v.maVatTu || `AUTO-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+              code: v.maVatTu || v.tenVatTu || `AUTO-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
               donVi: v.donViTinh || "Cái",
               giaNhap: defaultPrice,
               giaBan: giaBan,
