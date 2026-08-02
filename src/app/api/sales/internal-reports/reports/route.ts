@@ -37,8 +37,9 @@ export async function GET(req: NextRequest) {
     });
 
     if (criteria.length === 0) {
-      // Tìm cấu hình gần nhất để lấy cấu trúc tên tiêu chí
+      // Tìm cấu hình gần nhất (cùng type) để lấy cấu trúc tên tiêu chí
       const latest = await prisma.internalKpiCriteria.findFirst({
+        where: type ? { type } : undefined,
         orderBy: [{ year: "desc" }, { month: "desc" }]
       });
       if (latest) {
@@ -54,7 +55,10 @@ export async function GET(req: NextRequest) {
           targetValue: 0,
           weight: 0
         }));
-      } else {
+      }
+      
+      // Nếu vẫn không có (ví dụ latest không có data), dùng default
+      if (criteria.length === 0) {
         const defaultManager = ["Doanh thu phòng đạt được", "Số đại lý phát triển trong tháng", "Doanh số bình quân từ đại lý mới", "Tỷ lệ đại lý phát sinh đơn hàng", "Tỷ lệ thu hồi công nợ", "Tỷ lệ nhân viên hoàn thành KPI"];
         const defaultStaff = ["Doanh số", "Doanh thu", "Số đại lý phát triển trong tháng", "Tỷ lệ chăm sóc đúng hạn", "Tỷ lệ chuyển đổi", "Thu hồi công nợ"];
         criteria = type === "MANAGER" ? defaultManager.map(name => ({ id: name, month, year, name, type: "MANAGER", targetValue: 0, weight: 0, code: null, isActive: true, createdAt: new Date(), updatedAt: new Date() })) 
