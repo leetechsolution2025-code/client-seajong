@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
             c.targetValue = planTotalDealers;
             updated = true;
           }
-          if (updated && !c.id.includes("_mock") && !c.id.includes("Doanh thu")) {
+          if (updated && !c.id.includes("_mock") && c.id !== c.name && !c.id.includes("Doanh thu")) {
             await prisma.internalKpiCriteria.update({
               where: { id: c.id },
               data: { targetValue: c.targetValue }
