@@ -740,8 +740,8 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
           )}
 
           {/* Filter bar: Warehouse + Category + Status + Search */}
-          <div style={{ flexShrink: 0, borderBottom: "1px solid var(--border)", padding: "10px 20px", display: "flex", alignItems: "center", gap: 8, background: "var(--background)", flexWrap: "wrap" }}>
-            <div className="d-flex w-100 w-md-auto" style={{ gap: 8 }}>
+          <div style={{ flexShrink: 0, borderBottom: "1px solid var(--border)", padding: "10px 20px", display: "flex", alignItems: "center", gap: 8, background: "var(--background)", flexWrap: "nowrap" }}>
+            <div className="d-flex" style={{ gap: 8, flex: "0 0 320px", minWidth: 0 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <FilterSelect
                   options={warehouses.map(w => ({ label: w.name, value: w.id }))}
@@ -768,7 +768,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
               </div>
             </div>
 
-            <div className="d-flex w-100 w-md-auto flex-fill" style={{ gap: 8 }}>
+            <div className="d-flex flex-fill" style={{ gap: 8, minWidth: 0 }}>
               <FilterSelect
                 options={[
                   { label: "Còn hàng",  value: "con-hang"  },
