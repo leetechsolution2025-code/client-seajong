@@ -22,38 +22,46 @@ export async function GET(req: NextRequest) {
   if (!warehouse) return NextResponse.json({ error: "Không tìm thấy kho hàng" }, { status: 404 });
 
   if (warehouse.type === "MATERIAL") {
-    const stocks = await prisma.inventoryStock.findMany({
-      where:   { warehouseId },
-      include: {
-        inventoryItem: {
-          include: {
-            category: { select: { id: true, name: true } }
-          }
-        }
-      },
-      orderBy: { inventoryItem: { tenHang: "asc" } },
+    const items = await prisma.inventoryItem.findMany({
+      where: { loai: "vat-tu" },
+      include: { category: { select: { id: true, name: true } } },
+      orderBy: { tenHang: "asc" }
     });
 
     return NextResponse.json(
-      stocks
-        .filter(s => s.inventoryItem)
-        .map(s => ({
-          id:           s.inventoryItem.id,
-          tenHang:      s.inventoryItem.tenHang,
-          code:         s.inventoryItem.code,
-          loai:         "vat-tu",
-          categoryId:   s.inventoryItem.categoryId,
-          categoryName: s.inventoryItem.category?.name ?? null,
-        }))
+      items.map(it => ({
+        id:           it.id,
+        tenHang:      it.tenHang,
+        code:         it.code,
+        loai:         it.loai,
+        categoryId:   it.categoryId,
+        categoryName: it.category?.name ?? null,
+      }))
+    );
+  } else if (warehouse.type === "PRODUCT_SYNC") {
+    const items = await prisma.inventoryItem.findMany({
+      where: { loai: "hang-hoa" },
+      include: { category: { select: { id: true, name: true } } },
+      orderBy: { tenHang: "asc" }
+    });
+
+    return NextResponse.json(
+      items.map(it => ({
+        id:           it.id,
+        tenHang:      it.tenHang,
+        code:         it.code,
+        loai:         it.loai,
+        categoryId:   it.categoryId,
+        categoryName: it.category?.name ?? null,
+      }))
     );
   } else {
+    // Với kho lỗi hoặc kho khác, chỉ hiển thị những mặt hàng từng có phát sinh tồn kho ở đây
     const stocks = await prisma.inventoryStock.findMany({
       where:   { warehouseId },
       include: {
         inventoryItem: {
-          include: {
-            category: { select: { id: true, name: true } }
-          }
+          include: { category: { select: { id: true, name: true } } }
         }
       },
       orderBy: { inventoryItem: { tenHang: "asc" } },
