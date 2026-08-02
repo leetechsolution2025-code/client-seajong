@@ -59,23 +59,28 @@ export async function GET(req: NextRequest) {
 
     // Query outstanding debts for customers
     const customerNames = items.map(item => item.customer?.name).filter(Boolean) as string[];
-    const customerDebts = await prisma.debt.findMany({
-      where: {
-        partnerName: { in: customerNames },
-        type: { in: ["RECEIVABLE", "phai-thu"] },
-      },
-      select: {
-        partnerName: true,
-        amount: true,
-        paidAmount: true,
-      }
-    });
+    let customerDebts: any[] = [];
+    if (customerNames.length > 0) {
+      customerDebts = await prisma.debt.findMany({
+        where: {
+          OR: customerNames.map(name => ({ partnerName: { startsWith: name } })),
+          type: { in: ["RECEIVABLE", "phai-thu"] },
+        },
+        select: {
+          partnerName: true,
+          amount: true,
+          paidAmount: true,
+        }
+      });
+    }
 
     const debtMap = new Map<string, number>();
     for (const d of customerDebts) {
       const outstanding = (d.amount || 0) - (d.paidAmount || 0);
-      const prev = debtMap.get(d.partnerName) || 0;
-      debtMap.set(d.partnerName, prev + outstanding);
+      // partnerName might be "Customer Name - Phone"
+      const customerNameKey = customerNames.find(n => d.partnerName?.startsWith(n)) || d.partnerName;
+      const prev = debtMap.get(customerNameKey) || 0;
+      debtMap.set(customerNameKey, prev + outstanding);
     }
 
     const customerIds = Array.from(new Set(items.map(item => item.customerId).filter(Boolean))) as string[];

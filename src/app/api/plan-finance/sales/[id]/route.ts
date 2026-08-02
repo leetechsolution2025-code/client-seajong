@@ -43,7 +43,7 @@ export async function GET(
     const order = await prisma.saleOrder.findUnique({
       where: { id },
       include: {
-        customer: { select: { id: true, name: true, dienThoai: true, address: true } },
+        customer: { select: { id: true, name: true, dienThoai: true, address: true, hanMucCongNo: true } },
         saleOrderItems: {
           include: {
             inventoryItem: { select: { imageUrl: true, code: true, loai: true, webProductId: true } }
@@ -258,20 +258,26 @@ export async function GET(
     // Calculate total receivable debt
     const customerName = resolvedOrder.customer?.name;
     let tongNoCu = 0;
+    let totalDebt = 0;
     if (customerName && customerName !== "Khách vãng lai") {
       const debts = await prisma.debt.findMany({
         where: {
           type: { in: ["phai-thu", "RECEIVABLE"] },
           partnerName: { startsWith: customerName },
-          referenceId: { notIn: [order.code, order.id].filter(Boolean) as string[] }
         },
-        select: { amount: true, paidAmount: true }
+        select: { amount: true, paidAmount: true, referenceId: true }
       });
-      tongNoCu = debts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
+      const orderIds = [order.code, order.id].filter(Boolean) as string[];
+      tongNoCu = debts.filter(d => !orderIds.includes(d.referenceId!)).reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
+      totalDebt = debts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
     }
     
     // Add to payload
     (resolvedOrder as any).tongNoCu = tongNoCu;
+    if (resolvedOrder.customer) {
+      (resolvedOrder.customer as any).outstandingDebt = totalDebt;
+      (resolvedOrder.customer as any).creditLimit = order.customer?.hanMucCongNo || 0;
+    }
 
     return NextResponse.json(resolvedOrder);
   } catch (e: unknown) {
