@@ -509,7 +509,7 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
                 </button>
               </div>
 
-              {/* Thông tin doanh nghiệp */}
+              {/* Thông tin doanh nghiệp & Quản trị dữ liệu */}
               {userPositionName?.toLowerCase().includes("giám đốc") && (
                 <div className="user-dropdown-section">
                   <Link
@@ -520,6 +520,15 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
                   >
                     <i className="bi bi-building-gear user-dropdown-icon" />
                     <span>Thông tin doanh nghiệp</span>
+                  </Link>
+                  <Link
+                    href="/board/data"
+                    className="user-dropdown-item"
+                    style={{ textDecoration: "none" }}
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <i className="bi bi-database-lock user-dropdown-icon" />
+                    <span>Quản trị dữ liệu</span>
                   </Link>
                 </div>
               )}

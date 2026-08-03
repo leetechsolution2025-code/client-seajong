@@ -19,6 +19,23 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimeout = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Close suggestions when clicking outside
+  const suggestionsRef = React.useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const defaultForm = {
     partnerName: "",
     amount: 0,
@@ -47,8 +64,45 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
       } else {
         setFormData({ ...defaultForm, status: "UNPAID" });
       }
+      setSuggestions([]);
+      setShowSuggestions(false);
     }
   }, [open, initialData]);
+
+  const handlePartnerNameChange = (val: string) => {
+    setFormData({ ...formData, partnerName: val });
+    if (val.trim().length > 0) {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+      searchTimeout.current = setTimeout(() => {
+        fetchSuggestions(val);
+      }, 300);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const fetchSuggestions = async (query: string) => {
+    try {
+      setSearching(true);
+      const res = await fetch(`/api/plan-finance/customers?search=${encodeURIComponent(query)}&page=1`);
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestions(data.customers || []);
+        setShowSuggestions(true);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const selectSuggestion = (name: string) => {
+    setFormData({ ...formData, partnerName: name });
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,19 +197,44 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
             <div className="mb-4">
               <label className="form-label fw-bold text-primary small text-uppercase mb-3" style={{ letterSpacing: 0.5 }}>Thông tin đối tác</label>
               
-              <div className="mb-3">
+              <div className="mb-3" ref={suggestionsRef}>
                 <label className="form-label" style={labelStyle}>
                   {type === "LOAN" ? "Ngân hàng / Tổ chức tín dụng" : (type === "RECEIVABLE" ? "Tên khách hàng" : "Tên nhà cung cấp")} <span className="text-danger">*</span>
                 </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Nhập tên đối tác..."
-                  required
-                  value={formData.partnerName}
-                  onChange={e => setFormData({ ...formData, partnerName: e.target.value })}
-                  style={inputStyle}
-                />
+                <div className="position-relative">
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Nhập tên đối tác..."
+                    required
+                    value={formData.partnerName}
+                    onChange={e => handlePartnerNameChange(e.target.value)}
+                    onFocus={() => {
+                      if (suggestions.length > 0) setShowSuggestions(true);
+                    }}
+                    style={inputStyle}
+                  />
+                  {searching && (
+                    <div className="position-absolute" style={{ right: 10, top: 8 }}>
+                      <span className="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                    </div>
+                  )}
+                  {showSuggestions && suggestions.length > 0 && (
+                    <ul className="list-group position-absolute w-100 shadow-sm" style={{ zIndex: 1000, maxHeight: "200px", overflowY: "auto", top: "100%", marginTop: "4px" }}>
+                      {suggestions.map((c: any, idx: number) => (
+                        <li
+                          key={idx}
+                          className="list-group-item list-group-item-action cursor-pointer"
+                          style={{ fontSize: 13, padding: "8px 12px" }}
+                          onClick={() => selectSuggestion(c.name)}
+                        >
+                          <div className="fw-bold">{c.name}</div>
+                          {c.dienThoai && <div className="text-muted small">ĐT: {c.dienThoai}</div>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
 
               <div className="mb-3">
