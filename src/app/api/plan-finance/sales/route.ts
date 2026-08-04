@@ -34,12 +34,24 @@ export async function GET(req: NextRequest) {
     const search    = searchParams.get("search")    ?? "";
     const trangThai = searchParams.get("trangThai") ?? "";
     const keToanDuyet = searchParams.get("keToanDuyet") ?? "";
+    const employeeIdFilter = searchParams.get("employeeId") ?? "";
 
-    const where = {
+    const isManager = session.user.role === "ADMIN" || session.user.role === "MANAGER" || session.user.role === "SUPERADMIN";
+    const employee = await prisma.employee.findUnique({ where: { userId: session.user.id } });
+    
+    const isFinance = employee?.departmentCode === "finance" || employee?.departmentName?.includes("Kế toán") || employee?.departmentName?.includes("Tài chính");
+
+    const where: any = {
       ...(search    && { OR: [{ code: { contains: search } }, { customer: { name: { contains: search } } }, { ghiChu: { contains: search } }] }),
       ...(trangThai && { trangThai }),
       ...(keToanDuyet && { keToanDuyet }),
     };
+
+    if (!isManager && !isFinance) {
+      where.nguoiPhuTrach = employee?.id || "none";
+    } else if (employeeIdFilter) {
+      where.nguoiPhuTrach = employeeIdFilter;
+    }
 
     const [total, items] = await Promise.all([
       prisma.saleOrder.count({ where }),

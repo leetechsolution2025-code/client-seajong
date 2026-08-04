@@ -1901,29 +1901,37 @@ export default function FinancePage() {
                     </div>
                     <div className="d-flex gap-2">
                       {paymentNotificationDetail.status === "pending" && (
-                        <button
-                          className="btn btn-sm btn-success fw-bold px-3 py-1 rounded-3 d-flex align-items-center gap-2"
-                          onClick={async () => {
-                            try {
-                              const res = await fetch(`/api/finance/payment-notifications/${paymentNotificationDetail.id}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ status: 'verified' })
-                              });
-                              if (!res.ok) throw new Error("Lỗi khi xác nhận");
-                              toast.success("Đã xác nhận tiền vào");
-                              const updatedData = await res.json();
-                              setPaymentNotificationDetail(updatedData);
-                              setPaymentNotifications(prev => prev.map(p => p.id === updatedData.id ? updatedData : p));
-                              setSelectedPaymentNotification(updatedData);
-                            } catch (e: any) {
-                              toast.error(e.message || "Có lỗi xảy ra");
-                            }
-                          }}
-                        >
-                          <i className="bi bi-check-circle" />
-                          Xác nhận
-                        </button>
+                        (() => {
+                          const isApprovedByAccountant = !paymentNotificationDetail.saleOrder || paymentNotificationDetail.saleOrder.keToanDuyet === "approved";
+                          return (
+                            <button
+                              className={`btn btn-sm ${isApprovedByAccountant ? 'btn-success' : 'btn-secondary'} fw-bold px-3 py-1 rounded-3 d-flex align-items-center gap-2`}
+                              disabled={!isApprovedByAccountant}
+                              onClick={async () => {
+                                if (!isApprovedByAccountant) return;
+                                try {
+                                  const res = await fetch(`/api/finance/payment-notifications/${paymentNotificationDetail.id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ status: 'verified' })
+                                  });
+                                  if (!res.ok) throw new Error("Lỗi khi xác nhận");
+                                  toast.success("Đã xác nhận tiền vào");
+                                  const updatedData = await res.json();
+                                  setPaymentNotificationDetail(updatedData);
+                                  setPaymentNotifications(prev => prev.map(p => p.id === updatedData.id ? updatedData : p));
+                                  setSelectedPaymentNotification(updatedData);
+                                } catch (e: any) {
+                                  toast.error(e.message || "Có lỗi xảy ra");
+                                }
+                              }}
+                              title={!isApprovedByAccountant ? "Chỉ được xác nhận khi đơn hàng đã được kế toán duyệt" : ""}
+                            >
+                              <i className={isApprovedByAccountant ? "bi bi-check-circle" : "bi bi-lock"} />
+                              Xác nhận
+                            </button>
+                          );
+                        })()
                       )}
                     </div>
                   </div>

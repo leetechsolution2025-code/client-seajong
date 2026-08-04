@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DynamicTicker } from "@/components/layout/DynamicTicker";
@@ -34,6 +35,7 @@ interface CustomerRow {
   createdAt: string;
   formValues?: string;
   contracts?: { giaTriHopDong: number, trangThai: string, code?: string, ngayKy?: string | Date }[];
+  nguoiChamSoc?: { fullName: string };
 }
 
 export default function SalesCustomersPage() {
@@ -44,6 +46,20 @@ export default function SalesCustomersPage() {
   const [page, setPage] = useState(1);
 
   // States for table data
+  const { data: session } = useSession();
+  const [employees, setEmployees] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/hr/employees")
+      .then(res => res.json())
+      .then(data => {
+        const allEmps = Array.isArray(data.employees) ? data.employees : Array.isArray(data) ? data : [];
+        const kdEmps = allEmps.filter((e: any) => e.departmentCode === "KD" || e.departmentName?.toLowerCase().includes("kinh doanh"));
+        setEmployees(kdEmps);
+      })
+      .catch(console.error);
+  }, []);
+
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -75,8 +91,13 @@ export default function SalesCustomersPage() {
     daiDien: string;
     xungHo: string;
     chucVu: string;
-    ghiChu: string;
     hanMucCongNo: number | "";
+    doanhSoCamKet: number | "";
+    thuongThanhToan: string;
+    thuongDoanhSoNam: string;
+    thuongVuotDoanhSo: string;
+    nguoiChamSocId: string;
+    coCamKet: boolean;
   }>({
     name: "",
     nhom: "",
@@ -88,8 +109,13 @@ export default function SalesCustomersPage() {
     daiDien: "",
     xungHo: "Anh",
     chucVu: "",
-    ghiChu: "",
     hanMucCongNo: 0,
+    doanhSoCamKet: 0,
+    thuongThanhToan: "Mức thưởng = 2% * Doanh số thanh toán đúng hạn (Chưa VAT)",
+    thuongDoanhSoNam: "Doanh số thực tế năm >= 100% Cam kết: Thưởng 1.5% tổng doanh số thực tế",
+    thuongVuotDoanhSo: "Vượt chỉ tiêu: Thưởng 3% trên phần doanh số vượt chỉ tiêu cam kết",
+    nguoiChamSocId: "",
+    coCamKet: true,
   });
 
   const currentMonthStr = `Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`;
@@ -137,20 +163,23 @@ export default function SalesCustomersPage() {
     return num.toLocaleString("vi-VN");
   };
 
-  // Static options lists
+  const [sourceCategories, setSourceCategories] = useState<any[]>([]);
+  const [groupCategories, setGroupCategories] = useState<any[]>([]);
 
-  const nguonOptions = [
-    { label: "Tự nhiên", value: "tu-nhien" },
-    { label: "Giới thiệu", value: "gioi-thieu" },
-    { label: "Quảng cáo", value: "quang-cao" },
-    { label: "Khác", value: "khac" }
-  ];
+  useEffect(() => {
+    fetch("/api/board/categories?type=customer_source")
+      .then(res => res.json())
+      .then(data => setSourceCategories(data))
+      .catch(console.error);
 
-  const hangOptions = [
-    { label: "Kim cương", value: "kim-cuong" },
-    { label: "Vàng", value: "vang" },
-    { label: "Bạc", value: "bac" }
-  ];
+    fetch("/api/board/categories?type=lo_i_kh_ch_h_ng")
+      .then(res => res.json())
+      .then(data => setGroupCategories(data))
+      .catch(console.error);
+  }, []);
+
+  const nguonOptions = useMemo(() => sourceCategories.map(c => ({ label: c.name, value: c.code })), [sourceCategories]);
+  const hangOptions = useMemo(() => groupCategories.map(c => ({ label: c.name, value: c.code })), [groupCategories]);
 
   // Fetch customers from API
   const fetchCustomers = useCallback(async () => {
@@ -223,29 +252,49 @@ export default function SalesCustomersPage() {
       daiDien: "",
       xungHo: "Anh",
       chucVu: "",
-      ghiChu: "",
       hanMucCongNo: 0,
+      doanhSoCamKet: 0,
+      thuongThanhToan: "Mức thưởng = 2% * Doanh số thanh toán đúng hạn (Chưa VAT)",
+      thuongDoanhSoNam: "Doanh số thực tế năm >= 100% Cam kết: Thưởng 1.5% tổng doanh số thực tế",
+      thuongVuotDoanhSo: "Vượt chỉ tiêu: Thưởng 3% trên phần doanh số vượt chỉ tiêu cam kết",
+      nguoiChamSocId: employees.find(e => e.userId === (session?.user as any)?.id)?.id || "",
+      coCamKet: true,
     });
     setIsCreateMode(true);
     setErrorMsg("");
     setEditModalOpen(true);
   };
 
-  const handleOpenEdit = () => {
-    if (!selectedCustomer) return;
+  const handleOpenEdit = (customer?: any) => {
+    const target = customer || selectedCustomer;
+    if (!target) return;
+    
+    if (customer) {
+      setSelectedCustomer(customer);
+    }
+
+    let fv: any = {};
+    if (target.formValues) {
+      try { fv = JSON.parse(target.formValues); } catch (e) {}
+    }
     setEditForm({
-      name: selectedCustomer.name || "",
-      nhom: selectedCustomer.nhom || "",
-      nguon: selectedCustomer.nguon || "",
-      loai: selectedCustomer.loai || "",
-      dienThoai: selectedCustomer.dienThoai || "",
-      email: selectedCustomer.email || "",
-      address: selectedCustomer.address || "",
-      daiDien: selectedCustomer.daiDien || "",
-      xungHo: selectedCustomer.xungHo || "Anh",
-      chucVu: selectedCustomer.chucVu || "",
-      ghiChu: selectedCustomer.ghiChu || "",
-      hanMucCongNo: (selectedCustomer as any).creditLimit || 0,
+      name: target.name || "",
+      nhom: target.nhom || "",
+      nguon: target.nguon || "",
+      loai: target.loai || "",
+      dienThoai: target.dienThoai || "",
+      email: target.email || "",
+      address: target.address || "",
+      daiDien: target.daiDien || "",
+      xungHo: target.xungHo || "Anh",
+      chucVu: target.chucVu || "",
+      hanMucCongNo: target.creditLimit || 0,
+      doanhSoCamKet: target.doanhSoCamKet || fv.doanhSoCamKet || 0,
+      thuongThanhToan: target.thuongThanhToan || fv.thuongThanhToan || "Mức thưởng = 2% * Doanh số thanh toán đúng hạn (Chưa VAT)",
+      thuongDoanhSoNam: target.thuongDoanhSoNam || fv.thuongDoanhSoNam || "Doanh số thực tế năm >= 100% Cam kết: Thưởng 1.5% tổng doanh số thực tế",
+      thuongVuotDoanhSo: target.thuongVuotDoanhSo || fv.thuongVuotDoanhSo || "Vượt chỉ tiêu: Thưởng 3% trên phần doanh số vượt chỉ tiêu cam kết",
+      nguoiChamSocId: target.nguoiChamSocId || employees.find(e => e.userId === (session?.user as any)?.id)?.id || "",
+      coCamKet: fv.coCamKet !== false,
     });
     setIsCreateMode(false);
     setErrorMsg("");
@@ -274,8 +323,15 @@ export default function SalesCustomersPage() {
           daiDien: editForm.daiDien || null,
           xungHo: editForm.xungHo,
           chucVu: editForm.chucVu || null,
-          ghiChu: editForm.ghiChu || null,
           hanMucCongNo: editForm.hanMucCongNo === "" ? 0 : Number(editForm.hanMucCongNo),
+          nguoiChamSocId: editForm.nguoiChamSocId || null,
+          formValues: JSON.stringify({
+            coCamKet: editForm.coCamKet,
+            doanhSoCamKet: editForm.doanhSoCamKet === "" ? 0 : Number(editForm.doanhSoCamKet),
+            thuongThanhToan: editForm.thuongThanhToan,
+            thuongDoanhSoNam: editForm.thuongDoanhSoNam,
+            thuongVuotDoanhSo: editForm.thuongVuotDoanhSo,
+          })
         }),
       });
 
@@ -395,25 +451,55 @@ export default function SalesCustomersPage() {
       )
     },
     {
+      header: "Người phụ trách",
+      render: (row) => (
+        <div className="d-flex flex-column text-muted" style={{ fontSize: "12.5px" }}>
+          {row.nguoiChamSoc?.fullName ? (
+            <span className="fw-medium text-dark">
+              <i className="bi bi-person-workspace me-1" style={{ fontSize: "11px" }}></i>
+              {row.nguoiChamSoc.fullName}
+            </span>
+          ) : (
+            <span className="text-muted fst-italic">Chưa phân công</span>
+          )}
+        </div>
+      )
+    },
+    {
       header: "Doanh số năm",
       width: 220,
       render: (row) => {
+        let hasCommitment = true;
+        if (row.formValues) {
+          try {
+            const fv = typeof row.formValues === "string" ? JSON.parse(row.formValues) : row.formValues;
+            if (fv.coCamKet === false) hasCommitment = false;
+          } catch (e) {}
+        }
         const committed = (row as any).committedSales ?? 0;
         const actual = (row as any).yearlySales ?? 0;
-        const percent = committed > 0 ? Math.round((actual / committed) * 100) : 0;
+        const percent = (committed > 0 && hasCommitment) ? Math.round((actual / committed) * 100) : 0;
 
         return (
           <div className="d-grid gap-1 align-items-center" style={{ fontSize: "12.5px", gridTemplateColumns: "auto 1fr 35px" }}>
             <span className="text-muted" style={{ fontSize: "11px" }}>Cam kết:</span>
-            <span className="fw-semibold text-primary text-end">{committed.toLocaleString("vi-VN")} ₫</span>
+            {hasCommitment ? (
+              <span className="fw-semibold text-primary text-end">{committed.toLocaleString("vi-VN")} ₫</span>
+            ) : (
+              <span className="fst-italic text-muted text-end" style={{ fontSize: "11px" }}>Không cam kết</span>
+            )}
             <span></span>
 
             <span className="text-muted" style={{ fontSize: "11px" }}>Thực tế:</span>
             <span className="fw-bold text-success text-end">{actual.toLocaleString("vi-VN")} ₫</span>
             <div className="text-end ps-1">
-              <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-10" style={{ fontSize: "10px", padding: "2px 4px" }}>
-                {percent}%
-              </span>
+              {hasCommitment ? (
+                <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-10" style={{ fontSize: "10px", padding: "2px 4px" }}>
+                  {percent}%
+                </span>
+              ) : (
+                <span></span>
+              )}
             </div>
           </div>
         );
@@ -431,7 +517,16 @@ export default function SalesCustomersPage() {
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   }).length;
 
-  const totalCommitted = customers.reduce((sum, c) => sum + ((c as any).committedSales ?? 0), 0);
+  const totalCommitted = customers.reduce((sum, c) => {
+    let hasCommitment = true;
+    if (c.formValues) {
+      try {
+        const fv = typeof c.formValues === "string" ? JSON.parse(c.formValues) : c.formValues;
+        if (fv.coCamKet === false) hasCommitment = false;
+      } catch (e) {}
+    }
+    return sum + (hasCommitment ? ((c as any).committedSales ?? 0) : 0);
+  }, 0);
   const totalActual = customers.reduce((sum, c) => sum + ((c as any).yearlySales ?? 0), 0);
   const percent = totalCommitted > 0 ? Math.round((totalActual / totalCommitted) * 100) : 0;
 
@@ -503,11 +598,36 @@ export default function SalesCustomersPage() {
       const monthStr = dateObj && !isNaN(dateObj.getTime()) ? `Tháng ${dateObj.getMonth() + 1}/${dateObj.getFullYear()}` : "N/A";
       const timeStr = dateObj && !isNaN(dateObj.getTime()) ? dateObj.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : "";
       
+      let onTimePaidAmount = 0;
+      let totalLinkedPayments = 0;
+      if (o.paymentNotifications && Array.isArray(o.paymentNotifications)) {
+        o.paymentNotifications.forEach((p: any) => {
+          totalLinkedPayments += p.amount || 0;
+          const pDate = p.verifiedAt ? new Date(p.verifiedAt) : new Date(p.createdAt);
+          if (dateObj && !isNaN(dateObj.getTime()) && !isNaN(pDate.getTime())) {
+            if (pDate.getMonth() === dateObj.getMonth() && pDate.getFullYear() === dateObj.getFullYear()) {
+              onTimePaidAmount += p.amount || 0;
+            }
+          }
+        });
+      }
+
+      // Khoản thanh toán thủ công (do kế toán cập nhật trực tiếp vào daThanhToan không qua PaymentNotification)
+      const manualPaidAmount = Math.max(0, (o.daThanhToan || 0) - totalLinkedPayments);
+      if (manualPaidAmount > 0) {
+         // Nếu cập nhật cuối cùng của đơn hàng nằm trong cùng tháng tạo đơn, ta tính phần tiền đó là đúng hạn
+         const uDate = o.updatedAt ? new Date(o.updatedAt) : (dateObj || new Date());
+         if (dateObj && uDate.getMonth() === dateObj.getMonth() && uDate.getFullYear() === dateObj.getFullYear()) {
+             onTimePaidAmount += manualPaidAmount;
+         }
+      }
+
       return {
         id: o.id,
         orderCode: o.code || String(o.id).slice(0, 8),
         totalAmount: o.tongTien || 0,
         paidAmount: o.daThanhToan || 0,
+        onTimePaidAmount,
         note: o.trangThai === "approved" ? "Thanh toán đủ" : (o.trangThai || "Chưa thanh toán"),
         createdAt: `${dateStr} ${timeStr}`.trim(),
         createdBy: o.createdBy || "Hệ thống",
@@ -530,10 +650,14 @@ export default function SalesCustomersPage() {
       groups[o.month].push(o);
     });
 
-    let annualCommitment = 0;
-    if (selectedCustomer?.contracts?.length) {
-      annualCommitment = selectedCustomer.contracts.reduce((sum, c) => sum + (c.giaTriHopDong || 0), 0);
+    let hasCommitment = true;
+    if (selectedCustomer?.formValues) {
+      try {
+        const fv = typeof selectedCustomer.formValues === "string" ? JSON.parse(selectedCustomer.formValues) : selectedCustomer.formValues;
+        if (fv.coCamKet === false) hasCommitment = false;
+      } catch (e) {}
     }
+    let annualCommitment = hasCommitment ? ((selectedCustomer as any)?.committedSales ?? 0) : 0;
     const monthCommitment = annualCommitment > 0 ? (annualCommitment / 12) : 0;
 
     const currentDate = new Date();
@@ -565,24 +689,23 @@ export default function SalesCustomersPage() {
             <span className="badge bg-secondary bg-opacity-10 text-secondary rounded-pill ms-2">{monthOrders.length} đơn</span>
             <span className="text-muted ms-auto d-flex align-items-center" style={{ fontSize: "12px" }}>
               Tổng giá trị: <strong className="text-dark ms-1">{monthTotal.toLocaleString("vi-VN")} ₫</strong>
-              <span className={`badge mx-1 ${percent >= 100 ? "bg-success bg-opacity-10 text-success border border-success border-opacity-10" : "bg-primary bg-opacity-10 text-primary border border-primary border-opacity-10"}`}>
-                {percent}% | {Math.round(monthCommitment).toLocaleString("vi-VN")} ₫
-              </span>
+              {hasCommitment ? (
+                <span className={`badge mx-1 ${percent >= 100 ? "bg-success bg-opacity-10 text-success border border-success border-opacity-10" : "bg-primary bg-opacity-10 text-primary border border-primary border-opacity-10"}`}>
+                  {percent}% | {Math.round(monthCommitment).toLocaleString("vi-VN")} ₫
+                </span>
+              ) : (
+                <span className="fst-italic text-muted mx-1" style={{ fontSize: "11px" }}>Không cam kết</span>
+              )}
             </span>
             <button
               className="btn btn-sm btn-light border-0 d-flex align-items-center justify-content-center p-0 rounded-circle"
               style={{ width: "24px", height: "24px", color: "var(--bs-gray-600)" }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedMonthStr(month);
-                const monthOrders = formattedOrders.filter(o => o.month === month);
-                if (monthOrders.length > 0) {
-                  setSelectedOrderCode(monthOrders[0].orderCode);
-                } else {
-                  setSelectedOrderCode("");
-                }
-                setShowMonthDetailOffcanvas(true);
-              }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedMonthStr(month);
+                  setSelectedOrderCode(""); // Mặc định ẩn danh sách hàng hoá
+                  setShowMonthDetailOffcanvas(true);
+                }}
             >
               <i className="bi bi-three-dots"></i>
             </button>
@@ -608,12 +731,8 @@ export default function SalesCustomersPage() {
       catch { return {}; }
     })() : {};
 
-    let annualCommitment = 0;
-    if (selectedCustomer.contracts && selectedCustomer.contracts.length > 0) {
-      annualCommitment = selectedCustomer.contracts.reduce((sum: number, c: any) => sum + (c.giaTriHopDong || 0), 0);
-    } else {
-      annualCommitment = Number(fv.bbDoanhSoNam || fv.hdDoanhSoNam) || 0;
-    }
+    let hasCommitment = fv.coCamKet !== false;
+    let annualCommitment = hasCommitment ? ((selectedCustomer as any).committedSales || 0) : 0;
 
     if (annualCommitment <= 0) return;
 
@@ -734,8 +853,7 @@ export default function SalesCustomersPage() {
                     emptyText="Không tìm thấy đại lý nào"
                     compact
                     onRowClick={(row) => {
-                      setSelectedCustomer(row);
-                      setShowDetailOffcanvas(true);
+                      handleOpenEdit(row);
                     }}
                     wrapperStyle={{ height: "100%", overflowY: "auto" }}
                   />
@@ -819,29 +937,38 @@ export default function SalesCustomersPage() {
                                 <div className="col-6">
                                   <span className="text-muted d-block fw-bold" style={{ fontSize: "10px", letterSpacing: "0.5px" }}>HẠNG KHÁCH HÀNG</span>
                                   <span className="text-dark fw-medium text-capitalize">
-                                    {displayLoai !== "—" ? displayLoai.replace("-", " ") : "—"}
+                                    {displayLoai !== "—" ? (hangOptions.find(o => o.value === displayLoai)?.label || displayLoai.replace("-", " ")) : "—"}
                                   </span>
                                 </div>
                                 <div className="col-6">
                                   <span className="text-muted d-block fw-bold" style={{ fontSize: "10px", letterSpacing: "0.5px" }}>NGUỒN KHÁCH HÀNG</span>
                                   <span className="text-dark fw-medium text-capitalize">
-                                    {selectedCustomer.nguon ? selectedCustomer.nguon.replace("-", " ") : "—"}
+                                    {selectedCustomer.nguon ? (nguonOptions.find(o => o.value === selectedCustomer.nguon)?.label || selectedCustomer.nguon.replace("-", " ")) : "—"}
                                   </span>
                                 </div>
                                 <div className="col-12 mt-2">
                                   <span className="text-muted d-block fw-bold mb-1" style={{ fontSize: "10px", letterSpacing: "0.5px" }}>DOANH SỐ NĂM</span>
                                   <div className="d-flex align-items-center gap-2">
                                     <span className="text-dark fw-bold text-primary" style={{ fontSize: "15px" }}>
-                                      {formattedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0).toLocaleString("vi-VN")} ₫
+                                      {((selectedCustomer as any).yearlySales || 0).toLocaleString("vi-VN")} ₫
                                     </span>
                                     {(() => {
-                                      const annualCommitment = (selectedCustomer.contracts || []).reduce((sum, c) => sum + (c.giaTriHopDong || 0), 0);
-                                      const totalSales = formattedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+                                      let hasCommitment = true;
+                                      if (selectedCustomer.formValues) {
+                                        try {
+                                          const fv = typeof selectedCustomer.formValues === "string" ? JSON.parse(selectedCustomer.formValues) : selectedCustomer.formValues;
+                                          if (fv.coCamKet === false) hasCommitment = false;
+                                        } catch (e) {}
+                                      }
+                                      const annualCommitment = hasCommitment ? ((selectedCustomer as any).committedSales || 0) : 0;
+                                      const totalSales = (selectedCustomer as any).yearlySales || 0;
                                       const percent = annualCommitment > 0 ? Math.round((totalSales / annualCommitment) * 100) : 0;
-                                      return (
+                                      return hasCommitment ? (
                                         <span className="badge border fw-medium px-2 py-1" style={{ color: "#011F58", backgroundColor: "#f8f9fa", fontSize: "11px" }}>
                                           Đạt {percent}% | Cam kết: {annualCommitment.toLocaleString("vi-VN")} ₫
                                         </span>
+                                      ) : (
+                                        <span className="fst-italic text-muted" style={{ fontSize: "11px" }}>Không cam kết</span>
                                       );
                                     })()}
                                   </div>
@@ -853,7 +980,7 @@ export default function SalesCustomersPage() {
                                       {formattedOrders.reduce((sum, o) => sum + (o.paidAmount || 0), 0).toLocaleString("vi-VN")} ₫
                                     </span>
                                     {(() => {
-                                      const totalSales = formattedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+                                      const totalSales = (selectedCustomer as any).yearlySales || 0;
                                       const totalPaid = formattedOrders.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
                                       const percent = totalSales > 0 ? Math.round((totalPaid / totalSales) * 100) : 0;
                                       return (
@@ -1003,192 +1130,299 @@ export default function SalesCustomersPage() {
         </div>
       )}
 
-      {/* Customer Form Modal */}
+      {/* Customer Form Offcanvas */}
       {editModalOpen && (
-        <div
-          className="modal show d-block"
-          tabIndex={-1}
-          style={{ backgroundColor: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)", zIndex: 10050 }}
-        >
-          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: "550px" }}>
-            <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "16px", background: "var(--card)" }}>
-              <div className="modal-header border-bottom px-4 py-3 d-flex align-items-center justify-content-between">
-                <div className="d-flex align-items-center gap-2">
-                  <div className="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style={{ width: 34, height: 34 }}>
-                    <i className={isCreateMode ? "bi bi-person-plus" : "bi bi-pencil-square"} style={{ fontSize: "16px" }} />
-                  </div>
-                  <div>
-                    <h6 className="modal-title fw-bold text-dark mb-0">
-                      {isCreateMode ? "Thêm mới khách hàng" : "Chỉnh sửa khách hàng"}
-                    </h6>
-                    <span className="text-muted" style={{ fontSize: "11px" }}>
-                      {isCreateMode ? "Thêm khách hàng mới vào hệ thống" : "Cập nhật thông tin chi tiết khách hàng"}
-                    </span>
-                  </div>
+        <>
+          <div
+            className="offcanvas-backdrop fade show"
+            style={{ zIndex: 1055 }}
+            onClick={() => setEditModalOpen(false)}
+          ></div>
+          <div
+            className="offcanvas offcanvas-end show border-start-0 shadow-lg"
+            tabIndex={-1}
+            style={{ width: "400px", zIndex: 1060 }}
+          >
+            <div className="offcanvas-header border-bottom py-3 bg-light d-flex justify-content-between align-items-center">
+              <div className="d-flex align-items-center gap-2">
+                <div className="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style={{ width: 34, height: 34 }}>
+                  <i className={isCreateMode ? "bi bi-person-plus" : "bi bi-pencil-square"} style={{ fontSize: "16px" }} />
                 </div>
-                <button
-                  type="button"
-                  className="btn-close shadow-none"
-                  onClick={() => setEditModalOpen(false)}
-                />
+                <div>
+                  <h6 className="offcanvas-title fw-bold text-dark mb-0">
+                    {isCreateMode ? "Thêm mới khách hàng" : "Chỉnh sửa khách hàng"}
+                  </h6>
+                  <span className="text-muted" style={{ fontSize: "11px" }}>
+                    {isCreateMode ? "Thêm khách hàng mới vào hệ thống" : "Cập nhật thông tin chi tiết khách hàng"}
+                  </span>
+                </div>
               </div>
-              <form onSubmit={handleSaveCustomer}>
-                <div className="modal-body px-4 py-4" style={{ maxHeight: "calc(100vh - 200px)", overflowY: "auto", fontSize: "13px" }}>
-                  {errorMsg && (
-                    <div className="alert alert-danger py-2 px-3 mb-3" style={{ fontSize: "12px", borderRadius: "8px" }}>
-                      {errorMsg}
-                    </div>
-                  )}
+              <button
+                type="button"
+                className="btn-close shadow-none"
+                onClick={() => setEditModalOpen(false)}
+              />
+            </div>
+            
+            <form onSubmit={handleSaveCustomer} className="d-flex flex-column" style={{ height: "calc(100vh - 70px)" }}>
+              <div className="offcanvas-body px-4 py-4" style={{ overflowY: "auto", fontSize: "13px" }}>
+                {errorMsg && (
+                  <div className="alert alert-danger py-2 px-3 mb-3" style={{ fontSize: "12px", borderRadius: "8px" }}>
+                    {errorMsg}
+                  </div>
+                )}
 
-                  <div className="row g-3">
-                    <div className="col-12">
-                      <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>TÊN KHÁCH HÀNG *</label>
-                      <input
-                        type="text"
-                        required
-                        className="form-control form-control-sm rounded-3 shadow-none border"
-                        value={editForm.name}
-                        onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                        placeholder="Nhập tên khách hàng"
-                      />
-                    </div>
+                <div className="row g-3">
+                  <div className="col-12">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>NGƯỜI PHỤ TRÁCH</label>
+                    <select
+                      className="form-select form-select-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px" }}
+                      value={editForm.nguoiChamSocId}
+                      onChange={e => setEditForm({ ...editForm, nguoiChamSocId: e.target.value })}
+                    >
+                      <option value="">-- Chọn người phụ trách --</option>
+                      {employees.map((emp) => (
+                        <option key={emp.id} value={emp.id}>{emp.fullName}</option>
+                      ))}
+                    </select>
+                  </div>
 
-                    <div className="col-6">
-                      <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>NHÓM KHÁCH HÀNG</label>
-                      <select
-                        className="form-select form-select-sm rounded-3 shadow-none border"
-                        value={editForm.nhom}
-                        onChange={e => setEditForm({ ...editForm, nhom: e.target.value })}
-                      >
-                        <option value="ca-nhan">Cá nhân</option>
-                        <option value="dai-ly">Đại lý</option>
-                        <option value="loai-khac">Loại khác</option>
-                      </select>
-                    </div>
+                  <div className="col-12">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>TÊN ĐẠI LÝ HOẶC CỬA HÀNG *</label>
+                    <input
+                      type="text"
+                      required
+                      className="form-control form-control-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px" }}
+                      value={editForm.name}
+                      onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                      placeholder="Nhập tên đại lý hoặc cửa hàng"
+                    />
+                  </div>
 
-                    <div className="col-6">
-                      <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>HẠNG KHÁCH HÀNG</label>
-                      <select
-                        className="form-select form-select-sm rounded-3 shadow-none border"
-                        value={editForm.loai}
-                        onChange={e => setEditForm({ ...editForm, loai: e.target.value })}
-                      >
-                        <option value="kim-cuong">Kim cương</option>
-                        <option value="vang">Vàng</option>
-                        <option value="bac">Bạc</option>
-                      </select>
-                    </div>
+                  <div className="col-12">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>ĐỊA CHỈ</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px" }}
+                      value={editForm.address}
+                      onChange={e => setEditForm({ ...editForm, address: e.target.value })}
+                      placeholder="Nhập địa chỉ"
+                    />
+                  </div>
 
-                    <div className="col-6">
-                      <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>NGUỒN KHÁCH HÀNG</label>
-                      <select
-                        className="form-select form-select-sm rounded-3 shadow-none border"
-                        value={editForm.nguon}
-                        onChange={e => setEditForm({ ...editForm, nguon: e.target.value })}
-                      >
-                        <option value="tu-nhien">Tự nhiên</option>
-                        <option value="gioi-thieu">Giới thiệu</option>
-                        <option value="quang-cao">Quảng cáo</option>
-                        <option value="khac">Khác</option>
-                      </select>
-                    </div>
+                  <div className="col-4">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>DANH XƯNG</label>
+                    <select
+                      className="form-select form-select-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px" }}
+                      value={editForm.xungHo}
+                      onChange={e => setEditForm({ ...editForm, xungHo: e.target.value })}
+                    >
+                      <option value="Anh">Anh</option>
+                      <option value="Chị">Chị</option>
+                      <option value="Ông">Ông</option>
+                      <option value="Bà">Bà</option>
+                    </select>
+                  </div>
 
-                    <div className="col-6">
-                      <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>HẠN MỨC CÔNG NỢ (VND)</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm rounded-3 shadow-none border"
-                        value={formatNumberString(editForm.hanMucCongNo)}
-                        onChange={e => {
-                          const rawValue = e.target.value.replace(/\D/g, "");
-                          setEditForm({ ...editForm, hanMucCongNo: rawValue ? parseInt(rawValue, 10) : "" });
-                        }}
-                        placeholder="Nhập hạn mức công nợ"
-                      />
-                    </div>
+                  <div className="col-8">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>NGƯỜI ĐẠI DIỆN</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px" }}
+                      value={editForm.daiDien}
+                      onChange={e => setEditForm({ ...editForm, daiDien: e.target.value })}
+                      placeholder="Họ tên người đại diện"
+                    />
+                  </div>
 
-                    <div className="col-6">
-                      <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>SỐ ĐIỆN THOẠI</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm rounded-3 shadow-none border"
-                        value={editForm.dienThoai}
-                        onChange={e => setEditForm({ ...editForm, dienThoai: e.target.value })}
-                        placeholder="Nhập số điện thoại"
-                      />
-                    </div>
+                  <div className="col-12">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>CHỨC VỤ</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px" }}
+                      value={editForm.chucVu}
+                      onChange={e => setEditForm({ ...editForm, chucVu: e.target.value })}
+                      placeholder="Chức vụ người đại diện"
+                    />
+                  </div>
 
-                    <div className="col-6">
-                      <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>EMAIL</label>
-                      <input
-                        type="email"
-                        className="form-control form-control-sm rounded-3 shadow-none border"
-                        value={editForm.email}
-                        onChange={e => setEditForm({ ...editForm, email: e.target.value })}
-                        placeholder="Nhập email"
-                      />
-                    </div>
+                  <div className="col-6">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>NHÓM KHÁCH HÀNG</label>
+                    <select
+                      className="form-select form-select-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px" }}
+                      value={editForm.nhom}
+                      onChange={e => setEditForm({ ...editForm, nhom: e.target.value })}
+                    >
+                      <option value="ca-nhan">Cá nhân</option>
+                      <option value="dai-ly">Đại lý</option>
+                      <option value="loai-khac">Loại khác</option>
+                    </select>
+                  </div>
 
-                    <div className="col-12">
-                      <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>ĐỊA CHỈ</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm rounded-3 shadow-none border"
-                        value={editForm.address}
-                        onChange={e => setEditForm({ ...editForm, address: e.target.value })}
-                        placeholder="Nhập địa chỉ"
-                      />
-                    </div>
+                  <div className="col-6">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>HẠNG KHÁCH HÀNG</label>
+                    <select
+                      className="form-select form-select-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px" }}
+                      value={editForm.loai}
+                      onChange={e => setEditForm({ ...editForm, loai: e.target.value })}
+                    >
+                      <option value="">-- Chọn hạng --</option>
+                      {hangOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
 
-                    <div className="col-3">
-                      <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>DANH XƯNG ĐẠI DIỆN</label>
-                      <select
-                        className="form-select form-select-sm rounded-3 shadow-none border"
-                        value={editForm.xungHo}
-                        onChange={e => setEditForm({ ...editForm, xungHo: e.target.value })}
-                      >
-                        <option value="Anh">Anh</option>
-                        <option value="Chị">Chị</option>
-                        <option value="Ông">Ông</option>
-                        <option value="Bà">Bà</option>
-                      </select>
-                    </div>
+                  <div className="col-6">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>NGUỒN KHÁCH HÀNG</label>
+                    <select
+                      className="form-select form-select-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px" }}
+                      value={editForm.nguon}
+                      onChange={e => setEditForm({ ...editForm, nguon: e.target.value })}
+                    >
+                      <option value="">-- Chọn nguồn --</option>
+                      {nguonOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
 
-                    <div className="col-5">
-                      <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>NGƯỜI ĐẠI DIỆN</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm rounded-3 shadow-none border"
-                        value={editForm.daiDien}
-                        onChange={e => setEditForm({ ...editForm, daiDien: e.target.value })}
-                        placeholder="Họ tên người đại diện"
-                      />
-                    </div>
+                  <div className="col-6">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>HẠN MỨC CÔNG NỢ</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px" }}
+                      value={formatNumberString(editForm.hanMucCongNo)}
+                      onChange={e => {
+                        const rawValue = e.target.value.replace(/\D/g, "");
+                        setEditForm({ ...editForm, hanMucCongNo: rawValue ? parseInt(rawValue, 10) : "" });
+                      }}
+                      placeholder="Nhập hạn mức (VND)"
+                    />
+                  </div>
 
-                    <div className="col-4">
-                      <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>CHỨC VỤ</label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm rounded-3 shadow-none border"
-                        value={editForm.chucVu}
-                        onChange={e => setEditForm({ ...editForm, chucVu: e.target.value })}
-                        placeholder="Chức vụ người đại diện"
-                      />
-                    </div>
+                  <div className="col-6">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>SỐ ĐIỆN THOẠI</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px" }}
+                      value={editForm.dienThoai}
+                      onChange={e => setEditForm({ ...editForm, dienThoai: e.target.value })}
+                      placeholder="Nhập số điện thoại"
+                    />
+                  </div>
 
-                    <div className="col-12">
-                      <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>GHI CHÚ</label>
-                      <textarea
-                        className="form-control form-control-sm rounded-3 shadow-none border"
-                        rows={2}
-                        value={editForm.ghiChu}
-                        onChange={e => setEditForm({ ...editForm, ghiChu: e.target.value })}
-                        placeholder="Ghi chú thêm..."
-                      />
+                  <div className="col-6">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>EMAIL</label>
+                    <input
+                      type="email"
+                      className="form-control form-control-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px" }}
+                      value={editForm.email}
+                      onChange={e => setEditForm({ ...editForm, email: e.target.value })}
+                      placeholder="Nhập email"
+                    />
+                  </div>
+
+                  <div className="col-12">
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <label className="form-label fw-bold text-secondary mb-0" style={{ fontSize: "11px" }}>DOANH SỐ CAM KẾT (VNĐ/NĂM)</label>
+                      <div className="form-check form-switch mb-0">
+                        <input
+                          className="form-check-input shadow-none"
+                          type="checkbox"
+                          role="switch"
+                          id="coCamKetSwitch"
+                          checked={editForm.coCamKet}
+                          onChange={(e) => setEditForm({ ...editForm, coCamKet: e.target.checked })}
+                        />
+                        <label className="form-check-label text-secondary fw-bold ms-1" htmlFor="coCamKetSwitch" style={{ fontSize: "11px", cursor: "pointer", userSelect: "none" }}>
+                          Có cam kết
+                        </label>
+                      </div>
                     </div>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm rounded-3 shadow-none border text-primary fw-medium"
+                      style={{ fontSize: "12.5px" }}
+                      value={formatNumberString(editForm.doanhSoCamKet)}
+                      disabled={!editForm.coCamKet}
+                      onChange={e => {
+                        const rawValue = e.target.value.replace(/\D/g, "");
+                        setEditForm({ ...editForm, doanhSoCamKet: rawValue ? parseInt(rawValue, 10) : "" });
+                      }}
+                      placeholder="Nhập doanh số cam kết"
+                    />
+                  </div>
+
+                  <div className="col-12">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>THƯỞNG THANH TOÁN</label>
+                    <textarea
+                      className="form-control form-control-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px", backgroundColor: "#f8f9fa" }}
+                      rows={2}
+                      value={editForm.thuongThanhToan}
+                      disabled={!editForm.coCamKet}
+                      onChange={e => setEditForm({ ...editForm, thuongThanhToan: e.target.value })}
+                      placeholder="Công thức tính thưởng thanh toán"
+                    />
+                  </div>
+
+                  <div className="col-12">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>THƯỞNG DOANH SỐ NĂM</label>
+                    <textarea
+                      className="form-control form-control-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px", backgroundColor: "#f8f9fa" }}
+                      rows={2}
+                      value={editForm.thuongDoanhSoNam}
+                      disabled={!editForm.coCamKet}
+                      onChange={e => setEditForm({ ...editForm, thuongDoanhSoNam: e.target.value })}
+                      placeholder="Công thức tính thưởng doanh số năm"
+                    />
+                  </div>
+
+                  <div className="col-12">
+                    <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>THƯỞNG VƯỢT DOANH SỐ</label>
+                    <textarea
+                      className="form-control form-control-sm rounded-3 shadow-none border"
+                      style={{ fontSize: "12.5px", backgroundColor: "#f8f9fa" }}
+                      rows={2}
+                      value={editForm.thuongVuotDoanhSo}
+                      disabled={!editForm.coCamKet}
+                      onChange={e => setEditForm({ ...editForm, thuongVuotDoanhSo: e.target.value })}
+                      placeholder="Công thức tính thưởng vượt doanh số"
+                    />
                   </div>
                 </div>
-                <div className="modal-footer border-top px-4 py-3 d-flex justify-content-end gap-2">
+              </div>
+              <div className="mt-auto border-top px-4 py-3 bg-light d-flex justify-content-between align-items-center">
+                <div>
+                  {!isCreateMode && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-info text-white fw-semibold rounded-3 px-3 shadow-sm"
+                      onClick={() => {
+                        setEditModalOpen(false);
+                        setShowDetailOffcanvas(true);
+                      }}
+                    >
+                      <i className="bi bi-info-circle me-1"></i>
+                      Chi tiết
+                    </button>
+                  )}
+                </div>
+                <div className="d-flex gap-2">
                   <button
                     type="button"
                     className="btn btn-sm btn-light border fw-semibold rounded-3 px-3"
@@ -1199,7 +1433,7 @@ export default function SalesCustomersPage() {
                   </button>
                   <button
                     type="submit"
-                    className="btn btn-sm btn-primary fw-semibold rounded-3 px-3"
+                    className="btn btn-sm btn-primary fw-semibold rounded-3 px-3 shadow-sm"
                     disabled={submitting}
                   >
                     {submitting ? (
@@ -1208,10 +1442,10 @@ export default function SalesCustomersPage() {
                     {isCreateMode ? "Thêm mới" : "Lưu thay đổi"}
                   </button>
                 </div>
-              </form>
-            </div>
+              </div>
+            </form>
           </div>
-        </div>
+        </>
       )}
 
       {/* Delete Customer Confirmation Modal */}
@@ -1322,14 +1556,19 @@ export default function SalesCustomersPage() {
               {(() => {
                 const monthOrders = formattedOrders.filter(o => o.month === selectedMonthStr);
                 const monthTotal = monthOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-                const monthPaid = monthOrders.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
+                const monthPaid = monthOrders.reduce((sum, o) => sum + (o.onTimePaidAmount || 0), 0);
 
                 // Lấy tổng doanh số thực tế trong năm và cam kết năm để tính thưởng
                 const totalActualSales = formattedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-                let annualCommitment = 0;
-                if (selectedCustomer?.contracts?.length) {
-                  annualCommitment = selectedCustomer.contracts.reduce((sum, c) => sum + (c.giaTriHopDong || 0), 0);
+                
+                let hasCommitment = true;
+                if (selectedCustomer?.formValues) {
+                  try {
+                    const fv = typeof selectedCustomer.formValues === "string" ? JSON.parse(selectedCustomer.formValues) : selectedCustomer.formValues;
+                    if (fv.coCamKet === false) hasCommitment = false;
+                  } catch (e) {}
                 }
+                const annualCommitment = hasCommitment ? ((selectedCustomer as any).committedSales || 0) : 0;
 
                 // Mức thưởng (Giá trị các mức thưởng được áp dụng theo công thức ở biên bản đã ký với đại lý)
                 const paymentBonus = monthPaid * 0.12; // Thưởng thanh toán: 12% * Doanh số thanh toán đúng hạn
@@ -1352,91 +1591,120 @@ export default function SalesCustomersPage() {
 
                 return (
                   <div className="d-flex flex-column gap-4">
-                    {/* Danh sách đơn hàng trong tháng */}
-                    <div>
-                      <label className="form-label fw-semibold text-dark" style={{ fontSize: "13px" }}>Danh sách đơn hàng trong tháng</label>
-                      {monthOrders.length > 1 ? (
-                        <select
-                          className="form-select form-select-sm shadow-none border-secondary-subtle"
-                          value={selectedOrderCode}
-                          onChange={(e) => setSelectedOrderCode(e.target.value)}
-                        >
-                          {monthOrders.map(o => (
-                            <option key={o.id} value={o.orderCode}>{o.orderCode} - {o.totalAmount.toLocaleString("vi-VN")} ₫</option>
-                          ))}
-                        </select>
-                      ) : monthOrders.length === 1 ? (
-                        <div>
-                          <a href="#" className="text-primary fw-medium text-decoration-none d-inline-flex align-items-center gap-1" style={{ fontSize: "13px" }}>
-                            <i className="bi bi-file-earmark-text"></i>
-                            {monthOrders[0].orderCode} - {monthOrders[0].totalAmount.toLocaleString("vi-VN")} ₫
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="text-muted bg-light p-2 rounded text-center border" style={{ fontSize: "12px" }}>
-                          Không có đơn hàng nào trong tháng này.
-                        </div>
-                      )}
-                    </div>
-
                     {/* Các chỉ số */}
                     <div className="bg-light rounded-4 p-3 border">
                       <div className="d-flex justify-content-between mb-2">
                         <span className="text-muted" style={{ fontSize: "13px" }}>Tổng doanh số:</span>
                         <strong className="text-dark">{monthTotal.toLocaleString("vi-VN")} ₫</strong>
                       </div>
-                      <div className="d-flex justify-content-between mb-2">
+                      <div className="d-flex justify-content-between">
                         <span className="text-muted" style={{ fontSize: "13px" }}>Tổng doanh thu đúng hạn:</span>
                         <strong className="text-success">{monthPaid.toLocaleString("vi-VN")} ₫</strong>
                       </div>
-                      <div className="d-flex justify-content-between mb-2">
-                        <span className="text-muted" style={{ fontSize: "13px" }}>Mức thưởng thanh toán:</span>
-                        <strong className="text-primary">{paymentBonus.toLocaleString("vi-VN")} ₫</strong>
+                    </div>
+
+                    {/* Tiêu chí nhận thưởng */}
+                    <div>
+                      <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2" style={{ fontSize: "13px" }}>
+                        <i className="bi bi-award text-warning"></i>
+                        Tiêu chí nhận thưởng
+                      </h6>
+                      <div className="d-flex flex-column gap-2">
+                        <div className="d-flex justify-content-between align-items-center pb-2 border-bottom">
+                          <span className="text-muted" style={{ fontSize: "13px" }}>Thưởng thanh toán:</span>
+                          <strong className="text-primary">{paymentBonus.toLocaleString("vi-VN")} ₫</strong>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center pb-2 border-bottom">
+                          <span className="text-muted" style={{ fontSize: "13px" }}>Thưởng doanh số năm:</span>
+                          <strong className="text-primary">{annualSalesBonus.toLocaleString("vi-VN")} ₫</strong>
+                        </div>
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="text-muted" style={{ fontSize: "13px" }}>Thưởng vượt doanh số năm:</span>
+                          <strong className="text-primary">{annualOverSalesBonus.toLocaleString("vi-VN")} ₫</strong>
+                        </div>
+                        {annualCommitment > 0 && (
+                          <div className="pt-2">
+                            {totalActualSales >= annualCommitment ? (
+                              <span className="text-success fw-medium" style={{ fontSize: "12px" }}>
+                                <i className="bi bi-check-circle-fill me-1"></i> Khách hàng đã đạt ngưỡng tính thưởng
+                              </span>
+                            ) : (
+                              <span className="text-danger fw-medium" style={{ fontSize: "12px" }}>
+                                <i className="bi bi-exclamation-circle-fill me-1"></i> Khách hàng cần {(annualCommitment - totalActualSales).toLocaleString("vi-VN")} ₫ để đạt ngưỡng tính thưởng
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="d-flex justify-content-between mb-2">
-                        <span className="text-muted" style={{ fontSize: "13px" }}>Mức thưởng doanh số năm:</span>
-                        <strong className="text-primary">{annualSalesBonus.toLocaleString("vi-VN")} ₫</strong>
-                      </div>
-                      <div className="d-flex justify-content-between">
-                        <span className="text-muted" style={{ fontSize: "13px" }}>Mức thưởng vượt DS năm:</span>
-                        <strong className="text-primary">{annualOverSalesBonus.toLocaleString("vi-VN")} ₫</strong>
+                      
+                      <div className="mt-3 p-2 bg-light rounded text-muted" style={{ fontSize: "11px", border: "1px dashed #dee2e6" }}>
+                        <div className="fw-semibold mb-1"><i className="bi bi-info-circle me-1"></i>Công thức tính thưởng:</div>
+                        <ul className="mb-0 ps-3">
+                          <li><strong>Thanh toán:</strong> 12% × Tổng doanh thu đúng hạn</li>
+                          <li><strong>Doanh số năm:</strong> 4% × Tổng doanh số (nếu đạt cam kết)</li>
+                          <li><strong>Vượt doanh số năm:</strong> 2% × Phần doanh số vượt cam kết</li>
+                        </ul>
                       </div>
                     </div>
 
-                    {/* Danh sách hàng hoá thuộc đơn hàng xxx */}
-                    {selectedOrderCode && (
-                      <div>
-                        <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2" style={{ fontSize: "13px" }}>
-                          <i className="bi bi-box-seam text-muted"></i>
-                          Danh sách hàng hoá thuộc {selectedOrderCode}
-                        </h6>
-                        <div className="table-responsive border rounded-3 bg-white">
-                          <table className="table table-hover table-borderless align-middle mb-0" style={{ fontSize: "12px" }}>
-                            <thead className="table-light border-bottom">
-                              <tr>
-                                <th className="fw-semibold text-muted py-2 ps-3">Tên hàng hoá</th>
-                                <th className="fw-semibold text-muted py-2 text-center" style={{ width: "40px" }}>SL</th>
-                                <th className="fw-semibold text-muted py-2 text-end pe-3" style={{ width: "90px" }}>Thành tiền</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {mockProducts.map((p, idx) => (
-                                <tr key={p.id} className={idx < mockProducts.length - 1 ? "border-bottom" : ""}>
-                                  <td className="ps-3">
-                                    <div className="text-truncate fw-medium text-dark" style={{ maxWidth: "180px" }} title={p.name}>{p.name}</div>
-                                    <div className="mt-1">
-                                      <span className="badge bg-secondary bg-opacity-10 text-secondary" style={{ fontSize: "10px" }}>{p.sku}</span>
-                                    </div>
-                                  </td>
-                                  <td className="text-center text-muted">{p.qty}</td>
-                                  <td className="text-end fw-semibold pe-3 text-dark text-nowrap">{p.amount.toLocaleString("vi-VN")} ₫</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                    {/* Danh sách đơn hàng trong tháng và hàng hoá */}
+                    <div>
+                      <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2" style={{ fontSize: "13px" }}>
+                        <i className="bi bi-box-seam text-muted"></i>
+                        Danh sách đơn hàng trong tháng
+                      </h6>
+                      {monthOrders.length > 0 ? (
+                        <div className="d-flex flex-column gap-2">
+                          {monthOrders.map(o => (
+                            <div key={o.id} className="border rounded-3 bg-white overflow-hidden shadow-sm">
+                              <div
+                                className="p-3 d-flex justify-content-between align-items-center cursor-pointer"
+                                style={{ backgroundColor: selectedOrderCode === o.orderCode ? "#f8f9fa" : "#fff", cursor: "pointer", userSelect: "none" }}
+                                onClick={() => setSelectedOrderCode(prev => prev === o.orderCode ? "" : o.orderCode)}
+                              >
+                                <div className="d-flex align-items-center gap-2">
+                                  <i className={`bi ${selectedOrderCode === o.orderCode ? "bi-chevron-down" : "bi-chevron-right"} text-muted`} style={{ fontSize: "12px" }}></i>
+                                  <span className="fw-medium text-primary" style={{ fontSize: "13px" }}>{o.orderCode}</span>
+                                </div>
+                                <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>{o.totalAmount.toLocaleString("vi-VN")} ₫</span>
+                              </div>
+                              
+                              {selectedOrderCode === o.orderCode && (
+                                <div className="border-top bg-light p-2">
+                                  <table className="table table-hover table-borderless align-middle mb-0" style={{ fontSize: "12px" }}>
+                                    <thead className="table-light border-bottom">
+                                      <tr>
+                                        <th className="fw-semibold text-muted py-2 ps-3">Tên hàng hoá</th>
+                                        <th className="fw-semibold text-muted py-2 text-center" style={{ width: "40px" }}>SL</th>
+                                        <th className="fw-semibold text-muted py-2 text-end pe-3" style={{ width: "90px" }}>Thành tiền</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {mockProducts.map((p, idx) => (
+                                        <tr key={p.id} className={idx < mockProducts.length - 1 ? "border-bottom" : ""}>
+                                          <td className="ps-3">
+                                            <div className="text-truncate fw-medium text-dark" style={{ maxWidth: "180px" }} title={p.name}>{p.name}</div>
+                                            <div className="mt-1">
+                                              <span className="badge bg-secondary bg-opacity-10 text-secondary" style={{ fontSize: "10px" }}>{p.sku}</span>
+                                            </div>
+                                          </td>
+                                          <td className="text-center text-muted">{p.qty}</td>
+                                          <td className="text-end fw-semibold pe-3 text-dark text-nowrap">{p.amount.toLocaleString("vi-VN")} ₫</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="text-muted bg-light p-3 rounded text-center border" style={{ fontSize: "12px" }}>
+                          Không có đơn hàng nào trong tháng này.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })()}

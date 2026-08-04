@@ -70,6 +70,7 @@ export default function DebtsPage() {
   const [daysFilter, setDaysFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [debts, setDebts] = useState<any[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [stats, setStats] = useState<any>({
     totalAmount: 0,
     totalPaid: 0,
@@ -219,28 +220,71 @@ export default function DebtsPage() {
     const commonCols: TableColumn<any>[] = [
       {
         header: isLoan ? "Ngân hàng / Gói vay" : (isExpense ? "Khoản chi phí" : "Đối tác / Nội dung"),
-        render: (row) => (
-          <div>
-            <div className="fw-bold text-dark">{row.partnerName}</div>
-            <div className="text-muted small">
-              {row.referenceId && (
-                <span className="me-2">
-                  {isExpense 
-                    ? `Loại: ${categories.find(c => c.code === row.referenceId)?.name || row.referenceId}` 
-                    : `REF: ${row.referenceId}`}
-                </span>
-              )}
-              {parseDebtDescription(row.description).originalDesc}
-            </div>
+        render: (row) => {
+          if (row.isGroupHeader) {
+            return (
+              <div 
+                className="d-flex align-items-center gap-2 cursor-pointer fw-bold text-dark py-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCollapsedGroups(prev => ({ ...prev, [row.partnerName]: !prev[row.partnerName] }));
+                }}
+              >
+                <i className={`bi bi-chevron-${row.isCollapsed ? 'right' : 'down'} text-muted`} />
+                <span>{row.partnerName}</span>
+                <span className="badge bg-secondary-subtle text-secondary rounded-pill ms-2" style={{ fontSize: 10 }}>{row.items.length} khoản nợ</span>
+              </div>
+            );
+          }
+          return (
+          <div className={row.isChild ? "ms-4 position-relative" : ""}>
+            {row.isChild && (
+              <div className="position-absolute border-start border-bottom rounded-bottom-1" style={{ width: 12, height: 16, top: -4, left: -20, opacity: 0.3 }} />
+            )}
+            
+            {row.isChild ? (
+              <>
+                <div className="fw-bold text-dark">
+                  {row.referenceId || "Không có số ĐH"} <span className="text-muted mx-1">|</span> <span className={`text-${STATUS_MAP[row.status]?.color || "secondary"}`}>{STATUS_MAP[row.status]?.label || row.status}</span>
+                </div>
+                <div className="text-muted small">
+                  {row.createdAt ? new Date(row.createdAt).toLocaleDateString("vi-VN") : "---"} <span className="mx-1">|</span> Hệ thống
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="fw-bold text-dark">{row.partnerName}</div>
+                <div className="text-muted small">
+                  {row.referenceId && (
+                    <span className="me-2">
+                      {isExpense 
+                        ? `Loại: ${categories.find(c => c.code === row.referenceId)?.name || row.referenceId}` 
+                        : `REF: ${row.referenceId}`}
+                    </span>
+                  )}
+                  {parseDebtDescription(row.description).originalDesc}
+                </div>
+              </>
+            )}
           </div>
-        ),
+          );
+        },
       },
       {
         header: isLoan ? "Số tiền vay" : (isExpense ? "Số tiền chi" : "Số tiền gốc"),
         align: "right",
         render: (row) => (
-          <span className="fw-medium">
+          <span className={row.isGroupHeader ? "fw-bold text-dark" : "fw-medium"}>
             {row.amount.toLocaleString("vi-VN")}
+          </span>
+        ),
+      },
+      {
+        header: "Đã thanh toán",
+        align: "right",
+        render: (row) => (
+          <span className={row.isGroupHeader ? "fw-bold text-success" : "fw-medium text-success"}>
+            {row.paidAmount.toLocaleString("vi-VN")}
           </span>
         ),
       },
@@ -302,7 +346,9 @@ export default function DebtsPage() {
           header: "",
           align: "center",
           width: 40,
-          render: (row) => (
+          render: (row) => {
+            if (row.isGroupHeader) return null;
+            return (
             <div className="dropdown position-static">
               <button 
                 className="btn btn-link btn-sm text-muted p-0 border-0 dropdown-toggle no-caret"
@@ -371,7 +417,8 @@ export default function DebtsPage() {
                 </li>
               </ul>
             </div>
-          ),
+            );
+          },
         },
       ];
     }
@@ -382,14 +429,17 @@ export default function DebtsPage() {
       resultCols.push({
         header: "Hạn thanh toán",
         align: "center",
-        render: (row) => row.dueDate ? (
+        render: (row) => {
+          if (row.isGroupHeader) return <span className="text-muted">---</span>;
+          return row.dueDate ? (
           <div className="d-flex flex-column align-items-center">
             <span className="fw-medium">{new Date(row.dueDate).toLocaleDateString("vi-VN")}</span>
             {new Date(row.dueDate) < new Date() && row.status !== "PAID" && (
               <span className="text-danger" style={{ fontSize: 10, fontWeight: 600 }}>Quá hạn</span>
             )}
           </div>
-        ) : "---",
+          ) : "---";
+        },
       });
     }
 
@@ -400,15 +450,9 @@ export default function DebtsPage() {
         render: (row) => {
           const remaining = row.amount - row.paidAmount;
           return (
-            <div className="d-flex flex-column align-items-end">
-              <span>{remaining.toLocaleString("vi-VN")}</span>
-              <div className="mt-1 bg-light rounded-pill overflow-hidden" style={{ width: 60, height: 4 }}>
-                <div 
-                  className="h-100 bg-success" 
-                  style={{ width: `${Math.min(100, (row.paidAmount / row.amount) * 100)}%` }}
-                />
-              </div>
-            </div>
+            <span className={row.isGroupHeader ? "fw-bold text-primary" : "fw-bold text-primary"}>
+              {remaining.toLocaleString("vi-VN")}
+            </span>
           );
         },
       });
@@ -648,6 +692,38 @@ export default function DebtsPage() {
                   <Table columns={columns} rows={[]} loading={loading} emptyText={currentStepId === "EXPENSE" ? "Không tìm thấy khoản chi nào" : "Không tìm thấy khoản công nợ nào"} />
                 );
 
+                const groupedDebts: any[] = [];
+                if (currentStepId === "RECEIVABLE" || currentStepId === "PAYABLE") {
+                  const groupedByPartner = debts.reduce((acc, curr) => {
+                    if (!acc[curr.partnerName]) acc[curr.partnerName] = [];
+                    acc[curr.partnerName].push(curr);
+                    return acc;
+                  }, {} as Record<string, any[]>);
+
+                  Object.entries(groupedByPartner).forEach(([partnerName, itemsValue]) => {
+                    const items = itemsValue as any[];
+                    if (items.length > 1) {
+                      const isCollapsed = collapsedGroups[partnerName];
+                      groupedDebts.push({
+                        id: `group_${partnerName}`,
+                        isGroupHeader: true,
+                        partnerName,
+                        items,
+                        amount: items.reduce((s: number, i: any) => s + i.amount, 0),
+                        paidAmount: items.reduce((s: number, i: any) => s + i.paidAmount, 0),
+                        isCollapsed,
+                      });
+                      if (!isCollapsed) {
+                        items.forEach((item: any) => groupedDebts.push({ ...item, isChild: true }));
+                      }
+                    } else {
+                      groupedDebts.push(items[0]);
+                    }
+                  });
+                } else {
+                  groupedDebts.push(...debts);
+                }
+
                 const totalAmount = debts.reduce((sum, d) => sum + d.amount, 0);
                 const totalPaid = debts.reduce((sum, d) => sum + d.paidAmount, 0);
                 const totalRows = [{
@@ -662,7 +738,7 @@ export default function DebtsPage() {
                   description: null,
                   referenceId: null,
                   isTotalRow: true
-                } as any, ...debts];
+                } as any, ...groupedDebts];
 
                 let finalRows = totalRows;
 

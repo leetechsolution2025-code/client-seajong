@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
@@ -101,21 +102,39 @@ const STEP_ITEMS: ModernStepItem[] = [
 ];
 
 export function QuotationsContent() {
+  const { data: session } = useSession();
+  const isManager = session?.user?.role === "ADMIN" || session?.user?.role === "MANAGER" || session?.user?.role === "SUPERADMIN";
+
   const toast = useToast();
   const [currentStep, setCurrentStep] = useState(2);
   const [statusFilter, setStatusFilter] = useState("");
   const [timeFilter, setTimeFilter] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [employeeFilter, setEmployeeFilter] = useState("");
+  const [employees, setEmployees] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Step 2: Orders state
   const [orderStatusFilter, setOrderStatusFilter] = useState("");
   const [orderTimeFilter, setOrderTimeFilter] = useState("");
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
+  const [orderEmployeeFilter, setOrderEmployeeFilter] = useState("");
   const [orders, setOrders] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isManager) {
+      fetch("/api/hr/employees")
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setEmployees(data);
+          else if (data.data && Array.isArray(data.data)) setEmployees(data.data);
+        })
+        .catch(err => console.error("Error fetching employees", err));
+    }
+  }, [isManager]);
 
   // Backend quotation list state
   const [quotations, setQuotations] = useState<Quotation[]>([]);
@@ -195,6 +214,7 @@ export function QuotationsContent() {
       if (statusFilter) params.append("trangThai", statusFilter);
       if (timeFilter) params.append("time", timeFilter);
       if (searchTerm) params.append("search", searchTerm);
+      if (employeeFilter) params.append("employeeId", employeeFilter);
       params.append("page", "1");
 
       const res = await fetch(`/api/plan-finance/quotations?${params.toString()}`);
@@ -221,7 +241,7 @@ export function QuotationsContent() {
 
   useEffect(() => {
     fetchQuotations();
-  }, [statusFilter, searchTerm, timeFilter]);
+  }, [statusFilter, searchTerm, timeFilter, employeeFilter]);
 
   const fetchOrders = async () => {
     setOrdersLoading(true);
@@ -230,6 +250,7 @@ export function QuotationsContent() {
       if (orderStatusFilter) params.append("trangThai", orderStatusFilter);
       if (orderTimeFilter) params.append("time", orderTimeFilter);
       if (orderSearchTerm) params.append("search", orderSearchTerm);
+      if (orderEmployeeFilter) params.append("employeeId", orderEmployeeFilter);
       params.append("page", "1");
 
       const res = await fetch(`/api/plan-finance/sales?${params.toString()}`);
@@ -259,7 +280,7 @@ export function QuotationsContent() {
     if (currentStep === 2) {
       fetchOrders();
     }
-  }, [currentStep, orderStatusFilter, orderSearchTerm, orderTimeFilter]);
+  }, [currentStep, orderStatusFilter, orderSearchTerm, orderTimeFilter, orderEmployeeFilter]);
 
   // Fetch customers list for autocomplete search
   useEffect(() => {

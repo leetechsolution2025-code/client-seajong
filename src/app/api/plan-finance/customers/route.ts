@@ -18,12 +18,24 @@ export async function GET(req: NextRequest) {
     const nhom   = searchParams.get("nhom")   ?? "";
     const loai   = searchParams.get("loai")   ?? "";
 
-    const where = {
+    const user = await prisma.user.findUnique({
+      where: { id: (session.user as any).id },
+      include: { employee: true }
+    });
+    
+    // Admins or Managers see all. Normal users only see their own assigned customers.
+    const isManager = user?.role === "ADMIN";
+
+    const where: any = {
       ...(search && { name: { contains: search } }),
       ...(nguon  && { nguon }),
       ...(nhom   && { nhom }),
       ...(loai   && { loai }),
     };
+
+    if (!isManager && user?.employee?.id) {
+      where.nguoiChamSocId = user.employee.id;
+    }
 
     const [total, customers] = await Promise.all([
       prisma.customer.count({ where }),
@@ -92,13 +104,14 @@ export async function GET(req: NextRequest) {
     // Query committed sales (try partner contract in customer formValues first, fallback to Contract table)
     const committedSalesMap = new Map<string, number>();
     for (const c of customers) {
-      let committed = 0;
-      if (c.formValues) {
+      let committed = (c as any).doanhSoCamKet || 0;
+      if (!committed && c.formValues) {
         try {
-          const fVals = JSON.parse(c.formValues);
-          const rawRevenue = fVals.hdAnnualRevenue;
-          if (rawRevenue) {
-            const cleanRevenue = String(rawRevenue).replace(/\./g, "").trim();
+          const fVals = typeof c.formValues === "string" ? JSON.parse(c.formValues) : c.formValues;
+          if (fVals.doanhSoCamKet) {
+            committed = parseFloat(fVals.doanhSoCamKet);
+          } else if (fVals.hdAnnualRevenue) {
+            const cleanRevenue = String(fVals.hdAnnualRevenue).replace(/\./g, "").trim();
             const parsedRev = parseFloat(cleanRevenue);
             if (!isNaN(parsedRev)) {
               committed = parsedRev;
@@ -106,6 +119,9 @@ export async function GET(req: NextRequest) {
           }
         } catch (e) {}
       }
+      
+      console.log(`[DEBUG] Customer ${c.name}, DB doanhSoCamKet: ${(c as any).doanhSoCamKet}, Form formValues: ${c.formValues}, Final committed: ${committed}`);
+
       if (committed > 0) {
         committedSalesMap.set(c.id, committed);
       }
@@ -152,14 +168,33 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { name, address, nguon, nhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu, nguoiChamSocId, ngayTao, hanMucCongNo } = body;
+    const { name, address, nguon, nhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu, nguoiChamSocId, ngayTao, hanMucCongNo, formValues } = body;
 
     const resolvedName = name?.trim() || daiDien?.trim() || "—";
+
+    let doanhSoCamKet = 0;
+    let thuongThanhToan = "";
+    let thuongDoanhSoNam = "";
+    let thuongVuotDoanhSo = "";
+    if (formValues) {
+      try {
+        const fv = typeof formValues === "string" ? JSON.parse(formValues) : formValues;
+        doanhSoCamKet = fv.doanhSoCamKet || 0;
+        thuongThanhToan = fv.thuongThanhToan || "";
+        thuongDoanhSoNam = fv.thuongDoanhSoNam || "";
+        thuongVuotDoanhSo = fv.thuongVuotDoanhSo || "";
+      } catch (e) {}
+    }
 
     const customer = await prisma.customer.create({
       data: {
         name: resolvedName, address, nguon, nhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu,
         hanMucCongNo: parseFloat(hanMucCongNo) || 0,
+        formValues: typeof formValues === "object" ? JSON.stringify(formValues) : formValues,
+        doanhSoCamKet,
+        thuongThanhToan,
+        thuongDoanhSoNam,
+        thuongVuotDoanhSo,
         ...(nguoiChamSocId && { nguoiChamSocId }),
         ...(ngayTao && { createdAt: new Date(ngayTao) }),
       },

@@ -1,23 +1,9 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-
 async function main() {
-  const item = await prisma.inventoryItem.findFirst({
-    where: { tenHang: { contains: "Sen tắm nóng lạnh" } },
-    include: {
-      dinhMuc: true,
-      dinhMucVatTus: true,
-    }
-  });
-  console.log("ITEM:", JSON.stringify(item, null, 2));
-
-  if (item) {
-    const stocks = await prisma.inventoryStock.findMany({
-      where: { inventoryItemId: item.id },
-      include: { warehouse: true }
-    });
-    console.log("STOCKS:", JSON.stringify(stocks, null, 2));
-  }
+  const debts = await prisma.debt.findMany();
+  console.log('All Debts:', debts);
+  const notification = await prisma.paymentNotification.findUnique({where: {id: 'cmsebtwlk000i8o1ytcvdha1p'}});
+  console.log('Notification:', notification);
 }
-
-main().catch(console.error).finally(() => prisma.$disconnect());
+main().finally(() => prisma.$disconnect());

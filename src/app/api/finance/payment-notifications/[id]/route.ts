@@ -48,7 +48,7 @@ export async function PATCH(
         data: updatedData,
         include: {
           customer: { select: { id: true, name: true } },
-          saleOrder: { select: { id: true, code: true, daThanhToan: true } },
+          saleOrder: { select: { id: true, code: true, daThanhToan: true, keToanDuyet: true } },
         },
       });
 
@@ -76,6 +76,18 @@ export async function PATCH(
             });
           }
         }
+      }
+
+      // Ghi nhận doanh thu
+      if (status === "verified") {
+        await tx.revenue.create({
+          data: {
+            amount: updated.amount,
+            source: updated.saleOrderId ? "SALE_ORDER" : "OTHER",
+            referenceId: updated.saleOrderId || updated.id,
+            description: `Thanh toán từ thông báo: ${updated.id}`,
+          },
+        });
       }
 
       return updated;

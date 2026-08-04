@@ -540,6 +540,11 @@ model Customer {
   quotations     Quotation[]
   saleOrders     SaleOrder[]
   formValues     String?
+  doanhSoCamKet      Float                 @default(0)
+  thuongThanhToan    String?
+  thuongDoanhSoNam   String?
+  thuongVuotDoanhSo  String?
+
 
   @@index([nguon])
   @@index([nhom])
@@ -3042,4 +3047,14 @@ model PaymentNotification {
   imageUrl        String?     // Screenshot
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+}
+
+model Revenue {
+  id          String   @id @default(cuid())
+  amount      Float
+  source      String?  // Nguồn doanh thu (VD: Bán hàng, Dịch vụ)
+  referenceId String?  // ID tham chiếu (VD: Mã đơn hàng)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

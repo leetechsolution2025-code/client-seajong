@@ -35,6 +35,10 @@ export async function GET(req: NextRequest) {
     const uuTien = searchParams.get("uuTien") ?? "";
     const customerId = searchParams.get("customerId") ?? "";
     const type = searchParams.get("type") ?? "";
+    const employeeIdFilter = searchParams.get("employeeId") ?? "";
+
+    const isManager = session.user.role === "ADMIN" || session.user.role === "MANAGER" || session.user.role === "SUPERADMIN";
+    const employee = await prisma.employee.findUnique({ where: { userId: session.user.id } });
 
     const where: any = {
       code: { startsWith: "BG" },
@@ -44,6 +48,12 @@ export async function GET(req: NextRequest) {
       ...(trangThai && { trangThai }),
       ...(uuTien && { uuTien }),
     };
+
+    if (!isManager) {
+      where.nguoiPhuTrachId = employee?.id || "none";
+    } else if (employeeIdFilter) {
+      where.nguoiPhuTrachId = employeeIdFilter;
+    }
 
     const [total, items] = await Promise.all([
       prisma.quotation.count({ where }),

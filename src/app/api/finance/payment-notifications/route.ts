@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
             select: { 
               id: true, 
               code: true,
+              keToanDuyet: true,
               tongTien: true,
               daThanhToan: true,
               saleOrderItems: {

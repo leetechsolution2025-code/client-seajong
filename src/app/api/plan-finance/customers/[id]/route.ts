@@ -22,7 +22,13 @@ export async function GET(
         nguoiChamSoc: { select: { id: true, fullName: true } },
         saleOrders: {
           orderBy: { createdAt: "desc" },
-          take: 20
+          take: 20,
+          include: {
+            paymentNotifications: {
+              where: { status: "verified" },
+              select: { amount: true, verifiedAt: true, createdAt: true }
+            }
+          }
         }
       },
     });
@@ -69,8 +75,10 @@ export async function GET(
       try {
         const fVals = JSON.parse(customer.formValues);
         extraFields = fVals;
-        const rawRevenue = fVals.hdAnnualRevenue;
-        if (rawRevenue) {
+        if (fVals.doanhSoCamKet) {
+          committedSales = parseFloat(fVals.doanhSoCamKet);
+        } else if (fVals.hdAnnualRevenue) {
+          const rawRevenue = fVals.hdAnnualRevenue;
           const cleanRevenue = String(rawRevenue).replace(/\./g, "").trim();
           const parsedRev = parseFloat(cleanRevenue);
           if (!isNaN(parsedRev)) {
@@ -145,7 +153,19 @@ export async function PATCH(
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
     const body = await req.json();
-    const { name, address, nguon, nhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu, nguoiChamSocId, hanMucCongNo } = body;
+    const { name, address, nguon, nhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu, nguoiChamSocId, hanMucCongNo, formValues } = body;
+
+    let extraData: any = {};
+    if (formValues !== undefined) {
+      extraData.formValues = typeof formValues === "object" ? JSON.stringify(formValues) : formValues;
+      try {
+        const fv = typeof formValues === "string" ? JSON.parse(formValues) : formValues;
+        extraData.doanhSoCamKet = fv.doanhSoCamKet || 0;
+        extraData.thuongThanhToan = fv.thuongThanhToan || "";
+        extraData.thuongDoanhSoNam = fv.thuongDoanhSoNam || "";
+        extraData.thuongVuotDoanhSo = fv.thuongVuotDoanhSo || "";
+      } catch (e) {}
+    }
 
     const updated = await prisma.customer.update({
       where: { id },
@@ -162,7 +182,8 @@ export async function PATCH(
         ...(email       !== undefined && { email }),
         ...(ghiChu      !== undefined && { ghiChu }),
         ...(hanMucCongNo !== undefined && { hanMucCongNo: parseFloat(hanMucCongNo) || 0 }),
-        nguoiChamSocId: nguoiChamSocId || null,
+        ...extraData,
+        ...(nguoiChamSocId !== undefined && { nguoiChamSocId: nguoiChamSocId || null }),
       },
       include: { nguoiChamSoc: { select: { id: true, fullName: true } } },
     });
