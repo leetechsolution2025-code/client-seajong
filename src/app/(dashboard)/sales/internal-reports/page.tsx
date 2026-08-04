@@ -35,6 +35,7 @@ export default function PartnerActivitiesPage() {
     totalIncome: 0
   });
   const [yearlyKpi, setYearlyKpi] = useState<any[]>(Array(12).fill(null));
+  const [showRules, setShowRules] = useState(false);
 
   const handlePrevMonth = () => setReportMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   const handleNextMonth = () => setReportMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
@@ -55,6 +56,20 @@ export default function PartnerActivitiesPage() {
       .catch(() => {});
 
   }, []);
+
+  useEffect(() => {
+    if (salesEmployees.length > 0 && positions.length > 0 && !selectedEmployeeId) {
+      const staffEmployees = salesEmployees.filter(e => {
+        const posCode = e.position;
+        const pos = positions.find(p => p.code === posCode);
+        const posName = pos ? pos.name.toLowerCase() : "nhân viên";
+        return !posName.includes("trưởng phòng") && !posName.includes("phó phòng");
+      });
+      if (staffEmployees.length > 0) {
+        setSelectedEmployeeId(staffEmployees[0].id);
+      }
+    }
+  }, [salesEmployees, positions, selectedEmployeeId]);
 
   useEffect(() => {
     const month = reportMonth.getMonth() + 1;
@@ -112,13 +127,34 @@ export default function PartnerActivitiesPage() {
       })
       .catch(console.error);
 
-    // Fetch Yearly KPI
-    let yearlyUrl = `/api/sales/internal-reports/reports/yearly?year=${year}&type=${currentStep === 1 ? 'MANAGER' : 'STAFF'}&_t=${ts}`;
-    if (targetEmployeeId) yearlyUrl += `&employeeId=${targetEmployeeId}`;
-    fetch(yearlyUrl, { cache: "no-store" })
-      .then(r => r.json())
-      .then(d => {
-         if(d?.success && d.data) setYearlyKpi(d.data);
+    // Fetch Yearly KPI dynamically for all past months up to current month
+    const currentMonthNum = new Date().getMonth() + 1;
+    const fetchPromises = [];
+    for (let i = 1; i <= currentMonthNum; i++) {
+      let mUrl = `/api/sales/internal-reports/reports?month=${i}&year=${year}&type=${currentStep === 1 ? 'MANAGER' : 'STAFF'}&_t=${ts}`;
+      if (targetEmployeeId) mUrl += `&employeeId=${targetEmployeeId}`;
+      fetchPromises.push(fetch(mUrl, { cache: "no-store" }).then(r => r.json()));
+    }
+
+    Promise.all(fetchPromises)
+      .then(results => {
+        const newYearlyKpi = Array(12).fill(null);
+        results.forEach((d, idx) => {
+          if (d?.success && d.data) {
+            const parseNumber = (str: string) => Number(str.replace(/,/g, "").replace(/%/g, "").trim());
+            const score = d.data.reduce((sum: number, item: any) => {
+              const target = parseNumber(item.target.toString());
+              const actual = parseNumber(item.actual.toString());
+              const weight = parseNumber(item.weight.toString());
+              if (target === 0 || isNaN(target) || isNaN(actual) || isNaN(weight)) return sum;
+              return sum + (actual / target) * weight;
+            }, 0);
+            newYearlyKpi[idx] = Math.round(score * 10) / 10;
+          } else {
+            newYearlyKpi[idx] = 0;
+          }
+        });
+        setYearlyKpi(newYearlyKpi);
       })
       .catch(console.error);
 
@@ -239,11 +275,13 @@ export default function PartnerActivitiesPage() {
     if (i === selectedMonthIndex) {
       return currentStep === 1 ? Math.round(step1TotalScore) : Math.round(step2TotalScore);
     }
-    return yearlyKpi[i];
+    if (i < currentMonth) return yearlyKpi[i] ?? 0;
+    return null;
   });
   const kpiData2 = Array.from({ length: 12 }, (_, i) => {
     if (i === selectedMonthIndex) return Math.round(step2TotalScore);
-    return yearlyKpi[i];
+    if (i < currentMonth) return yearlyKpi[i] ?? 0;
+    return null;
   });
   
   const computeAvg = (data: (number | null)[]) => {
@@ -483,7 +521,12 @@ export default function PartnerActivitiesPage() {
                           </tbody>
                         </table>
                         <div className="mt-4 pb-3 flex-shrink-0" style={{ paddingLeft: 8, paddingRight: 8 }}>
-                          <h6 className="fw-bold text-dark text-uppercase mb-3" style={{ fontSize: 13 }}>Khung thu nhập</h6>
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h6 className="fw-bold text-dark text-uppercase mb-0" style={{ fontSize: 13 }}>Khung thu nhập</h6>
+                            <button className="btn btn-sm btn-outline-primary d-flex align-items-center" style={{ fontSize: 12 }} onClick={() => setShowRules(true)}>
+                              <i className="bi bi-info-circle me-1"></i> Quy tắc tính
+                            </button>
+                          </div>
                           <div className="row g-3 align-items-center">
                             <div className="col-md-5 border-end">
                               <div className="text-muted mb-1 text-uppercase" style={{ fontSize: 11, fontWeight: 600 }}>Tổng thu nhập</div>
@@ -674,7 +717,6 @@ export default function PartnerActivitiesPage() {
                         value={selectedEmployeeId}
                         onChange={e => setSelectedEmployeeId(e.target.value)}
                       >
-                        <option value="">-- Chọn nhân viên --</option>
                         {salesEmployees.filter(e => {
                           const posName = getPositionName(e.position).toLowerCase();
                           return !posName.includes("trưởng phòng") && !posName.includes("phó phòng");
@@ -726,7 +768,12 @@ export default function PartnerActivitiesPage() {
                           </tbody>
                         </table>
                         <div className="mt-4 pb-3 flex-shrink-0" style={{ paddingLeft: 8, paddingRight: 8 }}>
-                          <h6 className="fw-bold text-dark text-uppercase mb-3" style={{ fontSize: 13 }}>Khung thu nhập</h6>
+                          <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h6 className="fw-bold text-dark text-uppercase mb-0" style={{ fontSize: 13 }}>Khung thu nhập</h6>
+                            <button className="btn btn-sm btn-outline-primary d-flex align-items-center" style={{ fontSize: 12 }} onClick={() => setShowRules(true)}>
+                              <i className="bi bi-info-circle me-1"></i> Quy tắc tính
+                            </button>
+                          </div>
                           <div className="row g-3 align-items-center">
                             <div className="col-md-5 border-end">
                               <div className="text-muted mb-1 text-uppercase" style={{ fontSize: 11, fontWeight: 600 }}>Tổng thu nhập</div>
@@ -997,6 +1044,63 @@ export default function PartnerActivitiesPage() {
           )}
         </div>
       </WorkflowCard>
+
+      {showRules && (
+        <>
+          <div onClick={() => setShowRules(false)} style={{ position: "fixed", inset: 0, zIndex: 1040, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(2px)" }} />
+          <div style={{
+            position: "fixed", top: 0, right: 0, bottom: 0, width: 400, zIndex: 1050,
+            background: "var(--card)", boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
+            display: "flex", flexDirection: "column"
+          }}>
+            <div className="d-flex align-items-center justify-content-between p-3 border-bottom bg-light">
+              <h6 className="mb-0 fw-bold">Quy tắc tính khung thu nhập</h6>
+              <button className="btn-close" onClick={() => setShowRules(false)}></button>
+            </div>
+            <div className="p-4 overflow-auto custom-scrollbar flex-grow-1">
+              <div className="mb-4">
+                <h6 className="fw-bold text-dark" style={{ fontSize: 14 }}>1. Công thức tính tổng thu nhập</h6>
+                <div className="text-muted mt-2" style={{ fontSize: 13, background: "var(--light)", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                  <strong>Tổng thu nhập</strong> = Lương cơ bản + Lương hiệu suất + % hoa hồng Ds + Phụ cấp
+                </div>
+              </div>
+              <div className="mb-4">
+                <h6 className="fw-bold text-dark" style={{ fontSize: 14 }}>2. Ngưỡng tính điểm KPI</h6>
+                <ul className="text-muted mt-2 ps-3" style={{ fontSize: 13, margin: 0 }}>
+                  <li className="mb-1">KPI được chấm theo thang 100 điểm/tháng. Trần tối đa 100 điểm</li>
+                  <li className="mb-1">KPI tháng là căn cứ chi trả lương hiệu suất/KPI theo tỷ lệ.</li>
+                  <li className="mb-1">&lt;80 điểm: Không đạt không hưởng lương hiệu suất (0%).</li>
+                </ul>
+              </div>
+              <div className="mb-4">
+                <h6 className="fw-bold text-dark" style={{ fontSize: 14 }}>3. Công thức tính lương hiệu suất</h6>
+                <div className="text-muted mt-2" style={{ fontSize: 13 }}>
+                  <div className="mb-2">Thưởng KPI tháng tối đa 5,000,000 (vnđ)</div>
+                  <div className="mb-2 p-2" style={{ background: "var(--light)", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                    <strong>Lương hiệu suất thực nhận</strong> = Lương hiệu suất theo hợp đồng &times; Tỷ lệ hưởng
+                  </div>
+                  <div className="mb-1">Tỷ lệ hưởng theo xếp hạng:</div>
+                  <ul className="ps-3 mb-2" style={{ margin: 0 }}>
+                    <li className="mb-1">80–89 điểm (Đạt/Khá): hưởng 80%</li>
+                    <li className="mb-1">90–94 điểm (Tốt): hưởng 90%</li>
+                    <li className="mb-1">95–99 điểm (Giỏi): hưởng 95%</li>
+                    <li className="mb-1">100 điểm (Xuất sắc): hưởng 100%</li>
+                  </ul>
+                  <div className="fst-italic">Ghi chú: nếu tháng nào KPI &lt;80 thì không chi trả phần lương hiệu suất tháng đó.</div>
+                </div>
+              </div>
+              <div className="mb-4">
+                <h6 className="fw-bold text-dark" style={{ fontSize: 14 }}>4. Nguyên tắc minh chứng và loại trừ</h6>
+                <ul className="text-muted mt-2 ps-3" style={{ fontSize: 13, margin: 0 }}>
+                  <li className="mb-1">Chỉ tiêu không có minh chứng/đối soát số liệu, không tính điểm.</li>
+                  <li className="mb-1">Nếu có vi phạm nghiêm trọng (báo cáo sai/gian dối số liệu, vi phạm chính sách giá, công nợ, gây thiệt hại...). CEO có quyền loại KPI tháng và/hoặc xử lý theo quy định.</li>
+                </ul>
+              </div>
+
+            </div>
+          </div>
+        </>
+      )}
     </StandardPage>
   );
 }
