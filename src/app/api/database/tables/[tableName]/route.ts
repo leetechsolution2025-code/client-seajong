@@ -31,7 +31,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, message: `Successfully cleared table ${tableName}` });
   } catch (error: any) {
-    console.error(`Error deleting table ${params?.tableName}:`, error);
+    console.error(`Error deleting table:`, error);
     
     // Handle foreign key constraint error specifically
     if (error.message?.includes("FOREIGN KEY constraint failed")) {
