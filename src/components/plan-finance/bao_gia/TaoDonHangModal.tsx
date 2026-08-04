@@ -639,7 +639,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       toast.error("Lỗi", "Vui lòng chọn hoặc nhập tên sản phẩm");
       return;
     }
-    setItems(r => [...r, { ...formItem, id: nextId.current++ }]);
+    if (formItem.id !== -1) {
+      setItems(r => r.map(x => x.id === formItem.id ? formItem : x));
+    } else {
+      setItems(r => [...r, { ...formItem, id: nextId.current++ }]);
+    }
     setFormItem({ id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: "" });
   };
 
@@ -1212,7 +1216,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               </div>
               <div>
                 <button onClick={addRow} style={{ padding: "7px 14px", border: "none", background: "var(--primary)", color: "#fff", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, height: 33 }}>
-                  <i className="bi bi-plus-lg" /> Thêm
+                  <i className={formItem.id === -1 ? "bi bi-plus-lg" : "bi bi-check2"} /> {formItem.id === -1 ? "Thêm" : "Cập nhật"}
                 </button>
               </div>
             </div>
@@ -1234,7 +1238,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 {items.length === 0 ? (
                   <tr><td colSpan={8} style={{ padding: 20, textAlign: "center", color: "var(--muted-foreground)" }}>Chưa có sản phẩm nào</td></tr>
                 ) : items.map((it, idx) => (
-                  <tr key={it.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <tr 
+                    key={it.id} 
+                    onClick={() => setFormItem(it)}
+                    style={{ borderBottom: "1px solid var(--border)", cursor: "pointer", background: formItem.id === it.id ? "rgba(0,0,0,0.03)" : "transparent" }}
+                  >
                     <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
                     <td style={{ padding: "6px 10px", position: "relative" }}>
                       {it.ten.trim() && it.soLuongTon !== null && it.soLuongTon !== undefined && (() => {
@@ -1259,7 +1267,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                     <td style={{ padding: 6, textAlign: "right" }}>{fmt(it.donGia)}</td>
                     <td style={{ padding: 6, textAlign: "right", fontWeight: 600 }}>{fmt(thanhTien(it))} đ</td>
                     <td style={{ padding: 6 }}>
-                      <button onClick={() => removeRow(it.id)} style={{ padding: 4, background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>
+                      <button onClick={(e) => { e.stopPropagation(); removeRow(it.id); }} style={{ padding: 4, background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>
                         <i className="bi bi-trash" />
                       </button>
                     </td>
