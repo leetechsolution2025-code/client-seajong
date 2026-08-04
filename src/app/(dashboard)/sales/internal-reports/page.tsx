@@ -853,25 +853,31 @@ export default function PartnerActivitiesPage() {
                             <tr key={idx}>
                               <td className="text-center text-muted">{idx + 1}</td>
                               <td>
-                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.name || ""} style={{ borderColor: "var(--border)" }} onChange={(e) => {
+                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.name || ""} style={{ borderColor: "var(--border)", fontSize: 12 }} onChange={(e) => {
                                   const newData = [...step1KpiConfig];
                                   newData[idx] = { ...newData[idx], name: e.target.value };
                                   setStep1KpiConfig(newData);
                                 }} />
                               </td>
                               <td>
-                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.target || ""} style={{ borderColor: "var(--border)" }} onChange={(e) => {
+                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.target || ""} style={{ borderColor: "var(--border)", fontSize: 12 }} onChange={(e) => {
+                                  const val = e.target.value.replace(/[^0-9]/g, "");
+                                  const formatted = val ? parseInt(val, 10).toLocaleString("en-US") : "";
                                   const newData = [...step1KpiConfig];
-                                  newData[idx] = { ...newData[idx], target: e.target.value };
+                                  newData[idx] = { ...newData[idx], target: formatted };
                                   setStep1KpiConfig(newData);
                                 }} />
                               </td>
                               <td>
-                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.weight || ""} style={{ borderColor: step1TotalWeight > 100 ? "var(--bs-danger)" : "var(--border)", color: step1TotalWeight > 100 ? "var(--bs-danger)" : "inherit" }} onChange={(e) => {
-                                  const newData = [...step1KpiConfig];
-                                  newData[idx] = { ...newData[idx], weight: e.target.value };
-                                  setStep1KpiConfig(newData);
-                                }} />
+                                <div className="input-group input-group-sm mx-auto" style={{ width: 70 }}>
+                                  <input type="text" className="form-control text-center bg-white shadow-none" value={String(item.weight).replace(/%/g, "") || ""} style={{ borderColor: step1TotalWeight > 100 ? "var(--bs-danger)" : "var(--border)", color: step1TotalWeight > 100 ? "var(--bs-danger)" : "inherit", fontSize: 12, paddingRight: 4, paddingLeft: 8 }} onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0-9]/g, "");
+                                    const newData = [...step1KpiConfig];
+                                    newData[idx] = { ...newData[idx], weight: val };
+                                    setStep1KpiConfig(newData);
+                                  }} />
+                                  <span className="input-group-text bg-light text-muted" style={{ borderColor: step1TotalWeight > 100 ? "var(--bs-danger)" : "var(--border)", fontSize: 12, padding: "0 6px" }}>%</span>
+                                </div>
                               </td>
                               <td className="text-center">
                                 <button className="btn btn-sm btn-light text-danger p-1" onClick={() => {
@@ -919,25 +925,31 @@ export default function PartnerActivitiesPage() {
                             <tr key={idx}>
                               <td className="text-center text-muted">{idx + 1}</td>
                               <td>
-                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.name || ""} style={{ borderColor: "var(--border)" }} onChange={(e) => {
+                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.name || ""} style={{ borderColor: "var(--border)", fontSize: 12 }} onChange={(e) => {
                                   const newData = [...step2KpiConfig];
                                   newData[idx] = { ...newData[idx], name: e.target.value };
                                   setStep2KpiConfig(newData);
                                 }} />
                               </td>
                               <td>
-                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.target || ""} style={{ borderColor: "var(--border)" }} onChange={(e) => {
+                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.target || ""} style={{ borderColor: "var(--border)", fontSize: 12 }} onChange={(e) => {
+                                  const val = e.target.value.replace(/[^0-9]/g, "");
+                                  const formatted = val ? parseInt(val, 10).toLocaleString("en-US") : "";
                                   const newData = [...step2KpiConfig];
-                                  newData[idx] = { ...newData[idx], target: e.target.value };
+                                  newData[idx] = { ...newData[idx], target: formatted };
                                   setStep2KpiConfig(newData);
                                 }} />
                               </td>
                               <td>
-                                <input type="text" className="form-control form-control-sm text-center bg-white shadow-none" value={item.weight || ""} style={{ borderColor: step2TotalWeight > 100 ? "var(--bs-danger)" : "var(--border)", color: step2TotalWeight > 100 ? "var(--bs-danger)" : "inherit" }} onChange={(e) => {
-                                  const newData = [...step2KpiConfig];
-                                  newData[idx] = { ...newData[idx], weight: e.target.value };
-                                  setStep2KpiConfig(newData);
-                                }} />
+                                <div className="input-group input-group-sm mx-auto" style={{ width: 70 }}>
+                                  <input type="text" className="form-control text-center bg-white shadow-none" value={String(item.weight).replace(/%/g, "") || ""} style={{ borderColor: step2TotalWeight > 100 ? "var(--bs-danger)" : "var(--border)", color: step2TotalWeight > 100 ? "var(--bs-danger)" : "inherit", fontSize: 12, paddingRight: 4, paddingLeft: 8 }} onChange={(e) => {
+                                    const val = e.target.value.replace(/[^0-9]/g, "");
+                                    const newData = [...step2KpiConfig];
+                                    newData[idx] = { ...newData[idx], weight: val };
+                                    setStep2KpiConfig(newData);
+                                  }} />
+                                  <span className="input-group-text bg-light text-muted" style={{ borderColor: step2TotalWeight > 100 ? "var(--bs-danger)" : "var(--border)", fontSize: 12, padding: "0 6px" }}>%</span>
+                                </div>
                               </td>
                               <td className="text-center">
                                 <button className="btn btn-sm btn-light text-danger p-1" onClick={() => {
