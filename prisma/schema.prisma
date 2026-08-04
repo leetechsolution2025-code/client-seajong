@@ -617,6 +617,7 @@ model SaleOrder {
   keToanDuyet          String               @default("pending") // "pending" | "approved" | "rejected"
   trangThaiKho         String               @default("in_stock") // "in_stock" | "out_of_stock"
   discount             Float                @default(0)
+  vat                  Float                @default(0)
   ghiChu               String?
   nguoiPhuTrach        String?
   createdAt            DateTime             @default(now())

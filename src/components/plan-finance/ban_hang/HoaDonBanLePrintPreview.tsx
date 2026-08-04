@@ -37,8 +37,8 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
   const [donTrang, setDonTrang] = useState(false);
 
   const parseGuestInfo = (ghiChu: string | null) => {
-    let name = "", phone = "", address = "";
-    if (!ghiChu) return { name, phone, address };
+    let name = "", phone = "", address = "", parsedChiPhiKhac = 0;
+    if (!ghiChu) return { name, phone, address, parsedChiPhiKhac };
     const guestMatch = ghiChu.match(/\[GuestInfo:(.*?)\]/);
     if (guestMatch) {
       try {
@@ -53,8 +53,12 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
       if (line.startsWith("Tên khách hàng: ")) name = line.replace("Tên khách hàng: ", "");
       if (line.startsWith("Số điện thoại: ")) phone = line.replace("Số điện thoại: ", "");
       if (line.startsWith("Địa chỉ giao hàng: ")) address = line.replace("Địa chỉ giao hàng: ", "");
+      if (line.startsWith("Chi phí khác: ")) {
+        const match = line.replace("Chi phí khác: ", "").replace(/\D/g, "");
+        if (match) parsedChiPhiKhac = Number(match);
+      }
     }
-    return { name, phone, address };
+    return { name, phone, address, parsedChiPhiKhac };
   };
 
   const displayCustomer = {
@@ -84,7 +88,15 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
       setNguoiNhan(displayCustomer.name || "");
       setPhone(displayCustomer.dienThoai || "");
       setDiaChiNhan(displayCustomer.address || "");
-      setChiPhiKhac(0);
+      
+      let initialChiPhiKhac = 0;
+      if (invoiceData.note) {
+        const parsed = parseGuestInfo(invoiceData.note);
+        if (parsed.parsedChiPhiKhac) initialChiPhiKhac = parsed.parsedChiPhiKhac;
+      }
+      setChiPhiKhac(initialChiPhiKhac);
+
+      fetch("/api/settings/company-info");
       setDonTrang(false);
       
       fetch("/api/company")
@@ -99,7 +111,7 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
   const totalLinesQty = invoiceData.lines.reduce((s, l) => s + l.qty, 0);
   const tongTienHoaDon = invoiceData.total;
   const noCu: number = invoiceData.conNo || 0;
-  const tongPhaiTra = tongTienHoaDon + chiPhiKhac + noCu;
+  const tongPhaiTra = tongTienHoaDon * (1 - invoiceData.discount / 100) + chiPhiKhac + (invoiceData.vatAmt || 0) + noCu;
   
   const paymentMethodLabel = invoiceData.payMethod === "transfer" ? "Chuyển khoản" :
                              invoiceData.payMethod === "card" ? "Quẹt thẻ" :
@@ -335,12 +347,18 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
                      <td style={{ color: "#ef4444" }}>Chiết khấu <span style={{ fontSize: 10 }}>({invoiceData.discount}%)</span>:</td>
                      <td style={{ textAlign: "right", fontWeight: 800, color: "#ef4444" }}>{(tongTienHoaDon * invoiceData.discount / 100) === 0 ? "0" : (tongTienHoaDon * invoiceData.discount / 100).toLocaleString("vi-VN")} đ</td>
                    </tr>
+                   {invoiceData.vatAmt > 0 && (
+                     <tr>
+                       <td>Thuế VAT:</td>
+                       <td style={{ textAlign: "right", fontWeight: 800 }}>{invoiceData.vatAmt.toLocaleString("vi-VN")} đ</td>
+                     </tr>
+                   )}
                    <tr>
                      <td colSpan={2}><div style={{ height: 1, background: "#cbd5e1", margin: "2px 0" }}/></td>
                    </tr>
                    <tr>
                      <td style={{ fontWeight: 800 }}>Tổng tiền hoá đơn:</td>
-                     <td style={{ textAlign: "right", fontWeight: 800 }}>{(tongTienHoaDon * (1 - invoiceData.discount / 100) + chiPhiKhac) === 0 ? "0" : (tongTienHoaDon * (1 - invoiceData.discount / 100) + chiPhiKhac).toLocaleString("vi-VN")} đ</td>
+                     <td style={{ textAlign: "right", fontWeight: 800 }}>{(tongTienHoaDon * (1 - invoiceData.discount / 100) + chiPhiKhac + invoiceData.vatAmt) === 0 ? "0" : (tongTienHoaDon * (1 - invoiceData.discount / 100) + chiPhiKhac + invoiceData.vatAmt).toLocaleString("vi-VN")} đ</td>
                    </tr>
                    <tr>
                      <td style={{ color: "#ef4444" }}>Nợ cũ:</td>

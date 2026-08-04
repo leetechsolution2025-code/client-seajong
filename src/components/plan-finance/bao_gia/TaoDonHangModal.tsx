@@ -116,6 +116,9 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     ghiChu: "",
     chietKhauTong: 0,
     thue: 0,
+    chiPhiKhac: 0,
+    daThanhToan: 0,
+    isChuyenKhoan: true,
   });
 
   const [showInfoSidebar, setShowInfoSidebar] = React.useState(false);
@@ -167,10 +170,17 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
       const lines = rawGhiChu.split("\n");
       const remainingLines = [];
+      let chiPhiKhac = 0;
       for (const line of lines) {
         if (line.startsWith("Tên khách hàng: ")) { tenNguoiNhan = line.replace("Tên khách hàng: ", ""); continue; }
         if (line.startsWith("Số điện thoại: ")) { sdtNguoiNhan = line.replace("Số điện thoại: ", ""); continue; }
         if (line.startsWith("Địa chỉ giao hàng: ")) { diaChiGiaoHang = line.replace("Địa chỉ giao hàng: ", ""); continue; }
+        if (line.startsWith("Chi phí khác: ")) {
+          const match = line.replace("Chi phí khác: ", "").replace(/\D/g, "");
+          if (match) chiPhiKhac = Number(match);
+          continue;
+        }
+        if (line.startsWith("Đã trả trước: ")) continue;
         remainingLines.push(line);
       }
       rawGhiChu = remainingLines.join("\n").trim();
@@ -184,7 +194,10 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         tenNguoiNhan,
         sdtNguoiNhan,
         diaChiGiaoHang,
-        chietKhauTong: editOrder.discount || 0
+        chiPhiKhac,
+        chietKhauTong: editOrder.discount || 0,
+        thue: editOrder.vat || 0,
+        daThanhToan: editOrder.daThanhToan || 0
       }));
       if (editOrder.customer) {
         setCustInfo({
@@ -662,7 +675,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   const ckTien = tamTinh * info.chietKhauTong / 100;
   const truocThue = tamTinh - ckTien;
   const thueTien = truocThue * info.thue / 100;
-  const tongCong = truocThue + thueTien;
+  const tongCong = truocThue + thueTien + (info.chiPhiKhac || 0);
 
 
   const handleSave = async () => {
@@ -688,7 +701,9 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         info.ghiChu,
         info.tenNguoiNhan ? `Tên khách hàng: ${info.tenNguoiNhan}` : "",
         info.sdtNguoiNhan ? `Số điện thoại: ${info.sdtNguoiNhan}` : "",
-        info.diaChiGiaoHang ? `Địa chỉ giao hàng: ${info.diaChiGiaoHang}` : ""
+        info.diaChiGiaoHang ? `Địa chỉ giao hàng: ${info.diaChiGiaoHang}` : "",
+        info.chiPhiKhac > 0 ? `Chi phí khác: ${info.chiPhiKhac.toLocaleString("vi-VN")} ₫` : "",
+        info.daThanhToan > 0 ? `Đã trả trước: ${info.daThanhToan.toLocaleString("vi-VN")} ₫ (${info.isChuyenKhoan ? 'Chuyển khoản' : 'Tiền mặt'})` : ""
       ].filter(Boolean).join("\n");
 
       if (!finalCustomerId) {
@@ -705,7 +720,9 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           ngayGiao: info.ngayGiaoHang,
           ghiChu: finalGhiChu,
           tongTien: tongCong,
+          daThanhToan: info.daThanhToan,
           discount: info.chietKhauTong,
+          vat: info.thue,
           items: validItems.map((it, idx) => ({
             tenHang: it.ten.trim(),
             soLuong: it.soLuong,
@@ -729,9 +746,10 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           trangThai: "won",
           uuTien: "medium",
           tongTien: tamTinh,
+          daThanhToan: info.daThanhToan,
           discount: info.chietKhauTong,
           vat: info.thue,
-          chiPhiThiCong: 0,
+          chiPhiThiCong: info.chiPhiKhac || 0,
           thanhTien: tongCong,
           ghiChu: finalGhiChu,
           quoteType: "Không có quầy kệ",
@@ -1033,9 +1051,36 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div><FLabel text="Chiết khấu tổng (%)" /><input type="number" min={0} max={100} value={info.chietKhauTong} onChange={setInfoField("chietKhauTong")} style={inputSt} /></div>
-              <div><FLabel text="Thuế VAT (%)" /><input type="number" min={0} max={100} value={info.thue} onChange={setInfoField("thue")} style={inputSt} /></div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 90px 1.5fr", gap: 10 }}>
+              <div>
+                <FLabel text="Chiết khấu tổng" />
+                <div style={{ position: "relative" }}>
+                  <input type="number" min={0} max={100} value={info.chietKhauTong} onChange={setInfoField("chietKhauTong")} style={{ ...inputSt, paddingRight: 24 }} />
+                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "var(--muted-foreground)", pointerEvents: "none" }}>%</span>
+                </div>
+              </div>
+              <div>
+                <FLabel text="Thuế VAT" />
+                <div style={{ position: "relative" }}>
+                  <input type="number" min={0} max={100} value={info.thue} onChange={setInfoField("thue")} style={{ ...inputSt, paddingRight: 24 }} />
+                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "var(--muted-foreground)", pointerEvents: "none" }}>%</span>
+                </div>
+              </div>
+              <div>
+                <FLabel text="Chi phí khác" />
+                <div style={{ position: "relative" }}>
+                  <input 
+                    type="text" 
+                    value={info.chiPhiKhac ? info.chiPhiKhac.toLocaleString("vi-VN") : "0"} 
+                    onChange={e => {
+                      const val = Number(e.target.value.replace(/\D/g, ""));
+                      setInfo(prev => ({ ...prev, chiPhiKhac: val }));
+                    }} 
+                    style={{ ...inputSt, paddingRight: 24 }} 
+                  />
+                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "var(--muted-foreground)", pointerEvents: "none" }}>₫</span>
+                </div>
+              </div>
             </div>
 
             <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -1278,11 +1323,40 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           </div>
 
           {/* Bottom summaries */}
-          <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", alignItems: "center", background: "var(--card)" }}>
+          <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--card)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "var(--muted-foreground)" }}>Đã trả:</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ position: "relative", width: 140 }}>
+                  <input
+                    type="text"
+                    value={info.daThanhToan ? info.daThanhToan.toLocaleString("vi-VN") : ""}
+                    onChange={(e) => {
+                      const val = Number(e.target.value.replace(/\D/g, ""));
+                      setInfo(f => ({ ...f, daThanhToan: val }));
+                    }}
+                    placeholder="0"
+                    style={{ width: "100%", padding: "6px 28px 6px 12px", border: "1px solid var(--border)", borderRadius: 6, outline: "none", fontSize: 14, fontWeight: 600, color: "var(--foreground)", background: "transparent" }}
+                  />
+                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "var(--muted-foreground)", pointerEvents: "none" }}>₫</span>
+                </div>
+                
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, color: "var(--muted-foreground)" }}>
+                  <input 
+                    type="checkbox" 
+                    checked={info.isChuyenKhoan} 
+                    onChange={(e) => setInfo(f => ({ ...f, isChuyenKhoan: e.target.checked }))}
+                    style={{ cursor: "pointer", width: 14, height: 14, accentColor: "var(--primary)" }}
+                  />
+                  Chuyển khoản
+                </label>
+              </div>
+            </div>
             <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
               <div><p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>Tạm tính</p><p style={{ margin: 0, fontWeight: 700 }}>{fmt(tamTinh)} ₫</p></div>
               <div><p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>Khấu trừ</p><p style={{ margin: 0, fontWeight: 700 }}>− {fmt(ckTien)} ₫</p></div>
               <div><p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>Thuế</p><p style={{ margin: 0, fontWeight: 700 }}>+ {fmt(thueTien)} ₫</p></div>
+              {info.chiPhiKhac > 0 && <div><p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>CP khác</p><p style={{ margin: 0, fontWeight: 700 }}>+ {fmt(info.chiPhiKhac)} ₫</p></div>}
               <div><p style={{ margin: 0, fontSize: 11, color: "var(--primary)" }}>TỔNG CỘNG</p><p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "var(--primary)" }}>{fmt(tongCong)} ₫</p></div>
             </div>
           </div>

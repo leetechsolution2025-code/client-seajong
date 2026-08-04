@@ -105,6 +105,7 @@ export async function GET(
     // Fetch items from the corresponding won quotation and also get the discount
     let orderItems: any[] = [];
     let orderDiscount = 0;
+    let orderVat = 0;
     
     // First, try to find the matching quotation by code
     const matchingQuotation = await prisma.quotation.findFirst({
@@ -117,6 +118,12 @@ export async function GET(
       orderDiscount = order.discount;
     } else if (matchingQuotation) {
       orderDiscount = matchingQuotation.discount || 0;
+    }
+
+    if ((order as any).vat !== undefined && (order as any).vat !== null && (order as any).vat > 0) {
+      orderVat = (order as any).vat;
+    } else if (matchingQuotation) {
+      orderVat = matchingQuotation.vat || 0;
     }
 
     if (order.saleOrderItems && order.saleOrderItems.length > 0) {
@@ -272,7 +279,8 @@ export async function GET(
         dienThoai: guest.dienThoai,
         address: guest.address,
       } : null),
-      discount: orderDiscount
+      discount: orderDiscount,
+      vat: orderVat
     };
 
     // Calculate total receivable debt
@@ -317,7 +325,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { keToanDuyet, decision, decisions, ngayGiao, ngayHoanThanhSanXuat, daThanhToan, trangThai, ghiChu, tongTien, discount, items, productionItemIds = [] } = body;
+    const { keToanDuyet, decision, decisions, ngayGiao, ngayHoanThanhSanXuat, daThanhToan, trangThai, ghiChu, tongTien, discount, vat, items, productionItemIds = [] } = body;
 
     if (keToanDuyet !== undefined && !["pending", "approved", "rejected"].includes(keToanDuyet)) {
       return NextResponse.json({ error: "Trạng thái duyệt không hợp lệ" }, { status: 400 });
@@ -346,6 +354,7 @@ export async function PATCH(
           ...(ghiChu !== undefined && { ghiChu }),
           ...(tongTien !== undefined && { tongTien: parseFloat(String(tongTien)) }),
           ...(discount !== undefined && { discount: parseFloat(String(discount)) }),
+          ...(vat !== undefined && { vat: parseFloat(String(vat)) }),
         } as any,
       });
 

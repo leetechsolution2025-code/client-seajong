@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { code, customerId, ngayDat, ngayGiao, trangThai, tongTien, daThanhToan, keToanDuyet, ghiChu, nguoiPhuTrach, items } = body;
+    const { code, customerId, ngayDat, ngayGiao, trangThai, tongTien, daThanhToan, keToanDuyet, ghiChu, nguoiPhuTrach, items, discount, vat } = body;
 
     const fullOrder = await prisma.$transaction(async (tx) => {
       const order = await tx.saleOrder.create({
@@ -148,6 +148,8 @@ export async function POST(req: NextRequest) {
           code, trangThai: trangThai ?? "draft",
           tongTien:    parseFloat(tongTien    ?? 0),
           daThanhToan: parseFloat(daThanhToan ?? 0),
+          discount:    parseFloat(discount    ?? 0),
+          vat:         parseFloat(vat         ?? 0),
           keToanDuyet: keToanDuyet ?? "pending",
           ghiChu, nguoiPhuTrach,
           ...(customerId && { customerId }),
