@@ -60,8 +60,9 @@ export default function PartnerActivitiesPage() {
     const month = reportMonth.getMonth() + 1;
     const year = reportMonth.getFullYear();
 
+    const ts = Date.now();
     // Fetch Manager Report
-    fetch(`/api/sales/internal-reports/reports?month=${month}&year=${year}&type=MANAGER`)
+    fetch(`/api/sales/internal-reports/reports?month=${month}&year=${year}&type=MANAGER&_t=${ts}`, { cache: "no-store" })
       .then(r => r.json())
       .then(d => {
         if (d?.success && d.data) {
@@ -79,12 +80,12 @@ export default function PartnerActivitiesPage() {
       .catch(console.error);
 
     // Fetch Staff Report
-    let staffUrl = `/api/sales/internal-reports/reports?month=${month}&year=${year}&type=STAFF`;
+    let staffUrl = `/api/sales/internal-reports/reports?month=${month}&year=${year}&type=STAFF&_t=${ts}`;
     const targetEmployeeId = selectedEmployeeId || employee?.id;
     if (targetEmployeeId) {
       staffUrl += `&employeeId=${targetEmployeeId}`;
     }
-    fetch(staffUrl)
+    fetch(staffUrl, { cache: "no-store" })
       .then(r => r.json())
       .then(d => {
         if (d?.success && d.data) {
@@ -102,9 +103,9 @@ export default function PartnerActivitiesPage() {
       .catch(console.error);
 
     // Fetch Income
-    let incomeUrl = `/api/sales/internal-reports/income?month=${month}&year=${year}&type=${currentStep === 1 ? 'MANAGER' : 'STAFF'}`;
+    let incomeUrl = `/api/sales/internal-reports/income?month=${month}&year=${year}&type=${currentStep === 1 ? 'MANAGER' : 'STAFF'}&_t=${ts}`;
     if (targetEmployeeId) incomeUrl += `&employeeId=${targetEmployeeId}`;
-    fetch(incomeUrl)
+    fetch(incomeUrl, { cache: "no-store" })
       .then(r => r.json())
       .then(d => {
          if(d?.success && d.data) setIncomeData(d.data);
@@ -112,9 +113,9 @@ export default function PartnerActivitiesPage() {
       .catch(console.error);
 
     // Fetch Yearly KPI
-    let yearlyUrl = `/api/sales/internal-reports/reports/yearly?year=${year}&type=${currentStep === 1 ? 'MANAGER' : 'STAFF'}`;
+    let yearlyUrl = `/api/sales/internal-reports/reports/yearly?year=${year}&type=${currentStep === 1 ? 'MANAGER' : 'STAFF'}&_t=${ts}`;
     if (targetEmployeeId) yearlyUrl += `&employeeId=${targetEmployeeId}`;
-    fetch(yearlyUrl)
+    fetch(yearlyUrl, { cache: "no-store" })
       .then(r => r.json())
       .then(d => {
          if(d?.success && d.data) setYearlyKpi(d.data);
@@ -221,7 +222,7 @@ export default function PartnerActivitiesPage() {
     const completion = actual / target;
     const score = completion * weight;
     
-    return Math.round(score);
+    return Math.round(score * 10) / 10;
   };
 
   const step1KpiCriteria = step1KpiConfig;
@@ -474,7 +475,7 @@ export default function PartnerActivitiesPage() {
                                   </td>
                                   <td className="text-center text-muted">{item.weight}</td>
                                   <td className="text-center fw-bold" style={{ color: completionPercent >= 90 ? "var(--bs-success)" : completionPercent >= 80 ? "var(--bs-warning)" : "var(--bs-danger)" }}>
-                                    {score}
+                                    {score.toFixed(1)}
                                   </td>
                                 </tr>
                               );
@@ -717,7 +718,7 @@ export default function PartnerActivitiesPage() {
                                   </td>
                                   <td className="text-center text-muted">{item.weight}</td>
                                   <td className="text-center fw-bold" style={{ color: completionPercent >= 90 ? "var(--bs-success)" : completionPercent >= 80 ? "var(--bs-warning)" : "var(--bs-danger)" }}>
-                                    {score}
+                                    {score.toFixed(1)}
                                   </td>
                                 </tr>
                               );

@@ -1065,6 +1065,11 @@ export async function DELETE(
       await tx.logisticsTicket.deleteMany({
         where: { saleOrderId: id }
       });
+      // Huỷ liên kết các thanh toán (PaymentNotification)
+      await tx.paymentNotification.updateMany({
+        where: { saleOrderId: id },
+        data: { saleOrderId: null }
+      });
       await tx.saleOrder.delete({
         where: { id },
       });

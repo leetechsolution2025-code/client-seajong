@@ -19,3 +19,9 @@ Lines: [{"id":"cmrm4spt6001agsm0aix0c4m0","journalEntryId":"cmrm4spt60018gsm0191
 [2026-07-15T07:35:10.964Z] DELETED: DHBL-20260715-01 - Ghi nhận doanh thu từ HĐ - Khách hàng lẻ – Đơn DHBL-20260715-01 - Reason: Huỷ/xoá đơn hàng bán
 Lines: [{"id":"cmrm4spta001ggsm0yneazc7q","journalEntryId":"cmrm4spta001egsm0b1st6vgz","accountId":"cmrln1vse005a8ovfj9xbdl8s","type":"DEBIT","amount":77000,"description":"Ghi nhận doanh thu từ HĐ - Khách hàng lẻ – Đơn DHBL-20260715-01"},{"id":"cmrm4spta001hgsm0j5wwqf13","journalEntryId":"cmrm4spta001egsm0b1st6vgz","accountId":"cmrlmib2m000v8o5mqxsjn8lb","type":"CREDIT","amount":77000,"description":"Ghi nhận doanh thu từ HĐ - Khách hàng lẻ – Đơn DHBL-20260715-01"}]
 
+[2026-07-15T07:35:10.964Z] DELETED: DBH-20260804-07 - Thu tiền khách hàng - Đại lý Vính Thinh – 09345675833 - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmseitsmo00148ottma97pfwu","journalEntryId":"cmseitsmo00128ottmyvpcmgo","accountId":"cmrlmib2e00078o5mu1q6ffjo","type":"DEBIT","amount":38000000,"description":"Thu tiền khách hàng - Đại lý Vính Thinh – 09345675833"},{"id":"cmseitsmo00158ottv1r5wyov","journalEntryId":"cmseitsmo00128ottmyvpcmgo","accountId":"cmrlmib2f000a8o5mbfh4csxq","type":"CREDIT","amount":38000000,"description":"Thu tiền khách hàng - Đại lý Vính Thinh – 09345675833"}]
+
+[2026-07-15T07:35:10.964Z] DELETED: DBH-20260804-07 - Ghi nhận doanh thu từ HĐ - Đại lý Vính Thinh – 09345675833 - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmseitsmz001a8ott3pvdgpdw","journalEntryId":"cmseitsmz00188ottl9gff9xh","accountId":"cmrln1vse005a8ovfj9xbdl8s","type":"DEBIT","amount":38000000,"description":"Ghi nhận doanh thu từ HĐ - Đại lý Vính Thinh – 09345675833"},{"id":"cmseitsmz001b8ottjqgeocxa","journalEntryId":"cmseitsmz00188ottl9gff9xh","accountId":"cmrlmib2m000v8o5mqxsjn8lb","type":"CREDIT","amount":38000000,"description":"Ghi nhận doanh thu từ HĐ - Đại lý Vính Thinh – 09345675833"}]
+
