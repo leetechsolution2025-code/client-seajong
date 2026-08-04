@@ -2062,17 +2062,6 @@ export default function SalesCustomersPage() {
                   </thead>
                   <tbody>
                     {(() => {
-                      const fv = selectedCustomer?.formValues ? JSON.parse(selectedCustomer.formValues) : {};
-                      const bonuses = Array.isArray(fv.bbBonuses) ? fv.bbBonuses : [];
-                      const thanhToanBonus = bonuses.find((b: any) => b.title?.toLowerCase().includes("thanh toán"));
-                      let bonusPercent = 0.02; // default 2%
-                      if (thanhToanBonus && thanhToanBonus.formula) {
-                        const match = thanhToanBonus.formula.match(/([\d.]+)%/);
-                        if (match) {
-                          bonusPercent = parseFloat(match[1]) / 100;
-                        }
-                      }
-
                       const currentMonth = new Date().getMonth() + 1;
                       const rows = [];
                       for (let i = 1; i <= currentMonth; i++) {
@@ -2087,9 +2076,8 @@ export default function SalesCustomersPage() {
                           return false;
                         });
                         const totalPaid = monthOrders.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
-                        const onTimeAmount = totalPaid; // Simulated
-                        // Calculated based on 'Chưa VAT' using typical 10% VAT deduction (amount / 1.1)
-                        const bonusAmount = Math.round((onTimeAmount / 1.1) * bonusPercent);
+                        const onTimeAmount = monthOrders.reduce((sum, o) => sum + (o.onTimePaidAmount || 0), 0);
+                        const bonusAmount = Math.round(onTimeAmount * 0.12);
 
                         rows.push(
                           <tr key={i}>
@@ -2121,13 +2109,14 @@ export default function SalesCustomersPage() {
                   const totalSales = formattedOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
                   const totalPaid = formattedOrders.reduce((sum, o) => sum + (o.paidAmount || 0), 0);
                   
-                  let annualCommitment = 0;
-                  if (selectedCustomer && selectedCustomer.contracts && selectedCustomer.contracts.length > 0) {
-                    annualCommitment = selectedCustomer.contracts.reduce((sum: number, c: any) => sum + (c.giaTriHopDong || 0), 0);
-                  } else {
-                    const fv = selectedCustomer?.formValues ? JSON.parse(selectedCustomer.formValues) : {};
-                    annualCommitment = Number(fv.bbDoanhSoNam || fv.hdDoanhSoNam) || 0;
+                  let hasCommitment = true;
+                  if (selectedCustomer?.formValues) {
+                    try {
+                      const fv = typeof selectedCustomer.formValues === "string" ? JSON.parse(selectedCustomer.formValues) : selectedCustomer.formValues;
+                      if (fv.coCamKet === false) hasCommitment = false;
+                    } catch (e) {}
                   }
+                  const annualCommitment = hasCommitment ? ((selectedCustomer as any).committedSales || 0) : 0;
 
                   const percent = annualCommitment > 0 ? Math.round((totalSales / annualCommitment) * 100) : 0;
                   const targetPercent = Math.round((passedMonths / 12) * 100);
