@@ -131,6 +131,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
       setEditGhiChu(order.ghiChu || "");
       setPrintDaThanhToan(order.daThanhToan || 0);
       setPrintNoCu(order.tongNoCu || 0);
+      setPrintChietKhau((order as any).discount || 0);
       
       let addr = order.customer?.address || "";
       let shippingAddr = addr;
@@ -344,10 +345,31 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
               <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px 16px", background: "rgba(0,0,0,0.02)", borderRadius: 12, border: "1px solid var(--border)" }}>
                 <p style={{ margin: 0, fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", letterSpacing: "0.02em" }}>Giá trị & Thanh toán</p>
                 
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
-                  <span className="text-secondary">Tổng tiền hàng:</span>
-                  <span className="fw-bold text-dark">{fmt(order.tongTien)} ₫</span>
-                </div>
+                {(() => {
+                  const tongTienHang = order.items ? order.items.reduce((acc: number, it: any) => acc + (it.thanhTien || 0), 0) : order.tongTien;
+                  const discountPct = (order as any).discount || 0;
+                  const discountAmt = (tongTienHang * discountPct) / 100;
+                  return (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
+                        <span className="text-secondary">Tổng tiền hàng:</span>
+                        <span className="fw-bold text-dark">{fmt(tongTienHang)} ₫</span>
+                      </div>
+                      
+                      {discountPct > 0 && (
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
+                          <span className="text-secondary">Chiết khấu ({discountPct}%):</span>
+                          <span className="fw-bold text-danger">-{fmt(discountAmt)} ₫</span>
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
+                        <span className="text-secondary">Tổng thanh toán:</span>
+                        <span className="fw-bold text-primary">{fmt(order.tongTien)} ₫</span>
+                      </div>
+                    </>
+                  );
+                })()}
 
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
                   <span className="text-secondary">Đã thanh toán:</span>
@@ -542,7 +564,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                 </div>
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6, color: "#ef4444" }}>Chiết khấu (%)</label>
-                  <input type="number" min="0" max="100" value={printChietKhau} onChange={e => setPrintChietKhau(Number(e.target.value) || 0)} style={{ width: "100%", padding: "8px 12px", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 6, fontSize: 13, background: "rgba(239, 68, 68, 0.05)" }} />
+                  <input type="number" min="0" max="100" value={printChietKhau} onChange={e => setPrintChietKhau(Number(e.target.value) || 0)} disabled={true} style={{ width: "100%", padding: "8px 12px", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 6, fontSize: 13, background: "rgba(239, 68, 68, 0.15)", cursor: "not-allowed" }} />
                 </div>
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6, color: "#ef4444" }}>Nợ cũ (đ)</label>
@@ -654,6 +676,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                       <th style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", width: 60, background: "#f8fafc", color: "var(--foreground)" }}>ĐVT</th>
                       <th style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", width: 60, background: "#f8fafc", color: "var(--foreground)" }}>Số lượng</th>
                       <th style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "right", width: 95, background: "#f8fafc", color: "var(--foreground)" }}>Đơn giá (đ)</th>
+                      <th style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", width: 70, background: "#f8fafc", color: "var(--foreground)" }}>CK (%)</th>
                       <th style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "right", width: 110, background: "#f8fafc", color: "var(--foreground)" }}>Thành tiền (đ)</th>
                     </tr>
                   </thead>
@@ -683,6 +706,16 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                         <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", verticalAlign: "middle" }}>{line.donVi || "cái"}</td>
                         <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", verticalAlign: "middle" }}>{line.soLuong}</td>
                         <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "right", verticalAlign: "middle" }}>{line.donGia.toLocaleString("vi-VN")}</td>
+                        <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "center", verticalAlign: "middle" }}>
+                          {(() => {
+                            const tongGia = (line.soLuong || 0) * (line.donGia || 0);
+                            if (tongGia > 0 && line.thanhTien !== undefined) {
+                              const ckAmount = tongGia - line.thanhTien;
+                              if (ckAmount > 0) return `${Math.round((ckAmount / tongGia) * 100)}%`;
+                            }
+                            return "";
+                          })()}
+                        </td>
                         <td style={{ border: "1px solid #1e293b", padding: "8px 6px", textAlign: "right", fontWeight: 700, verticalAlign: "middle" }}>{line.thanhTien.toLocaleString("vi-VN")}</td>
                       </tr>
                     ))}
@@ -709,13 +742,14 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                  {/* Payment Summary */}
                  <div style={{ flexShrink: 0 }}>
                    {(() => {
-                     const chietKhauAmount = (order.tongTien * printChietKhau) / 100;
+                     const tongTienHang = order.items ? order.items.reduce((acc, it) => acc + (it.thanhTien || 0), 0) : order.tongTien;
+                     const chietKhauAmount = (tongTienHang * printChietKhau) / 100;
                      return (
                        <table style={{ width: "280px", fontSize: 12, color: "#1e293b", lineHeight: 2.0 }}>
                          <tbody>
                            <tr>
                              <td style={{ fontWeight: 600 }}>Tổng tiền hàng:</td>
-                             <td style={{ textAlign: "right", fontWeight: 800 }}>{order.tongTien.toLocaleString("vi-VN")} đ</td>
+                             <td style={{ textAlign: "right", fontWeight: 800 }}>{tongTienHang.toLocaleString("vi-VN")} đ</td>
                            </tr>
                            <tr>
                              <td style={{ fontWeight: 600 }}>Chi phí khác:</td>
@@ -728,7 +762,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                            <tr style={{ borderTop: "1px solid #cbd5e1", borderBottom: "1px solid #cbd5e1" }}>
                              <td style={{ fontWeight: 800, fontSize: 13, paddingTop: 4, paddingBottom: 4 }}>Tổng tiền hoá đơn:</td>
                              <td style={{ textAlign: "right", fontWeight: 800, fontSize: 13, paddingTop: 4, paddingBottom: 4 }}>
-                               {(order.tongTien + printChiPhiKhac - chietKhauAmount).toLocaleString("vi-VN")} đ
+                               {(tongTienHang + printChiPhiKhac - chietKhauAmount).toLocaleString("vi-VN")} đ
                              </td>
                            </tr>
                            <tr>
@@ -738,7 +772,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                            <tr style={{ borderTop: "1px solid #cbd5e1" }}>
                              <td style={{ fontWeight: 800, fontSize: 13, paddingTop: 4 }}>Tổng tiền:</td>
                              <td style={{ textAlign: "right", fontWeight: 800, fontSize: 13, paddingTop: 4 }}>
-                               {(order.tongTien + printChiPhiKhac - chietKhauAmount + printNoCu).toLocaleString("vi-VN")} đ
+                               {(tongTienHang + printChiPhiKhac - chietKhauAmount + printNoCu).toLocaleString("vi-VN")} đ
                              </td>
                            </tr>
                            <tr>
@@ -748,12 +782,12 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                            <tr style={{ borderTop: "2px solid #1e293b" }}>
                              <td style={{ fontWeight: 800, fontSize: 15, paddingTop: 6 }}>Tổng phải trả:</td>
                              <td style={{ textAlign: "right", fontWeight: 900, fontSize: 16, color: "#0284c7", paddingTop: 6 }}>
-                               {Math.max(0, order.tongTien + printChiPhiKhac - chietKhauAmount + printNoCu - printDaThanhToan).toLocaleString("vi-VN")} đ
+                               {Math.max(0, tongTienHang + printChiPhiKhac - chietKhauAmount + printNoCu - printDaThanhToan).toLocaleString("vi-VN")} đ
                              </td>
                            </tr>
                            <tr>
                              <td colSpan={2} style={{ textAlign: "right", fontStyle: "italic", fontSize: 11, color: "#64748b", paddingTop: 4, paddingBottom: 8 }}>
-                               (Bằng chữ: {docSoTien(Math.max(0, order.tongTien + printChiPhiKhac - chietKhauAmount + printNoCu - printDaThanhToan))})
+                               (Bằng chữ: {docSoTien(Math.max(0, tongTienHang + printChiPhiKhac - chietKhauAmount + printNoCu - printDaThanhToan))})
                              </td>
                            </tr>
                          </tbody>

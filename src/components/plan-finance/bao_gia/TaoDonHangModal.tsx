@@ -115,7 +115,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     diaChiGiaoHang: "",
     ghiChu: "",
     chietKhauTong: 0,
-    thue: 10,
+    thue: 0,
   });
 
   const [showInfoSidebar, setShowInfoSidebar] = React.useState(false);
@@ -183,7 +183,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         ghiChu: rawGhiChu,
         tenNguoiNhan,
         sdtNguoiNhan,
-        diaChiGiaoHang
+        diaChiGiaoHang,
+        chietKhauTong: editOrder.discount || 0
       }));
       if (editOrder.customer) {
         setCustInfo({
@@ -202,7 +203,14 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           dvt: it.donVi || "cái",
           soLuong: Number(it.soLuong) || 1,
           donGia: Number(it.donGia) || 0,
-          ckPct: 0,
+          ckPct: (() => {
+            const tongGia = (Number(it.soLuong) || 1) * (Number(it.donGia) || 0);
+            if (tongGia > 0 && it.thanhTien !== undefined) {
+              const ckAmount = tongGia - Number(it.thanhTien);
+              if (ckAmount > 0) return Math.round((ckAmount / tongGia) * 100);
+            }
+            return 0;
+          })(),
           soLuongTon: null,
           trangThaiKho: null,
           inventoryId: null,
@@ -692,7 +700,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         const updatePayload = {
           ngayGiao: info.ngayGiaoHang,
           ghiChu: finalGhiChu,
-          tongTien: tamTinh,
+          tongTien: tongCong,
+          discount: info.chietKhauTong,
           items: validItems.map((it, idx) => ({
             tenHang: it.ten.trim(),
             soLuong: it.soLuong,
@@ -924,7 +933,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                       <FLabel text="Tên khách hàng" />
                       <input
                         type="text"
-                        placeholder="Nhập tên khách hàng..."
                         value={custInfo.name}
                         onChange={e => {
                           const val = e.target.value;
@@ -938,7 +946,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                       <FLabel text="Số điện thoại" />
                       <input
                         type="text"
-                        placeholder="Số điện thoại..."
                         value={custInfo.dienThoai}
                         onChange={e => {
                           const val = e.target.value;
@@ -953,7 +960,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                     <FLabel text="Địa chỉ" />
                     <input
                       type="text"
-                      placeholder="Nhập địa chỉ..."
                       value={custInfo.address}
                       onChange={e => {
                         const val = e.target.value;
@@ -972,7 +978,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 <FLabel text="Tên khách hàng" />
                 <input
                   type="text"
-                  placeholder="Nhập tên khách hàng..."
                   value={info.tenNguoiNhan}
                   onChange={e => {
                     const val = e.target.value;
@@ -986,7 +991,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 <FLabel text="Số điện thoại" />
                 <input
                   type="text"
-                  placeholder="Nhập số điện thoại..."
                   value={info.sdtNguoiNhan}
                   onChange={e => {
                     const val = e.target.value;
@@ -1002,7 +1006,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               <FLabel text="Địa chỉ khách hàng" />
               <input
                 type="text"
-                placeholder="Nhập địa chỉ khách hàng..."
                 value={custInfo.address}
                 onChange={e => {
                   const val = e.target.value;
@@ -1016,7 +1019,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               <FLabel text="Địa chỉ giao hàng" />
               <input
                 type="text"
-                placeholder="Nhập địa chỉ giao hàng chi tiết..."
                 value={info.diaChiGiaoHang}
                 onChange={e => {
                   const val = e.target.value;
@@ -1035,7 +1037,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
             <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
               <FLabel text="Ghi chú đơn hàng" />
               <textarea
-                placeholder="Ghi chú về thời gian giao hàng, yêu cầu đặc biệt..."
                 value={info.ghiChu}
                 onChange={e => setInfo(prev => ({ ...prev, ghiChu: e.target.value }))}
                 style={{ ...inputSt, flex: 1, resize: "none", minHeight: 120 }}
@@ -1085,7 +1086,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                   <FLabel text="Sản phẩm / Dịch vụ" required />
                   <SearchInput
                     value={formItem.ten}
-                    placeholder="Nhập tên hoặc mã SKU sản phẩm..."
                     onChange={v => {
                       setFormItem(prev => ({ ...prev, ten: v }));
                       if (!v) {
@@ -1145,7 +1145,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                     <input
                       value={formItem.dinhMucTen || ""}
                       readOnly
-                      placeholder="Tự động hiển thị..."
                       style={{ flex: 1, padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
                     />
                     <div className="dropdown">
@@ -1187,7 +1186,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 <input
                   value={formItem.khoTen || ""}
                   readOnly
-                  placeholder="Tự động..."
                   style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
                 />
               </div>
@@ -1209,7 +1207,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                   value={formItem.donGia}
                   onChange={v => !(!isAdmin) && setFormItem(p => ({ ...p, donGia: v }))}
                   readOnly={!isAdmin}
-                  placeholder="0"
                   style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: !isAdmin ? "var(--muted)" : "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: !isAdmin ? "var(--muted-foreground)" : "var(--foreground)", cursor: !isAdmin ? "not-allowed" : "text" }}
                 />
               </div>

@@ -102,28 +102,47 @@ export async function GET(
       select: { id: true }
     });
 
-    // Fetch items from the corresponding won quotation
+    // Fetch items from the corresponding won quotation and also get the discount
     let orderItems: any[] = [];
+    let orderDiscount = 0;
     
+    // First, try to find the matching quotation by code
+    const matchingQuotation = await prisma.quotation.findFirst({
+      where: { code: order.code || "" },
+      include: { items: { orderBy: { sortOrder: "asc" } } },
+      orderBy: { createdAt: "desc" }
+    });
+    
+    if (order.discount !== undefined && order.discount !== null && order.discount > 0) {
+      orderDiscount = order.discount;
+    } else if (matchingQuotation) {
+      orderDiscount = matchingQuotation.discount || 0;
+    }
+
     if (order.saleOrderItems && order.saleOrderItems.length > 0) {
       orderItems = order.saleOrderItems;
     } else {
-      // Fallback to Quotation
-      const quotation = await prisma.quotation.findFirst({
-        where: order.customerId ? {
-          customerId: order.customerId,
-          thanhTien: order.tongTien,
-          trangThai: "won"
-        } : {
-          thanhTien: order.tongTien,
-          ghiChu: order.ghiChu,
-          trangThai: "won"
-        },
-        include: { items: { orderBy: { sortOrder: "asc" } } },
-        orderBy: { createdAt: "desc" }
-      });
-      if (quotation && quotation.items) {
-        orderItems = quotation.items;
+      if (matchingQuotation && matchingQuotation.items) {
+        orderItems = matchingQuotation.items;
+      } else {
+        // Fallback to Quotation by customerId / ghiChu
+        const quotation = await prisma.quotation.findFirst({
+          where: order.customerId ? {
+            customerId: order.customerId,
+            thanhTien: order.tongTien,
+            trangThai: "won"
+          } : {
+            thanhTien: order.tongTien,
+            ghiChu: order.ghiChu,
+            trangThai: "won"
+          },
+          include: { items: { orderBy: { sortOrder: "asc" } } },
+          orderBy: { createdAt: "desc" }
+        });
+        if (quotation && quotation.items) {
+          orderItems = quotation.items;
+          orderDiscount = quotation.discount || 0;
+        }
       }
     }
 
@@ -252,7 +271,8 @@ export async function GET(
         name: guest.name,
         dienThoai: guest.dienThoai,
         address: guest.address,
-      } : null)
+      } : null),
+      discount: orderDiscount
     };
 
     // Calculate total receivable debt
@@ -297,7 +317,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { keToanDuyet, decision, decisions, ngayGiao, ngayHoanThanhSanXuat, daThanhToan, trangThai, ghiChu, tongTien, items, productionItemIds = [] } = body;
+    const { keToanDuyet, decision, decisions, ngayGiao, ngayHoanThanhSanXuat, daThanhToan, trangThai, ghiChu, tongTien, discount, items, productionItemIds = [] } = body;
 
     if (keToanDuyet !== undefined && !["pending", "approved", "rejected"].includes(keToanDuyet)) {
       return NextResponse.json({ error: "Trạng thái duyệt không hợp lệ" }, { status: 400 });
@@ -325,6 +345,7 @@ export async function PATCH(
           ...(trangThai !== undefined && { trangThai }),
           ...(ghiChu !== undefined && { ghiChu }),
           ...(tongTien !== undefined && { tongTien: parseFloat(String(tongTien)) }),
+          ...(discount !== undefined && { discount: parseFloat(String(discount)) }),
         } as any,
       });
 
