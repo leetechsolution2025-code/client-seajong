@@ -169,7 +169,18 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
   if (!orderId) return null;
 
   const fmt = (n: number) => n.toLocaleString("vi-VN");
-  const conNo = order ? Math.max(0, order.tongTien - order.daThanhToan) : 0;
+  let actualDaThanhToan = order?.daThanhToan || 0;
+  if (order?.ghiChu && actualDaThanhToan === 0) {
+    const lines = order.ghiChu.split("\n");
+    for (const line of lines) {
+      if (line.startsWith("Đã trả trước: ")) {
+        const match = line.replace("Đã trả trước: ", "").replace(/\D/g, "");
+        if (match) actualDaThanhToan = Number(match);
+      }
+    }
+  }
+
+  const conNo = order ? Math.max(0, order.tongTien - actualDaThanhToan) : 0;
 
   const acctSt = order ? (ACCT_STATUS_CFG[order.keToanDuyet] ?? { label: order.keToanDuyet, color: "#94a3b8", bg: "rgba(148,163,184,0.1)", icon: "bi-circle" }) : null;
   const khoSt = order ? (KHO_STATUS_CFG[order.trangThaiKho] ?? { label: order.trangThaiKho, color: "#6b7280", icon: "bi-circle", bg: "rgba(0,0,0,0.05)" }) : { label: "", color: "", icon: "", bg: "" };
@@ -412,7 +423,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
 
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}>
                   <span className="text-secondary">Đã thanh toán:</span>
-                  <span className="fw-bold text-success">{fmt(order.daThanhToan)} ₫</span>
+                  <span className="fw-bold text-success">{fmt(actualDaThanhToan)} ₫</span>
                 </div>
 
                 <div style={{ borderTop: "1px dashed var(--border)", margin: "4px 0" }} />

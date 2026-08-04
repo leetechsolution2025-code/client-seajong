@@ -23,6 +23,7 @@ const navItems: NavItem[] = [
   { name: "Phòng ban",          href: "/company/departments", icon: "bi-diagram-3",        desc: "Các phòng ban" },
   { name: "Tài khoản",          href: "/company/accounts",    icon: "bi-person-gear",      desc: "Đổi pass, tạo admin" },
   { name: "Phân quyền",         href: "/company/permissions", icon: "bi-shield-lock",      desc: "Phân quyền người dùng" },
+  { name: "Làm sạch dữ liệu",   href: "/company/data-cleanup", icon: "bi-database-x",       desc: "Xoá rỗng các bảng" },
 ];
 
 const SIDEBAR_W = 260;

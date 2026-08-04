@@ -171,6 +171,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       const lines = rawGhiChu.split("\n");
       const remainingLines = [];
       let chiPhiKhac = 0;
+      let parsedDaThanhToan = editOrder.daThanhToan || 0;
       for (const line of lines) {
         if (line.startsWith("Tên khách hàng: ")) { tenNguoiNhan = line.replace("Tên khách hàng: ", ""); continue; }
         if (line.startsWith("Số điện thoại: ")) { sdtNguoiNhan = line.replace("Số điện thoại: ", ""); continue; }
@@ -180,7 +181,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           if (match) chiPhiKhac = Number(match);
           continue;
         }
-        if (line.startsWith("Đã trả trước: ")) continue;
+        if (line.startsWith("Đã trả trước: ")) {
+          const match = line.replace("Đã trả trước: ", "").replace(/\D/g, "");
+          if (match) parsedDaThanhToan = Number(match);
+          continue;
+        }
         remainingLines.push(line);
       }
       rawGhiChu = remainingLines.join("\n").trim();
@@ -197,7 +202,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         chiPhiKhac,
         chietKhauTong: editOrder.discount || 0,
         thue: editOrder.vat || 0,
-        daThanhToan: editOrder.daThanhToan || 0
+        daThanhToan: parsedDaThanhToan
       }));
       if (editOrder.customer) {
         setCustInfo({
