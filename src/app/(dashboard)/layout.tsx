@@ -803,11 +803,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     );
                     const isApprovalsLocked = !isHRManager;
 
+                    // Apply dynamic isLocked for "Lập kế hoạch sale"
+                    const isSalesManager = session?.user?.role === "SUPERADMIN" || session?.user?.role === "ADMIN" || session?.user?.role === "MANAGER" || session?.user?.role === "admin" || (
+                      session?.user?.departmentCode?.toLowerCase() === "sales" &&
+                      (session?.user?.positionName?.includes("Trưởng phòng") || session?.user?.position === "vtr-20260401-1964-sbmg")
+                    );
+                    const isSalesPlanLocked = !isSalesManager;
+
                     return baseGroups.map(g => ({
                       ...g,
                       items: g.items.map(item => {
                         if (item.href === "/hr/approvals") {
                           return { ...item, isLocked: isApprovalsLocked };
+                        }
+                        if (item.href === "/sales/plan") {
+                          return { ...item, isLocked: isSalesPlanLocked };
                         }
                         return item;
                       })

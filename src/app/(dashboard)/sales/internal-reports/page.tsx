@@ -252,10 +252,23 @@ export default function PartnerActivitiesPage() {
   const avgData1 = Array.from({ length: 12 }, (_, i) => i < currentMonth ? computeAvg(kpiData1) : null);
   const avgData2 = Array.from({ length: 12 }, (_, i) => i < currentMonth ? computeAvg(kpiData2) : null);
 
+  const isManager = (session?.user as any)?.role === "ADMIN" || (session?.user as any)?.role === "MANAGER" || (session?.user as any)?.role === "SUPERADMIN";
+  const currentUserEmployee = salesEmployees.find(e => e.userId === (session?.user as any)?.id);
+  const isDepartmentHead = currentUserEmployee?.position === "vtr-20260401-1964-sbmg" || currentUserEmployee?.position?.toLowerCase().includes("trưởng phòng") || (session?.user as any)?.positionName?.includes("Trưởng phòng") || (session?.user as any)?.position === "vtr-20260401-1964-sbmg";
+  
+  const canAccessManagementTabs = isManager || isDepartmentHead;
+
+  useEffect(() => {
+    // Nếu không có quyền quản lý và đang ở tab Lãnh đạo phòng thì chuyển sang tab Nhân viên
+    if (!canAccessManagementTabs && (currentStep === 1 || currentStep === 3)) {
+      setCurrentStep(2);
+    }
+  }, [canAccessManagementTabs, currentStep]);
+
   const STEPS = [
-    { num: 1, id: "manager", title: "Lãnh đạo phòng", desc: "Báo cáo tổng hợp cho quản lý", icon: "bi-person-badge" },
+    { num: 1, id: "manager", title: "Lãnh đạo phòng", desc: "Báo cáo tổng hợp cho quản lý", icon: "bi-person-badge", locked: !canAccessManagementTabs },
     { num: 2, id: "staff", title: "Nhân viên phòng", desc: "Báo cáo chi tiết theo nhân sự", icon: "bi-people" },
-    { num: 3, id: "settings", title: "Thiết lập thông số", desc: "Cấu hình chỉ số báo cáo", icon: "bi-gear" },
+    { num: 3, id: "settings", title: "Thiết lập thông số", desc: "Cấu hình chỉ số báo cáo", icon: "bi-gear", locked: !canAccessManagementTabs },
   ];
 
   return (
@@ -647,19 +660,21 @@ export default function PartnerActivitiesPage() {
                       <i className="bi bi-chevron-right"></i>
                     </button>
                   </div>
-                  <div>
-                    <select 
-                      className="form-select form-select-sm shadow-sm" 
-                      style={{ minWidth: 220, cursor: "pointer", borderColor: "var(--border)" }}
-                      value={selectedEmployeeId}
-                      onChange={e => setSelectedEmployeeId(e.target.value)}
-                    >
-                      <option value="">-- Chọn nhân viên --</option>
-                      {salesEmployees.map(e => (
-                        <option key={e.id} value={e.id}>{e.fullName}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {canAccessManagementTabs && (
+                    <div>
+                      <select 
+                        className="form-select form-select-sm shadow-sm" 
+                        style={{ minWidth: 220, cursor: "pointer", borderColor: "var(--border)" }}
+                        value={selectedEmployeeId}
+                        onChange={e => setSelectedEmployeeId(e.target.value)}
+                      >
+                        <option value="">-- Chọn nhân viên --</option>
+                        {salesEmployees.map(e => (
+                          <option key={e.id} value={e.id}>{e.fullName}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-grow-1 overflow-hidden d-flex flex-column" style={{ minHeight: 0 }}>
                   <div className="flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>

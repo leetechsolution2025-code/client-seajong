@@ -47,8 +47,24 @@ export async function GET(req: NextRequest) {
       ...(keToanDuyet && { keToanDuyet }),
     };
 
+    const isDepartmentHead = employee?.position === "vtr-20260401-1964-sbmg" || employee?.position?.toLowerCase().includes("trưởng phòng");
+
     if (!isManager && !isFinance) {
-      where.nguoiPhuTrach = employee?.id || "none";
+      if (isDepartmentHead && employee?.departmentCode) {
+        const deptEmployees = await prisma.employee.findMany({
+          where: { departmentCode: employee.departmentCode },
+          select: { id: true }
+        });
+        const deptEmpIds = deptEmployees.map(e => e.id);
+        
+        if (employeeIdFilter) {
+          where.nguoiPhuTrach = employeeIdFilter;
+        } else {
+          where.nguoiPhuTrach = { in: deptEmpIds };
+        }
+      } else {
+        where.nguoiPhuTrach = employeeIdFilter || employee?.id || "none";
+      }
     } else if (employeeIdFilter) {
       where.nguoiPhuTrach = employeeIdFilter;
     }

@@ -18,13 +18,15 @@ export async function GET(req: NextRequest) {
     const nhom   = searchParams.get("nhom")   ?? "";
     const loai   = searchParams.get("loai")   ?? "";
 
+    const employeeIdFilter = searchParams.get("employeeId") ?? "";
+
     const user = await prisma.user.findUnique({
       where: { id: (session.user as any).id },
       include: { employee: true }
     });
     
     // Admins or Managers see all. Normal users only see their own assigned customers.
-    const isManager = user?.role === "ADMIN";
+    const isManager = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPERADMIN";
 
     const where: any = {
       ...(search && { name: { contains: search } }),
@@ -33,8 +35,27 @@ export async function GET(req: NextRequest) {
       ...(loai   && { loai }),
     };
 
-    if (!isManager && user?.employee?.id) {
-      where.nguoiChamSocId = user.employee.id;
+    const isDepartmentHead = user?.employee?.position === "vtr-20260401-1964-sbmg" || user?.employee?.position?.toLowerCase().includes("trưởng phòng");
+    const isFinance = user?.employee?.departmentCode === "finance" || user?.employee?.departmentName?.includes("Kế toán") || user?.employee?.departmentName?.includes("Tài chính");
+
+    if (!isManager && !isFinance && user?.employee?.id) {
+      if (isDepartmentHead && user.employee.departmentCode) {
+        const deptEmployees = await prisma.employee.findMany({
+          where: { departmentCode: user.employee.departmentCode },
+          select: { id: true }
+        });
+        const deptEmpIds = deptEmployees.map(e => e.id);
+        
+        if (employeeIdFilter) {
+          where.nguoiChamSocId = employeeIdFilter;
+        } else {
+          where.nguoiChamSocId = { in: deptEmpIds };
+        }
+      } else {
+        where.nguoiChamSocId = employeeIdFilter || user.employee.id;
+      }
+    } else if (employeeIdFilter) {
+      where.nguoiChamSocId = employeeIdFilter;
     }
 
     const [total, customers] = await Promise.all([

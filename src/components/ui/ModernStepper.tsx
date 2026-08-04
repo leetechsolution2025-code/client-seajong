@@ -8,6 +8,7 @@ export interface ModernStepItem {
   title: string;
   desc: string;
   icon: string;
+  locked?: boolean;
 }
 
 interface ModernStepperProps {
@@ -125,14 +126,18 @@ export const ModernStepper: React.FC<ModernStepperProps> = ({
               <div 
                 className="modern-step-item d-flex flex-column flex-md-row align-items-center"
                 style={{ 
-                  cursor: "pointer", 
-                  opacity: isActive || isPast ? 1 : 0.7, transition: "all 0.3s" 
+                  cursor: s.locked ? "not-allowed" : "pointer", 
+                  opacity: isActive || isPast ? 1 : (s.locked ? 0.4 : 0.7), transition: "all 0.3s" 
                 }}
-                onClick={() => onStepChange(s.num)}
+                onClick={() => {
+                  if (!s.locked) onStepChange(s.num);
+                }}
               >
-                {renderStepIcon(s.num, s.icon)}
-                <div className="modern-step-text">
-                  <h3 className="modern-step-title" style={{ margin: "0 0 1px", fontWeight: 700, color: isActive ? "#003087" : "var(--muted-foreground, #64748b)" }}>{s.title}</h3>
+                {renderStepIcon(s.num, s.locked ? "bi-lock-fill" : s.icon)}
+                <div className="modern-step-text d-flex flex-column align-items-center align-items-md-start">
+                  <div className="d-flex align-items-center gap-1">
+                    <h3 className="modern-step-title" style={{ margin: "0 0 1px", fontWeight: 700, color: isActive ? "#003087" : "var(--muted-foreground, #64748b)" }}>{s.title}</h3>
+                  </div>
                   <p className="d-none d-lg-block" style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground, #64748b)", opacity: 0.8 }}>{s.desc}</p>
                 </div>
               </div>

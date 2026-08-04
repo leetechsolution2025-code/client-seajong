@@ -42,6 +42,7 @@ export default function SalesCustomersPage() {
   // States for filters and query
   const [nguonFilter, setNguonFilter] = useState("");
   const [hangFilter, setHangFilter] = useState("");
+  const [employeeFilter, setEmployeeFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
 
@@ -54,11 +55,17 @@ export default function SalesCustomersPage() {
       .then(res => res.json())
       .then(data => {
         const allEmps = Array.isArray(data.employees) ? data.employees : Array.isArray(data) ? data : [];
-        const kdEmps = allEmps.filter((e: any) => e.departmentCode === "KD" || e.departmentName?.toLowerCase().includes("kinh doanh"));
+        const kdEmps = allEmps.filter((e: any) => e.departmentCode === "KD" || e.departmentName?.toLowerCase().includes("kinh doanh") || e.departmentCode === "sales");
         setEmployees(kdEmps);
       })
       .catch(console.error);
   }, []);
+
+  const currentUserEmployee = employees.find(e => e.userId === (session?.user as any)?.id);
+  const isDepartmentHead = currentUserEmployee?.position === "vtr-20260401-1964-sbmg" || currentUserEmployee?.position?.toLowerCase().includes("trưởng phòng");
+  const isManager = (session?.user as any)?.role === "ADMIN" || (session?.user as any)?.role === "MANAGER" || (session?.user as any)?.role === "SUPERADMIN";
+  const showEmployeeFilter = isManager || isDepartmentHead;
+  const employeeOptions = employees.map(e => ({ label: e.fullName, value: e.id }));
 
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -190,6 +197,8 @@ export default function SalesCustomersPage() {
       if (nguonFilter) params.set("nguon", nguonFilter);
       params.set("nhom", "dai-ly"); // Chỉ hiển thị đại lý (những khách đã ký hợp đồng)
       if (hangFilter) params.set("loai", hangFilter);
+      if (employeeFilter) params.set("employeeId", employeeFilter);
+      
       const res = await fetch(`/api/plan-finance/customers?${params}`);
       const data = await res.json();
       const fetched = data.customers ?? [];
@@ -207,7 +216,7 @@ export default function SalesCustomersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, searchQuery, nguonFilter, hangFilter]);
+  }, [page, searchQuery, nguonFilter, hangFilter, employeeFilter]);
 
   useEffect(() => {
     fetchCustomers();
@@ -216,7 +225,7 @@ export default function SalesCustomersPage() {
   // Reset page to 1 when filters or query changes
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, nguonFilter, hangFilter]);
+  }, [searchQuery, nguonFilter, hangFilter, employeeFilter]);
 
   // Fetch transaction history
   useEffect(() => {
@@ -798,7 +807,7 @@ export default function SalesCustomersPage() {
                 <div className="d-flex flex-column gap-3 mb-2 mt-2">
                   {/* Thanh công cụ Toolbar */}
                   <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 w-100">
-                    <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
+                    <div className="d-flex align-items-center gap-2 flex-grow-1">
                       <FilterSelect
                         options={nguonOptions}
                         value={nguonFilter}
@@ -813,6 +822,15 @@ export default function SalesCustomersPage() {
                         placeholder="Hạng"
                         width={120}
                       />
+                      {showEmployeeFilter && (
+                        <FilterSelect
+                          options={employeeOptions}
+                          value={employeeFilter}
+                          onChange={setEmployeeFilter}
+                          placeholder="Người phụ trách"
+                          width={150}
+                        />
+                      )}
                       <div className="flex-grow-1">
                         <SearchInput
                           value={searchQuery}
