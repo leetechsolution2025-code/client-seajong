@@ -130,21 +130,32 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
       setEditDaThanhToan(order.daThanhToan || 0);
       setEditTrangThai(order.trangThai || "active");
       setEditGhiChu(order.ghiChu || "");
-      setPrintDaThanhToan(order.daThanhToan || 0);
       setPrintNoCu(order.tongNoCu || 0);
       setPrintChietKhau((order as any).discount || 0);
       setPrintVatPct((order as any).vat || 0);
       
       let addr = order.customer?.address || "";
       let shippingAddr = addr;
+      let initialChiPhiKhac = 0;
+      let initialDaThanhToan = order.daThanhToan || 0;
       if (order.ghiChu) {
         const lines = order.ghiChu.split("\n");
         for (const line of lines) {
           if (line.startsWith("Địa chỉ giao hàng: ")) shippingAddr = line.replace("Địa chỉ giao hàng: ", "");
+          if (line.startsWith("Chi phí khác: ")) {
+            const match = line.replace("Chi phí khác: ", "").replace(/\D/g, "");
+            if (match) initialChiPhiKhac = Number(match);
+          }
+          if (line.startsWith("Đã trả trước: ") && initialDaThanhToan === 0) {
+            const match = line.split("(")[0].replace("Đã trả trước: ", "").replace(/\D/g, "");
+            if (match) initialDaThanhToan = Number(match);
+          }
         }
       }
       setPrintAddress(addr);
       setPrintShippingAddress(shippingAddr);
+      setPrintChiPhiKhac(initialChiPhiKhac);
+      setPrintDaThanhToan(initialDaThanhToan);
     }
   }, [order]);
 

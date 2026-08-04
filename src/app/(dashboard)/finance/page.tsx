@@ -87,15 +87,23 @@ export default function FinancePage() {
   const [decisions, setDecisions] = useState<Record<string, { purchase: boolean; production: boolean }>>({});
 
   // States for My Requests (step 3)
-  const [myRequests, setMyRequests] = useState<any[]>([]);
-  const [myRequestsLoading, setMyRequestsLoading] = useState(false);
-  const [myRequestSearch, setMyRequestSearch] = useState("");
-  const [myRequestStatus, setMyRequestStatus] = useState("");
-  const [myRequestPage, setMyRequestPage] = useState(1);
-  const [myRequestsTotalPages, setMyRequestsTotalPages] = useState(1);
-  const [selectedMyRequest, setSelectedMyRequest] = useState<any | null>(null);
-  const [myRequestDetail, setMyRequestDetail] = useState<any | null>(null);
-  const [myRequestDetailLoading, setMyRequestDetailLoading] = useState(false);
+  const [paymentNotifications, setPaymentNotifications] = useState<any[]>([]);
+  const [paymentNotificationsLoading, setPaymentNotificationsLoading] = useState(false);
+  const [paymentNotificationSearch, setPaymentNotificationSearch] = useState("");
+  const [paymentNotificationStatus, setPaymentNotificationStatus] = useState("");
+  const [paymentNotificationPage, setPaymentNotificationPage] = useState(1);
+  const [paymentNotificationsTotalPages, setPaymentNotificationsTotalPages] = useState(1);
+  const [selectedPaymentNotification, setSelectedPaymentNotification] = useState<any | null>(null);
+  const [paymentNotificationDetail, setPaymentNotificationDetail] = useState<any | null>(null);
+  const [paymentNotificationDetailLoading, setPaymentNotificationDetailLoading] = useState(false);
+  const [readNotifIds, setReadNotifIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('readPaymentNotifications');
+      if (stored) setReadNotifIds(JSON.parse(stored));
+    } catch(e) {}
+  }, []);
 
   const isLocked = selectedOrder ? (selectedOrder.trangThaiKho !== "out_of_stock") : true;
   const isPurchase = selectedOrder && !isLocked ? (decisions[selectedOrder.id]?.purchase ?? true) : false;
@@ -351,24 +359,52 @@ export default function FinancePage() {
     }
   }, [currentStep, requestSearch, requestStatus, requestPage]);
 
-  const fetchMyRequests = useCallback(async (silent = false) => {
+  const fetchPaymentNotifications = useCallback(async (silent = false) => {
     if (currentStep !== 3) return;
-    if (!silent) setMyRequestsLoading(true);
+    if (!silent) setPaymentNotificationsLoading(true);
     try {
       const params = new URLSearchParams();
-      params.set("page", String(myRequestPage));
+      params.set("page", String(paymentNotificationPage));
       params.set("createdByFinance", "true");
-      if (myRequestSearch) params.set("search", myRequestSearch);
-      if (myRequestStatus) params.set("status", myRequestStatus);
+      if (paymentNotificationSearch) params.set("search", paymentNotificationSearch);
+      if (paymentNotificationStatus) params.set("status", paymentNotificationStatus);
 
-      const res = await fetch(`/api/plan-finance/purchase-requests?${params.toString()}`);
+      const res = await fetch(`/api/finance/payment-notifications?${params.toString()}`);
       if (!res.ok) throw new Error("Không thể tải yêu cầu của tôi.");
       const resData = await res.json();
-      const fetchedReqs = resData.items || [];
-      setMyRequests(fetchedReqs);
-      setMyRequestsTotalPages(resData.totalPages || 1);
+      const fetchedReqs = resData.data || [];
+      
+      setPaymentNotifications(prevReqs => {
+        if (silent && fetchedReqs.length > 0) {
+          const newItems = fetchedReqs.filter((r: any) => r.status === 'pending' && !prevReqs.find((p: any) => p.id === r.id));
+          if (newItems.length > 0) {
+             try {
+                const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+                if (AudioContext) {
+                  const ctx = new AudioContext();
+                  const osc = ctx.createOscillator();
+                  const gain = ctx.createGain();
+                  osc.connect(gain);
+                  gain.connect(ctx.destination);
+                  osc.type = "sine";
+                  osc.frequency.setValueAtTime(1046.50, ctx.currentTime); // C6
+                  osc.frequency.exponentialRampToValueAtTime(2093.00, ctx.currentTime + 0.1); // C7
+                  gain.gain.setValueAtTime(0, ctx.currentTime);
+                  gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.05);
+                  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                  osc.start(ctx.currentTime);
+                  osc.stop(ctx.currentTime + 0.5);
+                }
+             } catch(e) {}
+             toast.info("Thông báo mới", "Có thông báo tiền vào mới!");
+          }
+        }
+        return fetchedReqs;
+      });
+      
+      setPaymentNotificationsTotalPages(resData.pagination?.totalPages || 1);
 
-      setSelectedMyRequest((prev: any) => {
+      setSelectedPaymentNotification((prev: any) => {
         if (prev) {
           const updated = fetchedReqs.find((r: any) => r.id === prev.id);
           return updated || prev;
@@ -378,15 +414,15 @@ export default function FinancePage() {
     } catch (err) {
       console.error(err);
     } finally {
-      if (!silent) setMyRequestsLoading(false);
+      if (!silent) setPaymentNotificationsLoading(false);
     }
-  }, [currentStep, myRequestSearch, myRequestStatus, myRequestPage]);
+  }, [currentStep, paymentNotificationSearch, paymentNotificationStatus, paymentNotificationPage]);
 
   const selectedRequestRef = useRef<any>(null);
   selectedRequestRef.current = selectedRequest;
 
-  const selectedMyRequestRef = useRef<any>(null);
-  selectedMyRequestRef.current = selectedMyRequest;
+  const selectedPaymentNotificationRef = useRef<any>(null);
+  selectedPaymentNotificationRef.current = selectedPaymentNotification;
 
   const fetchRequestDetail = useCallback(async (silent = false) => {
     const currentSelected = selectedRequestRef.current;
@@ -440,23 +476,14 @@ export default function FinancePage() {
     }
   }, [currentStep]);
 
-  const fetchMyRequestDetail = useCallback(async (silent = false) => {
-    const currentMySelected = selectedMyRequestRef.current;
+  const fetchPaymentNotificationDetail = useCallback(async (silent = false) => {
+    const currentMySelected = selectedPaymentNotificationRef.current;
     if (!currentMySelected) {
-      setMyRequestDetail(null);
+      setPaymentNotificationDetail(null);
       return;
     }
     if (currentStep !== 3) return;
-    if (!silent) setMyRequestDetailLoading(true);
-    try {
-      const res = await fetch(`/api/plan-finance/purchase-requests/${currentMySelected.id}`);
-      const data = await res.json();
-      setMyRequestDetail(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      if (!silent) setMyRequestDetailLoading(false);
-    }
+    setPaymentNotificationDetail(currentMySelected);
   }, [currentStep]);
 
   // Initial KPIs fetch
@@ -474,8 +501,8 @@ export default function FinancePage() {
   }, [fetchRequests]);
 
   useEffect(() => {
-    fetchMyRequests(false);
-  }, [fetchMyRequests]);
+    fetchPaymentNotifications(false);
+  }, [fetchPaymentNotifications]);
 
   // Fetch details on selection change
   useEffect(() => {
@@ -483,8 +510,8 @@ export default function FinancePage() {
   }, [selectedRequest?.id, fetchRequestDetail]);
 
   useEffect(() => {
-    fetchMyRequestDetail(false);
-  }, [selectedMyRequest?.id, fetchMyRequestDetail]);
+    fetchPaymentNotificationDetail(false);
+  }, [selectedPaymentNotification?.id, fetchPaymentNotificationDetail]);
 
   // Reset selected order and page when step, filter, or search changes
   useEffect(() => {
@@ -502,8 +529,8 @@ export default function FinancePage() {
 
   // Reset page when step 3 filters change
   useEffect(() => {
-    setMyRequestPage(1);
-  }, [myRequestSearch, myRequestStatus]);
+    setPaymentNotificationPage(1);
+  }, [paymentNotificationSearch, paymentNotificationStatus]);
 
   // Background polling (every 5 seconds)
   useEffect(() => {
@@ -515,12 +542,12 @@ export default function FinancePage() {
         fetchRequests(true);
         fetchRequestDetail(true);
       } else if (currentStep === 3) {
-        fetchMyRequests(true);
-        fetchMyRequestDetail(true);
+        fetchPaymentNotifications(true);
+        fetchPaymentNotificationDetail(true);
       }
     }, 5000); // Poll every 5s silently
     return () => clearInterval(interval);
-  }, [currentStep, fetchKPIs, fetchOrders, fetchRequests, fetchRequestDetail, fetchMyRequests, fetchMyRequestDetail]);
+  }, [currentStep, fetchKPIs, fetchOrders, fetchRequests, fetchRequestDetail, fetchPaymentNotifications, fetchPaymentNotificationDetail]);
 
   // Focus refresh
   useEffect(() => {
@@ -532,13 +559,13 @@ export default function FinancePage() {
         fetchRequests(true);
         fetchRequestDetail(true);
       } else if (currentStep === 3) {
-        fetchMyRequests(true);
-        fetchMyRequestDetail(true);
+        fetchPaymentNotifications(true);
+        fetchPaymentNotificationDetail(true);
       }
     };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [currentStep, fetchKPIs, fetchOrders, fetchRequests, fetchRequestDetail, fetchMyRequests, fetchMyRequestDetail]);
+  }, [currentStep, fetchKPIs, fetchOrders, fetchRequests, fetchRequestDetail, fetchPaymentNotifications, fetchPaymentNotificationDetail]);
 
   const formatNumber = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -598,10 +625,10 @@ export default function FinancePage() {
     },
     {
       num: 3,
-      id: "my-requests",
-      title: "Yêu cầu của tôi",
-      desc: "Đề xuất đến phòng ban khác",
-      icon: "bi-send-check",
+      id: "payment-notifications",
+      title: "Thông báo tiền vào",
+      desc: "Xác nhận tiền khách hàng thanh toán",
+      icon: "bi-cash-coin",
     },
   ];
 
@@ -829,16 +856,22 @@ export default function FinancePage() {
     },
   ];
 
-  const myRequestColumns: TableColumn<any>[] = [
+  const paymentNotificationColumns: TableColumn<any>[] = [
     {
-      header: "Mã yêu cầu",
+      header: "Số đơn hàng",
       render: (row) => {
-        const dateStr = row.ngayTao ? new Date(row.ngayTao).toLocaleDateString("vi-VN") : "—";
+        const dateStr = row.createdAt ? new Date(row.createdAt).toLocaleDateString("vi-VN") : "—";
+        const isNew = row.status === "pending" && !readNotifIds.includes(row.id);
         return (
-          <div className="d-flex flex-column">
-            <span className="fw-bold" style={{ fontFamily: "'Roboto Condensed', sans-serif", color: "var(--primary)", whiteSpace: "nowrap" }}>
-              {row.code || row.id}
-            </span>
+          <div className="d-flex flex-column position-relative">
+            <div className="d-flex align-items-center gap-2">
+              <span className="fw-bold" style={{ fontFamily: "'Roboto Condensed', sans-serif", color: "var(--primary)", whiteSpace: "nowrap" }}>
+                {row.saleOrder?.code || row.code || "—"}
+              </span>
+              {isNew && (
+                <span className="badge bg-danger rounded-pill shadow-sm" style={{ fontSize: "9px", padding: "3px 6px" }}>MỚI</span>
+              )}
+            </div>
             <span className="text-muted d-flex align-items-center gap-1" style={{ fontSize: "10.5px", whiteSpace: "nowrap" }}>
               <i className="bi bi-calendar3" style={{ fontSize: "9.5px" }} /> {dateStr}
             </span>
@@ -847,16 +880,27 @@ export default function FinancePage() {
       },
     },
     {
-      header: "Đơn vị nhận",
+      header: "Khách hàng",
       render: (row) => (
-        <span>{row.donVi || "Mua hàng"}</span>
+        <div className="d-flex flex-column">
+          <span className="fw-semibold text-truncate d-inline-block" style={{ maxWidth: "150px" }}>
+            {row.customer?.name || "Khách lẻ"}
+          </span>
+          {row.customer?.address && (
+            <span className="text-muted text-truncate d-inline-block" style={{ fontSize: "11px", maxWidth: "150px" }}>
+              <i className="bi bi-geo-alt-fill me-1"></i>
+              {row.customer.address}
+            </span>
+          )}
+        </div>
       ),
     },
     {
-      header: "Lý do",
+      header: "Số tiền",
+      align: "right",
       render: (row) => (
-        <span className="text-muted small text-truncate d-inline-block" style={{ maxWidth: "200px" }}>
-          {row.lyDo || "—"}
+        <span className="fw-bold" style={{ color: "var(--danger)" }}>
+          {formatNumber(row.amount)} ₫
         </span>
       ),
     },
@@ -864,19 +908,15 @@ export default function FinancePage() {
       header: "Trạng thái",
       align: "center",
       render: (row) => {
-        const status = row.trangThai || "chua-xu-ly";
+        const status = row.status || "pending";
         let color = "#f59e0b"; // Warning/Orange
         let bg = "rgba(245, 158, 11, 0.1)";
-        let text = "Chờ xử lý";
-        if (status === "da-xu-ly") {
+        let text = "Chờ xác nhận";
+        if (status === "verified") {
           color = "#10b981"; // Success/Green
           bg = "rgba(16, 185, 129, 0.1)";
-          text = "Hoàn thành";
-        } else if (status === "dang-xu-ly") {
-          color = "#6366f1"; // Indigo
-          bg = "rgba(99, 102, 241, 0.1)";
-          text = "Đang xử lý";
-        } else if (status === "tu-choi") {
+          text = "Đã xác nhận";
+        } else if (status === "rejected") {
           color = "#ef4444"; // Danger/Red
           bg = "rgba(239, 68, 68, 0.1)";
           text = "Từ chối";
@@ -1010,20 +1050,19 @@ export default function FinancePage() {
                 <div className="d-flex align-items-center gap-2">
                   <FilterSelect
                     options={[
-                      { label: "Chờ xử lý", value: "chua-xu-ly" },
-                      { label: "Đang xử lý", value: "dang-xu-ly" },
-                      { label: "Hoàn thành", value: "da-xu-ly" },
-                      { label: "Từ chối", value: "tu-choi" },
+                      { label: "Chờ xác nhận", value: "pending" },
+                      { label: "Đã xác nhận", value: "verified" },
+                      { label: "Từ chối", value: "rejected" },
                     ]}
-                    value={myRequestStatus}
-                    onChange={setMyRequestStatus}
+                    value={paymentNotificationStatus}
+                    onChange={setPaymentNotificationStatus}
                     placeholder="Tất cả trạng thái"
                     width={180}
                   />
                   <div style={{ flex: 1 }}>
                     <SearchInput
-                      value={myRequestSearch}
-                      onChange={setMyRequestSearch}
+                      value={paymentNotificationSearch}
+                      onChange={setPaymentNotificationSearch}
                       placeholder="Tìm mã yêu cầu, lý do..."
                     />
                   </div>
@@ -1047,12 +1086,12 @@ export default function FinancePage() {
                     onChange={setRequestPage}
                   />
                 </div>
-              ) : currentStep === 3 && myRequestsTotalPages > 1 ? (
+              ) : currentStep === 3 && paymentNotificationsTotalPages > 1 ? (
                 <div className="d-flex justify-content-end w-100">
                   <Pagination
-                    page={myRequestPage}
-                    totalPages={myRequestsTotalPages}
-                    onChange={setMyRequestPage}
+                    page={paymentNotificationPage}
+                    totalPages={paymentNotificationsTotalPages}
+                    onChange={setPaymentNotificationPage}
                   />
                 </div>
               ) : undefined
@@ -1082,13 +1121,20 @@ export default function FinancePage() {
             )}
             {currentStep === 3 && (
               <Table
-                columns={myRequestColumns}
-                rows={myRequests}
-                loading={myRequestsLoading}
+                columns={paymentNotificationColumns}
+                rows={paymentNotifications}
+                loading={paymentNotificationsLoading}
                 rowKey={(row) => row.id}
                 emptyText="Không tìm thấy yêu cầu nào"
                 compact
-                onRowClick={setSelectedMyRequest}
+                onRowClick={(row) => {
+                  setSelectedPaymentNotification(row);
+                  if (row && row.id && !readNotifIds.includes(row.id)) {
+                    const newRead = [...readNotifIds, row.id];
+                    setReadNotifIds(newRead);
+                    localStorage.setItem('readPaymentNotifications', JSON.stringify(newRead));
+                  }
+                }}
               />
             )}
           </WorkflowCard>
@@ -1310,6 +1356,28 @@ export default function FinancePage() {
                             <span className="text-muted">Ngày giao hàng:</span>
                             <span className="text-dark fw-medium">
                               {selectedOrder.ngayGiaoHang ? new Date(selectedOrder.ngayGiaoHang).toLocaleDateString("vi-VN") : (selectedOrder.ngayGiao ? new Date(selectedOrder.ngayGiao).toLocaleDateString("vi-VN") : "---")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-bottom pb-2">
+                        <span className="fw-bold text-secondary text-uppercase d-block mb-2" style={{ fontSize: "10px", letterSpacing: "0.05em" }}>
+                          Thanh toán
+                        </span>
+                        <div className="d-flex flex-column gap-2">
+                          <div className="d-flex align-items-center justify-content-between">
+                            <span className="text-muted">Tổng tiền đơn hàng:</span>
+                            <span className="text-dark fw-bold">{formatCurrency(selectedOrder.tongTien || 0)}</span>
+                          </div>
+                          <div className="d-flex align-items-center justify-content-between">
+                            <span className="text-muted">Đã nhận thanh toán:</span>
+                            <span className="text-success fw-bold">{formatCurrency(selectedOrder.daThanhToan || 0)}</span>
+                          </div>
+                          <div className="d-flex align-items-center justify-content-between">
+                            <span className="text-muted">Còn phải thu:</span>
+                            <span className="text-danger fw-bold">
+                              {formatCurrency((selectedOrder.tongTien || 0) - (selectedOrder.daThanhToan || 0))}
                             </span>
                           </div>
                         </div>
@@ -1797,25 +1865,25 @@ export default function FinancePage() {
                 </div>
               )
             ) : currentStep === 3 ? (
-              !selectedMyRequest ? (
+              !selectedPaymentNotification ? (
                 <div className="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center text-muted p-5">
-                  <i className="bi bi-file-earmark-plus fs-1 opacity-25 mb-3" />
-                  <h6 className="fw-semibold">Chi tiết yêu cầu</h6>
+                  <i className="bi bi-cash-stack fs-1 opacity-25 mb-3" />
+                  <h6 className="fw-semibold">Chi tiết thông báo</h6>
                   <p className="small mb-0 opacity-75" style={{ maxWidth: "240px" }}>
-                    Chọn một phiếu yêu cầu từ danh sách bên trái để xem thông tin chi tiết
+                    Chọn một thông báo từ danh sách bên trái để xem thông tin chi tiết
                   </p>
                 </div>
-              ) : myRequestDetailLoading ? (
+              ) : paymentNotificationDetailLoading ? (
                 <div className="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center text-muted p-5">
                   <div className="spinner-border text-primary spinner-border-sm mb-3" role="status">
                     <span className="visually-hidden">Loading...</span>
                   </div>
-                  <p className="small mb-0 opacity-75">Đang tải chi tiết yêu cầu...</p>
+                  <p className="small mb-0 opacity-75">Đang tải chi tiết thông báo...</p>
                 </div>
-              ) : !myRequestDetail ? (
+              ) : !paymentNotificationDetail ? (
                 <div className="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center text-danger p-5">
                   <i className="bi bi-exclamation-triangle-fill fs-2 mb-3" />
-                  <p className="small mb-0">Không thể tải thông tin chi tiết yêu cầu này.</p>
+                  <p className="small mb-0">Không thể tải thông tin chi tiết thông báo này.</p>
                 </div>
               ) : (
                 <div className="flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
@@ -1823,63 +1891,92 @@ export default function FinancePage() {
                   <div className="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3 flex-shrink-0">
                     <div>
                       <h6 className="fw-bold text-dark mb-0" style={{ fontFamily: "'Roboto Condensed', sans-serif" }}>
-                        {myRequestDetail.code || "Yêu cầu mới"}
+                        {paymentNotificationDetail.code || "Thông báo mới"}
                       </h6>
+                      {paymentNotificationDetail.saleOrder && (
+                        <div className="text-muted small mt-1">
+                          Đơn hàng: <span className="fw-medium text-dark">{paymentNotificationDetail.saleOrder.code}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="d-flex gap-2">
+                      {paymentNotificationDetail.status === "pending" && (
+                        <button
+                          className="btn btn-sm btn-success fw-bold px-3 py-1 rounded-3 d-flex align-items-center gap-2"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/finance/payment-notifications/${paymentNotificationDetail.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ status: 'verified' })
+                              });
+                              if (!res.ok) throw new Error("Lỗi khi xác nhận");
+                              toast.success("Đã xác nhận tiền vào");
+                              const updatedData = await res.json();
+                              setPaymentNotificationDetail(updatedData);
+                              setPaymentNotifications(prev => prev.map(p => p.id === updatedData.id ? updatedData : p));
+                              setSelectedPaymentNotification(updatedData);
+                            } catch (e: any) {
+                              toast.error(e.message || "Có lỗi xảy ra");
+                            }
+                          }}
+                        >
+                          <i className="bi bi-check-circle" />
+                          Xác nhận
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  {/* Content */}
-                  <div className="flex-grow-1 pe-1 custom-scrollbar" style={{ overflowY: "auto", overflowX: "hidden", fontSize: "13px", minHeight: 0 }}>
-                    <div className="d-flex flex-column gap-3">
-                      {/* Section 1: Thông tin chung */}
-                      <div className="border-bottom pb-2">
-                        <span className="fw-bold text-secondary text-uppercase d-block mb-2" style={{ fontSize: "10px", letterSpacing: "0.05em" }}>
-                          Thông tin chung
-                        </span>
+                  {/* Body Scrollable */}
+                  <div className="flex-grow-1 overflow-auto pe-2 custom-scrollbar">
+                    <div className="d-flex flex-column gap-3" style={{ fontSize: "13px" }}>
+                      
+                      <div className="p-3 bg-light rounded-3 border">
                         <div className="d-flex flex-column gap-2">
                           <div className="d-flex align-items-center justify-content-between">
-                            <span className="text-muted">Đơn vị nhận:</span>
-                            <span className="text-dark fw-semibold">{myRequestDetail.donVi || "—"}</span>
+                            <span className="text-muted">Số tiền báo cáo:</span>
+                            <span className="text-danger fw-bold fs-6">{formatCurrency(paymentNotificationDetail.amount || 0)}</span>
                           </div>
                           <div className="d-flex align-items-center justify-content-between">
-                            <span className="text-muted">Người đề xuất:</span>
-                            <span className="text-dark fw-semibold">{myRequestDetail.nguoiYeuCau || "—"}</span>
-                          </div>
-                          <div className="d-flex align-items-center justify-content-between">
-                            <span className="text-muted">Ngày tạo:</span>
-                            <span className="text-dark fw-medium">
-                              {myRequestDetail.ngayTao ? new Date(myRequestDetail.ngayTao).toLocaleDateString("vi-VN") : "—"}
+                            <span className="text-muted">Hình thức:</span>
+                            <span className="text-dark fw-semibold">
+                              {paymentNotificationDetail.paymentMethod === 'transfer' ? 'Chuyển khoản' : 'Tiền mặt'}
                             </span>
                           </div>
                           <div className="d-flex align-items-center justify-content-between">
-                            <span className="text-muted">Ngày cần có:</span>
+                            <span className="text-muted">Khách hàng:</span>
+                            <span className="text-dark fw-semibold">{paymentNotificationDetail.customer?.name || "Khách lẻ"}</span>
+                          </div>
+                          <div className="d-flex align-items-center justify-content-between">
+                            <span className="text-muted">Người báo cáo:</span>
+                            <span className="text-dark fw-semibold">{paymentNotificationDetail.reportedBy?.name || "—"}</span>
+                          </div>
+                          <div className="d-flex align-items-center justify-content-between">
+                            <span className="text-muted">Thời gian báo:</span>
                             <span className="text-dark fw-medium">
-                              {myRequestDetail.ngayCanCo ? new Date(myRequestDetail.ngayCanCo).toLocaleDateString("vi-VN") : "—"}
+                              {paymentNotificationDetail.createdAt ? new Date(paymentNotificationDetail.createdAt).toLocaleString("vi-VN") : "—"}
                             </span>
                           </div>
                           <div className="d-flex align-items-center justify-content-between">
                             <span className="text-muted">Trạng thái:</span>
                             <span>
                               {(() => {
-                                const status = myRequestDetail.trangThai || "chua-xu-ly";
+                                const status = paymentNotificationDetail.status || "pending";
                                 let color = "#f59e0b"; // Warning/Orange
                                 let bg = "rgba(245, 158, 11, 0.1)";
-                                let text = "Chờ xử lý";
-                                if (status === "da-xu-ly") {
+                                let text = "Chờ xác nhận";
+                                if (status === "verified") {
                                   color = "#10b981"; // Success/Green
                                   bg = "rgba(16, 185, 129, 0.1)";
-                                  text = "Hoàn thành";
-                                } else if (status === "dang-xu-ly") {
-                                  color = "#6366f1"; // Indigo
-                                  bg = "rgba(99, 102, 241, 0.1)";
-                                  text = "Đang xử lý";
-                                } else if (status === "tu-choi") {
+                                  text = "Đã xác nhận";
+                                } else if (status === "rejected") {
                                   color = "#ef4444"; // Danger/Red
                                   bg = "rgba(239, 68, 68, 0.1)";
                                   text = "Từ chối";
                                 }
                                 return (
-                                  <span className="badge rounded-pill fw-bold" style={{ color, background: bg, padding: "3px 10px", fontSize: "11px" }}>
+                                  <span className="badge rounded-pill fw-bold" style={{ color, background: bg, padding: "4px 12px", fontSize: "12px" }}>
                                     {text}
                                   </span>
                                 );
@@ -1889,66 +1986,53 @@ export default function FinancePage() {
                         </div>
                       </div>
 
-                      {/* Section 2: Lý do & Ghi chú */}
-                      {(myRequestDetail.lyDo || myRequestDetail.ghiChu) && (
-                        <div className="border-bottom pb-2">
-                          {myRequestDetail.lyDo && (
-                            <div className="mb-2">
-                              <span className="fw-bold text-secondary text-uppercase d-block mb-1" style={{ fontSize: "10px", letterSpacing: "0.05em" }}>
-                                Lý do yêu cầu
-                              </span>
-                              <p className="text-muted mb-0" style={{ fontSize: "12.5px", lineHeight: "1.4" }}>
-                                {myRequestDetail.lyDo}
-                              </p>
+                      {paymentNotificationDetail.saleOrder && (
+                        <div className="p-3 bg-white rounded-3 border">
+                          <h6 className="fw-bold mb-3 d-flex align-items-center gap-2">
+                            <i className="bi bi-cart3 text-primary"></i> Thông tin đơn hàng
+                          </h6>
+                          <div className="d-flex flex-column gap-2 mb-3">
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Mã đơn hàng:</span>
+                              <span className="text-dark fw-bold">{paymentNotificationDetail.saleOrder.code}</span>
                             </div>
-                          )}
-                          {myRequestDetail.ghiChu && (
-                            <div>
-                              <span className="fw-bold text-secondary text-uppercase d-block mb-1" style={{ fontSize: "10px", letterSpacing: "0.05em" }}>
-                                Ghi chú
-                              </span>
-                              <p className="text-muted mb-0" style={{ fontSize: "12.5px", lineHeight: "1.4" }}>
-                                {myRequestDetail.ghiChu}
-                              </p>
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Tổng giá trị:</span>
+                              <span className="text-dark fw-bold">{formatCurrency(paymentNotificationDetail.saleOrder.tongTien || 0)}</span>
                             </div>
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Đã thanh toán trước đó:</span>
+                              <span className="text-success fw-bold">{formatCurrency(paymentNotificationDetail.saleOrder.daThanhToan || 0)}</span>
+                            </div>
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Công nợ còn lại (nếu duyệt):</span>
+                              <span className="text-danger fw-bold">
+                                {formatCurrency(Math.max(0, (paymentNotificationDetail.saleOrder.tongTien || 0) - (paymentNotificationDetail.saleOrder.daThanhToan || 0) - (paymentNotificationDetail.amount || 0)))}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {paymentNotificationDetail.saleOrder.saleOrderItems && paymentNotificationDetail.saleOrder.saleOrderItems.length > 0 && (
+                            <>
+                              <hr className="my-2" />
+                              <span className="text-muted small fw-medium mb-2 d-block">Sản phẩm trong đơn:</span>
+                              <div className="d-flex flex-column gap-2">
+                                {paymentNotificationDetail.saleOrder.saleOrderItems.map((item: any, idx: number) => (
+                                  <div key={item.id || idx} className="d-flex justify-content-between align-items-start small p-2 bg-light rounded">
+                                    <div className="pe-2">
+                                      <div className="fw-medium text-dark">{item.tenHang || item.inventoryItem?.name}</div>
+                                      <div className="text-muted mt-1">SL: {item.soLuong} {item.donVi || item.inventoryItem?.unit}</div>
+                                    </div>
+                                    <div className="fw-semibold whitespace-nowrap text-end">
+                                      {formatCurrency(item.thanhTien)}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
                           )}
                         </div>
                       )}
-
-                      {/* Section 3: Danh sách vật tư */}
-                      <div>
-                        <span className="fw-bold text-secondary text-uppercase d-block mb-2" style={{ fontSize: "10px", letterSpacing: "0.05em" }}>
-                          Danh sách vật tư yêu cầu ({myRequestDetail.items?.length || 0} mặt hàng)
-                        </span>
-                        <div className="d-flex flex-column gap-2">
-                          {myRequestDetail.items?.map((item: any) => (
-                            <div key={item.id} className="p-2 bg-light rounded-3 border d-flex justify-content-between align-items-center" style={{ fontSize: "12.5px" }}>
-                              <div>
-                                <span className="fw-bold text-dark d-block">{item.tenHang}</span>
-                                <span className="text-muted" style={{ fontSize: "11px" }}>
-                                  Đơn giá dự kiến: {formatCurrency(item.donGiaDK || item.donGia || 0)}
-                                </span>
-                              </div>
-                              <div className="text-end">
-                                <span className="fw-bold text-dark d-block">
-                                  x{item.soLuong} {item.donVi || "mục"}
-                                </span>
-                                <span className="text-primary fw-bold" style={{ fontSize: "11.5px" }}>
-                                  {formatCurrency((item.soLuong || 0) * (item.donGiaDK || item.donGia || 0))}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        {myRequestDetail.items?.length > 0 && (
-                          <div className="d-flex justify-content-between align-items-center mt-3 p-2.5 bg-primary-subtle text-primary rounded-3 border border-primary-subtle">
-                            <span className="fw-bold" style={{ fontSize: "12.5px" }}>Tổng dự kiến:</span>
-                            <span className="fw-extrabold" style={{ fontSize: "15px" }}>
-                              {formatCurrency(myRequestDetail.items.reduce((sum: number, it: any) => sum + (it.soLuong * (it.donGiaDK || it.donGia || 0)), 0))}
-                            </span>
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </div>
                 </div>

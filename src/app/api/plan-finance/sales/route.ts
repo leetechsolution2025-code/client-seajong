@@ -142,12 +142,14 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { code, customerId, ngayDat, ngayGiao, trangThai, tongTien, daThanhToan, keToanDuyet, ghiChu, nguoiPhuTrach, items, discount, vat } = body;
 
+    const initialDaThanhToan = parseFloat(daThanhToan ?? 0);
+
     const fullOrder = await prisma.$transaction(async (tx) => {
       const order = await tx.saleOrder.create({
         data: {
           code, trangThai: trangThai ?? "draft",
           tongTien:    parseFloat(tongTien    ?? 0),
-          daThanhToan: parseFloat(daThanhToan ?? 0),
+          daThanhToan: 0, // Kế toán sẽ xác nhận sau thông qua PaymentNotification
           discount:    parseFloat(discount    ?? 0),
           vat:         parseFloat(vat         ?? 0),
           keToanDuyet: keToanDuyet ?? "pending",
@@ -157,6 +159,19 @@ export async function POST(req: NextRequest) {
           ...(ngayGiao   && { ngayGiao: new Date(ngayGiao) }),
         },
       });
+
+      if (initialDaThanhToan > 0) {
+        await tx.paymentNotification.create({
+          data: {
+            amount: initialDaThanhToan,
+            paymentMethod: "transfer",
+            status: "pending",
+            saleOrderId: order.id,
+            customerId: customerId || null,
+            reportedById: session.user.id,
+          }
+        });
+      }
 
       if (items && Array.isArray(items) && items.length > 0) {
         const orderItems = items.map((it: any) => ({

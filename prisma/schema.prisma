@@ -144,6 +144,8 @@ model User {
   recruitmentRequests  RecruitmentRequest[]  @relation("UserRequests")
   client               Client?               @relation(fields: [clientId], references: [id])
   meetings             Meeting[]             @relation("UserMeetings")
+  reportedPayments     PaymentNotification[] @relation("ReportedPayments")
+  verifiedPayments     PaymentNotification[] @relation("VerifiedPayments")
 }
 
 model Employee {
@@ -523,6 +525,7 @@ model Customer {
   tenNganHang    String?
   daiDien        String?
   xungHo         String?               @default("Anh")
+  paymentNotifications PaymentNotification[]
   chucVu         String?
   dienThoai      String?
   email          String?
@@ -623,6 +626,7 @@ model SaleOrder {
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   customer             Customer?            @relation(fields: [customerId], references: [id])
+  paymentNotifications PaymentNotification[]
   saleOrderItems       SaleOrderItem[]
   incidents            ProductionIncident[]
 
@@ -3017,4 +3021,25 @@ model InternalIncomeReport {
   updatedAt        DateTime @updatedAt
   
   employee         Employee? @relation(fields: [employeeId], references: [id])
+}
+
+model PaymentNotification {
+  id              String      @id @default(cuid())
+  code            String?     @unique
+  amount          Float
+  paymentMethod   String      @default("transfer") // transfer, cash
+  note            String?
+  status          String      @default("pending") // pending, verified, rejected
+  saleOrderId     String?
+  saleOrder       SaleOrder?  @relation(fields: [saleOrderId], references: [id])
+  customerId      String?
+  customer        Customer?   @relation(fields: [customerId], references: [id])
+  reportedById    String?
+  reportedBy      User?       @relation("ReportedPayments", fields: [reportedById], references: [id])
+  verifiedById    String?
+  verifiedBy      User?       @relation("VerifiedPayments", fields: [verifiedById], references: [id])
+  verifiedAt      DateTime?
+  imageUrl        String?     // Screenshot
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }

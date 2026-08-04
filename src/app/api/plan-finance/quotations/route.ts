@@ -323,7 +323,9 @@ export async function POST(req: NextRequest) {
 
         // 3. Create SaleOrder
         const resolvedNgayGiao = body.ngayGiaoHang ? new Date(body.ngayGiaoHang) : null;
-        await tx.saleOrder.create({
+        const initialDaThanhToan = parseFloat(String(body.daThanhToan || 0));
+
+        const order = await tx.saleOrder.create({
           data: {
             code: orderCode,
             customerId: q.customerId,
@@ -332,6 +334,8 @@ export async function POST(req: NextRequest) {
             trangThai: "active", // Đang thực hiện
             tongTien: q.thanhTien,
             daThanhToan: 0,
+            discount: q.discount || 0,
+            vat: q.vat || 0,
             keToanDuyet: "pending",
             trangThaiKho: insufficientItems.length > 0 ? "out_of_stock" : "in_stock",
             ghiChu: q.ghiChu,
@@ -346,6 +350,27 @@ export async function POST(req: NextRequest) {
             }
           }
         });
+
+        if (initialDaThanhToan > 0) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const count = await tx.paymentNotification.count({
+            where: { createdAt: { gte: today } }
+          });
+          const seqStr = String(count + 1).padStart(3, "0");
+          const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+          await tx.paymentNotification.create({
+            data: {
+              code: `PT-${dateStr}-${seqStr}`,
+              amount: initialDaThanhToan,
+              paymentMethod: "transfer",
+              status: "pending",
+              saleOrderId: order.id,
+              customerId: order.customerId || null,
+              reportedById: session.user?.id || null,
+            }
+          });
+        }
 
         // 4. Send notification to Head of Finance & Accounting
         let customerName = "Khách hàng vãng lai";
