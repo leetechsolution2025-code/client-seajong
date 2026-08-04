@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { tableName: string } }
+  { params }: { params: Promise<{ tableName: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -13,7 +13,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { tableName } = params;
+    const { tableName } = await params;
 
     if (!tableName || tableName.includes('"') || tableName.includes("'")) {
        return NextResponse.json({ error: "Invalid table name" }, { status: 400 });
