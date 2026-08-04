@@ -150,32 +150,38 @@ export async function GET(req: NextRequest) {
             customerId: { in: customerIds },
             trangThai: { notIn: ["cancelled", "draft"] },
             createdAt: { gte: startOfMonth, lte: endOfMonth }
-          }
+          },
+          include: { paymentNotifications: true }
         });
         dynamicSales = orders.reduce((sum, o) => sum + (o.tongTien || 0), 0);
         const ordersCount = orders.length;
 
-        // Doanh thu: Tổng tiền khách hàng đã thanh toán (đã verify) trong tháng
+        // Doanh thu phát sinh trong tháng:
+        // 1. Các khoản thanh toán (PaymentNotification) được duyệt trong tháng này
         const payments = await prisma.paymentNotification.findMany({
           where: {
             status: "verified",
             verifiedAt: { gte: startOfMonth, lte: endOfMonth },
-            customerId: { in: customerIds }
+            OR: [
+              { customerId: { in: customerIds } },
+              { saleOrder: { customerId: { in: customerIds } } }
+            ]
           }
         });
-        const orderPayments = await prisma.paymentNotification.findMany({
-          where: {
-            status: "verified",
-            verifiedAt: { gte: startOfMonth, lte: endOfMonth },
-            saleOrder: { customerId: { in: customerIds } }
+        const paymentSum = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+        // 2. Các khoản thanh toán thủ công (nhập trực tiếp vào daThanhToan) của các đơn hàng tạo trong tháng
+        let manualSum = 0;
+        orders.forEach(o => {
+          let linkedSum = 0;
+          if (o.paymentNotifications) {
+            linkedSum = o.paymentNotifications.reduce((acc: number, p: any) => acc + (p.amount || 0), 0);
           }
+          const manual = Math.max(0, (o.daThanhToan || 0) - linkedSum);
+          manualSum += manual;
         });
-        
-        const allPaymentsMap = new Map();
-        payments.forEach(p => allPaymentsMap.set(p.id, p));
-        orderPayments.forEach(p => allPaymentsMap.set(p.id, p));
-        
-        dynamicRevenue = Array.from(allPaymentsMap.values()).reduce((sum, p) => sum + (p.amount || 0), 0);
+
+        dynamicRevenue = paymentSum + manualSum;
 
         // Số thông tin cung cấp (MarketingLead assigned to this employee)
         const employeeObj = await prisma.employee.findUnique({ where: { id: employeeId } });
@@ -220,6 +226,109 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ── TÍNH TOÁN ACTUAL THỰC TẾ (DYNAMIC) CHO MANAGER ─────────────────────
+    let managerRevenue = -1;
+    let managerNewDealers = -1;
+    let managerAvgSalesNewDealers = -1;
+    let managerOrderGenerationRate = -1;
+    let managerDebtRecoveryRate = -1;
+    let managerStaffKpiCompletionRate = -1;
+
+    if (type === "MANAGER") {
+      const startOfMonth = new Date(year, month - 1, 1);
+      const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+
+      try {
+        const salesEmployees = await prisma.employee.findMany({
+          where: { departmentName: { contains: "Kinh doanh" } },
+          select: { id: true, fullName: true }
+        });
+        const salesEmpIds = salesEmployees.map(e => e.id);
+
+        const customers = await prisma.customer.findMany({ 
+          where: { nguoiChamSocId: { in: salesEmpIds } },
+          select: { id: true, createdAt: true }
+        });
+        const customerIds = customers.map(c => c.id);
+        const totalManagedCustomers = customerIds.length;
+
+        managerNewDealers = customers.filter(c => c.createdAt >= startOfMonth && c.createdAt <= endOfMonth).length;
+
+        const orders = await prisma.saleOrder.findMany({
+          where: {
+            customerId: { in: customerIds },
+            trangThai: { notIn: ["cancelled", "draft"] },
+            createdAt: { gte: startOfMonth, lte: endOfMonth }
+          },
+          include: { paymentNotifications: true }
+        });
+        const managerSales = orders.reduce((sum, o) => sum + (o.tongTien || 0), 0);
+        const ordersCount = orders.length;
+
+        const payments = await prisma.paymentNotification.findMany({
+          where: {
+            status: "verified",
+            verifiedAt: { gte: startOfMonth, lte: endOfMonth },
+            OR: [
+              { customerId: { in: customerIds } },
+              { saleOrder: { customerId: { in: customerIds } } }
+            ]
+          }
+        });
+        const paymentSum = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+        let manualSum = 0;
+        orders.forEach(o => {
+          let linkedSum = 0;
+          if (o.paymentNotifications) {
+            linkedSum = o.paymentNotifications.reduce((acc: number, p: any) => acc + (p.amount || 0), 0);
+          }
+          const manual = Math.max(0, (o.daThanhToan || 0) - linkedSum);
+          manualSum += manual;
+        });
+
+        managerRevenue = paymentSum + manualSum;
+
+        if (managerNewDealers > 0) {
+          managerAvgSalesNewDealers = Math.round(managerSales / managerNewDealers);
+        } else {
+          managerAvgSalesNewDealers = 0;
+        }
+
+        if (totalManagedCustomers > 0) {
+          managerOrderGenerationRate = Math.round((ordersCount / totalManagedCustomers) * 100);
+        } else {
+          managerOrderGenerationRate = 0;
+        }
+
+        if (managerSales > 0) {
+          managerDebtRecoveryRate = Math.round((managerRevenue / managerSales) * 100);
+        } else {
+          managerDebtRecoveryRate = managerRevenue > 0 ? 100 : 0;
+        }
+
+        const staffReports = await prisma.internalKpiReport.findMany({
+          where: { month, year, type: "STAFF" },
+          select: { totalScore: true, employeeId: true }
+        });
+        
+        if (salesEmpIds.length > 0) {
+           let completedCount = 0;
+           staffReports.forEach(r => {
+             if (r.employeeId && salesEmpIds.includes(r.employeeId) && r.totalScore >= 100) {
+                completedCount++;
+             }
+           });
+           managerStaffKpiCompletionRate = Math.round((completedCount / salesEmpIds.length) * 100);
+        } else {
+           managerStaffKpiCompletionRate = 0;
+        }
+
+      } catch (e) {
+        console.error("Lỗi khi tính toán actual thực tế cho MANAGER:", e);
+      }
+    }
+
     // Merge detail vào criteria để trả về frontend dễ hiển thị
     const reportList = criteria.map((c: any) => {
       const detail = report?.details.find((d: any) => d.criteriaId === c.id);
@@ -254,6 +363,17 @@ export async function GET(req: NextRequest) {
         if ((global as any).dynamicAvgSalesNewDealers !== undefined && lowerName.includes("doanh số bình quân từ đại lý mới")) {
           finalActual = (global as any).dynamicAvgSalesNewDealers;
         }
+      }
+
+      // Ghi đè tự động actual cho MANAGER
+      if (c.type === "MANAGER") {
+        const lowerName = c.name.toLowerCase();
+        if (managerRevenue !== -1 && lowerName.includes("doanh thu phòng")) finalActual = managerRevenue;
+        if (managerNewDealers !== -1 && lowerName.includes("số đại lý phát triển")) finalActual = managerNewDealers;
+        if (managerAvgSalesNewDealers !== -1 && lowerName.includes("doanh số bình quân")) finalActual = managerAvgSalesNewDealers;
+        if (managerOrderGenerationRate !== -1 && lowerName.includes("tỷ lệ đại lý phát sinh đơn hàng")) finalActual = managerOrderGenerationRate;
+        if (managerDebtRecoveryRate !== -1 && lowerName.includes("tỷ lệ thu hồi công nợ")) finalActual = managerDebtRecoveryRate;
+        if (managerStaffKpiCompletionRate !== -1 && lowerName.includes("tỷ lệ nhân viên hoàn thành kpi")) finalActual = managerStaffKpiCompletionRate;
       }
 
       return {

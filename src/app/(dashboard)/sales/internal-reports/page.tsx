@@ -80,8 +80,9 @@ export default function PartnerActivitiesPage() {
 
     // Fetch Staff Report
     let staffUrl = `/api/sales/internal-reports/reports?month=${month}&year=${year}&type=STAFF`;
-    if (selectedEmployeeId) {
-      staffUrl += `&employeeId=${selectedEmployeeId}`;
+    const targetEmployeeId = selectedEmployeeId || employee?.id;
+    if (targetEmployeeId) {
+      staffUrl += `&employeeId=${targetEmployeeId}`;
     }
     fetch(staffUrl)
       .then(r => r.json())
@@ -102,7 +103,7 @@ export default function PartnerActivitiesPage() {
 
     // Fetch Income
     let incomeUrl = `/api/sales/internal-reports/income?month=${month}&year=${year}&type=${currentStep === 1 ? 'MANAGER' : 'STAFF'}`;
-    if (selectedEmployeeId) incomeUrl += `&employeeId=${selectedEmployeeId}`;
+    if (targetEmployeeId) incomeUrl += `&employeeId=${targetEmployeeId}`;
     fetch(incomeUrl)
       .then(r => r.json())
       .then(d => {
@@ -112,7 +113,7 @@ export default function PartnerActivitiesPage() {
 
     // Fetch Yearly KPI
     let yearlyUrl = `/api/sales/internal-reports/reports/yearly?year=${year}&type=${currentStep === 1 ? 'MANAGER' : 'STAFF'}`;
-    if (selectedEmployeeId) yearlyUrl += `&employeeId=${selectedEmployeeId}`;
+    if (targetEmployeeId) yearlyUrl += `&employeeId=${targetEmployeeId}`;
     fetch(yearlyUrl)
       .then(r => r.json())
       .then(d => {
@@ -120,7 +121,7 @@ export default function PartnerActivitiesPage() {
       })
       .catch(console.error);
 
-  }, [reportMonth, selectedEmployeeId, currentStep]);
+  }, [reportMonth, selectedEmployeeId, currentStep, employee?.id]);
 
   // Snap back to current month if user switches to step 1/2 from a future month in step 3
   useEffect(() => {
@@ -465,8 +466,12 @@ export default function PartnerActivitiesPage() {
                                 <tr key={idx}>
                                   <td className="text-center text-muted">{idx + 1}</td>
                                   <td className="fw-medium text-dark">{item.name}</td>
-                                  <td className="text-center text-muted">{item.target}</td>
-                                  <td className="text-center fw-medium" style={{ color: "var(--bs-primary)" }}>{item.actual}</td>
+                                  <td className="text-center text-muted">
+                                    {item.target}{(item.name.toLowerCase().includes("tỷ lệ") || item.name.toLowerCase().includes("thu hồi công nợ")) ? "%" : ""}
+                                  </td>
+                                  <td className="text-center fw-medium" style={{ color: "var(--bs-primary)" }}>
+                                    {item.actual}{(item.name.toLowerCase().includes("tỷ lệ") || item.name.toLowerCase().includes("thu hồi công nợ")) ? "%" : ""}
+                                  </td>
                                   <td className="text-center text-muted">{item.weight}</td>
                                   <td className="text-center fw-bold" style={{ color: completionPercent >= 90 ? "var(--bs-success)" : completionPercent >= 80 ? "var(--bs-warning)" : "var(--bs-danger)" }}>
                                     {score}
@@ -669,7 +674,10 @@ export default function PartnerActivitiesPage() {
                         onChange={e => setSelectedEmployeeId(e.target.value)}
                       >
                         <option value="">-- Chọn nhân viên --</option>
-                        {salesEmployees.map(e => (
+                        {salesEmployees.filter(e => {
+                          const posName = getPositionName(e.position).toLowerCase();
+                          return !posName.includes("trưởng phòng") && !posName.includes("phó phòng");
+                        }).map(e => (
                           <option key={e.id} value={e.id}>{e.fullName}</option>
                         ))}
                       </select>
@@ -701,8 +709,12 @@ export default function PartnerActivitiesPage() {
                                 <tr key={idx}>
                                   <td className="text-center text-muted">{idx + 1}</td>
                                   <td className="fw-medium text-dark">{item.name}</td>
-                                  <td className="text-center text-muted">{item.target}</td>
-                                  <td className="text-center fw-medium" style={{ color: "var(--bs-primary)" }}>{item.actual}</td>
+                                  <td className="text-center text-muted">
+                                    {item.target}{(item.name.toLowerCase().includes("tỷ lệ") || item.name.toLowerCase().includes("thu hồi công nợ")) ? "%" : ""}
+                                  </td>
+                                  <td className="text-center fw-medium" style={{ color: "var(--bs-primary)" }}>
+                                    {item.actual}{(item.name.toLowerCase().includes("tỷ lệ") || item.name.toLowerCase().includes("thu hồi công nợ")) ? "%" : ""}
+                                  </td>
                                   <td className="text-center text-muted">{item.weight}</td>
                                   <td className="text-center fw-bold" style={{ color: completionPercent >= 90 ? "var(--bs-success)" : completionPercent >= 80 ? "var(--bs-warning)" : "var(--bs-danger)" }}>
                                     {score}
