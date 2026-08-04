@@ -123,11 +123,110 @@ export async function GET(req: NextRequest) {
       include: { details: true }
     });
 
+    // ── TÍNH TOÁN ACTUAL THỰC TẾ (DYNAMIC) CHO STAFF ───────────────────────
+    let dynamicSales = -1;
+    let dynamicRevenue = -1;
+    let dynamicNewDealers = -1;
+
+    if (type === "STAFF" && employeeId) {
+      const startOfMonth = new Date(year, month - 1, 1);
+      const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+
+      try {
+        const customers = await prisma.customer.findMany({ 
+          where: { nguoiChamSocId: employeeId },
+          select: { id: true, createdAt: true }
+        });
+        const customerIds = customers.map(c => c.id);
+        // Số lượng khách hàng quản lý
+        const totalManagedCustomers = customerIds.length;
+
+        // Số đại lý phát triển trong tháng
+        dynamicNewDealers = customers.filter(c => c.createdAt >= startOfMonth && c.createdAt <= endOfMonth).length;
+
+        // Doanh số: Tổng tongTien đơn hàng (không bị huỷ/nháp) trong tháng
+        const orders = await prisma.saleOrder.findMany({
+          where: {
+            customerId: { in: customerIds },
+            trangThai: { notIn: ["cancelled", "draft"] },
+            createdAt: { gte: startOfMonth, lte: endOfMonth }
+          }
+        });
+        dynamicSales = orders.reduce((sum, o) => sum + (o.tongTien || 0), 0);
+        const ordersCount = orders.length;
+
+        // Doanh thu: Tổng tiền khách hàng đã thanh toán (đã verify) trong tháng
+        const payments = await prisma.paymentNotification.findMany({
+          where: {
+            status: "verified",
+            verifiedAt: { gte: startOfMonth, lte: endOfMonth },
+            customerId: { in: customerIds }
+          }
+        });
+        const orderPayments = await prisma.paymentNotification.findMany({
+          where: {
+            status: "verified",
+            verifiedAt: { gte: startOfMonth, lte: endOfMonth },
+            saleOrder: { customerId: { in: customerIds } }
+          }
+        });
+        
+        const allPaymentsMap = new Map();
+        payments.forEach(p => allPaymentsMap.set(p.id, p));
+        orderPayments.forEach(p => allPaymentsMap.set(p.id, p));
+        
+        dynamicRevenue = Array.from(allPaymentsMap.values()).reduce((sum, p) => sum + (p.amount || 0), 0);
+
+        // Số thông tin cung cấp (MarketingLead assigned to this employee)
+        const employeeObj = await prisma.employee.findUnique({ where: { id: employeeId } });
+        const empName = employeeObj?.fullName || employeeId;
+        const leadsProvidedCount = await prisma.marketingLead.count({
+          where: {
+            createdAt: { gte: startOfMonth, lte: endOfMonth },
+            formValues: { contains: empName }
+          }
+        });
+
+        // Tỷ lệ chuyển đổi = số đại lý mới / số thông tin cung cấp
+        if (leadsProvidedCount > 0) {
+          (global as any).dynamicConversionRate = Math.round((dynamicNewDealers / leadsProvidedCount) * 100);
+        } else {
+          (global as any).dynamicConversionRate = dynamicNewDealers > 0 ? 100 : 0;
+        }
+
+        // Tỷ lệ thu hồi nợ = doanh thu / doanh số
+        if (dynamicSales > 0) {
+          (global as any).dynamicDebtRecoveryRate = Math.round((dynamicRevenue / dynamicSales) * 100);
+        } else {
+          (global as any).dynamicDebtRecoveryRate = dynamicRevenue > 0 ? 100 : 0;
+        }
+
+        // Tỷ lệ phát sinh đơn hàng = số đơn hàng / tổng số khách hàng quản lý
+        if (totalManagedCustomers > 0) {
+          (global as any).dynamicOrderGenerationRate = Math.round((ordersCount / totalManagedCustomers) * 100);
+        } else {
+          (global as any).dynamicOrderGenerationRate = 0;
+        }
+
+        // Doanh số bình quân từ đại lý mới = doanh số / số đại lý mới
+        if (dynamicNewDealers > 0) {
+          (global as any).dynamicAvgSalesNewDealers = Math.round(dynamicSales / dynamicNewDealers);
+        } else {
+          (global as any).dynamicAvgSalesNewDealers = 0;
+        }
+
+      } catch (e) {
+        console.error("Lỗi khi tính toán actual thực tế cho STAFF:", e);
+      }
+    }
+
     // Merge detail vào criteria để trả về frontend dễ hiển thị
     const reportList = criteria.map((c: any) => {
       const detail = report?.details.find((d: any) => d.criteriaId === c.id);
       
       let finalTarget = detail ? detail.targetValue : c.targetValue;
+      let finalActual = detail ? detail.actualValue : 0;
+
       // Ghi đè tự động từ kế hoạch năm để hiển thị luôn chuẩn nhất
       if (c.type === "MANAGER" && planTotalRevenue !== -1 && c.name.toLowerCase().includes("doanh thu phòng")) {
          finalTarget = planTotalRevenue;
@@ -136,13 +235,34 @@ export async function GET(req: NextRequest) {
          finalTarget = planTotalDealers;
       }
 
+      // Ghi đè tự động actual cho STAFF
+      if (c.type === "STAFF") {
+        const lowerName = c.name.toLowerCase();
+        if (dynamicSales !== -1 && lowerName === "doanh số") finalActual = dynamicSales;
+        if (dynamicRevenue !== -1 && lowerName === "doanh thu") finalActual = dynamicRevenue;
+        if (dynamicNewDealers !== -1 && lowerName.includes("số đại lý phát triển")) finalActual = dynamicNewDealers;
+        
+        if ((global as any).dynamicConversionRate !== undefined && lowerName.includes("tỷ lệ chuyển đổi")) {
+          finalActual = (global as any).dynamicConversionRate;
+        }
+        if ((global as any).dynamicDebtRecoveryRate !== undefined && lowerName.includes("thu hồi công nợ")) {
+          finalActual = (global as any).dynamicDebtRecoveryRate;
+        }
+        if ((global as any).dynamicOrderGenerationRate !== undefined && lowerName.includes("tỷ lệ phát sinh đơn hàng")) {
+          finalActual = (global as any).dynamicOrderGenerationRate;
+        }
+        if ((global as any).dynamicAvgSalesNewDealers !== undefined && lowerName.includes("doanh số bình quân từ đại lý mới")) {
+          finalActual = (global as any).dynamicAvgSalesNewDealers;
+        }
+      }
+
       return {
         id: c.id,
         name: c.name,
         target: finalTarget,
-        actual: detail ? detail.actualValue : 0,
+        actual: finalActual,
         weight: detail ? detail.weight : c.weight,
-        score: detail ? detail.score : 0
+        score: detail ? detail.score : 0 // The frontend recalculates this anyway, but we return it
       };
     });
 

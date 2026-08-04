@@ -1915,7 +1915,9 @@ export default function PartnersPage() {
     return partners.filter(p => {
       const pStep = Number(p.step);
       const cStep = Number(currentStep);
-      if (cStep === 4) {
+      if (cStep === 1) {
+        // Show all in step 1
+      } else if (cStep === 4) {
         if (pStep < 4) return false;
       } else {
         if (pStep !== cStep) return false;
