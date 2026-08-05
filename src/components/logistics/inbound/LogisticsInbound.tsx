@@ -4,6 +4,10 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { Pagination } from "@/components/ui/Pagination";
 import { HoverImage } from "@/components/ui/HoverImage";
+import { TreeFilterSelect } from "@/components/ui/TreeFilterSelect";
+import { FilterSelect } from "@/components/ui/FilterSelect";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
 // Import existing modals from plan-finance
 import { NhapKhoModal } from "@/components/plan-finance/kho_hang/NhapKhoModal";
@@ -19,6 +23,8 @@ interface Warehouse {
 interface Category {
   id: string;
   name: string;
+  level?: number;
+  isHeader?: boolean;
 }
 
 interface InventoryItem {
@@ -296,109 +302,61 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-      {/* Upper content */}
-      <div className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
-        {/* Tiêu đề mục */}
-        <SectionTitle title="Danh sách hàng hoá trong kho" />
+    <>
+    <FullWidthTableLayout
+      className="flex-grow-1 overflow-hidden"
+      style={{ minHeight: 0 }}
+      header={
+        <div className="d-flex flex-column gap-3 mb-2">
+          {/* Tiêu đề mục */}
+          <SectionTitle title="Danh sách hàng hoá trong kho" className="mb-0" />
 
-        {/* Thanh công cụ lọc và tìm kiếm */}
-        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", marginBottom: "16px" }}>
+          {/* Thanh công cụ lọc và tìm kiếm */}
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
           {/* Lọc theo kho hàng */}
-          <select 
+          <TreeFilterSelect 
+            options={warehouses.map(w => ({ label: w.name, value: w.id }))}
             value={filterWarehouse}
-            onChange={(e) => {
-              setFilterWarehouse(e.target.value);
+            onChange={(v) => {
+              setFilterWarehouse(v);
               setFilterCategory("");
             }}
-            style={{
-              height: "32px",
-              padding: "0 10px",
-              borderRadius: "8px",
-              fontSize: "12px",
-              border: "1px solid var(--border)",
-              background: "var(--background)",
-              color: "var(--foreground)",
-              outline: "none",
-              cursor: "pointer",
-              minWidth: "150px"
-            }}
-          >
-            <option value="">Tất cả kho hàng</option>
-            {warehouses.map(w => (
-              <option key={w.id} value={w.id}>{w.name}</option>
-            ))}
-          </select>
+            placeholder="Tất cả kho hàng"
+            width={160}
+          />
 
           {/* Lọc theo danh mục */}
-          <select 
+          <TreeFilterSelect 
+            options={categories.map(c => ({ label: c.name, value: c.id, level: c.level, isHeader: c.isHeader }))}
             value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            style={{
-              height: "32px",
-              padding: "0 10px",
-              borderRadius: "8px",
-              fontSize: "12px",
-              border: "1px solid var(--border)",
-              background: "var(--background)",
-              color: "var(--foreground)",
-              outline: "none",
-              cursor: "pointer",
-              minWidth: "150px"
-            }}
-          >
-            <option value="">Tất cả danh mục</option>
-            {categories.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+            onChange={setFilterCategory}
+            placeholder="Tất cả danh mục"
+            width={160}
+            disabled={!filterWarehouse}
+          />
 
           <div className="d-flex flex-fill" style={{ gap: "10px", minWidth: 0 }}>
             {/* Lọc theo trạng thái */}
-            <select 
+            <FilterSelect 
+              options={[
+                { label: "Còn hàng", value: "con-hang" },
+                { label: "Sắp hết hàng", value: "sap-het" },
+                { label: "Đã hết hàng", value: "het-hang" }
+              ]}
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              style={{
-                height: "32px",
-                padding: "0 10px",
-                borderRadius: "8px",
-                fontSize: "12px",
-                border: "1px solid var(--border)",
-                background: "var(--background)",
-                color: "var(--foreground)",
-                outline: "none",
-                cursor: "pointer",
-                minWidth: "120px",
-                flexShrink: 0
-              }}
-            >
-              <option value="">Tất cả trạng thái</option>
-              <option value="con-hang">Còn hàng</option>
-              <option value="sap-het">Sắp hết hàng</option>
-              <option value="het-hang">Đã hết hàng</option>
-            </select>
+              onChange={setFilterStatus}
+              placeholder="Tất cả trạng thái"
+              width={160}
+              disabled={!filterWarehouse}
+            />
 
             {/* Hộp tìm kiếm */}
-            <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
-              <i className="bi bi-search" style={{ position: "absolute", left: "11px", top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)", fontSize: "12px" }} />
-              <input 
-                type="text" 
-                placeholder="Tìm theo tên, mã hàng hóa..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  width: "100%",
-                  height: "32px",
-                  padding: "0 12px 0 32px",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                  border: "1px solid var(--border)",
-                  background: "var(--background)",
-                  color: "var(--foreground)",
-                  outline: "none",
-                }}
-              />
-            </div>
+            <SearchInput 
+              value={search}
+              onChange={setSearch}
+              placeholder="Tìm theo tên, mã hàng hóa..."
+              className="flex-grow-1"
+            />
           </div>
 
           {/* Nhóm nút tải file, import, export (chỉ dùng icon) */}
@@ -478,41 +436,30 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
               )}
             </button>
           </div>
+          </div>
         </div>
-
-        {/* Bảng dữ liệu */}
-        <div 
-          className="rounded-3 bg-light/30 shadow-inner mb-3 flex-grow-1"
-          style={{
-            overflow: "hidden",
-            minHeight: 0,
-            display: "flex",
-            flexDirection: "column"
-          }}
-        >
-          <Table 
-            rows={filteredItems}
-            columns={columns}
-            loading={loading}
-            minWidth={800}
-            compact={true}
-            stickyHeader={true}
-            wrapperStyle={{ height: "100%", overflowY: "auto" }}
-            emptyText="Không có hàng hoá nào trong kho"
-          />
-        </div>
-      </div>
-
-      {/* Card Footer with Buttons */}
-      <div style={{ 
-        borderTop: "1px solid var(--border)", 
-        paddingTop: "12px", 
-        display: "flex", 
-        justifyContent: "space-between",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: "12px"
-      }}>
+      }
+      table={
+        <Table 
+          rows={filteredItems}
+          columns={columns}
+          loading={loading}
+          minWidth={800}
+          compact={true}
+          stickyHeader={true}
+          wrapperStyle={{ height: "100%", overflowY: "auto" }}
+          emptyText="Không có hàng hoá nào trong kho"
+        />
+      }
+      footer={
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "12px",
+          width: "100%"
+        }}>
         {/* Phân trang bên trái */}
         <div style={{ display: "flex", alignItems: "center" }}>
           <Pagination 
@@ -565,7 +512,9 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
             </button>
           ))}
         </div>
-      </div>
+        </div>
+      }
+    />
 
       {activeModal === "nhap" && (
         <NhapKhoModal 
@@ -601,6 +550,6 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
           }} 
         />
       )}
-    </div>
+    </>
   );
 }

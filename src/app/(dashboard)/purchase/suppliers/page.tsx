@@ -11,6 +11,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { AddSupplierModal } from "@/components/plan-finance/mua_hang/AddSupplierModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { motion, AnimatePresence } from "framer-motion";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
 const SUPPLIER_STATUS_OPTIONS = [
   { label: "Tất cả trạng thái", value: "" },
@@ -55,7 +56,28 @@ export default function SuppliersPage() {
     fetch("/api/plan-finance/inventory/categories")
       .then((r) => (r.ok ? r.json() : []))
       .then((data: any[]) => {
-        setCategoryOptions(data.map((c) => ({ label: c.name, value: c.id })));
+        const rootNodes = data.filter((c) => !c.parentId || !data.some(p => p.id === c.parentId));
+        
+        const buildTree = (nodes: any[], level: number): any[] => {
+          let result: any[] = [];
+          for (const node of nodes) {
+            const isRoot = level === 0;
+            const prefix = isRoot ? "" : "\u00A0\u00A0\u00A0\u00A0".repeat(level);
+            result.push({
+              label: prefix + node.name,
+              value: node.id,
+              isHeader: isRoot,
+              parentId: node.parentId
+            });
+            const children = data.filter((c) => c.parentId === node.id);
+            if (children.length > 0) {
+              result = result.concat(buildTree(children, level + 1));
+            }
+          }
+          return result;
+        };
+
+        setCategoryOptions(buildTree(rootNodes, 0));
       })
       .catch(() => {});
   }, []);
@@ -98,6 +120,19 @@ export default function SuppliersPage() {
   }, [status, selectedCategoryIds, search]);
 
   // Handle delete confirmation
+  const updateRating = async (id: string, newRating: number) => {
+    try {
+      // Optimistic update
+      setSuppliers(prev => prev.map(s => s.id === id ? { ...s, danhGia: newRating } : s));
+      await fetch(`/api/plan-finance/suppliers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ danhGia: newRating })
+      });
+    } catch (error) {
+      console.error("Failed to update rating", error);
+    }
+  };
   const handleDeleteConfirm = async () => {
     if (!confirmDeleteId || deleting) return;
     setDeleting(true);
@@ -157,7 +192,28 @@ export default function SuppliersPage() {
       header: "Tên nhà cung cấp",
       render: (s) => (
         <div>
-          <div style={{ fontWeight: 700, fontSize: "13.5px", color: "var(--foreground)" }}>{s.name}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ fontWeight: 700, fontSize: "13.5px", color: "var(--foreground)" }}>{s.name}</div>
+            <div style={{ display: "flex", gap: "2px", alignItems: "center" }}>
+              {[1, 2, 3, 4, 5].map(star => (
+                <i
+                  key={star}
+                  className={`bi ${star <= (s.danhGia || 0) ? "bi-star-fill text-warning" : "bi-star text-muted"}`}
+                  style={{ cursor: "pointer", fontSize: "12px", transition: "all 0.2s" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateRating(s.id, star);
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "scale(1.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                />
+              ))}
+            </div>
+          </div>
           {s.categories && s.categories.length > 0 && (
             <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "4px", flexWrap: "wrap" }}>
               {s.categories.map((catObj: any, idx: number) => (
@@ -248,7 +304,7 @@ export default function SuppliersPage() {
           width={150}
         />
 
-        <div className="flex-grow-1" style={{ maxWidth: "450px" }}>
+        <div className="flex-grow-1">
           <SearchInput
             placeholder="Tìm kiếm nhà cung cấp..."
             value={search}
@@ -326,25 +382,15 @@ export default function SuppliersPage() {
       />
 
       <div style={{ padding: "1.5rem", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-        {/* Main card */}
-        <div 
-          style={{ 
-            flex: 1, 
-            display: "flex", 
-            flexDirection: "column", 
-            background: "var(--card)", 
-            borderRadius: "12px", 
-            border: "1px solid var(--border)",
-            padding: "1.5rem",
-            minHeight: 0
-          }}
-        >
-          <SectionTitle title="Danh sách nhà cung cấp" icon="bi-list-ul" className="mb-3" />
-
-          {toolbar}
-
-          {/* Table Container */}
-          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+        <FullWidthTableLayout
+          className="bg-white rounded-4 shadow-sm border flex-grow-1 overflow-hidden"
+          header={
+            <>
+              <SectionTitle title="Danh sách nhà cung cấp" icon="bi-list-ul" className="mb-3" />
+              {toolbar}
+            </>
+          }
+          table={
             <Table<any>
               rows={suppliers}
               columns={columns}
@@ -355,19 +401,19 @@ export default function SuppliersPage() {
               emptyText="Không có nhà cung cấp nào được tìm thấy"
               compact
             />
-          </div>
-
-          {/* Pagination Container */}
-          {total > 15 && (
-            <div className="pt-3 border-top mt-3 flex-shrink-0">
-              <Pagination
-                page={page}
-                totalPages={Math.ceil(total / 15)}
-                onChange={setPage}
-              />
-            </div>
-          )}
-        </div>
+          }
+          footer={
+            total > 15 && (
+              <div className="pt-3 pb-3 flex-shrink-0 d-flex justify-content-center">
+                <Pagination
+                  page={page}
+                  totalPages={Math.ceil(total / 15)}
+                  onChange={setPage}
+                />
+              </div>
+            )
+          }
+        />
       </div>
 
       {isAddOpen && (

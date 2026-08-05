@@ -73,13 +73,13 @@ export function KVPItemTable({
                 }}
               />
             </th>
-            <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: compactMode ? "100%" : "30%", minWidth: "200px" }}>Sản phẩm</th>
-            {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "15%", minWidth: "140px" }}>Danh mục</th>}
-            {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "20%", minWidth: "140px" }}>Model / Màu</th>}
-            {!compactMode && <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "70px" }}>ĐVT</th>}
-            {!compactMode && <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px" }}>Tồn kho</th>}
-            <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px" }}>Trạng thái</th>
-            {hideActions ? null : <th className="pe-4 border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "110px", minWidth: "110px" }}>Thao tác</th>}
+            <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: compactMode ? "100%" : "30%", minWidth: "200px", whiteSpace: "nowrap" }}>Sản phẩm</th>
+            {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "15%", minWidth: "140px", whiteSpace: "nowrap" }}>Danh mục</th>}
+            {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "20%", minWidth: "140px", whiteSpace: "nowrap" }}>Model / Màu</th>}
+            {!compactMode && <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "70px", whiteSpace: "nowrap" }}>ĐVT</th>}
+            {!compactMode && <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px", whiteSpace: "nowrap" }}>Tồn kho</th>}
+            <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px", whiteSpace: "nowrap" }}>Trạng thái</th>
+            {hideActions ? null : <th className="pe-4 border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "110px", minWidth: "110px", whiteSpace: "nowrap" }}>Thao tác</th>}
           </tr>
         </thead>
         <tbody>

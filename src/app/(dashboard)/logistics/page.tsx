@@ -11,6 +11,7 @@ import { NhapKhoModal } from "@/components/plan-finance/kho_hang/NhapKhoModal";
 import { useToast } from "@/components/ui/Toast";
 import { DynamicTicker } from "@/components/layout/DynamicTicker";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { TreeFilterSelect } from "@/components/ui/TreeFilterSelect";
 
 export default function LogisticsOverviewPage() {
   const [rawOrders, setRawOrders] = useState<any[]>([]);
@@ -339,16 +340,18 @@ export default function LogisticsOverviewPage() {
             <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
               <div className="px-3 px-xl-4 pt-3 pt-xl-4 pb-2 d-flex justify-content-between align-items-center">
                 <SectionTitle title="Danh sách lệnh xuất nhập kho" icon="bi-card-list" className="mb-0" />
-                <select 
-                  className="form-select form-select-sm shadow-sm mb-0"
-                  style={{ width: "120px", fontSize: 12, borderRadius: 8, cursor: "pointer" }}
+                <TreeFilterSelect
+                  options={[
+                    { label: "Tất cả", value: "ALL" },
+                    { label: "Nhập kho", value: "IMPORT" },
+                    { label: "Xuất kho", value: "EXPORT" }
+                  ]}
                   value={typeFilter}
-                  onChange={e => setTypeFilter(e.target.value as any)}
-                >
-                  <option value="ALL">Tất cả</option>
-                  <option value="IMPORT">Nhập kho</option>
-                  <option value="EXPORT">Xuất kho</option>
-                </select>
+                  onChange={val => setTypeFilter(val as any)}
+                  className="shadow-sm rounded-pill"
+                  width={120}
+                  placeholder="Tất cả"
+                />
               </div>
               <div className="flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
                 <Table
@@ -397,6 +400,7 @@ export default function LogisticsOverviewPage() {
                     },
                     { 
                       header: "Mã lệnh", 
+                      noWrap: true,
                       render: (row: any) => (
                         <div className="position-relative">
                           <div className="d-flex align-items-center flex-wrap gap-2">
@@ -418,6 +422,7 @@ export default function LogisticsOverviewPage() {
                     },
                     { 
                       header: "Loại", 
+                      noWrap: true,
                       render: (row: any) => (
                         <span className={`badge bg-label-${row.type === 'material-import' ? 'success' : 'primary'} text-${row.type === 'material-import' ? 'success' : 'primary'}`} style={{ fontSize: 11 }}>
                           {row.type === 'material-import' ? 'Nhập kho' : 'Xuất kho'}
@@ -427,6 +432,7 @@ export default function LogisticsOverviewPage() {
                     },
                     { 
                       header: "Trạng thái", 
+                      noWrap: true,
                       render: (row: any) => {
                         let statusColor = "bg-secondary";
                         let statusText = row.trangThai;

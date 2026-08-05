@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
         where: { isActive: true },
         select: { id: true, parentId: true }
       });
-      const descendantIds = [prodRootCategory.id];
+      const descendantIds: string[] = [];
       const collectDescendants = (parentId: string) => {
         categories.forEach(cat => {
           if (cat.parentId === parentId) {
@@ -56,27 +56,40 @@ export async function GET(req: NextRequest) {
       industryProdCategoryIds = descendantIds;
     }
 
-    // Lấy ID của các danh mục Vật tư và Thành phẩm đã được đồng bộ
+    // Fetch synced production materials (VTSX)
     const syncedCategories = await prisma.category.findMany({
-      where: { type: { in: ['danh_muc_thanh_pham', 'vat_tu_san_xuat'] } },
-      select: { id: true }
+      where: { type: 'vat_tu_san_xuat', isActive: true },
+      select: { id: true, name: true, code: true, parentId: true },
+      orderBy: { sortOrder: "asc" }
     });
-    const syncedIds = syncedCategories.map(c => c.id);
 
     const cats = await prisma.inventoryCategory.findMany({
       where: {
         isActive: true,
-        ...(industryProdCategoryIds.length > 0 ? {
-          OR: [
-            { id: { in: industryProdCategoryIds } },
-            { id: { in: syncedIds } } // Bao gồm các danh mục được đồng bộ
-          ]
-        } : {}),
+        ...(industryProdCategoryIds.length > 0 ? { id: { in: industryProdCategoryIds } } : {}),
       },
       orderBy: { sortOrder: "asc" },
-      select:  { id: true, name: true, code: true },
+      select:  { id: true, name: true, code: true, parentId: true },
     });
-    return NextResponse.json(cats);
+
+    // Create mock parent for VTSX
+    const vtsxParentId = "mock-parent-vtsx";
+    const vtsxParentNode = {
+      id: vtsxParentId,
+      name: "Vật tư sản xuất",
+      code: "VTSX",
+      parentId: null,
+    };
+
+    const mappedSyncedCategories = syncedCategories.map(c => ({
+      ...c,
+      parentId: c.parentId || vtsxParentId
+    }));
+
+    // Combine both category sources
+    const allCategories = [...cats, vtsxParentNode, ...mappedSyncedCategories];
+
+    return NextResponse.json(allCategories);
   } catch (e) {
     console.error("[GET /inventory/categories]", e);
     return NextResponse.json([]);

@@ -358,7 +358,6 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
   const isDefectWarehouse = !!selectedWarehouse && (selectedWarehouse.code === "KHO-LOI" || selectedWarehouse.type === "DEFECT");
 
   const categoryOptions: TreeOption[] = categories
-    .filter(c => !((c as any).isHeader && (c as any).level === 0))
     .map(c => ({
       label: c.name,
       value: c.id,
@@ -402,20 +401,17 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
       {/* Search and Filter */}
 
       <div className="d-flex align-items-center gap-3 mb-2">
-        <select
-          className="form-select border-0 shadow-sm rounded-pill px-4 text-truncate"
-          style={{ width: "160px", fontSize: 13, height: 40, background: "var(--card)", color: "var(--foreground)", border: "1px solid var(--border)" }}
+        <TreeFilterSelect
+          options={warehouses.map(w => ({ label: w.name, value: w.id }))}
           value={filterWarehouse}
-          onChange={(e) => {
-            setFilterWarehouse(e.target.value);
+          onChange={(v) => {
+            setFilterWarehouse(v);
             setFilterCategory("");
           }}
-        >
-          <option value="">Tất cả kho hàng</option>
-          {warehouses.map(w => (
-            <option key={w.id} value={w.id}>{w.name}</option>
-          ))}
-        </select>
+          placeholder="Tất cả kho hàng"
+          className="rounded-pill shadow-sm"
+          width={160}
+        />
 
         <TreeFilterSelect
           options={categoryOptions}
@@ -424,6 +420,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
           placeholder="Tất cả danh mục"
           className="rounded-pill shadow-sm"
           width={160}
+          disabled={!filterWarehouse}
         />
 
         <SearchInput
@@ -569,13 +566,13 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
                     }}
                   />
                 </th>
-                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: compactMode ? "100%" : "30%", minWidth: "200px" }}>Sản phẩm</th>
-                {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "15%", minWidth: "140px" }}>Danh mục</th>}
-                {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "20%", minWidth: "140px" }}>Model / Màu</th>}
-                {!compactMode && <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "70px" }}>ĐVT</th>}
-                {!compactMode && <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px" }}>Tồn kho</th>}
-                <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px" }}>Trạng thái</th>
-                {hideActions ? null : <th className="pe-4 border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "110px", minWidth: "110px" }}>Thao tác</th>}
+                <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: compactMode ? "100%" : "30%", minWidth: "200px", whiteSpace: "nowrap" }}>Sản phẩm</th>
+                {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "15%", minWidth: "140px", whiteSpace: "nowrap" }}>Danh mục</th>}
+                {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "20%", minWidth: "140px", whiteSpace: "nowrap" }}>Model / Màu</th>}
+                {!compactMode && <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "70px", whiteSpace: "nowrap" }}>ĐVT</th>}
+                {!compactMode && <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px", whiteSpace: "nowrap" }}>Tồn kho</th>}
+                <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px", whiteSpace: "nowrap" }}>Trạng thái</th>
+                {hideActions ? null : <th className="pe-4 border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "110px", minWidth: "110px", whiteSpace: "nowrap" }}>Thao tác</th>}
               </tr>
             </thead>
             <tbody>

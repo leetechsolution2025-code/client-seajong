@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -25,7 +26,10 @@ export async function GET(req: NextRequest) {
 
     const currentYear = new Date().getFullYear();
 
-    const orders = await prisma.saleOrder.findMany({
+    const dbOrders = await prisma.saleOrder.findMany({
+      where: {
+        trangThai: { notIn: ["draft", "cancelled"] }
+      },
       orderBy: { createdAt: "desc" },
       include: {
         customer: {
@@ -40,6 +44,11 @@ export async function GET(req: NextRequest) {
         },
         saleOrderItems: true
       }
+    });
+
+    const orders = dbOrders.filter(order => {
+      const orderDate = order.ngayDat ? new Date(order.ngayDat) : new Date(order.createdAt);
+      return orderDate.getFullYear() === currentYear;
     });
 
     const totalOrdersCount = orders.length;
@@ -106,14 +115,10 @@ export async function GET(req: NextRequest) {
     }
 
     orders.forEach(order => {
-      if (order.ngayDat) {
-        const orderDate = new Date(order.ngayDat);
-        if (orderDate.getFullYear() === currentYear) {
-          const month = orderDate.getMonth() + 1; // 1-indexed
-          monthlySalesMap[month] += (order.tongTien || 0);
-          monthlyRevenueMap[month] += (order.daThanhToan || 0);
-        }
-      }
+      const orderDate = order.ngayDat ? new Date(order.ngayDat) : new Date(order.createdAt);
+      const month = orderDate.getMonth() + 1; // 1-indexed
+      monthlySalesMap[month] += (order.tongTien || 0);
+      monthlyRevenueMap[month] += (order.daThanhToan || 0);
     });
 
     // 5. Fetch Recent Customer Care History (from CRM PartnerCareHistory)
@@ -187,13 +192,28 @@ export async function GET(req: NextRequest) {
           if (item.tenHang) {
             const rawCatName = itemNameToCategory[item.tenHang] || "Loại khác";
             const lowerCat = rawCatName.toLowerCase();
+            const lowerItem = item.tenHang.toLowerCase();
             const revenue = item.thanhTien || 0;
             
-            if (lowerCat.includes("vệ sinh") || lowerCat.includes("sen") || lowerCat.includes("bàn cầu") || lowerCat.includes("lavabo")) {
+            if (
+              lowerCat.includes("vệ sinh") || lowerItem.includes("vệ sinh") || 
+              lowerCat.includes("sen") || lowerItem.includes("sen") || 
+              lowerCat.includes("bàn cầu") || lowerItem.includes("bàn cầu") || 
+              lowerItem.includes("bồn cầu") || 
+              lowerCat.includes("lavabo") || lowerItem.includes("lavabo") ||
+              lowerItem.includes("bồn tắm") || lowerItem.includes("chậu")
+            ) {
               predefinedBuckets["Thiết bị vệ sinh"] += revenue;
-            } else if (lowerCat.includes("bếp") || lowerCat.includes("hút mùi")) {
+            } else if (
+              lowerCat.includes("bếp") || lowerItem.includes("bếp") || 
+              lowerCat.includes("hút mùi") || lowerItem.includes("hút mùi")
+            ) {
               predefinedBuckets["Thiết bị nhà bếp"] += revenue;
-            } else if (lowerCat.includes("phụ kiện") || lowerCat.includes("gương") || lowerCat.includes("vòi xịt")) {
+            } else if (
+              lowerCat.includes("phụ kiện") || lowerItem.includes("phụ kiện") || 
+              lowerCat.includes("gương") || lowerItem.includes("gương") || 
+              lowerCat.includes("vòi xịt") || lowerItem.includes("vòi xịt")
+            ) {
               predefinedBuckets["Phụ kiện"] += revenue;
             } else {
               predefinedBuckets["Loại khác"] += revenue;

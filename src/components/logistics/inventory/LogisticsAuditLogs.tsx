@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { useSession } from "next-auth/react";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
 interface Warehouse {
   id: string;
@@ -218,10 +219,11 @@ export function LogisticsAuditLogs() {
   };
 
   return (
-    <div className="d-flex flex-column gap-3 h-100 position-relative">
-      
-      {/* ── Toolbar & Filters ── */}
-      <div className="d-flex flex-wrap align-items-center gap-2 mb-1" style={{ flexShrink: 0 }}>
+    <>
+    <FullWidthTableLayout
+      className="position-relative"
+      header={
+        <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
         {/* Search */}
         <div className="position-relative flex-grow-1" style={{ minWidth: "250px" }}>
           <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
@@ -297,10 +299,10 @@ export function LogisticsAuditLogs() {
           <i className="bi bi-arrow-clockwise" />
           Tải lại
         </button>
-      </div>
-
-      {/* ── Timeline Activity List / Table ── */}
-      <div className="app-card overflow-hidden flex-grow-1 d-flex flex-column border" style={{ borderRadius: 16, minHeight: 0, background: "var(--card)" }}>
+        </div>
+      }
+      table={
+        <div className="app-card overflow-hidden flex-grow-1 d-flex flex-column border" style={{ borderRadius: 16, minHeight: 0, background: "var(--card)" }}>
         <div className="table-responsive flex-grow-1" style={{ overflowY: "auto" }}>
           <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
             <thead className="bg-light" style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--card)" }}>
@@ -423,7 +425,9 @@ export function LogisticsAuditLogs() {
             </tbody>
           </table>
         </div>
-      </div>
+        </div>
+      }
+    />
 
       {/* ── Side Offcanvas Detail Drawer (410px width) ── */}
       {selectedLog && (
@@ -589,6 +593,6 @@ export function LogisticsAuditLogs() {
           color: #34d399 !important;
         }
       `}} />
-    </div>
+    </>
   );
 }

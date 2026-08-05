@@ -636,6 +636,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                         onChange={setCategoryId}
                         placeholder="Tất cả các loại hàng hoá"
                         width={240}
+                        disabled={!warehouseId}
                     />
                     <FilterSelect 
                         options={[
@@ -647,6 +648,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                         onChange={setTrangThai}
                         placeholder="Trạng thái"
                         width={150}
+                        disabled={!warehouseId}
                     />
                     <div className="flex-grow-1">
                       <SearchInput 

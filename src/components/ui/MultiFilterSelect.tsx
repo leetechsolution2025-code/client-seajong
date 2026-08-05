@@ -5,6 +5,8 @@ import React, { useState, useEffect, useRef } from "react";
 interface Option { 
   label: string; 
   value: string; 
+  isHeader?: boolean;
+  parentId?: string | null;
 }
 
 interface MultiFilterSelectProps {
@@ -17,6 +19,7 @@ interface MultiFilterSelectProps {
 
 export function MultiFilterSelect({ placeholder, options, selectedValues, onChange, width = 180 }: MultiFilterSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [collapsedHeaders, setCollapsedHeaders] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on click outside
@@ -44,6 +47,13 @@ export function MultiFilterSelect({ placeholder, options, selectedValues, onChan
     } else {
       onChange(selectedValues.filter(val => val !== optionValue));
     }
+  };
+
+  const toggleHeader = (headerValue: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCollapsedHeaders(prev => 
+      prev.includes(headerValue) ? prev.filter(v => v !== headerValue) : [...prev, headerValue]
+    );
   };
 
   // Label text to display on the button
@@ -145,6 +155,47 @@ export function MultiFilterSelect({ placeholder, options, selectedValues, onChan
 
           {/* List Options */}
           {options.map((opt) => {
+            let isHidden = false;
+            let currentParentId = opt.parentId;
+            while(currentParentId) {
+              if (collapsedHeaders.includes(currentParentId)) {
+                isHidden = true;
+                break;
+              }
+              const parentOpt = options.find(o => o.value === currentParentId);
+              currentParentId = parentOpt ? parentOpt.parentId : null;
+            }
+            
+            if (isHidden) return null;
+
+            if (opt.isHeader) {
+              const isCollapsed = collapsedHeaders.includes(opt.value);
+              return (
+                <div
+                  key={opt.value}
+                  onClick={(e) => toggleHeader(opt.value, e)}
+                  style={{
+                    padding: "8px 12px 6px 12px",
+                    margin: 0,
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    color: "var(--foreground)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.02em",
+                    cursor: "pointer",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "var(--muted)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  <span>{opt.label}</span>
+                  <i className={`bi bi-chevron-${isCollapsed ? "down" : "up"}`} style={{ fontSize: "10px", color: "var(--muted-foreground)" }} />
+                </div>
+              );
+            }
+
             const isChecked = selectedValues.includes(opt.value);
             return (
               <label

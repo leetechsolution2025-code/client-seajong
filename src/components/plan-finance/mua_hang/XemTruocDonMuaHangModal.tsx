@@ -189,6 +189,13 @@ const inp = printStyles.sidebarInput;
 const secHead = printStyles.secHead;
 const bodyCell = printStyles.bodyCell;
 
+const SField = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div>
+    <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</p>
+    {children}
+  </div>
+);
+
 // ── Main component ───────────────────────────────────────────────────────────────
 export default function XemTruocDonMuaHangModal({
   reqId, reqCode, supplierId, supplierName, assignments, items, onClose, onCreated,
@@ -204,7 +211,7 @@ export default function XemTruocDonMuaHangModal({
   const [ngayDat, setNgayDat] = React.useState(today);
   const [isRMB, setIsRMB] = React.useState(true);
   const [tyGiaStr, setTyGiaStr] = React.useState("3.500");
-  const tyGia = parseFloat(tyGiaStr.replace(/\./g, "").replace(/,/g, "")) || 1;
+  const tyGia = parseFloat(tyGiaStr.replace(/\./g, "").replace(/,/g, ".")) || 1;
   const [tyGiaUpdatedAt, setTyGiaUpdatedAt] = React.useState<string | null>(null);
   const [showImage, setShowImage] = React.useState(true);
   const [hinhThucTT, setHinhThucTT] = React.useState("Chuyển khoản");
@@ -452,14 +459,6 @@ export default function XemTruocDonMuaHangModal({
   };
   const t = T[lang];
 
-  // ── Sidebar ────────────────────────────────────────────────────────────────
-  const SField = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div>
-      <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</p>
-      {children}
-    </div>
-  );
-
   const sidebar = (
     <>
       <SField label="Ngôn ngữ in (Print language)">
@@ -489,8 +488,23 @@ export default function XemTruocDonMuaHangModal({
               type="text" 
               value={tyGiaStr} 
               onChange={e => {
-                const val = e.target.value.replace(/[^0-9]/g, "");
-                setTyGiaStr(val ? parseInt(val, 10).toLocaleString("vi-VN") : "");
+                let raw = e.target.value;
+
+                let val = raw.replace(/[^0-9.,]/g, "");
+                if (!val) {
+                  setTyGiaStr("");
+                  return;
+                }
+                const parts = val.split(',');
+                if (parts.length > 1) {
+                  val = parts[0] + ',' + parts.slice(1).join('');
+                }
+                const p = val.split(',');
+                if (p[0]) {
+                  const intPart = p[0].replace(/\./g, "");
+                  p[0] = parseInt(intPart || '0', 10).toLocaleString("vi-VN");
+                }
+                setTyGiaStr(p.join(','));
               }} 
               disabled={!isRMB} 
               style={{ ...inp, opacity: isRMB ? 1 : 0.5, textAlign: "right" }} 

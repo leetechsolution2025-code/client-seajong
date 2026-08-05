@@ -70,7 +70,8 @@ export default function BusinessResultsPage() {
   const [partnersCountThisMonth, setPartnersCountThisMonth] = useState<number>(0);
 
   useEffect(() => {
-    fetch("/api/sales/dashboard")
+    const ts = Date.now();
+    fetch(`/api/sales/dashboard?_t=${ts}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((d) => {
         setData(d);
@@ -81,7 +82,7 @@ export default function BusinessResultsPage() {
         setLoading(false);
       });
 
-    fetch("/api/sales/partners")
+    fetch(`/api/sales/partners?_t=${ts}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
