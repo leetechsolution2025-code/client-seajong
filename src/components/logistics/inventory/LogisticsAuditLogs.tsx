@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { useSession } from "next-auth/react";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
+import { FilterSelect } from "@/components/ui/FilterSelect";
 
 interface Warehouse {
   id: string;
@@ -223,82 +224,87 @@ export function LogisticsAuditLogs() {
     <FullWidthTableLayout
       className="position-relative"
       header={
-        <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
-        {/* Search */}
-        <div className="position-relative flex-grow-1" style={{ minWidth: "250px" }}>
-          <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
-          <input 
-            type="text" 
-            className="form-control border shadow-sm rounded-pill ps-5 pe-4"
-            style={{ height: 40, background: "var(--card)", color: "var(--foreground)", fontSize: 13 }}
-            placeholder="Tìm theo SKU, tên hàng, chứng từ, nhân viên..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, padding: "12px 16px", borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
+          {/* Search Box */}
+          <div style={{ position: "relative", width: 320 }}>
+            <i className="bi bi-search" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)" }} />
+            <input 
+              type="text" 
+              placeholder="Tìm theo SKU, tên hàng, chứng từ, nhân viên..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                width: "100%", height: 32, padding: "0 32px 0 32px", fontSize: 13,
+                borderRadius: 8, border: "1px solid var(--border)", 
+                background: "var(--background)", color: "var(--foreground)", outline: "none"
+              }}
+            />
+            {search && (
+              <i 
+                className="bi bi-x-circle-fill" 
+                style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)", cursor: "pointer", fontSize: 12 }}
+                onClick={() => setSearch("")}
+              />
+            )}
+          </div>
+
+          <div style={{ width: 1, height: 18, background: "var(--border)", flexShrink: 0 }} />
+
+          <FilterSelect
+            value={filterWarehouse}
+            onChange={setFilterWarehouse}
+            placeholder="Tất cả kho hàng"
+            options={warehouses.map(w => ({ label: w.name, value: w.id }))}
+            width={180}
           />
-        </div>
 
-        {/* Filter Warehouse */}
-        <select 
-          className="form-select border shadow-sm rounded-pill px-4"
-          style={{ width: "auto", fontSize: 13, height: 40, background: "var(--card)", color: "var(--foreground)" }}
-          value={filterWarehouse}
-          onChange={(e) => setFilterWarehouse(e.target.value)}
-        >
-          <option value="">Tất cả kho hàng</option>
-          {warehouses.map(w => (
-            <option key={w.id} value={w.id}>{w.name}</option>
-          ))}
-        </select>
+          <FilterSelect
+            value={filterType}
+            onChange={setFilterType}
+            placeholder="Tất cả hoạt động"
+            options={[
+              { label: "Nhập kho (Inbound)", value: "nhap" },
+              { label: "Xuất kho (Outbound)", value: "xuat" },
+              { label: "Luân chuyển nội bộ", value: "chuyen" },
+              { label: "Điều chỉnh kiểm kê", value: "dieu-chinh" }
+            ]}
+            width={180}
+          />
 
-        {/* Filter Action Type */}
-        <select 
-          className="form-select border shadow-sm rounded-pill px-4"
-          style={{ width: "auto", fontSize: 13, height: 40, background: "var(--card)", color: "var(--foreground)" }}
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-        >
-          <option value="all">Tất cả hoạt động</option>
-          <option value="nhap">Nhập kho (Inbound)</option>
-          <option value="xuat">Xuất kho (Outbound)</option>
-          <option value="chuyen">Luân chuyển nội bộ</option>
-          <option value="dieu-chinh">Điều chỉnh kiểm kê</option>
-        </select>
+          <FilterSelect
+            value={filterDate}
+            onChange={setFilterDate}
+            placeholder="Chọn thời gian"
+            options={[
+              { label: "Hôm nay", value: "today" },
+              { label: "Hôm qua", value: "yesterday" },
+              { label: "Tuần này", value: "this-week" },
+              { label: "Tuần trước", value: "last-week" },
+              { label: "Tháng này", value: "this-month" },
+              { label: "Tháng trước", value: "last-month" },
+              { label: "Quý này", value: "this-quarter" },
+              { label: "Quý trước", value: "last-quarter" },
+              { label: "Năm nay", value: "this-year" },
+              { label: "Năm trước", value: "last-year" }
+            ]}
+            width={140}
+          />
 
-        {/* Filter Time Range */}
-        <select 
-          className="form-select border shadow-sm rounded-pill px-4"
-          style={{ width: "auto", fontSize: 13, height: 40, background: "var(--card)", color: "var(--foreground)" }}
-          value={filterDate}
-          onChange={(e) => setFilterDate(e.target.value)}
-        >
-          <option value="all">Chọn thời gian</option>
-          <option value="today">Hôm nay</option>
-          <option value="yesterday">Hôm qua</option>
-          <option value="this-week">Tuần này</option>
-          <option value="last-week">Tuần trước</option>
-          <option value="this-month">Tháng này</option>
-          <option value="last-month">Tháng trước</option>
-          <option value="this-quarter">Quý này</option>
-          <option value="last-quarter">Quý trước</option>
-          <option value="this-year">Năm nay</option>
-          <option value="last-year">Năm trước</option>
-        </select>
-
-        <button 
-          className="btn btn-outline-primary rounded-pill px-3 fw-bold d-flex align-items-center gap-2 shadow-sm"
-          style={{ height: 40, fontSize: 13 }}
-          onClick={() => {
-            setSearch("");
-            setFilterWarehouse("");
-            setFilterType("all");
-            setFilterDate("all");
-            fetchLogs();
-            toast.success("Đã làm mới", "Nhật ký kho đã được cập nhật");
-          }}
-        >
-          <i className="bi bi-arrow-clockwise" />
-          Tải lại
-        </button>
+          <button 
+            className="btn btn-outline-primary d-flex align-items-center gap-2 shadow-sm ms-auto"
+            style={{ height: 32, fontSize: 12.5, borderRadius: 8, padding: "0 16px", fontWeight: 600 }}
+            onClick={() => {
+              setSearch("");
+              setFilterWarehouse("");
+              setFilterType("all");
+              setFilterDate("all");
+              fetchLogs();
+              toast.success("Đã làm mới", "Nhật ký kho đã được cập nhật");
+            }}
+          >
+            <i className="bi bi-arrow-clockwise" />
+            Tải lại
+          </button>
         </div>
       }
       table={

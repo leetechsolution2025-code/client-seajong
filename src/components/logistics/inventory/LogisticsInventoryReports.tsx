@@ -2,10 +2,14 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
-import { useToast } from "@/components/ui/Toast";
+import { TreeFilterSelect } from "@/components/ui/TreeFilterSelect";
+import { FilterSelect } from "@/components/ui/FilterSelect";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
 import { TheKhoModal } from "@/components/plan-finance/kho_hang/TheKhoModal";
 import { StockCountDetailsOffcanvas } from "@/components/plan-finance/kho_hang/StockCountDetailsOffcanvas";
+import { useToast } from "@/components/ui/Toast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Warehouse {
@@ -16,6 +20,7 @@ interface Warehouse {
 }
 
 interface XNTLine {
+  id?: string;
   maSku: string | null;
   tenHang: string;
   donVi: string | null;
@@ -148,6 +153,7 @@ export function LogisticsInventoryReports() {
   const [step2Year, setStep2Year] = useState(() => String(new Date().getFullYear()));
   const [step2Month, setStep2Month] = useState(() => String(new Date().getMonth() + 1));
   const [selectedItemId, setSelectedItemId] = useState("");
+  const [step2ActiveItemIds, setStep2ActiveItemIds] = useState<Set<string> | null>(null);
   const [step2Items, setStep2Items] = useState<{ id: string; tenHang: string; code: string | null; loai: string | null; categoryId?: string | null; categoryName?: string | null }[]>([]);
   const [step2Categories, setStep2Categories] = useState<{ id: string; name: string; children: { id: string; name: string }[] }[]>([]);
   const [step2Data, setStep2Data] = useState<any>(null);
@@ -223,27 +229,71 @@ export function LogisticsInventoryReports() {
         .catch(() => setStep2Categories([]));
 
       // Load items
-      fetch(`/api/plan-finance/stock-card/items?warehouseId=${selectedWarehouseId}`)
+      fetch(`/api/plan-finance/stock-card/items?warehouseId=${selectedWarehouseId}&_t=${Date.now()}`)
         .then((r) => r.json())
         .then((d) => {
           const items = Array.isArray(d) ? d : [];
           setStep2Items(items);
-          if (items.length > 0) {
-            setSelectedItemId(items[0].id);
-            setStep2Search(items[0].tenHang);
-          } else {
-            setSelectedItemId("");
-            setStep2Data(null);
-            setStep2Search("");
-          }
+          setSelectedItemId("");
+          setStep2Data(null);
+          setStep2Search("");
         })
         .catch(() => {});
     }
   }, [selectedWarehouseId]);
 
-  // Filter product items locally based on Category & search query
+  // Load active items that have movements for the current step 2 period
+  useEffect(() => {
+    if (selectedWarehouseId && currentStep === 2) {
+      setStep2ActiveItemIds(null); // Clear stale data while fetching
+      
+      let fromDate = "";
+      let toDate = "";
+      if (step2TuyChonKy) {
+        fromDate = step2CustomFrom;
+        toDate = step2CustomTo;
+      } else {
+        const year = parseInt(step2Year);
+        const month = parseInt(step2Month);
+        const firstDay = new Date(year, month - 1, 1);
+        const lastDay = new Date(year, month, 0);
+
+        fromDate = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, "0")}-01`;
+        toDate = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, "0")}-${String(lastDay.getDate()).padStart(2, "0")}`;
+      }
+
+      fetch(`/api/plan-finance/reports/bang-ke-xnt?warehouseId=${selectedWarehouseId}&from=${fromDate}&to=${toDate}&showAll=false&_t=${Date.now()}`)
+        .then(r => r.json())
+        .then(d => {
+          if (Array.isArray(d)) {
+            const activeIds = new Set<string>();
+            for (const item of d) {
+              if (item.nhapSL > 0 || item.xuatSL > 0) {
+                if (item.id) activeIds.add(item.id);
+                if (item.maSku) activeIds.add(item.maSku);
+              }
+            }
+            console.log("Bảng kê XNT trả về:", d.length, "items. Có biến động:", activeIds.size, "mã.");
+            setStep2ActiveItemIds(activeIds);
+          } else {
+            console.log("Bảng kê XNT trả về lỗi hoặc không phải mảng:", d);
+            setStep2ActiveItemIds(new Set());
+          }
+        })
+        .catch(() => setStep2ActiveItemIds(new Set()));
+    }
+  }, [selectedWarehouseId, currentStep, step2Year, step2Month, step2TuyChonKy, step2CustomFrom, step2CustomTo]);
+
+  // Filter product items locally based on Category & search query & active items
   const filteredStep2Items = useMemo(() => {
     return step2Items.filter((item) => {
+      // 0. Filter by active items (movements in period)
+      if (step2ActiveItemIds) {
+        const hasId = step2ActiveItemIds.has(item.id);
+        const hasSku = item.code ? step2ActiveItemIds.has(item.code) : false;
+        if (!hasId && !hasSku) return false;
+      }
+
       // 1. Filter by category
       if (step2SelectedCategoryId !== "all") {
         if (item.categoryId !== step2SelectedCategoryId) return false;
@@ -257,7 +307,7 @@ export function LogisticsInventoryReports() {
       }
       return true;
     });
-  }, [step2Items, step2SelectedCategoryId, step2Search]);
+  }, [step2Items, step2SelectedCategoryId, step2Search, step2ActiveItemIds]);
 
   // Load Thẻ kho report details from API
   const loadThẻKhoReport = useCallback(() => {
@@ -850,34 +900,57 @@ export function LogisticsInventoryReports() {
               flexShrink: 0
             }}
           >
-             {/* Warehouse select (no text label) */}
-            <select 
-              value={selectedWarehouseId} 
-              onChange={(e) => setSelectedWarehouseId(e.target.value)} 
-              style={{ height: 32, padding: "0 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", outline: "none", width: "180px", flexShrink: 0 }}
-            >
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>{w.name}</option>
-              ))}
-            </select>
+            {/* Warehouse select */}
+            <TreeFilterSelect 
+              options={warehouses.map(w => ({ label: w.name, value: w.id }))}
+              value={selectedWarehouseId}
+              onChange={(v) => {
+                setSelectedWarehouseId(v);
+                setStep2SelectedCategoryId("all");
+              }}
+              placeholder="Chọn kho hàng"
+              width={180}
+            />
 
             <div style={{ width: 1, height: 18, background: "var(--border)", flexShrink: 0 }} />
 
             {/* Bộ lọc theo loại sản phẩm là danh mục tương ứng với kho */}
-            <select 
-              value={step2SelectedCategoryId} 
-              onChange={(e) => setStep2SelectedCategoryId(e.target.value)} 
-              style={{ height: 32, padding: "0 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", outline: "none", width: "180px", flexShrink: 0 }}
-            >
-              <option value="all">Tất cả danh mục</option>
-              {step2Categories.map(parent => (
-                <optgroup key={parent.id} label={parent.name}>
-                  {parent.children.map(child => (
-                    <option key={child.id} value={child.id}>{child.name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            {(() => {
+              const hasAnyChildren = step2Categories.some(c => c.children && c.children.length > 0);
+              
+              if (hasAnyChildren) {
+                return (
+                  <TreeFilterSelect 
+                    options={[
+                      { label: "Tất cả danh mục", value: "all", isHeader: false },
+                      ...step2Categories.flatMap(parent => [
+                        { label: parent.name, value: parent.id, isHeader: true },
+                        ...parent.children.map(child => ({ label: child.name, value: child.id, level: 1 }))
+                      ])
+                    ]}
+                    value={step2SelectedCategoryId}
+                    onChange={setStep2SelectedCategoryId}
+                    placeholder="Tất cả danh mục"
+                    width={180}
+                    disabled={!selectedWarehouseId}
+                  />
+                );
+              } else {
+                return (
+                  <FilterSelect 
+                    options={[
+                      { label: "Tất cả danh mục", value: "all" },
+                      ...step2Categories.map(cat => ({ label: cat.name, value: cat.id }))
+                    ]}
+                    value={step2SelectedCategoryId}
+                    onChange={setStep2SelectedCategoryId}
+                    placeholder="Tất cả danh mục"
+                    width={180}
+                    disabled={!selectedWarehouseId}
+                  />
+                );
+              }
+            })()}
 
             <div style={{ width: 1, height: 18, background: "var(--border)", flexShrink: 0 }} />
 
@@ -896,8 +969,20 @@ export function LogisticsInventoryReports() {
                 onBlur={() => {
                   setTimeout(() => setShowSuggestions(false), 200);
                 }}
-                style={{ height: 32, padding: "0 10px 0 28px", fontSize: 13, borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", outline: "none", width: "100%" }}
+                style={{ height: 32, padding: "0 28px 0 28px", fontSize: 13, borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", outline: "none", width: "100%" }}
               />
+              {step2Search && (
+                <i 
+                  className="bi bi-x-circle-fill" 
+                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "var(--muted-foreground)", cursor: "pointer", zIndex: 10 }}
+                  onClick={() => {
+                    setStep2Search("");
+                    setSelectedItemId("");
+                    setStep2Data(null);
+                  }}
+                  title="Xóa tìm kiếm"
+                />
+              )}
 
               {showSuggestions && (
                 <div 

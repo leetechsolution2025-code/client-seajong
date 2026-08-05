@@ -318,41 +318,52 @@ export function LogisticsBatchPacking() {
   const pickedCount = Object.keys(pickedQuantities).length;
 
   const headerContent = (
-    <div className="d-flex align-items-center justify-content-between w-100">
-      <div className="d-flex align-items-center gap-3">
-        <div className="d-flex align-items-center gap-2 bg-light px-2 py-1" style={{ borderRadius: 8 }}>
-          <i className="bi bi-calendar-event text-muted ms-2" style={{ fontSize: 14 }} />
-          <input 
-            type="date"
-            className="form-control bg-transparent border-0 px-1 py-0 shadow-none"
-            style={{ width: 130, fontSize: 13 }}
-            value={filterDate}
-            onChange={e => setFilterDate(e.target.value)}
-          />
-        </div>
-        
-        <select
-          className="form-select bg-light border-0 py-1 px-3"
-          style={{ width: 160, borderRadius: 8, fontSize: 13 }}
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
-        >
-          <option value="all">Tất cả trạng thái</option>
-          <option value="pending">Chưa nhặt xong</option>
-          <option value="done">Đã hoàn thành</option>
-        </select>
+    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, padding: "12px 16px", borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
+      {/* Date Filter */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, border: "1px solid var(--border)", borderRadius: 8, padding: "0 8px", height: 32, background: "var(--background)" }}>
+        <i className="bi bi-calendar-event text-muted" style={{ fontSize: 13 }} />
+        <input 
+          type="date"
+          style={{ height: "100%", border: "none", background: "transparent", color: "var(--foreground)", fontSize: 13, outline: "none" }}
+          value={filterDate}
+          onChange={e => setFilterDate(e.target.value)}
+        />
       </div>
 
-      <div className="position-relative" style={{ width: 250 }}>
-        <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style={{ fontSize: 13 }} />
+      <div style={{ width: 1, height: 18, background: "var(--border)", flexShrink: 0 }} />
+
+      <select
+        style={{ height: 32, padding: "0 10px", fontSize: 13, borderRadius: 8, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", outline: "none", width: 160 }}
+        value={filterStatus}
+        onChange={e => setFilterStatus(e.target.value)}
+      >
+        <option value="all">Tất cả trạng thái</option>
+        <option value="pending">Chưa nhặt xong</option>
+        <option value="done">Đã hoàn thành</option>
+      </select>
+
+      <div style={{ width: 1, height: 18, background: "var(--border)", flexShrink: 0 }} />
+
+      <div style={{ position: "relative", width: 320 }}>
+        <i className="bi bi-search" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)" }} />
         <input 
           type="text" 
-          className="form-control bg-light border-0 ps-5 py-1" 
           placeholder="Tìm tên hàng hoá, mã hàng..."
-          style={{ borderRadius: 8, fontSize: 13 }}
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            width: "100%", height: 32, padding: "0 32px 0 32px", fontSize: 13,
+            borderRadius: 8, border: "1px solid var(--border)", 
+            background: "var(--background)", color: "var(--foreground)", outline: "none"
+          }}
         />
+        {search && (
+          <i 
+            className="bi bi-x-circle-fill" 
+            style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)", cursor: "pointer", fontSize: 12 }}
+            onClick={() => setSearch("")}
+          />
+        )}
       </div>
     </div>
   );

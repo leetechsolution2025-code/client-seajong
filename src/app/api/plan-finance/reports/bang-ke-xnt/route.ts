@@ -137,6 +137,7 @@ export async function GET(req: NextRequest) {
 
     const giaNhap = item.giaNhap ?? 0;
     results.push({
+      id:         item.id,
       maSku:      item.code,
       tenHang:    item.tenHang,
       donVi:      item.donVi,

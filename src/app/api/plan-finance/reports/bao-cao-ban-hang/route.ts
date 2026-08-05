@@ -56,6 +56,12 @@ export async function GET(req: NextRequest) {
       const item = mv.inventoryItem;
       if (!item) continue;
       
+      // Bỏ qua các phiếu xuất cấp phát vật tư hoặc xuất cho sản xuất
+      const lyDo = (mv.lyDo || "").toLowerCase();
+      if (lyDo.includes("cấp phát") || lyDo.includes("lệnh sản xuất") || lyDo.includes("xuất nguyên vật liệu")) {
+        continue;
+      }
+      
       const id = item.id;
       const qty = mv.soLuong ?? 0;
       // Dùng donGia của movement, nếu null dùng giaNhap của item làm dự phòng

@@ -48,12 +48,19 @@ export async function GET(req: NextRequest) {
       const root = await prisma.category.findFirst({
         where: { code: rootCode, type: "vat_tu_san_xuat", parentId: null }
       });
-      if (!root) return NextResponse.json([]);
-
-      const parents = await prisma.category.findMany({
-        where: { parentId: root.id, isActive: true },
-        orderBy: { sortOrder: "asc" }
-      });
+      let parents;
+      if (!root) {
+        // Fallback: lay tat ca cac danh muc la root
+        parents = await prisma.category.findMany({
+          where: { type: "vat_tu_san_xuat", parentId: null, isActive: true },
+          orderBy: { sortOrder: "asc" }
+        });
+      } else {
+        parents = await prisma.category.findMany({
+          where: { parentId: root.id, isActive: true },
+          orderBy: { sortOrder: "asc" }
+        });
+      }
 
       const parentIds = parents.map(p => p.id);
       const children = await prisma.category.findMany({
@@ -68,7 +75,7 @@ export async function GET(req: NextRequest) {
           id: c.id,
           name: c.name
         }))
-      })).filter(p => p.children.length > 0);
+      })); // Do not filter p.children.length > 0 so flat categories work
 
       return NextResponse.json(result);
     } else {
@@ -80,12 +87,18 @@ export async function GET(req: NextRequest) {
       const root = await prisma.inventoryCategory.findFirst({
         where: { code: rootCode, parentId: null, isActive: true }
       });
-      if (!root) return NextResponse.json([]);
-
-      const parents = await prisma.inventoryCategory.findMany({
-        where: { parentId: root.id, isActive: true },
-        orderBy: { sortOrder: "asc" }
-      });
+      let parents;
+      if (!root) {
+        parents = await prisma.inventoryCategory.findMany({
+          where: { parentId: null, isActive: true },
+          orderBy: { sortOrder: "asc" }
+        });
+      } else {
+        parents = await prisma.inventoryCategory.findMany({
+          where: { parentId: root.id, isActive: true },
+          orderBy: { sortOrder: "asc" }
+        });
+      }
 
       const parentIds = parents.map(p => p.id);
       const children = await prisma.inventoryCategory.findMany({
@@ -100,7 +113,7 @@ export async function GET(req: NextRequest) {
           id: c.id,
           name: c.name
         }))
-      })).filter(p => p.children.length > 0);
+      }));
 
       return NextResponse.json(result);
     }
