@@ -7709,7 +7709,7 @@ export default function PartnersPage() {
                     )}
                   </>
                 )}
-                {selectedPartner.step !== 4 && (
+                {selectedPartner.step < 4 && (
                   <button
                     className={`btn rounded-3 py-2 flex-grow-1 ${isTransitionDisabled(selectedPartner)
                       ? "btn-secondary text-white-50 opacity-75"
