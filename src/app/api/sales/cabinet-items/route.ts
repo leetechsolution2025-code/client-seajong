@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { code, name, description, length, depth, height, unitPrice, unit, imageUrl1, imageUrl2 } = body;
+    const { code, name, description, length, depth, height, unitPrice, unit, imageUrl1, imageUrl2, imageUrl3, imageUrl4, imageUrl5 } = body;
 
     if (!code || !name) {
       return NextResponse.json({ error: "Mã và Tên gọi là bắt buộc." }, { status: 400 });
@@ -34,6 +34,9 @@ export async function POST(req: NextRequest) {
         unit: unit || "cái",
         imageUrl1: imageUrl1 || null,
         imageUrl2: imageUrl2 || null,
+        imageUrl3: imageUrl3 || null,
+        imageUrl4: imageUrl4 || null,
+        imageUrl5: imageUrl5 || null,
       },
     });
 
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, code, name, description, length, depth, height, unitPrice, unit, imageUrl1, imageUrl2 } = body;
+    const { id, code, name, description, length, depth, height, unitPrice, unit, imageUrl1, imageUrl2, imageUrl3, imageUrl4, imageUrl5 } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Thiếu ID hạng mục cần cập nhật." }, { status: 400 });
@@ -66,6 +69,9 @@ export async function PUT(req: NextRequest) {
         unit: unit ?? undefined,
         imageUrl1: imageUrl1 ?? undefined,
         imageUrl2: imageUrl2 ?? undefined,
+        imageUrl3: imageUrl3 ?? undefined,
+        imageUrl4: imageUrl4 ?? undefined,
+        imageUrl5: imageUrl5 ?? undefined,
       },
     });
 

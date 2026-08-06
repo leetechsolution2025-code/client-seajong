@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { Table, TableColumn } from "@/components/ui/Table";
+import { FilterSelect } from "@/components/ui/FilterSelect";
 import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
 import toast from "react-hot-toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -14,6 +15,7 @@ export default function QaPage() {
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedInspection, setSelectedInspection] = useState<any>(null);
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [showIqcModal, setShowIqcModal] = useState(false);
   const [showOqcModal, setShowOqcModal] = useState(false);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
@@ -29,6 +31,7 @@ export default function QaPage() {
   
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [tempRejectReason, setTempRejectReason] = useState("");
   const [tempRejectCategories, setTempRejectCategories] = useState<string[]>(["Loại khác"]);
   const [tempRejectFiles, setTempRejectFiles] = useState<File[]>([]);
@@ -198,27 +201,7 @@ export default function QaPage() {
         setShowOqcModal(false);
         setSelectedInspection(null);
         // refresh list
-        fetch('/api/qa/inspections').then(r=>r.json()).then(data => {
-          if (Array.isArray(data)) {
-            setInspections(data.map(d => {
-              const meta = d.metadata ? JSON.parse(d.metadata) : null;
-              return {
-                id: d.code,
-                type: d.type,
-                product: d.productName || d.inventoryItem?.tenHang || "Không xác định",
-                model: d.inventoryItem?.code || "",
-                inspector: d.requesterName || d.inspectorName || "Không xác định",
-                department: d.requesterDept || "Khác",
-                date: new Date(d.executionTime).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }),
-                result: d.status === "Chưa thực hiện" ? "Pending" : (d.result === "Đạt" ? "Pass" : "Fail"),
-                notes: d.notes,
-                poNumber: meta?.poNumber || meta?.purchaseOrderCode || "",
-                deliveryNote: meta?.deliveryNote || "",
-                metadata: meta
-              };
-            }));
-          }
-        });
+        loadInspections();
       } else {
         toast.error("Lỗi khi lưu kết quả");
       }
@@ -256,27 +239,7 @@ export default function QaPage() {
         setShowIqcModal(false);
         setSelectedInspection(null);
         // refresh list
-        fetch('/api/qa/inspections').then(r=>r.json()).then(data => {
-          if (Array.isArray(data)) {
-            setInspections(data.map(d => {
-              const meta = d.metadata ? (typeof d.metadata === 'string' ? JSON.parse(d.metadata) : d.metadata) : null;
-              return {
-                id: d.code,
-                type: d.type,
-                product: d.productName || d.inventoryItem?.tenHang || "Không xác định",
-                model: d.inventoryItem?.code || "",
-                inspector: d.requesterName || d.inspectorName || "Không xác định",
-                department: d.requesterDept || "Khác",
-                date: new Date(d.executionTime).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }),
-                result: d.status === "Chưa thực hiện" ? "Pending" : (d.result === "Đạt" ? "Pass" : "Fail"),
-                notes: d.notes,
-                poNumber: meta?.poNumber || meta?.purchaseOrderCode || "",
-                deliveryNote: meta?.deliveryNote || "",
-                metadata: meta
-              };
-            }));
-          }
-        });
+        loadInspections();
       } else {
         toast.error("Lỗi khi lưu kết quả IQC");
       }
@@ -289,7 +252,7 @@ export default function QaPage() {
 
   const [inspections, setInspections] = useState<any[]>([]);
 
-  useEffect(() => {
+  const loadInspections = () => {
     fetch('/api/qa/inspections')
       .then(res => res.json())
       .then(data => {
@@ -315,6 +278,10 @@ export default function QaPage() {
         }
       })
       .catch(err => console.error("Error fetching inspections:", err));
+  };
+
+  useEffect(() => {
+    loadInspections();
   }, []);
 
   const filteredInspections = inspections.filter(ins => {
@@ -367,12 +334,57 @@ export default function QaPage() {
     }
   };
 
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedRows(filteredInspections.map(i => i.id));
+    } else {
+      setSelectedRows([]);
+    }
+  };
+
+  const handleSelectRow = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    if (e.target.checked) {
+      setSelectedRows(prev => [...prev, id]);
+    } else {
+      setSelectedRows(prev => prev.filter(r => r !== id));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (!selectedRows.length) return;
+    setShowBulkDeleteConfirm(true);
+  };
+
+  const executeBulkDelete = async () => {
+    try {
+      let failedCount = 0;
+      for (const id of selectedRows) {
+        const res = await fetch(`/api/qa/inspections/${id}`, { method: 'DELETE' });
+        if (!res.ok) failedCount++;
+      }
+      
+      if (failedCount > 0) {
+        toast.error(`Xóa thất bại ${failedCount} phiếu`);
+      } else {
+        toast.success(`Đã xoá ${selectedRows.length} phiếu`);
+        setSelectedRows([]);
+      }
+      setShowBulkDeleteConfirm(false);
+      // re-fetch
+      loadInspections();
+    } catch (e) {
+      toast.error("Có lỗi xảy ra khi xoá");
+      setShowBulkDeleteConfirm(false);
+    }
+  };
+
   const columns: TableColumn<typeof inspections[0]>[] = [
     {
-      header: <input type="checkbox" className="form-check-input m-0" />,
+      header: <input type="checkbox" className="form-check-input m-0" checked={selectedRows.length > 0 && selectedRows.length === filteredInspections.length} onChange={handleSelectAll} />,
       width: 40,
       align: "center",
-      render: () => <input type="checkbox" className="form-check-input m-0" />
+      render: (row) => <input type="checkbox" className="form-check-input m-0" checked={selectedRows.includes(row.id)} onChange={(e) => handleSelectRow(row.id, e)} onClick={e => e.stopPropagation()} />
     },
     {
       header: "Mã phiếu",
@@ -429,59 +441,75 @@ export default function QaPage() {
       <FullWidthTableLayout
         className="bg-white rounded-4 shadow-sm border flex-grow-1"
         header={
-          <div className="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center gap-3 qa-inspections-toolbar py-2">
-          {/* Các bộ lọc */}
-          <div className="d-flex flex-column flex-md-row gap-2">
-            {/* Bộ phận yêu cầu */}
-            <select 
-              className="form-select bg-light border-0 rounded-3 flex-grow-1 flex-xl-grow-0" 
-              style={{ minWidth: 160 }}
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, padding: "12px 16px", borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
+            <FilterSelect
               value={filterDepartment}
-              onChange={(e) => setFilterDepartment(e.target.value)}
-            >
-              <option value="ALL">Tất cả bộ phận</option>
-              <option value="MUA_HANG">Mua hàng</option>
-              <option value="SAN_XUAT">Sản xuất</option>
-              <option value="KHO">Kho vận</option>
-            </select>
-
-            {/* Phân loại (Loại kiểm tra) */}
-            <select 
-              className="form-select bg-light border-0 rounded-3 flex-grow-1 flex-xl-grow-0" 
-              style={{ minWidth: 180 }}
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-            >
-              <option value="ALL">Tất cả phân loại</option>
-              <option value="IQC">IQC (Kiểm tra Đầu vào)</option>
-              <option value="OQC">OQC (Kiểm tra Đầu ra)</option>
-            </select>
-
-            {/* Trạng thái */}
-            <select 
-              className="form-select bg-light border-0 rounded-3 flex-grow-1 flex-xl-grow-0" 
-              style={{ minWidth: 150 }}
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="PENDING">Chưa thực hiện</option>
-              <option value="COMPLETED">Đã hoàn thành</option>
-            </select>
-          </div>
-
-          {/* Hộp tìm kiếm */}
-          <div className="position-relative flex-grow-1" style={{ maxWidth: 400 }}>
-            <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted search-icon"></i>
-            <input 
-              type="text" 
-              className="form-control bg-light border-0 rounded-3" 
-              style={{ paddingLeft: "2.5rem" }}
-              placeholder="Tìm kiếm mã phiếu, người kiểm tra..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={setFilterDepartment}
+              placeholder="Tất cả bộ phận"
+              options={[
+                { label: "Mua hàng", value: "MUA_HANG" },
+                { label: "Sản xuất", value: "SAN_XUAT" },
+                { label: "Kho vận", value: "KHO" }
+              ]}
+              width={160}
             />
-          </div>
+
+            <FilterSelect
+              value={filterType}
+              onChange={setFilterType}
+              placeholder="Tất cả phân loại"
+              options={[
+                { label: "IQC (Kiểm tra Đầu vào)", value: "IQC" },
+                { label: "OQC (Kiểm tra Đầu ra)", value: "OQC" }
+              ]}
+              width={180}
+            />
+
+            <FilterSelect
+              value={filterStatus}
+              onChange={setFilterStatus}
+              placeholder="Tất cả trạng thái"
+              options={[
+                { label: "Chưa thực hiện", value: "PENDING" },
+                { label: "Đã hoàn thành", value: "COMPLETED" }
+              ]}
+              width={150}
+            />
+
+            <div style={{ width: 1, height: 18, background: "var(--border)", flexShrink: 0 }} />
+
+            <div style={{ position: "relative", width: 320 }}>
+              <i className="bi bi-search" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)" }} />
+              <input 
+                type="text" 
+                placeholder="Tìm kiếm mã phiếu, người kiểm tra..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: "100%", height: 32, padding: "0 32px 0 32px", fontSize: 13,
+                  borderRadius: 8, border: "1px solid var(--border)", 
+                  background: "var(--background)", color: "var(--foreground)", outline: "none"
+                }}
+              />
+              {searchQuery && (
+                <i 
+                  className="bi bi-x-circle-fill" 
+                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)", cursor: "pointer", fontSize: 12 }}
+                  onClick={() => setSearchQuery("")}
+                />
+              )}
+            </div>
+            
+            {selectedRows.length > 0 && (
+              <button 
+                className="btn btn-outline-danger d-flex align-items-center gap-2 shadow-sm ms-auto"
+                style={{ height: 32, fontSize: 12.5, borderRadius: 8, padding: "0 16px", fontWeight: 600 }}
+                onClick={handleBulkDelete}
+              >
+                <i className="bi bi-trash3" />
+                Xoá ({selectedRows.length})
+              </button>
+            )}
           </div>
         }
         table={
@@ -1464,6 +1492,17 @@ export default function QaPage() {
           }
         }}
         onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      <ConfirmDialog
+        open={showBulkDeleteConfirm}
+        title="Xác nhận xóa phiếu"
+        message={`Bạn có chắc chắn muốn xoá ${selectedRows.length} phiếu đã chọn?`}
+        confirmLabel="OK"
+        cancelLabel="Huỷ"
+        variant="danger"
+        onConfirm={executeBulkDelete}
+        onCancel={() => setShowBulkDeleteConfirm(false)}
       />
     </StandardPage>
   );

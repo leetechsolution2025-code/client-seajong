@@ -1022,8 +1022,14 @@ export default function PartnersPage() {
   const [newItemUnit, setNewItemUnit] = useState("cái");
   const [newItemImageFile1, setNewItemImageFile1] = useState<File | null>(null);
   const [newItemImageFile2, setNewItemImageFile2] = useState<File | null>(null);
+  const [newItemImageFile3, setNewItemImageFile3] = useState<File | null>(null);
+  const [newItemImageFile4, setNewItemImageFile4] = useState<File | null>(null);
+  const [newItemImageFile5, setNewItemImageFile5] = useState<File | null>(null);
   const [newItemImagePreview1, setNewItemImagePreview1] = useState("");
   const [newItemImagePreview2, setNewItemImagePreview2] = useState("");
+  const [newItemImagePreview3, setNewItemImagePreview3] = useState("");
+  const [newItemImagePreview4, setNewItemImagePreview4] = useState("");
+  const [newItemImagePreview5, setNewItemImagePreview5] = useState("");
   const [savingCabinetItem, setSavingCabinetItem] = useState(false);
   const [previewImagesList, setPreviewImagesList] = useState<string[] | null>(null);
   const [previewImageIndex, setPreviewImageIndex] = useState<number>(0);
@@ -1031,6 +1037,9 @@ export default function PartnersPage() {
   const [editingCabinetItemId, setEditingCabinetItemId] = useState("");
   const [existingImageUrl1, setExistingImageUrl1] = useState("");
   const [existingImageUrl2, setExistingImageUrl2] = useState("");
+  const [existingImageUrl3, setExistingImageUrl3] = useState("");
+  const [existingImageUrl4, setExistingImageUrl4] = useState("");
+  const [existingImageUrl5, setExistingImageUrl5] = useState("");
   const [activeCareModalTab, setActiveCareModalTab] = useState<'info' | 'finance'>('info');
   const [addedCabinetItems, setAddedCabinetItems] = useState<{
     id: string;
@@ -1045,6 +1054,9 @@ export default function PartnersPage() {
 
   const fileInputRef1 = React.useRef<HTMLInputElement>(null);
   const fileInputRef2 = React.useRef<HTMLInputElement>(null);
+  const fileInputRef3 = React.useRef<HTMLInputElement>(null);
+  const fileInputRef4 = React.useRef<HTMLInputElement>(null);
+  const fileInputRef5 = React.useRef<HTMLInputElement>(null);
   const [careApproachStep, setCareApproachStep] = useState("Tiếp cận");
   const [careAttitude, setCareAttitude] = useState("Bình thường");
   const [careInterests, setCareInterests] = useState("");
@@ -1152,7 +1164,7 @@ export default function PartnersPage() {
     const data = await res.json();
     return data.url;
   };
-  const handleSelectImage = (file: File, imgIndex: 1 | 2) => {
+  const handleSelectImage = (file: File, imgIndex: number) => {
     if (!file.type.startsWith("image/")) {
       toastError("Lỗi", "Vui lòng chọn file hình ảnh.");
       return;
@@ -1162,26 +1174,46 @@ export default function PartnersPage() {
       if (newItemImagePreview1) URL.revokeObjectURL(newItemImagePreview1);
       setNewItemImageFile1(file);
       setNewItemImagePreview1(previewUrl);
-    } else {
+    } else if (imgIndex === 2) {
       if (newItemImagePreview2) URL.revokeObjectURL(newItemImagePreview2);
       setNewItemImageFile2(file);
       setNewItemImagePreview2(previewUrl);
+    } else if (imgIndex === 3) {
+      if (newItemImagePreview3) URL.revokeObjectURL(newItemImagePreview3);
+      setNewItemImageFile3(file);
+      setNewItemImagePreview3(previewUrl);
+    } else if (imgIndex === 4) {
+      if (newItemImagePreview4) URL.revokeObjectURL(newItemImagePreview4);
+      setNewItemImageFile4(file);
+      setNewItemImagePreview4(previewUrl);
+    } else if (imgIndex === 5) {
+      if (newItemImagePreview5) URL.revokeObjectURL(newItemImagePreview5);
+      setNewItemImageFile5(file);
+      setNewItemImagePreview5(previewUrl);
     }
   };
 
-  const handleRemoveSelectedImage = (imgIndex: 1 | 2) => {
+  const handleRemoveSelectedImage = (imgIndex: number) => {
     if (imgIndex === 1) {
-      if (newItemImagePreview1) {
-        URL.revokeObjectURL(newItemImagePreview1);
-      }
+      if (newItemImagePreview1) URL.revokeObjectURL(newItemImagePreview1);
       setNewItemImageFile1(null);
       setNewItemImagePreview1("");
-    } else {
-      if (newItemImagePreview2) {
-        URL.revokeObjectURL(newItemImagePreview2);
-      }
+    } else if (imgIndex === 2) {
+      if (newItemImagePreview2) URL.revokeObjectURL(newItemImagePreview2);
       setNewItemImageFile2(null);
       setNewItemImagePreview2("");
+    } else if (imgIndex === 3) {
+      if (newItemImagePreview3) URL.revokeObjectURL(newItemImagePreview3);
+      setNewItemImageFile3(null);
+      setNewItemImagePreview3("");
+    } else if (imgIndex === 4) {
+      if (newItemImagePreview4) URL.revokeObjectURL(newItemImagePreview4);
+      setNewItemImageFile4(null);
+      setNewItemImagePreview4("");
+    } else if (imgIndex === 5) {
+      if (newItemImagePreview5) URL.revokeObjectURL(newItemImagePreview5);
+      setNewItemImageFile5(null);
+      setNewItemImagePreview5("");
     }
   };
 
@@ -1195,14 +1227,26 @@ export default function PartnersPage() {
       setNewItemUnit(item.unit || "cái");
       setExistingImageUrl1(item.imageUrl1 || "");
       setExistingImageUrl2(item.imageUrl2 || "");
+      setExistingImageUrl3(item.imageUrl3 || "");
+      setExistingImageUrl4(item.imageUrl4 || "");
+      setExistingImageUrl5(item.imageUrl5 || "");
 
       // Reset any newly chosen local files/previews
       if (newItemImagePreview1) URL.revokeObjectURL(newItemImagePreview1);
       if (newItemImagePreview2) URL.revokeObjectURL(newItemImagePreview2);
+      if (newItemImagePreview3) URL.revokeObjectURL(newItemImagePreview3);
+      if (newItemImagePreview4) URL.revokeObjectURL(newItemImagePreview4);
+      if (newItemImagePreview5) URL.revokeObjectURL(newItemImagePreview5);
       setNewItemImageFile1(null);
       setNewItemImageFile2(null);
+      setNewItemImageFile3(null);
+      setNewItemImageFile4(null);
+      setNewItemImageFile5(null);
       setNewItemImagePreview1("");
       setNewItemImagePreview2("");
+      setNewItemImagePreview3("");
+      setNewItemImagePreview4("");
+      setNewItemImagePreview5("");
     } else {
       // Clear fields
       setNewItemName("");
@@ -1266,13 +1310,15 @@ export default function PartnersPage() {
     try {
       let finalUrl1 = existingImageUrl1;
       let finalUrl2 = existingImageUrl2;
+      let finalUrl3 = existingImageUrl3;
+      let finalUrl4 = existingImageUrl4;
+      let finalUrl5 = existingImageUrl5;
 
-      if (newItemImageFile1) {
-        finalUrl1 = await uploadSingleFile(newItemImageFile1);
-      }
-      if (newItemImageFile2) {
-        finalUrl2 = await uploadSingleFile(newItemImageFile2);
-      }
+      if (newItemImageFile1) finalUrl1 = await uploadSingleFile(newItemImageFile1);
+      if (newItemImageFile2) finalUrl2 = await uploadSingleFile(newItemImageFile2);
+      if (newItemImageFile3) finalUrl3 = await uploadSingleFile(newItemImageFile3);
+      if (newItemImageFile4) finalUrl4 = await uploadSingleFile(newItemImageFile4);
+      if (newItemImageFile5) finalUrl5 = await uploadSingleFile(newItemImageFile5);
 
       if (isEditCabinetMode) {
         const selectedItem = cabinetItems.find(item => item.id === editingCabinetItemId);
@@ -1290,6 +1336,9 @@ export default function PartnersPage() {
             unit: newItemUnit.trim() || "cái",
             imageUrl1: finalUrl1,
             imageUrl2: finalUrl2,
+            imageUrl3: finalUrl3,
+            imageUrl4: finalUrl4,
+            imageUrl5: finalUrl5,
           }),
         });
 
@@ -1315,6 +1364,9 @@ export default function PartnersPage() {
             unit: newItemUnit.trim() || "cái",
             imageUrl1: finalUrl1,
             imageUrl2: finalUrl2,
+            imageUrl3: finalUrl3,
+            imageUrl4: finalUrl4,
+            imageUrl5: finalUrl5,
           }),
         });
 
@@ -8787,7 +8839,7 @@ export default function PartnersPage() {
                                       toastError("Thông tin", "Hạng mục này chưa có hình ảnh minh họa.");
                                       return;
                                     }
-                                    const imgs = [selectedItem.imageUrl1, selectedItem.imageUrl2].filter(Boolean) as string[];
+                                    const imgs = [selectedItem.imageUrl1, selectedItem.imageUrl2, selectedItem.imageUrl3, selectedItem.imageUrl4, selectedItem.imageUrl5].filter(Boolean) as string[];
                                     setPreviewImagesList(imgs);
                                     setPreviewImageIndex(0);
                                   }}
@@ -9393,15 +9445,15 @@ export default function PartnersPage() {
 
                     <div className="col-12 animate__animated animate__fadeIn">
                       <label className="form-label text-secondary mb-2 fw-semibold" style={{ fontSize: "12px" }}>
-                        Ảnh hạng mục (Tối đa 2 ảnh)
+                        Ảnh hạng mục (Tối đa 5 ảnh)
                       </label>
-                      <div className="d-flex gap-3">
+                      <div className="d-flex gap-3 flex-wrap">
                         {/* Slot 1 */}
                         <div
                           className="position-relative d-flex flex-column align-items-center justify-content-center border rounded-3 bg-light/30 transition-all hover-shadow-sm"
                           style={{
-                            width: "120px",
-                            height: "120px",
+                            width: "72px",
+                            height: "72px",
                             borderStyle: (newItemImagePreview1 || existingImageUrl1) ? "solid" : "dashed",
                             borderColor: (newItemImagePreview1 || existingImageUrl1) ? "#cbd5e1" : "#a8a29e",
                             cursor: (newItemImagePreview1 || existingImageUrl1) ? "default" : "pointer",
@@ -9435,19 +9487,15 @@ export default function PartnersPage() {
                               </button>
                             </>
                           ) : (
-                            <div className="text-center text-secondary py-3">
-                              <i className="bi bi-image-fill text-muted" style={{ fontSize: "24px" }} />
-                              <div className="small mt-1 text-muted" style={{ fontSize: "11.5px" }}>Đính kèm ảnh 1</div>
-                            </div>
+                            <div className="text-center text-secondary d-flex justify-content-center align-items-center h-100"><i className="bi bi-plus-lg text-muted" style={{ fontSize: "24px" }} /></div>
                           )}
                         </div>
-
                         {/* Slot 2 */}
                         <div
                           className="position-relative d-flex flex-column align-items-center justify-content-center border rounded-3 bg-light/30 transition-all hover-shadow-sm"
                           style={{
-                            width: "120px",
-                            height: "120px",
+                            width: "72px",
+                            height: "72px",
                             borderStyle: (newItemImagePreview2 || existingImageUrl2) ? "solid" : "dashed",
                             borderColor: (newItemImagePreview2 || existingImageUrl2) ? "#cbd5e1" : "#a8a29e",
                             cursor: (newItemImagePreview2 || existingImageUrl2) ? "default" : "pointer",
@@ -9487,6 +9535,141 @@ export default function PartnersPage() {
                             </div>
                           )}
                         </div>
+                        {/* Slot 3 */}
+                        <div
+                          className="position-relative d-flex flex-column align-items-center justify-content-center border rounded-3 bg-light/30 transition-all hover-shadow-sm"
+                          style={{
+                            width: "72px",
+                            height: "72px",
+                            borderStyle: (newItemImagePreview3 || existingImageUrl3) ? "solid" : "dashed",
+                            borderColor: (newItemImagePreview3 || existingImageUrl3) ? "#cbd5e1" : "#a8a29e",
+                            cursor: (newItemImagePreview3 || existingImageUrl3) ? "default" : "pointer",
+                            overflow: "hidden"
+                          }}
+                          onClick={() => {
+                            if (!(newItemImagePreview3 || existingImageUrl3)) fileInputRef3.current?.click();
+                          }}
+                        >
+                          {(newItemImagePreview3 || existingImageUrl3) ? (
+                            <>
+                              <img
+                                src={newItemImagePreview3 || existingImageUrl3}
+                                alt="Ảnh 3"
+                                className="w-100 h-100 object-fit-cover animate__animated animate__fadeIn"
+                              />
+                              <button
+                                type="button"
+                                className="position-absolute btn btn-danger btn-sm rounded-circle d-flex align-items-center justify-content-center shadow"
+                                style={{ top: "6px", right: "6px", width: "24px", height: "24px", padding: 0 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (newItemImagePreview3) {
+                                    handleRemoveSelectedImage(3);
+                                  } else {
+                                    setExistingImageUrl3("");
+                                  }
+                                }}
+                              >
+                                <i className="bi bi-x-lg" style={{ fontSize: "12px" }} />
+                              </button>
+                            </>
+                          ) : (
+                            <div className="text-center text-secondary py-3">
+                              <i className="bi bi-image-fill text-muted" style={{ fontSize: "24px" }} />
+                              <div className="small mt-1 text-muted" style={{ fontSize: "11.5px" }}>Đính kèm ảnh 3</div>
+                            </div>
+                          )}
+                        </div>
+                        {/* Slot 4 */}
+                        <div
+                          className="position-relative d-flex flex-column align-items-center justify-content-center border rounded-3 bg-light/30 transition-all hover-shadow-sm"
+                          style={{
+                            width: "72px",
+                            height: "72px",
+                            borderStyle: (newItemImagePreview4 || existingImageUrl4) ? "solid" : "dashed",
+                            borderColor: (newItemImagePreview4 || existingImageUrl4) ? "#cbd5e1" : "#a8a29e",
+                            cursor: (newItemImagePreview4 || existingImageUrl4) ? "default" : "pointer",
+                            overflow: "hidden"
+                          }}
+                          onClick={() => {
+                            if (!(newItemImagePreview4 || existingImageUrl4)) fileInputRef4.current?.click();
+                          }}
+                        >
+                          {(newItemImagePreview4 || existingImageUrl4) ? (
+                            <>
+                              <img
+                                src={newItemImagePreview4 || existingImageUrl4}
+                                alt="Ảnh 4"
+                                className="w-100 h-100 object-fit-cover animate__animated animate__fadeIn"
+                              />
+                              <button
+                                type="button"
+                                className="position-absolute btn btn-danger btn-sm rounded-circle d-flex align-items-center justify-content-center shadow"
+                                style={{ top: "6px", right: "6px", width: "24px", height: "24px", padding: 0 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (newItemImagePreview4) {
+                                    handleRemoveSelectedImage(4);
+                                  } else {
+                                    setExistingImageUrl4("");
+                                  }
+                                }}
+                              >
+                                <i className="bi bi-x-lg" style={{ fontSize: "12px" }} />
+                              </button>
+                            </>
+                          ) : (
+                            <div className="text-center text-secondary py-3">
+                              <i className="bi bi-image-fill text-muted" style={{ fontSize: "24px" }} />
+                              <div className="small mt-1 text-muted" style={{ fontSize: "11.5px" }}>Đính kèm ảnh 4</div>
+                            </div>
+                          )}
+                        </div>
+                        {/* Slot 5 */}
+                        <div
+                          className="position-relative d-flex flex-column align-items-center justify-content-center border rounded-3 bg-light/30 transition-all hover-shadow-sm"
+                          style={{
+                            width: "72px",
+                            height: "72px",
+                            borderStyle: (newItemImagePreview5 || existingImageUrl5) ? "solid" : "dashed",
+                            borderColor: (newItemImagePreview5 || existingImageUrl5) ? "#cbd5e1" : "#a8a29e",
+                            cursor: (newItemImagePreview5 || existingImageUrl5) ? "default" : "pointer",
+                            overflow: "hidden"
+                          }}
+                          onClick={() => {
+                            if (!(newItemImagePreview5 || existingImageUrl5)) fileInputRef5.current?.click();
+                          }}
+                        >
+                          {(newItemImagePreview5 || existingImageUrl5) ? (
+                            <>
+                              <img
+                                src={newItemImagePreview5 || existingImageUrl5}
+                                alt="Ảnh 5"
+                                className="w-100 h-100 object-fit-cover animate__animated animate__fadeIn"
+                              />
+                              <button
+                                type="button"
+                                className="position-absolute btn btn-danger btn-sm rounded-circle d-flex align-items-center justify-content-center shadow"
+                                style={{ top: "6px", right: "6px", width: "24px", height: "24px", padding: 0 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (newItemImagePreview5) {
+                                    handleRemoveSelectedImage(5);
+                                  } else {
+                                    setExistingImageUrl5("");
+                                  }
+                                }}
+                              >
+                                <i className="bi bi-x-lg" style={{ fontSize: "12px" }} />
+                              </button>
+                            </>
+                          ) : (
+                            <div className="text-center text-secondary py-3">
+                              <i className="bi bi-image-fill text-muted" style={{ fontSize: "24px" }} />
+                              <div className="small mt-1 text-muted" style={{ fontSize: "11.5px" }}>Đính kèm ảnh 5</div>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Hidden inputs */}
@@ -9512,6 +9695,39 @@ export default function PartnersPage() {
                           e.target.value = "";
                         }}
                       />
+                      <input
+                        type="file"
+                        ref={fileInputRef3}
+                        className="d-none"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleSelectImage(file, 3);
+                          e.target.value = "";
+                        }}
+                      />
+                      <input
+                        type="file"
+                        ref={fileInputRef4}
+                        className="d-none"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleSelectImage(file, 4);
+                          e.target.value = "";
+                        }}
+                      />
+                      <input
+                        type="file"
+                        ref={fileInputRef5}
+                        className="d-none"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleSelectImage(file, 5);
+                          e.target.value = "";
+                        }}
+                      />
                     </div>
 
                     <div className="col-12">
@@ -9531,12 +9747,12 @@ export default function PartnersPage() {
                 </div>
 
                 {/* Modal Footer */}
-                <div className="modal-footer border-top bg-light-subtle py-3 px-3 px-sm-4 d-flex flex-column flex-sm-row justify-content-end gap-2">
+                <div className="modal-footer border-top bg-light-subtle py-3 px-3 px-sm-4 d-flex flex-row justify-content-end gap-2">
                   {isEditCabinetMode && editingCabinetItemId && (
                     <button
                       type="button"
                       disabled={savingCabinetItem}
-                      className="btn btn-danger px-4 py-2 w-100 w-sm-auto order-3 order-sm-1 me-sm-auto border-0 d-flex align-items-center justify-content-center gap-2 shadow-sm text-white"
+                      className="btn btn-danger px-4 py-2 w-auto me-auto border-0 d-flex align-items-center justify-content-center gap-2 shadow-sm text-white"
                       style={{ fontSize: "13px", fontWeight: 600, borderRadius: "10px" }}
                       onClick={handleDeleteCabinetItem}
                     >
@@ -9546,7 +9762,7 @@ export default function PartnersPage() {
                   )}
                   <button
                     type="button"
-                    className="btn btn-light border px-4 py-2 w-100 w-sm-auto order-2 order-sm-2 text-secondary d-flex align-items-center justify-content-center"
+                    className="btn btn-light border px-4 py-2 w-auto text-secondary d-flex align-items-center justify-content-center"
                     style={{ fontSize: "13px", fontWeight: 600, borderRadius: "10px" }}
                     onClick={() => setShowAddCabinetItemModal(false)}
                   >
@@ -9555,7 +9771,7 @@ export default function PartnersPage() {
                   <button
                     type="submit"
                     disabled={savingCabinetItem || (isEditCabinetMode && !editingCabinetItemId)}
-                    className="btn btn-primary px-4 py-2 w-100 w-sm-auto order-1 order-sm-3 border-0 d-flex align-items-center justify-content-center gap-2 shadow-sm text-white"
+                    className="btn btn-primary px-4 py-2 w-auto border-0 d-flex align-items-center justify-content-center gap-2 shadow-sm text-white"
                     style={{ fontSize: "13px", fontWeight: 600, borderRadius: "10px" }}
                   >
                     {savingCabinetItem ? (
@@ -11403,7 +11619,8 @@ export default function PartnersPage() {
               borderRadius: "50%",
               width: "44px",
               height: "44px",
-              fontSize: "20px"
+              fontSize: "20px",
+              zIndex: 1050
             }}
             onClick={(e) => {
               e.stopPropagation();

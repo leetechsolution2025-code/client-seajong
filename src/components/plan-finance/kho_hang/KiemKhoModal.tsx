@@ -15,6 +15,7 @@ import { BangKeXuatNhapTonModal }    from "@/components/plan-finance/kho_hang/Ba
 import { BangKeNhapKhoModal }        from "@/components/plan-finance/kho_hang/BangKeNhapKhoModal";
 import { BangKeXuatKhoModal }        from "@/components/plan-finance/kho_hang/BangKeXuatKhoModal";
 import type { BaoCaoKiemKhoLine }    from "@/components/plan-finance/kho_hang/BaoCaoKiemKhoPreview";
+import * as XLSX                     from "xlsx";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Warehouse { id: string; code: string | null; name: string; isActive: boolean; }
@@ -130,6 +131,11 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
   const [assignPopover, setAssignPopover] = React.useState<{ itemId: string; top: number; left: number } | null>(null);
   const [assigning, setAssigning]         = React.useState<string | null>(null); // itemId đang xữ lý
 
+  // Import Excel
+  const [importConfirmOpen, setImportConfirmOpen] = React.useState(false);
+  const [importUpdates, setImportUpdates] = React.useState<{id: string, wId?: string, qty: number}[]>([]);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   // Filter cục bộ (category / status / search)
   const [categories, setCategories]   = React.useState<{ id: string; name: string; level?: number; code?: string }[]>([]);
   const [filterCat,  setFilterCat]    = React.useState("");
@@ -144,6 +150,62 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
   const isTablet = bp === "tablet";
   const isMobile = isPhone || isTablet;  // phone hoặc tablet
   const [sidebarOpen, setSidebarOpen] = React.useState(false); // tablet: bottom sheet; phone: not used
+
+  // ── Import Excel logic ─────────────────────────────────────────
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+        
+        let matchCount = 0;
+        const updates: {id: string, wId?: string, qty: number}[] = [];
+        
+        const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+        data.forEach((row) => {
+          const keys = Object.keys(row);
+          const skuKey = keys.find(k => {
+            const norm = normalize(k);
+            return norm.includes("ma") || norm.includes("sku") || norm.includes("code");
+          });
+          const qtyKey = keys.find(k => {
+            const norm = normalize(k);
+            return norm.includes("thucte") || norm.includes("soluong") || norm.includes("qty") || norm.includes("ton");
+          });
+          
+          if (skuKey && qtyKey) {
+            const sku = String(row[skuKey]).trim().toLowerCase();
+            const qty = Number(row[qtyKey]);
+            if (!isNaN(qty)) {
+              const match = rows.find(r => r.maSku?.toLowerCase() === sku || r.inventoryItemId.toLowerCase() === sku);
+              if (match) {
+                updates.push({ id: match.inventoryItemId, wId: match.warehouseId, qty });
+                matchCount++;
+              }
+            }
+          }
+        });
+        
+        if (updates.length > 0) {
+          setImportUpdates(updates);
+          setImportConfirmOpen(true);
+        } else {
+          toastRef.current.error("Không tìm thấy dữ liệu", "Không có mã sản phẩm nào khớp hoặc sai định dạng cột.");
+        }
+      } catch (err) {
+        toastRef.current.error("Lỗi đọc file", "Đã xảy ra lỗi khi đọc file Excel.");
+      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsBinaryString(file);
+  };
 
   // ── Load warehouses ────────────────────────────────────────────
   React.useEffect(() => {
@@ -508,11 +570,18 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
           ) : (
             <>
               {!isPhone && (
-                <button onClick={saveDraft} disabled={savingDraft || locked || rows.length === 0}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", border: "1px solid var(--border)", background: "var(--card)", color: draftId ? "#10b981" : "var(--foreground)", fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: (savingDraft || locked || rows.length === 0) ? "not-allowed" : "pointer", opacity: (savingDraft || locked || rows.length === 0) ? 0.5 : 1 }}>
-                  {savingDraft ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> : draftId ? <i className="bi bi-cloud-check-fill" style={{ color: "#10b981" }} /> : <i className="bi bi-floppy" />}
-                  {savingDraft ? "Lưu..." : "Lưu nháp"}
-                </button>
+                <>
+                  <input type="file" accept=".xlsx, .xls" style={{ display: "none" }} ref={fileInputRef} onChange={handleImportExcel} />
+                  <button onClick={() => fileInputRef.current?.click()} disabled={locked || rows.length === 0}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: (locked || rows.length === 0) ? "not-allowed" : "pointer", opacity: (locked || rows.length === 0) ? 0.5 : 1 }}>
+                    <i className="bi bi-file-earmark-excel text-success" /> Nhập Excel
+                  </button>
+                  <button onClick={saveDraft} disabled={savingDraft || locked || rows.length === 0}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", border: "1px solid var(--border)", background: "var(--card)", color: draftId ? "#10b981" : "var(--foreground)", fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: (savingDraft || locked || rows.length === 0) ? "not-allowed" : "pointer", opacity: (savingDraft || locked || rows.length === 0) ? 0.5 : 1 }}>
+                    {savingDraft ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> : draftId ? <i className="bi bi-cloud-check-fill" style={{ color: "#10b981" }} /> : <i className="bi bi-floppy" />}
+                    {savingDraft ? "Lưu..." : "Lưu nháp"}
+                  </button>
+                </>
               )}
               {!isMobile && warehouseId && (
                 <button onClick={handleSave} disabled={saving || locked || loading || entered.length === 0}
@@ -1087,6 +1156,10 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                   <div style={{ height: "100%", background: "#0ea5e9", borderRadius: 4, width: rows.length > 0 ? `${Math.round(entered.length / rows.length * 100)}%` : "0%", transition: "width 0.3s" }} />
                 </div>
               </div>
+              <button onClick={() => fileInputRef.current?.click()} disabled={locked || rows.length === 0}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", border: "1px solid var(--border)", background: "var(--muted)", color: "var(--foreground)", fontSize: 13, fontWeight: 600, borderRadius: 10, cursor: (locked || rows.length === 0) ? "not-allowed" : "pointer", flexShrink: 0 }}>
+                <i className="bi bi-file-earmark-excel" /> Nhập Excel
+              </button>
               <button onClick={saveDraft} disabled={savingDraft || locked || rows.length === 0}
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", border: "1px solid var(--border)", background: "var(--muted)", color: draftId ? "#10b981" : "var(--foreground)", fontSize: 13, fontWeight: 600, borderRadius: 10, cursor: (savingDraft || locked || rows.length === 0) ? "not-allowed" : "pointer", opacity: (savingDraft || locked || rows.length === 0) ? 0.5 : 1, flexShrink: 0 }}>
                 {savingDraft ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> : draftId ? <i className="bi bi-cloud-check-fill" style={{ color: "#10b981" }} /> : <i className="bi bi-floppy" />}
@@ -1127,6 +1200,26 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
         loading={saving}
         onConfirm={() => { setConfirmOpen(false); doSave(); }}
         onCancel={() => setConfirmOpen(false)}
+      />
+
+      {/* Confirm nhập excel */}
+      <ConfirmDialog
+        open={importConfirmOpen}
+        title="Xác nhận nhập dữ liệu"
+        message={`Tìm thấy ${importUpdates.length} mặt hàng khớp mã sản phẩm. Bạn có muốn cập nhật số lượng thực tế cho các mặt hàng này?`}
+        confirmLabel="Cập nhật"
+        cancelLabel="Huỷ"
+        variant="info"
+        onConfirm={() => {
+          setRows(rs => rs.map(r => {
+            const update = importUpdates.find(u => u.id === r.inventoryItemId && u.wId === r.warehouseId);
+            if (update) return { ...r, soLuongThucTe: update.qty };
+            return r;
+          }));
+          setImportConfirmOpen(false);
+          toastRef.current.success("Thành công", `Đã cập nhật số lượng ${importUpdates.length} mặt hàng.`);
+        }}
+        onCancel={() => setImportConfirmOpen(false)}
       />
 
       {/* Popover phân kho nhanh */}

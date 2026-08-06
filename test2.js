@@ -1,22 +1,3 @@
-const XLSX = require('xlsx');
-const wb = XLSX.readFile('doc/data/dinhmuc_da_xoa_trung.xlsx');
-const ws = wb.Sheets[wb.SheetNames[0]];
-const rawData = XLSX.utils.sheet_to_json(ws, {header: 1});
-
-let startIndex = 0, colPCode = 0, colMCode = 1, colUnit = 2, colQty = 3;
-for (let i = 0; i < rawData.length; i++) {
-  const row = rawData[i] || [];
-  const rowStr = row.map(c => String(c || "").toLowerCase().trim());
-  const pCodeIdx = rowStr.findIndex(c => c === "mã" || c === "mã sản phẩm" || c === "mã đm" || c === "mã định mức");
-  if (pCodeIdx !== -1) {
-    startIndex = i + 1; colPCode = pCodeIdx;
-    const mCodeIdx = rowStr.findIndex(c => c.includes("mã") && c.includes("vật tư") || (c.includes("mã") && c.includes("nguyên vật liệu")) || c === "mã nvl" || c === "mã vt");
-    if (mCodeIdx !== -1) colMCode = mCodeIdx;
-    
-    console.log("Matched Header at row", i);
-    console.log("colPCode:", colPCode);
-    console.log("colMCode:", colMCode);
-    console.log("rowStr:", rowStr);
-    break;
-  }
-}
+const normalize = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const keys = ['Mã sản phẩm', 'Mã hàng', 'Số lượng thực tế', 'Tồn kho'];
+console.log(keys.map(normalize));

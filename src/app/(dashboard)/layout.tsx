@@ -875,7 +875,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           }
         }}
       />
-      <GlobalAIAssistant />
+      {activeDeptKey === "/board" && <GlobalAIAssistant />}
     </ToastProvider>
   );
 }
