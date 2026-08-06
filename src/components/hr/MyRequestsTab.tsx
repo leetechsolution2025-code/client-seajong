@@ -663,13 +663,11 @@ function RecruitmentManagementContent() {
   });
 
   useEffect(() => {
-    if (filteredData.length > 0) {
-      const isStillVisible = filteredData.some(item => item.id === selectedRequest?.id);
+    if (selectedRequest) {
+      const isStillVisible = filteredData.some(item => item.id === selectedRequest.id);
       if (!isStillVisible) {
-        setSelectedRequest(filteredData[0]);
+        setSelectedRequest(null);
       }
-    } else {
-      setSelectedRequest(null);
     }
   }, [data, requestType, status, searchQuery, selectedRequest]);
 
@@ -2664,7 +2662,7 @@ function RecruitmentManagementContent() {
 
       {/* Offcanvas cho Chi tiết / Form Tạo mới */}
       {(viewMode === "create" || selectedRequest) && (
-        <div className="offcanvas offcanvas-end show" style={{ visibility: "visible", width: 450, zIndex: 1045 }}>
+        <div className="offcanvas offcanvas-end show" style={{ visibility: "visible", width: 400, zIndex: 1045 }}>
           <div className="offcanvas-header border-bottom bg-light d-flex justify-content-between align-items-center">
             <h6 className="offcanvas-title fw-bold">
               {viewMode === "create" ? `Tạo mới: ${requestType}` : "Chi tiết yêu cầu"}
@@ -2675,6 +2673,9 @@ function RecruitmentManagementContent() {
               onClick={() => {
                 setViewMode("view");
                 setSelectedRequest(null);
+                const url = new URL(window.location.href);
+                url.searchParams.delete("id");
+                window.history.replaceState({}, "", url.toString());
               }}
             />
           </div>
@@ -2703,6 +2704,9 @@ function RecruitmentManagementContent() {
           onClick={() => {
             setViewMode("view");
             setSelectedRequest(null);
+            const url = new URL(window.location.href);
+            url.searchParams.delete("id");
+            window.history.replaceState({}, "", url.toString());
           }}
         />
       )}

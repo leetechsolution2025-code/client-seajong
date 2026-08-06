@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StandardPage } from "@/components/layout/StandardPage";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { Table } from "@/components/ui/Table";
 import { BrandButton } from "@/components/ui/BrandButton";
@@ -1399,14 +1400,14 @@ function RecruitmentContent() {
       icon="bi-person-plus-fill"
       color="rose"
       useCard={false}
-      paddingClassName="px-4 pb-4 pt-1"
+      paddingClassName="p-2"
     >
       <div className="flex-grow-1 d-flex flex-column overflow-hidden" style={{ fontFamily: "var(--font-roboto-condensed), 'Roboto Condensed', sans-serif" }}>
         <WorkflowCard
           className="h-100 d-flex flex-column"
           contentPadding="p-0"
-          toolbar={
-            <div className="w-100 px-3 py-2 border-bottom bg-white" style={{ fontFamily: "var(--font-roboto-condensed)", minHeight: "auto" }}>
+          bottomToolbar={
+            <div className="w-100 bg-transparent" style={{ fontFamily: "var(--font-roboto-condensed)", minHeight: "auto" }}>
               {/* Desktop layout: >= 576px */}
               <div className="d-none d-sm-flex align-items-center justify-content-between gap-2">
                 <div className="d-flex flex-wrap align-items-center gap-2">
@@ -1453,7 +1454,7 @@ function RecruitmentContent() {
                       />
                       <FilterSelect
                         value={candidateStatusFilter}
-                        onChange={setCandidateStatusFilter}
+                        onChange={setStatusFilter}
                         placeholder="Tất cả trạng thái"
                         width={180}
                         className="border-0 shadow-sm"
@@ -1742,11 +1743,11 @@ function RecruitmentContent() {
               onStepChange={(num: number) => setStep(num)}
             />
           }
-          bottomToolbar={null}
         >
           <div className="h-100 d-flex flex-column overflow-hidden">
             <div className="flex-grow-1 overflow-auto custom-scrollbar">
               {step === 1 && (
+                <FullWidthTableLayout tableWrapperClassName="" table={
                 <Table
                   rows={requests.filter(r =>
                     (r.status === "Approved" || r.status === "Recruiting" || r.status === "Interviewing" || r.status === "Completed") &&
@@ -1837,9 +1838,11 @@ function RecruitmentContent() {
                     }
                   ]}
                 />
+                } />
               )}
 
               {step === 2 && (
+                <FullWidthTableLayout tableWrapperClassName="" table={
                 <div className="d-flex flex-column h-100">
                   <AnimatePresence>
                     {isScanning && (
@@ -1982,9 +1985,11 @@ function RecruitmentContent() {
                     ]}
                   />
                 </div>
+                } />
               )}
 
               {step === 3 && (
+                <FullWidthTableLayout tableWrapperClassName="" table={
                 <Table
                   rows={(() => {
                     const interviewReqs = requests.filter(r => (r.candidates || []).some(c => ["DeptApproved", "Interviewing"].includes(c.status)));
@@ -2056,9 +2061,11 @@ function RecruitmentContent() {
                   emptyText="Chưa có ứng viên nào sẵn sàng phỏng vấn"
                   emptyIcon="bi-calendar-x"
                 />
+                } />
               )}
 
               {step === 4 && (
+                <FullWidthTableLayout tableWrapperClassName="" table={
                 <Table
                   rows={reportCandidates.filter(c => reportPositionFilter === 'All' || c.position === reportPositionFilter)}
                   loading={loadingReport}
@@ -2214,6 +2221,7 @@ function RecruitmentContent() {
                   ]}
                   emptyText="Không tìm thấy ứng viên nào đã hoàn tất phỏng vấn"
                 />
+                } />
               )}
 
               {step === 5 && <ProbationStep onFinalize={fetchRequests} />}

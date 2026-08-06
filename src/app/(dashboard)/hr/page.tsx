@@ -82,8 +82,21 @@ export default function ApprovalsPage() {
   );
 
   useEffect(() => {
-    if (session && !isHRManager) {
-      router.push("/");
+    try {
+      const deptAccessStr = (session?.user as any)?.deptAccess || "[]";
+      const deptAccess = JSON.parse(deptAccessStr);
+      const hasHRAccess = Array.isArray(deptAccess) && deptAccess.some((d: any) => d.code === "hr" && d.level !== "none");
+      const isAllowed = isHRManager || hasHRAccess || sessionStorage.getItem("fromAdmin") === "true";
+
+      if (session && !isAllowed) {
+        const dept = session?.user?.departmentCode;
+        router.push(dept ? `/${dept}` : "/board");
+      }
+    } catch (e) {
+      if (session && !isHRManager) {
+        const dept = session?.user?.departmentCode;
+        router.push(dept ? `/${dept}` : "/board");
+      }
     }
   }, [session, isHRManager, router]);
 

@@ -44,9 +44,9 @@ function PageHeaderInner({ title, description, icon = "bi-grid", color = "rose",
     const dept = session?.user?.departmentCode;
 
     let homePrefix = "/board";
-    if (role === "SUPERADMIN") homePrefix = "/admin";
+    if (dept) homePrefix = `/${dept}`;
+    else if (role === "SUPERADMIN") homePrefix = "/admin";
     else if (role === "ADMIN") homePrefix = "/company";
-    else if (dept) homePrefix = `/${dept}`;
 
     if (pathname.startsWith(homePrefix)) {
       setFromAdmin(false);
