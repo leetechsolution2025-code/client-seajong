@@ -59,17 +59,30 @@ export default function PartnerActivitiesPage() {
 
   useEffect(() => {
     if (salesEmployees.length > 0 && positions.length > 0 && !selectedEmployeeId) {
-      const staffEmployees = salesEmployees.filter(e => {
-        const posCode = e.position;
-        const pos = positions.find(p => p.code === posCode);
-        const posName = pos ? pos.name.toLowerCase() : "nhân viên";
-        return !posName.includes("trưởng phòng") && !posName.includes("phó phòng");
-      });
-      if (staffEmployees.length > 0) {
-        setSelectedEmployeeId(staffEmployees[0].id);
+      const currentUserEmail = session?.user?.email;
+      let matchedEmployee = null;
+      if (currentUserEmail) {
+        matchedEmployee = salesEmployees.find(e => 
+          e.workEmail?.toLowerCase() === currentUserEmail.toLowerCase() || 
+          e.personalEmail?.toLowerCase() === currentUserEmail.toLowerCase()
+        );
+      }
+      
+      if (matchedEmployee) {
+        setSelectedEmployeeId(matchedEmployee.id);
+      } else {
+        const staffEmployees = salesEmployees.filter(e => {
+          const posCode = e.position;
+          const pos = positions.find(p => p.code === posCode);
+          const posName = pos ? pos.name.toLowerCase() : "nhân viên";
+          return !posName.includes("trưởng phòng") && !posName.includes("phó phòng");
+        });
+        if (staffEmployees.length > 0) {
+          setSelectedEmployeeId(staffEmployees[0].id);
+        }
       }
     }
-  }, [salesEmployees, positions, selectedEmployeeId]);
+  }, [salesEmployees, positions, selectedEmployeeId, session]);
 
   useEffect(() => {
     const month = reportMonth.getMonth() + 1;
