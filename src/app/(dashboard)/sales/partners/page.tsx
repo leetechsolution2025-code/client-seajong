@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import { HoverImage } from "@/components/ui/HoverImage";
 import { KyHopDongModal } from "@/components/sales/partners/KyHopDongModal";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -1050,6 +1051,7 @@ export default function PartnersPage() {
     quantity: number;
     size?: string;
     description?: string;
+    images?: string[];
   }[]>([]);
 
   const fileInputRef1 = React.useRef<HTMLInputElement>(null);
@@ -8889,8 +8891,9 @@ export default function PartnersPage() {
 
                           <button
                             type="button"
+                            disabled={!tbCategory || !tbSize.trim() || !tbQuantity || parseInt(tbQuantity) <= 0}
                             className="btn btn-sm btn-primary rounded-2 shadow-none d-flex align-items-center justify-content-center px-3 py-1.5 text-white flex-shrink-0"
-                            style={{ height: "32px", fontSize: "12.5px", fontWeight: 600 }}
+                            style={{ height: "32px", fontSize: "12.5px", fontWeight: 600, opacity: (!tbCategory || !tbSize.trim() || !tbQuantity || parseInt(tbQuantity) <= 0) ? 0.6 : 1 }}
                             onClick={() => {
                               const selectedItem = cabinetItems.find(item => item.code === tbCategory);
                               if (!selectedItem) {
@@ -8918,6 +8921,7 @@ export default function PartnersPage() {
                                     quantity: qty,
                                     size: tbSize || "",
                                     description: selectedItem.description || "",
+                                    images: [selectedItem.imageUrl1, selectedItem.imageUrl2, selectedItem.imageUrl3, selectedItem.imageUrl4, selectedItem.imageUrl5].filter(Boolean) as string[],
                                   }
                                 ]);
                               }
@@ -10679,19 +10683,26 @@ export default function PartnersPage() {
                       <thead>
                         <tr style={{ backgroundColor: "#f1f5f9" }}>
                           <th className="text-center" style={{ width: "5%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>STT</th>
-                          <th style={{ width: "49%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>Hạng mục đầu tư</th>
-                          <th className="text-center" style={{ width: "8%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>Đơn vị</th>
+                          <th className="text-center" style={{ width: "20%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>Hình ảnh đại diện</th>
+                          <th style={{ width: "55%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>Hạng mục đầu tư</th>
+                          <th className="text-center" style={{ width: "10%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>Đơn vị</th>
                           <th className="text-center" style={{ width: "10%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>Kích thước</th>
-                          <th className="text-end" style={{ width: "12%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>Đơn giá (đ)</th>
-                          <th className="text-end" style={{ width: "16%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>Thành tiền (đ)</th>
                         </tr>
                       </thead>
                       <tbody>
                         {addedCabinetItems.map((item, index) => {
-                          const amount = (parseFloat(item.size || "") || 0) * (item.unitPrice || 0) * (item.quantity || 0);
                           return (
                             <tr key={index} style={{ color: "#000" }}>
                               <td className="text-center" style={{ border: "1px solid #cbd5e1", padding: "8px 10px", verticalAlign: "middle", color: "#000" }}>{index + 1}</td>
+                              <td className="text-center" style={{ border: "1px solid #cbd5e1", padding: "8px 10px", verticalAlign: "middle", color: "#000" }}>
+                                {item.images && item.images.length > 0 ? (
+                                  <HoverImage src={item.images[0]} images={item.images} alt={item.name} style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "4px", margin: "0 auto", cursor: "pointer" }} />
+                                ) : (
+                                  <div style={{ width: "80px", height: "80px", backgroundColor: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "4px", margin: "0 auto" }}>
+                                    <i className="bi bi-image text-muted" style={{ fontSize: "24px" }} />
+                                  </div>
+                                )}
+                              </td>
                               <td style={{ border: "1px solid #cbd5e1", padding: "8px 10px", verticalAlign: "middle", wordBreak: "break-word", color: "#000" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                   <strong>{item.name}</strong>
@@ -10705,35 +10716,9 @@ export default function PartnersPage() {
                               </td>
                               <td className="text-center" style={{ border: "1px solid #cbd5e1", padding: "8px 10px", verticalAlign: "middle", color: "#000" }}>{item.unit || "md"}</td>
                               <td className="text-center" style={{ border: "1px solid #cbd5e1", padding: "8px 10px", verticalAlign: "middle", color: "#000" }}>{item.size || "—"}</td>
-                              <td className="text-end" style={{ border: "1px solid #cbd5e1", padding: "8px 10px", verticalAlign: "middle", color: "#000" }}>{item.unitPrice.toLocaleString("vi-VN")}</td>
-                              <td className="text-end" style={{ border: "1px solid #cbd5e1", padding: "8px 10px", verticalAlign: "middle", color: "#000" }}>{amount.toLocaleString("vi-VN")}</td>
                             </tr>
                           );
                         })}
-                        <tr style={{ backgroundColor: "#f8fafc", color: "#000" }}>
-                          <td colSpan={5} className="text-end fw-bold" style={{ border: "1px solid #cbd5e1", padding: "8px 10px", verticalAlign: "middle", color: "#000" }}>Tổng chi phí dự kiến:</td>
-                          <td className="text-end fw-bold" style={{ border: "1px solid #cbd5e1", padding: "8px 10px", verticalAlign: "middle", color: "#000" }}>
-                            {(() => {
-                              const total = addedCabinetItems.reduce((acc, item) => {
-                                const amount = (parseFloat(item.size || "") || 0) * (item.unitPrice || 0) * (item.quantity || 0);
-                                return acc + amount;
-                              }, 0);
-                              return total.toLocaleString("vi-VN") + " đ";
-                            })()}
-                          </td>
-                        </tr>
-                        <tr style={{ backgroundColor: "#f8fafc", color: "#000" }}>
-                          <td colSpan={6} style={{ fontStyle: "italic", fontSize: "12px", border: "1px solid #cbd5e1", padding: "8px 10px", color: "#000" }}>
-                            <strong>Bằng chữ:</strong>{" "}
-                            {(() => {
-                              const total = addedCabinetItems.reduce((acc, item) => {
-                                const amount = (parseFloat(item.size || "") || 0) * (item.unitPrice || 0) * (item.quantity || 0);
-                                return acc + amount;
-                              }, 0);
-                              return docSoTien(Math.round(total));
-                            })()}
-                          </td>
-                        </tr>
                       </tbody>
                     </table>
                   </>
