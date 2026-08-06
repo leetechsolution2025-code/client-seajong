@@ -988,6 +988,7 @@ export default function PartnersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [crmEmployees, setCrmEmployees] = useState<{ id: string; fullName: string; phone?: string | null; userId?: string }[]>([]);
+  const [currentUserEmployeeId, setCurrentUserEmployeeId] = useState<string | null>(null);
   const [showGeneralInfo, setShowGeneralInfo] = useState(false);
 
   // Care details modal state
@@ -1454,7 +1455,7 @@ export default function PartnersPage() {
       setCarePremisesCondition(selectedPartner.detailPremisesCondition || "");
       setCareOtherRequirements(selectedPartner.detailOtherRequirements || "");
       setCareExecutionDate(formatForDateTimeInput(selectedPartner.detailExecutionDate) || getNowDateTimeString());
-      setCareExecutor(selectedPartner.careStaff || currentUserName || crmEmployees[0]?.fullName || "");
+      setCareExecutor(getDefaultExecutor(selectedPartner.careStaff));
     } else {
       setAddedCabinetItems([]);
       setShowGeneralInfo(false);
@@ -1498,7 +1499,7 @@ export default function PartnersPage() {
     const partner = partnerInput || selectedPartner;
     setEditingNegId(null);
     setNegDate(getNowDateTimeString());
-    setNegExecutor(partner?.careStaff || currentUserName || crmEmployees[0]?.fullName || "");
+    setNegExecutor(getDefaultExecutor(partner?.careStaff));
     setNegType("call");
     setNegOutcome("");
     setShowNegModal(true);
@@ -1654,6 +1655,18 @@ export default function PartnersPage() {
     }
   };
 
+
+  const getDefaultExecutor = (partnerStaff?: string | null) => {
+    if (partnerStaff) return partnerStaff;
+    if (currentUserEmployeeId) {
+      const me = crmEmployees.find(e => e.id === currentUserEmployeeId);
+      if (me) return me.fullName;
+    }
+    const hasCrm = crmEmployees.some(emp => emp.fullName === currentUserName);
+    if (hasCrm) return currentUserName;
+    return crmEmployees[0]?.fullName || "Vũ Hoàng Long";
+  };
+
   const handleAddNewCare = (partnerInput?: PartnerProcessItem) => {
     setEditingCareHistoryId(null);
     const partner = partnerInput || selectedPartner;
@@ -1719,7 +1732,7 @@ export default function PartnersPage() {
       }
 
       setCareExecutionDate(getNowDateTimeString());
-      setCareExecutor(partner.careStaff || currentUserName || crmEmployees[0]?.fullName || "");
+      setCareExecutor(getDefaultExecutor(partner.careStaff));
       setShowCareModal(true);
     }
   };
@@ -1778,11 +1791,15 @@ export default function PartnersPage() {
   }, [session]);
 
   useEffect(() => {
-    fetch("/api/hr/employees/crm")
+    fetch("/api/hr/employees?department=sales&pageSize=100")
       .then(res => res.json())
       .then(data => {
         if (data.employees) {
           setCrmEmployees(data.employees);
+          const me = data.employees.find((e: any) => e.fullName === currentUserName);
+          if (me) {
+            setCurrentUserEmployeeId(me.id);
+          }
         }
       })
       .catch(err => console.error("Error fetching CRM employees", err));
@@ -1864,7 +1881,7 @@ export default function PartnersPage() {
 
         if (next === 2) {
           const hasCrm = crmEmployees.some(emp => emp.fullName === currentUserName);
-          updated.careStaff = updated.careStaff || (hasCrm ? currentUserName : (crmEmployees[0]?.fullName || "Vũ Hoàng Long"));
+          updated.careStaff = updated.careStaff || getDefaultExecutor();
           updated.careChannel = updated.careChannel || "Zalo";
           updated.careNote = updated.careNote || "Bắt đầu chăm sóc sau tiếp nhận thông tin.";
           updated.nextSchedule = updated.nextSchedule || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -1960,6 +1977,8 @@ export default function PartnersPage() {
   const [newCareStaff, setNewCareStaff] = useState("");
   const [newCreationTime, setNewCreationTime] = useState<Date | null>(null);
   const [newNeeds, setNewNeeds] = useState("");
+  const [quoteStatusFilter, setQuoteStatusFilter] = useState("");
+  const [careStatusFilter, setCareStatusFilter] = useState("");
 
   const areas = useMemo(() => {
     return Array.from(new Set(partners.map(p => p.area)));
@@ -1971,6 +1990,22 @@ export default function PartnersPage() {
       const cStep = Number(currentStep);
       if (cStep === 1) {
         // Show all in step 1
+      } else if (cStep === 2) {
+        if (careStatusFilter === "Đang thực hiện" && pStep !== 2) return false;
+        if (careStatusFilter === "Đã thực hiện" && (pStep < 3 || pStep === 6)) return false;
+        if (careStatusFilter === "Đã huỷ bỏ" && (pStep !== 6 || !p.careStaff)) return false;
+        if (careStatusFilter === "") {
+          if (pStep < 2 && pStep !== 6) return false;
+          if (pStep === 6 && !p.careStaff) return false;
+        }
+      } else if (cStep === 3) {
+        if (quoteStatusFilter === "Đang thực hiện" && pStep !== 3) return false;
+        if (quoteStatusFilter === "Đã thực hiện" && (pStep < 4 || pStep === 6)) return false;
+        if (quoteStatusFilter === "Đã huỷ bỏ" && (pStep !== 6 || !p.quoteId)) return false;
+        if (quoteStatusFilter === "") {
+          if (pStep < 3 && pStep !== 6) return false;
+          if (pStep === 6 && !p.quoteId) return false;
+        }
       } else if (cStep === 4) {
         if (pStep < 4) return false;
       } else {
@@ -1988,7 +2023,7 @@ export default function PartnersPage() {
       if (areaFilter && p.area !== areaFilter) return false;
       return true;
     });
-  }, [partners, currentStep, searchTerm, areaFilter]);
+  }, [partners, currentStep, searchTerm, areaFilter, quoteStatusFilter, careStatusFilter]);
 
   const ganttTasksForStep5 = useMemo(() => {
     const year = new Date().getFullYear();
@@ -5132,7 +5167,7 @@ export default function PartnersPage() {
 
     if (next === 2) {
       const hasCrm = crmEmployees.some(emp => emp.fullName === currentUserName);
-      updated.careStaff = updated.careStaff || (hasCrm ? currentUserName : (crmEmployees[0]?.fullName || "Vũ Hoàng Long"));
+      updated.careStaff = updated.careStaff || getDefaultExecutor();
       updated.careChannel = updated.careChannel || "Zalo";
       updated.careNote = updated.careNote || "Bắt đầu chăm sóc sau tiếp nhận thông tin.";
       updated.nextSchedule = updated.nextSchedule || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -5884,7 +5919,26 @@ export default function PartnersPage() {
               if (!row.quoteId || !row.quoteStatus) return "";
               const statusColors = { Draft: "bg-secondary text-white", Sent: "bg-warning text-dark", Approved: "bg-success text-white" };
               const statusLabels = { Draft: "Bản nháp", Sent: "Đã gửi khách", Approved: "Đã duyệt" };
-              return <span className={`badge ${statusColors[row.quoteStatus] || "bg-secondary text-white"}`}>{statusLabels[row.quoteStatus] || row.quoteStatus}</span>;
+              
+              let processLabel = "";
+              let processClass = "";
+              if (Number(row.step) === 3) {
+                 processLabel = "Đang thực hiện";
+                 processClass = "text-primary";
+              } else if (Number(row.step) >= 4 && Number(row.step) !== 6) {
+                 processLabel = "Đã thực hiện";
+                 processClass = "text-success";
+              } else if (Number(row.step) === 6) {
+                 processLabel = "Đã huỷ bỏ";
+                 processClass = "text-danger";
+              }
+              
+              return (
+                <div className="d-flex flex-column gap-1">
+                  <div><span className={`badge ${statusColors[row.quoteStatus] || "bg-secondary text-white"}`}>{statusLabels[row.quoteStatus] || row.quoteStatus}</span></div>
+                  {processLabel && <div className={`fw-semibold ${processClass}`} style={{ fontSize: "11px" }}>{processLabel}</div>}
+                </div>
+              );
             },
             width: "20%",
           }
@@ -6222,7 +6276,13 @@ export default function PartnersPage() {
                       setActiveDropdownRowId(null);
                       setDropdownCoords(null);
                       setSelectedPartner(row);
-                      if (Number(row.step) === 3) {
+                      if (Number(currentStep) === 3) {
+                        if (row.quoteId) {
+                          handleOpenEditQuotation(row.quoteId);
+                        } else {
+                          toastError("Lỗi", "Đối tác chưa có báo giá để chỉnh sửa.");
+                        }
+                      } else if (Number(row.step) === 3) {
                         handleAddNewNeg(row);
                       } else {
                         handleAddNewCare(row);
@@ -6279,6 +6339,14 @@ export default function PartnersPage() {
             </button>
           ) : (
             <>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm d-flex align-items-center gap-1 py-1.5 px-3 border-0 shadow-sm rounded-pill"
+                onClick={handleBatchDeleteClick}
+                style={{ fontSize: 12, fontWeight: 600 }}
+              >
+                <i className="bi bi-trash-fill" /> Xoá
+              </button>
               <button
                 type="button"
                 className="btn btn-success btn-sm d-flex align-items-center gap-1 py-1.5 px-3 border-0 shadow-sm rounded-pill"
@@ -6391,6 +6459,34 @@ export default function PartnersPage() {
                     width={180}
                   />
 
+                  {Number(currentStep) === 2 && (
+                    <FilterSelect
+                      options={[
+                        { label: "Đang thực hiện", value: "Đang thực hiện" },
+                        { label: "Đã thực hiện", value: "Đã thực hiện" },
+                        { label: "Đã huỷ bỏ", value: "Đã huỷ bỏ" }
+                      ]}
+                      value={careStatusFilter}
+                      onChange={setCareStatusFilter}
+                      placeholder="Tất cả trạng thái"
+                      width={180}
+                    />
+                  )}
+
+                  {Number(currentStep) === 3 && (
+                    <FilterSelect
+                      options={[
+                        { label: "Đang thực hiện", value: "Đang thực hiện" },
+                        { label: "Đã thực hiện", value: "Đã thực hiện" },
+                        { label: "Đã huỷ bỏ", value: "Đã huỷ bỏ" }
+                      ]}
+                      value={quoteStatusFilter}
+                      onChange={setQuoteStatusFilter}
+                      placeholder="Tất cả trạng thái"
+                      width={180}
+                    />
+                  )}
+
                   {/* Search */}
                   <div className="flex-grow-1" style={{ maxWidth: 300 }}>
                     <SearchInput
@@ -6418,7 +6514,7 @@ export default function PartnersPage() {
                         setNewBusinessAddress("");
                         setNewScale("");
                         setNewNeeds("");
-                        setNewCareStaff(currentUserName || crmEmployees[0]?.fullName || "Vũ Hoàng Long");
+                        setNewCareStaff(getDefaultExecutor());
                         setNewCreationTime(new Date());
                         setShowCreateModal(true);
                       }}
@@ -6873,8 +6969,8 @@ export default function PartnersPage() {
                 <div className="mb-4">
                   <SectionTitle
                     title={
-                      Number(selectedPartner.step) === 4 ? "Lịch sử hợp đồng" :
-                      Number(selectedPartner.step) === 3 ? (
+                      Number(currentStep) === 4 ? "Lịch sử hợp đồng" :
+                      Number(currentStep) === 3 ? (
                         <div className="d-flex align-items-center gap-2">
                           Lịch sử báo giá
                           {selectedPartner.quoteStatus && (
@@ -6887,12 +6983,12 @@ export default function PartnersPage() {
                     }
                     className="border-bottom pb-2 mb-3"
                     action={
-                      Number(selectedPartner.step) !== 4 ? (
+                      Number(currentStep) !== 4 ? (
                         <button
                           type="button"
                           className="btn btn-primary btn-sm px-2 py-0.5 d-flex align-items-center gap-1 rounded-2 shadow-sm fw-semibold"
                           style={{ fontSize: "11px" }}
-                          onClick={() => Number(selectedPartner.step) === 3 ? handleAddNewNeg() : handleAddNewCare()}
+                          onClick={() => Number(currentStep) === 3 ? handleAddNewNeg() : handleAddNewCare()}
                         >
                           <i className="bi bi-plus-lg" />
                           Thêm mới
@@ -6903,7 +6999,7 @@ export default function PartnersPage() {
 
                   <div className="position-relative ps-3 ms-2 py-1">
                     {(() => {
-                      if (Number(selectedPartner.step) === 4) {
+                      if (Number(currentStep) === 4) {
                         const items = [];
                         if (selectedPartner.contractStatus === "Active") {
                           items.push(
@@ -6975,7 +7071,7 @@ export default function PartnersPage() {
                         return items;
                       }
 
-                      if (Number(selectedPartner.step) === 3) {
+                      if (Number(currentStep) === 3) {
                         const negotiations = selectedPartner.quoteNegotiations || [];
                         const sortedNegotiations = [...negotiations].sort(
                           (a, b) => getSafeTimestamp(b.ngay) - getSafeTimestamp(a.ngay)
@@ -7249,7 +7345,7 @@ export default function PartnersPage() {
 
 
                 {/* Step 4: Biên bản Section (ABOVE Contract Section) */}
-                {selectedPartner.step >= 4 && (
+                {Number(currentStep) >= 4 && (
                   <div className="mb-4 p-3 rounded-3 bg-light/50 border animate__animated animate__fadeIn">
                     <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
                       <span className="fw-bold text-dark">
@@ -7308,7 +7404,7 @@ export default function PartnersPage() {
                 )}
 
                 {/* Step 4: Contract Section (Renamed to Ký hợp đồng) */}
-                {selectedPartner.step >= 4 && (
+                {Number(currentStep) >= 4 && (
                   <div className="mb-4 p-3 rounded-3 bg-light/50 border animate__animated animate__fadeIn">
                     <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
                       <span className="fw-bold text-dark"><i className="bi bi-file-earmark-check-fill text-warning me-2" />Ký hợp đồng</span>
@@ -7408,7 +7504,7 @@ export default function PartnersPage() {
                 )}
 
                 {/* Step 4: Phụ lục Section (BELOW Contract Section) */}
-                {selectedPartner.step >= 4 && (
+                {Number(currentStep) >= 4 && (
                   <div className="mb-4 p-3 rounded-3 bg-light/50 border animate__animated animate__fadeIn">
                     <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
                       <span className="fw-bold text-dark">
@@ -7474,7 +7570,7 @@ export default function PartnersPage() {
                 )}
 
                 {/* Step 5: Construction Section */}
-                {selectedPartner.step >= 5 && (
+                {Number(currentStep) >= 5 && (
                   <div className="mb-4 p-3 rounded-3 bg-light/50 border">
                     <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
                       <span className="fw-bold text-dark"><i className="bi bi-tools text-primary me-2" />Thiết kế & Thi công</span>
@@ -7576,8 +7672,9 @@ export default function PartnersPage() {
               </div>
 
               {/* Bottom Actions */}
+              {(Number(currentStep) >= 4 || Number(selectedPartner.step) === Number(currentStep)) && (
               <div className="p-3 border-top bg-white d-flex justify-content-between gap-2 shadow-lg animate__animated animate__slideInUp">
-                {selectedPartner.step === 4 || selectedPartner.step === 5 ? (
+                {Number(currentStep) === 4 || Number(currentStep) === 5 ? (
                   <>
                     <button
                       type="button"
@@ -7615,7 +7712,7 @@ export default function PartnersPage() {
                   </>
                 ) : (
                   <>
-                    {selectedPartner.step === 6 ? (
+                    {Number(currentStep) === 6 && Number(selectedPartner.step) === 6 ? (
                       <button
                         className="btn btn-outline-success rounded-3 py-2 flex-grow-1 d-flex align-items-center justify-content-center gap-1"
                         style={{ fontSize: 13, fontWeight: 600 }}
@@ -7636,11 +7733,11 @@ export default function PartnersPage() {
                         <button
                           className="btn btn-outline-danger rounded-3 py-2 flex-grow-1 d-flex align-items-center justify-content-center gap-1"
                           style={{ fontSize: 13, fontWeight: 600 }}
-                          onClick={() => handleAbandonPartner(selectedPartner)}
+                          onClick={() => handleAbandonPartner(selectedPartner)} disabled={Number(selectedPartner.step) > Number(currentStep)}
                         >
                           <i className="bi bi-trash-fill" /> Từ bỏ
                         </button>
-                        {selectedPartner.step === 2 && (
+                        {Number(currentStep) === 2 && Number(selectedPartner.step) === 2 && (
                           <button
                             className={`btn rounded-3 py-2 flex-grow-1 d-flex align-items-center justify-content-center gap-1 ${isStep2TransitionAllowed(selectedPartner) || selectedPartner.detailSpecialRequestStatus === "APPROVED"
                               ? "btn-secondary text-white-50 opacity-75"
@@ -7686,7 +7783,7 @@ export default function PartnersPage() {
                         )}
                       </>
                     )}
-                    {selectedPartner.step === 3 && (
+                    {Number(currentStep) === 3 && Number(selectedPartner.step) === 3 && (
                       selectedPartner.quoteId ? (
                         <button
                           type="button"
@@ -7709,7 +7806,7 @@ export default function PartnersPage() {
                     )}
                   </>
                 )}
-                {selectedPartner.step < 4 && (
+                {Number(currentStep) < 4 && Number(selectedPartner.step) === Number(currentStep) && (
                   <button
                     className={`btn rounded-3 py-2 flex-grow-1 ${isTransitionDisabled(selectedPartner)
                       ? "btn-secondary text-white-50 opacity-75"
@@ -7719,7 +7816,7 @@ export default function PartnersPage() {
                     disabled={isTransitionDisabled(selectedPartner)}
                     onClick={() => handleAdvanceStep(selectedPartner)}
                     title={
-                      selectedPartner.step === 2 && !isStep2TransitionAllowed(selectedPartner)
+                      Number(selectedPartner.step) === 2 && !isStep2TransitionAllowed(selectedPartner)
                         ? isSalesManager
                           ? selectedPartner.detailSpecialRequestPending
                             ? "Mở khoá đặc cách: Khách hàng chưa đạt 4-5 sao nhưng được phê duyệt bởi Trưởng phòng"
@@ -7727,12 +7824,12 @@ export default function PartnersPage() {
                           : selectedPartner.detailSpecialRequestStatus === "APPROVED"
                             ? "Đã có phê duyệt đặc cách từ Trưởng phòng. Có thể chuyển bước"
                             : "Yêu cầu điền đủ 8 thông tin bắt buộc và phân loại khách hàng phải đạt mức Nóng/Ấm (4-5 sao) để mở khoá chuyển bước"
-                        : selectedPartner.step === 3 && !selectedPartner.quoteId
+                        : Number(currentStep) === 3 && !selectedPartner.quoteId
                           ? "Vui lòng tạo báo giá trước khi chuyển bước"
                           : ""
                     }
                   >
-                    {selectedPartner.step === 2 && !isStep2TransitionAllowed(selectedPartner) ? (
+                    {Number(selectedPartner.step) === 2 && !isStep2TransitionAllowed(selectedPartner) ? (
                       <>
                         {selectedPartner.detailSpecialRequestStatus === "APPROVED" ? (
                           <>
@@ -7756,6 +7853,7 @@ export default function PartnersPage() {
                   </button>
                 )}
               </div>
+              )}
             </motion.div>
           </>
         )}
@@ -10671,8 +10769,18 @@ export default function PartnersPage() {
                       <li className="mb-1"><strong>Khó khăn, vướng mắc của khách hàng (Pain points):</strong> {carePainPoints}</li>
                     )}
                   </ol>
+                  
+                  {addedCabinetItems.length > 0 && (
+                    <div className="mt-3" style={{ textAlign: "justify" }}>
+                      Trên cơ sở nội dung trao đổi giữa các bên, chúng tôi thống nhất quy mô dự kiến cho hạng mục đầu tư quầy kệ như bảng thống kê dưới đây. Thông tin này làm cơ sở cho các bên chủ động các công việc liên quan của mình.
+                    </div>
+                  )}
                 </div>
 
+              </div> {/* Close Page 1 */}
+
+              {/* PAGE 2 */}
+              <div className="mou-print-page print-page-break">
                 {/* Khái toán quầy kệ */}
                 {addedCabinetItems.length > 0 && (
                   <>
@@ -10682,11 +10790,11 @@ export default function PartnersPage() {
                     <table className="cabinet-table w-100 mb-3" style={{ borderCollapse: "collapse", fontSize: "13px", tableLayout: "fixed", width: "100%", border: "1px solid #cbd5e1", color: "#000" }}>
                       <thead>
                         <tr style={{ backgroundColor: "#f1f5f9" }}>
-                          <th className="text-center" style={{ width: "5%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>STT</th>
-                          <th className="text-center" style={{ width: "20%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>Hình ảnh đại diện</th>
-                          <th style={{ width: "55%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>Hạng mục đầu tư</th>
-                          <th className="text-center" style={{ width: "10%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>Đơn vị</th>
-                          <th className="text-center" style={{ width: "10%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle" }}>Kích thước</th>
+                          <th className="text-center" style={{ width: "5%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle", textAlign: "center" }}>STT</th>
+                          <th className="text-center" style={{ width: "20%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle", textAlign: "center" }}>Hình ảnh đại diện</th>
+                          <th className="text-center" style={{ width: "55%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle", textAlign: "center" }}>Hạng mục đầu tư</th>
+                          <th className="text-center" style={{ width: "10%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle", textAlign: "center" }}>Đơn vị</th>
+                          <th className="text-center" style={{ width: "10%", border: "1px solid #cbd5e1", padding: "8px 10px", fontWeight: "bold", color: "#000", verticalAlign: "middle", textAlign: "center" }}>Kích thước</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -10724,10 +10832,7 @@ export default function PartnersPage() {
                   </>
                 )}
 
-              </div> {/* Close Page 1 */}
 
-              {/* PAGE 2 */}
-              <div className="mou-print-page print-page-break">
                 {/* Điều khoản ghi nhớ */}
                 <div className="mou-section-header" style={{ fontWeight: "bold", fontSize: "14px", marginTop: "20px", marginBottom: "8px", textTransform: "uppercase", borderBottom: "1px solid #cbd5e1" }}>
                   III. KẾT LUẬN & ĐỊNH HƯỚNG BƯỚC TIẾP THEO

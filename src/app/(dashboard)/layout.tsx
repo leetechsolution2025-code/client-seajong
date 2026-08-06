@@ -796,6 +796,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       });
                     }
 
+                    if (activeDeptKey === "/hr") {
+                      baseGroups = baseGroups.filter(g => g.key !== "hr_requests_approvals" && g.label !== "Yêu cầu và duyệt yêu cầu");
+                    }
+
                     // Apply dynamic isLocked for "Duyệt yêu cầu"
                     const isHRManager = session?.user?.role === "SUPERADMIN" || session?.user?.role === "admin" || (
                       session?.user?.departmentCode?.toLowerCase() === "hr" &&

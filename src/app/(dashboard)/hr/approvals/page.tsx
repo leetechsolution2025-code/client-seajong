@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { Table, TableColumn } from "@/components/ui/Table";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { EmployeeAvatar } from "@/components/hr/EmployeeAvatar";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
@@ -13,6 +14,7 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { BrandButton } from "@/components/ui/BrandButton";
+import { MyRequestsTab } from "@/components/hr/MyRequestsTab";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 type RequestStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -48,6 +50,7 @@ interface Department {
 const STEP_ITEMS: ModernStepItem[] = [
   { id: "pending", title: "Duyệt yêu cầu", icon: "bi-check2-circle", num: 1, desc: "Phê duyệt và xử lý" },
   { id: "history", title: "Lịch sử phê duyệt", icon: "bi-clock-history", num: 2, desc: "Tra cứu dữ liệu cũ" },
+  { id: "my-requests", title: "Yêu cầu của tôi", icon: "bi-person-lines-fill", num: 3, desc: "Đề xuất đã gửi" },
 ];
 
 const TYPE_MAP: Record<string, { label: string; color: string }> = {
@@ -59,6 +62,7 @@ const TYPE_MAP: Record<string, { label: string; color: string }> = {
   "hr-request": { label: "Hành chính - Nhân sự", color: "#10b981" },
   "work": { label: "Công tác", color: "#f59e0b" },
   "business-trip": { label: "Công tác", color: "#f59e0b" },
+  "finance": { label: "Tài chính - Kế toán", color: "#eab308" },
   "recruitment": { label: "Tuyển dụng", color: "#3b82f6" },
   "training": { label: "Đào tạo", color: "#06b6d4" },
   "promotion": { label: "Đề bạt & thuyên chuyển", color: "#8b5cf6" },
@@ -161,12 +165,14 @@ export default function ApprovalsPage() {
     let filtered = [...allRequests];
 
     if (activeTabId === "pending") {
-      filtered = filtered.filter(r => r.status === "PENDING");
+      filtered = filtered.filter(r => r.status.toUpperCase() === "PENDING" && r.employee.userId !== currentUserId);
     } else if (activeTabId === "history") {
-      filtered = filtered.filter(r => r.status !== "PENDING");
+      filtered = filtered.filter(r => r.status.toUpperCase() !== "PENDING" && r.employee.userId !== currentUserId);
+    } else if (activeTabId === "my-requests") {
+      filtered = filtered.filter(r => r.employee.userId === currentUserId);
     }
 
-    if (statusFilter) filtered = filtered.filter(r => r.status === statusFilter);
+    if (statusFilter) filtered = filtered.filter(r => r.status.toUpperCase() === statusFilter.toUpperCase());
     if (deptFilter) {
        filtered = filtered.filter(r => r.employee.departmentName === deptFilter);
     }
@@ -323,7 +329,7 @@ export default function ApprovalsPage() {
       header: "Người yêu cầu",
       render: (r) => (
         <div className="d-flex align-items-center gap-2">
-          <EmployeeAvatar name={r.employee.fullName} url={r.employee.avatarUrl} size={30} borderRadius={8} />
+          <EmployeeAvatar name={r.employee.fullName} url={r.employee.avatarUrl} size={30} />
           <div>
             <div className="fw-bold text-dark" style={{ fontSize: 12 }}>
               {r.employee.fullName} 
@@ -389,7 +395,7 @@ export default function ApprovalsPage() {
              cls: r.type.toLowerCase() === "stationery" ? "bg-info-subtle text-info border-info" : "bg-danger-subtle text-danger border-danger" 
           },
         };
-        const m = map[r.status as keyof typeof map] || map.PENDING;
+        const m = map[r.status.toUpperCase() as keyof typeof map] || map.PENDING;
         return <span className={`badge border rounded-pill px-2 ${m.cls}`} style={{ fontSize: 10 }}>{m.label}</span>;
       },
       width: "120px",
@@ -399,7 +405,7 @@ export default function ApprovalsPage() {
       header: "Thao tác",
       render: (r) => (
         <div className="d-flex justify-content-end gap-1" onClick={(e) => e.stopPropagation()}>
-          {activeTabId === "pending" && r.status === "PENDING" && !r.hrApproved && (
+          {activeTabId === "pending" && r.status.toUpperCase() === "PENDING" && !r.hrApproved && (
             <>
               <button className="btn btn-light btn-sm border-0" title="Duyệt" onClick={() => handleAction(r.id, "APPROVE")}>
                 <i className="bi bi-check-lg text-success" />
@@ -517,22 +523,32 @@ export default function ApprovalsPage() {
         <WorkflowCard
           contentPadding="p-0"
           toolbar={null}
-          bottomToolbar={ApprovalsBottomToolbar}
+          bottomToolbar={activeTabId === "my-requests" ? null : ApprovalsBottomToolbar}
           stepper={
             <ModernStepper steps={STEP_ITEMS} currentStep={currentStep} onStepChange={setCurrentStep} paddingX={0} />
           }
         >
-          <div className="h-100 bg-white border-top overflow-auto">
-            <Table
-              rows={filteredData}
-              columns={requestColumns}
-              loading={loading}
-              rowKey={(r) => r.id}
-              onRowClick={setSelectedRequest}
-              emptyText={`Không có dữ liệu trong mục ${STEP_ITEMS.find(s => s.num === currentStep)?.title}`}
-              compact
-              striped={false}
-            />
+          <div className="h-100 bg-white overflow-auto">
+            {activeTabId === "my-requests" ? (
+              <MyRequestsTab />
+            ) : (
+              <FullWidthTableLayout
+                tableWrapperClassName=""
+                table={
+                  <Table
+                    rows={filteredData}
+                    columns={requestColumns}
+                    loading={loading}
+                    rowKey={(r) => r.id}
+                    onRowClick={setSelectedRequest}
+                    emptyText={`Không có dữ liệu trong mục ${STEP_ITEMS.find(s => s.num === currentStep)?.title}`}
+                    compact
+                    striped={false}
+                    wrapperClassName="mkt-plan-table-no-min"
+                  />
+                }
+              />
+            )}
           </div>
         </WorkflowCard>
       </div>
@@ -586,7 +602,7 @@ export default function ApprovalsPage() {
           </div>
           <div className="offcanvas-body pb-5">
              <div className="d-flex align-items-center gap-3 mb-4">
-                <EmployeeAvatar name={selectedRequest.employee.fullName} url={selectedRequest.employee.avatarUrl} size={60} borderRadius={15} />
+                <EmployeeAvatar name={selectedRequest.employee.fullName} url={selectedRequest.employee.avatarUrl} size={60} />
                 <div>
                    <h6 className="fw-bold mb-1">{selectedRequest.employee.fullName}</h6>
                    <div className="text-muted" style={{ fontSize: 12 }}>{getPositionName(selectedRequest.employee.position)} • {selectedRequest.employee.departmentName}</div>
@@ -632,7 +648,7 @@ export default function ApprovalsPage() {
                                   cls: selectedRequest.type.toLowerCase() === "stationery" ? "text-info" : "text-danger" 
                                },
                             };
-                           const m = map[selectedRequest.status as keyof typeof map] || map.PENDING;
+                           const m = map[selectedRequest.status.toUpperCase() as keyof typeof map] || map.PENDING;
                            return <div className={`fw-bold ${m.cls}`}>{m.label}</div>;
                         })()}
                       </div>
@@ -780,7 +796,7 @@ export default function ApprovalsPage() {
              </div>
           </div>
 
-          {activeTabId === "pending" && selectedRequest.status === "PENDING" && !selectedRequest.hrApproved && (
+          {activeTabId === "pending" && selectedRequest.status.toUpperCase() === "PENDING" && !selectedRequest.hrApproved && (
             <div className="offcanvas-footer p-3 border-top bg-white d-flex gap-2 position-absolute bottom-0 w-100">
                <BrandButton 
                   icon="bi-check-lg" 

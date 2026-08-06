@@ -7,6 +7,9 @@ interface FullWidthTableLayoutProps {
   footer?: ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  tableWrapperClassName?: string;
+  footerClassName?: string;
+  footerStyle?: React.CSSProperties;
 }
 
 export function FullWidthTableLayout({
@@ -15,6 +18,9 @@ export function FullWidthTableLayout({
   footer,
   className,
   style,
+  tableWrapperClassName = "mt-2 border-top",
+  footerClassName,
+  footerStyle,
 }: FullWidthTableLayoutProps) {
   return (
     <div className={cn("d-flex flex-column h-100", className)} style={style}>
@@ -45,12 +51,12 @@ export function FullWidthTableLayout({
           padding-right: 1.5rem !important;
         }
       `}</style>
-      <div className="full-width-table-wrapper mt-2 border-top d-flex flex-column" style={{ flexGrow: 1, overflow: "hidden", minHeight: 0 }}>
+      <div className={cn("full-width-table-wrapper d-flex flex-column", tableWrapperClassName)} style={{ flexGrow: 1, overflow: "hidden", minHeight: 0 }}>
         {table}
       </div>
 
       {footer && (
-        <div className="d-flex align-items-center justify-content-end gap-2 border-top mt-auto flex-shrink-0" style={{ padding: "19px 16px", backgroundColor: "#f8f9fa" }}>
+        <div className={cn("d-flex align-items-center border-top mt-auto flex-shrink-0", footerClassName || "justify-content-end gap-2")} style={footerStyle || { padding: "19px 16px", backgroundColor: "#f8f9fa" }}>
           {footer}
         </div>
       )}

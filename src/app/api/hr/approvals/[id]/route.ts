@@ -268,7 +268,6 @@ export async function DELETE(
 
     const request = await prisma.personalRequest.findUnique({ where: { id } });
     if (!request) return new NextResponse("Yêu cầu không tồn tại", { status: 404 });
-    if (request.status === "APPROVED") return new NextResponse("Không thể xóa đơn đã duyệt", { status: 400 });
 
     await prisma.personalRequest.delete({ where: { id } });
     return NextResponse.json({ message: "Deleted successfully" });

@@ -6,7 +6,7 @@ interface EmployeeAvatarProps {
   name: string;
   url?: string | null;
   size?: number;
-  borderRadius?: number;
+  borderRadius?: number | string;
   fontSize?: number;
   className?: string;
   style?: React.CSSProperties;
@@ -21,8 +21,8 @@ export function EmployeeAvatar({
   name, 
   url, 
   size = 40, 
-  borderRadius = 12, 
-  fontSize = 16,
+  borderRadius = "50%", 
+  fontSize,
   className = "",
   style = {}
 }: EmployeeAvatarProps) {
@@ -46,7 +46,7 @@ export function EmployeeAvatar({
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: fontSize,
+    fontSize: fontSize || Math.max(10, Math.floor((typeof size === "number" ? size : 40) * 0.35)),
     fontWeight: 700,
     color: "var(--primary, #4338ca)",
     flexShrink: 0,

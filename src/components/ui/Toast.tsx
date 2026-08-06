@@ -193,12 +193,12 @@ function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id
 
   return createPortal(
     <div style={{
-      position: "fixed", bottom: 24, right: 24, zIndex: 99999,
-      display: "flex", flexDirection: "column-reverse",
+      position: "fixed", top: 76, right: 24, zIndex: 99999,
+      display: "flex", flexDirection: "column",
       alignItems: "flex-end",
       pointerEvents: "none",
     }}>
-      {/* Render in column-reverse so newest is on bottom */}
+      {/* Render in column so newest is on top */}
       {[...toasts].map(t => (
         <div key={t.id} style={{ pointerEvents: "auto" }}>
           <ToastItem toast={t} onDismiss={onDismiss} />

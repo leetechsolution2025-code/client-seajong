@@ -1779,7 +1779,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
 
   const renderQuayKeRow = (it: QuoteItem, idx: number) => {
     return (
-      <tr key={it.id} style={{ borderBottom: "1px solid var(--border)" }}>
+      <tr key={it.id} style={{ borderBottom: "1px solid var(--border)", verticalAlign: "top" }}>
         <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
         <td style={{ padding: "6px 10px", position: "relative" }}>
           {it.ten.trim() && it.soLuongTon !== null && it.soLuongTon !== undefined && (() => {
@@ -1799,7 +1799,6 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <input
               value={it.ten}
-              placeholder="Nhập tên hoặc mã SKU..."
               onChange={e => {
                 const v = e.target.value;
                 if (!v) {
@@ -1867,7 +1866,6 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
             onChange={v => {
               setItems(r => r.map(x => x.id === it.id ? { ...x, donGia: v, giaDaiLy: Math.round(v * (tyLeGiaDaiLy / 100)) } : x));
             }}
-            placeholder="0"
             style={{ width: "100%", padding: 6, border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }}
           />
         </td>
@@ -1875,7 +1873,6 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
           <CurrencyInput
             value={it.giaDaiLy ?? 0}
             onChange={v => updateRow(it.id, "giaDaiLy", v)}
-            placeholder="0"
             style={{ width: "100%", padding: 6, border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }}
           />
         </td>
@@ -2273,7 +2270,6 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                       </div>
                       <input
                         type="text"
-                        placeholder="Nhập tên khách hàng..."
                         value={custInfo.name}
                         onChange={e => setCustInfo(prev => ({ ...prev, name: e.target.value, id: "" }))}
                         style={{ ...inputSt, background: "#fff" }}
@@ -2283,7 +2279,6 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                       <FLabel text="Số điện thoại" />
                       <input
                         type="text"
-                        placeholder="Nhập số điện thoại..."
                         value={custInfo.dienThoai}
                         onChange={e => setCustInfo(prev => ({ ...prev, dienThoai: e.target.value }))}
                         style={{ ...inputSt, background: "#fff" }}
@@ -2294,7 +2289,6 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                     <FLabel text="Địa chỉ" />
                     <input
                       type="text"
-                      placeholder="Nhập địa chỉ..."
                       value={custInfo.address}
                       onChange={e => setCustInfo(prev => ({ ...prev, address: e.target.value }))}
                       style={{ ...inputSt, background: "#fff" }}
@@ -2479,7 +2473,6 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                     <CurrencyInput
                       value={info.chiPhiThiCong}
                       onChange={(v) => setInfo(f => ({ ...f, chiPhiThiCong: v }))}
-                      placeholder="0"
                       disabled={!isCoQuayKe}
                       style={{ ...inputSt, background: isCoQuayKe ? "var(--background)" : "var(--muted)", cursor: isCoQuayKe ? undefined : "not-allowed" }}
                     />
@@ -2647,7 +2640,6 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                     <FLabel text="Sản phẩm / Dịch vụ" required />
                     <SearchInput
                       value={formItem.ten}
-                      placeholder="Nhập tên hoặc mã SKU sản phẩm..."
                       onChange={v => {
                         setFormItem(prev => ({ ...prev, ten: v }));
                         if (!v) {
@@ -2707,7 +2699,6 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                       <input
                         value={formItem.dinhMucTen || ""}
                         readOnly
-                        placeholder="Tự động hiển thị..."
                         style={{ flex: 1, padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
                       />
                       <button
@@ -2728,7 +2719,6 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                   <input
                     value={formItem.khoTen || ""}
                     readOnly
-                    placeholder="Tự động..."
                     style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
                   />
                 </div>
@@ -2750,7 +2740,6 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                     value={formItem.donGia}
                     onChange={v => !(!isAdmin) && setFormItem(p => ({ ...p, donGia: v }))}
                     readOnly={!isAdmin}
-                    placeholder="0"
                     style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: !isAdmin ? "var(--muted)" : "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: !isAdmin ? "var(--muted-foreground)" : "var(--foreground)", cursor: !isAdmin ? "not-allowed" : "text" }}
                   />
                 </div>
@@ -2861,7 +2850,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                   items.length === 0 ? (
                     <tr><td colSpan={8} style={{ padding: 20, textAlign: "center", color: "var(--muted-foreground)" }}>Chưa có sản phẩm nào</td></tr>
                   ) : items.map((it, idx) => (
-                    <tr key={it.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                    <tr key={it.id} style={{ borderBottom: "1px solid var(--border)", verticalAlign: "top" }}>
                       <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
                       <td style={{ padding: "6px 10px", position: "relative" }}>
                         {it.ten.trim() && it.soLuongTon !== null && it.soLuongTon !== undefined && (() => {

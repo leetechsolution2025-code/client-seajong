@@ -16,7 +16,9 @@ export const revalidate = 0;
  * Response bổ sung:
  *   currentUserEmployeeId — Employee.id của người đang đăng nhập (để auto-select)
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const department = searchParams.get("department");
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -39,6 +41,7 @@ export async function GET() {
           status: true,
           workEmail: true,
           phone: true,
+          departmentCode: true,
         },
       },
     },
@@ -52,12 +55,14 @@ export async function GET() {
     let empId: string | null = null;
     let empName: string | null = null;
     let empPhone: string | null = null;
+    let empDept: string | null = null;
 
     if (u.employee && u.employee.status === "active") {
       // Có Employee liên kết trực tiếp và đang active
       empId = u.employee.id;
       empName = u.employee.fullName;
       empPhone = u.employee.phone;
+      empDept = u.employee.departmentCode;
     } else if (!u.employee) {
       // Chưa có Employee liên kết → thử tìm qua workEmail (không yêu cầu userId: null)
       const empByEmail = await prisma.employee.findFirst({
@@ -65,13 +70,14 @@ export async function GET() {
           workEmail: u.email,
           status: "active",
         },
-        select: { id: true, fullName: true, userId: true, phone: true },
+        select: { id: true, fullName: true, userId: true, phone: true, departmentCode: true },
       });
 
       if (empByEmail) {
         empId = empByEmail.id;
         empName = empByEmail.fullName;
         empPhone = empByEmail.phone;
+        empDept = empByEmail.departmentCode;
 
         // Tự động gán userId nếu chưa được set
         if (!empByEmail.userId) {
@@ -86,6 +92,7 @@ export async function GET() {
     }
 
     if (empId && empName && !seen.has(empId)) {
+      if (department && empDept !== department) continue;
       seen.add(empId);
       result.push({ id: empId, fullName: empName, phone: empPhone, userId: u.id });
     }
