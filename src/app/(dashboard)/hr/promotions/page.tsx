@@ -486,7 +486,7 @@ export default function PromotionsPage() {
         color="rose"
       />
 
-      <div className="flex-grow-1 px-3 px-md-4 pb-4 pt-2 d-flex flex-column fs-promotions-container" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+      <div className="flex-grow-1 p-2 d-flex flex-column fs-promotions-container" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         <WorkflowCard
           className="fs-promotions-card"
           stepper={
@@ -497,7 +497,7 @@ export default function PromotionsPage() {
               paddingX={0} 
             />
           }
-          toolbar={
+          bottomToolbar={
             <div className="d-flex justify-content-between align-items-center fs-toolbar-wrap">
               <div className="d-flex align-items-center gap-2 flex-grow-1 fs-filters-wrap">
                 {/* Search */}
@@ -618,6 +618,9 @@ export default function PromotionsPage() {
               columns={columns}
               loading={loading}
               compact={true}
+              fixedLayout={false}
+              wrapperStyle={{ overflowX: "hidden" }}
+              wrapperClassName="mkt-plan-table-no-min"
               emptyText={`Không có yêu cầu nào đang ở bước ${STEPS.find(s => s.num === currentStep)?.title}`}
               rowKey={(r) => r.id}
               onRowClick={(row) => {

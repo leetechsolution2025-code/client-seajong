@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 
 import { Table, TableColumn } from "@/components/ui/Table";
+import { BrandButton } from "@/components/ui/BrandButton";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { ModernStepper } from "@/components/ui/ModernStepper";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { EmployeeAvatar } from "@/components/hr/EmployeeAvatar";
@@ -129,10 +131,11 @@ export default function TerminationsPage() {
         color="rose" 
       />
 
-      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column fs-terminations-container" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
+      <div className="flex-grow-1 p-2 d-flex flex-column fs-terminations-container" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
         {/* Main Content Card */}
         <WorkflowCard
           className="fs-terminations-card"
+          contentPadding="p-0"
           stepper={
             <ModernStepper 
               steps={dashboardSteps} 
@@ -141,7 +144,7 @@ export default function TerminationsPage() {
               paddingX={0}
             />
           }
-          toolbar={
+          bottomToolbar={
             <div className="d-flex justify-content-between align-items-center fs-toolbar-wrap">
               <div className="d-flex align-items-center gap-2 flex-grow-1 fs-filters-wrap">
                 <div className="d-flex gap-1 bg-light p-1 rounded-3 border fs-tabs-wrap">
@@ -168,103 +171,103 @@ export default function TerminationsPage() {
                   />
                 </div>
 
-                <button 
-                  className="btn btn-sm btn-white border d-flex align-items-center justify-content-center gap-2 px-3 shadow-sm rounded-pill ms-auto fs-filter-btn" 
-                  style={{ height: "38px", fontSize: "13px" }}
-                >
-                  <Filter size={16} /> <span className="d-none d-md-inline">Lọc nâng cao</span>
-                </button>
-
-                <button 
+                <BrandButton 
                   onClick={() => setShowForm(true)}
-                  className="btn btn-sm btn-primary d-flex align-items-center justify-content-center gap-2 px-3 shadow-sm rounded-pill fs-create-btn" 
-                  style={{ height: "38px", fontSize: "13px" }}
+                  icon="bi-plus-lg"
+                  className="ms-auto fs-create-btn"
                 >
-                  <Plus size={16} /> <span className="d-none d-md-inline">Tạo yêu cầu</span>
-                </button>
+                  <span className="d-none d-md-inline">Tạo yêu cầu</span>
+                </BrandButton>
               </div>
-              <div className="text-muted small ms-3 flex-shrink-0 fs-record-count">Đang hiển thị: <b>{filteredRequests.length}</b> hồ sơ</div>
             </div>
           }
         >
           <div className="d-none d-md-block">
-            <Table
-              rows={filteredRequests}
-              loading={loading}
-              onRowClick={(r) => setSelectedRequest(r)}
-              columns={[
-                {
-                  header: "Nhân sự",
-                  render: (r) => (
-                    <div className="d-flex align-items-center gap-3">
-                      <EmployeeAvatar 
-                        name={r.employee?.fullName} 
-                        url={r.employee?.avatarUrl} 
-                        size={34} 
-                        borderRadius={99} 
-                      />
-                      <div>
-                        <div className="fw-bold text-dark" style={{ fontSize: "13px" }}>{r.employee?.fullName}</div>
-                        <div className="text-muted" style={{ fontSize: "11px" }}>{r.employee?.code}</div>
-                      </div>
-                    </div>
-                  )
-                },
-                {
-                  header: "Phòng ban / Vị trí",
-                  render: (r) => (
-                    <div>
-                      <div className="fw-semibold text-dark" style={{ fontSize: "12px" }}>{r.employee?.position}</div>
-                      <div className="text-muted" style={{ fontSize: "11px" }}>{r.employee?.departmentName}</div>
-                    </div>
-                  )
-                },
-                {
-                  header: "Loại thủ tục",
-                  render: (r) => r.type === "RESIGNATION" ? (
-                    <span className="badge rounded-pill bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1">
-                      Thôi việc
-                    </span>
-                  ) : (
-                    <span className="badge rounded-pill bg-red-100 text-red-700 border border-red-200 px-3 py-1">
-                      Sa thải
-                    </span>
-                  )
-                },
-                {
-                  header: "Tiến độ",
-                  render: (r) => (
-                    <div className="d-flex align-items-center gap-2" style={{ width: "120px" }}>
-                      <div className="progress flex-grow-1" style={{ height: "5px", borderRadius: "10px" }}>
-                        <div className={`progress-bar ${r.type === "RESIGNATION" ? "bg-primary" : "bg-danger"}`} 
-                          style={{ width: `${(r.step / (r.type === "RESIGNATION" ? 5 : 9)) * 100}%` }} />
-                      </div>
-                      <span className="text-muted fw-bold" style={{ fontSize: "11px" }}>{r.step}/{r.type === "RESIGNATION" ? 5 : 9}</span>
-                    </div>
-                  )
-                },
-                {
-                  header: "Ngày làm cuối",
-                  render: (r) => (
-                    <span className="text-muted fw-semibold" style={{ fontSize: "12px" }}>
-                      {r.lastWorkingDay ? new Date(r.lastWorkingDay).toLocaleDateString('vi-VN') : "---"}
-                    </span>
-                  )
-                },
-                {
-                  header: "Trạng thái",
-                  render: (r) => <StatusBadge status={r.status} />
-                },
-                {
-                  header: "",
-                  align: "right",
-                  render: () => (
-                    <button className="btn btn-sm btn-light border rounded-3 p-1">
-                      <MoreVertical size={14} />
-                    </button>
-                  )
-                }
-              ]}
+            <FullWidthTableLayout
+              tableWrapperClassName=""
+              table={
+                <Table
+                  rows={filteredRequests}
+                  loading={loading}
+                  fixedLayout={false}
+                  wrapperStyle={{ overflowX: "hidden" }}
+                  wrapperClassName="mkt-plan-table-no-min"
+                  onRowClick={(r) => setSelectedRequest(r)}
+                  columns={[
+                    {
+                      header: "Nhân sự",
+                      render: (r) => (
+                        <div className="d-flex align-items-center gap-3">
+                          <EmployeeAvatar 
+                            name={r.employee?.fullName} 
+                            url={r.employee?.avatarUrl} 
+                            size={34} 
+                            borderRadius={99} 
+                          />
+                          <div>
+                            <div className="fw-bold text-dark" style={{ fontSize: "13px" }}>{r.employee?.fullName}</div>
+                            <div className="text-muted" style={{ fontSize: "11px" }}>{r.employee?.code}</div>
+                          </div>
+                        </div>
+                      )
+                    },
+                    {
+                      header: "Phòng ban / Vị trí",
+                      render: (r) => (
+                        <div>
+                          <div className="fw-semibold text-dark" style={{ fontSize: "12px" }}>{r.employee?.position}</div>
+                          <div className="text-muted" style={{ fontSize: "11px" }}>{r.employee?.departmentName}</div>
+                        </div>
+                      )
+                    },
+                    {
+                      header: "Loại thủ tục",
+                      render: (r) => r.type === "RESIGNATION" ? (
+                        <span className="badge rounded-pill bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1">
+                          Thôi việc
+                        </span>
+                      ) : (
+                        <span className="badge rounded-pill bg-red-100 text-red-700 border border-red-200 px-3 py-1">
+                          Sa thải
+                        </span>
+                      )
+                    },
+                    {
+                      header: "Tiến độ",
+                      render: (r) => (
+                        <div className="d-flex align-items-center gap-2" style={{ width: "120px" }}>
+                          <div className="progress flex-grow-1" style={{ height: "5px", borderRadius: "10px" }}>
+                            <div className={`progress-bar ${r.type === "RESIGNATION" ? "bg-primary" : "bg-danger"}`} 
+                              style={{ width: `${(r.step / (r.type === "RESIGNATION" ? 5 : 9)) * 100}%` }} />
+                          </div>
+                          <span className="text-muted fw-bold" style={{ fontSize: "11px" }}>{r.step}/{r.type === "RESIGNATION" ? 5 : 9}</span>
+                        </div>
+                      )
+                    },
+                    {
+                      header: "Ngày làm cuối",
+                      render: (r) => (
+                        <span className="text-muted fw-semibold" style={{ fontSize: "12px" }}>
+                          {r.lastWorkingDay ? new Date(r.lastWorkingDay).toLocaleDateString('vi-VN') : "---"}
+                        </span>
+                      )
+                    },
+                    {
+                      header: "Trạng thái",
+                      render: (r) => <StatusBadge status={r.status} />
+                    },
+                    {
+                      header: "",
+                      align: "right",
+                      render: () => (
+                        <button className="btn btn-sm btn-light border rounded-3 p-1">
+                          <MoreVertical size={14} />
+                        </button>
+                      )
+                    }
+                  ]}
+                />
+              }
             />
           </div>
 
