@@ -164,7 +164,8 @@ export default function LogisticsOverviewPage() {
             pickedQty: it.pickedQty,
             unit: it.donVi || it.inventoryItem?.donVi, 
             type: it.type, 
-            isShortage: isLacking 
+            isShortage: isLacking,
+            bomCode: it.bomCode
           };
         });
         
@@ -646,10 +647,15 @@ export default function LogisticsOverviewPage() {
                       header: "Sản phẩm", 
                       render: (row: any) => (
                         <div className="d-flex flex-column">
-                          <span className="fw-medium text-dark">
+                          <span className="fw-semibold text-dark d-block">
                             {row.name}
                             {row.isShortage && <i className="bi bi-exclamation-circle text-danger ms-2" title="Thiếu hàng trong kho" />}
                           </span>
+                          {row.bomCode && (
+                            <span className="badge mt-1 mb-1 me-2 align-self-start" style={{ backgroundColor: "rgba(59, 130, 246, 0.1)", color: "#3b82f6", fontSize: 10 }}>
+                              <i className="bi bi-diagram-3 me-1"></i> {row.bomCode}
+                            </span>
+                          )}
                           {row.type && <span className="text-muted" style={{ fontSize: 11 }}><i className="bi bi-box-seam me-1"></i>{row.type}</span>}
                         </div>
                       ), 

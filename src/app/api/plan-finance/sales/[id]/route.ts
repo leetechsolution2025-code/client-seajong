@@ -189,7 +189,7 @@ export async function GET(
       item.canProduce = false;
       
       // Tìm BOM để biết có thể sản xuất hay không
-      let resolvedDinhMucId = item.inventoryItem?.dinhMucId || null;
+      let resolvedDinhMucId = item.dinhMucId || item.inventoryItem?.dinhMucId || null;
       let warehouseCode = "KHO-CHINH";
       if (!resolvedDinhMucId && item.inventoryItem) {
         const dm = await prisma.dinhMuc.findFirst({
@@ -362,13 +362,18 @@ export async function PATCH(
         await tx.saleOrderItem.deleteMany({ where: { saleOrderId: id } });
         if (items.length > 0) {
           await tx.saleOrderItem.createMany({
-            data: items.map((it: any) => ({
-              saleOrderId: id,
-              tenHang: it.tenHang ?? "",
-              soLuong: parseFloat(String(it.soLuong ?? 1)),
-              donGia: parseFloat(String(it.donGia ?? 0)),
-              thanhTien: parseFloat(String(it.thanhTien ?? 0)),
-            }))
+            data: items.map((it: any) => {
+              const ghiChuObj = (() => { try { return JSON.parse(it.ghiChu || "{}"); } catch(e) { return {}; } })();
+              return {
+                saleOrderId: id,
+                tenHang: it.tenHang ?? "",
+                soLuong: parseFloat(String(it.soLuong ?? 1)),
+                donGia: parseFloat(String(it.donGia ?? 0)),
+                thanhTien: parseFloat(String(it.thanhTien ?? 0)),
+                dinhMucId: ghiChuObj.dinhMucId || null,
+                ghiChu: it.ghiChu ?? null,
+              };
+            })
           });
         }
       }
@@ -582,7 +587,7 @@ export async function PATCH(
             }
 
             const invItem = matchedInvItemId ? await tx.inventoryItem.findFirst({ where: { id: matchedInvItemId } }) : null;
-            let resolvedDinhMucId = (invItem as any)?.dinhMucId || null;
+            let resolvedDinhMucId = (item as any).dinhMucId || (invItem as any)?.dinhMucId || null;
             
             if (!resolvedDinhMucId && invItem) {
               const dm = await tx.dinhMuc.findFirst({

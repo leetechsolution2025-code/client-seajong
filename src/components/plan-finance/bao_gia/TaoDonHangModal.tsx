@@ -732,7 +732,13 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
             tenHang: it.ten.trim(),
             soLuong: it.soLuong,
             donGia: it.donGia,
-            thanhTien: thanhTien(it)
+            thanhTien: thanhTien(it),
+            ghiChu: JSON.stringify({ 
+              code: it.code || "", 
+              khoTen: it.khoTen || "", 
+              dinhMucId: it.dinhMucId || "",
+              bomCode: (it.dinhMucs && Array.isArray(it.dinhMucs) ? it.dinhMucs.find((d: any) => d.id === it.dinhMucId)?.code : "") || "" 
+            })
           }))
         };
         const res = await fetch(`/api/plan-finance/sales/${editOrder.id}`, {
@@ -764,7 +770,12 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
             soLuong: it.soLuong,
             donGia: it.donGia,
             thanhTien: thanhTien(it),
-            ghiChu: JSON.stringify({ code: it.code || "", khoTen: it.khoTen || "" }),
+            ghiChu: JSON.stringify({ 
+              code: it.code || "", 
+              khoTen: it.khoTen || "", 
+              dinhMucId: it.dinhMucId || "", 
+              bomCode: (it.dinhMucs && Array.isArray(it.dinhMucs) ? it.dinhMucs.find((d: any) => d.id === it.dinhMucId)?.code : "") || "" 
+            }),
             sortOrder: idx
           })),
           customerId: finalCustomerId || null,

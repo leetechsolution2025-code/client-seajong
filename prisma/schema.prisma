@@ -647,6 +647,8 @@ model SaleOrderItem {
   soLuong         Float          @default(1)
   donGia          Float          @default(0) // Giá bán đơn vị
   thanhTien       Float          @default(0) // soLuong * donGia
+  dinhMucId       String?
+  ghiChu          String?
   inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
   saleOrder       SaleOrder      @relation(fields: [saleOrderId], references: [id], onDelete: Cascade)
 

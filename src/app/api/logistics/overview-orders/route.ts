@@ -95,11 +95,24 @@ export async function GET(_req: NextRequest) {
         take: 100,
         select: {
           id: true, code: true, status: true, type: true, createdAt: true,
-          saleOrder: { select: { id: true, code: true, ngayGiao: true, customer: { select: { name: true } } } },
+          saleOrder: { 
+            select: { 
+              id: true, code: true, ngayGiao: true, 
+              customer: { select: { name: true } },
+              saleOrderItems: {
+                select: {
+                  inventoryItemId: true,
+                  dinhMucId: true,
+                  ghiChu: true
+                }
+              }
+            } 
+          },
           items: {
             select: {
               requestedQty: true,
               pickedQty: true,
+              inventoryItemId: true,
               inventoryItem: { select: { tenHang: true, donVi: true } }
             }
           }
@@ -133,13 +146,26 @@ export async function GET(_req: NextRequest) {
         saleOrderId: t.saleOrder?.id,
         saleOrderCode: t.saleOrder?.code,
         requestedDate: t.type === "BATCH_PACKING" ? (t.saleOrder?.ngayGiao ?? t.createdAt) : t.createdAt,
-        items: t.items?.map((it: any) => ({
-          tenHang: it.inventoryItem?.tenHang || "Vật tư",
-          soLuong: it.requestedQty || 0,
-          requestedQty: it.requestedQty || 0,
-          pickedQty: it.pickedQty || 0,
-          donVi: it.inventoryItem?.donVi || "cái"
-        }))
+        items: t.items?.map((it: any) => {
+          let bomCode = null;
+          if (t.saleOrder?.saleOrderItems) {
+            const soItem = t.saleOrder.saleOrderItems.find((soi: any) => soi.inventoryItemId === it.inventoryItemId);
+            if (soItem && soItem.ghiChu) {
+              try {
+                const parsed = JSON.parse(soItem.ghiChu);
+                if (parsed.bomCode) bomCode = parsed.bomCode;
+              } catch(e) {}
+            }
+          }
+          return {
+            tenHang: it.inventoryItem?.tenHang || "Vật tư",
+            soLuong: it.requestedQty || 0,
+            requestedQty: it.requestedQty || 0,
+            pickedQty: it.pickedQty || 0,
+            donVi: it.inventoryItem?.donVi || "cái",
+            bomCode
+          };
+        })
       })),
       ...contracts.map(c => ({
         id:        c.id,
