@@ -960,7 +960,9 @@ export default function LogisticsOverviewPage() {
                               const item = selectedOrderDetails[itemIdx];
                               if (!item) return <td key={colIndex} style={{ width: "33.33%", height: "63mm", padding: "4px" }}></td>;
                               
-                              const qrData = encodeURIComponent(`Sản phẩm: ${item.name || ""}\nMã SP: ${item.code || "N/A"}\nMàu: ${item.color || "N/A"}\nGiá: ${item.giaBan ? item.giaBan.toLocaleString("vi-VN") : "N/A"}\nBảo hành: 5 năm`);
+                              // Mặc định WooCommerce không tìm theo SKU, nên dùng item.name (hoặc model) để tìm kiếm sẽ chính xác hơn
+                              const searchQuery = encodeURIComponent(item.name || item.code || "");
+                              const qrData = encodeURIComponent(`https://seajong.com/?s=${searchQuery}&post_type=product`);
                               
                               return (
                               <td key={colIndex} style={{ width: "33.33%", height: "63mm", padding: "4px" }}>
