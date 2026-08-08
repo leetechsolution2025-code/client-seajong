@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
       tongTien, discount, vat, chiPhiThiCong, thanhTien, ghiChu,
       quoteType,
       type,
-      file3DUrl, fileDetailUrl, fileLayoutUrl,
+      fileKhuVuc1, fileKhuVuc2, fileKhuVuc3, fileKhuVuc4, fileKhuVuc5,
       items,
     } = body;
 
@@ -214,9 +214,11 @@ export async function POST(req: NextRequest) {
           chiPhiThiCong: parseFloat(chiPhiThiCong ?? 0),
           thanhTien: parseFloat(thanhTien ?? 0),
           ghiChu,
-          file3DUrl,
-          fileDetailUrl,
-          fileLayoutUrl,
+          fileKhuVuc1,
+          fileKhuVuc2,
+          fileKhuVuc3,
+          fileKhuVuc4,
+          fileKhuVuc5,
           type: type ?? "retail",
           ...(customerId && { customerId }),
           ...(nguoiPhuTrachId && { nguoiPhuTrachId }),

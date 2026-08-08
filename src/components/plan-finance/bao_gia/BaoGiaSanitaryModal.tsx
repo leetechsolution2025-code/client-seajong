@@ -45,9 +45,11 @@ export interface QuotationEditData {
   thanhTien?: number | null;
   ghiChu?: string | null;
   quoteType?: string | null;
-  file3DUrl?: string | null;
-  fileDetailUrl?: string | null;
-  fileLayoutUrl?: string | null;
+  fileKhuVuc1?: string | null;
+  fileKhuVuc2?: string | null;
+  fileKhuVuc3?: string | null;
+  fileKhuVuc4?: string | null;
+  fileKhuVuc5?: string | null;
   items?: Array<{
     tenHang: string; donVi?: string;
     soLuong?: number; donGia?: number; thanhTien?: number;
@@ -854,9 +856,11 @@ function PrintPreviewModal({ open, onClose, customer, items, info, initialAction
             {/* Page 3: Bản vẽ đính kèm */}
             {(() => {
               const drawingsList = [
-                { label: "Bản vẽ 3D", url: info.file3DUrl },
-                { label: "Bản vẽ chi tiết", url: info.fileDetailUrl },
-                { label: "Bản vẽ mặt bằng", url: info.fileLayoutUrl }
+                { label: "Bản vẽ KV 1", url: info.fileKhuVuc1 },
+                { label: "Bản vẽ KV 2", url: info.fileKhuVuc2 },
+                { label: "Bản vẽ KV 3", url: info.fileKhuVuc3 },
+                { label: "Bản vẽ KV 4", url: info.fileKhuVuc4 },
+                { label: "Bản vẽ KV 5", url: info.fileKhuVuc5 },
               ].filter(d => d.url);
 
               if (!isCoQuayKe || drawingsList.length === 0) return null;
@@ -1234,9 +1238,11 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
     thue: 10,
     quoteType: isDirectOrder ? "Không có quầy kệ" : (type === "retail" ? "Không có quầy kệ" : "Có quầy kệ"),
     chiPhiThiCong: 0,
-    file3DUrl: "",
-    fileDetailUrl: "",
-    fileLayoutUrl: "",
+    fileKhuVuc1: "",
+    fileKhuVuc2: "",
+    fileKhuVuc3: "",
+    fileKhuVuc4: "",
+    fileKhuVuc5: "",
   });
 
   const [showInfoSidebar, setShowInfoSidebar] = React.useState(false);
@@ -1491,9 +1497,11 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
         ghiChu: cleanGhiChu(editData.ghiChu ?? ""),
         quoteType: isDirectOrder ? "Không có quầy kệ" : (editData.quoteType ?? (type === "retail" ? "Không có quầy kệ" : "Có quầy kệ")),
         chiPhiThiCong: editData.chiPhiThiCong ?? 0,
-        file3DUrl: editData.file3DUrl ?? "",
-        fileDetailUrl: editData.fileDetailUrl ?? "",
-        fileLayoutUrl: editData.fileLayoutUrl ?? "",
+        fileKhuVuc1: editData.fileKhuVuc1 ?? "",
+        fileKhuVuc2: editData.fileKhuVuc2 ?? "",
+        fileKhuVuc3: editData.fileKhuVuc3 ?? "",
+        fileKhuVuc4: editData.fileKhuVuc4 ?? "",
+        fileKhuVuc5: editData.fileKhuVuc5 ?? "",
         dieuKhoanTT: f.dieuKhoanTT,
         dieuKhoanGH: f.dieuKhoanGH,
       }));
@@ -1589,9 +1597,11 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
         thue: 10,
         quoteType: isDirectOrder ? "Không có quầy kệ" : (type === "retail" ? "Không có quầy kệ" : "Có quầy kệ"),
         chiPhiThiCong: 0,
-        file3DUrl: "",
-        fileDetailUrl: "",
-        fileLayoutUrl: ""
+        fileKhuVuc1: "",
+        fileKhuVuc2: "",
+        fileKhuVuc3: "",
+        fileKhuVuc4: "",
+        fileKhuVuc5: ""
       });
 
 
@@ -1675,7 +1685,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
 
   const setInfoField = (k: string) => (e: any) => setInfo(f => ({ ...f, [k]: e.target.type === "number" ? Number(e.target.value) : e.target.value }));
 
-  const handleUpload = (key: "file3DUrl" | "fileDetailUrl" | "fileLayoutUrl", label: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = (key: "fileKhuVuc1" | "fileKhuVuc2" | "fileKhuVuc3" | "fileKhuVuc4" | "fileKhuVuc5", label: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const target = e.target;
     const file = target.files?.[0];
     
@@ -1700,18 +1710,18 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
     }
   };
 
-  const handleClearFile = (key: "file3DUrl" | "fileDetailUrl" | "fileLayoutUrl", label: string) => (e: React.MouseEvent) => {
+  const handleClearFile = (key: "fileKhuVuc1" | "fileKhuVuc2" | "fileKhuVuc3" | "fileKhuVuc4" | "fileKhuVuc5", label: string) => (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setInfo(f => ({ ...f, [key]: "" }));
     toast.success("Đã gỡ file", `Đã gỡ bản vẽ ${label}`);
   };
 
-  const renderAttachmentButton = ({ label, fileUrl, uploadKey, disabled }: { label: string; fileUrl: string; uploadKey: "file3DUrl" | "fileDetailUrl" | "fileLayoutUrl"; disabled?: boolean }) => {
+  const renderAttachmentButton = ({ label, fileUrl, uploadKey, disabled, keyProp }: { label: string; fileUrl: string; uploadKey: "fileKhuVuc1" | "fileKhuVuc2" | "fileKhuVuc3" | "fileKhuVuc4" | "fileKhuVuc5"; disabled?: boolean; keyProp?: string }) => {
     const isAttached = !!fileUrl;
     const fileName = fileUrl ? fileUrl.split("/").pop() : "";
     return (
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", opacity: disabled ? 0.5 : 1, pointerEvents: disabled ? "none" : undefined }}>
+      <div key={keyProp} style={{ flex: 1, display: "flex", flexDirection: "column", opacity: disabled ? 0.5 : 1, pointerEvents: disabled ? "none" : undefined }}>
         {isAttached ? (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1920,9 +1930,11 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
         ghiChu: finalGhiChu,
         approverId: (mode === "submit" && pheduyet) ? approverId : undefined,
         quoteType: info.quoteType,
-        file3DUrl: info.file3DUrl,
-        fileDetailUrl: info.fileDetailUrl,
-        fileLayoutUrl: info.fileLayoutUrl,
+        fileKhuVuc1: info.fileKhuVuc1,
+        fileKhuVuc2: info.fileKhuVuc2,
+        fileKhuVuc3: info.fileKhuVuc3,
+        fileKhuVuc4: info.fileKhuVuc4,
+        fileKhuVuc5: info.fileKhuVuc5,
         items: items.filter(it => it.ten.trim()).map((it, idx) => {
           const itemThanhTien = isCoQuayKe ? (it.giaDaiLy ?? 0) : thanhTien(it);
           const itemGhiChu = JSON.stringify({
@@ -2480,14 +2492,8 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                 </div>
                 {isSanitary && (
                   <div>
-                    <FLabel text="Bản vẽ đính kèm" />
-                    <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-                      {renderAttachmentButton({ label: "Bản vẽ 3D", fileUrl: info.file3DUrl || "", uploadKey: "file3DUrl", disabled: !isCoQuayKe })}
-                      {renderAttachmentButton({ label: "Bản vẽ chi tiết", fileUrl: info.fileDetailUrl || "", uploadKey: "fileDetailUrl", disabled: !isCoQuayKe })}
-                      {renderAttachmentButton({ label: "Bản vẽ mặt bằng", fileUrl: info.fileLayoutUrl || "", uploadKey: "fileLayoutUrl", disabled: !isCoQuayKe })}
-                    </div>
                     {isCoQuayKe && (
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 4 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
                         <div>
                           <FLabel text="Số khu vực" />
                           <input
@@ -2512,6 +2518,15 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                         </div>
                       </div>
                     )}
+                    <FLabel text="Bản vẽ đính kèm" />
+                    <div style={{ display: "flex", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                      {Array.from({ length: Math.min(soKhuVuc, 5) }).map((_, i) => {
+                        const idx = i + 1;
+                        const key = `fileKhuVuc${idx}` as "fileKhuVuc1" | "fileKhuVuc2" | "fileKhuVuc3" | "fileKhuVuc4" | "fileKhuVuc5";
+                        const url = info[key];
+                        return renderAttachmentButton({ keyProp: key, label: `Bản vẽ KV ${idx}`, fileUrl: url || "", uploadKey: key, disabled: !isCoQuayKe });
+                      })}
+                    </div>
                   </div>
                 )}
               </>
@@ -2547,36 +2562,25 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                 <span style={{ fontWeight: 800, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--primary)" }}>Bản vẽ đính kèm</span>
                 <button onClick={() => setShowDrawings(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "var(--foreground)", display: "flex", alignItems: "center" }}><i className="bi bi-x-lg" /></button>
               </div>
-              {(!info.file3DUrl && !info.fileDetailUrl && !info.fileLayoutUrl) ? (
+              {(!info.fileKhuVuc1 && !info.fileKhuVuc2 && !info.fileKhuVuc3 && !info.fileKhuVuc4 && !info.fileKhuVuc5) ? (
                 <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", fontSize: 13 }}>
                   Chưa có bản vẽ nào được tải lên
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {info.file3DUrl && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>BẢN VẼ 3D</span>
-                      <a href={info.file3DUrl} target="_blank" rel="noopener noreferrer">
-                        <img src={info.file3DUrl} alt="Bản vẽ 3D" style={{ width: "100%", borderRadius: 8, border: "1px solid var(--border)", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.85"} onMouseLeave={e => e.currentTarget.style.opacity = "1"} />
-                      </a>
-                    </div>
-                  )}
-                  {info.fileDetailUrl && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>BẢN VẼ CHI TIẾT</span>
-                      <a href={info.fileDetailUrl} target="_blank" rel="noopener noreferrer">
-                        <img src={info.fileDetailUrl} alt="Bản vẽ chi tiết" style={{ width: "100%", borderRadius: 8, border: "1px solid var(--border)", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.85"} onMouseLeave={e => e.currentTarget.style.opacity = "1"} />
-                      </a>
-                    </div>
-                  )}
-                  {info.fileLayoutUrl && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>BẢN VẼ MẶT BẰNG</span>
-                      <a href={info.fileLayoutUrl} target="_blank" rel="noopener noreferrer">
-                        <img src={info.fileLayoutUrl} alt="Bản vẽ mặt bằng" style={{ width: "100%", borderRadius: 8, border: "1px solid var(--border)", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.85"} onMouseLeave={e => e.currentTarget.style.opacity = "1"} />
-                      </a>
-                    </div>
-                  )}
+                  {[1, 2, 3, 4, 5].map(idx => {
+                    const key = `fileKhuVuc${idx}` as "fileKhuVuc1" | "fileKhuVuc2" | "fileKhuVuc3" | "fileKhuVuc4" | "fileKhuVuc5";
+                    const url = info[key];
+                    if (!url) return null;
+                    return (
+                      <div key={key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>BẢN VẼ KHU VỰC {idx}</span>
+                        <a href={url} target="_blank" rel="noopener noreferrer">
+                          <img src={url} alt={`Bản vẽ khu vực ${idx}`} style={{ width: "100%", borderRadius: 8, border: "1px solid var(--border)", transition: "opacity 0.2s" }} onMouseEnter={e => e.currentTarget.style.opacity = "0.85"} onMouseLeave={e => e.currentTarget.style.opacity = "1"} />
+                        </a>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -2890,7 +2894,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
           <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--card)" }}>
             <div>
               {isCoQuayKe && (() => {
-                const hasDrawings = !!(info.file3DUrl || info.fileDetailUrl || info.fileLayoutUrl);
+                const hasDrawings = !!(info.fileKhuVuc1 || info.fileKhuVuc2 || info.fileKhuVuc3 || info.fileKhuVuc4 || info.fileKhuVuc5);
                 return (
                   <button
                     disabled={!hasDrawings}

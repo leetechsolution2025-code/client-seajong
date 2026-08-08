@@ -1061,9 +1061,11 @@ model Quotation {
   chiPhiThiCong   Float                  @default(0)
   thanhTien       Float                  @default(0)
   ghiChu          String?
-  file3DUrl       String?
-  fileDetailUrl   String?
-  fileLayoutUrl   String?
+  fileKhuVuc1     String?
+  fileKhuVuc2     String?
+  fileKhuVuc3     String?
+  fileKhuVuc4     String?
+  fileKhuVuc5     String?
   type            String                 @default("retail")
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt

@@ -33,9 +33,11 @@ export interface QuotationForDetail {
   ghiChu?: string | null;
   quoteType?: string | null;
   chiPhiThiCong?: number | null;
-  file3DUrl?: string | null;
-  fileDetailUrl?: string | null;
-  fileLayoutUrl?: string | null;
+  fileKhuVuc1?: string | null;
+  fileKhuVuc2?: string | null;
+  fileKhuVuc3?: string | null;
+  fileKhuVuc4?: string | null;
+  fileKhuVuc5?: string | null;
   type?: string | null;
 }
 
@@ -795,9 +797,11 @@ export function ChiTietBaoGia({ q, onClose, onDeleted }: Props) {
           ghiChu: q2.ghiChu ?? null,
           quoteType: q2.quoteType,
           chiPhiThiCong: q2.chiPhiThiCong ?? 0,
-          file3DUrl: q2.file3DUrl,
-          fileDetailUrl: q2.fileDetailUrl,
-          fileLayoutUrl: q2.fileLayoutUrl,
+          fileKhuVuc1: q2.fileKhuVuc1,
+          fileKhuVuc2: q2.fileKhuVuc2,
+          fileKhuVuc3: q2.fileKhuVuc3,
+          fileKhuVuc4: q2.fileKhuVuc4,
+          fileKhuVuc5: q2.fileKhuVuc5,
           items: q2.items ?? [],
         } satisfies QuotationEditData}
         onSaved={() => { refetchQ(q2.id); onDeleted?.(); }}

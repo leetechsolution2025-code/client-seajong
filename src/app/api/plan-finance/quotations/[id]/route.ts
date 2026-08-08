@@ -112,7 +112,7 @@ export async function PATCH(
     const {
       code, ngayBaoGia, ngayHetHan, trangThai, uuTien,
       tongTien, discount, vat, chiPhiThiCong, thanhTien, ghiChu, items,
-      file3DUrl, fileDetailUrl, fileLayoutUrl,
+      fileKhuVuc1, fileKhuVuc2, fileKhuVuc3, fileKhuVuc4, fileKhuVuc5,
     } = body;
 
     // Truly partial update — chỉ include field khi field đó có trong body
@@ -126,9 +126,11 @@ export async function PATCH(
     if (chiPhiThiCong !== undefined) updateData.chiPhiThiCong = parseFloat(String(chiPhiThiCong));
     if (thanhTien !== undefined) updateData.thanhTien = parseFloat(String(thanhTien));
     if (ghiChu !== undefined) updateData.ghiChu = ghiChu;
-    if (file3DUrl !== undefined) updateData.file3DUrl = file3DUrl;
-    if (fileDetailUrl !== undefined) updateData.fileDetailUrl = fileDetailUrl;
-    if (fileLayoutUrl !== undefined) updateData.fileLayoutUrl = fileLayoutUrl;
+    if (fileKhuVuc1 !== undefined) updateData.fileKhuVuc1 = fileKhuVuc1;
+    if (fileKhuVuc2 !== undefined) updateData.fileKhuVuc2 = fileKhuVuc2;
+    if (fileKhuVuc3 !== undefined) updateData.fileKhuVuc3 = fileKhuVuc3;
+    if (fileKhuVuc4 !== undefined) updateData.fileKhuVuc4 = fileKhuVuc4;
+    if (fileKhuVuc5 !== undefined) updateData.fileKhuVuc5 = fileKhuVuc5;
     if (ngayBaoGia !== undefined) updateData.ngayBaoGia = new Date(ngayBaoGia);
     if (ngayHetHan !== undefined) updateData.ngayHetHan = new Date(ngayHetHan);
 
