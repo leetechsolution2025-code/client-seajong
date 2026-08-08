@@ -908,43 +908,39 @@ function PrintPreviewModal({ open, onClose, customer, items, info, initialAction
                   </div>
 
                   {/* Content */}
-                  <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: "15px" }}>
-                    {drawingsList.length === 1 && (
-                      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                        <div style={{ fontSize: "10px", fontWeight: 700, color: "#003087", marginBottom: "4px", textTransform: "uppercase" }}>{drawingsList[0].label}</div>
-                        <img src={drawingsList[0].url} alt={drawingsList[0].label} style={{ maxWidth: "100%", maxHeight: "190mm", objectFit: "contain", border: "1px solid #e2e8f0", borderRadius: "4px" }} />
-                      </div>
-                    )}
-
-                    {drawingsList.length === 2 && (
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", flex: 1, alignItems: "center" }}>
-                        {drawingsList.map(d => (
-                          <div key={d.label} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                            <div style={{ fontSize: "10px", fontWeight: 700, color: "#003087", marginBottom: "4px", textTransform: "uppercase" }}>{d.label}</div>
-                            <img src={d.url} alt={d.label} style={{ maxWidth: "100%", maxHeight: "170mm", objectFit: "contain", border: "1px solid #e2e8f0", borderRadius: "4px" }} />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {drawingsList.length === 3 && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "15px", flex: 1, justifyContent: "space-between" }}>
-                        {/* Top row: 3D drawing taking full width */}
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", height: "48%" }}>
-                          <div style={{ fontSize: "10px", fontWeight: 700, color: "#003087", marginBottom: "3px", textTransform: "uppercase" }}>{drawingsList[0].label}</div>
-                          <img src={drawingsList[0].url} alt={drawingsList[0].label} style={{ width: "100%", height: "calc(100% - 18px)", objectFit: "contain", border: "1px solid #e2e8f0", borderRadius: "4px" }} />
-                        </div>
-                        {/* Bottom row: other 2 drawings side by side */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", height: "48%" }}>
-                          {drawingsList.slice(1).map(d => (
-                            <div key={d.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
-                              <div style={{ fontSize: "10px", fontWeight: 700, color: "#003087", marginBottom: "3px", textTransform: "uppercase" }}>{d.label}</div>
-                              <img src={d.url} alt={d.label} style={{ width: "100%", height: "calc(100% - 18px)", objectFit: "contain", border: "1px solid #e2e8f0", borderRadius: "4px" }} />
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: "15px", minHeight: 0 }}>
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: drawingsList.length === 1 ? "1fr" : "1fr 1fr",
+                      gridTemplateRows: `repeat(${drawingsList.length <= 2 ? 1 : (drawingsList.length <= 4 ? 2 : 3)}, 1fr)`,
+                      gap: "15px",
+                      flex: 1,
+                      minHeight: 0,
+                      width: "100%"
+                    }}>
+                      {drawingsList.map((d, i) => {
+                        // If odd number of items > 1, make the first one span full width to keep grid balanced
+                        const spanFull = (drawingsList.length % 2 !== 0 && drawingsList.length > 1 && i === 0);
+                        return (
+                          <div key={d.label} style={{
+                            display: "flex", flexDirection: "column", alignItems: "center",
+                            gridColumn: spanFull ? "1 / -1" : undefined,
+                            minHeight: 0
+                          }}>
+                            <div style={{ fontSize: "10px", fontWeight: 700, color: "#003087", marginBottom: "4px", textTransform: "uppercase", flexShrink: 0 }}>{d.label}</div>
+                            <div style={{ flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+                              <img src={d.url} alt={d.label} style={{
+                                maxWidth: "100%",
+                                maxHeight: "100%",
+                                objectFit: "contain",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "4px"
+                              }} />
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Footer (same style as cover letter footer) */}
