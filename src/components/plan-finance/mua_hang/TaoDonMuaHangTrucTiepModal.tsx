@@ -64,17 +64,14 @@ export function TaoDonMuaHangTrucTiepModal({ onClose, onSaved }: TaoDonMuaHangTr
     const dd = String(d.getDate()).padStart(2, "0");
     const dateStr = `${yyyy}${mm}${dd}`;
 
-    fetch("/api/plan-finance/purchasing?page=1&limit=10")
+    fetch("/api/plan-finance/purchasing/next-code")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        let count = 0;
-        if (data && data.items) {
-          const todayStart = new Date();
-          todayStart.setHours(0, 0, 0, 0);
-          count = data.items.filter((item: any) => new Date(item.createdAt) >= todayStart).length;
+        if (data && data.nextCode) {
+          setSoDonHang(data.nextCode);
+        } else {
+          setSoDonHang(`DH-${dateStr}-0001`);
         }
-        const nextSTT = String(count + 1).padStart(4, "0");
-        setSoDonHang(`DH-${dateStr}-${nextSTT}`);
       })
       .catch(() => {
         setSoDonHang(`DH-${dateStr}-0001`);

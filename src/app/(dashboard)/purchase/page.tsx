@@ -2056,18 +2056,26 @@ function OrderDetailOffcanvas({ order, onClose, onChanged, onEditOrder, onPrintO
                   <span style={{ fontSize: "11px", fontWeight: "700" }}>Xoá</span>
                 </button>
 
-                <button
-                  onClick={() => handleUpdateStatus("ordered")}
-                  style={{
-                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                    height: "64px", borderRadius: "10px", border: "1px solid var(--border)",
-                    background: "rgba(99, 102, 241, 0.02)", cursor: "pointer", gap: "6px",
-                    transition: "all 0.15s ease", color: "var(--foreground)"
-                  }}
-                >
-                  <i className="bi bi-cart" style={{ fontSize: "16px", color: "#6366f1" }} />
-                  <span style={{ fontSize: "11px", fontWeight: "700" }}>Đặt hàng</span>
-                </button>
+                {(() => {
+                  const isOrderPlaced = ["ordered", "shipping", "received", "completed", "cancelled"].includes(order.trangThai || "");
+                  return (
+                    <button
+                      disabled={isOrderPlaced}
+                      onClick={() => handleUpdateStatus("ordered")}
+                      style={{
+                        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                        height: "64px", borderRadius: "10px", border: "1px solid var(--border)",
+                        background: isOrderPlaced ? "var(--background)" : "rgba(99, 102, 241, 0.02)",
+                        cursor: isOrderPlaced ? "not-allowed" : "pointer", gap: "6px",
+                        transition: "all 0.15s ease", color: isOrderPlaced ? "var(--muted-foreground)" : "var(--foreground)",
+                        opacity: isOrderPlaced ? 0.5 : 1
+                      }}
+                    >
+                      <i className="bi bi-cart" style={{ fontSize: "16px", color: isOrderPlaced ? "var(--muted-foreground)" : "#6366f1" }} />
+                      <span style={{ fontSize: "11px", fontWeight: "700" }}>Đặt hàng</span>
+                    </button>
+                  );
+                })()}
 
                 <button
                   onClick={() => handleUpdateStatus("received")}

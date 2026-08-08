@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface ProductionOrderDetailOffcanvasProps {
   orderId: string | null;
@@ -15,6 +16,8 @@ export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate
   const [showIncidentModal, setShowIncidentModal] = useState(false);
   const [incidentMessage, setIncidentMessage] = useState("");
   const [submittingIncident, setSubmittingIncident] = useState(false);
+  
+  const [showConfirmComplete, setShowConfirmComplete] = useState(false);
 
   useEffect(() => {
     if (show && orderId) {
@@ -274,7 +277,7 @@ export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate
                 <button 
                   className="btn btn-success flex-grow-1" 
                   style={{ fontSize: 13, fontWeight: 500 }}
-                  onClick={() => handleUpdateStatus("completed")}
+                  onClick={() => setShowConfirmComplete(true)}
                 >
                   <i className="bi bi-check-circle me-2"></i>
                   Hoàn thành
@@ -329,6 +332,19 @@ export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showConfirmComplete}
+        variant="info"
+        title="Xác nhận hoàn thành"
+        message={`Bạn có chắc chắn lệnh sản xuất "${data?.order?.id}" đã được thực hiện xong? Hành động này sẽ cập nhật trạng thái và không thể hoàn tác.`}
+        confirmLabel="Hoàn thành"
+        onConfirm={() => {
+          setShowConfirmComplete(false);
+          handleUpdateStatus("completed");
+        }}
+        onCancel={() => setShowConfirmComplete(false)}
+      />
     </>
   );
 }

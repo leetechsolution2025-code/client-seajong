@@ -1,6 +1,9 @@
 "use client";
 
 import React from "react";
+import { TreeFilterSelect } from "@/components/ui/TreeFilterSelect";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { BrandButton } from "@/components/ui/BrandButton";
 
 interface Department {
   code: string;
@@ -16,6 +19,7 @@ interface EmployeeFilterProps {
   onStatusChange: (val: string) => void;
   departments: Department[];
   onAddClick: () => void;
+  className?: string;
 }
 
 export function EmployeeFilter({
@@ -23,61 +27,57 @@ export function EmployeeFilter({
   department, onDepartmentChange,
   status, onStatusChange,
   departments,
-  onAddClick
+  onAddClick,
+  className
 }: EmployeeFilterProps) {
   return (
-    <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-3 mb-4">
+    <div className={`d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-3 ${className || ''}`}>
       {/* Select Filters */}
       <div className="d-flex gap-2 w-md-auto-custom">
-        <select
-          className="form-select border-0 shadow-sm rounded-pill px-3 filter-select-dept"
-          style={{ fontSize: 13, height: 42, background: "var(--card)", color: "var(--foreground)", border: "1px solid var(--border)", minWidth: "140px" }}
+        <TreeFilterSelect
+          options={departments.map(d => ({ label: d.name, value: d.code }))}
           value={department}
-          onChange={(e) => onDepartmentChange(e.target.value)}
-        >
-          <option value="">Tất cả phòng ban</option>
-          {departments.map(d => (
-            <option key={d.code} value={d.code}>{d.name}</option>
-          ))}
-        </select>
+          onChange={onDepartmentChange}
+          placeholder="Tất cả phòng ban"
+          className="shadow-sm rounded-pill"
+          width={180}
+        />
 
-        <select
-          className="form-select border-0 shadow-sm rounded-pill px-3 filter-select-status"
-          style={{ fontSize: 13, height: 42, background: "var(--card)", color: "var(--foreground)", border: "1px solid var(--border)", minWidth: "130px" }}
+        <TreeFilterSelect
+          options={[
+            { label: "Đang làm việc", value: "active" },
+            { label: "Thử việc", value: "probation" },
+            { label: "Đã nghỉ việc", value: "resigned" }
+          ]}
           value={status}
-          onChange={(e) => onStatusChange(e.target.value)}
-        >
-          <option value="">Tất cả trạng thái</option>
-          <option value="active">Đang làm việc</option>
-          <option value="probation">Thử việc</option>
-          <option value="resigned">Đã nghỉ việc</option>
-        </select>
+          onChange={onStatusChange}
+          placeholder="Tất cả trạng thái"
+          className="shadow-sm rounded-pill"
+          width={160}
+        />
       </div>
 
       {/* Search & Action Wrapper */}
       <div className="d-flex align-items-center gap-2 flex-grow-1">
         {/* Search Input */}
-        <div className="position-relative flex-grow-1" style={{ minWidth: "200px" }}>
-          <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
-          <input
-            type="text"
-            className="form-control border-0 shadow-sm rounded-pill ps-5 pe-4 w-100"
-            style={{ height: 42, background: "var(--card)", color: "var(--foreground)", fontSize: 13, border: "1px solid var(--border)" }}
+        <div className="flex-grow-1" style={{ minWidth: "200px" }}>
+          <SearchInput
             placeholder="Tìm theo tên, mã NV, email hoặc chức vụ..."
             value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={onSearchChange}
+            className="shadow-sm rounded-pill w-100"
+            style={{ fontSize: 13 }}
           />
         </div>
 
-        {/* Action Button */}
-        <button
-          className="btn btn-primary rounded-pill fw-bold d-flex align-items-center justify-content-center gap-2 btn-add-responsive"
-          style={{ fontSize: 13, height: 42, boxShadow: "0 4px 12px rgba(var(--primary-rgb, 67, 56, 202), 0.2)" }}
+        <BrandButton
+          className="btn-add-responsive"
+          icon="bi-plus-lg"
           onClick={onAddClick}
+          style={{ height: 34 }}
         >
-          <i className="bi bi-person-plus-fill" style={{ fontSize: "16px" }} />
           <span className="d-none d-md-inline text-nowrap">Thêm mới</span>
-        </button>
+        </BrandButton>
       </div>
     </div>
   );

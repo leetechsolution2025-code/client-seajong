@@ -76,9 +76,19 @@ export async function GET(req: NextRequest) {
   if (warehouseId) {
     const wh = await prisma.warehouse.findUnique({ where: { id: warehouseId }, select: { code: true, type: true } });
     if (wh?.code === "KHO-CHINH" || wh?.type === "PRODUCT_SYNC") {
-      whFilter = { loai: "hang-hoa" };
+      whFilter = { 
+        OR: [
+          { loai: "hang-hoa" },
+          { stocks: { some: { warehouseId: warehouseId, soLuong: { gt: 0 } } } }
+        ]
+      };
     } else if (wh?.type === "MATERIAL") {
-      whFilter = { loai: "vat-tu" };
+      whFilter = { 
+        OR: [
+          { loai: "vat-tu" },
+          { stocks: { some: { warehouseId: warehouseId, soLuong: { gt: 0 } } } }
+        ]
+      };
     } else if (wh?.code === "KHO-LOI" || wh?.type === "DEFECT") {
       whFilter = { stocks: { some: { warehouseId: warehouseId, soLuong: { gt: 0 } } } };
     }

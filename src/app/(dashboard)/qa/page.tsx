@@ -635,15 +635,26 @@ export default function QaPage() {
             </div>
             <div className="offcanvas-footer border-top p-3 bg-light d-flex gap-2 justify-content-between">
               <button 
-                className="btn btn-outline-danger px-4" 
-                onClick={() => {
-                  setShowDeleteConfirm(true);
-                }}
+                className="btn btn-outline-danger px-3 d-flex align-items-center justify-content-center" 
+                onClick={() => setShowDeleteConfirm(true)}
+                title="Xóa"
               >
-                <i className="bi bi-trash me-2"></i>Xóa
+                <i className="bi bi-trash"></i>
               </button>
+              {selectedInspection.result !== "Pending" && (
+                <button 
+                  className="btn btn-info px-3 text-white d-flex align-items-center justify-content-center" 
+                  onClick={() => {
+                    if (selectedInspection.type === "IQC") setShowIqcModal(true);
+                    else if (selectedInspection.type === "OQC") setShowOqcModal(true);
+                  }}
+                  title="Biên bản"
+                >
+                  <i className="bi bi-file-earmark-text"></i>
+                </button>
+              )}
               <button 
-                className="btn btn-primary px-4 flex-grow-1"
+                className="btn btn-primary px-4 flex-grow-1 d-flex align-items-center justify-content-center"
                 disabled={selectedInspection.result !== "Pending"}
                 onClick={() => {
                   if (selectedInspection.type === "IQC") {

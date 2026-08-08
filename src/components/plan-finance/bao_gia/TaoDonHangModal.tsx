@@ -594,19 +594,33 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         .then(r => r.json())
         .then(d => {
           if (activeRowIdRef.current === rowId) {
-            const filtered = (d.items ?? []).filter((item: any) => {
-              const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name)
-                ? item.stocks[0].warehouse.name
-                : (item.source === "manufactured" ? "Kho thành phẩm"
-                  : item.source === "inventory" ? "Kho thương mại"
-                    : item.source === "material" ? "Kho sản xuất và lắp ráp" : "");
+            const filtered = (d.items ?? []).map((item: any) => {
+              const relevantStocks = (item.stocks || []).filter((s: any) => {
+                if (item.loai === "hang-hoa" || item.loai === "thanh-pham" || item.source === "inventory" || item.source === "manufactured") {
+                  return s.warehouse?.code === "KHO-CHINH";
+                } else if (item.loai === "vat-tu" || item.source === "material") {
+                  return s.warehouse?.code === "KVP";
+                }
+                return s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP";
+              });
+              const soLuong = relevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
+              const soLuongGiu = relevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);
+              const thucTon = Math.max(0, soLuong - soLuongGiu);
+              let whCode = relevantStocks.length > 0 ? relevantStocks[0].warehouse?.code : item.defaultWarehouse;
+              if (!whCode) {
+                if (item.loai === "hang-hoa" || item.loai === "thanh-pham" || item.source === "inventory" || item.source === "manufactured") {
+                  whCode = "KHO-CHINH";
+                } else if (item.loai === "vat-tu" || item.source === "material") {
+                  whCode = "KVP";
+                } else {
+                  whCode = "KHO-CHINH";
+                }
+              }
+              const khoTenStr = relevantStocks.length > 0 ? relevantStocks[0].warehouse?.name : 
+                (whCode === "KVP" ? "Kho sản xuất và lắp ráp" : "Kho thương mại");
               
-              const whCode = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.code)
-                ? item.stocks[0].warehouse.code
-                : item.defaultWarehouse;
-
-              return whCode === "KHO-CHINH" || whCode === "KVP";
-            });
+              return { ...item, thucTon, soLuong, whCode, khoTenStr, relevantStocks };
+            }).filter((item: any) => item.whCode === "KHO-CHINH" || item.whCode === "KVP");
             setSuggest(filtered);
           }
         })
@@ -615,13 +629,9 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   }, []);
 
   const applySuggest = (rowId: number, item: any) => {
-    const soLuongTon = item.soLuongThuc ?? item.soLuong;
+    const soLuongTon = item.thucTon ?? item.soLuong;
     const defaultDinhMuc = item.dinhMucs?.length > 0 ? item.dinhMucs[0] : null;
-    const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name)
-      ? item.stocks[0].warehouse.name
-      : (item.source === "manufactured" ? "Kho thành phẩm"
-        : item.source === "inventory" ? "Kho thương mại"
-          : item.source === "material" ? "Kho sản xuất và lắp ráp" : "");
+    const khoTenStr = item.khoTenStr;
 
     const updatePayload = {
       ten: item.tenHang,
@@ -1174,7 +1184,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                           <div style={{ fontWeight: 600 }}>{s.tenHang}</div>
                           <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", gap: 8, marginTop: 2 }}>
                             {s.code && <span style={{ fontFamily: "monospace", background: "var(--muted)", padding: "0 5px", borderRadius: 4 }}>{s.code}</span>}
-                            <span>Tồn: <b>{s.soLuongThuc ?? s.soLuong}</b> {s.donVi}</span>
+                            <span>Tồn: <b>{s.thucTon ?? s.soLuong}</b> {s.donVi}</span>
                             <span>Giá: <b>{s.giaBan.toLocaleString("vi-VN")} ₫</b></span>
                           </div>
                         </div>

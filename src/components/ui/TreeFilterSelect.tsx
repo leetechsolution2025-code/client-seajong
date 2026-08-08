@@ -16,6 +16,7 @@ interface TreeFilterSelectProps {
   width?: number | string;
   className?: string;
   disabled?: boolean;
+  dropdownPosition?: "top" | "bottom";
 }
 
 export const SELECT_STYLE: React.CSSProperties = {
@@ -36,7 +37,8 @@ export function TreeFilterSelect({
   placeholder = "Tất cả", 
   width, 
   className,
-  disabled 
+  disabled,
+  dropdownPosition = "bottom"
 }: TreeFilterSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [collapsedHeaders, setCollapsedHeaders] = useState<string[]>([]);
@@ -139,10 +141,11 @@ export function TreeFilterSelect({
         <div
           style={{
             position: "absolute",
-            top: "100%",
+            [dropdownPosition === "top" ? "bottom" : "top"]: "100%",
             left: 0,
             right: 0,
-            marginTop: 4,
+            marginTop: dropdownPosition === "top" ? 0 : 4,
+            marginBottom: dropdownPosition === "top" ? 4 : 0,
             background: "var(--card)",
             border: "1px solid var(--border)",
             borderRadius: 8,

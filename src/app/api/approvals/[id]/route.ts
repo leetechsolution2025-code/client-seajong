@@ -578,7 +578,7 @@ async function syncEntityStatus(
                      ],
                      userId: { not: null }
                    },
-                   select: { userId: true }
+                   select: { userId: true, position: true }
                  });
                  const storekeeperUserIds = storekeepers.map(s => s.userId).filter(Boolean) as string[];
                  const uniqueStorekeeperIds = [...new Set(storekeeperUserIds)];
@@ -611,8 +611,11 @@ async function syncEntityStatus(
                    );
 
                     // 1.2 Tự động tạo công việc cá nhân cho các thủ kho
+                    const thuKhoUserIds = storekeepers.filter(s => (s.position || "").toLowerCase().includes("thủ kho")).map(s => s.userId).filter(Boolean) as string[];
+                    const uniqueThuKhoIds = [...new Set(thuKhoUserIds)];
+                    
                     await Promise.allSettled(
-                      uniqueStorekeeperIds.map(async (skId) => {
+                      uniqueThuKhoIds.map(async (skId) => {
                         try {
                           const skTaskTitle = `[Nhập kho] Đơn mua hàng ${poCode}`;
                           const existingSkTask = await prisma.task.findFirst({

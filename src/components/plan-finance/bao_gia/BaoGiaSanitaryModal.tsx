@@ -1640,12 +1640,30 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
     if (!query.trim() || query.length < 2) { setSuggest([]); return; }
     suggestTimer.current = setTimeout(() => {
       fetch(`/api/logistics/inventory?search=${encodeURIComponent(query)}&limit=20&includeManufactured=true`)
-        .then(r => r.json()).then(d => { if (activeRowIdRef.current === rowId) setSuggest(d.items ?? []); }).catch(() => setSuggest([]));
+        .then(r => r.json()).then(d => { 
+          if (activeRowIdRef.current === rowId) {
+            const mapped = (d.items ?? []).map((item: any) => {
+              const relevantStocks = (item.stocks || []).filter((s: any) => {
+                if (item.loai === "hang-hoa" || item.loai === "thanh-pham" || item.source === "inventory" || item.source === "manufactured") {
+                  return s.warehouse?.code === "KHO-CHINH";
+                } else if (item.loai === "vat-tu" || item.source === "material") {
+                  return s.warehouse?.code === "KVP";
+                }
+                return s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP";
+              });
+              const soLuong = relevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
+              const soLuongGiu = relevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);
+              const thucTon = Math.max(0, soLuong - soLuongGiu);
+              return { ...item, thucTon, soLuong };
+            });
+            setSuggest(mapped);
+          }
+        }).catch(() => setSuggest([]));
     }, 300);
   }, []);
 
   const applySuggest = (rowId: number, item: any) => {
-    const soLuongTon = item.soLuongThuc ?? item.soLuong;
+    const soLuongTon = item.thucTon ?? item.soLuong;
     const defaultDinhMuc = item.dinhMucs?.length > 0 ? item.dinhMucs[0] : null;
     const khoTenStr = (item.stocks && item.stocks.length > 0 && item.stocks[0].warehouse?.name)
       ? item.stocks[0].warehouse.name
@@ -1840,7 +1858,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                   <div style={{ fontWeight: 600 }}>{s.tenHang}</div>
                   <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", gap: 8, marginTop: 2 }}>
                     {s.code && <span style={{ fontFamily: "monospace", background: "var(--muted)", padding: "0 5px", borderRadius: 4 }}>{s.code}</span>}
-                    <span>Tồn: <b>{s.soLuongThuc ?? s.soLuong}</b> {s.donVi}</span>
+                    <span>Tồn: <b>{s.thucTon ?? s.soLuong}</b> {s.donVi}</span>
                     <span>Giá: <b>{s.giaBan.toLocaleString("vi-VN")} ₫</b></span>
                   </div>
                 </div>
@@ -2663,7 +2681,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                             <div style={{ fontWeight: 600 }}>{s.tenHang}</div>
                             <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", gap: 8, marginTop: 2 }}>
                               {s.code && <span style={{ fontFamily: "monospace", background: "var(--muted)", padding: "0 5px", borderRadius: 4 }}>{s.code}</span>}
-                              <span>Tồn: <b>{s.soLuongThuc ?? s.soLuong}</b> {s.donVi}</span>
+                              <span>Tồn: <b>{s.thucTon ?? s.soLuong}</b> {s.donVi}</span>
                               <span>Giá: <b>{s.giaBan.toLocaleString("vi-VN")} ₫</b></span>
                             </div>
                           </div>

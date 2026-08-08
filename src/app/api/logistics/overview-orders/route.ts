@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest) {
         select: {
           id: true, code: true, trangThai: true,
           giaTriHopDong: true,
-          customer: { select: { name: true } },
+          customer: { select: { name: true, address: true } },
         },
       }),
       // Đơn bán hàng đang thực hiện và ĐÃ ĐƯỢC KẾ TOÁN DUYỆT (Bao gồm cả đang sản xuất để xuất hàng hoá)
@@ -36,7 +36,8 @@ export async function GET(_req: NextRequest) {
         select: {
           id: true, code: true, trangThai: true,
           tongTien: true,
-          customer: { select: { name: true } },
+          ghiChu: true,
+          customer: { select: { name: true, address: true } },
           logisticsTickets: { select: { id: true } } // Fetch to check if it already has tickets
         },
       }),
@@ -47,7 +48,7 @@ export async function GET(_req: NextRequest) {
         take: 100,
         select: {
           id: true, code: true, trangThai: true,
-          tongCong: true, tenKhach: true,
+          tongCong: true, tenKhach: true, diaChi: true,
         },
       }),
       // Lệnh xuất kho vật tư phụ kiện (Task)
@@ -61,7 +62,8 @@ export async function GET(_req: NextRequest) {
         take: 100,
         select: {
           id: true, title: true, status: true,
-          actualResult: true, createdAt: true
+          actualResult: true, createdAt: true,
+          assigneeId: true
         }
       }),
       // Lệnh nhập kho thành phẩm / vật tư (Task)
@@ -78,7 +80,8 @@ export async function GET(_req: NextRequest) {
         take: 100,
         select: {
           id: true, title: true, status: true,
-          actualResult: true, createdAt: true
+          actualResult: true, createdAt: true,
+          assigneeId: true
         }
       }),
       // Task gom hàng
@@ -87,7 +90,7 @@ export async function GET(_req: NextRequest) {
           deptCode: "logistics",
           title: { contains: "Gom hàng" }
         },
-        select: { actualResult: true }
+        select: { actualResult: true, assigneeId: true }
       }),
       // Logistics Tickets (MỚI)
       (prisma as any).logisticsTicket.findMany({
@@ -97,8 +100,8 @@ export async function GET(_req: NextRequest) {
           id: true, code: true, status: true, type: true, createdAt: true,
           saleOrder: { 
             select: { 
-              id: true, code: true, ngayGiao: true, 
-              customer: { select: { name: true } },
+              id: true, code: true, ngayGiao: true, ghiChu: true,
+              customer: { select: { name: true, address: true } },
               saleOrderItems: {
                 select: {
                   inventoryItemId: true,
@@ -120,13 +123,35 @@ export async function GET(_req: NextRequest) {
       })
     ]);
 
+    const allAssigneeIds = [
+      ...batchPickingTasks.map(t => t.assigneeId),
+      ...materialTasks.map(t => t.assigneeId),
+      ...inboundTasks.map(t => t.assigneeId)
+    ].filter(Boolean) as string[];
+
+    const uniqueAssigneeIds = [...new Set(allAssigneeIds)];
+    const users = await prisma.user.findMany({
+      where: { id: { in: uniqueAssigneeIds } },
+      select: { id: true, name: true }
+    });
+    const userMap = new Map<string, string>();
+    users.forEach(u => {
+      if (u.name) userMap.set(u.id, u.name);
+    });
+
     const assignedOrderIds = new Set<string>();
+    const assignedOrderAssignees = new Map<string, string>();
     batchPickingTasks.forEach(t => {
       try {
         if (t.actualResult) {
           const ids = JSON.parse(t.actualResult);
           if (Array.isArray(ids)) {
-            ids.forEach(id => assignedOrderIds.add(id));
+            ids.forEach(id => {
+              assignedOrderIds.add(id);
+              if (t.assigneeId && userMap.has(t.assigneeId)) {
+                assignedOrderAssignees.set(id, userMap.get(t.assigneeId)!);
+              }
+            });
           }
         }
       } catch (e) {}
@@ -139,9 +164,12 @@ export async function GET(_req: NextRequest) {
         type:      "logistics-ticket" as const,
         typeLabel: t.type === "BATCH_PACKING" ? "Gom hàng & đóng gói" : "Cấp phát vật tư",
         customer:  t.saleOrder?.customer?.name ?? null,
+        customerAddress: t.saleOrder?.customer?.address ?? null,
+        ghiChu:    t.saleOrder?.ghiChu ?? null,
         tongTien:  null,
         trangThai: t.status,
         isAssigned: assignedOrderIds.has(t.id),
+        assigneeName: assignedOrderAssignees.get(t.id) || null,
         ticketType: t.type,
         saleOrderId: t.saleOrder?.id,
         saleOrderCode: t.saleOrder?.code,
@@ -177,6 +205,7 @@ export async function GET(_req: NextRequest) {
         type:      "contract" as const,
         typeLabel: "Hợp đồng",
         customer:  c.customer?.name ?? null,
+        customerAddress: c.customer?.address ?? null,
         tongTien:  c.giaTriHopDong,
         trangThai: c.trangThai,
         isAssigned: assignedOrderIds.has(c.id)
@@ -188,9 +217,12 @@ export async function GET(_req: NextRequest) {
         type:      "sale-order" as const,
         typeLabel: "Đơn bán hàng",
         customer:  so.customer?.name ?? null,
+        customerAddress: so.customer?.address ?? null,
+        ghiChu:    so.ghiChu ?? null,
         tongTien:  so.tongTien,
         trangThai: so.trangThai,
-        isAssigned: assignedOrderIds.has(so.id)
+        isAssigned: assignedOrderIds.has(so.id),
+        assigneeName: assignedOrderAssignees.get(so.id) || null
       })),
       ...retailInvoices.map(inv => ({
         id:        inv.id,
@@ -198,9 +230,11 @@ export async function GET(_req: NextRequest) {
         type:      "retail-invoice" as const,
         typeLabel: "Hoá đơn bán lẻ",
         customer:  inv.tenKhach ?? null,
+        customerAddress: inv.diaChi ?? null,
         tongTien:  inv.tongCong,
         trangThai: inv.trangThai,
-        isAssigned: assignedOrderIds.has(inv.id)
+        isAssigned: assignedOrderIds.has(inv.id),
+        assigneeName: assignedOrderAssignees.get(inv.id) || null
       })),
       ...materialTasks.map(t => {
         let parsedItems = [];
@@ -220,6 +254,7 @@ export async function GET(_req: NextRequest) {
           customer:  null,
           tongTien:  null,
           trangThai: t.status,
+          assigneeName: (t.assigneeId && userMap.get(t.assigneeId)) || null,
           items:     parsedItems,
         };
       }),
@@ -229,7 +264,7 @@ export async function GET(_req: NextRequest) {
           if (t.actualResult) parsedItems = JSON.parse(t.actualResult);
         } catch(e) {}
         
-        const qcCodeMatch = t.title.match(/\((QC-\S+)\)/);
+        const qcCodeMatch = t.title.match(/\((QC-[^)]+)\)/);
         const code = qcCodeMatch ? qcCodeMatch[1] : "Nhập kho";
 
         return {
@@ -240,6 +275,7 @@ export async function GET(_req: NextRequest) {
           customer:  null,
           tongTien:  null,
           trangThai: t.status,
+          assigneeName: (t.assigneeId && userMap.get(t.assigneeId)) || null,
           items:     parsedItems,
         };
       }),

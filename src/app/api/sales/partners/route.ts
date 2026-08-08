@@ -200,6 +200,7 @@ function mapLeadToPartnerProcessItem(lead: any, matchingQuotation: any = null): 
     consProgress4: formValues.consProgress4 || 0,
     consProgress5: formValues.consProgress5 || 0,
     reminderCount: formValues.reminderCount || 0,
+    customTasks: formValues.customTasks || [],
 
     // Care details fields
     detailFullName: formValues.detailFullName || "",

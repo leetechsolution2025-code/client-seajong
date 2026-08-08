@@ -365,74 +365,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
       level: (c as any).level
     }));
 
-  const headerContent = (
-    <div className="d-flex flex-column gap-3">
-      <div className="d-flex align-items-center justify-content-between mb-0">
-        <h6
-          className="mb-0 fw-bold text-uppercase d-flex align-items-center gap-2"
-          style={{ color: "var(--muted-foreground)", fontSize: 11, letterSpacing: "0.05em", lineHeight: 1 }}
-        >
-          <i className="bi bi-boxes" style={{ fontSize: 13 }} />
-          Danh mục hàng hoá
-          <span className="badge bg-danger rounded-pill ms-2" style={{ fontSize: "9px", fontWeight: "bold", padding: "3px 7px", textTransform: "none", letterSpacing: "0.1px" }}>
-            Tổng số: {totalItems} sản phẩm
-          </span>
-        </h6>
-        {!hideAddButton && (
-          <button
-            id="logistics-add-item-btn"
-            className="btn btn-sm rounded-circle d-flex align-items-center justify-content-center text-white"
-            title="Thêm hàng hoá"
-            style={{
-              width: 32,
-              height: 32,
-              backgroundColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
-              borderColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
-              cursor: isDefectWarehouse ? "not-allowed" : "pointer",
-              opacity: isDefectWarehouse ? 0.65 : 1
-            }}
-            onClick={() => !isDefectWarehouse && setIsAddModalOpen(true)}
-            disabled={isDefectWarehouse}
-          >
-            <i className="bi bi-plus-lg" />
-          </button>
-        )}
-      </div>
-      {/* Search and Filter */}
 
-      <div className="d-flex align-items-center gap-3 mb-2">
-        <TreeFilterSelect
-          options={warehouses.map(w => ({ label: w.name, value: w.id }))}
-          value={filterWarehouse}
-          onChange={(v) => {
-            setFilterWarehouse(v);
-            setFilterCategory("");
-          }}
-          placeholder="Tất cả kho hàng"
-          className="rounded-pill shadow-sm"
-          width={160}
-        />
-
-        <TreeFilterSelect
-          options={categoryOptions}
-          value={filterCategory}
-          onChange={setFilterCategory}
-          placeholder="Tất cả danh mục"
-          className="rounded-pill shadow-sm"
-          width={160}
-          disabled={!filterWarehouse}
-        />
-
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Tìm theo tên, mã SKU hoặc Model..."
-          className="flex-grow-1"
-          style={{ height: 40 }}
-        />
-      </div>
-    </div>
-  );
 
   return (
     <>
@@ -534,7 +467,9 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
 
       {/* Table */}
       <FullWidthTableLayout 
-        header={headerContent}
+        header={null}
+        tableWrapperClassName="border-top-0"
+        footerStyle={{ padding: "8px 16px", backgroundColor: "#f8f9fa" }}
         table={
           isMaterialWarehouse ? (
             <KVPItemTable
@@ -717,10 +652,65 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
         )
         }
         footer={(
-          <div className="d-flex align-items-center justify-content-between w-100">
+          <div className="d-flex align-items-center justify-content-between w-100 gap-3 flex-wrap">
             <div className="d-flex align-items-center">
               <Pagination page={page} totalPages={totalPages} onChange={setPage} />
             </div>
+
+            <div className="d-flex align-items-center gap-2 flex-grow-1 justify-content-end">
+              <TreeFilterSelect
+                options={warehouses.map(w => ({ label: w.name, value: w.id }))}
+                value={filterWarehouse}
+                onChange={(v) => {
+                  setFilterWarehouse(v);
+                  setFilterCategory("");
+                }}
+                placeholder="Tất cả kho hàng"
+                className="rounded-pill shadow-sm"
+                width={160}
+                dropdownPosition="top"
+              />
+
+              <TreeFilterSelect
+                options={categoryOptions}
+                value={filterCategory}
+                onChange={setFilterCategory}
+                placeholder="Tất cả danh mục"
+                className="rounded-pill shadow-sm"
+                width={160}
+                disabled={!filterWarehouse}
+                dropdownPosition="top"
+              />
+
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Tìm theo tên, mã SKU hoặc Model..."
+                className="flex-grow-1"
+                style={{ height: 38, maxWidth: 300 }}
+              />
+
+              {!hideAddButton && (
+                <button
+                  id="logistics-add-item-btn"
+                  className="btn btn-sm rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0"
+                  title="Thêm hàng hoá"
+                  style={{
+                    width: 32,
+                    height: 32,
+                    backgroundColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
+                    borderColor: isDefectWarehouse ? "#94a3b8" : "#011F58",
+                    cursor: isDefectWarehouse ? "not-allowed" : "pointer",
+                    opacity: isDefectWarehouse ? 0.65 : 1
+                  }}
+                  onClick={() => !isDefectWarehouse && setIsAddModalOpen(true)}
+                  disabled={isDefectWarehouse}
+                >
+                  <i className="bi bi-plus-lg" />
+                </button>
+              )}
+            </div>
+
             <div className="d-flex align-items-center justify-content-end gap-3">
             {fromAdmin && isMaterialWarehouse && filterWarehouse && (
               <button

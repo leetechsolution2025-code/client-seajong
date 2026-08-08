@@ -22,6 +22,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { docSoTien } from "@/app/(dashboard)/finance/debts/DebtPaymentOffcanvas";
 import { BaoGiaSanitaryModal } from "@/components/plan-finance/bao_gia/BaoGiaSanitaryModal";
 import { SignaturePad } from "@/components/ui/SignaturePad";
+import { BrandButton } from "@/components/ui/BrandButton";
 
 interface PartnerProcessItem {
   id: string;
@@ -109,6 +110,7 @@ interface PartnerProcessItem {
   consProgress3?: number;
   consProgress4?: number;
   consProgress5?: number;
+  customTasks?: any[];
 
   step: number; // 1 to 5
   stars?: number;
@@ -652,6 +654,13 @@ export default function PartnersPage() {
   const [tempProgress, setTempProgress] = useState<number>(0);
   const [savingProgress, setSavingProgress] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(Date.now());
+  const [showCreateTask, setShowCreateTask] = useState(false);
+  const [expandedPartners, setExpandedPartners] = useState<Record<string, boolean>>({});
+  const [createTaskForm, setCreateTaskForm] = useState({ partnerId: "", title: "", description: "", assigneeId: "", startDate: "", dueDate: "", priority: "high" });
+
+  const togglePartner = (id: string) => {
+    setExpandedPartners(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
@@ -2008,6 +2017,8 @@ export default function PartnersPage() {
         }
       } else if (cStep === 4) {
         if (pStep < 4) return false;
+      } else if (cStep === 5) {
+        if (pStep < 4) return false;
       } else {
         if (pStep !== cStep) return false;
       }
@@ -2113,16 +2124,38 @@ export default function PartnersPage() {
         })
         .filter(Boolean) as any[];
 
-      const filteredSubTasks = activeSubTasks.filter(t => overlapsMonth(t.start, t.end, filterMonth, year));
+      const partnerCustomTasks = (partner.customTasks || []).map((t: any) => {
+        const start = new Date(t.startDate || Date.now());
+        const end = new Date(t.dueDate || Date.now());
+        return {
+          id: t.id,
+          title: t.title,
+          status: "pending",
+          progress: 0,
+          createdAt: start.toISOString(),
+          deadline: end.toISOString(),
+          start,
+          end,
+          color: "#ef4444"
+        };
+      });
 
-      if (filteredSubTasks.length > 0) {
-        list.push({
-          id: `${partner.id}_header`,
-          title: partner.name,
-          assigneeName: partner.area,
-          isHeader: true,
-          status: "done"
-        });
+      const allActiveTasks = [...activeSubTasks, ...partnerCustomTasks];
+      const filteredSubTasks = allActiveTasks.filter(t => overlapsMonth(t.start, t.end, filterMonth, year));
+      const isExpanded = !!expandedPartners[partner.id];
+
+      // Luôn hiện header của đối tác
+      list.push({
+        id: `${partner.id}_header`,
+        title: partner.name,
+        address: partner.hdB_DiaChi?.trim() || partner.bbB_DiaChi?.trim() || partner.area,
+        isHeader: true,
+        status: "done",
+        isExpanded,
+        onToggle: () => togglePartner(partner.id)
+      });
+
+      if (isExpanded && filteredSubTasks.length > 0) {
         filteredSubTasks.forEach(st => {
           list.push({
             id: st.id,
@@ -2137,7 +2170,7 @@ export default function PartnersPage() {
     });
 
     return list;
-  }, [filteredPartners, filterMonth]);
+  }, [filteredPartners, filterMonth, expandedPartners]);
 
   const handleCloseCreateModal = () => {
     setShowCreateModal(false);
@@ -6447,6 +6480,15 @@ export default function PartnersPage() {
             header={
               <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 w-100">
                 <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
+                  {Number(currentStep) === 5 && (
+                    <button
+                      className="btn btn-primary d-flex align-items-center justify-content-center rounded-circle shadow-sm"
+                      style={{ width: 32, height: 32, flexShrink: 0, padding: 0 }}
+                      onClick={() => setShowCreateTask(true)}
+                    >
+                      <i className="bi bi-plus-lg" style={{ fontSize: 16 }} />
+                    </button>
+                  )}
                   {/* Area Filter */}
                   <FilterSelect
                     options={[
@@ -6523,6 +6565,62 @@ export default function PartnersPage() {
                       <span>Thêm khách hàng</span>
                     </button>
                   )}
+                  {Number(currentStep) === 5 && (
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      flexWrap: "wrap", flexShrink: 0
+                    }}>
+                      <div style={{
+                        background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+                        borderRadius: 6, padding: "3px 8px", flexShrink: 0,
+                        display: "flex", alignItems: "center", gap: 4,
+                      }}>
+                        <i className="bi bi-calendar3" style={{ fontSize: 10, color: "#fff" }} />
+                        <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.03em" }}>
+                          {new Date().getFullYear()}
+                        </span>
+                      </div>
+                      
+                      <div style={{ width: 1, height: 16, background: "#e2e8f0", flexShrink: 0 }} />
+
+                      <div style={{
+                        display: "flex", gap: 3, overflowX: "auto",
+                        scrollbarWidth: "none"
+                      }}>
+                        {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
+                          const isActive = m === filterMonth;
+                          const isCurrent = m === new Date().getMonth() + 1;
+                          return (
+                            <button
+                              key={m}
+                              onClick={() => setFilterMonth(m)}
+                              style={{
+                                flexShrink: 0,
+                                padding: "2px 8px",
+                                borderRadius: 5,
+                                border: isActive
+                                  ? "1px solid #3b82f6"
+                                  : isCurrent
+                                    ? "1px dashed #93c5fd"
+                                    : "1px solid var(--border, #e2e8f0)",
+                                cursor: "pointer",
+                                background: isActive
+                                  ? "rgba(59, 130, 246, 0.08)"
+                                  : "#fff",
+                                color: isActive ? "#3b82f6" : "var(--muted-foreground, #64748b)",
+                                fontSize: 11,
+                                fontWeight: isActive ? 700 : 500,
+                                outline: "none",
+                                transition: "all 0.15s ease"
+                              }}
+                            >
+                              T{m}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             }
@@ -6530,65 +6628,6 @@ export default function PartnersPage() {
               <div className="h-100 bg-white border-top overflow-auto d-flex flex-column" style={{ minHeight: 0 }}>
                 {Number(currentStep) === 5 ? (
               <>
-                {/* Month selectors container */}
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "10px 20px", borderBottom: "1px solid var(--border, #e2e8f0)",
-                  background: "#f8fafc", flexWrap: "wrap", flexShrink: 0
-                }}>
-                  {/* Year display */}
-                  <div style={{
-                    background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
-                    borderRadius: 8, padding: "5px 11px", flexShrink: 0,
-                    display: "flex", alignItems: "center", gap: 5,
-                  }}>
-                    <i className="bi bi-calendar3" style={{ fontSize: 11, color: "#fff" }} />
-                    <span style={{ fontSize: 13, fontWeight: 800, color: "#fff", letterSpacing: "0.03em" }}>
-                      {new Date().getFullYear()}
-                    </span>
-                  </div>
-                  
-                  <div style={{ width: 1, height: 20, background: "#e2e8f0", flexShrink: 0 }} />
-
-                  {/* Months pills */}
-                  <div style={{
-                    display: "flex", gap: 4, overflowX: "auto",
-                    scrollbarWidth: "none", padding: "1px 0"
-                  }}>
-                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
-                      const isActive = m === filterMonth;
-                      const isCurrent = m === new Date().getMonth() + 1;
-                      return (
-                        <button
-                          key={m}
-                          onClick={() => setFilterMonth(m)}
-                          style={{
-                            flexShrink: 0,
-                            padding: "4px 10px",
-                            borderRadius: 7,
-                            border: isActive
-                              ? "1.5px solid #3b82f6"
-                              : isCurrent
-                                ? "1.5px dashed #93c5fd"
-                                : "1.5px solid var(--border, #e2e8f0)",
-                            cursor: "pointer",
-                            background: isActive
-                              ? "rgba(59, 130, 246, 0.08)"
-                              : "#fff",
-                            color: isActive ? "#3b82f6" : "var(--muted-foreground, #64748b)",
-                            fontSize: 12,
-                            fontWeight: isActive ? 700 : 500,
-                            outline: "none",
-                            transition: "all 0.15s ease"
-                          }}
-                        >
-                          T{m}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 {/* Gantt Chart Wrapper */}
                 <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
                   <GanttChart
@@ -6599,7 +6638,7 @@ export default function PartnersPage() {
                       const partner = filteredPartners.find(p => p.id === partnerId);
                       if (partner) {
                         if (task.isHeader) {
-                          setSelectedPartner(partner);
+                          // Không mở offcanvas hồ sơ đại lý ở bước Thi công
                         } else {
                           let dateStr = "";
                           if (task.id.endsWith("_1")) dateStr = partner.consTimeline1 || "";
@@ -11804,6 +11843,113 @@ export default function PartnersPage() {
           )}
         </div>
       )}
+
+      {/* ── Slide-out Create Task Offcanvas ── */}
+      {showCreateTask && (
+        <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 400, background: "#fff", zIndex: 1050, boxShadow: "-5px 0 20px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8fafc" }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", letterSpacing: "-0.02em" }}>Thêm công việc mới</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Giao việc và theo dõi tiến độ thi công</div>
+            </div>
+            <button
+              className="btn btn-light rounded-circle p-0"
+              style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}
+              onClick={() => setShowCreateTask(false)}
+            >
+              <i className="bi bi-x-lg" style={{ fontSize: 14 }} />
+            </button>
+          </div>
+          <form id="create-task-form" onSubmit={async (e) => {
+            e.preventDefault();
+            const partnerId = createTaskForm.partnerId;
+            const partner = partners.find(p => p.id === partnerId);
+            if (!partner) return;
+            
+            const newTask = { id: `custom_${Date.now()}`, ...createTaskForm };
+            const updatedCustomTasks = [...(partner.customTasks || []), newTask];
+            
+            // Optimistic update
+            setPartners(prev => prev.map(p => p.id === partnerId ? { ...p, customTasks: updatedCustomTasks } : p));
+            
+            try {
+              const res = await fetch("/api/sales/partners", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  id: partnerId,
+                  customTasks: updatedCustomTasks
+                })
+              });
+              if (res.ok) {
+                toastSuccess("Đã lưu công việc vào CSDL!");
+              } else {
+                toastError("Lỗi khi lưu công việc");
+              }
+            } catch (err) {
+              console.error(err);
+              toastError("Lỗi kết nối");
+            }
+
+            setShowCreateTask(false);
+            setCreateTaskForm({ partnerId: "", title: "", description: "", assigneeId: "", startDate: "", dueDate: "", priority: "high" });
+          }} style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 16, height: "100%" }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, display: "block" }}>Hợp đồng đại lý <span className="text-danger">*</span></label>
+                <select className="form-select form-select-sm" required value={createTaskForm.partnerId} onChange={e => setCreateTaskForm({...createTaskForm, partnerId: e.target.value})}>
+                  <option value="">Chọn hợp đồng / đại lý</option>
+                  {filteredPartners.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, display: "block" }}>Tên công việc <span className="text-danger">*</span></label>
+                <input type="text" className="form-control form-control-sm" required placeholder="Ví dụ: Khảo sát mặt bằng..." value={createTaskForm.title} onChange={e => setCreateTaskForm({...createTaskForm, title: e.target.value})} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, display: "block" }}>Người thực hiện <span className="text-danger">*</span></label>
+                  <select className="form-select form-select-sm" required value={createTaskForm.assigneeId} onChange={e => setCreateTaskForm({...createTaskForm, assigneeId: e.target.value})}>
+                    <option value="">Chọn người thực hiện</option>
+                    {crmEmployees.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.fullName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, display: "block" }}>Mức độ ưu tiên</label>
+                  <select className="form-select form-select-sm" value={createTaskForm.priority} onChange={e => setCreateTaskForm({...createTaskForm, priority: e.target.value})}>
+                    <option value="high">Cao</option>
+                    <option value="medium">Trung bình</option>
+                    <option value="low">Thấp</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, display: "block" }}>Ngày bắt đầu</label>
+                  <input type="date" className="form-control form-control-sm" required value={createTaskForm.startDate} onChange={e => setCreateTaskForm({...createTaskForm, startDate: e.target.value})} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, display: "block" }}>Hạn chót <span className="text-danger">*</span></label>
+                  <input type="date" className="form-control form-control-sm" required value={createTaskForm.dueDate} onChange={e => setCreateTaskForm({...createTaskForm, dueDate: e.target.value})} />
+                </div>
+              </div>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, display: "block" }}>Mô tả công việc</label>
+                <textarea className="form-control form-control-sm" style={{ flex: 1, resize: "none" }} placeholder="Nhập mô tả chi tiết..." value={createTaskForm.description} onChange={e => setCreateTaskForm({...createTaskForm, description: e.target.value})}></textarea>
+              </div>
+            </div>
+          </form>
+          <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)", display: "flex", gap: 12, background: "#f8fafc" }}>
+            <BrandButton type="button" variant="outline" className="flex-grow-1" onClick={() => setShowCreateTask(false)}>Huỷ bỏ</BrandButton>
+            <BrandButton type="submit" form="create-task-form" className="flex-grow-1">Lưu công việc</BrandButton>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

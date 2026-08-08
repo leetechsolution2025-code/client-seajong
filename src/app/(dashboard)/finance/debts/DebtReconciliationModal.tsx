@@ -377,13 +377,13 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
         <div>
           <div className="d-flex align-items-center gap-2">
             <i className="bi bi-file-earmark-check fs-4" />
-            <h5 className="fw-bold mb-0 text-white" style={{ fontSize: 19 }}>Đối chiếu công nợ khách hàng</h5>
+            <h5 className="fw-bold mb-0 text-white" style={{ fontSize: 19 }}>{isReceivable ? "Đối chiếu công nợ khách hàng" : "Đối chiếu công nợ nhà cung cấp"}</h5>
             <span className="badge rounded-pill bg-white text-dark ms-2 fw-semibold px-2.5 py-1" style={{ fontSize: 11 }}>
-              {isReceivable ? "Khách hàng phải thu" : "Nhà cung cấp phải trả"}
+              {isReceivable ? "Khách hàng phải thu" : "Phải trả nhà cung cấp"}
             </span>
           </div>
           <div className="text-white opacity-75 small mt-0.5">
-            Khách hàng: <strong>{debt.partnerName}</strong> {debt.referenceId ? `| REF: ${debt.referenceId}` : ""}
+            {isReceivable ? "Khách hàng" : "Nhà cung cấp"}: <strong>{debt.partnerName}</strong> {debt.referenceId ? `| REF: ${debt.referenceId}` : ""}
           </div>
         </div>
         <div className="d-flex align-items-center gap-2">

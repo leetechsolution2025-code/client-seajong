@@ -6,6 +6,7 @@ import { EmployeeFilter } from "./EmployeeFilter";
 import { EmployeeDetailOffcanvas } from "./EmployeeDetailOffcanvas";
 import CreateEmployeeModal from "./CreateEmployeeModal";
 import { useToast } from "@/components/ui/Toast";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
 export function EmployeeManagement() {
   const toast = useToast();
@@ -54,57 +55,63 @@ export function EmployeeManagement() {
   };
 
   return (
-    <div className="d-flex flex-column h-100 p-3 p-md-4">
-      <EmployeeFilter
-        search={search}
-        onSearchChange={setSearch}
-        department={department}
-        onDepartmentChange={setDepartment}
-        status={status}
-        onStatusChange={setStatus}
-        departments={departments}
-        onAddClick={() => {
-          setEditEmployeeId(null);
-          setIsCreateModalOpen(true);
-        }}
-      />
-
+    <div className="d-flex flex-column h-100 p-2">
       <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
-        <EmployeeTable
-          employees={employees}
-          loading={loading}
-          onRowClick={handleRowClick}
-          onEditClick={(emp) => {
-            setEditEmployeeId(emp.id);
-            setIsCreateModalOpen(true);
-          }}
-        />
-
-        {/* Pagination */}
-        <div className="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 mt-auto p-3 border-top bg-light bg-opacity-10">
-          <div className="text-muted" style={{ fontSize: 12 }}>
-            Hiển thị <b>{employees.length}</b> nhân sự
-          </div>
-          <div className="d-flex gap-1">
-            <button
-              className="btn btn-sm btn-light border-0 px-3 rounded-pill fw-bold"
-              disabled={page === 1}
-              onClick={() => setPage(p => p - 1)}
-            >
-              Trước
-            </button>
-            <div className="d-flex align-items-center px-3 fw-bold" style={{ fontSize: 12 }}>
-              Trang {page} / {totalPages}
+        <FullWidthTableLayout
+          header={
+            <EmployeeFilter
+              search={search}
+              onSearchChange={setSearch}
+              department={department}
+              onDepartmentChange={setDepartment}
+              status={status}
+              onStatusChange={setStatus}
+              departments={departments}
+              onAddClick={() => {
+                setEditEmployeeId(null);
+                setIsCreateModalOpen(true);
+              }}
+              className="mb-2"
+            />
+          }
+          table={
+            <EmployeeTable
+              employees={employees}
+              loading={loading}
+              onRowClick={handleRowClick}
+              onEditClick={(emp) => {
+                setEditEmployeeId(emp.id);
+                setIsCreateModalOpen(true);
+              }}
+            />
+          }
+          footer={
+            <div className="d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 w-100">
+              <div className="text-muted" style={{ fontSize: 12 }}>
+                Hiển thị <b>{employees.length}</b> nhân sự
+              </div>
+              <div className="d-flex gap-1">
+                <button
+                  className="btn btn-sm btn-light border-0 px-3 rounded-pill fw-bold"
+                  disabled={page === 1}
+                  onClick={() => setPage(p => p - 1)}
+                >
+                  Trước
+                </button>
+                <div className="d-flex align-items-center px-3 fw-bold" style={{ fontSize: 12 }}>
+                  Trang {page} / {totalPages}
+                </div>
+                <button
+                  className="btn btn-sm btn-light border-0 px-3 rounded-pill fw-bold"
+                  disabled={page === totalPages}
+                  onClick={() => setPage(p => p + 1)}
+                >
+                  Sau
+                </button>
+              </div>
             </div>
-            <button
-              className="btn btn-sm btn-light border-0 px-3 rounded-pill fw-bold"
-              disabled={page === totalPages}
-              onClick={() => setPage(p => p + 1)}
-            >
-              Sau
-            </button>
-          </div>
-        </div>
+          }
+        />
       </div>
 
       <EmployeeDetailOffcanvas

@@ -102,23 +102,40 @@ export async function GET(
       let bom = null;
       let bomId = null;
 
-      // Tìm BOM qua InventoryItem
-      const invItem = await prisma.inventoryItem.findFirst({
-        where: { tenHang: orderItem.tenHang },
-        include: {
-          dinhMucs: {
-            include: {
-              vatTu: {
-                include: {
-                  inventoryItem: true,
-                  category: true,
+      // Tìm BOM qua dinhMucId đính kèm
+      if (orderItem.dinhMucId) {
+        bom = await prisma.dinhMuc.findUnique({
+          where: { id: orderItem.dinhMucId },
+          include: {
+            vatTu: {
+              include: {
+                inventoryItem: true,
+                category: true,
+              },
+            },
+          },
+        });
+      }
+
+      // Nếu không có dinhMucId hoặc không tìm thấy, fallback về định mức tiêu chuẩn của sản phẩm
+      if (!bom) {
+        const invItem = await prisma.inventoryItem.findFirst({
+          where: { tenHang: orderItem.tenHang },
+          include: {
+            dinhMucs: {
+              include: {
+                vatTu: {
+                  include: {
+                    inventoryItem: true,
+                    category: true,
+                  },
                 },
               },
             },
           },
-        },
-      });
-      bom = invItem?.dinhMucs?.[0] || null;
+        });
+        bom = invItem?.dinhMucs?.[0] || null;
+      }
 
       items.push({
         id: orderItem.id,
@@ -346,8 +363,7 @@ export async function PATCH(
             requesterName:
               session.user.name || session.user.email || "Bộ phận sản xuất",
             requesterDept: "Sản xuất",
-            // @ts-ignore
-            executionTime: order.ngayYeuCauQC || order.ngayGiao || new Date(),
+            executionTime: new Date(),
             notes: `Yêu cầu kiểm soát chất lượng cho đơn hàng ${order.code || order.id}`,
             metadata: JSON.stringify({
               productionOrder: order.code,

@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
             bomsUpdated++;
           } else {
             // Tạo mới định mức
-            const codeDm = `DM-${rawPCode}`;
+            const codeDm = `DM-${rawPCode}`.replace(/MẠ/g, "MA");
             dinhMuc = await prisma.dinhMuc.create({
               data: {
                 code: codeDm,

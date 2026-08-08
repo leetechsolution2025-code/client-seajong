@@ -49,9 +49,27 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { code, supplierId, ngayDat, ngayNhan, trangThai, tongTien, daThanhToan, ghiChu, items } = body;
 
+    let finalCode = code;
+    if (finalCode) {
+      let existing = await prisma.purchaseOrder.findUnique({ where: { code: finalCode } });
+      if (existing) {
+        const match = finalCode.match(/^(DH-\d{8})-/);
+        if (match) {
+          const prefix = match[1];
+          const count = await prisma.purchaseOrder.count({ where: { code: { startsWith: prefix } } });
+          let suffix = 1;
+          while (existing) {
+            finalCode = `${prefix}-${String(count + suffix).padStart(4, "0")}`;
+            existing = await prisma.purchaseOrder.findUnique({ where: { code: finalCode } });
+            suffix++;
+          }
+        }
+      }
+    }
+
     const item = await prisma.purchaseOrder.create({
       data: {
-        code, trangThai: trangThai ?? "draft",
+        code: finalCode, trangThai: trangThai ?? "draft",
         tongTien:    parseFloat(tongTien    ?? 0),
         daThanhToan: parseFloat(daThanhToan ?? 0),
         ghiChu,

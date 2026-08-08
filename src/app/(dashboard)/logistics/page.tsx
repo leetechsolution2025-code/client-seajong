@@ -13,12 +13,20 @@ import { DynamicTicker } from "@/components/layout/DynamicTicker";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TreeFilterSelect } from "@/components/ui/TreeFilterSelect";
 import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
+import { ModernStepper } from "@/components/ui/ModernStepper";
+import { WorkflowCard } from "@/components/ui/WorkflowCard";
+import { useSession } from "next-auth/react";
 
 export default function LogisticsOverviewPage() {
   const [rawOrders, setRawOrders] = useState<any[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [readOrderIds, setReadOrderIds] = useState<Set<string>>(new Set());
+  
+  const { data: session } = useSession();
+  const userRole = (session?.user?.role || "").toUpperCase();
+  const position = (session?.user?.positionName || "").toLowerCase();
+  const isThuKho = ["SUPERADMIN", "ADMIN"].includes(userRole) || position.includes("thủ kho") || position.includes("quản lý kho");
   
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [orderDetails, setOrderDetails] = useState<any[]>([]);
@@ -29,7 +37,10 @@ export default function LogisticsOverviewPage() {
   const [xuatKhoWoId, setXuatKhoWoId] = useState<string | undefined>(undefined);
   const [xuatKhoTicketId, setXuatKhoTicketId] = useState<string | undefined>(undefined);
   const [showNhapKhoModal, setShowNhapKhoModal] = useState(false);
-  const [nhapKhoTaskId, setNhapKhoTaskId] = useState<string | undefined>(undefined);
+  const [nhapKhoTaskId, setNhapKhoTaskId] = useState<string | undefined>();
+  const [nhapKhoMode, setNhapKhoMode] = useState<"manual" | "po" | "production" | undefined>();
+  const [nhapKhoSoBienBanQC, setNhapKhoSoBienBanQC] = useState<string>("");
+
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showPrintLabelModal, setShowPrintLabelModal] = useState(false);
@@ -73,6 +84,13 @@ export default function LogisticsOverviewPage() {
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<"orders" | "inventory">("orders");
   const [typeFilter, setTypeFilter] = useState<"ALL" | "IMPORT" | "EXPORT">("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentStep, setCurrentStep] = useState(1);
+  const STEPS = [
+    { num: 1, id: "orders", title: "Danh sách công việc", desc: "Quản lý các lệnh xuất/nhập kho", icon: "bi-card-list" },
+    { num: 2, id: "inventory", title: "Danh sách hàng hoá", desc: "Quản lý số lượng tồn kho", icon: "bi-box-seam" },
+  ];
   
   const [staffList, setStaffList] = useState<any[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string>("");
@@ -94,8 +112,12 @@ export default function LogisticsOverviewPage() {
             const suffix = parts[parts.length - 1] || `${index}`;
             let exportCode = `LXK-202607-${suffix}`;
             if (d.type === "material-export") exportCode = `LXK-VATTU-${suffix}`;
-            if (d.type === "material-import") exportCode = `LNK-OQC-${suffix}`;
+            if (d.type === "material-import") {
+              const isIQC = (d.title || d.code || "").includes("IQC") || (d.title || d.code || "").toLowerCase().includes("vật tư");
+              exportCode = `LNK-${isIQC ? 'IQC' : 'OQC'}-${suffix}`;
+            }
             if (d.type === "logistics-ticket") exportCode = d.code;
+            
             return { ...d, exportCode };
           });
           
@@ -149,15 +171,23 @@ export default function LogisticsOverviewPage() {
     fetchStaff();
 
     const interval = setInterval(() => {
-      // Chỉ poll dữ liệu nếu tab đang hiển thị để tránh lỗi và tiết kiệm tài nguyên
+      // Chỉ poll dữ liệu nếu tab đang hiển thị
       if (document.visibilityState === "visible") {
         fetchOrders(true);
       }
     }, 5000);
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchOrders(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       mounted = false;
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -254,7 +284,24 @@ export default function LogisticsOverviewPage() {
   };
 
   const orders = React.useMemo(() => {
-    const grouped = rawOrders.reduce((acc: Record<string, any[]>, curr: any) => {
+    interface GroupedOrder {
+      orderCode: string;
+      items: any[];
+      completedCount: number;
+      totalTickets: number;
+      groupStatusText: string;
+      groupStatusColor: string;
+      priority: number;
+      latestDate: number;
+      customerName: string | null;
+      customerAddress: string | null;
+      ghiChu: string | null;
+      isGroupImport: boolean;
+    }
+    
+    readOrderIds; // Access it to ensure re-render when read states change
+
+    const grouped: Record<string, any[]> = rawOrders.reduce((acc: Record<string, any[]>, curr: any) => {
       const isImport = curr.type === 'material-import';
       if (typeFilter === "IMPORT" && !isImport) return acc;
       if (typeFilter === "EXPORT" && isImport) return acc;
@@ -265,23 +312,30 @@ export default function LogisticsOverviewPage() {
       return acc;
     }, {});
     
-    const groupArray = Object.entries(grouped)
-      .filter(([code]) => code !== "Khác")
-      .map(([orderCode, items]) => {
+    const groupArray: GroupedOrder[] = Object.keys(grouped)
+      .filter((code) => code !== "Khác")
+      .map((orderCode): GroupedOrder => {
+        const items = grouped[orderCode];
         let completedCount = 0;
         let totalTickets = items.length;
         let latestDate = 0;
-        
-        items.forEach(it => {
-          const lowerStatus = (it.trangThai || "").toLowerCase();
-          if (lowerStatus === "completed" || lowerStatus === "done") {
+        let customerName: string | null = null;
+        let customerAddress: string | null = null;
+        let ghiChu: string | null = null;
+
+        items.forEach((it: any) => {
+          if (!customerName && it.customer) customerName = it.customer;
+          if (!customerAddress && it.customerAddress) customerAddress = it.customerAddress;
+          if (!ghiChu && it.ghiChu) ghiChu = it.ghiChu;
+          
+          if (it.trangThai === 'completed' || it.trangThai === 'done' || it.trangThai === 'packed') {
             completedCount++;
           }
           const time = new Date(it.ngayGiao || it.createdAt).getTime();
           if (time > latestDate) latestDate = time;
         });
         
-        const isGroupImport = items.length > 0 && items.every(it => 
+        const isGroupImport = items.length > 0 && items.every((it: any) => 
           it.type === 'material-import' || 
           it.ticketType === 'MATERIAL_IMPORT' || 
           orderCode.startsWith('QC-')
@@ -309,8 +363,28 @@ export default function LogisticsOverviewPage() {
           groupStatusText,
           groupStatusColor,
           priority,
-          latestDate
+          latestDate,
+          customerName,
+          customerAddress,
+          ghiChu,
+          isGroupImport,
         };
+      })
+      .filter((group) => {
+        if (statusFilter !== "ALL") {
+          const status = group.groupStatusText;
+          if (statusFilter === "PENDING" && !status.includes("Chưa")) return false;
+          if (statusFilter === "EXPORTED" && !status.includes("Đã xuất")) return false;
+          if (statusFilter === "IMPORTED" && !status.includes("Đã nhập")) return false;
+        }
+
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+          (group.customerName || "").toLowerCase().includes(q) ||
+          (group.customerAddress || "").toLowerCase().includes(q) ||
+          group.orderCode.toLowerCase().includes(q)
+        );
       });
       
     // Sort groups
@@ -319,9 +393,9 @@ export default function LogisticsOverviewPage() {
       return b.latestDate - a.latestDate;
     });
 
-    const finalOrders = [];
+    const finalOrders: any[] = [];
     groupArray.forEach((group, index) => {
-      const { orderCode, items, groupStatusText, groupStatusColor } = group;
+      const { orderCode, items, groupStatusText, groupStatusColor, customerName, customerAddress, ghiChu, isGroupImport, latestDate } = group;
       
       const isToggled = collapsedGroups.has(orderCode);
       const isCollapsed = index === 0 ? isToggled : !isToggled;
@@ -332,8 +406,8 @@ export default function LogisticsOverviewPage() {
         isGroupHeader: true,
         fullWidthContent: (
           <div 
-             className="d-flex align-items-center justify-content-between w-100 pe-2" 
-             style={{ cursor: 'pointer', userSelect: 'none' }}
+             className="d-flex flex-column justify-content-center w-100 pe-2 py-0" 
+             style={{ cursor: 'pointer', userSelect: 'none', textTransform: 'none', fontWeight: 'normal' }}
              onClick={(e) => {
                e.stopPropagation();
                setCollapsedGroups(prev => {
@@ -344,11 +418,53 @@ export default function LogisticsOverviewPage() {
                });
              }}
           >
-            <div className="d-flex align-items-center gap-2">
-              <i className={`bi ${isCollapsed ? 'bi-caret-right-fill' : 'bi-caret-down-fill'} text-muted`}></i> 
-              <span className="fw-bold" style={{ fontSize: 12 }}>SỐ HIỆU ĐƠN HÀNG: <span className="text-primary">{orderCode}</span></span>
-              <span className={`badge ${groupStatusColor} rounded-pill fw-normal`} style={{ fontSize: 10 }}>{groupStatusText}</span>
+            <div className="d-flex align-items-center justify-content-between mb-1">
+              <div className="d-flex align-items-center gap-2">
+                <i className={`bi ${isCollapsed ? 'bi-caret-right-fill' : 'bi-caret-down-fill'} text-muted`}></i> 
+                <span className="fw-bold" style={{ fontSize: 12 }}>SỐ HIỆU ĐƠN HÀNG: <span className="text-primary">{orderCode}</span></span>
+                <span className={`badge ${groupStatusColor} rounded-pill fw-normal`} style={{ fontSize: 10 }}>{groupStatusText}</span>
+                {latestDate > 0 && (
+                  <span className="text-muted" style={{ fontSize: 11 }}>
+                    <i className="bi bi-clock me-1"></i>
+                    {new Date(latestDate).toLocaleDateString("vi-VN")}
+                  </span>
+                )}
+              </div>
             </div>
+            
+            {isGroupImport && (orderCode.includes("-DH-") || orderCode.startsWith("QC-")) && (
+              <div className="ms-4 text-muted fw-bold" style={{ fontSize: 11 }}>
+                <i className="bi bi-file-earmark-text me-1"></i>
+                {orderCode.includes("-DH-") 
+                  ? `Theo đơn mua hàng số: ${orderCode.match(/(DH-\d+(-\d+)?)/)?.[0] || orderCode}` 
+                  : `Theo lệnh sản xuất số: ${orderCode.replace('QC-', 'LSX-')}`}
+              </div>
+            )}
+            
+            {(customerName || customerAddress) && (
+              <div className="ms-4 d-flex align-items-center gap-1 text-muted fw-bold" style={{ fontSize: 11 }}>
+                {customerName && (
+                  <>
+                    <i className="bi bi-person me-1"></i>
+                    Khách hàng: <span className="fw-bold text-dark">{customerName}</span>
+                    {customerAddress && <span className="mx-1">|</span>}
+                  </>
+                )}
+                {!customerName && customerAddress && (
+                  <i className="bi bi-geo-alt me-1"></i>
+                )}
+                {customerAddress && (
+                  <span>{customerAddress}</span>
+                )}
+              </div>
+            )}
+            
+            {ghiChu && (
+              <div className="ms-4 mt-1 text-danger" style={{ fontSize: 11 }}>
+                <i className="bi bi-exclamation-triangle-fill me-1"></i>
+                {ghiChu}
+              </div>
+            )}
           </div>
         ),
         isAssigned: true
@@ -377,25 +493,22 @@ export default function LogisticsOverviewPage() {
       <DynamicTicker pageTitle="Quản lý hệ thống kho" />
 
       <div className="flex-grow-1 pb-5 pb-xl-2 pt-2 px-xl-2 px-2 d-flex flex-column" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0 }}>
-        <div className="row flex-grow-1 m-0 h-100" style={{ minHeight: 0 }}>
-          {/* Cột trái (5 phần) */}
-          <div className={`col-12 col-xl-5 p-0 pe-xl-2 mb-3 mb-xl-0 flex-column h-100 ${activeTab === "orders" ? "d-flex" : "d-none d-xl-flex"}`} style={{ minHeight: 0 }}>
-            <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
-              <div className="px-3 px-xl-4 pt-3 pt-xl-4 pb-2 d-flex justify-content-between align-items-center">
-                <SectionTitle title="Danh sách lệnh xuất nhập kho" icon="bi-card-list" className="mb-0" />
-                <TreeFilterSelect
-                  options={[
-                    { label: "Nhập kho", value: "IMPORT" },
-                    { label: "Xuất kho", value: "EXPORT" }
-                  ]}
-                  value={typeFilter === "ALL" ? "" : typeFilter}
-                  onChange={val => setTypeFilter((val || "ALL") as any)}
-                  className="shadow-sm rounded-pill"
-                  width={120}
-                  placeholder="Tất cả"
-                />
-              </div>
-              <div className="flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
+        <WorkflowCard
+          contentPadding="p-0"
+          stepper={
+            <ModernStepper
+              steps={STEPS}
+              currentStep={currentStep}
+              onStepChange={setCurrentStep}
+              paddingX={0}
+              paddingY={8}
+            />
+          }
+        >
+          <div className="flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ minHeight: 0 }}>
+            {currentStep === 1 && (
+              <div className="flex-grow-1 d-flex flex-column h-100" style={{ minHeight: 0 }}>
+                <div className="flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
                 <Table
                   loading={loading}
                   rows={orders}
@@ -451,11 +564,12 @@ export default function LogisticsOverviewPage() {
                               <div className="text-muted" style={{ fontSize: 11 }}>
                                 <i className="bi bi-calendar-event me-1" />
                                 {new Date(row.requestedDate).toLocaleDateString('vi-VN')}
+                                {row.assigneeName && <span className="ms-1 fw-medium text-dark">| {row.assigneeName}</span>}
                               </div>
                             )}
                             {!readOrderIds.has(row.id) && <span className="badge bg-danger rounded-pill" style={{ fontSize: 9, padding: "2px 6px" }}>Mới</span>}
                           </div>
-                          <div className="text-muted text-truncate mt-1" style={{ fontSize: 12, maxWidth: 200 }}>
+                          <div className="text-muted text-truncate" style={{ fontSize: 12, maxWidth: 200 }}>
                             {row.typeLabel} {row.saleOrderCode || row.code} {row.customer ? `- ${row.customer}` : ""}
                           </div>
                         </div>
@@ -509,20 +623,68 @@ export default function LogisticsOverviewPage() {
                   emptyIcon="bi-inbox"
                   fixedLayout={false}
                   compact={true}
-                  cellStyle={() => ({ padding: "4px 8px" })}
+                  cellStyle={() => ({ padding: "3px 8px" })}
                   wrapperClassName="mkt-plan-table-no-min flex-grow-1 table-hover"
                   wrapperStyle={{ overflowX: "hidden", cursor: "pointer" }}
                 />
               </div>
               <div className="p-3 border-top bg-light mt-auto" style={{ borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
-                 <div 
-                   className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2"
-                   style={{ 
-                     opacity: selectedBatchOrders.size === 0 ? 0.6 : 1, 
-                     pointerEvents: selectedBatchOrders.size === 0 ? "none" : "auto",
-                     transition: "all 0.3s"
-                   }}
-                 >
+                 <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                   <div className="d-flex align-items-center flex-wrap gap-2">
+                     {/* Bộ lọc trạng thái */}
+                     <TreeFilterSelect
+                       options={[
+                         { label: "Chưa xử lý", value: "PENDING" },
+                         { label: "Đã xuất kho", value: "EXPORTED" },
+                         { label: "Đã nhập kho", value: "IMPORTED" }
+                       ]}
+                       value={statusFilter === "ALL" ? "" : statusFilter}
+                       onChange={val => setStatusFilter(val || "ALL")}
+                       className="shadow-sm rounded-pill"
+                       width={120}
+                       placeholder="Trạng thái"
+                       dropdownPosition="top"
+                     />
+
+                     {/* Bộ lọc loại */}
+                     <TreeFilterSelect
+                       options={[
+                         { label: "Nhập kho", value: "IMPORT" },
+                         { label: "Xuất kho", value: "EXPORT" }
+                       ]}
+                       value={typeFilter === "ALL" ? "" : typeFilter}
+                       onChange={val => setTypeFilter((val || "ALL") as any)}
+                       className="shadow-sm rounded-pill"
+                       width={110}
+                       placeholder="Loại"
+                       dropdownPosition="top"
+                     />
+                     
+                     {/* Hộp tìm kiếm */}
+                     <div className="input-group input-group-sm shadow-sm" style={{ width: 220, borderRadius: 20, overflow: 'hidden' }}>
+                       <span className="input-group-text bg-white border-end-0 text-muted px-2" style={{ borderTopLeftRadius: 20, borderBottomLeftRadius: 20 }}>
+                         <i className="bi bi-search"></i>
+                       </span>
+                       <input 
+                         type="text" 
+                         className="form-control border-start-0 ps-0" 
+                         placeholder="Tìm khách hàng, đơn..." 
+                         value={searchQuery}
+                         onChange={e => setSearchQuery(e.target.value)}
+                         style={{ borderTopRightRadius: 20, borderBottomRightRadius: 20, boxShadow: 'none' }}
+                       />
+                     </div>
+                   </div>
+                   
+                   {/* Giao việc gom hàng */}
+                   <div 
+                     className="d-flex flex-column flex-md-row align-items-md-center gap-2"
+                     style={{ 
+                       opacity: selectedBatchOrders.size === 0 ? 0.6 : 1, 
+                       pointerEvents: selectedBatchOrders.size === 0 ? "none" : "auto",
+                       transition: "all 0.3s"
+                     }}
+                   >
                      <div className="d-flex align-items-center gap-2 flex-grow-1">
                         <span className="text-muted fw-semibold flex-shrink-0" style={{ fontSize: 13, whiteSpace: "nowrap" }}>Người thực hiện:</span>
                         <select 
@@ -539,7 +701,7 @@ export default function LogisticsOverviewPage() {
                      </div>
                      <button 
                        className="btn btn-sm btn-primary px-3 fw-semibold shadow-sm"
-                       disabled={!selectedStaff || selectedBatchOrders.size === 0}
+                       disabled={!selectedStaff || selectedBatchOrders.size === 0 || !isThuKho}
                        onClick={async () => {
                          try {
                            const res = await fetch("/api/logistics/batch-packing/assign", {
@@ -561,8 +723,10 @@ export default function LogisticsOverviewPage() {
                                const parts = rawId.split('-');
                                const suffix = parts[parts.length - 1] || `${index}`;
                                let exportCode = `LXK-202607-${suffix}`;
-                               if (d.type === "material-export") exportCode = `LXK-VATTU-${suffix}`;
-                               if (d.type === "material-import") exportCode = `LNK-OQC-${suffix}`;
+                               if (d.type === "material-import") {
+                                 const isIQC = (d.title || d.code || "").includes("IQC") || (d.title || d.code || "").toLowerCase().includes("vật tư");
+                                 exportCode = `LNK-${isIQC ? 'IQC' : 'OQC'}-${suffix}`;
+                               }
                                if (d.type === "logistics-ticket") exportCode = d.code;
                                return { ...d, exportCode };
                              });
@@ -582,54 +746,24 @@ export default function LogisticsOverviewPage() {
                           </span>
                         </span>
                      </button>
+                   </div>
                  </div>
               </div>
             </div>
-          </div>
+            )}
 
-          {/* Cột phải (7 phần) */}
-          <div className={`col-12 col-xl-7 p-0 ps-xl-2 flex-column h-100 ${activeTab === "inventory" ? "d-flex" : "d-none d-xl-flex"}`} style={{ minHeight: 0 }}>
-            <div className="bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column overflow-hidden" style={{ minHeight: 0 }}>
-              <div 
-                className="flex-grow-1 d-flex flex-column overflow-hidden"
-                style={{ minHeight: 0 }}
-              >
-                <LogisticsInventory compactMode={true} hideActions={true} />
+            {currentStep === 2 && (
+              <div className="flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ minHeight: 0 }}>
+                <div 
+                  className="flex-grow-1 d-flex flex-column overflow-hidden"
+                  style={{ minHeight: 0 }}
+                >
+                  <LogisticsInventory compactMode={true} hideActions={true} />
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        </div>
-      </div>
-
-      {/* Mobile/Tablet Bottom Toolbar */}
-      <div className="d-flex d-xl-none position-fixed bottom-0 start-0 w-100 bg-white border-top shadow-lg p-2 justify-content-start align-items-center gap-2" style={{ zIndex: 1030 }}>
-        <button 
-          onClick={() => setActiveTab("orders")}
-          className={`btn rounded-pill mobile-circle-btn px-4 py-2 fw-semibold d-flex align-items-center justify-content-center ${activeTab === "orders" ? "btn-primary shadow-sm" : "btn-light text-muted"}`}
-          style={{ fontSize: 14, transition: "all 0.2s" }}
-        >
-          <i className="bi bi-card-list me-0 me-sm-2"></i>
-          <span className="d-none d-sm-inline">Lệnh kho</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab("inventory")}
-          className={`btn rounded-pill mobile-circle-btn px-4 py-2 fw-semibold d-flex align-items-center justify-content-center ${activeTab === "inventory" ? "btn-primary shadow-sm" : "btn-light text-muted"}`}
-          style={{ fontSize: 14, transition: "all 0.2s" }}
-        >
-          <i className="bi bi-box-seam me-0 me-sm-2"></i>
-          <span className="d-none d-sm-inline">Hàng hoá</span>
-        </button>
-
-        {activeTab === "inventory" && (
-          <button 
-            onClick={() => document.getElementById("logistics-add-item-btn")?.click()}
-            className="btn btn-primary rounded-pill mobile-circle-btn px-4 py-2 fw-semibold shadow-sm d-flex align-items-center justify-content-center"
-            style={{ fontSize: 14, backgroundColor: "#011F58", borderColor: "#011F58" }}
-          >
-            <i className="bi bi-plus-lg me-0 me-sm-2"></i>
-            <span className="d-none d-sm-inline">Thêm</span>
-          </button>
-        )}
+        </WorkflowCard>
       </div>
 
       {/* Offcanvas */}
@@ -756,10 +890,12 @@ export default function LogisticsOverviewPage() {
           </button>
           <button 
             className="btn btn-primary w-100" 
-            disabled={selectedOrder?.type === "logistics-ticket" && selectedOrder.trangThai !== "PACKED"}
+            disabled={(selectedOrder?.type === "logistics-ticket" && selectedOrder.trangThai !== "PACKED") || !isThuKho}
             onClick={() => {
               if (selectedOrder?.type === "material-import") {
                 setNhapKhoTaskId(selectedOrder.id);
+                setNhapKhoMode(selectedOrder.typeLabel?.toLowerCase().includes("vật tư") ? "po" : "production");
+                setNhapKhoSoBienBanQC(selectedOrder.code?.startsWith("QC-") ? selectedOrder.code : "");
                 setShowNhapKhoModal(true);
               } else {
                 let isSo = false;
@@ -805,7 +941,8 @@ export default function LogisticsOverviewPage() {
           onClose={() => setShowXuatKhoModal(false)}
           onSaved={() => {
             // refresh data without closing modal
-            fetch("/api/logistics/overview-orders").then(r => r.json()).then(setOrderDetails);
+            fetch("/api/logistics/overview-orders").then(r => r.json()).then(setRawOrders);
+            if (selectedOrder) handleRowClick(selectedOrder);
           }}
         />
       )}
@@ -814,10 +951,13 @@ export default function LogisticsOverviewPage() {
         <NhapKhoModal 
           initialItems={orderDetails}
           initialTaskId={nhapKhoTaskId}
+          initialMode={nhapKhoMode}
+          initialSoBienBanQC={nhapKhoSoBienBanQC}
           onClose={() => setShowNhapKhoModal(false)}
           onSaved={() => {
             // refresh data without closing modal
-            fetch("/api/logistics/overview-orders").then(r => r.json()).then(setOrderDetails);
+            fetch("/api/logistics/overview-orders").then(r => r.json()).then(setRawOrders);
+            if (selectedOrder) handleRowClick(selectedOrder);
           }}
         />
       )}

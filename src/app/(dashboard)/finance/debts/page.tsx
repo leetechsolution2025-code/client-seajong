@@ -358,12 +358,14 @@ export default function DebtsPage() {
                       <span>Đối chiếu công nợ</span>
                     </button>
                   </li>
-                  <li>
-                    <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
-                      <i className="bi bi-bell text-warning fs-6" />
-                      <span>Gửi nhắc nợ</span>
-                    </button>
-                  </li>
+                  {currentStepId === "RECEIVABLE" && (
+                    <li>
+                      <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
+                        <i className="bi bi-bell text-warning fs-6" />
+                        <span>Gửi nhắc nợ</span>
+                      </button>
+                    </li>
+                  )}
                 </>
               )}
               <li><hr className="dropdown-divider opacity-50" /></li>

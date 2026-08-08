@@ -17,6 +17,9 @@ export interface GanttTask {
   week4?: boolean;
   isGeneric?: boolean;
   isHeader?: boolean;
+  isExpanded?: boolean;
+  address?: string;
+  onToggle?: (e: React.MouseEvent) => void;
 }
 
 function getTaskProgress(task: any): number {
@@ -127,18 +130,6 @@ export function GanttChart({ tasks, filterMonth, onTaskClick }: GanttChartProps)
     "var(--muted-foreground)": "linear-gradient(90deg, #64748b 0%, #94a3b8 50%, #e2e8f0 100%)", 
   };
 
-  if (tasks.length === 0) {
-    return (
-      <div style={{ padding: "70px 20px", textAlign: "center" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 64, height: 64, borderRadius: "50%", background: "var(--muted, #f1f5f9)", marginBottom: 14 }}>
-          <i className="bi bi-bar-chart-gantt" style={{ fontSize: 28, color: "var(--muted-foreground, #64748b)" }} />
-        </div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--foreground, #0f172a)", marginBottom: 5 }}>Chưa có công việc nào</div>
-        <div style={{ fontSize: 12, color: "var(--muted-foreground, #64748b)" }}>Tháng {filterMonth} không có dữ liệu</div>
-      </div>
-    );
-  }
-
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       <div style={{ minWidth: 640, flexShrink: 0 }}>
@@ -218,7 +209,15 @@ export function GanttChart({ tasks, filterMonth, onTaskClick }: GanttChartProps)
               }} />
             </div>
           )}
-          {tasks.map((task, idx) => {
+          {tasks.length === 0 ? (
+            <div style={{ padding: "40px 20px", textAlign: "center" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 64, height: 64, borderRadius: "50%", background: "var(--muted, #f1f5f9)", marginBottom: 14 }}>
+                <i className="bi bi-bar-chart-gantt" style={{ fontSize: 28, color: "var(--muted-foreground, #64748b)" }} />
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--foreground, #0f172a)", marginBottom: 5 }}>Chưa có công việc nào</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground, #64748b)" }}>Tháng {filterMonth} không có dữ liệu</div>
+            </div>
+          ) : tasks.map((task, idx) => {
             if (task.isHeader) {
               return (
                 <motion.div
@@ -239,15 +238,30 @@ export function GanttChart({ tasks, filterMonth, onTaskClick }: GanttChartProps)
                   onMouseEnter={e => (e.currentTarget.style.background = "rgba(99, 102, 241, 0.12)")}
                   onMouseLeave={e => (e.currentTarget.style.background = "rgba(99, 102, 241, 0.06)")}
                 >
-                  <i className="bi bi-shop text-primary me-2" style={{ fontSize: 14 }} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--primary, #4f46e5)" }}>
-                    {task.title}
-                  </span>
-                  {task.assigneeName && (
-                    <span style={{ fontSize: 11, color: "var(--muted-foreground, #64748b)", marginLeft: 12 }}>
-                      <i className="bi bi-geo-alt me-1" />
-                      {task.assigneeName}
-                    </span>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <i className="bi bi-shop text-primary me-2" style={{ fontSize: 14 }} />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--primary, #4f46e5)" }}>
+                        {task.title}
+                      </span>
+                    </div>
+                    {task.address && (
+                      <div style={{ fontSize: 11, color: "var(--muted-foreground, #64748b)", marginTop: 2, display: "flex", alignItems: "center" }}>
+                        <i className="bi bi-geo-alt me-1" />
+                        {task.address}
+                      </div>
+                    )}
+                  </div>
+                  {task.onToggle && (
+                    <button
+                      className="btn btn-sm btn-link p-0 ms-auto text-secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        task.onToggle?.(e);
+                      }}
+                    >
+                      <i className={`bi bi-chevron-${task.isExpanded ? "up" : "down"}`} style={{ fontSize: 14, fontWeight: 800 }} />
+                    </button>
                   )}
                 </motion.div>
               );

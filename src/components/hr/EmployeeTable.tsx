@@ -69,10 +69,10 @@ export function EmployeeTable({ employees, loading, onRowClick, onEditClick }: E
   return (
     <>
       {/* Desktop Table View */}
-      <div className="d-none d-md-block">
-        <div className="table-responsive">
+      <div className="d-none d-md-block h-100">
+        <div className="h-100 overflow-auto custom-scrollbar">
           <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
-            <thead className="bg-light">
+            <thead className="bg-light" style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "var(--background)" }}>
               <tr style={{ height: 40 }}>
                 <th className="ps-4 border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Nhân viên</th>
                 <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>Vị trí / Phòng ban</th>

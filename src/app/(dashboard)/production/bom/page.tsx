@@ -342,8 +342,8 @@ export default function BOMPage() {
   const fetchBom = async (bomId: string | null, product: any = null) => {
     if (!bomId) {
       setBomData({
-        id: undefined,
-        code: `DM-${product?.code || Date.now()}`,
+        id: "",
+        code: `DM-${(product?.code || Math.random().toString(36).substring(2, 8).toUpperCase()).replace(/MẠ/g, "MA")}`,
         tenDinhMuc: `Định mức tiêu chuẩn ${(product?.tenHang || product?.name) || ""}`,
         vatTu: []
       });
@@ -788,7 +788,7 @@ export default function BOMPage() {
                   <div className="d-flex flex-wrap gap-3 text-muted small mb-1">
                     <span><i className="bi bi-upc-scan me-1"></i>Mã: {selectedProduct.code || "N/A"}</span>
                     <span><i className="bi bi-tag me-1"></i>ĐVT: {(selectedProduct.donVi || selectedProduct.unit)}</span>
-                    <span><i className="bi bi-building me-1"></i>Kho: {selectedProduct.defaultWarehouse || "N/A"}</span>
+                    <span><i className="bi bi-building me-1"></i>Kho: {selectedProduct.stocks?.length > 0 ? Array.from(new Set(selectedProduct.stocks.map((s: any) => s.warehouse?.name))).filter(Boolean).join(", ") : "N/A"}</span>
                   </div>
                   {bomData?.id && (
                     <div className="d-flex flex-wrap gap-3 align-items-center bg-light px-2 py-1 rounded w-100 mt-1">

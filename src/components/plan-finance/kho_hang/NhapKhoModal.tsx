@@ -42,6 +42,8 @@ interface NhapKhoModalProps {
   onSaved: () => void; 
   initialItems?: { name?: string, tenHang?: string, qty?: number, soLuong?: number, unit?: string }[];
   initialTaskId?: string;
+  initialSoBienBanQC?: string;
+  initialMode?: "manual" | "po" | "production";
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -66,9 +68,11 @@ const CSS: Record<string, React.CSSProperties> = {
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: NhapKhoModalProps) {
+export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, initialSoBienBanQC, initialMode }: NhapKhoModalProps) {
   const { data: session } = useSession();
-  const [mode, setMode] = React.useState<"manual" | "po" | "production">(initialItems && initialItems.length > 0 ? "production" : "manual");
+  const [mode, setMode] = React.useState<"manual" | "po" | "production">(
+    initialMode ? initialMode : (initialItems && initialItems.length > 0 ? "production" : "manual")
+  );
 
   // Header fields
   const [soChungTu, setSoChungTu] = React.useState(() => {
@@ -87,6 +91,7 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
     if (mode === "production") setLoaiNhapKho("Nhập từ sản xuất");
     else if (mode === "po") setLoaiNhapKho("Nhập mua hàng");
   }, [mode]);
+  const [soBienBanQC, setSoBienBanQC] = React.useState(initialSoBienBanQC || "");
   const [ghiChu, setGhiChu] = React.useState("");
   const [chiPhiVanChuyen, setChiPhiVanChuyen] = React.useState(0);
 
@@ -178,22 +183,40 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
     return () => document.removeEventListener("keydown", h);
   }, [onClose]);
 
-  // Fetch PO list khi chuyển sang mode PO
   React.useEffect(() => {
     if (mode !== "po") return;
     setPoLoading(true);
     setSelectedPO(null);
     fetch("/api/plan-finance/purchasing?trangThai=received&limit=100")
       .then(r => r.json())
-      .then(d => setPoList(Array.isArray(d.items) ? d.items : []))
+      .then(d => {
+        const list = Array.isArray(d.items) ? d.items : [];
+        setPoList(list);
+        
+        if (initialSoBienBanQC) {
+          const poCodeMatch = initialSoBienBanQC.match(/(DH-\d{8}-\d{4})/);
+          if (poCodeMatch) {
+            const matchedPo = list.find((p: any) => p.code === poCodeMatch[1]);
+            if (matchedPo) {
+              onSelectPOById(matchedPo.id, list, !!(initialItems && initialItems.length > 0));
+            }
+          }
+        }
+      })
       .catch(() => setPoList([]))
       .finally(() => setPoLoading(false));
-  }, [mode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, initialSoBienBanQC, initialItems]);
 
   // ── PO select ──────────────────────────────────────────────────────────────
-  const onSelectPOById = async (id: string) => {
-    if (!id) { setSelectedPO(null); setLines([emptyLine()]); return; }
-    const po = poList.find(p => p.id === id) ?? null;
+  const onSelectPOById = async (id: string, fallbackList?: POSuggestion[], keepExistingLines?: boolean) => {
+    if (!id) { 
+      setSelectedPO(null); 
+      if (!keepExistingLines) setLines([emptyLine()]); 
+      return; 
+    }
+    const listToSearch = fallbackList || poList;
+    const po = listToSearch.find(p => p.id === id) ?? null;
     setSelectedPO(po);
     if (!po) return;
     setPoLoading(true);
@@ -201,18 +224,20 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
       const res = await fetch(`/api/plan-finance/purchasing/${po.id}`);
       const full = await res.json();
       if (Array.isArray(full.items) && full.items.length > 0) {
-        setLines(full.items.map((it: POItem) => ({
-          id: uid(),
-          item: it.inventoryItem
-            ? { id: it.inventoryItemId!, code: it.inventoryItem.code, tenHang: it.tenHang, donVi: it.donVi ?? null, giaNhap: it.donGia }
-            : null,
-          itemSearch: it.tenHang,
-          suggestions: [], showSugg: false,
-          soLuong: it.soLuong,
-          soLuongThucTe: it.soLuong, // mặc định thực tế = chứng từ
-          donGia: it.donGia,
-          viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
-        })));
+        if (!keepExistingLines) {
+          setLines(full.items.map((it: POItem) => ({
+            id: uid(),
+            item: it.inventoryItem
+              ? { id: it.inventoryItemId!, code: it.inventoryItem.code, tenHang: it.tenHang, donVi: it.donVi ?? null, giaNhap: it.donGia }
+              : null,
+            itemSearch: it.tenHang,
+            suggestions: [], showSugg: false,
+            soLuong: it.soLuong,
+            soLuongThucTe: it.soLuong, // mặc định thực tế = chứng từ
+            donGia: it.donGia,
+            viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
+          })));
+        }
         setLyDo(`Nhập kho theo PO: ${po.code ?? po.id}`);
       }
     } catch { /* giữ lines cũ */ }
@@ -279,7 +304,7 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
           toWarehouseId,
           soChungTu: soChungTu || undefined,
           purchaseOrderId: selectedPO?.id || undefined,
-          lyDo: [loaiNhapKho, lyDo, ghiChu ? `Ghi chú: ${ghiChu}` : "", chiPhiVanChuyen > 0 ? `Phí vận chuyển: ${fmtVnd(chiPhiVanChuyen)}` : ""].filter(Boolean).join(" - ") || undefined,
+          lyDo: [loaiNhapKho, lyDo, soBienBanQC ? `Số BB QC: ${soBienBanQC}` : "", ghiChu ? `Ghi chú: ${ghiChu}` : "", chiPhiVanChuyen > 0 ? `Phí vận chuyển: ${fmtVnd(chiPhiVanChuyen)}` : ""].filter(Boolean).join(" - ") || undefined,
           nguoiThucHien: nguoiThucHien || undefined,
           lines: validLines.map(l => {
             const soLuong = l.soLuongThucTe ?? l.soLuong;
@@ -559,6 +584,17 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
                 />
               </div>
 
+              {/* Số biên bản QC */}
+              <div>
+                <label style={CSS.label}>Số biên bản QC</label>
+                <input
+                  value={soBienBanQC}
+                  onChange={e => setSoBienBanQC(e.target.value)}
+                  placeholder="Nhập số BB QC (nếu có)"
+                  style={CSS.input}
+                />
+              </div>
+
               {/* Thời gian */}
               <div>
                 <label style={CSS.label}>Thời gian</label>
@@ -732,7 +768,7 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId }: 
               <div style={{ width: 1, height: 28, background: "var(--border)" }} />
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Giá trị</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#10b981", lineHeight: 1.2 }}>{fmtVnd(tongTien)}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "#10b981", lineHeight: 1.2 }}>*** ₫</div>
               </div>
             </div>
           </div>
@@ -981,16 +1017,18 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
       <input placeholder="Tầng" value={line.viTriTang} onChange={e => !locked && onUpdate("viTriTang", e.target.value)} readOnly={locked} style={{ ...cellInput, textAlign: "center" }} title="Tầng" />
 
       {/* Đơn giá */}
-      <CurrencyInput value={line.donGia} onChange={v => !locked && onUpdate("donGia", v)} placeholder="0" style={{ ...cellInput, textAlign: "right" }} />
+      <div style={{ ...cellInput, textAlign: "right", background: locked ? "var(--muted)" : "var(--background)", color: "var(--muted-foreground)", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+        ***
+      </div>
 
       {/* Giá vốn */}
-      <div style={{ textAlign: "right", fontSize: 12.5, fontWeight: 700, color: giaVonDonVi > 0 ? "#8b5cf6" : "var(--muted-foreground)" }}>
-        {giaVonDonVi > 0 ? Math.round(giaVonDonVi).toLocaleString("vi-VN") + " ₫" : "—"}
+      <div style={{ textAlign: "right", fontSize: 12.5, fontWeight: 700, color: "var(--muted-foreground)" }}>
+        ***
       </div>
 
       {/* Thành tiền */}
-      <div style={{ textAlign: "right", fontSize: 12.5, fontWeight: 700, color: thanhTien > 0 ? "var(--foreground)" : "var(--muted-foreground)" }}>
-        {thanhTien > 0 ? thanhTien.toLocaleString("vi-VN") + " ₫" : "—"}
+      <div style={{ textAlign: "right", fontSize: 12.5, fontWeight: 700, color: "var(--muted-foreground)" }}>
+        ***
       </div>
 
       {/* Remove */}

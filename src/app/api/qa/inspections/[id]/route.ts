@@ -22,6 +22,15 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     }
 
     await prisma.$transaction(async (tx) => {
+      // 0. Chuẩn bị metadata mới
+      const oldMeta = typeof inspection.metadata === 'string' 
+        ? JSON.parse(inspection.metadata) 
+        : (inspection.metadata || {});
+      const newMeta = { ...oldMeta };
+      if (items && Array.isArray(items)) {
+        newMeta.items = items;
+      }
+
       // 1. Cập nhật trạng thái phiếu QC
       await tx.qualityInspection.update({
         where: { id: inspection.id },
@@ -29,7 +38,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
           result,
           notes: notes || inspection.notes,
           status: "Đã hoàn thành",
-          inspectorName: session.user?.name || session.user?.email || "QA/QC"
+          inspectorName: session.user?.name || session.user?.email || "QA/QC",
+          metadata: JSON.stringify(newMeta)
         }
       });
 
@@ -64,9 +74,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
               { position: { contains: "thủ kho" } }
             ]
           },
-          select: { userId: true }
+          select: { userId: true, position: true }
         });
         const storekeeperUserIds = storekeepers.map(u => u.userId).filter(Boolean) as string[];
+        const thuKhoUserIds = storekeepers.filter(s => (s.position || "").toLowerCase().includes("thủ kho")).map(s => s.userId).filter(Boolean) as string[];
 
         // Ghi nhận số lượng thực tế
         const meta = (inspection as any).metadata ? JSON.parse((inspection as any).metadata as string) : {};
@@ -78,13 +89,13 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
           data: {
             title: `Yêu cầu nhập kho thành phẩm (${inspection.code})`,
             description: `Kiểm tra OQC đạt yêu cầu. Đề nghị bộ phận Kho vận tiến hành nhập kho thành phẩm.\nSản phẩm: ${itemName}`,
-            assigneeId: storekeeperUserIds[0] || session.user.id,
+            assigneeId: thuKhoUserIds[0] || storekeeperUserIds[0] || session.user.id,
             creatorId: session.user.id,
             deptCode: "logistics",
             priority: "high",
             status: "pending",
             actualResult: JSON.stringify([
-              { tenHang: itemName, soLuong: finalQuantity, donVi: "Bộ", type: "Kho Thành Phẩm", isShortage: false }
+              { tenHang: itemName, soLuong: finalQuantity, donVi: "Bộ", type: "Kho Thành Phẩm", isShortage: false, inventoryItemId: meta.inventoryItemId || null }
             ])
           }
         });
@@ -127,9 +138,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
               { position: { contains: "thủ kho" } }
             ]
           },
-          select: { userId: true }
+          select: { userId: true, position: true }
         });
         const storekeeperUserIds = storekeepers.map((u: any) => u.userId).filter(Boolean) as string[];
+        const thuKhoUserIds = storekeepers.filter((s: any) => (s.position || "").toLowerCase().includes("thủ kho")).map((s: any) => s.userId).filter(Boolean) as string[];
 
         const passedItems = items.filter((it: any) => parseInt(it.passQuantity?.toString() || "0", 10) > 0);
         
@@ -139,14 +151,15 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
             soLuong: parseInt(it.passQuantity?.toString() || "0", 10),
             donVi: "Cái", // Defaulting to Cái, can be extended if needed
             type: "Kho Vật Tư / Linh kiện",
-            isShortage: false
+            isShortage: false,
+            inventoryItemId: it.inventoryItemId || it.id || null
           }));
 
           const khoTask = await tx.task.create({
             data: {
               title: `Yêu cầu nhập kho vật tư (${inspection.code})`,
               description: `Kiểm tra IQC có hàng hóa đạt yêu cầu. Đề nghị bộ phận Kho vận tiến hành nhập kho vật tư / linh kiện.\nTừ đơn: ${inspection.productName || "N/A"}`,
-              assigneeId: storekeeperUserIds[0] || session.user.id,
+              assigneeId: thuKhoUserIds[0] || storekeeperUserIds[0] || session.user.id,
               creatorId: session.user.id,
               deptCode: "logistics",
               priority: "high",
