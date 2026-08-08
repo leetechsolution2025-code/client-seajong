@@ -385,12 +385,11 @@ export default function LogisticsOverviewPage() {
                 <SectionTitle title="Danh sách lệnh xuất nhập kho" icon="bi-card-list" className="mb-0" />
                 <TreeFilterSelect
                   options={[
-                    { label: "Tất cả", value: "ALL" },
                     { label: "Nhập kho", value: "IMPORT" },
                     { label: "Xuất kho", value: "EXPORT" }
                   ]}
-                  value={typeFilter}
-                  onChange={val => setTypeFilter(val as any)}
+                  value={typeFilter === "ALL" ? "" : typeFilter}
+                  onChange={val => setTypeFilter((val || "ALL") as any)}
                   className="shadow-sm rounded-pill"
                   width={120}
                   placeholder="Tất cả"
