@@ -116,14 +116,39 @@ function timeAgo(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("vi-VN");
 }
 
-/** Parse **text** thành <strong> */
+/** Parse **text** thành <strong>, *text* thành <em>, và [text](url) thành <a> */
 function parseBold(text: string): React.ReactNode[] {
-  const parts = text.split(/\*\*(.*?)\*\*/g);
-  return parts.map((p, i) =>
-    i % 2 === 1
-      ? <strong key={i} style={{ fontWeight: 700, color: "inherit" }}>{p.replace(/\*/g, "")}</strong>
-      : <span key={i}>{p.replace(/\*/g, "")}</span>
-  );
+  const boldParts = text.split(/\*\*(.*?)\*\*/g);
+  return boldParts.map((p, i) => {
+    if (i % 2 === 1) {
+      return <strong key={i} style={{ fontWeight: 700, color: "inherit" }}>{p.replace(/\*/g, "")}</strong>;
+    }
+    
+    const italicParts = p.split(/\*(.*?)\*/g);
+    return (
+      <span key={i}>
+        {italicParts.map((ip, k) => {
+          if (k % 2 === 1) {
+             return <em key={k} style={{ fontStyle: "italic", color: "inherit" }}>{ip}</em>;
+          }
+          
+          const linkParts = ip.split(/\[([^\]]+)\]\(([^)]+)\)/g);
+          return (
+            <span key={k}>
+              {linkParts.map((lp, j) => {
+                if (j % 3 === 0) return <span key={j}>{lp}</span>;
+                if (j % 3 === 1) {
+                  const url = linkParts[j + 1];
+                  return <a key={j} href={url} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", textDecoration: "underline", fontWeight: 600 }} onClick={e => e.stopPropagation()}>{lp}</a>;
+                }
+                return null;
+              })}
+            </span>
+          );
+        })}
+      </span>
+    );
+  });
 }
 
 function parseBadgesAndBold(text: string): React.ReactNode {
@@ -1509,9 +1534,7 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                 {actionItems.length > 0 && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
                     {actionItems.map((att: any, i) => {
-                      const isAction = att.type === "recruitment_action";
                       const candidateId = att.candidateId;
-                      const decision = processedIds[candidateId];
 
                       return (
                         <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1635,51 +1658,7 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                             </div>
                           )}
 
-                          {/* Action Buttons for Dept Head */}
-                          {isAction && candidateId && (
-                            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginBottom: 8 }}>
-                              {decision ? (
-                                <div style={{ 
-                                  fontSize: 12, fontWeight: 700, 
-                                  color: decision === 'approve' ? "#166534" : "#991b1b",
-                                  display: "flex", alignItems: "center", gap: 6,
-                                  padding: "4px 0"
-                                }}>
-                                  <i className={`bi ${decision === 'approve' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`} />
-                                  {decision === 'approve' ? "ĐÃ DUYỆT PHỎNG VẤN" : "ĐÃ TỪ CHỐI HỒ SƠ"}
-                                </div>
-                              ) : (
-                                <>
-                                  <button
-                                    disabled={decidingId === candidateId}
-                                    onClick={() => handleCandidateDecision(candidateId, 'approve', selected.id)}
-                                    style={{
-                                      background: "#dcfce7", color: "#166534", border: "none",
-                                      borderRadius: 6, padding: "6px 12px", fontSize: 11.5, fontWeight: 700,
-                                      cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
-                                      transition: "opacity 0.15s"
-                                    }}
-                                  >
-                                    {decidingId === candidateId ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-check2" />}
-                                    Duyệt
-                                  </button>
-                                  <button
-                                    disabled={decidingId === candidateId}
-                                    onClick={() => handleCandidateDecision(candidateId, 'reject', selected.id)}
-                                    style={{
-                                      background: "#fee2e2", color: "#991b1b", border: "none",
-                                      borderRadius: 6, padding: "6px 12px", fontSize: 11.5, fontWeight: 700,
-                                      cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
-                                      transition: "opacity 0.15s"
-                                    }}
-                                  >
-                                    {decidingId === candidateId ? <i className="bi bi-arrow-clockwise" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-x-lg" />}
-                                    Từ chối
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          )}
+
 
                           {/* Action Buttons for Interview Invite */}
                           {att.type === "interview_invite" && att.candidateIds && (
@@ -1792,6 +1771,55 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
             );
           })()}
         </div>
+
+        {/* Detail Footer for recruitment_action */}
+        {(() => {
+          if (!selected) return null;
+          const attachmentsArray = selected.attachments ? (typeof selected.attachments === "string" ? JSON.parse(selected.attachments) : selected.attachments) : [];
+          const recruitmentActions = attachmentsArray.filter((a: any) => a.type === "recruitment_action");
+          
+          if (recruitmentActions.length > 0) {
+             return (
+                <div style={{ padding: "16px 20px", borderTop: "1px solid #e2e8f0", background: "#f8fafc", display: "flex", gap: "10px", justifyContent: "flex-end", flexShrink: 0 }}>
+                   {recruitmentActions.map((att: any, i: number) => {
+                      const candidateId = att.candidateId;
+                      const decision = processedIds[candidateId];
+                      if (decision) {
+                         return (
+                           <div key={i} style={{ fontSize: 12, fontWeight: 700, color: decision === 'approve' ? "#166534" : "#991b1b", display: "flex", alignItems: "center", gap: 6 }}>
+                             <i className={`bi ${decision === 'approve' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`} />
+                             {decision === 'approve' ? "ĐÃ DUYỆT PHỎNG VẤN" : "ĐÃ TỪ CHỐI HỒ SƠ"}
+                           </div>
+                         );
+                      }
+                      return (
+                         <div key={i} style={{ display: "flex", gap: "10px" }}>
+                            <BrandButton 
+                               type="button"
+                               icon="bi-x-lg" 
+                               loading={decidingId === candidateId}
+                               onClick={() => handleCandidateDecision(candidateId, 'reject', selected.id)}
+                               className="btn-danger text-white border-0"
+                            >
+                               Từ chối
+                            </BrandButton>
+                            <BrandButton 
+                               type="button"
+                               icon="bi-check-lg" 
+                               loading={decidingId === candidateId}
+                               onClick={() => handleCandidateDecision(candidateId, 'approve', selected.id)}
+                            >
+                               Duyệt
+                            </BrandButton>
+                         </div>
+                      );
+                   })}
+                </div>
+             );
+          }
+          return null;
+        })()}
+
       </div>
     );
   })() : null;

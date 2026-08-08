@@ -88,7 +88,8 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
     }
   }, [reconciler]);
 
-  const isReceivable = debt ? (debt.type?.toUpperCase() === "RECEIVABLE" || debt.type === "phai-thu") : true;
+  const typeUpper = debt?.type?.toUpperCase() || "";
+  const isReceivable = debt ? (typeUpper === "RECEIVABLE" || typeUpper === "PHAI-THU" || typeUpper === "PHAI_THU") : true;
 
   // Initialize values when modal opens
   useEffect(() => {

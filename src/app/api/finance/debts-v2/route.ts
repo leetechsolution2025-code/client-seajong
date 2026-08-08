@@ -133,7 +133,9 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const { type, partnerName, amount, paidAmount, dueDate, interestRate, description, referenceId, status, newPayment } = body;
 
+    console.log("PUT DEBT CALLED WITH ID:", id);
     const oldDebt = await (prisma.debt as any).findUnique({ where: { id } });
+    console.log("OLD DEBT FOUND:", oldDebt ? oldDebt.id : "NULL");
 
     const debt = await (prisma.debt as any).update({
       where: { id },

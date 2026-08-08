@@ -1,16 +1,52 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import { PrismaClient } from '@prisma/client'
+const prisma = new PrismaClient()
+
 async function main() {
-  const item = await prisma.inventoryItem.findFirst({ where: { tenHang: { contains: "Sen tắm nóng lạnh 01S" } } });
-  console.log("InventoryItem:", item);
+  const usersWithCrm = await prisma.user.findMany({
+    where: {
+      permissions: { contains: '"crm"' },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      employee: {
+        select: {
+          id: true,
+          fullName: true,
+          status: true,
+          workEmail: true,
+          phone: true,
+          departmentCode: true,
+        },
+      },
+    },
+  });
+
+  const result: any[] = [];
   
-  if (item) {
-    const dm1 = await prisma.dinhMuc.findFirst({ where: { id: item.dinhMucId || "123" } });
-    console.log("DinhMuc by dinhMucId:", dm1);
-    
-    // Check if there is a BOM that matches the code or name
-    const dm2 = await prisma.dinhMuc.findFirst({ where: { tenSanPham: { contains: "Sen tắm nóng lạnh 01" } } });
-    console.log("DinhMuc by Name:", dm2);
+  for (const u of usersWithCrm) {
+    let empDept: string | null = null;
+    let empName = null;
+
+    if (u.employee && u.employee.status === "active") {
+      empDept = u.employee.departmentCode;
+      empName = u.employee.fullName;
+    } else if (!u.employee) {
+      const empByEmail = await prisma.employee.findFirst({
+        where: { workEmail: u.email, status: "active" },
+        select: { fullName: true, departmentCode: true },
+      });
+      if (empByEmail) {
+        empDept = empByEmail.departmentCode;
+        empName = empByEmail.fullName;
+      }
+    }
+
+    result.push({ email: u.email, name: u.name, empName, empDept });
   }
+
+  console.log("All CRM users:", result);
 }
-main().catch(console.error).finally(() => prisma.$disconnect());
+
+main().finally(() => prisma.$disconnect())

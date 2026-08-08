@@ -202,7 +202,8 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
     setMounted(true);
   }, []);
 
-  const isReceivable = debt ? (debt.type?.toUpperCase() === "RECEIVABLE" || debt.type === "phai-thu") : true;
+  const typeUpper = debt?.type?.toUpperCase() || "";
+  const isReceivable = debt ? (typeUpper === "RECEIVABLE" || typeUpper === "PHAI-THU" || typeUpper === "PHAI_THU") : true;
 
   const generateReceiptCode = (isRec: boolean) => {
     const today = new Date();

@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
 declare global {
   interface Window {
@@ -540,16 +541,16 @@ export default function InterviewsPage() {
 
   const bottomToolbar = (
     <div className="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between w-100 gap-2" style={{ minHeight: 32 }}>
-      <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 w-100 w-md-auto">
-        <div className="w-100" style={{ maxWidth: "100%" }}>
+      <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 w-100 w-md-auto flex-grow-1">
+        <div className="w-100 flex-grow-1" style={{ maxWidth: "100%" }}>
           <SearchInput
             placeholder="Tìm kiếm ứng viên hoặc vị trí..."
             value={searchQuery}
             onChange={setSearchQuery}
-            className="border-0 shadow-sm hover-bg-light transition-all h-100"
+            className="border-0 shadow-sm hover-bg-light transition-all h-100 w-100"
           />
         </div>
-        <div className="overflow-auto py-1" style={{ maxWidth: "100%" }}>
+        <div className="overflow-auto py-1 flex-shrink-0" style={{ maxWidth: "100%" }}>
           <FilterBadgeGroup
             options={[
               { label: "Tất cả", value: "All", count: myInterviews.length },
@@ -562,7 +563,7 @@ export default function InterviewsPage() {
           />
         </div>
       </div>
-      <div className="d-flex align-items-center gap-3 mt-1 mt-md-0">
+      <div className="d-flex align-items-center gap-3 mt-1 mt-md-0 flex-shrink-0">
         <div className="text-muted small fw-medium">
           <i className="bi bi-info-circle me-1 text-primary opacity-75" />
           Tổng: {filteredCandidates.length} buổi phỏng vấn
@@ -1197,17 +1198,23 @@ export default function InterviewsPage() {
           bottomToolbar={bottomToolbar}
           contentPadding="p-0"
         >
+          <div className="px-3 py-3 border-bottom bg-white d-flex align-items-center" style={{ borderTopLeftRadius: "1rem", borderTopRightRadius: "1rem" }}>
+            <h6 className="m-0 fw-bold text-dark letter-spacing-1">Danh sách các buổi phỏng vấn</h6>
+          </div>
+          
           {/* Desktop Table View */}
           <div className="d-none d-md-block">
-            <Table
-              rows={filteredCandidates}
-              columns={columns}
-              loading={loading}
-              rowKey={(c) => c.id}
-              fontSize={13}
-              striped
-              compact
-            />
+            <FullWidthTableLayout tableWrapperClassName="" table={
+              <Table
+                rows={filteredCandidates}
+                columns={columns}
+                loading={loading}
+                rowKey={(c) => c.id}
+                fontSize={13}
+                striped
+                compact
+              />
+            } />
           </div>
 
           {/* Mobile Card List View */}

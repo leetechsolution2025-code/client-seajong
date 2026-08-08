@@ -414,6 +414,26 @@ function RecruitmentContent() {
     }
   }, [interviewEmailLoading, interviewEmailHtml, interviewTemplateData]);
 
+  const saveInternalSchedule = async (data: any) => {
+    setInterviewEmailLoading(true);
+    try {
+      const res = await fetch("/api/hr/candidates/schedule-interview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, candidateIds: selectedCandidateIds, draftOnly: false, actionType: 'schedule_internal' })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Không thể lưu lịch phỏng vấn");
+      success("Thành công", result.message || "Đã lưu lịch phỏng vấn nội bộ thành công");
+      setShowInterviewModal(false);
+      fetchRequests();
+    } catch (err: any) {
+      toastError("Lỗi", err.message || "Không thể lưu lịch phỏng vấn");
+    } finally {
+      setInterviewEmailLoading(false);
+    }
+  };
+
   const openInterviewEmailModal = async (data: any) => {
     setInterviewEmailData(data);
     setInterviewEmailOpen(true);
@@ -472,24 +492,23 @@ function RecruitmentContent() {
           ...interviewEmailData,
           candidateIds: selectedCandidateIds,
           customHtml: sendHtml,
-          customSubject: interviewEmailSubject
+          customSubject: interviewEmailSubject,
+          actionType: 'send_email'
         })
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Không thể gửi thư mời");
+      if (!res.ok) throw new Error(result.error || result.message || "Không thể gửi thư mời");
 
-      // Update request status to Interviewing
-      const scheduledCands = requests.flatMap(r => r.candidates || []).filter(c => selectedCandidateIds.includes(c.id));
-      const uniqueRequestIds = Array.from(new Set(scheduledCands.map(c => c.requestId).filter(Boolean)));
-      await Promise.all(uniqueRequestIds.map(async (reqId) => {
-        await fetch(`/api/hr/recruitment/${reqId}`, {
+      // Update candidate status to "Đã gửi thư mời"
+      await Promise.all(selectedCandidateIds.map(async (id) => {
+        await fetch(`/api/hr/candidates/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "Interviewing" })
+          body: JSON.stringify({ status: "Đã gửi thư mời" })
         });
       }));
 
-      success("Thành công", "Đã lên lịch phỏng vấn và gửi thư mời!");
+      success("Thành công", "Đã gửi thư mời phỏng vấn!");
       setInterviewEmailOpen(false);
       setShowInterviewModal(false);
       setSelectedCandidateIds([]);
@@ -562,7 +581,7 @@ function RecruitmentContent() {
         })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Không thể gửi thư mời");
+      if (!res.ok) throw new Error(data.error || data.message || "Không thể gửi thư mời");
       
       success("Thành công", "Đã gửi thư mời nhận việc!");
       setOfferLetterOpen(false);
@@ -588,6 +607,7 @@ function RecruitmentContent() {
   // Interview states
   const [showInterviewModal, setShowInterviewModal] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [interviewActionType, setInterviewActionType] = useState<'send_email' | 'schedule_internal' | null>(null);
   const [showSmtpConfig, setShowSmtpConfig] = useState(false);
 
   const handleUpdateStatus = async (id: string, status: string) => {
@@ -685,7 +705,7 @@ function RecruitmentContent() {
         method: "POST"
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Không thể gửi thư mời");
+      if (!res.ok) throw new Error(data.error || data.message || "Không thể gửi thư mời");
       
       success("Thành công", "Đã gửi thư mời nhận việc!");
       fetchReportData(); // Refresh Step 4
@@ -977,6 +997,7 @@ function RecruitmentContent() {
   };
 
   const handleSendToDeptReview = async () => {
+    setTransferNote("Vui lòng kiểm tra và đánh giá mức độ phù hợp của hồ sơ ứng viên");
     setConfirmConfig({
       open: true,
       title: "Chuyển duyệt chuyên môn",
@@ -987,6 +1008,7 @@ function RecruitmentContent() {
             className="form-control"
             rows={3}
             placeholder="Lời nhắn cho người xem xét (không bắt buộc)..."
+            defaultValue="Vui lòng kiểm tra và đánh giá mức độ phù hợp của hồ sơ ứng viên"
             style={{ fontSize: "13px" }}
             onChange={(e) => setTransferNote(e.target.value)}
           />
@@ -1232,7 +1254,7 @@ function RecruitmentContent() {
               className="app-custom-drawer"
             >
               <div className="px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
-                <h6 className="mb-0 fw-bold">Hồ sơ ứng viên thực tế</h6>
+                <h6 className="mb-0 fw-bold">Hồ sơ ứng viên</h6>
                 <button className="btn-close" onClick={() => setSelectedCandidate(null)} />
               </div>
               <div className="flex-grow-1 overflow-auto p-4 custom-scrollbar">
@@ -1254,13 +1276,15 @@ function RecruitmentContent() {
                     </div>
                   </div>
                 </div>
-                <div className="d-flex flex-column gap-3 mb-4 border-bottom pb-4">
+                <div className="d-flex flex-column gap-2 mb-3 border-bottom pb-3">
                   {[
+                    { label: "Năm kinh nghiệm", value: selectedCandidate.expYears ? `${selectedCandidate.expYears} năm` : "--", icon: "bi-clock-history" },
+                    { label: "Trình độ học vấn", value: selectedCandidate.education || "--", icon: "bi-mortarboard" },
                     { label: "Điện thoại", value: selectedCandidate.phone, icon: "bi-telephone" },
                     { label: "Email", value: selectedCandidate.email, icon: "bi-envelope" },
                     { label: "Địa chỉ", value: selectedCandidate.address, icon: "bi-geo-alt" },
                     { label: "Lương mong muốn", value: selectedCandidate.desiredSalary ? `${formatCurrency(selectedCandidate.desiredSalary)} VNĐ` : "--", icon: "bi-cash-stack" },
-                    { label: "Link profile", value: selectedCandidate.profileUrl, icon: "bi-link-45deg", isLink: true },
+
                     ...(selectedCandidate.cvUrl && !selectedCandidate.cvUrl.includes("blank_") ? [{ label: "Link CV gốc", value: selectedCandidate.cvUrl, icon: "bi-file-pdf", isLink: true }] : []),
                   ].map((item, idx) => (
                     <div key={idx} className="d-flex align-items-center gap-2 mb-0" style={{ padding: "0" }}>
@@ -1279,17 +1303,17 @@ function RecruitmentContent() {
 
                 <div className="mb-3">
                   <h6 className="fw-bold mb-2 d-flex align-items-center gap-2" style={{ fontSize: "12px", color: "#475569", textTransform: "uppercase" }}>
-                    <i className="bi bi-briefcase text-primary" /> Kinh nghiệm chuyên môn
+                    <i className="bi bi-briefcase text-primary" /> Kỹ năng cơ bản
                   </h6>
-                  <div className="bg-light p-3 rounded-3 border" style={{ fontSize: "12px", lineHeight: "1.6", maxHeight: "250px", overflowY: "auto" }}>
-                    {selectedCandidate.experience?.split('\n').map((line: string, i: number) => {
+                  <div className="bg-light p-3 rounded-3 border" style={{ fontSize: "12px", lineHeight: "1.3", maxHeight: "250px", overflowY: "auto" }}>
+                    {(Array.isArray(selectedCandidate.skills) ? selectedCandidate.skills.join('\n') : (selectedCandidate.skills || '')).split('\n').map((line: string, i: number) => {
                       const trimmed = line.trim();
                       if (!trimmed) return null;
                       // Remove all stars (*) from the line
                       const cleanLine = trimmed.replace(/\*/g, '').trim();
                       if (!cleanLine) return null;
                       return (
-                        <div key={i} className="mb-2 d-flex gap-2 align-items-start">
+                        <div key={i} className="mb-0 d-flex gap-2 align-items-start">
                           <i className="bi bi-dot text-primary" style={{ fontSize: "20px", marginTop: "-4px", flexShrink: 0 }} />
                           <span className="text-dark">{cleanLine}</span>
                         </div>
@@ -1297,15 +1321,10 @@ function RecruitmentContent() {
                     })}
                   </div>
                 </div>
-                <div className="mb-4">
-                  <h6 className="fw-bold mb-2" style={{ fontSize: "14px" }}>Kỹ năng bóc tách</h6>
-                  <div className="d-flex flex-wrap gap-2">
-                    {skills.map((s: string, i: number) => (<span key={i} className="badge bg-white text-dark border fw-medium" style={{ padding: "6px 12px", borderRadius: "20px" }}>{s}</span>))}
-                  </div>
-                </div>
+
                 <div>
-                  <h6 className="fw-bold mb-2" style={{ fontSize: "14px" }}>AI Tóm tắt</h6>
-                  <p className="text-dark bg-light p-3 rounded-3 border-start border-primary border-4" style={{ fontSize: "13px", lineHeight: "1.6", fontStyle: "italic" }}>{selectedCandidate.summary}</p>
+                  <h6 className="fw-bold mb-2" style={{ fontSize: "14px" }}>Nhận xét chung về ứng viên</h6>
+                  <p className="text-dark bg-light p-3 rounded-3 border-start border-primary border-4" style={{ fontSize: "13px", lineHeight: "1.6", fontStyle: "italic" }}>{(selectedCandidate as any).matchSummary || selectedCandidate.summary || "Chưa có nhận xét cho ứng viên này."}</p>
                 </div>
               </div>
               <div className="p-4 border-top d-flex gap-2">
@@ -1332,6 +1351,7 @@ function RecruitmentContent() {
                   className="flex-grow-1 fw-bold"
                   disabled={['Submitting', 'DeptApproved', 'DeptReview', 'Đã chuyển thành nhân viên', 'Không nhận việc', 'Hired', 'Đang thử việc', 'Đã gửi thư mời'].includes(selectedCandidate.status)}
                   onClick={() => {
+                    setTransferNote("Vui lòng kiểm tra và đánh giá mức độ phù hợp của hồ sơ ứng viên");
                     setConfirmConfig({
                       open: true,
                       title: "Chuyển duyệt chuyên môn",
@@ -1342,6 +1362,7 @@ function RecruitmentContent() {
                             className="form-control"
                             rows={3}
                             placeholder="Lời nhắn cho người xem xét (ví dụ: Ứng viên rất tiềm năng, sếp xem kỹ nhé)..."
+                            defaultValue="Vui lòng kiểm tra và đánh giá mức độ phù hợp của hồ sơ ứng viên"
                             style={{ fontSize: "13px" }}
                             onChange={(e) => setTransferNote(e.target.value)}
                           />
@@ -1375,7 +1396,7 @@ function RecruitmentContent() {
                     });
                   }}
                 >
-                  <i className="bi bi-send-fill me-2" /> CHUYỂN PHÒNG CHUYÊN MÔN
+                  <i className="bi bi-send-fill me-2" /> Chuyển phòng chuyên môn
                 </BrandButton>
               </div>
             </motion.div>
@@ -1896,8 +1917,58 @@ function RecruitmentContent() {
                         });
 
                         if (isExpanded) {
-                          filteredCandidates.forEach(can => {
-                            flat.push({ ...can, isCandidate: true });
+                          filteredCandidates.forEach((can: any) => {
+                            // Extract campaign skills
+                            let reqSkillsText = camp.skills || "";
+                            if (!reqSkillsText && typeof camp.requirements === "string") {
+                                try {
+                                    const parsedReq = JSON.parse(camp.requirements);
+                                    reqSkillsText = parsedReq.skills || "";
+                                } catch (e) {}
+                            }
+                            const reqSkillsList = reqSkillsText.toLowerCase().split(/[\n,]/).map((s: string) => s.trim().replace(/[*•-]/g, '')).filter(Boolean);
+                            const canSkillsStr = Array.isArray(can.skills) ? can.skills.join('\n') : (can.skills || "");
+                            const canSkillsList = canSkillsStr.toLowerCase().split(/[\n,]/).map((s: string) => s.trim().replace(/[*•-]/g, '')).filter(Boolean);
+                            
+                            let skillsScore = 0;
+                            if (reqSkillsList.length > 0 && canSkillsList.length > 0) {
+                                let matchCount = 0;
+                                for (const rs of reqSkillsList) {
+                                    if (canSkillsList.some((cs: string) => cs.includes(rs) || rs.includes(cs))) matchCount++;
+                                }
+                                skillsScore = Math.round((matchCount / reqSkillsList.length) * 100);
+                            } else if (reqSkillsList.length === 0) {
+                                skillsScore = 100; // If no skills required, it's a match
+                            }
+                            
+                            // Check Experience
+                            const reqExpStr = String(camp.experience || "0").replace(/[^0-9]/g, '');
+                            const reqExp = parseInt(reqExpStr) || 0;
+                            const canExp = parseInt(can.expYears) || 0;
+                            
+                            let expScore = 100;
+                            if (reqExp > 0) {
+                                if (canExp >= reqExp) expScore = 100;
+                                else if (canExp > 0) expScore = Math.round((canExp / reqExp) * 100);
+                                else expScore = 0;
+                            }
+                            
+                            // Overall Match
+                            const overallScore = Math.round((skillsScore * 0.7) + (expScore * 0.3));
+                            
+                            // Generate Summary
+                            let matchSummary = `Ứng viên có ${canExp} năm kinh nghiệm`;
+                            if (reqExp > 0) {
+                                matchSummary += ` (Yêu cầu: ${reqExp} năm). `;
+                            } else {
+                                matchSummary += `. `;
+                            }
+                            
+                            if (skillsScore >= 80) matchSummary += "Kỹ năng cơ bản đáp ứng rất tốt yêu cầu.";
+                            else if (skillsScore >= 50) matchSummary += "Kỹ năng cơ bản đáp ứng ở mức trung bình so với yêu cầu.";
+                            else matchSummary += "Kỹ năng cơ bản chưa thực sự sát với yêu cầu tuyển dụng, cần xem xét thêm.";
+                            
+                            flat.push({ ...can, matchScore: overallScore, matchSummary, isCandidate: true });
                           });
                         }
                       });
@@ -1963,14 +2034,9 @@ function RecruitmentContent() {
                         render: (row) => row.isFullWidth ? null : <MatchScore score={row.matchScore} analysis={row.summary} />
                       },
                       {
-                        header: "Nguồn",
-                        width: "12%",
-                        render: (row) => row.isFullWidth ? null : <span style={{ fontSize: "12px" }}>{row.source}</span>
-                      },
-                      {
-                        header: "Kinh nghiệm",
-                        width: "25%",
-                        render: (row) => row.isFullWidth ? null : <div className="text-truncate" style={{ maxWidth: 200, fontSize: "12px" }}>{row.experience}</div>
+                        header: "Kỹ năng cơ bản",
+                        width: "37%",
+                        render: (row) => row.isFullWidth ? null : <div className="text-truncate" style={{ maxWidth: 250, fontSize: "12px" }}>{row.skills || "--"}</div>
                       },
                       {
                         header: "Ngày nộp",
@@ -1992,7 +2058,7 @@ function RecruitmentContent() {
                 <FullWidthTableLayout tableWrapperClassName="" table={
                 <Table
                   rows={(() => {
-                    const interviewReqs = requests.filter(r => (r.candidates || []).some(c => ["DeptApproved", "Interviewing"].includes(c.status)));
+                    const interviewReqs = requests.filter(r => (r.candidates || []).some(c => ["DeptApproved", "Interviewing", "Đã gửi thư mời"].includes(c.status)));
                     const flat: any[] = [];
                     interviewReqs.forEach(req => {
                       flat.push({
@@ -2006,7 +2072,7 @@ function RecruitmentContent() {
                           </div>
                         )
                       });
-                      (req.candidates || []).filter(c => ["DeptApproved", "Interviewing"].includes(c.status)).forEach(can => {
+                      (req.candidates || []).filter(c => ["DeptApproved", "Interviewing", "Đã gửi thư mời"].includes(c.status)).forEach(can => {
                         flat.push({ ...can, isCandidate: true });
                       });
                     });
@@ -2035,10 +2101,18 @@ function RecruitmentContent() {
                       render: (row) => row.isFullWidth ? null : (
                         <div style={{ fontSize: "12px" }}>
                           {row.interviewDate ? (
-                            <div className="d-flex align-items-center gap-1 text-primary fw-bold">
-                              <i className="bi bi-clock" />
-                              {new Date(row.interviewDate).toLocaleString('vi-VN')}
-                            </div>
+                            <>
+                              <div className="d-flex align-items-center gap-1 text-primary fw-bold">
+                                <i className="bi bi-clock" />
+                                {new Date(row.interviewDate).toLocaleString('vi-VN')}
+                              </div>
+                              {row.interviewLocation && (
+                                <div className="d-flex align-items-center gap-1 text-muted mt-1" style={{ fontSize: "11px" }}>
+                                  <i className="bi bi-geo-alt" />
+                                  {row.interviewLocation}
+                                </div>
+                              )}
+                            </>
                           ) : <span className="text-muted italic">Chưa có lịch</span>}
                         </div>
                       )
@@ -2048,13 +2122,21 @@ function RecruitmentContent() {
                       width: "20%",
                       align: "right",
                       render: (row) => row.isFullWidth ? null : (
-                        <BrandButton
-                          variant="outline"
-                          style={{ height: 32, fontSize: "12px" }}
-                          onClick={() => { setSelectedCandidateIds([row.id]); setShowInterviewModal(true); }}
-                        >
-                          {row.interviewDate ? "Đổi lịch" : "Đặt lịch"}
-                        </BrandButton>
+                        <div className="d-flex gap-2 justify-content-end">
+                          <BrandButton
+                            style={{ height: 32, fontSize: "12px" }}
+                            onClick={() => { setSelectedCandidateIds([row.id]); setInterviewActionType('send_email'); setShowInterviewModal(true); }}
+                          >
+                            Gửi thư mời
+                          </BrandButton>
+                          <BrandButton
+                            variant="outline"
+                            style={{ height: 32, fontSize: "12px" }}
+                            onClick={() => { setSelectedCandidateIds([row.id]); setInterviewActionType('schedule_internal'); setShowInterviewModal(true); }}
+                          >
+                            {row.interviewDate ? "Đổi lịch" : "Đặt lịch"}
+                          </BrandButton>
+                        </div>
                       )
                     }
                   ]}
@@ -2573,9 +2655,34 @@ function RecruitmentContent() {
           onOpenConfig={() => setShowSmtpConfig(true)}
           candidateCount={selectedCandidateIds.length}
           candidateIds={selectedCandidateIds}
-          onConfirm={openInterviewEmailModal}
+          onConfirm={interviewActionType === 'send_email' ? openInterviewEmailModal : saveInternalSchedule}
           loading={interviewEmailLoading}
           departmentName={requests.find(r => r.candidates?.some(c => c.id === selectedCandidateIds[0]))?.department || ""}
+          actionType={interviewActionType}
+          initialData={requests.flatMap(r => r.candidates || []).find(c => c.id === selectedCandidateIds[0])}
+          onSaveTimeLocation={async (data) => {
+            setInterviewEmailLoading(true);
+            try {
+              await Promise.all(selectedCandidateIds.map(async (id) => {
+                await fetch(`/api/hr/candidates/${id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    interviewDate: new Date(data.interviewDate).toISOString(),
+                    interviewLocation: data.interviewLocation,
+                    interviewNotes: data.interviewNotes
+                  })
+                });
+              }));
+              success("Thành công", "Đã lưu thông tin lịch hẹn");
+              setShowInterviewModal(false);
+              fetchRequests();
+            } catch (err: any) {
+              toastError("Lỗi", "Không thể lưu lịch hẹn");
+            } finally {
+              setInterviewEmailLoading(false);
+            }
+          }}
         />
       )}
 
@@ -3091,10 +3198,7 @@ function AddCandidateModal({ isOpen, onClose, requests, onSuccess, editingCandid
 }) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'exp' | 'skills'>('exp');
-  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
-  const [cvText, setCvText] = useState("");
-  const [isParsing, setIsParsing] = useState(false);
-  const { success, error: toastError } = useToast();
+  const { success } = useToast();
   const [formData, setFormData] = useState({
     name: "",
     requestId: "",
@@ -3164,44 +3268,6 @@ function AddCandidateModal({ isOpen, onClose, requests, onSuccess, editingCandid
 
   const [isEditingComp, setIsEditingComp] = useState(false);
 
-  const section1Ref = useRef<HTMLDivElement>(null);
-  const section2Ref = useRef<HTMLDivElement>(null);
-  const section3Ref = useRef<HTMLDivElement>(null);
-
-  const handleAIParsing = async () => {
-    if (!cvText.trim()) return;
-    setIsParsing(true);
-    try {
-      const res = await fetch("/api/hr/recruitment/parse-cv", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: cvText })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setFormData(prev => ({
-          ...prev,
-          ...data.data,
-          // Merge experience and skills into the right columns
-          experience: data.data.experience || prev.experience,
-          skills: data.data.skills || prev.skills
-        }));
-        setIsSupportModalOpen(false);
-        success("AI đã lấy thông tin từ CV thành công!");
-      } else {
-        throw new Error(data.message || "Lỗi xử lý AI");
-      }
-    } catch (err: any) {
-      toastError("Lỗi AI", err.message);
-    } finally {
-      setIsParsing(false);
-    }
-  };
-
-  const scrollToSection = (ref: React.RefObject<HTMLDivElement | null>) => {
-    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -3209,7 +3275,6 @@ function AddCandidateModal({ isOpen, onClose, requests, onSuccess, editingCandid
       const url = editingCandidate ? `/api/hr/candidates/${editingCandidate.id}` : "/api/hr/candidates";
       const method = editingCandidate ? "PATCH" : "POST";
 
-      // Ensure birthDate is properly handled for empty values
       const submissionData = {
         ...formData,
         birthDate: formData.birthDate || null
@@ -3238,374 +3303,276 @@ function AddCandidateModal({ isOpen, onClose, requests, onSuccess, editingCandid
     return num.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
 
-  const handleCleanText = () => {
-    const field = activeTab === 'exp' ? 'experience' : 'skills';
-    const text = formData[field as keyof typeof formData] as string;
-    if (!text) return;
-
-    const cleaned = text
-      .split('\n')
-      .map(line => {
-        const clean = line.replace(/\*/g, '').trim();
-        if (!clean) return "";
-        return clean.startsWith('-') ? clean : `- ${clean}`;
-      })
-      .filter(line => line !== "")
-      .join('\n');
-
-    setFormData({ ...formData, [field]: cleaned });
-    success("Đã định dạng lại văn bản sạch sẽ!");
-  };
-
   const labelStyle = { fontSize: "11px", fontWeight: 700, color: "#64748b", marginBottom: "6px", display: "block", textTransform: "uppercase" as const, letterSpacing: "0.5px" };
-  const inputStyle = { borderRadius: "10px", padding: "8px 12px", border: "1.5px solid #e2e8f0", fontSize: "13px", transition: "all 0.2s", background: "#fff" };
+  const inputStyle = { borderRadius: "8px", padding: "4px 10px", border: "1.5px solid #e2e8f0", fontSize: "13px", transition: "all 0.2s", background: "#fff" };
 
   return createPortal(
-    <div style={{
-      position: "fixed",
-      inset: 0,
-      zIndex: 2000,
-      display: "flex",
-      flexDirection: "column",
-      background: "#f8fafc",
-      fontFamily: "var(--font-roboto-condensed), 'Roboto Condensed', sans-serif"
-    }}>
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 2000, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)", opacity: isOpen ? 1 : 0, pointerEvents: isOpen ? 'auto' : 'none', transition: "all 0.3s" }} />
+      <div style={{
+        position: "fixed", top: 0, right: 0, bottom: 0, width: "400px", zIndex: 2001,
+        transform: isOpen ? "translateX(0)" : "translateX(100%)", transition: "transform 0.3s ease-in-out",
+        background: "#f8fafc", display: "flex", flexDirection: "column",
+        boxShadow: "-4px 0 24px rgba(0,0,0,0.15)",
+        fontFamily: "var(--font-roboto-condensed), 'Roboto Condensed', sans-serif"
+      }}>
       {/* Top Header */}
-      <div className="bg-white px-3 px-md-5 py-2 py-md-3 d-flex justify-content-between align-items-center border-bottom sticky-top">
-        <div className="d-flex align-items-center gap-3 flex-shrink-1 min-w-0">
-          <div className="d-none d-sm-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-3 flex-shrink-0" style={{ width: "40px", height: "40px" }}>
+      <div className="bg-white px-3 py-3 d-flex justify-content-between align-items-center border-bottom flex-shrink-0">
+        <div className="d-flex align-items-center gap-2 flex-shrink-1 min-w-0">
+          <div className="d-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-3 flex-shrink-0" style={{ width: "36px", height: "36px" }}>
             <i className="bi bi-person-plus-fill fs-5" />
           </div>
           <div className="min-w-0">
-            <div className="d-flex align-items-center gap-2 flex-wrap">
-              <h6 className="fw-bold text-dark mb-0 text-truncate" style={{ fontSize: "15px" }}>Thêm hồ sơ ứng viên</h6>
-              <button
-                type="button"
-                className="btn btn-warning btn-sm px-3 py-1 fw-bold border-0 rounded-pill d-none d-xl-flex align-items-center gap-1 shadow-sm"
-                style={{ fontSize: "11px", color: "#854d0e" }}
-                onClick={() => setIsSupportModalOpen(true)}
-              >
-                <i className="bi bi-magic" /> HỖ TRỢ
-              </button>
-            </div>
-            <p className="text-muted mb-0 text-truncate d-none d-sm-block" style={{ fontSize: "11px" }}>Tạo mới hồ sơ nhân sự vào hệ thống tuyển dụng</p>
+            <h6 className="fw-bold text-dark mb-0 text-truncate" style={{ fontSize: "15px" }}>{editingCandidate ? "Sửa hồ sơ" : "Thêm ứng viên"}</h6>
+            <p className="text-muted mb-0 text-truncate d-none d-sm-block" style={{ fontSize: "11px" }}>Điền thông tin ứng viên</p>
           </div>
         </div>
-        <div className="d-flex align-items-center gap-2 gap-md-3 flex-shrink-0">
-          <div className="d-none d-xl-block">
-            <BrandButton
-              type="submit"
-              form="add-candidate-form"
-              loading={loading}
-              icon="bi-check-lg"
-            >
-              Lưu hồ sơ
-            </BrandButton>
-          </div>
-          <button onClick={onClose} className="btn btn-light rounded-circle border-0 d-flex align-items-center justify-content-center" style={{ width: "36px", height: "36px" }}>
-            <i className="bi bi-x-lg" />
-          </button>
-        </div>
+        <button onClick={onClose} className="btn btn-light rounded-circle border-0 d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: "32px", height: "32px" }}>
+          <i className="bi bi-x-lg" />
+        </button>
       </div>
 
       {/* Scrollable Form */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px 0" }} className="custom-scrollbar">
-        <form id="add-candidate-form" onSubmit={handleSubmit} className="mx-auto px-2 px-md-4" style={{ maxWidth: "1200px" }}>
-          <div className="row g-3 g-md-4">
-            <div className="col-lg-5">
-              {/* Section 1: Basic Info */}
-              <div className="card border-0 shadow-sm rounded-4 overflow-hidden mb-4" style={{ background: "#fff" }}>
-                <div className="px-3 px-md-4 py-3 border-bottom d-flex align-items-center gap-2" style={{ background: "#f8fafc" }}>
-                  <i className="bi bi-person-lines-fill text-primary" />
-                  <h6 className="fw-bold text-dark mb-0" style={{ fontSize: "14px" }}>1. THÔNG TIN ỨNG VIÊN</h6>
+      <form id="add-candidate-form" onSubmit={handleSubmit} style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }} className="custom-scrollbar bg-white">
+          <div className="d-flex flex-column gap-4">
+            
+            {/* Section 1: Basic Info */}
+            <div className="w-100">
+              <div className="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                <h6 className="fw-bold text-dark mb-0" style={{ fontSize: "14px" }}>THÔNG TIN ỨNG VIÊN</h6>
+              </div>
+              <div className="row g-2">
+                <div className="col-12">
+                  <label style={labelStyle}>VỊ TRÍ ỨNG TUYỂN <span className="text-danger">*</span></label>
+                  {requests.length === 0 ? (
+                    <div className="p-3 rounded-3 bg-warning-subtle text-warning-emphasis small border-0">
+                      <i className="bi bi-exclamation-triangle-fill me-2" />
+                      Chưa có yêu cầu tuyển dụng nào.
+                    </div>
+                  ) : (
+                    <select
+                      className="form-select shadow-none border-0 fw-bold py-1 bg-primary-subtle text-primary"
+                      style={{ borderRadius: "8px" }}
+                      required
+                      value={formData.requestId}
+                      onChange={e => {
+                        const req = requests.find(r => r.id === e.target.value);
+                        setFormData({ ...formData, requestId: e.target.value, position: req ? req.position : "" });
+                      }}
+                    >
+                      <option value="">Chọn vị trí...</option>
+                      {requests.map(r => (
+                        <option key={r.id} value={r.id}>{r.position}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
-                <div className="card-body p-3 p-md-4">
-                  <div className="row g-3">
-                    <div className="col-12">
-                      <label style={labelStyle}>VỊ TRÍ ỨNG TUYỂN <span className="text-danger">*</span></label>
-                      {requests.length === 0 ? (
-                        <div className="p-3 rounded-3 bg-warning-subtle text-warning-emphasis small border-0">
-                          <i className="bi bi-exclamation-triangle-fill me-2" />
-                          Chưa có yêu cầu tuyển dụng nào.
-                        </div>
-                      ) : (
-                        <select
-                          className="form-select shadow-none border-0 fw-bold py-2 bg-primary-subtle text-primary"
-                          style={{ borderRadius: "10px" }}
-                          required
-                          value={formData.requestId}
-                          onChange={e => {
-                            const req = requests.find(r => r.id === e.target.value);
-                            setFormData({ ...formData, requestId: e.target.value, position: req ? req.position : "" });
-                          }}
-                        >
-                          <option value="">Chọn vị trí ứng tuyển...</option>
-                          {requests.map(r => (
-                            <option key={r.id} value={r.id}>{r.position}</option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
 
-                    <div className="col-md-8">
-                      <label style={labelStyle}>HỌ VÀ TÊN ỨNG VIÊN <span className="text-danger">*</span></label>
-                      <input
-                        type="text"
-                        style={{ ...inputStyle, width: "100%", fontSize: "16px" }}
-                        className="form-control shadow-none fw-bold"
-                        placeholder="Nguyễn Mỹ Linh"
-                        required
-                        value={formData.name}
-                        onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      />
-                    </div>
-                    <div className="col-md-4">
-                      <label style={labelStyle}>GIỚI TÍNH</label>
-                      <select style={{ ...inputStyle, width: "100%" }} className="form-select shadow-none" value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })}>
-                        <option value="Nam">Nam</option>
-                        <option value="Nữ">Nữ</option>
-                        <option value="Khác">Khác</option>
-                      </select>
-                    </div>
+                <div className="col-12">
+                  <label style={labelStyle}>HỌ VÀ TÊN ỨNG VIÊN <span className="text-danger">*</span></label>
+                  <input
+                    type="text"
+                    style={{ ...inputStyle, width: "100%", fontSize: "14px" }}
+                    className="form-control shadow-none fw-bold"
+                    
+                    required
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+                
+                <div className="col-6">
+                  <label style={labelStyle}>GIỚI TÍNH</label>
+                  <select style={{ ...inputStyle, width: "100%" }} className="form-select shadow-none" value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })}>
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                    <option value="Khác">Khác</option>
+                  </select>
+                </div>
+                
+                <div className="col-6">
+                  <label style={labelStyle}>NGÀY SINH</label>
+                  <input type="date" style={{ ...inputStyle, width: "100%" }} className="form-control shadow-none" value={formData.birthDate} onChange={e => setFormData({ ...formData, birthDate: e.target.value })} />
+                </div>
+                
+                <div className="col-12">
+                  <label style={labelStyle}>ĐỊA CHỈ HIỆN TẠI</label>
+                  <input
+                    type="text"
+                    style={{ ...inputStyle, width: "100%" }}
+                    className="form-control shadow-none"
+                    
+                    value={formData.address}
+                    onChange={e => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
 
-                    <div className="col-md-6">
-                      <label style={labelStyle}>EMAIL LIÊN HỆ</label>
-                      <div className="input-group bg-light rounded-3 px-2">
-                        <span className="input-group-text bg-transparent border-0"><i className="bi bi-envelope text-muted" /></span>
+                <div className="col-12">
+                  <label style={labelStyle}>EMAIL LIÊN HỆ</label>
+                  <div className="input-group bg-light px-2" style={{ border: "1.5px solid #e2e8f0", borderRadius: "8px" }}>
+                    <span className="input-group-text bg-transparent border-0"><i className="bi bi-envelope text-muted" /></span>
+                    <input
+                      type="email"
+                      style={{ ...inputStyle, background: "transparent", width: "auto", flex: 1, border: "none", padding: "4px 8px" }}
+                      className="form-control shadow-none border-0 px-1"
+                      
+                      value={formData.email}
+                      onChange={e => setFormData({ ...formData, email: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="col-12">
+                  <label style={labelStyle}>SỐ ĐIỆN THOẠI</label>
+                  <div className="input-group bg-light px-2" style={{ border: "1.5px solid #e2e8f0", borderRadius: "8px" }}>
+                    <span className="input-group-text bg-transparent border-0"><i className="bi bi-telephone text-muted" /></span>
+                    <input
+                      type="tel"
+                      style={{ ...inputStyle, background: "transparent", width: "auto", flex: 1, border: "none", padding: "4px 8px" }}
+                      className="form-control shadow-none border-0 px-1"
+                      
+                      value={formData.phone}
+                      onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="col-6">
+                  <label style={labelStyle}>TRÌNH ĐỘ HỌC VẤN</label>
+                  <select style={{ ...inputStyle, width: "100%" }} className="form-select shadow-none" value={formData.education} onChange={e => setFormData({ ...formData, education: e.target.value })}>
+                    <option value="Đại học">Đại học</option>
+                    <option value="Cao đẳng">Cao đẳng</option>
+                    <option value="Thạc sĩ">Thạc sĩ</option>
+                    <option value="Tiến sĩ">Tiến sĩ</option>
+                    <option value="Phổ thông">Phổ thông</option>
+                  </select>
+                </div>
+                <div className="col-6">
+                  <label style={labelStyle}>KINH NGHIỆM</label>
+                  <input
+                    type="text"
+                    style={{ ...inputStyle, width: "100%" }}
+                    className="form-control shadow-none"
+                    
+                    value={formData.expYears}
+                    onChange={e => setFormData({ ...formData, expYears: e.target.value })}
+                  />
+                </div>
+                <div className="col-6">
+                  <label style={labelStyle}>MỨC LƯƠNG MONG MUỐN (ĐỒNG)</label>
+                  <input
+                    type="text"
+                    style={{ ...inputStyle, width: "100%" }}
+                    className="form-control shadow-none"
+                    
+                    value={formData.desiredSalary}
+                    onChange={e => setFormData({ ...formData, desiredSalary: formatCurrency(e.target.value) })}
+                  />
+                </div>
+                <div className="col-6">
+                  <label style={labelStyle}>PHÂN LOẠI BAN ĐẦU</label>
+                  <div className="d-flex gap-4 mt-2">
+                    {[
+                      { value: 'New', label: 'Mới' },
+                      { value: 'Qualified', label: 'Tiềm năng' }
+                    ].map(s => (
+                      <label key={s.value} className="d-flex align-items-center gap-2 cursor-pointer" style={{ fontSize: "13px", cursor: "pointer" }}>
                         <input
-                          type="email"
-                          style={{ ...inputStyle, background: "transparent", width: "auto", flex: 1 }}
-                          className="form-control shadow-none border-0 px-1"
-                          placeholder="linhmau097@gmail.com"
-                          value={formData.email}
-                          onChange={e => setFormData({ ...formData, email: e.target.value })}
+                          type="radio"
+                          name="candidate-status"
+                          className="form-check-input mt-0 shadow-none"
+                          checked={formData.status === s.value}
+                          onChange={() => setFormData({ ...formData, status: s.value as any })}
                         />
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <label style={labelStyle}>SỐ ĐIỆN THOẠI</label>
-                      <div className="input-group bg-light rounded-3 px-2">
-                        <span className="input-group-text bg-transparent border-0"><i className="bi bi-telephone text-muted" /></span>
-                        <input
-                          type="tel"
-                          style={{ ...inputStyle, background: "transparent", width: "auto", flex: 1 }}
-                          className="form-control shadow-none border-0 px-1"
-                          placeholder="0397047766"
-                          value={formData.phone}
-                          onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="col-md-4">
-                      <label style={labelStyle}>NGÀY SINH</label>
-                      <input type="date" style={{ ...inputStyle, width: "100%" }} className="form-control shadow-none" value={formData.birthDate} onChange={e => setFormData({ ...formData, birthDate: e.target.value })} />
-                    </div>
-                    <div className="col-md-4">
-                      <label style={labelStyle}>TRÌNH ĐỘ HỌC VẤN</label>
-                      <select style={{ ...inputStyle, width: "100%" }} className="form-select shadow-none" value={formData.education} onChange={e => setFormData({ ...formData, education: e.target.value })}>
-                        <option value="Đại học">Đại học</option>
-                        <option value="Cao đẳng">Cao đẳng</option>
-                        <option value="Thạc sĩ">Thạc sĩ</option>
-                        <option value="Tiến sĩ">Tiến sĩ</option>
-                        <option value="Phổ thông">Phổ thông</option>
-                      </select>
-                    </div>
-                    <div className="col-md-4">
-                      <label style={labelStyle}>KINH NGHIỆM</label>
-                      <input
-                        type="text"
-                        style={{ ...inputStyle, width: "100%" }}
-                        className="form-control shadow-none"
-                        placeholder="5 năm"
-                        value={formData.expYears}
-                        onChange={e => setFormData({ ...formData, expYears: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="col-12">
-                      <label style={labelStyle}>ĐỊA CHỈ HIỆN TẠI</label>
-                      <input
-                        type="text"
-                        style={{ ...inputStyle, width: "100%" }}
-                        className="form-control shadow-none"
-                        placeholder="Hà Nội"
-                        value={formData.address}
-                        onChange={e => setFormData({ ...formData, address: e.target.value })}
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <label style={labelStyle}>MỨC LƯƠNG MONG MUỐN (ĐỒNG)</label>
-                      <input
-                        type="text"
-                        style={{ ...inputStyle, width: "100%" }}
-                        className="form-control shadow-none"
-                        placeholder="Ví dụ: 15.000.000"
-                        value={formData.desiredSalary}
-                        onChange={e => setFormData({ ...formData, desiredSalary: formatCurrency(e.target.value) })}
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <label style={labelStyle}>PHÂN LOẠI BAN ĐẦU</label>
-                      <div className="d-flex gap-4 mt-2">
-                        {[
-                          { value: 'New', label: 'Mới' },
-                          { value: 'Qualified', label: 'Tiềm năng' }
-                        ].map(s => (
-                          <label key={s.value} className="d-flex align-items-center gap-2 cursor-pointer" style={{ fontSize: "13px", cursor: "pointer" }}>
-                            <input
-                              type="radio"
-                              name="candidate-status"
-                              className="form-check-input mt-0 shadow-none"
-                              checked={formData.status === s.value}
-                              onChange={() => setFormData({ ...formData, status: s.value as any })}
-                            />
-                            <span className={formData.status === s.value ? 'text-primary fw-bold' : 'text-muted'}>{s.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="col-12">
-                      <label style={labelStyle}>ĐƯỜNG DẪN CV (GOOGLE DRIVE/DROPBOX)</label>
-                      <div className="input-group bg-light rounded-3 px-2">
-                        <span className="input-group-text bg-transparent border-0"><i className="bi bi-link-45deg text-muted" /></span>
-                        <input
-                          type="url"
-                          style={{ ...inputStyle, background: "transparent", width: "auto", flex: 1 }}
-                          className="form-control shadow-none border-0 px-1 small"
-                          placeholder="https://..."
-                          value={formData.cvUrl}
-                          onChange={e => setFormData({ ...formData, cvUrl: e.target.value })}
-                        />
-                      </div>
-                    </div>
+                        <span className={formData.status === s.value ? 'text-primary fw-bold' : 'text-muted'}>{s.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="col-12">
+                  <label style={labelStyle}>ĐƯỜNG DẪN CV (GOOGLE DRIVE/DROPBOX)</label>
+                  <div className="input-group bg-light px-2" style={{ border: "1.5px solid #e2e8f0", borderRadius: "8px" }}>
+                    <span className="input-group-text bg-transparent border-0"><i className="bi bi-link-45deg text-muted" /></span>
+                    <input
+                      type="url"
+                      style={{ ...inputStyle, background: "transparent", width: "auto", flex: 1, border: "none", padding: "4px 8px" }}
+                      className="form-control shadow-none border-0 px-1 small"
+                      
+                      value={formData.cvUrl}
+                      onChange={e => setFormData({ ...formData, cvUrl: e.target.value })}
+                    />
                   </div>
                 </div>
               </div>
-
-
-
             </div>
 
-            <div className="col-lg-7">
+            <div className="w-100">
               {/* Section 2: Professional Competence */}
-              <div className="h-100 d-flex flex-column">
-                <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white flex-grow-1 d-flex flex-column" style={{ minHeight: "600px" }}>
-                  <div className="px-3 px-md-4 py-3 border-bottom d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2" style={{ background: "#f8fafc" }}>
-                    <h6 className="fw-bold text-dark mb-0 d-flex align-items-center gap-2" style={{ fontSize: "14px" }}>
-                      <i className="bi bi-mortarboard-fill text-primary" />
-                      2. NĂNG LỰC CHUYÊN MÔN
-                    </h6>
-                    <div className="bg-light p-1 rounded-3 d-flex gap-2 align-items-center w-100 w-sm-auto justify-content-between" style={{ border: "1px solid #e2e8f0" }}>
-                      <div className="d-flex gap-1 flex-grow-1 flex-sm-grow-0">
-                        {[
-                          { id: 'exp', label: 'KINH NGHIỆM LÀM VIỆC', labelMobile: 'KINH NGHIỆM' },
-                          { id: 'skills', label: 'KỸ NĂNG & CHỨNG CHỈ', labelMobile: 'KỸ NĂNG' }
-                        ].map(tab => (
-                          <button
-                            key={tab.id}
-                            type="button"
-                            className={`btn btn-sm px-2 px-sm-3 py-1 fw-bold border-0 transition-all flex-grow-1 flex-sm-grow-0 ${activeTab === tab.id ? 'bg-white text-primary shadow-sm' : 'text-muted'}`}
-                            style={{ fontSize: "10px", borderRadius: "6px" }}
-                            onClick={() => setActiveTab(tab.id as any)}
-                          >
-                            <span className="d-none d-sm-inline">{tab.label}</span>
-                            <span className="d-inline d-sm-none">{tab.labelMobile}</span>
-                          </button>
-                        ))}
-                      </div>
-                      <div className="vr mx-1" style={{ height: "16px" }}></div>
-                      <button
-                        type="button"
-                        className="btn btn-outline-primary btn-sm px-2 py-0 border-0 flex-shrink-0 d-flex align-items-center justify-content-center gap-1"
-                        title="Định dạng lại văn bản (Xóa dấu sao, thêm gạch đầu dòng)"
-                        onClick={handleCleanText}
-                        style={{ fontSize: "10px", height: "24px" }}
-                      >
-                        <i className="bi bi-stars" />
-                        <span className="d-none d-sm-inline">LÀM ĐẸP VĂN BẢN</span>
-                        <span className="d-inline d-sm-none">ĐỊNH DẠNG</span>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="card-body p-0 flex-grow-1 position-relative d-flex flex-column">
-                    <div className="flex-grow-1 p-4 custom-scrollbar" style={{ background: "linear-gradient(to bottom, #fff, #fcfdfe)", overflowY: "auto" }}>
-                      {isEditingComp ? (
-                        <textarea
-                          className="form-control h-100 border-0 shadow-none p-0"
-                          placeholder={activeTab === 'exp' ? "Mô tả chi tiết quá trình làm việc..." : "Danh sách kỹ năng..."}
-                          style={{ resize: "none", fontSize: "14px", lineHeight: "2", background: "transparent", color: "#334155", fontWeight: "500" }}
-                          autoFocus
-                          value={activeTab === 'exp' ? formData.experience : formData.skills}
-                          onChange={e => setFormData({ ...formData, [activeTab === 'exp' ? 'experience' : 'skills']: e.target.value })}
-                          onBlur={() => setIsEditingComp(false)}
-                        />
-                      ) : (
-                        <div
-                          className="h-100 w-100 cursor-pointer"
-                          onClick={() => setIsEditingComp(true)}
-                          style={{ cursor: "text" }}
-                        >
-                          {(activeTab === 'exp' ? formData.experience : formData.skills)?.split('\n').map((line, i) => {
-                            const trimmed = line.trim();
-                            if (!trimmed) return <div key={i} style={{ height: "1em" }} />;
-                            const cleanLine = trimmed.replace(/\*/g, '').replace(/^-+\s*/, '').trim();
-                            return (
-                              <div key={i} className="mb-2 d-flex gap-2 align-items-start">
-                                <i className="bi bi-dot text-primary" style={{ fontSize: "20px", marginTop: "-4px", flexShrink: 0 }} />
-                                <span className="text-dark" style={{ fontSize: "14px", lineHeight: "1.6", fontWeight: "500" }}>{cleanLine}</span>
-                              </div>
-                            );
-                          })}
-                          {!(activeTab === 'exp' ? formData.experience : formData.skills) && (
-                            <div className="text-muted italic" style={{ fontSize: "14px" }}>Bấm vào đây để nhập nội dung...</div>
-                          )}
-                        </div>
-                      )}
-                    </div>
+              <div className="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom mt-3">
+                <h6 className="fw-bold text-dark mb-0" style={{ fontSize: "14px" }}>KỸ NĂNG CƠ BẢN</h6>
+              </div>
+              
+              <div className="d-flex flex-column gap-2">
 
-                    {/* Floating Indicator */}
-                    <div className="position-absolute bottom-0 right-0 p-3 opacity-25">
-                      <i className="bi bi-pencil-square fs-1" />
-                    </div>
+                <div className="card-body p-0 position-relative d-flex flex-column" style={{ minHeight: "250px", border: "1px solid #e2e8f0", borderRadius: "10px" }}>
+                  <div className="flex-grow-1 p-3 custom-scrollbar" style={{ background: "linear-gradient(to bottom, #fff, #fcfdfe)", overflowY: "auto", height: "250px", borderRadius: "10px" }}>
+                    {isEditingComp ? (
+                      <textarea
+                        className="form-control h-100 border-0 shadow-none p-0"
+                        
+                        style={{ resize: "none", fontSize: "14px", lineHeight: "2", background: "transparent", color: "#334155", fontWeight: "500" }}
+                        autoFocus
+                        value={formData.skills}
+                        onChange={e => setFormData({ ...formData, skills: e.target.value })}
+                        onBlur={() => setIsEditingComp(false)}
+                      />
+                    ) : (
+                      <div
+                        className="h-100 w-100 cursor-pointer"
+                        onClick={() => setIsEditingComp(true)}
+                        style={{ cursor: "text" }}
+                      >
+                        {formData.skills?.split('\n').map((line, i) => {
+                          const trimmed = line.trim();
+                          if (!trimmed) return <div key={i} style={{ height: "1em" }} />;
+                          const cleanLine = trimmed.replace(/\*/g, '').replace(/^-+\s*/, '').trim();
+                          return (
+                            <div key={i} className="mb-2 d-flex gap-2 align-items-start">
+                              <i className="bi bi-dot text-primary" style={{ fontSize: "20px", marginTop: "-4px", flexShrink: 0 }} />
+                              <span className="text-dark" style={{ fontSize: "14px", lineHeight: "1.6", fontWeight: "500" }}>{cleanLine}</span>
+                            </div>
+                          );
+                        })}
+                        {!formData.skills && (
+                          <div className="text-muted italic" style={{ fontSize: "14px" }}>Bấm vào đây để nhập nội dung...</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Floating Indicator */}
+                  <div className="position-absolute bottom-0 right-0 p-3 opacity-25" style={{ pointerEvents: "none" }}>
+                    <i className="bi bi-pencil-square fs-1" />
                   </div>
                 </div>
               </div>
             </div>
 
           </div>
-        </form>
-      </div>
+        </div>
 
-      {/* Sticky Bottom Actions for Mobile/Tablet */}
-      <div className="d-flex d-xl-none bg-white p-3 border-top sticky-bottom gap-3 shadow-lg" style={{ zIndex: 10 }}>
-        <button
-          type="button"
-          className="btn btn-warning flex-grow-1 py-2.5 fw-bold border-0 rounded-pill d-flex align-items-center justify-content-center gap-2 shadow-sm"
-          style={{ fontSize: "13px", color: "#854d0e" }}
-          onClick={() => setIsSupportModalOpen(true)}
-        >
-          <i className="bi bi-magic" /> HỖ TRỢ AI
-        </button>
-        <button
-          type="submit"
-          form="add-candidate-form"
-          className="btn btn-primary flex-grow-1 py-2.5 fw-bold border-0 rounded-pill d-flex align-items-center justify-content-center gap-2 shadow-sm"
-          style={{ fontSize: "13px", backgroundColor: "#003087" }}
-          disabled={loading}
-        >
-          {loading ? (
-            <>
-              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-              <span className="ms-1">ĐANG LƯU...</span>
-            </>
-          ) : (
-            <>
-              <i className="bi bi-check-lg" /> LƯU HỒ SƠ
-            </>
-          )}
-        </button>
-      </div>
+        {/* Sticky Bottom Actions */}
+        <div className="bg-white p-3 border-top flex-shrink-0">
+          <BrandButton
+            type="submit"
+            className="w-100"
+            loading={loading}
+            icon="bi-check-lg"
+          >
+            {editingCandidate ? "Cập nhật hồ sơ" : "Lưu hồ sơ"}
+          </BrandButton>
+        </div>
+      </form>
 
       <style>{`
           .bg-primary-subtle { background-color: #e0e7ff; }
@@ -3617,54 +3584,12 @@ function AddCandidateModal({ isOpen, onClose, requests, onSuccess, editingCandid
           .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
           .transition-all { transition: all 0.2s ease-in-out; }
         `}</style>
-      {isSupportModalOpen && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "#fff", zIndex: 11000, display: "flex", flexDirection: "column" }}>
-          <div className="px-3 px-sm-4 py-3 border-bottom d-flex justify-content-between align-items-center bg-light" style={{ borderBottom: "1.5px solid #f1f5f9" }}>
-            <h6 className="mb-0 fw-bold text-dark d-flex align-items-center gap-2" style={{ fontSize: "14px" }}>
-              <i className="bi bi-textarea-t text-primary" />
-              <span className="d-none d-sm-inline">DÁN NỘI DUNG CV ĐỂ AI LẤY THÔNG TIN</span>
-              <span className="d-inline d-sm-none">QUÉT CV BẰNG AI</span>
-            </h6>
-            <div className="d-flex gap-2">
-              <button className="btn btn-light btn-sm px-2 px-sm-4 rounded-pill fw-bold" style={{ fontSize: "12px" }} onClick={() => setIsSupportModalOpen(false)}>QUAY LẠI</button>
-              <button
-                className="btn btn-primary btn-sm px-2 px-sm-4 rounded-pill fw-bold d-flex align-items-center gap-1 gap-sm-2"
-                style={{ fontSize: "12px" }}
-                onClick={handleAIParsing}
-                disabled={isParsing || !cvText.trim()}
-              >
-                {isParsing ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    <span className="d-none d-sm-inline">ĐANG PHÂN TÍCH...</span>
-                    <span className="d-inline d-sm-none">ĐANG PHÂN TÍCH...</span>
-                  </>
-                ) : (
-                  <>
-                    <i className="bi bi-lightning-charge-fill" />
-                    <span className="d-none d-sm-inline">LẤY THÔNG TIN (AI)</span>
-                    <span className="d-inline d-sm-none">LẤY TIN (AI)</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-          <div className="flex-grow-1 p-3 p-sm-4 bg-light">
-            <textarea
-              className="form-control w-100 h-100 shadow-none border-0 p-3 p-sm-4 rounded-4"
-              placeholder="Dán toàn bộ văn bản từ CV vào đây. Sau đó nhấn nút 'LẤY THÔNG TIN' phía trên để AI tự động điền form cho mày..."
-              style={{ resize: "none", fontSize: "14px", lineHeight: "1.6", background: "#fff" }}
-              autoFocus
-              value={cvText}
-              onChange={e => setCvText(e.target.value)}
-            />
-          </div>
-        </div>
-      )}
-    </div>,
+      </div>
+    </>,
     document.body
   );
 }
+
 // ─── Sub-Components & Helpers ─────────────────────────────────────────────────
 
 // ─── Sub-Components & Helpers ─────────────────────────────────────────────────
@@ -3673,19 +3598,31 @@ function AddCandidateModal({ isOpen, onClose, requests, onSuccess, editingCandid
 
 // ─── Offcanvas Components ───────────────────────────────────────────────────
 
-function ScheduleInterviewOffcanvas({ onClose, onConfirm, onOpenConfig, loading, candidateCount, departmentName, candidateIds }: {
+function ScheduleInterviewOffcanvas({ onClose, onConfirm, onOpenConfig, loading, candidateCount, departmentName, candidateIds, actionType, onSaveTimeLocation, initialData }: {
   onClose: () => void,
   onConfirm: (data: any) => Promise<void>,
   onOpenConfig: () => void,
   loading: boolean,
   candidateCount: number,
   departmentName: string,
-  candidateIds: string[]
+  candidateIds: string[],
+  actionType: 'send_email' | 'schedule_internal' | null,
+  onSaveTimeLocation?: (data: any) => Promise<void>,
+  initialData?: any
 }) {
-  const [formData, setFormData] = useState({
-    interviewDate: "",
-    interviewLocation: "Văn phòng công ty",
-    interviewNotes: ""
+  const [formData, setFormData] = useState(() => {
+    let formattedDate = "";
+    if (initialData?.interviewDate) {
+      const d = new Date(initialData.interviewDate);
+      formattedDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    }
+    return {
+      interviewDate: formattedDate,
+      interviewLocation: initialData?.interviewLocation || "Văn phòng công ty",
+      contactName: "Cao Thị Phương",
+      contactPhone: "0987654321",
+      interviewNotes: initialData?.interviewNotes || "Vui lòng sử dụng trang phục phù hợp, có mặt đúng thời gian, địa điểm đã thông báo"
+    };
   });
   const [isOnline, setIsOnline] = useState(false);
 
@@ -3767,15 +3704,15 @@ function ScheduleInterviewOffcanvas({ onClose, onConfirm, onOpenConfig, loading,
               <i className="bi bi-calendar2-check fs-5"></i>
             </div>
             <div>
-              <h5 className="offcanvas-title fw-bold m-0" style={{ fontSize: '1rem' }}>Đặt lịch phỏng vấn</h5>
+              <h5 className="offcanvas-title fw-bold m-0" style={{ fontSize: '1rem' }}>{actionType === 'send_email' ? 'Thông tin thư mời' : 'Đặt lịch phỏng vấn'}</h5>
               <p className="text-muted m-0" style={{ fontSize: '0.75rem' }}>Lập lịch cho {candidateCount} ứng viên tiềm năng</p>
             </div>
           </div>
           <button type="button" className="btn-close" onClick={onClose}></button>
         </div>
 
-        <div className="offcanvas-body py-4 custom-scrollbar">
-          <div className="mb-3">
+        <div className="offcanvas-body py-4 custom-scrollbar d-flex flex-column">
+          <div className="mb-3 flex-shrink-0">
             <div className="d-flex justify-content-between align-items-center mb-2">
               <label className="form-label fw-bold small text-uppercase text-muted letter-spacing-1 mb-0">1. Thời gian & Địa điểm</label>
               <div className="form-check form-switch mb-0">
@@ -3801,7 +3738,7 @@ function ScheduleInterviewOffcanvas({ onClose, onConfirm, onOpenConfig, loading,
                   onChange={e => setFormData(prev => ({ ...prev, interviewDate: e.target.value }))}
                 />
               </div>
-              <div className="d-flex align-items-center gap-3">
+              <div className="d-flex align-items-center gap-3 mb-2">
                 <label className="form-label small fw-bold text-dark mb-0" style={{ width: "100px", flexShrink: 0 }}>{isOnline ? 'Link phòng họp:' : 'Địa điểm:'}</label>
                 <div className="input-group input-group-sm" style={{ flex: 1 }}>
                   <span className="input-group-text bg-light border-0 py-1"><i className={`bi ${isOnline ? 'bi-camera-video-fill' : 'bi-geo-alt'} text-primary`}></i></span>
@@ -3815,12 +3752,43 @@ function ScheduleInterviewOffcanvas({ onClose, onConfirm, onOpenConfig, loading,
                   />
                 </div>
               </div>
+              
+              <div className="d-flex align-items-center gap-3 mb-2">
+                <label className="form-label small fw-bold text-dark mb-0" style={{ width: "100px", flexShrink: 0 }}>Người liên hệ:</label>
+                <div className="input-group input-group-sm" style={{ flex: 1 }}>
+                  <span className="input-group-text bg-light border-0 py-1"><i className="bi bi-person text-primary"></i></span>
+                  <input
+                    type="text"
+                    className="form-control border-0 bg-light py-1"
+                    style={{ fontSize: '0.85rem', height: '38px' }}
+                    placeholder="Họ và tên người liên hệ..."
+                    value={formData.contactName}
+                    onChange={e => setFormData(prev => ({ ...prev, contactName: e.target.value }))}
+                  />
+                </div>
+              </div>
+              
+              <div className="d-flex align-items-center gap-3">
+                <label className="form-label small fw-bold text-dark mb-0" style={{ width: "100px", flexShrink: 0 }}>Số điện thoại:</label>
+                <div className="input-group input-group-sm" style={{ flex: 1 }}>
+                  <span className="input-group-text bg-light border-0 py-1"><i className="bi bi-telephone text-primary"></i></span>
+                  <input
+                    type="text"
+                    className="form-control border-0 bg-light py-1"
+                    style={{ fontSize: '0.85rem', height: '38px' }}
+                    placeholder="Số điện thoại liên hệ..."
+                    value={formData.contactPhone}
+                    onChange={e => setFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="mb-3">
-            <label className="form-label fw-bold small text-uppercase text-muted letter-spacing-1 mb-2">2. Hội đồng phỏng vấn</label>
-            <div className="position-relative mb-2">
+          {actionType !== 'send_email' && (
+          <div className="mb-3 d-flex flex-column flex-grow-1 min-h-0" style={{ minHeight: 0 }}>
+            <label className="form-label fw-bold small text-uppercase text-muted letter-spacing-1 mb-2 flex-shrink-0">2. Hội đồng phỏng vấn</label>
+            <div className="position-relative mb-2 flex-shrink-0">
               <i className="bi bi-search position-absolute top-50 translate-middle-y ms-3 text-muted"></i>
               <input
                 type="text"
@@ -3832,7 +3800,7 @@ function ScheduleInterviewOffcanvas({ onClose, onConfirm, onOpenConfig, loading,
               />
             </div>
 
-            <div className="overflow-auto border rounded-4 bg-white shadow-sm" style={{ maxHeight: "250px" }}>
+            <div className="overflow-auto border rounded-4 bg-white shadow-sm flex-grow-1" style={{ minHeight: "150px" }}>
               {loadingInterviewers ? (
                 <div className="text-center py-5 text-muted small">
                   <div className="spinner-border spinner-border-sm text-primary me-2"></div> Đang tải danh sách...
@@ -3875,34 +3843,26 @@ function ScheduleInterviewOffcanvas({ onClose, onConfirm, onOpenConfig, loading,
               </div>
             )}
           </div>
+          )}
 
-          <div className="mb-0">
-            <label className="form-label fw-bold small text-uppercase text-muted letter-spacing-1 mb-3">3. Lời nhắn cho ứng viên</label>
-            <textarea
-              className="form-control border-0 bg-light p-3 rounded-4 shadow-sm"
-              rows={4}
-              style={{ fontSize: '0.85rem', lineHeight: '1.6' }}
-              placeholder="Nội dung nhắc nhở, trang phục hoặc tài liệu cần mang theo..."
-              value={formData.interviewNotes}
-              onChange={e => setFormData(prev => ({ ...prev, interviewNotes: e.target.value }))}
-            />
-          </div>
+
         </div>
 
         <div className="offcanvas-footer p-3 border-top bg-light">
           <div className="d-flex gap-2">
-            <button
-              type="button"
-              className="btn btn-light shadow-sm border d-flex align-items-center justify-content-center rounded-3"
-              style={{ width: 38, height: 38 }}
-              onClick={onOpenConfig}
-              title="Cấu hình SMTP"
-            >
-              <i className="bi bi-gear-fill text-muted"></i>
-            </button>
+            {actionType === 'send_email' && (
+              <BrandButton
+                variant="outline"
+                className="fw-bold"
+                disabled={loading || !formData.interviewDate}
+                onClick={() => onSaveTimeLocation?.(formData)}
+              >
+                Xác nhận
+              </BrandButton>
+            )}
             <BrandButton
               className="flex-grow-1 fw-bold"
-              disabled={loading || !formData.interviewDate || selectedInterviewers.length === 0}
+              disabled={loading || !formData.interviewDate || (actionType === 'schedule_internal' && selectedInterviewers.length === 0)}
               onClick={() => onConfirm({ ...formData, selectedInterviewers })}
             >
               {loading ? (
@@ -3910,7 +3870,7 @@ function ScheduleInterviewOffcanvas({ onClose, onConfirm, onOpenConfig, loading,
               ) : (
                 <i className="bi bi-send-check-fill"></i>
               )}
-              Xác nhận & Gửi thư mời
+              {actionType === 'send_email' ? 'Tiếp tục' : 'Lưu lịch phỏng vấn'}
             </BrandButton>
           </div>
         </div>

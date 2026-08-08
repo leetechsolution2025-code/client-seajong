@@ -1,10 +1,16 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+import { PrismaClient } from '@prisma/client'
+const prisma = new PrismaClient()
+
 async function main() {
-  const item = await prisma.inventoryItem.findFirst({ where: { tenHang: { contains: "Sen tắm nóng lạnh 01S" } } });
-  console.log("InventoryItem by Name:", item);
-  
-  const dm = await prisma.dinhMuc.findFirst({ where: { tenSanPham: { contains: "Sen tắm nóng lạnh 01S" } } });
-  console.log("DinhMuc by Name:", dm);
+  const emps = await prisma.employee.findMany({
+    select: { fullName: true, departmentCode: true, status: true, userId: true },
+  });
+  console.log("All employees:", emps);
+
+  const users = await prisma.user.findMany({
+    select: { name: true, email: true, permissions: true }
+  });
+  console.log("All users:", users);
 }
-main().catch(console.error).finally(() => prisma.$disconnect());
+
+main().finally(() => prisma.$disconnect())

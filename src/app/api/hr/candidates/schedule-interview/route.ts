@@ -12,6 +12,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+    console.log("SCHEDULE INTERVIEW API BODY:", body);
     const {
       candidateIds,
       interviewDate,
@@ -20,15 +21,20 @@ export async function POST(request: Request) {
       interviewNotes,
       draftOnly,
       customHtml,
-      customSubject
+      customSubject,
+      actionType,
+      contactName,
+      contactPhone
     } = body;
 
     if (!candidateIds || !Array.isArray(candidateIds) || candidateIds.length === 0) {
       return NextResponse.json({ error: "Chưa chọn ứng viên" }, { status: 400 });
     }
 
-    if (!selectedInterviewers || !Array.isArray(selectedInterviewers) || selectedInterviewers.length === 0) {
-      return NextResponse.json({ error: "Chưa chọn người phỏng vấn" }, { status: 400 });
+    if (actionType !== 'send_email' && !draftOnly) {
+      if (!selectedInterviewers || !Array.isArray(selectedInterviewers) || selectedInterviewers.length === 0) {
+        return NextResponse.json({ error: "Chưa chọn người phỏng vấn" }, { status: 400 });
+      }
     }
 
     const candidates = await (prisma as any).candidate.findMany({
@@ -103,7 +109,7 @@ export async function POST(request: Request) {
                   </tr>
                   <tr>
                     <td style="padding: 6px 0; width: 30px; vertical-align: top;"><span style="font-size: 16px;">👤</span></td>
-                    <td style="padding: 6px 0;"><strong style="color: #2d3748; font-size: 14px;">Người liên hệ:</strong><br><span style="color: #4a5568; font-size: 14px;">${config?.fromName || "Ban Nhân sự"} (${config?.fromEmail || ""})</span></td>
+                    <td style="padding: 6px 0;"><strong style="color: #2d3748; font-size: 14px;">Người liên hệ:</strong><br><span style="color: #4a5568; font-size: 14px;">${contactName || config?.fromName || "Ban Nhân sự"} (${contactPhone || config?.fromEmail || ""})</span></td>
                   </tr>
                 </table>
               </div>
@@ -151,7 +157,7 @@ export async function POST(request: Request) {
         companyWebsite,
         logoUrl: company?.logoUrl || "",
         fromEmail: config?.fromEmail || "",
-        fromName: config?.fromName || "Ban Nhân sự",
+        fromName: contactName || config?.fromName || "Ban Nhân sự",
         candidateNames,
         position: candidates[0]?.position || "",
         formattedDate,
@@ -218,6 +224,12 @@ export async function POST(request: Request) {
     // 3. Gửi Email tự động cho từng ứng viên (Sử dụng SMTP Config)
     let emailSuccessCount = 0;
     let lastEmailError = null;
+    
+    if (actionType === 'schedule_internal') {
+       return NextResponse.json({
+         message: `Đã lưu lịch phỏng vấn nội bộ thành công.`
+       });
+    }
 
     const url = new URL(request.url);
     const baseUrl = `${url.protocol}//${url.host}`;
@@ -234,7 +246,9 @@ export async function POST(request: Request) {
           interviewers: interviewerNames,
           baseUrl: baseUrl,
           customHtml,
-          customSubject
+          customSubject,
+          contactName,
+          contactPhone
         });
         if (mailRes.success) {
           emailSuccessCount++;

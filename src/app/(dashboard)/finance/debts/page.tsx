@@ -290,6 +290,99 @@ export default function DebtsPage() {
       },
     ];
 
+    const actionsCol: TableColumn<any> = {
+      header: "",
+      align: "center",
+      width: 40,
+      render: (row) => {
+        if (row.isGroupHeader) return null;
+        if (row.id?.toString().startsWith("AUTO_")) return null;
+        return (
+          <div className="dropdown position-static">
+            <button 
+              className="btn btn-link btn-sm text-muted p-0 border-0 dropdown-toggle no-caret"
+              type="button"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i className="bi bi-three-dots-vertical" />
+            </button>
+            <ul className="dropdown-menu dropdown-menu-end shadow border-0 py-2" style={{ fontSize: 12.5, minWidth: 200, zIndex: 1050 }}>
+              <li>
+                <button 
+                  className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    if (isExpense) {
+                      // Custom approval logic for expenses
+                    } else {
+                      setSelectedPaymentDebt(row);
+                      setShowPaymentOffcanvas(true);
+                    }
+                  }}
+                >
+                  <i className="bi bi-cash-coin text-success fs-6" />
+                  <span>{isExpense ? "Duyệt chi" : "Ghi nhận thanh toán"}</span>
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    if (isExpense) {
+                      setEditingItem(row);
+                      setShowExpenseForm(true);
+                    } else {
+                      setEditingItem(row);
+                      setShowDebtForm(true);
+                    }
+                  }}
+                >
+                  <i className="bi bi-pencil-square text-primary fs-6" />
+                  <span>{isExpense ? "Chỉnh sửa khoản chi" : "Chỉnh sửa thông tin"}</span>
+                </button>
+              </li>
+              {!isExpense && (
+                <>
+                  <li>
+                    <button 
+                      className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setSelectedReconciliationDebt(row);
+                        setShowReconciliationModal(true);
+                      }}
+                    >
+                      <i className="bi bi-file-earmark-check text-info fs-6" />
+                      <span>Đối chiếu công nợ</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
+                      <i className="bi bi-bell text-warning fs-6" />
+                      <span>Gửi nhắc nợ</span>
+                    </button>
+                  </li>
+                </>
+              )}
+              <li><hr className="dropdown-divider opacity-50" /></li>
+              <li>
+                <button className="dropdown-item d-flex align-items-center gap-2 py-1.5 text-danger" onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setDeletingId(row.id);
+                  setShowDeleteConfirm(true);
+                }}>
+                  <i className="bi bi-trash fs-6" />
+                  <span>Xóa khoản nợ</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+        );
+      },
+    };
+
     if (isLoan) {
       return [
         ...commonCols,
@@ -342,84 +435,8 @@ export default function DebtsPage() {
             return <span className={`badge bg-${s.color}-subtle text-${s.color} rounded-pill px-3 py-1.5`} style={{ fontSize: 10.5 }}>{s.label}</span>;
           },
         },
-        {
-          header: "",
-          align: "center",
-          width: 40,
-          render: (row) => {
-            if (row.isGroupHeader) return null;
-            return (
-            <div className="dropdown position-static">
-              <button 
-                className="btn btn-link btn-sm text-muted p-0 border-0 dropdown-toggle no-caret"
-                type="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                <i className="bi bi-three-dots-vertical" />
-              </button>
-              <ul className="dropdown-menu dropdown-menu-end shadow border-0 py-2" style={{ fontSize: 12.5, minWidth: 200, zIndex: 1050 }}>
-                <li>
-                  <button 
-                    className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      setSelectedPaymentDebt(row);
-                      setShowPaymentOffcanvas(true);
-                    }}
-                  >
-                    <i className="bi bi-cash-coin text-success fs-6" />
-                    <span>Ghi nhận thanh toán</span>
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      setEditingItem(row);
-                      setShowDebtForm(true);
-                    }}
-                  >
-                    <i className="bi bi-pencil-square text-primary fs-6" />
-                    <span>Chỉnh sửa thông tin</span>
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      setSelectedReconciliationDebt(row);
-                      setShowReconciliationModal(true);
-                    }}
-                  >
-                    <i className="bi bi-file-earmark-check text-info fs-6" />
-                    <span>Đối chiếu công nợ</span>
-                  </button>
-                </li>
-                <li>
-                  <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
-                    <i className="bi bi-bell text-warning fs-6" />
-                    <span>Gửi nhắc nợ</span>
-                  </button>
-                </li>
-                <li><hr className="dropdown-divider opacity-50" /></li>
-                <li>
-                  <button className="dropdown-item d-flex align-items-center gap-2 py-1.5 text-danger" onClick={(e) => { 
-                    e.stopPropagation(); 
-                    setDeletingId(row.id);
-                    setShowDeleteConfirm(true);
-                  }}>
-                    <i className="bi bi-trash fs-6" />
-                    <span>Xóa khoản nợ</span>
-                  </button>
-                </li>
-              </ul>
-            </div>
-            );
-          },
-        },
+        actionsCol
+
       ];
     }
 
@@ -470,99 +487,10 @@ export default function DebtsPage() {
       });
     }
 
-    resultCols.push({
-      header: "",
-      align: "center",
-      width: 40,
-      render: (row) => {
-        if (row.id?.toString().startsWith("AUTO_")) return null;
-        return (
-          <div className="dropdown position-static">
-            <button 
-              className="btn btn-link btn-sm text-muted p-0 border-0 dropdown-toggle no-caret"
-              type="button"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-            >
-              <i className="bi bi-three-dots-vertical" />
-            </button>
-            <ul className="dropdown-menu dropdown-menu-end shadow border-0 py-2" style={{ fontSize: 12.5, minWidth: 200, zIndex: 1050 }}>
-              <li>
-                <button 
-                  className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    if (isExpense) {
-                      // Custom approval logic for expenses if any, currently mock
-                    } else {
-                      setSelectedPaymentDebt(row);
-                      setShowPaymentOffcanvas(true);
-                    }
-                  }}
-                >
-                  <i className="bi bi-cash-coin text-success fs-6" />
-                  <span>{isExpense ? "Duyệt chi" : "Ghi nhận thanh toán"}</span>
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    if (isExpense) {
-                      setEditingItem(row);
-                      setShowExpenseForm(true);
-                    } else {
-                      setEditingItem(row);
-                      setShowDebtForm(true);
-                    }
-                  }}
-                >
-                  <i className="bi bi-pencil-square text-primary fs-6" />
-                  <span>Chỉnh sửa thông tin</span>
-                </button>
-              </li>
-              {!isExpense && (
-                <>
-                  <li>
-                    <button 
-                      className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setSelectedReconciliationDebt(row);
-                        setShowReconciliationModal(true);
-                      }}
-                    >
-                      <i className="bi bi-file-earmark-check text-info fs-6" />
-                      <span>Đối chiếu công nợ</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
-                      <i className="bi bi-bell text-warning fs-6" />
-                      <span>Gửi nhắc nợ</span>
-                    </button>
-                  </li>
-                </>
-              )}
-              <li><hr className="dropdown-divider opacity-50" /></li>
-              <li>
-                <button className="dropdown-item d-flex align-items-center gap-2 py-1.5 text-danger" onClick={(e) => { 
-                  e.stopPropagation(); 
-                  setDeletingId(row.id);
-                  setShowDeleteConfirm(true);
-                }}>
-                  <i className="bi bi-trash fs-6" />
-                  <span>{isExpense ? "Xóa chi phí" : "Xóa khoản nợ"}</span>
-                </button>
-              </li>
-            </ul>
-          </div>
-        );
-      },
-    });
 
-      return resultCols;
+
+      resultCols.push(actionsCol);
+    return resultCols;
     };
 
   const columns = getColumns();

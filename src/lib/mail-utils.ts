@@ -15,7 +15,9 @@ export async function sendInterviewEmail({
   baseUrl,
   meetingLink,
   customSubject,
-  customHtml
+  customHtml,
+  contactName,
+  contactPhone
 }: {
   to: string;
   candidateName: string;
@@ -28,6 +30,8 @@ export async function sendInterviewEmail({
   meetingLink?: string;
   customSubject?: string;
   customHtml?: string;
+  contactName?: string;
+  contactPhone?: string;
 }) {
   // 1. Fetch active SMTP config
   const config = await (prisma as any).emailConfig.findFirst({
@@ -133,7 +137,7 @@ export async function sendInterviewEmail({
               </tr>
               <tr>
                 <td style="padding: 6px 0; width: 30px; vertical-align: top;"><span style="font-size: 16px;">👤</span></td>
-                <td style="padding: 6px 0;"><strong style="color: #2d3748; font-size: 14px;">Người liên hệ:</strong><br><span style="color: #4a5568; font-size: 14px;">${config.fromName} (${config.fromEmail})</span></td>
+                <td style="padding: 6px 0;"><strong style="color: #2d3748; font-size: 14px;">Người liên hệ:</strong><br><span style="color: #4a5568; font-size: 14px;">${contactName || config.fromName} ${contactPhone ? `(${contactPhone})` : `(${config.fromEmail})`}</span></td>
               </tr>
             </table>
           </div>

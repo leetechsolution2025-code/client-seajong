@@ -69,7 +69,7 @@ export default function BOMPage() {
         return;
       }
 
-      let url = `/api/logistics/inventory?page=1&nolimit=true`;
+      let url = `/api/logistics/inventory?warehouseCode=KVP&page=1&nolimit=true`;
       if (swapSearchMode === "exact") {
         url += `&exactCode=${encodeURIComponent(swapBaseExact)}`;
       } else if (swapSearchMode === "group") {
@@ -469,7 +469,7 @@ export default function BOMPage() {
   // Add material line
   const fetchMaterials = async (q: string) => {
     try {
-      const res = await fetch(`/api/logistics/inventory?search=${encodeURIComponent(q)}&page=1`);
+      const res = await fetch(`/api/logistics/inventory?warehouseCode=KVP&search=${encodeURIComponent(q)}&page=1&nolimit=true`);
       if (res.ok) {
         const data = await res.json();
         setMaterials(data.items || []);
@@ -883,7 +883,6 @@ export default function BOMPage() {
                         className="form-control"
                         value={bomData.tenDinhMuc || ""}
                         onChange={e => setBomData({ ...bomData, tenDinhMuc: e.target.value })}
-                        disabled={isStandardBom}
                       />
                       <button 
                         className="btn btn-outline-secondary" 
@@ -915,7 +914,6 @@ export default function BOMPage() {
                             searchInputRef.current?.focus();
                           }, 100);
                         }}
-                        disabled={isStandardBom}
                       >
                         <i className="bi bi-plus-lg me-1"></i> Thêm vật tư
                       </button>
@@ -990,8 +988,8 @@ export default function BOMPage() {
                     <button 
                       className="btn btn-sm btn-primary" 
                       onClick={handleSaveBom} 
-                      disabled={saving || isSameAsStandard || isStandardBom}
-                      title={isStandardBom ? "Không thể sửa định mức tiêu chuẩn" : isSameAsStandard ? "Danh sách vật tư trùng khớp hoàn toàn với tiêu chuẩn, vui lòng thay đổi để lưu bản biến thể" : ""}
+                      disabled={saving || isSameAsStandard || !bomData?.vatTu?.length}
+                      title={!bomData?.vatTu?.length ? "Vui lòng thêm ít nhất 1 vật tư" : isSameAsStandard ? "Danh sách vật tư trùng khớp hoàn toàn với tiêu chuẩn, vui lòng thay đổi để lưu bản biến thể" : ""}
                     >
                       {saving ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-save me-2"></i>}
                       Lưu định mức
@@ -1030,7 +1028,6 @@ export default function BOMPage() {
                                   className="form-control form-control-sm border-0 bg-transparent px-1"
                                   value={row.donViTinh}
                                   onChange={e => updateMaterialLine(idx, "donViTinh", e.target.value)}
-                                  disabled={isStandardBom}
                                 />
                               </td>
                               <td className="align-middle" style={{ padding: "6px 8px" }}>
@@ -1040,7 +1037,6 @@ export default function BOMPage() {
                                   value={row.soLuong}
                                   onChange={e => updateMaterialLine(idx, "soLuong", parseFloat(e.target.value) || 0)}
                                   min="0" step="0.1"
-                                  disabled={isStandardBom}
                                 />
                               </td>
                               <td className="text-center align-middle" style={{ padding: "6px 8px" }}>
@@ -1067,13 +1063,12 @@ export default function BOMPage() {
                                           setSwapSearchText("");
                                           setShowSwapModal(true);
                                         }}
-                                        disabled={isStandardBom}
                                       >
                                         <i className="bi bi-arrow-left-right"></i>
                                       </button>
                                     );
                                   })()}
-                                  <button className="btn btn-sm btn-light text-danger p-1" onClick={() => removeMaterialLine(idx)} title="Xóa" disabled={isStandardBom}>
+                                  <button className="btn btn-sm btn-light text-danger p-1" onClick={() => removeMaterialLine(idx)} title="Xóa">
                                     <i className="bi bi-trash"></i>
                                   </button>
                                 </div>
