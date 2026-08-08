@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/Toast";
 import { DynamicTicker } from "@/components/layout/DynamicTicker";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { TreeFilterSelect } from "@/components/ui/TreeFilterSelect";
+import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
 
 export default function LogisticsOverviewPage() {
   const [rawOrders, setRawOrders] = useState<any[]>([]);
@@ -31,6 +32,43 @@ export default function LogisticsOverviewPage() {
   const [nhapKhoTaskId, setNhapKhoTaskId] = useState<string | undefined>(undefined);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showPrintLabelModal, setShowPrintLabelModal] = useState(false);
+  const [selectedItemIndexesForPrint, setSelectedItemIndexesForPrint] = useState<number[]>([]);
+  const [printQuantities, setPrintQuantities] = useState<Record<number, any>>({});
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/company")
+      .then(r => r.json())
+      .then(setCompanyInfo)
+      .catch(() => {});
+  }, []);
+
+  // Auto-round print quantities to multiples of 3 after 800ms of typing inactivity
+  useEffect(() => {
+    if (!showPrintLabelModal) return;
+    const t = setTimeout(() => {
+      setPrintQuantities(prev => {
+        let changed = false;
+        const next = { ...prev };
+        Object.keys(next).forEach(k => {
+          const key = Number(k);
+          if (typeof next[key] === "number") {
+            const val = next[key];
+            if (val <= 0) {
+              next[key] = 3;
+              changed = true;
+            } else if (val % 3 !== 0) {
+              next[key] = Math.ceil(val / 3) * 3;
+              changed = true;
+            }
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [printQuantities, showPrintLabelModal]);
   
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<"orders" | "inventory">("orders");
@@ -149,9 +187,9 @@ export default function LogisticsOverviewPage() {
         if (res.ok) {
           const detail = await res.json();
           if (detail.logisticsItems) {
-            items = detail.logisticsItems.map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type, isShortage: it.isShortage }));
+            items = detail.logisticsItems.map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type, isShortage: it.isShortage, code: it.code || it.inventoryItem?.code, color: it.color || it.inventoryItem?.color, giaBan: it.giaBan || it.inventoryItem?.giaBan, imageUrl: it.imageUrl || it.inventoryItem?.imageUrl }));
           } else {
-            items = (detail.saleOrderItems ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.inventoryItem?.donVi }));
+            items = (detail.saleOrderItems ?? []).map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.inventoryItem?.donVi, code: it.inventoryItem?.code, color: it.inventoryItem?.color, giaBan: it.inventoryItem?.giaBan, imageUrl: it.inventoryItem?.imageUrl }));
           }
         }
       } else if (row.type === "material-export" || row.type === "material-import" || row.type === "logistics-ticket") {
@@ -165,7 +203,11 @@ export default function LogisticsOverviewPage() {
             unit: it.donVi || it.inventoryItem?.donVi, 
             type: it.type, 
             isShortage: isLacking,
-            bomCode: it.bomCode
+            bomCode: it.bomCode,
+            code: it.code || it.inventoryItem?.code,
+            color: it.color || it.inventoryItem?.color,
+            giaBan: it.giaBan || it.inventoryItem?.giaBan,
+            imageUrl: it.imageUrl || it.inventoryItem?.imageUrl,
           };
         });
         
@@ -178,7 +220,7 @@ export default function LogisticsOverviewPage() {
               const filterType = row.ticketType === "MATERIAL_PICKING" ? "Kho Vật Tư Phụ Kiện (KVP)" : "Kho Hàng Hoá (KHO-CHINH)";
               items = detail.logisticsItems
                 .filter((it: any) => it.type === filterType)
-                .map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type, isShortage: it.isShortage }));
+                .map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type, isShortage: it.isShortage, code: it.code || it.inventoryItem?.code, color: it.color || it.inventoryItem?.color, giaBan: it.giaBan || it.inventoryItem?.giaBan, imageUrl: it.imageUrl || it.inventoryItem?.imageUrl }));
             }
           }
         }
@@ -701,6 +743,19 @@ export default function LogisticsOverviewPage() {
             <i className="bi bi-trash3"></i>
           </button>
           <button 
+            className="btn btn-outline-secondary flex-shrink-0"
+            onClick={() => {
+              const qs: Record<number, number> = {};
+              orderDetails.forEach((_, idx) => { qs[idx] = 3; });
+              setPrintQuantities(qs);
+              setSelectedItemIndexesForPrint(orderDetails.map((_, idx) => idx));
+              setShowPrintLabelModal(true);
+            }}
+            title="In nhãn"
+          >
+            <i className="bi bi-printer me-1"></i> In nhãn
+          </button>
+          <button 
             className="btn btn-primary w-100" 
             disabled={selectedOrder?.type === "logistics-ticket" && selectedOrder.trangThai !== "PACKED"}
             onClick={() => {
@@ -779,6 +834,195 @@ export default function LogisticsOverviewPage() {
         onConfirm={handleDeleteOrder}
         onCancel={() => setConfirmDeleteId(null)}
       />
+
+      {showPrintLabelModal && (
+        <PrintPreviewModal
+          title="Xem trước nhãn in"
+          onClose={() => setShowPrintLabelModal(false)}
+          documentId="print-label-content"
+          printOrientation="landscape"
+          printMargins="1cm"
+          actions={
+            <button 
+              className="btn btn-primary btn-sm"
+              onClick={() => printDocumentById("print-label-content", "landscape", "In nhãn Seajong", true, "0")}
+            >
+              <i className="bi bi-printer me-1"></i> In nhãn
+            </button>
+          }
+          sidebar={
+            <div className="p-0 border-end d-flex flex-column" style={{ width: 350, height: "100%" }}>
+              <div className="p-3 border-bottom bg-light">
+                <h6 className="fw-semibold mb-0">Chọn hàng hoá để in nhãn</h6>
+              </div>
+              <div className="flex-grow-1" style={{ overflowY: "auto", overflowX: "hidden" }}>
+                <table className="table table-sm table-hover table-borderless align-middle mb-0" style={{ fontSize: 13 }}>
+                  <thead className="table-light sticky-top shadow-sm" style={{ zIndex: 1 }}>
+                    <tr>
+                      <th className="text-center" style={{ width: 40 }}>
+                        <input 
+                          type="checkbox" 
+                          className="form-check-input"
+                          checked={selectedItemIndexesForPrint.length === orderDetails.length && orderDetails.length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedItemIndexesForPrint(orderDetails.map((_, idx) => idx));
+                            } else {
+                              setSelectedItemIndexesForPrint([]);
+                            }
+                          }}
+                        />
+                      </th>
+                      <th>Mã/Tên SP</th>
+                      <th className="text-center" style={{ width: 80 }}>SL in</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orderDetails.map((it, idx) => (
+                      <tr key={idx} className="border-bottom">
+                        <td className="text-center">
+                          <input 
+                            type="checkbox" 
+                            className="form-check-input"
+                            checked={selectedItemIndexesForPrint.includes(idx)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedItemIndexesForPrint(prev => [...prev, idx]);
+                                setPrintQuantities(prev => ({ ...prev, [idx]: prev[idx] || 3 }));
+                              } else {
+                                setSelectedItemIndexesForPrint(prev => prev.filter(i => i !== idx));
+                              }
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <div className="fw-medium text-truncate" style={{ maxWidth: 220 }} title={it.name}>{it.name}</div>
+                          <div className="text-muted" style={{ fontSize: 11 }}>{it.code || "N/A"}</div>
+                        </td>
+                        <td className="text-center">
+                          <input 
+                            type="number" 
+                            className="form-control form-control-sm text-center" 
+                            style={{ width: 60, padding: 2, display: "inline-block", fontSize: 13 }}
+                            value={printQuantities[idx] ?? ""}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setPrintQuantities(prev => ({ ...prev, [idx]: val === "" ? "" : Number(val) }));
+                            }}
+                            onBlur={e => {
+                              const val = Number(e.target.value);
+                              if (!val || val <= 0) {
+                                setPrintQuantities(prev => ({ ...prev, [idx]: 3 }));
+                              } else {
+                                setPrintQuantities(prev => ({ ...prev, [idx]: Math.ceil(val / 3) * 3 }));
+                              }
+                            }}
+                            disabled={!selectedItemIndexesForPrint.includes(idx)}
+                            min={3}
+                            step={3}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                    {orderDetails.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="text-center text-muted py-4">Chưa có hàng hoá nào</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+          document={
+            <div id="print-label-content">
+              {(() => {
+                const selectedOrderDetails: any[] = [];
+                orderDetails.forEach((it, idx) => {
+                  if (selectedItemIndexesForPrint.includes(idx)) {
+                    const qty = printQuantities[idx] || 3;
+                    for (let i = 0; i < qty; i++) {
+                      selectedOrderDetails.push(it);
+                    }
+                  }
+                });
+                
+                const totalPages = Math.max(1, Math.ceil(selectedOrderDetails.length / 9));
+                
+                return Array.from({ length: totalPages }).map((_, pageIndex) => (
+                  <div key={pageIndex} style={{ width: "297mm", height: "209mm", padding: "10mm", background: "#fff", margin: "0 auto", boxSizing: "border-box", pageBreakAfter: "always", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact", overflow: "hidden" }}>
+                    <table style={{ width: "100%", height: "189mm", borderCollapse: "collapse", tableLayout: "fixed" }}>
+                      <tbody>
+                        {[...Array(3)].map((_, rowIndex) => (
+                          <tr key={rowIndex}>
+                            {[...Array(3)].map((_, colIndex) => {
+                              const itemIdx = pageIndex * 9 + rowIndex * 3 + colIndex;
+                              const item = selectedOrderDetails[itemIdx];
+                              if (!item) return <td key={colIndex} style={{ width: "33.33%", height: "63mm", padding: "4px" }}></td>;
+                              
+                              const qrData = encodeURIComponent(`Sản phẩm: ${item.name || ""}\nMã SP: ${item.code || "N/A"}\nMàu: ${item.color || "N/A"}\nGiá: ${item.giaBan ? item.giaBan.toLocaleString("vi-VN") : "N/A"}\nBảo hành: 5 năm`);
+                              
+                              return (
+                              <td key={colIndex} style={{ width: "33.33%", height: "63mm", padding: "4px" }}>
+                                <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", border: "1px solid #ddd" }}>
+                                  {/* Header */}
+                                  <div style={{ background: "#2B3D6B", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px" }}>
+                                     <div className="d-flex align-items-center bg-white rounded px-1" style={{ height: 22 }}>
+                                       {companyInfo?.logoUrl && <img src={companyInfo.logoUrl} style={{ height: 18, objectFit: "contain" }} alt="logo" />}
+                                     </div>
+                                     <div className="fw-semibold" style={{ fontSize: 9 }}>KOREAN TECHNOLOGY</div>
+                                  </div>
+                                  
+                                  {/* Body */}
+                                  <div style={{ display: "flex", flex: 1, padding: "8px", gap: "8px", background: "#fff" }}>
+                                     {/* Product Image */}
+                                     <div style={{ width: "25%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                        {item.imageUrl ? (
+                                          <img src={item.imageUrl} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", mixBlendMode: "multiply" }} alt="product" />
+                                        ) : (
+                                          <div className="d-flex align-items-center justify-content-center bg-light rounded" style={{ width: "100%", aspectRatio: "1", color: "#ccc" }}>
+                                            <i className="bi bi-box-seam" style={{ fontSize: 32 }}></i>
+                                          </div>
+                                        )}
+                                     </div>
+                                     
+                                     {/* Details */}
+                                     <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", fontSize: 11 }}>
+                                        <div className="fw-bold" style={{ color: "#2B3D6B", fontSize: 12, marginBottom: 4, textTransform: "uppercase", lineHeight: 1.2 }}>
+                                          {item.name || "Sản phẩm Seajong"}
+                                        </div>
+                                        <div className="mt-1">Mã SP: <b style={{ fontSize: 12 }}>{item.code || "N/A"}</b></div>
+                                        <div className="mt-1">Màu: <b>{item.color || "N/A"}</b></div>
+                                        <div className="mt-1">Giá: <b>{item.giaBan ? item.giaBan.toLocaleString("vi-VN") : "N/A"}</b></div>
+                                        <div className="mt-1">Bảo hành đến: <b>5 năm</b></div>
+                                     </div>
+                                     
+                                     {/* QR Code */}
+                                     <div style={{ width: "22%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${qrData}`} style={{ maxWidth: "100%", maxHeight: "100%" }} alt="qr" />
+                                     </div>
+                                  </div>
+                                  
+                                  {/* Footer */}
+                                  <div style={{ background: "#2B3D6B", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px", fontSize: 10 }}>
+                                     <div className="d-flex align-items-center"><i className="bi bi-globe me-1"></i> {companyInfo?.website || "https://seajong.com/"}</div>
+                                     <div className="d-flex align-items-center"><i className="bi bi-telephone-fill me-1"></i> {companyInfo?.phone || "1900.633.862"}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ));
+              })()}
+            </div>
+          }
+        />
+      )}
     </div>
   );
 }

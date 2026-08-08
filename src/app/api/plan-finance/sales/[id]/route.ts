@@ -46,7 +46,7 @@ export async function GET(
         customer: { select: { id: true, name: true, dienThoai: true, address: true, hanMucCongNo: true } },
         saleOrderItems: {
           include: {
-            inventoryItem: { select: { imageUrl: true, code: true, loai: true, webProductId: true } }
+            inventoryItem: { select: { imageUrl: true, code: true, loai: true, webProductId: true, color: true, giaBan: true } }
           }
         },
       },

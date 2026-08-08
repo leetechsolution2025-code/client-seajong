@@ -113,7 +113,7 @@ export async function GET(_req: NextRequest) {
               requestedQty: true,
               pickedQty: true,
               inventoryItemId: true,
-              inventoryItem: { select: { tenHang: true, donVi: true } }
+              inventoryItem: { select: { tenHang: true, donVi: true, code: true, color: true, giaBan: true, imageUrl: true } }
             }
           }
         }
@@ -163,6 +163,10 @@ export async function GET(_req: NextRequest) {
             requestedQty: it.requestedQty || 0,
             pickedQty: it.pickedQty || 0,
             donVi: it.inventoryItem?.donVi || "cái",
+            code: it.inventoryItem?.code,
+            color: it.inventoryItem?.color,
+            giaBan: it.inventoryItem?.giaBan,
+            imageUrl: it.inventoryItem?.imageUrl,
             bomCode
           };
         })
