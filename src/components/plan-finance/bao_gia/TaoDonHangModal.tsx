@@ -680,6 +680,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   const truocThue = tamTinh - ckTien;
   const thueTien = truocThue * info.thue / 100;
   const tongCong = truocThue + thueTien + (info.chiPhiKhac || 0);
+  const isOutOfStock = items.some(it => it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number));
 
 
   const handleSave = async () => {
@@ -904,7 +905,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {saveError && <span style={{ fontSize: 12, color: "#fca5a5", alignSelf: "center" }}><i className="bi bi-exclamation-circle" /> {saveError}</span>}
-          <button className="order-modal-header-btn" onClick={handleSave} disabled={saving} style={{ padding: "6px 20px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, cursor: saving ? "not-allowed" : "pointer", fontWeight: 800, fontSize: 13, opacity: saving ? 0.7 : 1 }}>
+          {isOutOfStock && <span style={{ fontSize: 12, color: "#fca5a5", alignSelf: "center" }}><i className="bi bi-exclamation-triangle" /> Đơn có hàng hóa thiếu</span>}
+          <button className="order-modal-header-btn" onClick={handleSave} disabled={saving || isOutOfStock} style={{ padding: "6px 20px", background: (saving || isOutOfStock) ? "#6b7280" : "#10b981", color: "#fff", border: "none", borderRadius: 8, cursor: (saving || isOutOfStock) ? "not-allowed" : "pointer", fontWeight: 800, fontSize: 13, opacity: saving ? 0.7 : 1 }}>
             {saving ? "Đang lưu..." : (
               <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <i className="bi bi-check-circle" />
@@ -1338,22 +1340,26 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                     style={{ borderBottom: "1px solid var(--border)", cursor: "pointer", background: formItem.id === it.id ? "rgba(0,0,0,0.03)" : "transparent" }}
                   >
                     <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
-                    <td style={{ padding: "6px 10px", position: "relative" }}>
-                      {it.ten.trim() && it.soLuongTon !== null && it.soLuongTon !== undefined && (() => {
-                        const ton = it.soLuongTon as number;
-                        if (ton === 0) return (
-                          <span title="Hết hàng" style={{ position: "absolute", right: 18, top: "50%", transform: "translateY(-50%)", color: "#ef4444", pointerEvents: "none", display: "flex" }}>
-                            <i className="bi bi-x-circle-fill" style={{ fontSize: 13 }} />
-                          </span>
-                        );
-                        if (it.soLuong > ton) return (
-                          <span title={`Thiếu hàng (tồn: ${ton})`} style={{ position: "absolute", right: 18, top: "50%", transform: "translateY(-50%)", color: "#f97316", pointerEvents: "none", display: "flex" }}>
-                            <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 12 }} />
-                          </span>
-                        );
-                        return null;
-                      })()}
-                      <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{it.ten}</span>
+                    <td style={{ padding: "6px 10px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{it.ten}</span>
+                        {it.ten.trim() && it.soLuongTon !== null && it.soLuongTon !== undefined && (() => {
+                          const ton = it.soLuongTon as number;
+                          if (ton === 0) return (
+                            <span title="Hết hàng" style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: 4 }}>
+                              <i className="bi bi-x-circle-fill" style={{ fontSize: 13 }} />
+                              <span style={{ fontSize: 11, fontWeight: 600 }}>Hết hàng</span>
+                            </span>
+                          );
+                          if (it.soLuong > ton) return (
+                            <span title={`Thiếu hàng (thực tồn: ${ton})`} style={{ color: "#f97316", display: "flex", alignItems: "center", gap: 4 }}>
+                              <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 13 }} />
+                              <span style={{ fontSize: 11, fontWeight: 600 }}>Thiếu hàng (tồn: {ton})</span>
+                            </span>
+                          );
+                          return null;
+                        })()}
+                      </div>
                     </td>
                     <td style={{ padding: 6, textAlign: "center" }}>{it.dvt}</td>
                     <td style={{ padding: 6, textAlign: "center" }}>{it.soLuong}</td>
