@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/Toast";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { printDocumentById } from "@/components/ui/PrintPreviewModal";
 import { useSession } from "next-auth/react";
+import { format } from "date-fns";
 import { 
   parseDebtDescription, 
   serializeDebtDescription, 
@@ -21,6 +22,9 @@ interface DebtReconciliationModalProps {
   onSuccess: () => void;
   debt: any | null;
 }
+
+
+const formatCurrency = (val: number) => (Math.round(val / 1000) * 1000).toLocaleString("vi-VN");
 
 export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: DebtReconciliationModalProps) {
   const { data: session } = useSession();
@@ -168,95 +172,162 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
       setDiffAmount(0);
       setReconNote(`Đối chiếu công nợ định kỳ khách hàng ${debt.partnerName}. Số liệu hai bên khớp đúng.`);
       
-      // Reset date filters
-      setStartDate("");
-      setEndDate("");
+      // Default date filters based on group items and clicked debt
+      const items = debt.groupItems || [debt];
+      const oldestItem = [...items].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime())[0];
+      
+      const defaultStart = oldestItem?.createdAt ? new Date(oldestItem.createdAt) : new Date();
+      setStartDate(format(defaultStart, "yyyy-MM-dd'T'HH:mm:ss"));
+      
+      const defaultEnd = debt.createdAt ? new Date(debt.createdAt) : new Date();
+      setEndDate(format(defaultEnd, "yyyy-MM-dd'T'HH:mm:ss"));
+      
       setActivePrintItem(null);
     }
   }, [open, debt, session]);
 
   // Construct ledger transactions
   const transactions = useMemo(() => {
-    if (!debt) return [];
+    if (!debt) return { finalTransactions: [] as any[], openingBalanceValue: 0 };
 
+    const items = debt.groupItems || [debt];
+    let totalOpeningBalance = 0;
+    let openingBalanceDate = "";
     const list: any[] = [];
     
+    items.forEach((item: any) => {
+      const isOpeningBalance = item.referenceId === "Dư nợ đầu kỳ" || item.description?.includes("Dư nợ đầu kỳ") || item.referenceId === "Nợ cũ" || item.description?.includes("Nợ cũ");
+      const createdAt = item.createdAt ? new Date(item.createdAt) : new Date();
+
+      if (isOpeningBalance) {
+        totalOpeningBalance += item.amount;
+        // Keep the oldest date if multiple exist, or just use the first found
+        if (!openingBalanceDate || createdAt.toISOString() < openingBalanceDate) {
+           openingBalanceDate = createdAt.toISOString();
+        }
+      } else {
+        const pDesc = parseDebtDescription(item.description);
+        list.push({
+          id: `MAIN_DEBT_${item.id}`,
+          date: createdAt.toISOString(), // Giữ nguyên full time
+          ref: item.referenceId || "---",
+          type: isReceivable ? "Bán hàng" : "Mua hàng",
+          increase: item.amount,
+          decrease: 0,
+          note: pDesc.originalDesc || (isReceivable ? "Phát sinh công nợ phải thu" : "Phát sinh công nợ phải trả")
+        });
+      }
+
+      // Payments from this item
+      const parsed = parseDebtDescription(item.description);
+      parsed.history.forEach((p) => {
+        let cleanedNote = p.note || "";
+        if (item.partnerName) {
+          cleanedNote = cleanedNote.replace(new RegExp(`\\s*-\\s*${item.partnerName}`, "g"), "");
+        }
+        // Giả sử p.date là YYYY-MM-DD, chuyển về cuối ngày để thanh toán thường sau lúc tạo đơn
+        const pDate = new Date(p.date);
+        if (pDate.getHours() === 0) {
+           pDate.setHours(23, 59, 59);
+        }
+        
+        list.push({
+          id: p.id,
+          date: pDate.toISOString(),
+          ref: p.ref,
+          type: isReceivable ? "Phiếu thu (Thu nợ)" : "Phiếu chi (Trả nợ)",
+          increase: 0,
+          decrease: p.amount,
+          note: p.method ? `${cleanedNote} - ${p.method}` : cleanedNote
+        });
+      });
+    });
+
     // 1. Initial balance line
-    list.push({
+    const openingRow = {
       id: "OPENING_BALANCE",
-      date: debt.createdAt ? new Date(debt.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      date: openingBalanceDate, // Date for display, but forced to bottom via UI render logic
       ref: "DK",
       type: "Dư nợ đầu kỳ",
       increase: 0,
       decrease: 0,
-      note: "Số dư chuyển sang"
-    });
+      note: "Dư nợ cũ chuyển sang"
+    };
 
-    // 2. Main Incurred Debt (Invoice / Contract creation)
-    list.push({
-      id: "MAIN_DEBT",
-      date: debt.createdAt ? new Date(debt.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-      ref: debt.referenceId || "---",
-      type: isReceivable ? "Bán hàng" : "Mua hàng",
-      increase: debt.amount,
-      decrease: 0,
-      note: originalDesc || (isReceivable ? "Phát sinh công nợ phải thu" : "Phát sinh công nợ phải trả")
-    });
-
-    // 3. Payments
-    paymentHistory.forEach((p) => {
-      let cleanedNote = p.note || "";
-      if (debt?.partnerName) {
-        // Remove suffix "- partnerName" or similar
-        cleanedNote = cleanedNote.replace(new RegExp(`\\s*-\\s*${debt.partnerName}`, "g"), "");
-      }
-      list.push({
-        id: p.id,
-        date: p.date,
-        ref: p.ref,
-        type: isReceivable ? "Phiếu thu (Thu nợ)" : "Phiếu chi (Trả nợ)",
-        increase: 0,
-        decrease: p.amount,
-        note: p.method ? `${cleanedNote} - ${p.method}` : cleanedNote
-      });
-    });
-
-    // Sort by date (except opening balance always first)
-    const sortedDetails = list.slice(1).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const finalTransactions = [list[0], ...sortedDetails];
+    // Sort all details ASCENDING by date to compute running balance correctly
+    const sortedDetails = list.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const finalTransactions = [openingRow, ...sortedDetails];
 
     // Compute cumulative balance
-    let cumulative = 0;
+    let cumulative = totalOpeningBalance;
     finalTransactions.forEach((tx) => {
       cumulative = cumulative + tx.increase - tx.decrease;
       tx.balance = cumulative;
     });
 
-    return finalTransactions;
-  }, [debt, paymentHistory, originalDesc, isReceivable]);
+    return { finalTransactions, openingBalanceValue: totalOpeningBalance };
+  }, [debt, isReceivable]);
 
-  // Filtered transactions
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter((tx) => {
-      if (tx.id === "OPENING_BALANCE") return true; // Keep opening balance line
-      if (startDate && new Date(tx.date) < new Date(startDate)) return false;
-      if (endDate && new Date(tx.date) > new Date(endDate)) return false;
+  // Filtered transactions and computed totals based on date range
+  const { filteredTransactions, totals } = useMemo(() => {
+    let openingBalance = transactions.openingBalanceValue;
+    
+    // If there is a start date, calculate the accumulated balance before that date
+    if (startDate) {
+      const startDateTime = new Date(startDate).getTime();
+      transactions.finalTransactions.forEach((tx: any) => {
+        if (tx.id !== "OPENING_BALANCE" && tx.date) {
+          const txTime = new Date(tx.date).getTime();
+          if (txTime < startDateTime) {
+            openingBalance = openingBalance + tx.increase - tx.decrease;
+          }
+        }
+      });
+    }
+
+    // Filter transactions within the date range
+    const filtered = transactions.finalTransactions.filter((tx: any) => {
+      if (tx.id === "OPENING_BALANCE") return true; 
+      
+      const txTime = new Date(tx.date).getTime();
+      if (startDate) {
+        const startDayTime = new Date(startDate);
+        startDayTime.setHours(0, 0, 0, 0); // Lọc từ đầu ngày
+        if (txTime < startDayTime.getTime()) return false;
+      }
+      if (endDate) {
+        const endDayTime = new Date(endDate);
+        endDayTime.setHours(23, 59, 59, 999); // Đến cuối ngày
+        if (txTime > endDayTime.getTime()) return false;
+      }
       return true;
-    });
-  }, [transactions, startDate, endDate]);
+    }).map((tx: any) => ({ ...tx })); // Shallow copy to allow mutating balance
 
-  // Total summary for filtered period
-  const totals = useMemo(() => {
-    let increase = 0;
-    let decrease = 0;
-    filteredTransactions.forEach((tx) => {
-      if (tx.id !== "OPENING_BALANCE") {
-        increase += tx.increase;
-        decrease += tx.decrease;
+    // Recalculate balances for the filtered list
+    let cumulative = openingBalance;
+    let periodIncrease = 0;
+    let periodDecrease = 0;
+
+    filtered.forEach((tx: any) => {
+      if (tx.id === "OPENING_BALANCE") {
+        tx.balance = cumulative;
+      } else {
+        periodIncrease += tx.increase;
+        periodDecrease += tx.decrease;
+        cumulative = cumulative + tx.increase - tx.decrease;
+        tx.balance = cumulative;
       }
     });
-    return { increase, decrease };
-  }, [filteredTransactions]);
+
+    return {
+      filteredTransactions: filtered,
+      totals: {
+        openingBalance,
+        increase: periodIncrease,
+        decrease: periodDecrease
+      }
+    };
+  }, [transactions, startDate, endDate]);
 
   const handleSubmitReconciliation = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -324,7 +395,7 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
 
   if (!mounted || !open || !debt) return null;
 
-  const currentRemaining = debt.amount - debt.paidAmount;
+  const currentRemaining = totals.openingBalance + totals.increase - totals.decrease;
 
   return createPortal(
     <div 
@@ -437,7 +508,9 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
               <div className="recon-card p-3 d-flex align-items-center justify-content-between">
                 <div>
                   <span className="text-muted small text-uppercase fw-semibold" style={{ letterSpacing: 0.5 }}>Dư nợ đầu kỳ</span>
-                  <h4 className="fw-bold text-dark mb-0 mt-1" style={{ fontSize: 20 }}>0</h4>
+                  <h4 className="fw-bold text-dark mb-0 mt-1" style={{ fontSize: 20 }}>
+                    {formatCurrency(totals.openingBalance)}
+                  </h4>
                 </div>
                 <div className="bg-light-subtle text-muted rounded-circle d-flex align-items-center justify-content-center" style={{ width: 44, height: 44, background: "rgba(108, 117, 125, 0.08)" }}>
                   <i className="bi bi-calendar2-week fs-5" />
@@ -452,7 +525,7 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                     {isReceivable ? "Phát sinh tăng" : "Phát sinh giảm"}
                   </span>
                   <h4 className="fw-bold text-primary mb-0 mt-1" style={{ fontSize: 20 }}>
-                    {debt.amount.toLocaleString("vi-VN")}
+                    {formatCurrency(totals.increase)}
                   </h4>
                 </div>
                 <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: 44, height: 44, background: "rgba(13, 110, 253, 0.08)", color: "#0d6efd" }}>
@@ -468,7 +541,7 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                     {isReceivable ? "Phát sinh giảm (Đã thu)" : "Phát sinh tăng (Đã trả)"}
                   </span>
                   <h4 className="fw-bold text-success mb-0 mt-1" style={{ fontSize: 20 }}>
-                    {debt.paidAmount.toLocaleString("vi-VN")}
+                    {formatCurrency(totals.decrease)}
                   </h4>
                 </div>
                 <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: 44, height: 44, background: "rgba(25, 135, 84, 0.08)", color: "#198754" }}>
@@ -482,7 +555,7 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                 <div>
                   <span className="text-muted small text-uppercase fw-semibold" style={{ letterSpacing: 0.5 }}>Dư nợ cuối kỳ</span>
                   <h4 className="fw-bold text-danger mb-0 mt-1" style={{ fontSize: 20 }}>
-                    {currentRemaining.toLocaleString("vi-VN")}
+                    {formatCurrency(currentRemaining)}
                   </h4>
                 </div>
                 <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: 44, height: 44, background: "rgba(220, 53, 69, 0.08)", color: "#dc3545" }}>
@@ -504,20 +577,22 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                   {/* DATE RANGE FILTERS */}
                   <div className="d-flex align-items-center gap-2">
                     <input 
-                      type="date" 
+                      type="datetime-local" 
+                      step="1"
                       className="form-control form-control-sm rounded-pill" 
                       value={startDate} 
                       onChange={(e) => setStartDate(e.target.value)}
-                      style={{ width: 135, fontSize: 11.5 }}
+                      style={{ width: 185, fontSize: 11.5 }}
                       placeholder="Từ ngày"
                     />
                     <span className="text-muted small">đến</span>
                     <input 
-                      type="date" 
+                      type="datetime-local" 
+                      step="1"
                       className="form-control form-control-sm rounded-pill" 
                       value={endDate} 
                       onChange={(e) => setEndDate(e.target.value)}
-                      style={{ width: 135, fontSize: 11.5 }}
+                      style={{ width: 185, fontSize: 11.5 }}
                       placeholder="Đến ngày"
                     />
                     {(startDate || endDate) && (
@@ -547,14 +622,19 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredTransactions.map((tx, idx) => {
+                      {[...filteredTransactions].reverse().map((tx: any, idx: number) => {
                         const isOpening = tx.id === "OPENING_BALANCE";
-                        const isMain = tx.id === "MAIN_DEBT";
+                        const isMain = tx.id?.startsWith("MAIN_DEBT");
                         
+                        // Format date helper: "HH:mm:ss dd/MM/yyyy"
+                        const displayDate = tx.date 
+                          ? format(new Date(tx.date), "HH:mm:ss dd/MM/yyyy") 
+                          : "---";
+
                         return (
                           <tr key={tx.id || idx} className={isOpening ? "table-light text-muted" : ""}>
-                            <td className="ps-3 py-1.5">
-                              {tx.date ? new Date(tx.date).toLocaleDateString("vi-VN") : "---"}
+                            <td className="ps-3 py-1.5" style={{ whiteSpace: "nowrap" }}>
+                              {displayDate}
                             </td>
                             <td className="fw-bold py-1.5">{tx.ref}</td>
                             <td className="py-1">
@@ -571,13 +651,13 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                               </div>
                             </td>
                             <td className="text-end fw-medium text-primary py-1.5">
-                              {tx.increase > 0 ? tx.increase.toLocaleString("vi-VN") : "-"}
+                              {tx.increase > 0 ?formatCurrency( tx.increase) : "-"}
                             </td>
                             <td className="text-end fw-medium text-success py-1.5">
-                              {tx.decrease > 0 ? tx.decrease.toLocaleString("vi-VN") : "-"}
+                              {tx.decrease > 0 ?formatCurrency( tx.decrease) : "-"}
                             </td>
                             <td className="text-end pe-3 fw-bold text-dark py-1.5">
-                              {tx.balance.toLocaleString("vi-VN")}
+                              {formatCurrency(tx.balance)}
                             </td>
                           </tr>
                         );
@@ -589,13 +669,13 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                           Tổng phát sinh trong kỳ
                         </td>
                         <td className="text-end text-primary py-2" style={{ fontSize: 13 }}>
-                          {totals.increase > 0 ? totals.increase.toLocaleString("vi-VN") : "-"}
+                          {totals.increase > 0 ?formatCurrency( totals.increase) : "-"}
                         </td>
                         <td className="text-end text-success py-2" style={{ fontSize: 13 }}>
-                          {totals.decrease > 0 ? totals.decrease.toLocaleString("vi-VN") : "-"}
+                          {totals.decrease > 0 ?formatCurrency( totals.decrease) : "-"}
                         </td>
                         <td className="text-end pe-3 text-danger py-2" style={{ fontSize: 13 }}>
-                          {currentRemaining.toLocaleString("vi-VN")}
+                          {formatCurrency(currentRemaining)}
                         </td>
                       </tr>
                     </tfoot>
@@ -612,160 +692,80 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
             {/* RIGHT SIDE: RECONCILIATION LOG & HISTORY */}
             <div className="col-lg-4 h-100 d-flex flex-column overflow-hidden">
               <div className="recon-card p-4 h-100 d-flex flex-column overflow-hidden">
-                {/* NEW RECONCILIATION FORM SECTION */}
-                <div className="flex-shrink-0">
-                  <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
-                    <i className="bi bi-pencil-square text-success" /> Ghi nhận đối chiếu mới
-                  </h6>
-                  
-                  <form id="recon-form" onSubmit={handleSubmitReconciliation}>
-                    <div className="mb-3">
-                      <label className="form-label text-muted small fw-bold mb-1">Ngày đối chiếu</label>
-                      <input 
-                        type="date" 
-                        className="form-control form-control-sm rounded-3" 
-                        value={reconDate} 
-                        onChange={(e) => setReconDate(e.target.value)}
-                        required
-                        style={{ fontSize: 12.5 }}
-                      />
+                {/* GHI NHẬN ĐỐI CHIẾU MỚI (chỉ hiện khi đối chiếu 1 đơn cụ thể) */}
+                {!debt?.isGroupHeader && (
+                  <div className="flex-grow-1 d-flex flex-column overflow-hidden pe-1">
+                    <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2 flex-shrink-0">
+                      <i className="bi bi-pencil-square text-success" /> Ghi nhận đối chiếu mới
+                    </h6>
+                    
+                    <div className="bg-light-subtle rounded-3 p-3 border d-flex flex-column flex-grow-1">
+                      <form id="recon-form" onSubmit={handleSubmitReconciliation} className="d-flex flex-column flex-grow-1">
+                        <div className="mb-3 flex-shrink-0">
+                          <label className="form-label text-muted small fw-bold mb-1">Ngày đối chiếu</label>
+                          <input 
+                            type="date" 
+                            className="form-control form-control-sm rounded-3" 
+                            value={reconDate} 
+                            onChange={(e) => setReconDate(e.target.value)}
+                            required
+                            style={{ fontSize: 12.5 }}
+                          />
+                        </div>
+
+                        <div className="row g-2 mb-3 flex-shrink-0">
+                          <div className="col-6">
+                            <label className="form-label text-muted small fw-bold mb-1">Người đối chiếu</label>
+                            <input 
+                              type="text" 
+                              className="form-control form-control-sm rounded-3" 
+                              value={reconciler} 
+                              onChange={(e) => setReconciler(e.target.value)}
+                              required
+                              style={{ fontSize: 12.5 }}
+                            />
+                          </div>
+                          <div className="col-6">
+                            <label className="form-label text-muted small fw-bold mb-1">Kết quả đối chiếu</label>
+                            <select 
+                              className="form-select form-select-sm rounded-3"
+                              value={reconStatus}
+                              onChange={(e) => setReconStatus(e.target.value as any)}
+                              style={{ fontSize: 12.5 }}
+                            >
+                              <option value="MATCHED">Khớp số liệu</option>
+                              <option value="DISCREPANCY">Có chênh lệch</option>
+                              <option value="UNRECONCILED">Chưa đối chiếu</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {reconStatus === "DISCREPANCY" && (
+                          <div className="mb-3 animate-fade-in flex-shrink-0">
+                            <label className="form-label text-muted small fw-bold mb-1">Số tiền chênh lệch (đồng)</label>
+                            <CurrencyInput
+                              className="form-control form-control-sm rounded-3 fw-bold text-danger"
+                              value={diffAmount}
+                              onChange={setDiffAmount}
+                              style={{ fontSize: 13 }}
+                            />
+                          </div>
+                        )}
+
+                        <div className="mb-0 flex-grow-1 d-flex flex-column">
+                          <label className="form-label text-muted small fw-bold mb-1 flex-shrink-0">Nội dung biên bản / Ghi chú đối chiếu</label>
+                          <textarea 
+                            className="form-control rounded-3 flex-grow-1" 
+                            value={reconNote}
+                            onChange={(e) => setReconNote(e.target.value)}
+                            placeholder="Mô tả chi tiết kết quả đối chiếu, nguyên nhân chênh lệch (nếu có)..."
+                            style={{ fontSize: 12, resize: "none", minHeight: "100px" }}
+                          />
+                        </div>
+                      </form>
                     </div>
-
-                    <div className="row g-2 mb-3">
-                      <div className="col-6">
-                        <label className="form-label text-muted small fw-bold mb-1">Người đối chiếu</label>
-                        <input 
-                          type="text" 
-                          className="form-control form-control-sm rounded-3" 
-                          value={reconciler} 
-                          onChange={(e) => setReconciler(e.target.value)}
-                          required
-                          style={{ fontSize: 12.5 }}
-                        />
-                      </div>
-                      <div className="col-6">
-                        <label className="form-label text-muted small fw-bold mb-1">Kết quả đối chiếu</label>
-                        <select 
-                          className="form-select form-select-sm rounded-3"
-                          value={reconStatus}
-                          onChange={(e) => setReconStatus(e.target.value as any)}
-                          style={{ fontSize: 12.5 }}
-                        >
-                          <option value="MATCHED">Khớp số liệu</option>
-                          <option value="DISCREPANCY">Có chênh lệch</option>
-                          <option value="UNRECONCILED">Chưa đối chiếu</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {reconStatus === "DISCREPANCY" && (
-                      <div className="mb-3 animate-fade-in">
-                        <label className="form-label text-muted small fw-bold mb-1">Số tiền chênh lệch (đồng)</label>
-                        <CurrencyInput
-                          className="form-control form-control-sm rounded-3 fw-bold text-danger"
-                          value={diffAmount}
-                          onChange={setDiffAmount}
-                          style={{ fontSize: 13 }}
-                        />
-                      </div>
-                    )}
-
-                    <div className="mb-2">
-                      <label className="form-label text-muted small fw-bold mb-1">Nội dung biên bản / Ghi chú đối chiếu</label>
-                      <textarea 
-                        className="form-control rounded-3" 
-                        rows={3} 
-                        value={reconNote}
-                        onChange={(e) => setReconNote(e.target.value)}
-                        placeholder="Mô tả chi tiết kết quả đối chiếu, nguyên nhân chênh lệch (nếu có)..."
-                        style={{ fontSize: 12, resize: "none" }}
-                      />
-                    </div>
-                  </form>
-                </div>
-
-                <hr className="my-3 flex-shrink-0" style={{ borderColor: "rgba(0,0,0,0.08)" }} />
-
-                {/* PAST RECONCILIATIONS HISTORY SECTION */}
-                <div className="flex-grow-1 d-flex flex-column overflow-hidden">
-                  <h6 className="fw-bold text-dark mb-3 flex-shrink-0 d-flex align-items-center gap-2">
-                    <i className="bi bi-clock-history text-primary" /> Nhật ký đối chiếu
-                    <span className="badge rounded-pill bg-primary-subtle text-primary ms-1" style={{ fontSize: 11 }}>
-                      {reconHistory.length}
-                    </span>
-                  </h6>
-                  
-                  <div className="flex-grow-1 overflow-auto pe-1">
-                    {reconHistory.length === 0 ? (
-                      <div className="text-center py-4 text-muted border rounded-3 bg-light-subtle" style={{ fontSize: 12, borderStyle: "dashed" }}>
-                        Chưa ghi nhận biên bản đối chiếu nào.
-                      </div>
-                    ) : (
-                      <div className="d-flex flex-column gap-2">
-                        {reconHistory.map((item, idx) => {
-                          const statusClass = 
-                            item.status === "MATCHED" ? "status-badge-matched" : 
-                            item.status === "DISCREPANCY" ? "status-badge-discrepancy" : "status-badge-unreconciled";
-                          
-                          const statusLabel = 
-                            item.status === "MATCHED" ? "Khớp số" : 
-                            item.status === "DISCREPANCY" ? "Chênh lệch" : "Chưa đối chiếu";
-                            
-                          let displayTime = "---";
-                          if (item.date) {
-                            const d = new Date(item.date);
-                            let hh = "";
-                            let mm = "";
-                            const saveDate = item.createdAt 
-                              ? new Date(item.createdAt) 
-                              : (item.id && item.id.startsWith("DC-") 
-                                  ? new Date(parseInt(item.id.replace("DC-", ""), 10)) 
-                                  : null);
-                            
-                            if (saveDate && !isNaN(saveDate.getTime())) {
-                              hh = String(saveDate.getHours()).padStart(2, "0");
-                              mm = String(saveDate.getMinutes()).padStart(2, "0");
-                            }
-                            const dateStr = d.toLocaleDateString("vi-VN");
-                            displayTime = hh && mm ? `${hh}:${mm} ${dateStr}` : dateStr;
-                          }
-
-                          return (
-                            <div key={item.id || idx} className="p-2.5 bg-light-subtle transition-all hover-shadow mb-2 rounded-3">
-                              <div className="d-flex align-items-center justify-content-between">
-                                <span className="fw-bold text-dark" style={{ fontSize: 12 }}>
-                                  {displayTime}
-                                </span>
-                                <span className={`badge px-2 py-0.5 rounded-pill ${statusClass}`} style={{ fontSize: 9.5 }}>
-                                  {statusLabel}
-                                </span>
-                              </div>
-                              <div className="text-muted small mt-1" style={{ fontSize: 11, lineHeight: 1.4 }}>
-                                {item.note}
-                              </div>
-                              {item.status === "DISCREPANCY" && item.differenceAmount && (
-                                <div className="text-danger fw-bold small mt-1" style={{ fontSize: 10.5 }}>
-                                  Chênh lệch: {item.differenceAmount.toLocaleString("vi-VN")}
-                                </div>
-                              )}
-                              <div className="d-flex align-items-center justify-content-between mt-2 pt-1.5 border-top">
-                                <span className="text-muted" style={{ fontSize: 10 }}>Người thực hiện: <strong>{item.reconciler}</strong></span>
-                                <button 
-                                  type="button" 
-                                  className="btn btn-link btn-sm p-0 d-inline-flex align-items-center text-primary"
-                                  onClick={() => handlePrintReconciliation(item)}
-                                  style={{ fontSize: 10.5, textDecoration: "none" }}
-                                >
-                                  <i className="bi bi-printer me-1" /> In lại
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -953,13 +953,13 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                         </div>
                       </td>
                       <td style={{ border: "1px solid #000", padding: "5px", textAlign: "right" }}>
-                        {tx.increase > 0 ? tx.increase.toLocaleString("vi-VN") : "-"}
+                        {tx.increase > 0 ?formatCurrency( tx.increase) : "-"}
                       </td>
                       <td style={{ border: "1px solid #000", padding: "5px", textAlign: "right" }}>
-                        {tx.decrease > 0 ? tx.decrease.toLocaleString("vi-VN") : "-"}
+                        {tx.decrease > 0 ?formatCurrency( tx.decrease) : "-"}
                       </td>
                       <td style={{ border: "1px solid #000", padding: "5px", textAlign: "right", fontWeight: "bold" }}>
-                        {tx.balance.toLocaleString("vi-VN")}
+                        {formatCurrency(tx.balance)}
                       </td>
                     </tr>
                   );
@@ -967,13 +967,13 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                 <tr style={{ fontWeight: "bold", background: "#f9f9f9" }}>
                   <td colSpan={3} style={{ border: "1px solid #000", padding: "6px", textTransform: "uppercase" }}>Tổng cộng phát sinh</td>
                   <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>
-                    {activePrintItem.totals.increase.toLocaleString("vi-VN")}
+                    {formatCurrency(activePrintItem.totals.increase)}
                   </td>
                   <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>
-                    {activePrintItem.totals.decrease.toLocaleString("vi-VN")}
+                    {formatCurrency(activePrintItem.totals.decrease)}
                   </td>
                   <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right", color: "red" }}>
-                    {(activePrintItem.debt.amount - activePrintItem.debt.paidAmount).toLocaleString("vi-VN")}
+                    {formatCurrency((activePrintItem.debt.amount - activePrintItem.debt.paidAmount))}
                   </td>
                 </tr>
               </tbody>
@@ -983,7 +983,7 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
             <div style={{ marginBottom: "25px", fontSize: "12.5px" }}>
               <div style={{ fontWeight: "bold", marginBottom: "5px" }}>Kết luận đối chiếu:</div>
               <ul style={{ paddingLeft: "20px", margin: "5px 0" }}>
-                <li>Số dư cuối kỳ Bên B nợ Bên A là: <strong>{(activePrintItem.debt.amount - activePrintItem.debt.paidAmount).toLocaleString("vi-VN")} đồng</strong></li>
+                <li>Số dư cuối kỳ Bên B nợ Bên A là: <strong>{formatCurrency((activePrintItem.debt.amount - activePrintItem.debt.paidAmount))} đồng</strong></li>
                 <li>Bằng chữ: <em>{docSoTien(activePrintItem.debt.amount - activePrintItem.debt.paidAmount)}</em></li>
                 <li>Tình trạng khớp số liệu: <strong>{
                   activePrintItem.log.status === "MATCHED" ? "HAI BÊN KHỚP ĐÚNG SỐ LIỆU, KHÔNG CÓ CHÊNH LỆCH" : 

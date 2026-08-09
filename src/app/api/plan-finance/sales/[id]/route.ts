@@ -308,19 +308,11 @@ export async function GET(
       let debtFromDebts = debts.filter(d => !orderIds.includes(d.referenceId!)).reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
       let totalDebtFromDebts = debts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
       
+      // DO NOT query unpaidOrders here because the Debt table is the single source of truth 
+      // and already automatically tracks all receivables from SaleOrders.
+      // Summing unpaidOrders again will cause double-counting!
       let debtFromOrders = 0;
       let totalDebtFromOrders = 0;
-      const unpaidOrders = await prisma.saleOrder.findMany({
-        where: { 
-          customerId, 
-          trangThai: { notIn: ["cancelled", "draft"] },
-          createdAt: { lt: order.createdAt }, // Chỉ lấy nợ phát sinh TRƯỚC đơn hàng này
-        },
-        select: { id: true, code: true, tongTien: true, daThanhToan: true }
-      });
-      debtFromOrders = unpaidOrders.filter(o => !orderIds.includes(o.id) && !orderIds.includes(o.code!)).reduce((sum, o) => sum + (o.tongTien - (o.daThanhToan || 0)), 0);
-      totalDebtFromOrders = unpaidOrders.reduce((sum, o) => sum + (o.tongTien - (o.daThanhToan || 0)), 0);
-
       
       tongNoCu = debtFromDebts + debtFromOrders;
       totalDebt = totalDebtFromDebts + totalDebtFromOrders;
@@ -511,6 +503,7 @@ export async function PATCH(
             data: {
               type: "phai-thu",
               partnerName: doiTuong,
+              customerId: order.customerId || null,
               amount: order.tongTien,
               paidAmount: order.daThanhToan,
               status: order.daThanhToan === 0 ? "UNPAID" : "PARTIAL",

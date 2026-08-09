@@ -13,12 +13,19 @@ import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { DebtFormOffcanvas } from "./DebtFormOffcanvas";
 import { ExpenseFormOffcanvas } from "./ExpenseFormOffcanvas";
+import { ReceivableOpeningBalanceOffcanvas } from "./ReceivableOpeningBalanceOffcanvas";
+import { PayableOpeningBalanceOffcanvas } from "./PayableOpeningBalanceOffcanvas";
+import { LoanFormOffcanvas } from "./LoanFormOffcanvas";
+import { useSession } from "next-auth/react";
+import { format } from "date-fns";
 import { DebtPaymentOffcanvas, parseDebtDescription } from "./DebtPaymentOffcanvas";
 import { DebtReconciliationModal } from "./DebtReconciliationModal";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
+
+
+const formatCurrency = (val: number) => (Math.round(val / 1000) * 1000).toLocaleString("vi-VN");
 
 // Types
 interface DebtData {
@@ -222,21 +229,39 @@ export default function DebtsPage() {
         header: isLoan ? "Ngân hàng / Gói vay" : (isExpense ? "Khoản chi phí" : "Đối tác / Nội dung"),
         render: (row) => {
           if (row.isGroupHeader) {
+            const isAgency = row.partnerName?.toLowerCase().startsWith("đại lý");
             return (
               <div 
-                className="d-flex align-items-center gap-2 cursor-pointer fw-bold text-dark py-1"
+                className="d-flex align-items-center gap-2 cursor-pointer py-1"
                 onClick={(e) => {
                   e.stopPropagation();
                   const groupKey = row.items[0]?.customerId || row.items[0]?.supplierId || row.partnerName;
                   setCollapsedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
                 }}
               >
-                <i className={`bi bi-chevron-${row.isCollapsed ? 'right' : 'down'} text-muted`} />
-                <span>{row.partnerName}</span>
-                <span className="badge bg-secondary-subtle text-secondary rounded-pill ms-2" style={{ fontSize: 10 }}>{row.items.length} khoản nợ</span>
+                <i className={`bi bi-chevron-${row.isCollapsed ? 'right' : 'down'} text-muted fs-5`} />
+                <div>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className={`fw-bold ${isAgency ? 'text-uppercase' : 'text-dark'}`} style={isAgency ? { color: '#0d6efd' } : {}}>
+                      {row.partnerName}
+                    </span>
+                    <span className="badge bg-secondary-subtle text-secondary rounded-pill" style={{ fontSize: 10 }}>{row.items.length} khoản nợ</span>
+                  </div>
+                  {row.address && (
+                    <div className="text-muted" style={{ fontSize: '0.85rem' }}>
+                      <i className="bi bi-geo-alt me-1"></i>
+                      {row.address}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           }
+          
+          let cleanedPartnerName = row.partnerName || "";
+          cleanedPartnerName = cleanedPartnerName.split(/[-–]/)[0].trim();
+          const isAgencyChild = cleanedPartnerName.toLowerCase().startsWith("đại lý");
+
           return (
           <div className={row.isChild ? "ms-4 position-relative" : ""}>
             {row.isChild && (
@@ -249,22 +274,19 @@ export default function DebtsPage() {
                   {row.referenceId || "Không có số ĐH"} <span className="text-muted mx-1">|</span> <span className={`text-${STATUS_MAP[row.status]?.color || "secondary"}`}>{STATUS_MAP[row.status]?.label || row.status}</span>
                 </div>
                 <div className="text-muted small">
-                  {row.createdAt ? new Date(row.createdAt).toLocaleDateString("vi-VN") : "---"} <span className="mx-1">|</span> Hệ thống
+                  {row.createdAt ? format(new Date(row.createdAt), "HH:mm:ss dd/MM/yyyy") : "---"} <span className="mx-1">|</span> Hệ thống
                 </div>
               </>
             ) : (
               <>
-                <div className="fw-bold text-dark">{row.partnerName}</div>
-                <div className="text-muted small">
-                  {row.referenceId && (
-                    <span className="me-2">
-                      {isExpense 
-                        ? `Loại: ${categories.find(c => c.code === row.referenceId)?.name || row.referenceId}` 
-                        : `REF: ${row.referenceId}`}
-                    </span>
-                  )}
-                  {parseDebtDescription(row.description).originalDesc}
+                <div className={`fw-bold ${isAgencyChild ? 'text-uppercase' : 'text-dark'}`} style={isAgencyChild ? { color: '#0d6efd' } : {}}>
+                  {cleanedPartnerName}
                 </div>
+                {!row.isTotalRow && (
+                  <div className="text-muted" style={{ fontSize: 13 }}>
+                    REF: {row.referenceId || "N/A"} <span className="mx-1">|</span> {row.description || "Không có nội dung"}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -276,7 +298,7 @@ export default function DebtsPage() {
         align: "right",
         render: (row) => (
           <span className={row.isGroupHeader ? "fw-bold text-dark" : "fw-medium"}>
-            {row.amount.toLocaleString("vi-VN")}
+            {formatCurrency(row.amount)}
           </span>
         ),
       },
@@ -285,7 +307,7 @@ export default function DebtsPage() {
         align: "right",
         render: (row) => (
           <span className={row.isGroupHeader ? "fw-bold text-success" : "fw-medium text-success"}>
-            {row.paidAmount.toLocaleString("vi-VN")}
+            {formatCurrency(row.paidAmount)}
           </span>
         ),
       },
@@ -406,7 +428,7 @@ export default function DebtsPage() {
             return (
               <div className="d-flex flex-column align-items-end">
                 <span>
-                  {remaining.toLocaleString("vi-VN")}
+                  {formatCurrency(remaining)}
                 </span>
                 <div className="mt-1 bg-light rounded-pill overflow-hidden" style={{ width: 70, height: 4 }}>
                   <div 
@@ -471,7 +493,7 @@ export default function DebtsPage() {
           const remaining = row.amount - row.paidAmount;
           return (
             <span className={row.isGroupHeader ? "fw-bold text-primary" : "fw-bold text-primary"}>
-              {remaining.toLocaleString("vi-VN")}
+              {formatCurrency(remaining)}
             </span>
           );
         },
@@ -525,7 +547,13 @@ export default function DebtsPage() {
                     paddingY={8}
                   />
                 </div>
-                <div className="px-4 pt-3 pb-2 flex-shrink-0">
+                
+              </>
+            }
+            footer={
+              <div className="d-flex align-items-center w-100 px-4 py-2 border-top bg-light">
+                <div className="flex-grow-1">
+                  
                   {currentStepId === "EXPENSE" ? (
                     <div className="d-flex align-items-center flex-wrap gap-2 w-100">
                       {/* Dropdown & Search */}
@@ -599,20 +627,19 @@ export default function DebtsPage() {
                           }
                         }}
                       >
-                        Thêm
+                        {currentStepId === "EXPENSE" ? "Thêm chi phí" : "Nhập dư nợ cũ"}
                       </BrandButton>
                     </div>
                   )}
+          
                 </div>
-              </>
-            }
-            footer={
-              <div className="d-flex justify-content-end w-100">
-                <Pagination 
-                  page={1} 
-                  totalPages={1} 
-                  onChange={() => {}} 
-                />
+                <div className="flex-shrink-0 ms-3">
+                  <Pagination 
+                    page={1} 
+                    totalPages={1} 
+                    onChange={() => {}} 
+                  />
+                </div>
               </div>
             }
             table={
@@ -633,9 +660,27 @@ export default function DebtsPage() {
                     return acc;
                   }, {} as Record<string, any[]>);
 
-                  Object.entries(groupedByPartner).forEach(([groupKey, itemsValue]) => {
+                  const groupsArray = Object.entries(groupedByPartner).map(([groupKey, itemsValue]) => {
                     const items = itemsValue as any[];
-                    const displayName = items[0].partnerName; // Tên hiển thị lấy từ record đầu tiên
+                    items.sort((a, b) => {
+                      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                      return dateB - dateA;
+                    });
+                    return { groupKey, items };
+                  });
+
+                  groupsArray.sort((a, b) => {
+                    const dateA = a.items[0]?.createdAt ? new Date(a.items[0].createdAt).getTime() : 0;
+                    const dateB = b.items[0]?.createdAt ? new Date(b.items[0].createdAt).getTime() : 0;
+                    return dateB - dateA;
+                  });
+
+                  groupsArray.forEach(({ groupKey, items }) => {
+                    // Lọc số điện thoại ra khỏi tên (VD: "Đại lý Hồng Liên - 0934...")
+                    let displayName = items[0].partnerName || "";
+                    displayName = displayName.split(/[-–]/)[0].trim();
+                    const address = items[0].customerAddress || items[0].supplierAddress || "Chưa cập nhật địa chỉ";
                     
                     if (items.length > 1) {
                       const isCollapsed = collapsedGroups[groupKey];
@@ -643,20 +688,21 @@ export default function DebtsPage() {
                         id: `group_${groupKey}`,
                         isGroupHeader: true,
                         partnerName: displayName,
+                        address,
                         items,
                         amount: items.reduce((s: number, i: any) => s + i.amount, 0),
                         paidAmount: items.reduce((s: number, i: any) => s + i.paidAmount, 0),
                         isCollapsed,
                       });
                       if (!isCollapsed) {
-                        items.forEach((item: any) => groupedDebts.push({ ...item, isChild: true }));
+                        items.forEach((item: any) => groupedDebts.push({ ...item, isChild: true, groupItems: items }));
                       }
                     } else {
-                      groupedDebts.push(items[0]);
+                      groupedDebts.push({ ...items[0], partnerName: displayName, groupItems: items });
                     }
                   });
                 } else {
-                  groupedDebts.push(...debts);
+                  groupedDebts.push(...debts.map(d => ({ ...d, groupItems: [d] })));
                 }
 
                 const totalAmount = debts.reduce((sum, d) => sum + d.amount, 0);
@@ -792,20 +838,41 @@ export default function DebtsPage() {
         onCancel={() => setShowDeleteConfirm(false)}
       />
 
-      <DebtFormOffcanvas
-        open={showDebtForm}
-        onClose={() => setShowDebtForm(false)}
-        onSuccess={fetchDebts}
-        type={currentStepId as any}
-        initialData={editingItem}
-      />
+      {showExpenseForm && (
+        <ExpenseFormOffcanvas
+          open={showExpenseForm}
+          onClose={() => setShowExpenseForm(false)}
+          onSuccess={fetchDebts}
+          initialData={editingItem}
+        />
+      )}
+      
+      {showDebtForm && currentStepId === "RECEIVABLE" && (
+        <ReceivableOpeningBalanceOffcanvas
+          open={showDebtForm}
+          onClose={() => setShowDebtForm(false)}
+          onSuccess={fetchDebts}
+          initialData={editingItem}
+        />
+      )}
 
-      <ExpenseFormOffcanvas
-        open={showExpenseForm}
-        onClose={() => setShowExpenseForm(false)}
-        onSuccess={fetchDebts}
-        initialData={editingItem}
-      />
+      {showDebtForm && currentStepId === "PAYABLE" && (
+        <PayableOpeningBalanceOffcanvas
+          open={showDebtForm}
+          onClose={() => setShowDebtForm(false)}
+          onSuccess={fetchDebts}
+          initialData={editingItem}
+        />
+      )}
+
+      {showDebtForm && currentStepId === "LOAN" && (
+        <LoanFormOffcanvas
+          open={showDebtForm}
+          onClose={() => setShowDebtForm(false)}
+          onSuccess={fetchDebts}
+          initialData={editingItem}
+        />
+      )}
 
       <DebtPaymentOffcanvas
         open={showPaymentOffcanvas}

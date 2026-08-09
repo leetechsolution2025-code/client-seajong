@@ -26,7 +26,15 @@ export async function GET(request: Request) {
     }
 
     // Sử dụng Raw Query để bypass lỗi "Unknown argument type" của Prisma Client
-    let query = `SELECT * FROM "Debt" WHERE "type" IN (${dbTypes.map((_, i) => `$${i + 1}`).join(", ")})`;
+    let query = `
+      SELECT d.*, 
+             c.address as "customerAddress", 
+             s.address as "supplierAddress"
+      FROM "Debt" d
+      LEFT JOIN "Customer" c ON d."customerId" = c.id
+      LEFT JOIN "Supplier" s ON d."supplierId" = s.id
+      WHERE d."type" IN (${dbTypes.map((_, i) => `$${i + 1}`).join(", ")})
+    `;
     let params: any[] = [...dbTypes];
     let paramIndex = dbTypes.length + 1;
 
@@ -101,7 +109,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { type, partnerName, amount, paidAmount, dueDate, interestRate, description, referenceId, status } = body;
+    const { type, partnerName, amount, paidAmount, dueDate, createdAt, interestRate, description, referenceId, status } = body;
 
     let customerId = body.customerId || null;
     let supplierId = body.supplierId || null;
@@ -125,6 +133,7 @@ export async function POST(request: Request) {
         amount: Number(amount) || 0,
         paidAmount: Number(paidAmount) || 0,
         dueDate: dueDate ? new Date(dueDate) : null,
+        createdAt: createdAt ? new Date(createdAt) : undefined,
         interestRate: interestRate ? Number(interestRate) : null,
         description,
         referenceId,
@@ -146,7 +155,7 @@ export async function PUT(request: Request) {
     if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
 
     const body = await request.json();
-    const { type, partnerName, amount, paidAmount, dueDate, interestRate, description, referenceId, status, newPayment } = body;
+    const { type, partnerName, amount, paidAmount, dueDate, createdAt, interestRate, description, referenceId, status, newPayment } = body;
 
     console.log("PUT DEBT CALLED WITH ID:", id);
     const oldDebt = await (prisma.debt as any).findUnique({ where: { id } });
@@ -175,6 +184,7 @@ export async function PUT(request: Request) {
         amount: Number(amount) || 0,
         paidAmount: Number(paidAmount) || 0,
         dueDate: dueDate ? new Date(dueDate) : null,
+        createdAt: createdAt ? new Date(createdAt) : undefined,
         interestRate: interestRate ? Number(interestRate) : null,
         description,
         referenceId,

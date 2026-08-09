@@ -480,7 +480,9 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
             flexShrink: 0
           }}>
             <button
+              disabled={order.keToanDuyet !== 'approved'}
               onClick={() => setShowPrint(true)}
+              title={order.keToanDuyet !== 'approved' ? "Chỉ được in đơn hàng khi kế toán đã duyệt" : ""}
               style={{
                 padding: "8px 16px",
                 borderRadius: 8,
@@ -489,10 +491,11 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                 color: "var(--foreground)",
                 fontWeight: 600,
                 fontSize: 13,
-                cursor: "pointer",
+                cursor: order.keToanDuyet !== 'approved' ? "not-allowed" : "pointer",
                 display: "flex",
                 alignItems: "center",
-                gap: 6
+                gap: 6,
+                opacity: order.keToanDuyet !== 'approved' ? 0.6 : 1
               }}
             >
               <i className="bi bi-printer" />

@@ -7,6 +7,9 @@ import { useToast } from "@/components/ui/Toast";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { printDocumentById } from "@/components/ui/PrintPreviewModal";
 
+
+const formatCurrency = (val: number) => (Math.round(val / 1000) * 1000).toLocaleString("vi-VN");
+
 // Interface for Payment Logs stored in Debt.description
 export interface PaymentHistoryItem {
   id: string;
@@ -263,7 +266,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
 
     const remaining = debt.amount - debt.paidAmount;
     if (payAmount > remaining) {
-      error("Lỗi", `Số tiền thanh toán vượt quá số dư nợ còn lại (${remaining.toLocaleString("vi-VN")}đ)`);
+      error("Lỗi", `Số tiền thanh toán vượt quá số dư nợ còn lại (${formatCurrency(remaining)}đ)`);
       return;
     }
 
@@ -298,7 +301,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
       });
 
       if (res.ok) {
-        success("Thành công", `Đã ghi nhận thanh toán ${payAmount.toLocaleString("vi-VN")}đ`);
+        success("Thành công", `Đã ghi nhận thanh toán ${formatCurrency(payAmount)}đ`);
         
         if (shouldPrintOnSubmit) {
           // Trigger print for the new item immediately
@@ -433,13 +436,13 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
               <div className="col-4">
                 <span className="text-muted block" style={{ fontSize: 10.5 }}>TỔNG NỢ</span>
                 <div className="fw-bold text-dark mt-0.5" style={{ fontSize: 13 }}>
-                  {debt.amount.toLocaleString("vi-VN")}đ
+                  {formatCurrency(debt.amount)}đ
                 </div>
               </div>
               <div className="col-4 border-start">
                 <span className="text-muted block" style={{ fontSize: 10.5 }}>ĐÃ THANH TOÁN</span>
                 <div className="fw-bold text-success mt-0.5" style={{ fontSize: 13 }}>
-                  {debt.paidAmount.toLocaleString("vi-VN")}đ
+                  {formatCurrency(debt.paidAmount)}đ
                 </div>
               </div>
               <div className="col-4 border-start">
@@ -447,7 +450,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
                   {isReceivable ? "CÒN PHẢI THU" : "CÒN PHẢI TRẢ"}
                 </span>
                 <div className="fw-bold text-danger mt-0.5" style={{ fontSize: 13 }}>
-                  {remainingAmt.toLocaleString("vi-VN")}đ
+                  {formatCurrency(remainingAmt)}đ
                 </div>
               </div>
             </div>
@@ -590,7 +593,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
                         <td className="text-end pe-3 py-2">
                           <div className="d-flex align-items-center justify-content-end gap-2">
                             <span className="fw-bold text-success" style={{ fontSize: 13 }}>
-                              {item.amount.toLocaleString("vi-VN")}đ
+                              {formatCurrency(item.amount)}đ
                             </span>
                             <button
                               type="button"
@@ -715,7 +718,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
                       Số tiền:
                     </td>
                     <td style={{ borderBottom: "1px dotted #000", padding: "7px 0 3px 0", fontWeight: "bold", fontSize: "14px", verticalAlign: "bottom" }}>
-                      {activePrintItem.amount.toLocaleString("vi-VN")} VND
+                      {formatCurrency(activePrintItem.amount)} VND
                     </td>
                   </tr>
                   <tr>

@@ -5,16 +5,16 @@ import { createPortal } from "react-dom";
 import { BrandButton } from "@/components/ui/BrandButton";
 import { useToast } from "@/components/ui/Toast";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
+import { format } from "date-fns";
 
-interface DebtFormProps {
+interface LoanFormOffcanvasProps {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  type: "RECEIVABLE" | "PAYABLE" | "LOAN";
   initialData?: any;
 }
 
-export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData }: DebtFormProps) {
+export function LoanFormOffcanvas({ open, onClose, onSuccess, initialData }: LoanFormOffcanvasProps) {
   const { success, error } = useToast();
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -41,6 +41,7 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
     amount: 0,
     paidAmount: 0,
     dueDate: new Date().toISOString().split("T")[0],
+    createdAt: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
     interestRate: 0,
     description: "",
     referenceId: "",
@@ -60,9 +61,10 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
           ...defaultForm,
           ...initialData,
           dueDate: initialData.dueDate ? new Date(initialData.dueDate).toISOString().split("T")[0] : defaultForm.dueDate,
+          createdAt: initialData.createdAt ? format(new Date(initialData.createdAt), "yyyy-MM-dd'T'HH:mm:ss") : defaultForm.createdAt,
         });
       } else {
-        setFormData({ ...defaultForm, status: "UNPAID" });
+        setFormData({ ...defaultForm, status: "UNPAID", referenceId: "Dư nợ đầu kỳ" });
       }
       setSuggestions([]);
       setShowSuggestions(false);
@@ -122,7 +124,7 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          type
+          type: "LOAN"
         }),
       });
 
@@ -147,15 +149,10 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
   const inputStyle = { fontSize: 13, borderRadius: 8 };
 
   const getTitle = () => {
-    if (type === "RECEIVABLE") return initialData ? "Sửa khoản phải thu" : "Thêm khoản phải thu";
-    if (type === "PAYABLE") return initialData ? "Sửa khoản phải trả" : "Thêm khoản phải trả";
-    if (type === "LOAN") return initialData ? "Sửa khoản nợ vay" : "Thêm khoản nợ vay";
-    return "Quản lý công nợ";
+    return initialData ? "Sửa khoản nợ vay" : "Thêm khoản nợ vay";
   };
 
   const getThemeColor = () => {
-    if (type === "RECEIVABLE") return "success";
-    if (type === "PAYABLE") return "danger";
     return "primary";
   };
 
@@ -179,7 +176,7 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
       >
         <div className="offcanvas-header border-bottom px-4 py-4" style={{ background: "linear-gradient(to right, var(--background), var(--secondary-subtle))" }}>
           <div className="d-flex align-items-center gap-3">
-            <i className={`bi bi-${type === "LOAN" ? "bank" : (type === "RECEIVABLE" ? "arrow-down-left-circle" : "arrow-up-right-circle")} fs-4 text-${getThemeColor()}`} />
+            <i className={`bi bi-bank fs-4 text-${getThemeColor()}`} />
             <h5 className="offcanvas-title fw-bold mb-0" style={{ fontSize: 17, letterSpacing: -0.2 }}>
               {getTitle()}
             </h5>
@@ -187,14 +184,14 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
           <button type="button" className="btn-close" onClick={onClose} />
         </div>
 
-        <div className="offcanvas-body p-4 overflow-auto">
-          <form id="debt-form" onSubmit={handleSubmit}>
+        <div className="offcanvas-body p-4 overflow-auto d-flex flex-column">
+          <form id="debt-form" onSubmit={handleSubmit} className="d-flex flex-column flex-grow-1">
             <div className="mb-4">
               <label className="form-label fw-bold text-primary small text-uppercase mb-3" style={{ letterSpacing: 0.5 }}>Thông tin đối tác</label>
               
               <div className="mb-3" ref={suggestionsRef}>
                 <label className="form-label" style={labelStyle}>
-                  {type === "LOAN" ? "Ngân hàng / Tổ chức tín dụng" : (type === "RECEIVABLE" ? "Tên khách hàng" : "Tên nhà cung cấp")} <span className="text-danger">*</span>
+                  Ngân hàng / Tổ chức tín dụng <span className="text-danger">*</span>
                 </label>
                 <div className="position-relative">
                   <input
@@ -253,8 +250,8 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
               <label className="form-label fw-bold text-primary small text-uppercase mb-3" style={{ letterSpacing: 0.5 }}>Tài chính & Thời hạn</label>
               
               <div className="row g-2 mb-3">
-                <div className={type === "LOAN" ? "col-12" : "col-6"}>
-                  <label className="form-label" style={labelStyle}>Số tiền gốc (đồng) <span className="text-danger">*</span></label>
+                <div className="col-12">
+                  <label className="form-label" style={labelStyle}>Số tiền vay (đồng) <span className="text-danger">*</span></label>
                   <CurrencyInput
                     className="form-control"
                     value={formData.amount}
@@ -262,48 +259,48 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
                     style={inputStyle}
                   />
                 </div>
-                {type !== "LOAN" && (
-                  <div className="col-6">
-                    <label className="form-label" style={labelStyle}>Đã thanh toán (đồng)</label>
-                    <CurrencyInput
-                      className="form-control"
-                      value={formData.paidAmount}
-                      onChange={val => setFormData({ ...formData, paidAmount: val })}
-                      style={inputStyle}
-                    />
-                  </div>
-                )}
               </div>
 
-              {type === "LOAN" && (
-                <div className="mb-3">
-                  <label className="form-label" style={labelStyle}>Lãi suất (% / năm)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="form-control"
-                    value={formData.interestRate ?? ""}
-                    onChange={e => setFormData({ ...formData, interestRate: e.target.value === "" ? 0 : parseFloat(e.target.value) })}
-                    style={inputStyle}
-                  />
-                </div>
-              )}
-
               <div className="mb-3">
-                <label className="form-label" style={labelStyle}>{type === "LOAN" ? "Ngày đáo hạn" : "Ngày đến hạn"}</label>
+                <label className="form-label" style={labelStyle}>Lãi suất (% / năm)</label>
                 <input
-                  type="date"
+                  type="number"
+                  step="0.1"
                   className="form-control"
-                  value={formData.dueDate}
-                  onChange={e => setFormData({ ...formData, dueDate: e.target.value })}
+                  value={formData.interestRate ?? ""}
+                  onChange={e => setFormData({ ...formData, interestRate: e.target.value === "" ? 0 : parseFloat(e.target.value) })}
                   style={inputStyle}
                 />
               </div>
+
+              <div className="row g-2 mb-3">
+                <div className="col-6">
+                  <label className="form-label" style={labelStyle}>Ngày khởi tạo</label>
+                  <input
+                    type="datetime-local"
+                    step="1"
+                    className="form-control"
+                    value={formData.createdAt}
+                    onChange={e => setFormData({ ...formData, createdAt: e.target.value })}
+                    style={inputStyle}
+                  />
+                </div>
+                <div className="col-6">
+                  <label className="form-label" style={labelStyle}>Ngày đáo hạn</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={formData.dueDate}
+                    onChange={e => setFormData({ ...formData, dueDate: e.target.value })}
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-0 d-flex flex-column flex-grow-1">
               <label className="form-label fw-bold text-primary small text-uppercase mb-3" style={{ letterSpacing: 0.5 }}>Thông tin thêm</label>
-              
+
               <div className="mb-3">
                 <label className="form-label" style={labelStyle}>Trạng thái</label>
                 <select 
@@ -318,15 +315,14 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
                 </select>
               </div>
 
-              <div className="mb-3">
+              <div className="mb-0 d-flex flex-column flex-grow-1">
                 <label className="form-label" style={labelStyle}>Ghi chú / Diễn giải</label>
                 <textarea
-                  className="form-control"
-                  rows={3}
+                  className="form-control flex-grow-1"
                   placeholder="Nội dung chi tiết..."
                   value={formData.description}
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  style={{ ...inputStyle, resize: "none" }}
+                  style={{ ...inputStyle, resize: "none", minHeight: "100px" }}
                 />
               </div>
             </div>
