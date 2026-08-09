@@ -1100,12 +1100,8 @@ export default function FinancePage() {
       color="emerald"
       useCard={false}
     >
-      
-
-      <div className="row g-3 mt-1 flex-grow-1 flex-lg-nowrap" style={{ minHeight: 0 }}>
-        {/* Vùng bên trái - full width */}
-        <div className="col-12 d-flex flex-column" style={{ minHeight: 0 }}>
-          <WorkflowCard
+      <div className="d-flex flex-column h-100" style={{ minHeight: 0 }}>
+        <WorkflowCard
             contentPadding="p-0"
             stepper={
               <ModernStepper
@@ -1231,8 +1227,6 @@ export default function FinancePage() {
               /> } />
             )}
           </WorkflowCard>
-        </div>
-
         </div>
 
       {/* Offcanvas cho vùng chi tiết */}
