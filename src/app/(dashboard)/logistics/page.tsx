@@ -931,7 +931,11 @@ export default function LogisticsOverviewPage() {
           </button>
           <button 
             className="btn btn-primary w-100" 
-            disabled={(selectedOrder?.type === "logistics-ticket" && selectedOrder.trangThai !== "PACKED") || !isThuKho}
+            disabled={
+              (selectedOrder?.type === "logistics-ticket" && selectedOrder.trangThai !== "PACKED") ||
+              (selectedOrder?.trangThai?.toLowerCase() === "completed" || selectedOrder?.trangThai?.toLowerCase() === "done") ||
+              !isThuKho
+            }
             onClick={() => {
               if (selectedOrder?.type === "material-import") {
                 setNhapKhoTaskId(selectedOrder.id);
@@ -964,11 +968,16 @@ export default function LogisticsOverviewPage() {
               setSelectedOrder(null);
             }}
           >
-            {selectedOrder?.type === "logistics-ticket" 
-              ? (selectedOrder.trangThai === "PACKED" ? "Thực hiện" 
-                : selectedOrder.trangThai === "COMPLETED" || selectedOrder.trangThai === "DONE" ? "Đã xuất kho" 
-                : "Chưa nhặt đủ hàng") 
-              : "Thực hiện"}
+            {(() => {
+              const lowerStatus = selectedOrder?.trangThai?.toLowerCase();
+              if (lowerStatus === "completed" || lowerStatus === "done") {
+                return selectedOrder?.type === 'material-import' ? "Đã nhập kho" : "Đã xuất kho";
+              }
+              if (selectedOrder?.type === "logistics-ticket") {
+                return selectedOrder.trangThai === "PACKED" ? "Thực hiện" : "Chưa nhặt đủ hàng";
+              }
+              return "Thực hiện";
+            })()}
           </button>
         </div>
       </div>
