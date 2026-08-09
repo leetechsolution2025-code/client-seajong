@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { StandardPage } from "@/components/layout/StandardPage";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { KPICard } from "@/components/ui/KPICard";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
@@ -29,6 +31,15 @@ export default function FinancePage() {
 
   // States for Sales Orders (step 1)
   const [orders, setOrders] = useState<any[]>([]);
+  // States for Expenses (step 4)
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [expensesLoading, setExpensesLoading] = useState(false);
+  const [expenseSearch, setExpenseSearch] = useState("");
+  const [expenseStatus, setExpenseStatus] = useState("");
+  const [expensePage, setExpensePage] = useState(1);
+  const [expensesTotalPages, setExpensesTotalPages] = useState(1);
+  const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
+
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderSearch, setOrderSearch] = useState("");
@@ -317,7 +328,7 @@ export default function FinancePage() {
           const updated = fetchedOrders.find((o: any) => o.id === prev.id);
           return updated || prev;
         }
-        return fetchedOrders.length > 0 ? fetchedOrders[0] : null;
+        return null;
       });
     } catch (err) {
       console.error(err);
@@ -350,7 +361,7 @@ export default function FinancePage() {
           const updated = fetchedReqs.find((r: any) => r.id === prev.id);
           return updated || prev;
         }
-        return fetchedReqs.length > 0 ? fetchedReqs[0] : null;
+        return null;
       });
     } catch (err) {
       console.error(err);
@@ -409,7 +420,7 @@ export default function FinancePage() {
           const updated = fetchedReqs.find((r: any) => r.id === prev.id);
           return updated || prev;
         }
-        return fetchedReqs.length > 0 ? fetchedReqs[0] : null;
+        return null;
       });
     } catch (err) {
       console.error(err);
@@ -504,6 +515,43 @@ export default function FinancePage() {
     fetchPaymentNotifications(false);
   }, [fetchPaymentNotifications]);
 
+
+  const fetchExpenses = useCallback(async (silent = false) => {
+    if (currentStep !== 4) return;
+    if (!silent) setExpensesLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("page", String(expensePage));
+      if (expenseSearch) params.set("search", expenseSearch);
+      if (expenseStatus) params.set("trangThai", expenseStatus);
+
+      const res = await fetch(`/api/plan-finance/expenses?${params.toString()}`);
+      if (!res.ok) throw new Error("Không thể tải khoản chi.");
+      const resData = await res.json();
+      const fetchedExp = resData.data || [];
+      setExpenses(fetchedExp);
+      const limit = resData.limit || 15;
+      const total = resData.total || 0;
+      setExpensesTotalPages(Math.max(1, Math.ceil(total / limit)));
+      setSelectedExpense((prev: any) => {
+        if (prev) {
+          const updated = fetchedExp.find((o: any) => o.id === prev.id);
+          return updated || prev;
+        }
+        return null;
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      if (!silent) setExpensesLoading(false);
+    }
+  }, [currentStep, expensePage, expenseSearch, expenseStatus]);
+
+  useEffect(() => {
+    fetchExpenses(false);
+  }, [fetchExpenses]);
+
+
   // Fetch details on selection change
   useEffect(() => {
     fetchRequestDetail(false);
@@ -516,6 +564,9 @@ export default function FinancePage() {
   // Reset selected order and page when step, filter, or search changes
   useEffect(() => {
     setSelectedOrder(null);
+    setSelectedRequest(null);
+    setSelectedPaymentNotification(null);
+    setSelectedExpense?.(null);
   }, [currentStep]);
 
   useEffect(() => {
@@ -544,10 +595,12 @@ export default function FinancePage() {
       } else if (currentStep === 3) {
         fetchPaymentNotifications(true);
         fetchPaymentNotificationDetail(true);
+      } else if (currentStep === 4) {
+        fetchExpenses(true);
       }
     }, 5000); // Poll every 5s silently
     return () => clearInterval(interval);
-  }, [currentStep, fetchKPIs, fetchOrders, fetchRequests, fetchRequestDetail, fetchPaymentNotifications, fetchPaymentNotificationDetail]);
+  }, [currentStep, fetchKPIs, fetchOrders, fetchRequests, fetchRequestDetail, fetchPaymentNotifications, fetchPaymentNotificationDetail, fetchExpenses]);
 
   // Focus refresh
   useEffect(() => {
@@ -561,11 +614,13 @@ export default function FinancePage() {
       } else if (currentStep === 3) {
         fetchPaymentNotifications(true);
         fetchPaymentNotificationDetail(true);
+      } else if (currentStep === 4) {
+        fetchExpenses(true);
       }
     };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [currentStep, fetchKPIs, fetchOrders, fetchRequests, fetchRequestDetail, fetchPaymentNotifications, fetchPaymentNotificationDetail]);
+  }, [currentStep, fetchKPIs, fetchOrders, fetchRequests, fetchRequestDetail, fetchPaymentNotifications, fetchPaymentNotificationDetail, fetchExpenses]);
 
   const formatNumber = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -630,12 +685,64 @@ export default function FinancePage() {
       desc: "Xác nhận tiền khách hàng thanh toán",
       icon: "bi-cash-coin",
     },
+    {
+      num: 4,
+      id: "expenses",
+      title: "Lệnh chi tiền",
+      desc: "Quản lý các khoản chi tiền",
+      icon: "bi-wallet2",
+    },
   ];
 
   const orderStatusOptions = [
     { label: "Chờ duyệt", value: "pending" },
     { label: "Đã duyệt", value: "approved" },
     { label: "Từ chối", value: "rejected" },
+  ];
+
+  const expenseColumns: TableColumn<any>[] = [
+    {
+      header: "Mã CP",
+      render: (row: any) => (
+        <span className="fw-bold" style={{ color: "var(--primary)", fontFamily: "'Roboto Condensed', sans-serif" }}>
+          {row.id.slice(-8).toUpperCase()}
+        </span>
+      ),
+    },
+    {
+      header: "Tên chi phí",
+      render: (row: any) => (
+        <div className="d-flex flex-column">
+          <span className="fw-medium text-dark">{row.tenChiPhi}</span>
+          <span className="text-muted" style={{ fontSize: "11px" }}>{row.nguoiChiTra}</span>
+        </div>
+      ),
+    },
+    {
+      header: "Số tiền",
+      align: "right",
+      render: (row: any) => (
+        <span className="fw-bold" style={{ color: "var(--danger)" }}>
+          {formatCurrency(row.soTien || 0)}
+        </span>
+      ),
+    },
+    {
+      header: "Trạng thái",
+      align: "center",
+      render: (row: any) => {
+        const statuses: Record<string, { label: string; color: string; bg: string }> = {
+          pending: { label: "Chưa thực hiện", color: "text-warning", bg: "bg-warning" },
+          paid: { label: "Đã thực hiện", color: "text-success", bg: "bg-success" },
+        };
+        const s = statuses[row.trangThai || 'pending'] || statuses.pending;
+        return (
+          <span className={`badge rounded-pill ${s.color} bg-opacity-10`} style={{ backgroundColor: s.bg + '1a', border: '1px solid currentColor' }}>
+            {s.label}
+          </span>
+        );
+      },
+    },
   ];
 
   const orderColumns: TableColumn<any>[] = [
@@ -871,6 +978,52 @@ export default function FinancePage() {
               {isNew && (
                 <span className="badge bg-danger rounded-pill shadow-sm" style={{ fontSize: "9px", padding: "3px 6px" }}>MỚI</span>
               )}
+            {currentStep === 4 && (
+              <FullWidthTableLayout 
+                tableWrapperClassName="" 
+                header={
+                <div className="d-flex align-items-center gap-2">
+                  <FilterSelect
+                    options={[
+                      { label: "Chưa thực hiện", value: "pending" },
+                      { label: "Đã thực hiện", value: "paid" },
+                    ]}
+                    value={expenseStatus}
+                    onChange={setExpenseStatus}
+                    placeholder="Tất cả trạng thái"
+                    width={180}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <SearchInput
+                      value={expenseSearch}
+                      onChange={setExpenseSearch}
+                      placeholder="Tìm mã CP, người chi trả..."
+                    />
+                  </div>
+                </div>
+                }
+                footer={expensesTotalPages > 1 ? (
+                <div className="d-flex justify-content-end w-100">
+                  <Pagination
+                    page={expensePage}
+                    totalPages={expensesTotalPages}
+                    onChange={setExpensePage}
+                  />
+                </div>
+                ) : undefined}
+                table={
+              <Table
+                columns={expenseColumns}
+                rows={expenses}
+                loading={expensesLoading}
+                rowKey={(row) => row.id}
+                emptyText="Không tìm thấy khoản chi nào"
+                compact
+                onRowClick={setSelectedExpense}
+              />
+            } />
+            )}
+
             </div>
             <span className="text-muted d-flex align-items-center gap-1" style={{ fontSize: "10.5px", whiteSpace: "nowrap" }}>
               <i className="bi bi-calendar3" style={{ fontSize: "9.5px" }} /> {dateStr}
@@ -947,57 +1100,13 @@ export default function FinancePage() {
       color="emerald"
       useCard={false}
     >
-      {error && (
-        <div className="alert alert-danger d-flex align-items-center gap-2 mb-4" role="alert">
-          <i className="bi bi-exclamation-triangle-fill" />
-          <div>{error}</div>
-        </div>
-      )}
+      
 
-      <div className="row g-2 mt-0">
-        {loading
-          ? Array(4)
-              .fill(0)
-              .map((_, i) => (
-                <div key={i} className="col-12 col-md-6 col-lg-3">
-                  <div
-                    className="p-4 rounded-4"
-                    style={{
-                      background: "var(--card)",
-                      border: "1px solid var(--border)",
-                      height: "140px",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div className="bg-secondary opacity-10 rounded" style={{ width: "120px", height: "18px" }} />
-                      <div className="bg-secondary opacity-10 rounded-circle" style={{ width: "36px", height: "36px" }} />
-                    </div>
-                    <div className="bg-secondary opacity-10 rounded" style={{ width: "160px", height: "32px" }} />
-                    <div className="bg-secondary opacity-10 rounded" style={{ width: "100px", height: "14px" }} />
-                  </div>
-                </div>
-              ))
-          : kpis.map((kpi, index) => (
-              <KPICard
-                key={index}
-                label={kpi.label}
-                value={kpi.value}
-                icon={kpi.icon}
-                accent={kpi.accent}
-                colClass="col-12 col-md-6 col-lg-3"
-                subtitle={kpi.description}
-              />
-            ))}
-      </div>
-
-      <div className="row g-3 mt-0 flex-grow-1 flex-lg-nowrap" style={{ minHeight: 0 }}>
-        {/* Vùng bên trái - chiếm tỷ lệ 7/12 */}
-        <div className="col-12 col-lg-7 d-flex flex-column" style={{ minHeight: 0 }}>
+      <div className="row g-3 mt-1 flex-grow-1 flex-lg-nowrap" style={{ minHeight: 0 }}>
+        {/* Vùng bên trái - full width */}
+        <div className="col-12 d-flex flex-column" style={{ minHeight: 0 }}>
           <WorkflowCard
-            contentPadding="p-3 pt-2"
+            contentPadding="p-0"
             stepper={
               <ModernStepper
                 steps={stepperSteps}
@@ -1007,9 +1116,11 @@ export default function FinancePage() {
                 paddingY={8}
               />
             }
-            toolbar={
-              currentStep === 1 ? (
-                <div className="d-flex align-items-center gap-2">
+            
+            
+          >
+            {currentStep === 1 && (
+              <FullWidthTableLayout tableWrapperClassName="" header={<div className="d-flex align-items-center gap-2">
                   <FilterSelect
                     options={orderStatusOptions}
                     value={orderStatus}
@@ -1024,9 +1135,24 @@ export default function FinancePage() {
                       placeholder="Tìm mã đơn hàng, tên khách hàng..."
                     />
                   </div>
-                </div>
-              ) : currentStep === 2 ? (
-                <div className="d-flex align-items-center gap-2">
+                </div>} footer={ordersTotalPages > 1 ? (<div className="d-flex justify-content-end w-100">
+                  <Pagination
+                    page={orderPage}
+                    totalPages={ordersTotalPages}
+                    onChange={setOrderPage}
+                  />
+                </div>) : undefined} table={ <Table
+                columns={orderColumns}
+                rows={orders}
+                loading={ordersLoading}
+                rowKey={(row) => row.id}
+                emptyText="Không tìm thấy đơn hàng nào"
+                compact
+                onRowClick={setSelectedOrder}
+              /> } />
+            )}
+            {currentStep === 2 && (
+              <FullWidthTableLayout tableWrapperClassName="" header={<div className="d-flex align-items-center gap-2">
                   <FilterSelect
                     options={[
                       { label: "Chờ duyệt", value: "pending" },
@@ -1045,9 +1171,24 @@ export default function FinancePage() {
                       placeholder="Tìm mã yêu cầu, lý do..."
                     />
                   </div>
-                </div>
-              ) : currentStep === 3 ? (
-                <div className="d-flex align-items-center gap-2">
+                </div>} footer={requestsTotalPages > 1 ? (<div className="d-flex justify-content-end w-100">
+                  <Pagination
+                    page={requestPage}
+                    totalPages={requestsTotalPages}
+                    onChange={setRequestPage}
+                  />
+                </div>) : undefined} table={ <Table
+                columns={requestColumns}
+                rows={requests}
+                loading={requestsLoading}
+                rowKey={(row) => row.id}
+                emptyText="Không tìm thấy yêu cầu nào"
+                compact
+                onRowClick={setSelectedRequest}
+              /> } />
+            )}
+            {currentStep === 3 && (
+              <FullWidthTableLayout tableWrapperClassName="" header={<div className="d-flex align-items-center gap-2">
                   <FilterSelect
                     options={[
                       { label: "Chờ xác nhận", value: "pending" },
@@ -1066,61 +1207,13 @@ export default function FinancePage() {
                       placeholder="Tìm mã yêu cầu, lý do..."
                     />
                   </div>
-                </div>
-              ) : undefined
-            }
-            bottomToolbar={
-              currentStep === 1 && ordersTotalPages > 1 ? (
-                <div className="d-flex justify-content-end w-100">
-                  <Pagination
-                    page={orderPage}
-                    totalPages={ordersTotalPages}
-                    onChange={setOrderPage}
-                  />
-                </div>
-              ) : currentStep === 2 && requestsTotalPages > 1 ? (
-                <div className="d-flex justify-content-end w-100">
-                  <Pagination
-                    page={requestPage}
-                    totalPages={requestsTotalPages}
-                    onChange={setRequestPage}
-                  />
-                </div>
-              ) : currentStep === 3 && paymentNotificationsTotalPages > 1 ? (
-                <div className="d-flex justify-content-end w-100">
+                </div>} footer={paymentNotificationsTotalPages > 1 ? (<div className="d-flex justify-content-end w-100">
                   <Pagination
                     page={paymentNotificationPage}
                     totalPages={paymentNotificationsTotalPages}
                     onChange={setPaymentNotificationPage}
                   />
-                </div>
-              ) : undefined
-            }
-          >
-            {currentStep === 1 && (
-              <Table
-                columns={orderColumns}
-                rows={orders}
-                loading={ordersLoading}
-                rowKey={(row) => row.id}
-                emptyText="Không tìm thấy đơn hàng nào"
-                compact
-                onRowClick={setSelectedOrder}
-              />
-            )}
-            {currentStep === 2 && (
-              <Table
-                columns={requestColumns}
-                rows={requests}
-                loading={requestsLoading}
-                rowKey={(row) => row.id}
-                emptyText="Không tìm thấy yêu cầu nào"
-                compact
-                onRowClick={setSelectedRequest}
-              />
-            )}
-            {currentStep === 3 && (
-              <Table
+                </div>) : undefined} table={ <Table
                 columns={paymentNotificationColumns}
                 rows={paymentNotifications}
                 loading={paymentNotificationsLoading}
@@ -1135,17 +1228,46 @@ export default function FinancePage() {
                     localStorage.setItem('readPaymentNotifications', JSON.stringify(newRead));
                   }
                 }}
-              />
+              /> } />
             )}
           </WorkflowCard>
         </div>
 
-        {/* Vùng bên phải - chiếm tỷ lệ 5/12 */}
-        <div className="col-12 col-lg-5 d-flex flex-column" style={{ minHeight: 0 }}>
-          <div
-            className="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column overflow-hidden"
-            style={{ minHeight: 0 }}
+        </div>
+
+      {/* Offcanvas cho vùng chi tiết */}
+      {((currentStep === 1 && selectedOrder) || (currentStep === 2 && selectedRequest) || (currentStep === 3 && selectedPaymentNotification) || (currentStep === 4 && selectedExpense)) && createPortal(
+        <>
+          <div 
+            className="offcanvas-backdrop fade show" 
+            onClick={() => {
+              if (currentStep === 1) setSelectedOrder(null);
+              if (currentStep === 2) setSelectedRequest(null);
+              if (currentStep === 3) setSelectedPaymentNotification(null);
+              if (currentStep === 4) setSelectedExpense(null);
+            }} 
+            style={{ zIndex: 1040 }}
+          ></div>
+          <div 
+            className="offcanvas offcanvas-end show shadow-lg" 
+            tabIndex={-1} 
+            style={{ zIndex: 1045, width: 400 }}
           >
+            <div className="offcanvas-header border-bottom">
+              <h5 className="offcanvas-title fw-bold">Chi tiết</h5>
+              <button 
+                type="button" 
+                className="btn-close" 
+                onClick={() => {
+                  if (currentStep === 1) setSelectedOrder(null);
+                  if (currentStep === 2) setSelectedRequest(null);
+                  if (currentStep === 3) setSelectedPaymentNotification(null);
+                  if (currentStep === 4) setSelectedExpense(null);
+                }}
+              ></button>
+            </div>
+            <div className="offcanvas-body p-0 d-flex flex-column bg-light" style={{ overflowY: "auto" }}>
+              <div className="bg-white flex-grow-1 d-flex flex-column overflow-hidden h-100 p-3" style={{ minHeight: 0 }}>
             {currentStep === 1 ? (
               !selectedOrder ? (
                 <div className="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center text-muted p-5">
@@ -1164,30 +1286,7 @@ export default function FinancePage() {
                         {selectedOrder.code || "Đơn hàng mới"}
                       </h6>
                     </div>
-                    <div className="d-flex align-items-center gap-2">
-                      <button 
-                        className="btn btn-sm btn-primary fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1"
-                        onClick={handleSubmitToDirector}
-                        style={{ fontSize: "11.5px", border: "none", backgroundColor: "var(--primary)" }}
-                      >
-                        <i className="bi bi-send" />
-                        Trình giám đốc
-                      </button>
-                      <button 
-                        className="btn btn-sm btn-danger fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1"
-                        onClick={() => {
-                          if (selectedOrder) {
-                            setShowDeleteConfirm(true);
-                          } else if (selectedOrderIds.length > 0) {
-                            setShowDeleteConfirm(true);
-                          }
-                        }}
-                        style={{ fontSize: "11.5px", border: "none" }}
-                      >
-                        <i className="bi bi-trash" />
-                        Xóa
-                      </button>
-                    </div>
+                    
                   </div>
 
                   {/* Content */}
@@ -1474,42 +1573,7 @@ export default function FinancePage() {
                         {requestDetail.code || "Đơn hàng mới"}
                       </h6>
                     </div>
-                    <div className="d-flex align-items-center gap-2">
-                      {selectedRequest.status === "pending" && (
-                        <>
-                          <button 
-                            className="btn btn-sm btn-success fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1"
-                            onClick={handleApproveRequest}
-                            style={{ fontSize: "11.5px", border: "none" }}
-                          >
-                            <i className="bi bi-check-lg" />
-                            Duyệt
-                          </button>
-                          <button 
-                            className="btn btn-sm btn-warning fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1 text-white"
-                            onClick={handleRejectRequest}
-                            style={{ fontSize: "11.5px", border: "none" }}
-                          >
-                            <i className="bi bi-x-lg" />
-                            Từ chối
-                          </button>
-                        </>
-                      )}
-                      <button 
-                        className="btn btn-sm btn-danger fw-bold px-2 py-1 rounded-3 d-flex align-items-center gap-1"
-                        onClick={() => {
-                          if (selectedRequest) {
-                            setShowRequestDeleteConfirm(true);
-                          } else if (selectedRequestIds.length > 0) {
-                            setShowRequestDeleteConfirm(true);
-                          }
-                        }}
-                        style={{ fontSize: "11.5px", border: "none" }}
-                      >
-                        <i className="bi bi-trash" />
-                        Xóa
-                      </button>
-                    </div>
+                    
                   </div>
 
                   {/* Content */}
@@ -2045,6 +2109,32 @@ export default function FinancePage() {
                   </div>
                 </div>
               )
+            ) : currentStep === 4 ? (
+              !selectedExpense ? null : (
+                <div className="flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
+                  <div className="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3 flex-shrink-0">
+                    <div>
+                      <h6 className="fw-bold text-dark mb-0" style={{ fontFamily: "'Roboto Condensed', sans-serif" }}>
+                        {selectedExpense.id.slice(-8).toUpperCase()}
+                      </h6>
+                    </div>
+                  </div>
+                  <div className="flex-grow-1 overflow-auto pe-1" style={{ minHeight: 0 }}>
+                    <div className="mb-4">
+                      <p className="small text-muted fw-bold mb-3 text-uppercase tracking-wider">Thông tin chung</p>
+                      <table className="table table-borderless table-sm mb-0">
+                        <tbody>
+                          <tr><td className="text-muted" style={{ width: 140 }}>Tên chi phí:</td><td className="fw-medium text-end">{selectedExpense.tenChiPhi}</td></tr>
+                          <tr><td className="text-muted">Số tiền:</td><td className="fw-bold text-danger text-end">{formatCurrency(selectedExpense.soTien || 0)}</td></tr>
+                          <tr><td className="text-muted">Người chi trả:</td><td className="fw-medium text-end">{selectedExpense.nguoiChiTra}</td></tr>
+                          <tr><td className="text-muted">Trạng thái:</td><td className="fw-medium text-end">{selectedExpense.trangThai === "pending" ? "Chưa thực hiện" : selectedExpense.trangThai === "paid" ? "Đã thực hiện" : "Chưa thực hiện"}</td></tr>
+                          {selectedExpense.ghiChu && <tr><td className="text-muted">Ghi chú:</td><td className="fw-medium text-end">{selectedExpense.ghiChu}</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )
             ) : (
               <div className="flex-grow-1 d-flex flex-column align-items-center justify-content-center text-center text-muted p-5">
                 <i className="bi bi-gear fs-1 opacity-25 mb-3" />
@@ -2054,9 +2144,82 @@ export default function FinancePage() {
                 </p>
               </div>
             )}
+              </div>
+            </div>
+            <div className="offcanvas-footer border-top p-3 bg-light d-flex justify-content-end gap-2">
+              {currentStep === 1 && selectedOrder && (
+                <>
+                  <button 
+                    className="btn btn-primary fw-bold px-4 rounded-3 d-flex align-items-center gap-2"
+                    onClick={handleSubmitToDirector}
+                  >
+                    <i className="bi bi-send" />
+                    Trình giám đốc
+                  </button>
+                  <button 
+                    className="btn btn-danger fw-bold px-4 rounded-3 d-flex align-items-center gap-2"
+                    onClick={() => {
+                      if (selectedOrder) {
+                        setShowDeleteConfirm(true);
+                      } else if (selectedOrderIds.length > 0) {
+                        setShowDeleteConfirm(true);
+                      }
+                    }}
+                  >
+                    <i className="bi bi-trash" />
+                    Xóa
+                  </button>
+                </>
+              )}
+              {currentStep === 2 && selectedRequest && (
+                <>
+                  {selectedRequest.status === "pending" && (
+                    <>
+                      <button 
+                        className="btn btn-success fw-bold px-4 rounded-3 d-flex align-items-center gap-2"
+                        onClick={handleApproveRequest}
+                      >
+                        <i className="bi bi-check-lg" />
+                        Duyệt
+                      </button>
+                      <button 
+                        className="btn btn-danger fw-bold px-4 rounded-3 d-flex align-items-center gap-2"
+                        onClick={handleRejectRequest}
+                      >
+                        <i className="bi bi-x-lg" />
+                        Từ chối
+                      </button>
+                    </>
+                  )}
+                  <button 
+                    className="btn btn-outline-danger fw-bold px-4 rounded-3 d-flex align-items-center gap-2"
+                    onClick={() => {
+                      if (selectedRequest) setShowDeleteConfirm(true);
+                    }}
+                  >
+                    <i className="bi bi-trash" />
+                    Xóa
+                  </button>
+                </>
+              )}
+              {currentStep === 4 && selectedExpense && selectedExpense.trangThai === 'pending' && (
+                <>
+                  <button className="btn btn-success fw-bold px-4 rounded-3 d-flex align-items-center gap-2" onClick={async () => {
+                     try {
+                       await fetch(`/api/plan-finance/expenses/${selectedExpense.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trangThai: "paid" }) });
+                       fetchExpenses(true);
+                       setSelectedExpense(null);
+                     } catch (e) {}
+                  }}>
+                    <i className="bi bi-check2-circle" /> Thực hiện chi tiền
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        </>,
+        document.body
+      )}
 
       {/* Items Offcanvas */}
       {showItemsOffcanvas && (
