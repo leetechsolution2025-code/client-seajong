@@ -2677,20 +2677,20 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                 <div style={{ flex: "1 1 100%", display: "flex", gap: 12 }}>
                   <div style={{ flex: "2 1 250px", position: "relative" }}>
                     <FLabel text="Sản phẩm / Dịch vụ" required />
-                    <SearchInput
-                      value={formItem.ten}
-                      onChange={v => {
-                        setFormItem(prev => ({ ...prev, ten: v }));
-                        if (!v) {
-                          setSuggest([]);
-                        } else {
-                          setActiveRowIdSync(-1);
-                          fetchSuggest(v, -1);
-                        }
-                      }}
-                      onFocus={e => { setActiveRowIdSync(-1); fetchSuggest(formItem.ten, -1); }}
-                      onBlur={e => { setTimeout(() => { if (activeRowIdRef.current === -1) { setSuggest([]); setActiveRowIdSync(null); } }, 200); }}
-                    />
+                  <SearchInput
+                    value={formItem.ten}
+                    onChange={v => {
+                      setFormItem(prev => ({ ...prev, ten: v }));
+                      if (!v) {
+                        setSuggest([]);
+                      } else {
+                        setActiveRowIdSync(-1);
+                        fetchSuggest(v, -1);
+                      }
+                    }}
+                    onFocus={e => { setActiveRowIdSync(-1); fetchSuggest(formItem.ten, -1); }}
+                    onBlur={e => { setTimeout(() => { if (activeRowIdRef.current === -1) { setSuggest([]); setActiveRowIdSync(null); } }, 200); }}
+                  />
                     {activeRowId === -1 && suggest.length > 0 && (
                       <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
                         {suggest.map(s => (
@@ -2725,7 +2725,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                         }));
                       }}
                       disabled={formItem.source === "inventory"}
-                      style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: formItem.source === "inventory" ? "var(--muted)" : "#fff", outline: "none", fontFamily: "inherit", fontSize: 13, color: formItem.source === "inventory" ? "var(--muted-foreground)" : "var(--foreground)", cursor: formItem.source === "inventory" ? "not-allowed" : "default" }}
+                      style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: formItem.source === "inventory" ? "var(--muted)" : "#fff", outline: "none", fontFamily: "inherit", fontSize: 13, color: formItem.source === "inventory" ? "var(--muted-foreground)" : "var(--foreground)", cursor: formItem.source === "inventory" ? "not-allowed" : "default" }}
                     >
                       {formItem.dinhMucs?.map((dm: any) => (
                         <option key={dm.id} value={dm.id}>{dm.code}</option>
@@ -2738,14 +2738,14 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                       <input
                         value={formItem.dinhMucTen || ""}
                         readOnly
-                        style={{ flex: 1, padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
+                        style={{ flex: 1, padding: "0 10px", height: 35, border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
                       />
                       <button
                         type="button"
-                        className="btn btn-light border"
+                        className="btn btn-light border d-flex align-items-center justify-content-center"
                         onClick={() => setShowBomDetail(true)}
                         disabled={!formItem.dinhMucId}
-                        style={{ padding: "7px 12px", borderRadius: 6 }}
+                        style={{ height: 35, padding: "0 12px", borderRadius: 6 }}
                         title="Xem chi tiết định mức"
                       >
                         <i className="bi bi-three-dots"></i>
@@ -2758,20 +2758,20 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                   <input
                     value={formItem.khoTen || ""}
                     readOnly
-                    style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
+                    style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
                   />
                 </div>
                 <div style={{ flex: "1 1 80px" }}>
                   <FLabel text="Đơn vị tính" />
-                  <input value={formItem.dvt} onChange={e => setFormItem(p => ({ ...p, dvt: e.target.value }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "center", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                  <input value={formItem.dvt} onChange={e => setFormItem(p => ({ ...p, dvt: e.target.value }))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "center", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
                 </div>
                 <div style={{ flex: "1 1 90px" }}>
                   <FLabel text="Số lượng" required />
-                  <input type="number" min={1} value={formItem.soLuong} onChange={e => setFormItem(p => ({ ...p, soLuong: Math.max(1, Number(e.target.value)) }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                  <input type="number" min={1} value={formItem.soLuong} onChange={e => setFormItem(p => ({ ...p, soLuong: Math.max(1, Number(e.target.value)) }))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
                 </div>
                 <div style={{ flex: "1 1 90px" }}>
                   <FLabel text="Chiết khấu (%)" />
-                  <input type="number" min={0} max={100} value={formItem.ckPct} onChange={e => setFormItem(p => ({ ...p, ckPct: Math.max(0, Math.min(100, Number(e.target.value))) }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                  <input type="number" min={0} max={100} value={formItem.ckPct} onChange={e => setFormItem(p => ({ ...p, ckPct: Math.max(0, Math.min(100, Number(e.target.value))) }))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
                 </div>
                 <div style={{ flex: "1 1 120px" }}>
                   <FLabel text="Đơn giá (đ)" />
@@ -2779,11 +2779,11 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                     value={formItem.donGia}
                     onChange={v => !(!isAdmin) && setFormItem(p => ({ ...p, donGia: v }))}
                     readOnly={!isAdmin}
-                    style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: !isAdmin ? "var(--muted)" : "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: !isAdmin ? "var(--muted-foreground)" : "var(--foreground)", cursor: !isAdmin ? "not-allowed" : "text" }}
+                    style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: !isAdmin ? "var(--muted)" : "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: !isAdmin ? "var(--muted-foreground)" : "var(--foreground)", cursor: !isAdmin ? "not-allowed" : "text" }}
                   />
                 </div>
                 <div>
-                  <button onClick={addRow} style={{ padding: "7px 14px", border: "none", background: "var(--primary)", color: "#fff", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, height: 33 }}>
+                  <button onClick={addRow} style={{ padding: "0 14px", border: "none", background: "var(--primary)", color: "#fff", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, height: 34, boxSizing: "border-box" }}>
                     <i className="bi bi-plus-lg" /> Thêm
                   </button>
                 </div>

@@ -732,9 +732,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       let finalCustomerId = custInfo.id;
       let finalGhiChu = [
         info.ghiChu,
-        info.tenNguoiNhan ? `Tên khách hàng: ${info.tenNguoiNhan}` : "",
-        info.sdtNguoiNhan ? `Số điện thoại: ${info.sdtNguoiNhan}` : "",
-        info.diaChiGiaoHang ? `Địa chỉ giao hàng: ${info.diaChiGiaoHang}` : "",
         info.chiPhiKhac > 0 ? `Chi phí khác: ${info.chiPhiKhac.toLocaleString("vi-VN")} ₫` : "",
         info.daThanhToan > 0 ? `Đã trả trước: ${info.daThanhToan.toLocaleString("vi-VN")} ₫ (${info.isChuyenKhoan ? 'Chuyển khoản' : 'Tiền mặt'})` : ""
       ].filter(Boolean).join("\n");
@@ -1244,7 +1241,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                       }));
                     }}
                     disabled={formItem.source === "inventory"}
-                    style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: formItem.source === "inventory" ? "var(--muted)" : "#fff", outline: "none", fontFamily: "inherit", fontSize: 13, color: formItem.source === "inventory" ? "var(--muted-foreground)" : "var(--foreground)", cursor: formItem.source === "inventory" ? "not-allowed" : "default" }}
+                    style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: formItem.source === "inventory" ? "var(--muted)" : "#fff", outline: "none", fontFamily: "inherit", fontSize: 13, color: formItem.source === "inventory" ? "var(--muted-foreground)" : "var(--foreground)", cursor: formItem.source === "inventory" ? "not-allowed" : "default" }}
                   >
                     {formItem.dinhMucs?.map((dm: any) => (
                       <option key={dm.id} value={dm.id}>{dm.code}</option>
@@ -1257,15 +1254,15 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                     <input
                       value={formItem.dinhMucTen || ""}
                       readOnly
-                      style={{ flex: 1, padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
+                      style={{ flex: 1, padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
                     />
                     <div className="dropdown">
                       <button
                         type="button"
-                        className="btn btn-light border dropdown-toggle"
+                        className="btn btn-light border dropdown-toggle d-flex align-items-center justify-content-center"
                         data-bs-toggle="dropdown"
                         disabled={!formItem.dinhMucId || isKinhDoanh}
-                        style={{ padding: "7px 12px", borderRadius: 6 }}
+                        style={{ height: 34, boxSizing: "border-box", padding: "0 12px", borderRadius: 6 }}
                         title={isKinhDoanh ? "Không có quyền chỉnh sửa định mức" : "Tuỳ chọn định mức"}
                       >
                         <i className="bi bi-three-dots"></i>
@@ -1298,20 +1295,20 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 <input
                   value={formItem.khoTen || ""}
                   readOnly
-                  style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
+                  style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
                 />
               </div>
               <div style={{ flex: "1 1 80px" }}>
                 <FLabel text="Đơn vị tính" />
-                <input value={formItem.dvt} onChange={e => setFormItem(p => ({ ...p, dvt: e.target.value }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "center", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                <input value={formItem.dvt} onChange={e => setFormItem(p => ({ ...p, dvt: e.target.value }))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "center", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
               </div>
               <div style={{ flex: "1 1 90px" }}>
                 <FLabel text="Số lượng" required />
-                <input type="number" min={1} value={formItem.soLuong} onChange={e => setFormItem(p => ({ ...p, soLuong: Math.max(1, Number(e.target.value)) }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                <input type="number" min={1} value={formItem.soLuong} onChange={e => setFormItem(p => ({ ...p, soLuong: Math.max(1, Number(e.target.value)) }))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
               </div>
               <div style={{ flex: "1 1 90px" }}>
                 <FLabel text="Chiết khấu (%)" />
-                <input type="number" min={0} max={100} value={formItem.ckPct} onChange={e => setFormItem(p => ({ ...p, ckPct: Math.max(0, Math.min(100, Number(e.target.value))) }))} style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                <input type="number" min={0} max={100} value={formItem.ckPct} onChange={e => setFormItem(p => ({ ...p, ckPct: Math.max(0, Math.min(100, Number(e.target.value))) }))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
               </div>
               <div style={{ flex: "1 1 120px" }}>
                 <FLabel text="Đơn giá (đ)" />
@@ -1319,11 +1316,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                   value={formItem.donGia}
                   onChange={v => !(!isAdmin) && setFormItem(p => ({ ...p, donGia: v }))}
                   readOnly={!isAdmin}
-                  style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, background: !isAdmin ? "var(--muted)" : "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: !isAdmin ? "var(--muted-foreground)" : "var(--foreground)", cursor: !isAdmin ? "not-allowed" : "text" }}
+                  style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: !isAdmin ? "var(--muted)" : "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: !isAdmin ? "var(--muted-foreground)" : "var(--foreground)", cursor: !isAdmin ? "not-allowed" : "text" }}
                 />
               </div>
               <div>
-                <button onClick={addRow} style={{ padding: "7px 14px", border: "none", background: "var(--primary)", color: "#fff", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, height: 33 }}>
+                <button onClick={addRow} style={{ padding: "0 14px", border: "none", background: "var(--primary)", color: "#fff", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, height: 34, boxSizing: "border-box" }}>
                   <i className={formItem.id === -1 ? "bi bi-plus-lg" : "bi bi-check2"} /> {formItem.id === -1 ? "Thêm" : "Cập nhật"}
                 </button>
               </div>

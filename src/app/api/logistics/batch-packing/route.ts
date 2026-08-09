@@ -109,11 +109,13 @@ export async function GET(req: NextRequest) {
         const key = `${ngayGiaoStr}_${rawKey}`;
 
         let viTriStr = null;
+        let thucTon = 0;
         if (item.inventoryItem?.stocks && item.inventoryItem.stocks.length > 0) {
           const stock = item.inventoryItem.stocks.find((s: any) => s.viTriHang || s.viTriCot || s.viTriTang);
           if (stock) {
             viTriStr = [stock.viTriTang && `Tầng ${stock.viTriTang}`, stock.viTriCot && `Cột ${stock.viTriCot}`, stock.viTriHang && `Hàng ${stock.viTriHang}`].filter(Boolean).join(" - ");
           }
+          thucTon = item.inventoryItem.stocks.reduce((acc: number, cur: any) => acc + (cur.soLuong || 0), 0);
         }
 
         if (!batchMap.has(key)) {
@@ -129,6 +131,7 @@ export async function GET(req: NextRequest) {
             viTriKho: viTriStr,
             tongSoLuong: 0,
             tongDaNhat: 0,
+            thucTon: thucTon,
             ngayGiao: ticket.saleOrder?.ngayGiao,
             orders: []
           });

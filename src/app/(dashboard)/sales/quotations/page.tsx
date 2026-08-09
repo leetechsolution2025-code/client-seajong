@@ -151,8 +151,24 @@ export function QuotationsContent() {
   // Customer selection modal states
   const [showCustomerSelectModal, setShowCustomerSelectModal] = useState(false);
   const [customerTab, setCustomerTab] = useState<"dai_ly" | "vang_lai">("dai_ly");
-  const [customersList, setCustomersList] = useState<any[]>([]);
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
+  const [customersList, setCustomersList] = useState<any[]>([]);
+  const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
+  const [selectedToDelete, setSelectedToDelete] = useState<string[]>([]);
+
+  // Function to fetch customers
+  const fetchCustomers = async (search: string = "") => {
+    try {
+      const nhom = customerTab === "dai_ly" ? "dai-ly" : "ca-nhan";
+      const res = await fetch(`/api/plan-finance/customers?search=${search}&nhom=${nhom}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCustomersList(data.customers || []);
+      }
+    } catch (e) {
+      console.error("Lỗi tải danh sách khách hàng", e);
+    }
+  };
 
   // Bulk delete states
   const [confirmDeleteBaoGia, setConfirmDeleteBaoGia] = useState(false);
@@ -267,6 +283,28 @@ export function QuotationsContent() {
       toast.error("Lỗi", "Không thể tải danh sách đơn hàng");
     } finally {
       setOrdersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showCustomerSelectModal) {
+      fetchCustomers(customerSearchTerm);
+      setSelectedToDelete([]);
+    }
+  }, [showCustomerSelectModal, customerSearchTerm, customerTab]);
+
+  const handleBatchDeleteCustomers = async () => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xoá ${selectedToDelete.length} khách hàng vãng lai đã chọn?`)) return;
+    
+    try {
+      for (const id of selectedToDelete) {
+        await fetch(`/api/plan-finance/customers/${id}`, { method: "DELETE" });
+      }
+      toast.success("Thành công", `Đã xoá ${selectedToDelete.length} khách hàng vãng lai.`);
+      setSelectedToDelete([]);
+      fetchCustomers(customerSearchTerm);
+    } catch (e) {
+      toast.error("Lỗi", "Không thể xoá khách hàng đã chọn.");
     }
   };
 
@@ -601,15 +639,6 @@ export function QuotationsContent() {
                     width={180}
                   />
 
-                  {/* Hộp tìm kiếm */}
-                  <div className="flex-grow-1" style={{ maxWidth: 300 }}>
-                    <SearchInput
-                      placeholder="Tìm kiếm..."
-                      value={searchTerm}
-                      onChange={setSearchTerm}
-                    />
-                  </div>
-                  
                   {/* Bộ lọc thời gian */}
                   <FilterSelect 
                     options={[
@@ -626,6 +655,15 @@ export function QuotationsContent() {
                     placeholder="Thời gian"
                     width={150}
                   />
+
+                  {/* Hộp tìm kiếm */}
+                  <div className="flex-grow-1" style={{ maxWidth: 300 }}>
+                    <SearchInput
+                      placeholder="Tìm kiếm..."
+                      value={searchTerm}
+                      onChange={setSearchTerm}
+                    />
+                  </div>
                 </div>
 
                 <div className="d-flex align-items-center gap-2">
@@ -700,15 +738,6 @@ export function QuotationsContent() {
                     width={180}
                   />
 
-                  {/* Hộp tìm kiếm */}
-                  <div className="flex-grow-1" style={{ maxWidth: 300 }}>
-                    <SearchInput 
-                      placeholder="Tìm kiếm..."
-                      value={orderSearchTerm}
-                      onChange={setOrderSearchTerm}
-                    />
-                  </div>
-
                   {/* Bộ lọc thời gian */}
                   <FilterSelect 
                     options={[
@@ -725,6 +754,15 @@ export function QuotationsContent() {
                     placeholder="Thời gian"
                     width={150}
                   />
+
+                  {/* Hộp tìm kiếm */}
+                  <div className="flex-grow-1" style={{ maxWidth: 300 }}>
+                    <SearchInput 
+                      placeholder="Tìm kiếm..."
+                      value={orderSearchTerm}
+                      onChange={setOrderSearchTerm}
+                    />
+                  </div>
                 </div>
 
                 <div className="d-flex align-items-center gap-2">
@@ -863,7 +901,21 @@ export function QuotationsContent() {
                   )}
 
                   <div className="border-top pt-2 mt-1 d-flex flex-column flex-grow-1 overflow-hidden">
-                    <div className="text-muted small fw-bold text-uppercase mb-2 flex-shrink-0" style={{ letterSpacing: "0.04em", fontSize: 10 }}>Khách hàng hiện tại</div>
+                    <div className="text-muted small fw-bold text-uppercase mb-2 flex-shrink-0 d-flex justify-content-between align-items-center" style={{ letterSpacing: "0.04em", fontSize: 10 }}>
+                      <span>Khách hàng hiện tại</span>
+                      {selectedToDelete.length > 0 && (
+                        <button
+                          onClick={handleBatchDeleteCustomers}
+                          className="btn btn-sm btn-danger py-0 px-2 fw-bold"
+                          style={{ fontSize: 10 }}
+                        >
+                          Xoá đã chọn
+                          <span className="badge rounded-pill bg-white text-danger ms-1 px-1 py-0" style={{ fontSize: 9 }}>
+                            {selectedToDelete.length}
+                          </span>
+                        </button>
+                      )}
+                    </div>
                     <div className="overflow-auto list-group rounded-0 flex-grow-1">
                       {customersList.length === 0 ? (
                         <div className="text-center py-4 text-muted small">
@@ -874,11 +926,29 @@ export function QuotationsContent() {
                         customersList.map((c) => (
                           <div
                             key={c.id}
-                            className="list-group-item list-group-item-action border rounded-3 p-3 mb-2 d-flex align-items-center justify-content-between cursor-pointer"
+                            className="list-group-item list-group-item-action border rounded-3 p-3 mb-2 d-flex align-items-center cursor-pointer gap-2"
                             onClick={() => handleSelectCustomer(c)}
                           >
-                            <div>
-                              <div className="fw-bold text-dark" style={{ fontSize: 13.5 }}>{c.name}</div>
+                            {customerTab === "vang_lai" && (
+                              <div onClick={(e) => e.stopPropagation()} title={c.outstandingDebt > 0 ? "Không thể xoá khách hàng đang có công nợ" : "Chọn để xoá"}>
+                                <input
+                                  type="checkbox"
+                                  className="form-check-input mt-0 cursor-pointer"
+                                  style={{ width: 16, height: 16 }}
+                                  disabled={c.outstandingDebt > 0}
+                                  checked={selectedToDelete.includes(c.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) setSelectedToDelete(prev => [...prev, c.id]);
+                                    else setSelectedToDelete(prev => prev.filter(id => id !== c.id));
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <div className="flex-grow-1 ms-1">
+                              <div className="fw-bold text-dark d-flex align-items-center gap-2" style={{ fontSize: 13.5 }}>
+                                {c.name}
+                                {c.outstandingDebt > 0 && <span className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style={{ fontSize: 9 }}>Có công nợ</span>}
+                              </div>
                               <div className="text-muted mt-1" style={{ fontSize: 11 }}>
                                 {c.address ? (
                                   <span><i className="bi bi-geo-alt me-1" />{c.address}</span>

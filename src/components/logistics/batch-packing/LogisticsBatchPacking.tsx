@@ -20,6 +20,7 @@ interface BatchItem {
   viTriKho: string | null;
   tongSoLuong: number;
   tongDaNhat: number;
+  thucTon: number;
   ngayGiao?: string;
   orders: {
     id: string; // Ticket ID
@@ -104,7 +105,7 @@ export function LogisticsBatchPacking() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/logistics/batch-packing");
+      const res = await fetch(`/api/logistics/batch-packing?t=${Date.now()}`);
       const data = await res.json();
       if (data.success) {
         setItems(data.items);
@@ -581,6 +582,8 @@ export function LogisticsBatchPacking() {
                   </td>
                   <td className="text-center py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)" }}>
                     <span className="fw-semibold text-dark fs-6">{item.tongSoLuong}</span>
+                    <span className="text-muted mx-1" style={{ fontSize: 13 }}>|</span>
+                    <span className="text-muted" style={{ fontSize: 13 }} title="Số lượng thực tồn">{item.thucTon || 0}</span>
                   </td>
                   <td className="text-center py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)", width: 100 }}>
                     <input 

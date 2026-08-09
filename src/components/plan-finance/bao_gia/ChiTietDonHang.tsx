@@ -285,7 +285,14 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
               <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px 16px", background: "color-mix(in srgb, var(--primary) 6%, transparent)", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)" }}>
                 <p style={{ margin: 0, fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--primary)", letterSpacing: "0.02em" }}>Khách hàng mua hàng</p>
                 <div>
-                  <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: "var(--foreground)" }}>{displayCustomer.name}</p>
+                  <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: "var(--foreground)", display: "flex", alignItems: "center", gap: 8 }}>
+                    {displayCustomer.name}
+                    {order?.customer?.nhom === 'ca-nhan' || !order?.customer?.id ? (
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: "#f3f4f6", color: "#4b5563", border: "1px solid #e5e7eb" }}>Khách vãng lai</span>
+                    ) : (
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0" }}>Đại lý</span>
+                    )}
+                  </p>
                   {displayCustomer.address && (
                     <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--muted-foreground)" }}>
                       <i className="bi bi-geo-alt" style={{ marginRight: 5 }} />{displayCustomer.address}
@@ -343,6 +350,23 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                     ) : null}
                   </div>
                 )}
+
+                {(() => {
+                  const displayGhiChu = order.ghiChu
+                    ?.split('\n')
+                    .filter((l: string) => !l.startsWith("Chi phí khác: ") && !l.startsWith("Đã trả trước: ") && !l.startsWith("Tên khách hàng: ") && !l.startsWith("Số điện thoại: ") && !l.startsWith("Địa chỉ giao hàng: "))
+                    .join('\n')
+                    .trim();
+                  if (!displayGhiChu) return null;
+                  return (
+                    <div style={{ borderTop: "1px dashed var(--border)", paddingTop: 10, marginTop: 4, display: "flex", flexDirection: "column", gap: 6 }}>
+                      <label style={{ fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.02em" }}>Ghi chú nội bộ</label>
+                      <div style={{ padding: "8px 12px", background: "rgba(185, 28, 28, 0.05)", borderRadius: 8, fontSize: 12.5, color: "#b91c1c", fontWeight: 600, whiteSpace: "pre-line" }}>
+                        {displayGhiChu}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Date & staff Info */}
@@ -434,15 +458,6 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                 </div>
               </div>
 
-              {/* Ghi chú */}
-              {order.ghiChu && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label style={{ fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.02em" }}>Ghi chú nội bộ</label>
-                  <div style={{ padding: "10px 12px", background: "var(--muted)", borderRadius: 8, fontSize: 12.5, color: "var(--foreground)", whiteSpace: "pre-line" }}>
-                    {order.ghiChu}
-                  </div>
-                </div>
-              )}
             </div>
           ) : (
             <div style={{ textAlign: "center", padding: "40px 0", color: "var(--muted-foreground)" }}>
@@ -799,7 +814,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                  {/* Payment Summary */}
                  <div style={{ flexShrink: 0 }}>
                    {(() => {
-                     const tongTienHang = order.items ? order.items.reduce((acc, it) => acc + (it.thanhTien || 0), 0) : order.tongTien;
+                     const tongTienHang = order.items ? order.items.reduce((acc: number, it: any) => acc + (it.thanhTien || 0), 0) : order.tongTien;
                      const chietKhauAmount = (tongTienHang * printChietKhau) / 100;
                      const vatAmount = ((tongTienHang - chietKhauAmount) * printVatPct) / 100;
                      return (

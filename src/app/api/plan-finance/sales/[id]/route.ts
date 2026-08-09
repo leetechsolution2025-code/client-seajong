@@ -43,7 +43,7 @@ export async function GET(
     const order = await prisma.saleOrder.findUnique({
       where: { id },
       include: {
-        customer: { select: { id: true, name: true, dienThoai: true, address: true, hanMucCongNo: true } },
+        customer: { select: { id: true, name: true, dienThoai: true, address: true, hanMucCongNo: true, nhom: true } },
         saleOrderItems: {
           include: {
             inventoryItem: { select: { imageUrl: true, code: true, loai: true, webProductId: true, color: true, giaBan: true } }
@@ -94,10 +94,15 @@ export async function GET(
       select: { soChungTu: true }
     });
 
-    // Query related Notification
+    // Query related Notification (must be created on or after order.ngayDat to avoid matches with old deleted orders sharing the same code)
     const notif = await prisma.notification.findFirst({
       where: {
-        title: { contains: `Lệnh xuất kho cho đơn hàng ${order.code}` }
+        title: { contains: order.code || "" },
+        OR: [
+          { title: { contains: "Lệnh xuất kho" } },
+          { content: { contains: "xuất kho" } }
+        ],
+        ...(order.ngayDat ? { createdAt: { gte: order.ngayDat } } : {})
       },
       select: { id: true }
     });
@@ -232,11 +237,12 @@ export async function GET(
 
     const guest = parseGuestInfo(order.ghiChu);
 
-    // Fetch logistics task to get actual logisticsItems
+    // Fetch logistics task to get actual logisticsItems (must be created on or after order.ngayDat)
     const logisticsTask = await prisma.task.findFirst({
       where: {
         deptCode: "logistics",
-        title: `Lệnh xuất kho cho đơn hàng ${order.code}`
+        title: { contains: order.code || "" },
+        ...(order.ngayDat ? { createdAt: { gte: order.ngayDat } } : {})
       }
     });
     
@@ -247,11 +253,12 @@ export async function GET(
       } catch (e) { }
     }
     
-    // Fetch production task to get actual productionItems
+    // Fetch production task to get actual productionItems (must be created on or after order.ngayDat)
     const prodTask = await prisma.task.findFirst({
       where: {
         deptCode: "production",
-        title: { contains: order.code || "" }
+        title: { contains: order.code || "" },
+        ...(order.ngayDat ? { createdAt: { gte: order.ngayDat } } : {})
       }
     });
 
