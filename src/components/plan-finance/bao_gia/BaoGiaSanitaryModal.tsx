@@ -1644,11 +1644,6 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
           if (activeRowIdRef.current === rowId) {
             const mapped = (d.items ?? []).map((item: any) => {
               const relevantStocks = (item.stocks || []).filter((s: any) => {
-                if (item.loai === "hang-hoa" || item.loai === "thanh-pham" || item.source === "inventory" || item.source === "manufactured") {
-                  return s.warehouse?.code === "KHO-CHINH";
-                } else if (item.loai === "vat-tu" || item.source === "material") {
-                  return s.warehouse?.code === "KVP";
-                }
                 return s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP";
               });
               const soLuong = relevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);

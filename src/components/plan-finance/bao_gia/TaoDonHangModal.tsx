@@ -596,11 +596,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           if (activeRowIdRef.current === rowId) {
             const filtered = (d.items ?? []).map((item: any) => {
               const relevantStocks = (item.stocks || []).filter((s: any) => {
-                if (item.loai === "hang-hoa" || item.loai === "thanh-pham" || item.source === "inventory" || item.source === "manufactured") {
-                  return s.warehouse?.code === "KHO-CHINH";
-                } else if (item.loai === "vat-tu" || item.source === "material") {
-                  return s.warehouse?.code === "KVP";
-                }
                 return s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP";
               });
               const soLuong = relevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
@@ -608,13 +603,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               const thucTon = Math.max(0, soLuong - soLuongGiu);
               let whCode = relevantStocks.length > 0 ? relevantStocks[0].warehouse?.code : item.defaultWarehouse;
               if (!whCode) {
-                if (item.loai === "hang-hoa" || item.loai === "thanh-pham" || item.source === "inventory" || item.source === "manufactured") {
-                  whCode = "KHO-CHINH";
-                } else if (item.loai === "vat-tu" || item.source === "material") {
-                  whCode = "KVP";
-                } else {
-                  whCode = "KHO-CHINH";
-                }
+                whCode = "KHO-CHINH";
               }
               const khoTenStr = relevantStocks.length > 0 ? relevantStocks[0].warehouse?.name : 
                 (whCode === "KVP" ? "Kho sản xuất và lắp ráp" : "Kho thương mại");

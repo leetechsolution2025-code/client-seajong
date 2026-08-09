@@ -532,7 +532,7 @@ export function LogisticsBatchPacking() {
                   
                   return (
                     <tr key={item.id} style={{ transition: "all 0.2s" }} className={isFullyPicked ? "bg-success bg-opacity-10" : isPicked ? "bg-warning bg-opacity-10" : "bg-white"}>
-                      <td className="text-center py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)", cursor: "pointer" }} onClick={() => handleTogglePick(item.id, item.tongSoLuong)}>
+                      <td className="text-center py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)", cursor: "pointer" }} onClick={() => handleTogglePick(item.id, Math.min(item.tongSoLuong, item.thucTon || 0))}>
                     <div 
                       className={`d-inline-flex align-items-center justify-content-center rounded-circle border ${isFullyPicked ? "bg-success border-success text-white" : isPicked ? "bg-warning border-warning text-white" : "border-secondary text-transparent"}`}
                       style={{ width: 20, height: 20, transition: "all 0.2s" }}
@@ -590,10 +590,10 @@ export function LogisticsBatchPacking() {
                       type="number"
                       className={`form-control form-control-sm text-center fw-bold ${isFullyPicked ? "text-success border-success" : isPicked ? "text-warning border-warning" : "text-muted"} ${isEdited ? "bg-warning bg-opacity-10" : ""}`}
                       value={currentInputQty > 0 || isEdited ? currentInputQty : ""}
-                      onChange={e => handleQuantityChange(item.id, e.target.value, item.tongSoLuong)}
+                      onChange={e => handleQuantityChange(item.id, e.target.value, Math.min(item.tongSoLuong, item.thucTon || 0))}
                       style={{ width: 70, margin: "0 auto" }}
                       min={0}
-                      max={item.tongSoLuong}
+                      max={Math.min(item.tongSoLuong, item.thucTon || 0)}
                     />
                   </td>
                   <td className="py-2" style={{ borderBottomColor: "rgba(0,0,0,0.05)" }}>
