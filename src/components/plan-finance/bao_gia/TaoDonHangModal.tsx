@@ -121,6 +121,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     isChuyenKhoan: true,
   });
 
+  const [expandedBOMRows, setExpandedBOMRows] = React.useState<Record<number, boolean>>({});
+
   const [showInfoSidebar, setShowInfoSidebar] = React.useState(false);
 
   const [custInfo, setCustInfo] = React.useState({
@@ -1333,46 +1335,93 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               <tbody>
                 {items.length === 0 ? (
                   <tr><td colSpan={8} style={{ padding: 20, textAlign: "center", color: "var(--muted-foreground)" }}>Chưa có sản phẩm nào</td></tr>
-                ) : items.map((it, idx) => (
-                  <tr 
-                    key={it.id} 
-                    onClick={() => setFormItem(it)}
-                    style={{ borderBottom: "1px solid var(--border)", cursor: "pointer", background: formItem.id === it.id ? "rgba(0,0,0,0.03)" : "transparent" }}
-                  >
-                    <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
-                    <td style={{ padding: "6px 10px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{it.ten}</span>
-                        {it.ten.trim() && it.soLuongTon !== null && it.soLuongTon !== undefined && (() => {
-                          const ton = it.soLuongTon as number;
-                          if (ton === 0) return (
-                            <span title="Hết hàng" style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: 4 }}>
-                              <i className="bi bi-x-circle-fill" style={{ fontSize: 13 }} />
-                              <span style={{ fontSize: 11, fontWeight: 600 }}>Hết hàng</span>
-                            </span>
-                          );
-                          if (it.soLuong > ton) return (
-                            <span title={`Thiếu hàng (thực tồn: ${ton})`} style={{ color: "#f97316", display: "flex", alignItems: "center", gap: 4 }}>
-                              <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 13 }} />
-                              <span style={{ fontSize: 11, fontWeight: 600 }}>Thiếu hàng (tồn: {ton})</span>
-                            </span>
-                          );
-                          return null;
-                        })()}
-                      </div>
-                    </td>
-                    <td style={{ padding: 6, textAlign: "center" }}>{it.dvt}</td>
-                    <td style={{ padding: 6, textAlign: "center" }}>{it.soLuong}</td>
-                    <td style={{ padding: 6, textAlign: "center" }}>{it.ckPct}</td>
-                    <td style={{ padding: 6, textAlign: "right" }}>{fmt(it.donGia)}</td>
-                    <td style={{ padding: 6, textAlign: "right", fontWeight: 600 }}>{fmt(thanhTien(it))} đ</td>
-                    <td style={{ padding: 6 }}>
-                      <button onClick={(e) => { e.stopPropagation(); removeRow(it.id); }} style={{ padding: 4, background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>
-                        <i className="bi bi-trash" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                ) : items.map((it, idx) => {
+                  const hasBOM = it.dinhMucs && it.dinhMucs.length > 0 && it.dinhMucs[0].vatTu && it.dinhMucs[0].vatTu.length > 0;
+                  const isExpanded = !!expandedBOMRows[it.id];
+                  return (
+                    <React.Fragment key={it.id}>
+                      <tr 
+                        onClick={() => setFormItem(it)}
+                        style={{ borderBottom: "1px solid var(--border)", cursor: "pointer", background: formItem.id === it.id ? "rgba(0,0,0,0.03)" : "transparent" }}
+                      >
+                        <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
+                        <td style={{ padding: "6px 10px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            {hasBOM && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedBOMRows(prev => ({ ...prev, [it.id]: !prev[it.id] }));
+                                }}
+                                style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--primary)", display: "flex" }}
+                                title={isExpanded ? "Ẩn vật tư" : "Hiện vật tư"}
+                              >
+                                <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: 12, strokeWidth: 2 }}></i>
+                              </button>
+                            )}
+                            <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{it.ten}</span>
+                            {it.ten.trim() && it.soLuongTon !== null && it.soLuongTon !== undefined && (() => {
+                              const ton = it.soLuongTon as number;
+                              if (ton === 0) return (
+                                <span title="Hết hàng" style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: 4 }}>
+                                  <i className="bi bi-x-circle-fill" style={{ fontSize: 13 }} />
+                                  <span style={{ fontSize: 11, fontWeight: 600 }}>Hết hàng</span>
+                                </span>
+                              );
+                              if (it.soLuong > ton) return (
+                                <span title={`Thiếu hàng (thực tồn: ${ton})`} style={{ color: "#f97316", display: "flex", alignItems: "center", gap: 4 }}>
+                                  <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 13 }} />
+                                  <span style={{ fontSize: 11, fontWeight: 600 }}>Thiếu hàng (tồn: {ton})</span>
+                                </span>
+                              );
+                              return null;
+                            })()}
+                          </div>
+                        </td>
+                        <td style={{ padding: 6, textAlign: "center" }}>{it.dvt}</td>
+                        <td style={{ padding: 6, textAlign: "center" }}>{it.soLuong}</td>
+                        <td style={{ padding: 6, textAlign: "center" }}>{it.ckPct}</td>
+                        <td style={{ padding: 6, textAlign: "right" }}>{fmt(it.donGia)}</td>
+                        <td style={{ padding: 6, textAlign: "right", fontWeight: 600 }}>{fmt(thanhTien(it))} đ</td>
+                        <td style={{ padding: 6 }}>
+                          <button onClick={(e) => { e.stopPropagation(); removeRow(it.id); }} style={{ padding: 4, background: "none", border: "none", color: "#ef4444", cursor: "pointer" }}>
+                            <i className="bi bi-trash" />
+                          </button>
+                        </td>
+                      </tr>
+                      {hasBOM && isExpanded && (
+                        <tr style={{ background: "rgba(59,130,246,0.03)", borderBottom: "1px solid var(--border)" }}>
+                          <td colSpan={8} style={{ padding: "10px 10px 10px 40px" }}>
+                            <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 6, fontWeight: 600 }}>Định mức vật tư ({it.dinhMucs[0].tenDinhMuc})</div>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                              <thead>
+                                <tr style={{ background: "var(--muted)", textAlign: "left", color: "var(--muted-foreground)" }}>
+                                  <th style={{ padding: "6px 10px" }}>Mã VT</th>
+                                  <th style={{ padding: "6px 10px" }}>Tên vật tư</th>
+                                  <th style={{ padding: "6px 10px", textAlign: "center" }}>ĐVT</th>
+                                  <th style={{ padding: "6px 10px", textAlign: "right" }}>SL / 1 SP</th>
+                                  <th style={{ padding: "6px 10px", textAlign: "right" }}>Tổng SL cần</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {it.dinhMucs[0].vatTu.map((vt: any, vtIdx: number) => (
+                                  <tr key={vt.id || vtIdx} style={{ borderBottom: "1px solid var(--border)" }}>
+                                    <td style={{ padding: "6px 10px", fontFamily: "monospace" }}>{vt.maVatTu || "-"}</td>
+                                    <td style={{ padding: "6px 10px", fontWeight: 500, color: "var(--foreground)" }}>{vt.tenVatTu}</td>
+                                    <td style={{ padding: "6px 10px", textAlign: "center" }}>{vt.donViTinh || "-"}</td>
+                                    <td style={{ padding: "6px 10px", textAlign: "right" }}>{vt.soLuong}</td>
+                                    <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 600, color: "var(--primary)" }}>{vt.soLuong * it.soLuong}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
