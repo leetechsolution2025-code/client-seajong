@@ -230,10 +230,7 @@ export async function POST(req: NextRequest) {
         
         if (stocks.length > 0) {
           const targetStock = stocks[0];
-          await (prisma as any).inventoryStock.update({
-             where: { id: targetStock.id },
-             data: { soLuongGiu: (targetStock.soLuongGiu || 0) + delta }
-          });
+          // We no longer increment soLuongGiu here, as it's already reserved at SO creation.
 
           // Lưu vết vào InventoryReservation
           const existingRes = await (prisma as any).inventoryReservation.findFirst({

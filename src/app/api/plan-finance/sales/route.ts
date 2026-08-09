@@ -211,6 +211,39 @@ export async function POST(req: NextRequest) {
           thanhTien: parseFloat(it.soLuong ?? 1) * parseFloat(it.donGia ?? 0),
         }));
         await tx.saleOrderItem.createMany({ data: orderItems });
+
+        // Update soLuongGiu (Hold inventory immediately)
+        for (const orderItem of orderItems) {
+          if (!orderItem.inventoryItemId) continue;
+          let remaining = orderItem.soLuong;
+          
+          const stocks = await tx.inventoryStock.findMany({
+            where: { inventoryItemId: orderItem.inventoryItemId },
+            orderBy: { soLuong: 'desc' }
+          });
+          
+          for (const stock of stocks) {
+            if (remaining <= 0) break;
+            const available = (stock.soLuong || 0) - (stock.soLuongGiu || 0);
+            if (available > 0) {
+              const toHold = Math.min(available, remaining);
+              await tx.inventoryStock.update({
+                where: { id: stock.id },
+                data: { soLuongGiu: { increment: toHold } }
+              });
+              remaining -= toHold;
+            }
+          }
+          
+          // If we couldn't find enough available stock, just increment the first stock found
+          // so that the hold is correctly recorded (even if it causes soLuongGiu > soLuong)
+          if (remaining > 0 && stocks.length > 0) {
+            await tx.inventoryStock.update({
+              where: { id: stocks[0].id },
+              data: { soLuongGiu: { increment: remaining } }
+            });
+          }
+        }
       }
 
       return tx.saleOrder.findUnique({

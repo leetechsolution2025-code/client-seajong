@@ -1207,7 +1207,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                           <div style={{ fontWeight: 600 }}>{s.tenHang}</div>
                           <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", gap: 8, marginTop: 2 }}>
                             {s.code && <span style={{ fontFamily: "monospace", background: "var(--muted)", padding: "0 5px", borderRadius: 4 }}>{s.code}</span>}
-                            <span>Tồn: <b>{s.thucTon ?? s.soLuong}</b> {s.donVi}</span>
+                            <span>Thực tồn: <b>{s.thucTon ?? s.soLuong}</b> {s.donVi}</span>
                             <span>Giá: <b>{s.giaBan.toLocaleString("vi-VN")} ₫</b></span>
                           </div>
                         </div>

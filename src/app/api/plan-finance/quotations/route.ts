@@ -368,6 +368,45 @@ export async function POST(req: NextRequest) {
           }
         });
 
+        // Update soLuongGiu (Hold inventory immediately)
+        if (Array.isArray(items)) {
+          for (const item of items) {
+            const invItem = await tx.inventoryItem.findFirst({
+              where: { tenHang: item.tenHang }
+            });
+            if (!invItem) continue;
+            
+            let remaining = parseFloat(String(item.soLuong ?? 1));
+            
+            const stocks = await tx.inventoryStock.findMany({
+              where: { inventoryItemId: invItem.id },
+              orderBy: { soLuong: 'desc' }
+            });
+            
+            for (const stock of stocks) {
+              if (remaining <= 0) break;
+              const available = (stock.soLuong || 0) - (stock.soLuongGiu || 0);
+              if (available > 0) {
+                const toHold = Math.min(available, remaining);
+                await tx.inventoryStock.update({
+                  where: { id: stock.id },
+                  data: { soLuongGiu: { increment: toHold } }
+                });
+                remaining -= toHold;
+              }
+            }
+            
+            // If we couldn't find enough available stock, just increment the first stock found
+            // so that the hold is correctly recorded (even if it causes soLuongGiu > soLuong)
+            if (remaining > 0 && stocks.length > 0) {
+              await tx.inventoryStock.update({
+                where: { id: stocks[0].id },
+                data: { soLuongGiu: { increment: remaining } }
+              });
+            }
+          }
+        }
+
         if (initialDaThanhToan > 0) {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
