@@ -53,6 +53,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    // Fetch stocks for all inventory items
+    const inventoryItemIds = rows.map(r => r.dv_inventoryItemId).filter(Boolean);
+    const stocks = await (prisma as any).inventoryStock.findMany({
+      where: { inventoryItemId: { in: inventoryItemIds } },
+      include: { warehouse: true }
+    });
+    
+    // Group stocks by inventoryItemId
+    const stocksMap: Record<string, any[]> = {};
+    for (const st of stocks) {
+      if (!stocksMap[st.inventoryItemId]) stocksMap[st.inventoryItemId] = [];
+      stocksMap[st.inventoryItemId].push(st);
+    }
+
     const first = rows[0];
     const result = {
       id: first.dm_id,
@@ -84,7 +98,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
               id: r.mi_erpCategoryId || r.mi_categoryId, 
               tenHang: r.mi_erpCategoryName || r.mi_categoryName, 
               code: r.mi_erpCategoryCode || r.mi_categoryCode 
-            } : null
+            } : null,
+            stocks: stocksMap[r.mi_id] || []
           } : null
         }))
     };

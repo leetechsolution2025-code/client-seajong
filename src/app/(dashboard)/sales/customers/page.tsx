@@ -45,6 +45,7 @@ export default function SalesCustomersPage() {
   const [employeeFilter, setEmployeeFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [showAllCustomers, setShowAllCustomers] = useState(false);
 
   // States for table data
   const { data: session } = useSession();
@@ -195,7 +196,9 @@ export default function SalesCustomersPage() {
       const params = new URLSearchParams({ page: String(page) });
       if (searchQuery) params.set("search", searchQuery);
       if (nguonFilter) params.set("nguon", nguonFilter);
-      params.set("nhom", "dai-ly"); // Chỉ hiển thị đại lý (những khách đã ký hợp đồng)
+      if (!showAllCustomers) {
+        params.set("nhom", "dai-ly"); // Chỉ hiển thị đại lý (những khách đã ký hợp đồng)
+      }
       if (hangFilter) params.set("loai", hangFilter);
       if (employeeFilter) params.set("employeeId", employeeFilter);
       
@@ -216,7 +219,7 @@ export default function SalesCustomersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, searchQuery, nguonFilter, hangFilter, employeeFilter]);
+  }, [page, searchQuery, nguonFilter, hangFilter, employeeFilter, showAllCustomers]);
 
   useEffect(() => {
     fetchCustomers();
@@ -225,7 +228,7 @@ export default function SalesCustomersPage() {
   // Reset page to 1 when filters or query changes
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, nguonFilter, hangFilter, employeeFilter]);
+  }, [searchQuery, nguonFilter, hangFilter, employeeFilter, showAllCustomers]);
 
   // Fetch transaction history
   useEffect(() => {
@@ -841,6 +844,19 @@ export default function SalesCustomersPage() {
                     </div>
                     
                     <div className="d-flex align-items-center gap-2">
+                      <div className="form-check form-switch mb-0 d-flex align-items-center gap-2 me-2">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id="showAllCustomersSwitch"
+                          checked={showAllCustomers}
+                          onChange={(e) => setShowAllCustomers(e.target.checked)}
+                          style={{ cursor: 'pointer', marginTop: 0 }}
+                        />
+                        <label className="form-check-label text-muted" htmlFor="showAllCustomersSwitch" style={{ cursor: 'pointer', fontSize: '13px', paddingTop: '2px', whiteSpace: 'nowrap' }}>
+                          Tất cả
+                        </label>
+                      </div>
                       <button
                         onClick={handleOpenCreate}
                         className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"

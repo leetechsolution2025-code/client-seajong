@@ -1937,7 +1937,29 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
   const truocThue = tamTinh - ckTien;
   const thueTien = truocThue * info.thue / 100;
   const tongCong = truocThue + thueTien + (isCoQuayKe ? info.chiPhiThiCong : 0);
-  const isOutOfStock = items.some((it: any) => it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number));
+  const isOutOfStock = items.some((it: any) => {
+    const mainOutOfStock = it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number);
+    if (!mainOutOfStock) return false;
+    
+    const activeDinhMuc = (it.dinhMucs || []).find((dm: any) => dm.id === it.dinhMucId) || (it.dinhMucs && it.dinhMucs.length > 0 ? it.dinhMucs[0] : null);
+    
+    if (activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0) {
+      const allMaterialsSufficient = activeDinhMuc.vatTu.every((vt: any) => {
+        const vtStocks = vt.inventoryItem?.stocks || vt.material?.stocks || [];
+        const vtRelevantStocks = vtStocks.filter((s: any) => s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP");
+        const vtSoLuong = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
+        const vtSoLuongGiu = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);
+        const vtThucTon = Math.max(0, vtSoLuong - vtSoLuongGiu);
+        const needed = (vt.soLuong || 0) * (it.soLuong || 0);
+        return vtThucTon >= needed;
+      });
+      if (allMaterialsSufficient) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
 
   const handleSave = async (mode: "draft" | "submit" = "submit") => {
     if (!info.soPhieu.trim()) { setSaveError("Vui lòng nhập số báo giá"); return; }

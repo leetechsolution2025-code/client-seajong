@@ -352,24 +352,33 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
   const hasBomChanged = React.useMemo(() => {
     if (!originalBomData || !bomDetailData) return false;
-    const origStr = originalBomData.vatTu?.map((v: any) => `${v.materialId}:${v.soLuong}`).join(",") || "";
-    const currStr = bomDetailData.vatTu?.map((v: any) => `${v.materialId}:${v.soLuong}`).join(",") || "";
+    const origStr = originalBomData.vatTu?.map((v: any) => `${v.inventoryItemId || v.material?.id || 'unknown'}:${v.soLuong}`).join(",") || "";
+    const currStr = bomDetailData.vatTu?.map((v: any) => `${v.inventoryItemId || v.material?.id || 'unknown'}:${v.soLuong}`).join(",") || "";
     return origStr !== currStr;
   }, [originalBomData, bomDetailData]);
 
+  const getGiaNhap = (vt: any) => {
+    return Number(vt?.material?.giaNhap || vt?.inventoryItem?.giaNhap || vt?.giaNhap || 0);
+  };
+
   const totalBomCost = React.useMemo(() => {
     if (!bomDetailData || !bomDetailData.vatTu) return 0;
-    return bomDetailData.vatTu.reduce((acc: number, vt: any) => acc + (vt.material?.giaNhap || 0) * (vt.soLuong || 0), 0);
+    return bomDetailData.vatTu.reduce((acc: number, vt: any) => acc + getGiaNhap(vt) * (vt.soLuong || 0), 0);
   }, [bomDetailData]);
 
   const proposedDonGia = React.useMemo(() => {
     if (!originalBomData || !hasBomChanged) return formItem.donGia;
-    const origCost = originalBomData.vatTu?.reduce((acc: number, vt: any) => acc + (vt.material?.giaNhap || 0) * (vt.soLuong || 0), 0) || 0;
-    if (origCost > 0) {
-      const ratio = initialDonGiaRef.current / origCost;
-      return Math.round(totalBomCost * ratio);
+    const origCost = originalBomData.vatTu?.reduce((acc: number, vt: any) => acc + getGiaNhap(vt) * (vt.soLuong || 0), 0) || 0;
+    
+    // If origCost is 0, fallback to a 30% margin
+    const ratio = origCost > 0 ? (initialDonGiaRef.current / origCost) : 1.3;
+    
+    // If initialDonGiaRef.current was 0 for some reason, and we have a cost, just use cost * 1.3
+    if (initialDonGiaRef.current === 0 && totalBomCost > 0) {
+      return Math.round(totalBomCost * 1.3);
     }
-    return formItem.donGia;
+    
+    return Math.round(totalBomCost * ratio);
   }, [hasBomChanged, totalBomCost, originalBomData, formItem.donGia]);
 
   React.useEffect(() => {
@@ -482,6 +491,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     if (index !== -1) {
       newVatTu[index] = {
         ...newVatTu[index],
+        inventoryItemId: altMaterial.id,
+        maVatTu: altMaterial.code,
         materialId: altMaterial.id,
         tenVatTu: altMaterial.name || altMaterial.tenHang,
         material: {
@@ -515,6 +526,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     const newVatTu = [...(bomDetailData.vatTu || [])];
     
     const newItem = {
+      inventoryItemId: newMaterial.id,
+      maVatTu: newMaterial.code,
       materialId: newMaterial.id,
       tenVatTu: newMaterial.name || newMaterial.tenHang,
       soLuong: qty,
@@ -566,20 +579,21 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
       const created = await res.json();
       
-      setFormItem(prev => ({
-        ...prev,
-        dinhMucs: [...(prev.dinhMucs || []), created],
-        dinhMucId: created.id,
-        dinhMucTen: created.tenDinhMuc,
-        code: created.code,
-        donGia: Number(proposedDonGia || 0)
-      }));
-      
       // Update local states so it turns into the new BOM
       // We need to fetch it to get full details (with vatTu structure) or just rely on what we have.
       // Re-fetching is safer.
       const res2 = await fetch(`/api/production/bom/${created.id}`);
       const freshData = await res2.json();
+      
+      setFormItem(prev => ({
+        ...prev,
+        dinhMucs: [...(prev.dinhMucs || []), freshData],
+        dinhMucId: freshData.id,
+        dinhMucTen: freshData.tenDinhMuc,
+        code: freshData.code,
+        donGia: Number(proposedDonGia || 0)
+      }));
+      
       setBomDetailData(freshData);
       setOriginalBomData(JSON.parse(JSON.stringify(freshData)));
       setNewBomDescription("");
@@ -705,7 +719,31 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   const truocThue = tamTinh - ckTien;
   const thueTien = truocThue * info.thue / 100;
   const tongCong = truocThue + thueTien + (info.chiPhiKhac || 0);
-  const isOutOfStock = items.some(it => it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number));
+  const isOutOfStock = items.some(it => {
+    const mainOutOfStock = it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number);
+    if (!mainOutOfStock) return false;
+    
+    // Main item is out of stock. Check if materials are sufficient.
+    const activeDinhMuc = (it.dinhMucs || []).find((dm: any) => dm.id === it.dinhMucId) || (it.dinhMucs && it.dinhMucs.length > 0 ? it.dinhMucs[0] : null);
+    
+    if (activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0) {
+      // Check if ALL materials are sufficient
+      const allMaterialsSufficient = activeDinhMuc.vatTu.every((vt: any) => {
+        const vtStocks = vt.inventoryItem?.stocks || vt.material?.stocks || [];
+        const vtRelevantStocks = vtStocks.filter((s: any) => s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP");
+        const vtSoLuong = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
+        const vtSoLuongGiu = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);
+        const vtThucTon = Math.max(0, vtSoLuong - vtSoLuongGiu);
+        const needed = (vt.soLuong || 0) * (it.soLuong || 0);
+        return vtThucTon >= needed;
+      });
+      if (allMaterialsSufficient) {
+        return false; // NOT out of stock, materials are sufficient!
+      }
+    }
+    
+    return true; // Out of stock and no sufficient materials
+  });
 
 
   const handleSave = async () => {
@@ -1362,7 +1400,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                   const it = formItem.id === originalIt.id ? (formItem as any) : originalIt;
                   const isMainShortOfStock = it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number);
                   const activeDinhMuc = (it.dinhMucs || []).find((dm: any) => dm.id === it.dinhMucId) || (it.dinhMucs && it.dinhMucs.length > 0 ? it.dinhMucs[0] : null);
-                  const hasBOM = activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0 && isMainShortOfStock;
+                  const hasBOM = !!activeDinhMuc;
                   const isExpanded = !!expandedBOMRows[it.id];
                   return (
                     <React.Fragment key={it.id}>
@@ -1373,18 +1411,17 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
                         <td style={{ padding: "6px 10px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            {activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0 && (
+                            {activeDinhMuc && (
                               <button
                                 type="button"
-                                disabled={!isMainShortOfStock}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setExpandedBOMRows(prev => ({ ...prev, [it.id]: !prev[it.id] }));
                                 }}
-                                style={{ background: "none", border: "none", cursor: isMainShortOfStock ? "pointer" : "not-allowed", padding: 0, color: isMainShortOfStock ? "var(--primary)" : "var(--muted-foreground)", display: "flex", opacity: isMainShortOfStock ? 1 : 0.3 }}
-                                title={!isMainShortOfStock ? "Đủ hàng, không cần kiểm tra vật tư" : (isExpanded ? "Ẩn vật tư" : "Hiện vật tư")}
+                                style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--primary)", display: "flex" }}
+                                title={isExpanded ? "Ẩn vật tư" : "Hiện vật tư"}
                               >
-                                <i className={`bi bi-chevron-${isExpanded && isMainShortOfStock ? 'up' : 'down'}`} style={{ fontSize: 12, strokeWidth: 2 }}></i>
+                                <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: 12, strokeWidth: 2 }}></i>
                               </button>
                             )}
                             <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{it.ten}</span>
@@ -1432,8 +1469,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                                 </tr>
                               </thead>
                               <tbody>
-                                {activeDinhMuc.vatTu.map((vt: any, vtIdx: number) => {
-                                  const vtStocks = vt.inventoryItem?.stocks || [];
+                                {activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0 ? activeDinhMuc.vatTu.map((vt: any, vtIdx: number) => {
+                                  const vtStocks = vt.inventoryItem?.stocks || vt.material?.stocks || [];
                                   const vtRelevantStocks = vtStocks.filter((s: any) => s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP");
                                   const vtSoLuong = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
                                   const vtSoLuongGiu = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);
@@ -1461,7 +1498,13 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                                       <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 600, color: "var(--primary)" }}>{needed}</td>
                                     </tr>
                                   );
-                                })}
+                                }) : (
+                                  <tr>
+                                    <td colSpan={5} style={{ padding: "10px", textAlign: "center", color: "var(--muted-foreground)" }}>
+                                      Định mức này chưa có chi tiết vật tư
+                                    </td>
+                                  </tr>
+                                )}
                               </tbody>
                             </table>
                           </td>
