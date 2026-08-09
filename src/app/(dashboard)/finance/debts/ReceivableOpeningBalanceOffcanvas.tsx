@@ -38,6 +38,7 @@ export function ReceivableOpeningBalanceOffcanvas({ open, onClose, onSuccess, in
 
   const defaultForm = {
     partnerName: "",
+    customerId: "",
     amount: 0,
     paidAmount: 0,
     dueDate: new Date().toISOString().split("T")[0],
@@ -95,8 +96,8 @@ export function ReceivableOpeningBalanceOffcanvas({ open, onClose, onSuccess, in
     }
   };
 
-  const selectSuggestion = (name: string) => {
-    setFormData({ ...formData, partnerName: name });
+  const selectSuggestion = (name: string, id: string) => {
+    setFormData({ ...formData, partnerName: name, customerId: id });
     setSuggestions([]);
     setShowSuggestions(false);
   };
@@ -222,7 +223,7 @@ export function ReceivableOpeningBalanceOffcanvas({ open, onClose, onSuccess, in
                           key={idx}
                           className="list-group-item list-group-item-action cursor-pointer"
                           style={{ fontSize: 13, padding: "8px 12px" }}
-                          onClick={() => selectSuggestion(c.name)}
+                          onClick={() => selectSuggestion(c.name, c.id)}
                         >
                           <div className="fw-bold">{c.name}</div>
                           {c.dienThoai && <div className="text-muted small">ĐT: {c.dienThoai}</div>}

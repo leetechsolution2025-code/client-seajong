@@ -919,11 +919,28 @@ export default function FinancePage() {
     },
     {
       header: "Lý do",
-      render: (row) => (
-        <span className="text-muted small text-truncate d-inline-block" style={{ maxWidth: "200px" }}>
-          {row.entityTitle || "—"}
-        </span>
-      ),
+      render: (row) => {
+        let supplierName = "";
+        try {
+          if (row.metadata) {
+            const meta = JSON.parse(row.metadata);
+            supplierName = meta.supplierName || "";
+          }
+        } catch (e) {}
+
+        return (
+          <div className="d-flex flex-column">
+            <span className="text-muted small text-truncate d-inline-block" style={{ maxWidth: "200px" }}>
+              {row.entityTitle || "—"}
+            </span>
+            {supplierName && (
+              <span className="fw-medium text-dark mt-1 text-truncate" style={{ fontSize: "11px", maxWidth: "200px" }}>
+                <i className="bi bi-building me-1 opacity-75 text-primary" /> {supplierName}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       header: "Trạng thái",
@@ -2057,9 +2074,9 @@ export default function FinancePage() {
                               </div>
                             ))}
                           </div>
-                          <div className="d-flex justify-content-between align-items-center mt-3 p-2.5 bg-primary-subtle text-primary rounded-3 border border-primary-subtle">
-                            <span className="fw-bold" style={{ fontSize: "12.5px" }}>Tổng tiền:</span>
-                            <span className="fw-extrabold" style={{ fontSize: "15px" }}>
+                          <div className="d-flex justify-content-between align-items-center mt-4 pt-3" style={{ borderTop: "2px dashed #e5e7eb" }}>
+                            <span className="fw-bold text-dark text-uppercase" style={{ fontSize: "11px", letterSpacing: "0.5px" }}>Tổng thanh toán</span>
+                            <span className="fw-black" style={{ fontSize: "17px", color: "var(--primary)" }}>
                               {formatCurrency(requestDetail.tongTien || (Array.isArray(requestDetail.items) ? requestDetail.items.reduce((sum: number, it: any) => sum + (it.soLuong * (it.donGia || it.donGiaDK || 0)), 0) : 0))}
                             </span>
                           </div>
@@ -2346,44 +2363,48 @@ export default function FinancePage() {
                 <>
                   {selectedRequest.status === "pending" && (
                     <>
-                      <button 
-                        className="btn btn-success fw-bold px-4 rounded-3 d-flex align-items-center gap-2"
+                      <BrandButton 
                         onClick={handleApproveRequest}
+                        style={{ backgroundColor: "#198754", borderColor: "#198754", fontSize: 13 }}
                       >
                         <i className="bi bi-check-lg" />
                         Duyệt
-                      </button>
-                      <button 
-                        className="btn btn-danger fw-bold px-4 rounded-3 d-flex align-items-center gap-2"
+                      </BrandButton>
+                      <BrandButton 
                         onClick={handleRejectRequest}
+                        style={{ backgroundColor: "#dc3545", borderColor: "#dc3545", fontSize: 13 }}
                       >
                         <i className="bi bi-x-lg" />
                         Từ chối
-                      </button>
+                      </BrandButton>
                     </>
                   )}
-                  <button 
-                    className="btn btn-outline-danger fw-bold px-4 rounded-3 d-flex align-items-center gap-2"
+                  <BrandButton 
+                    variant="outline"
                     onClick={() => {
                       if (selectedRequest) setShowDeleteConfirm(true);
                     }}
+                    style={{ color: "#dc3545", borderColor: "#dc3545", fontSize: 13 }}
                   >
                     <i className="bi bi-trash" />
                     Xóa
-                  </button>
+                  </BrandButton>
                 </>
               )}
               {currentStep === 4 && selectedExpense && selectedExpense.trangThai === 'pending' && (
                 <>
-                  <button className="btn btn-success fw-bold px-4 rounded-3 d-flex align-items-center gap-2" onClick={async () => {
+                  <BrandButton 
+                    onClick={async () => {
                      try {
                        await fetch(`/api/plan-finance/expenses/${selectedExpense.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trangThai: "paid" }) });
                        fetchExpenses(true);
                        setSelectedExpense(null);
                      } catch (e) {}
-                  }}>
+                    }}
+                    style={{ backgroundColor: "#198754", borderColor: "#198754", fontSize: 13 }}
+                  >
                     <i className="bi bi-check2-circle" /> Thực hiện chi tiền
-                  </button>
+                  </BrandButton>
                 </>
               )}
             </div>

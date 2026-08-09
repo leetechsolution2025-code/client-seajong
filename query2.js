@@ -1,7 +1,9 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 async function main() {
-  const order = await prisma.saleOrder.findUnique({where: {id: 'cmsebtwli000f8o1y4f73bh1a'}});
-  console.log('Order:', order.code);
+  const debt = await prisma.debt.findFirst({
+     where: { description: { contains: 'PT-20260809-420' } }
+  });
+  console.log(debt ? debt.description : "Not found");
 }
-main().finally(() => prisma.$disconnect());
+main().catch(console.error).finally(() => prisma.$disconnect());

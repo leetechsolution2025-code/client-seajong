@@ -38,6 +38,7 @@ export function PayableOpeningBalanceOffcanvas({ open, onClose, onSuccess, initi
 
   const defaultForm = {
     partnerName: "",
+    supplierId: "",
     amount: 0,
     paidAmount: 0,
     dueDate: new Date().toISOString().split("T")[0],
@@ -82,10 +83,10 @@ export function PayableOpeningBalanceOffcanvas({ open, onClose, onSuccess, initi
   const fetchSuggestions = async (query: string) => {
     try {
       setSearching(true);
-      const res = await fetch(`/api/plan-finance/customers?search=${encodeURIComponent(query)}&page=1&pageSize=1000`);
+      const res = await fetch(`/api/plan-finance/suppliers?search=${encodeURIComponent(query)}&page=1&limit=1000`);
       if (res.ok) {
         const data = await res.json();
-        setSuggestions(data.customers || []);
+        setSuggestions(data.items || []);
         setShowSuggestions(true);
       }
     } catch (e) {
@@ -95,8 +96,8 @@ export function PayableOpeningBalanceOffcanvas({ open, onClose, onSuccess, initi
     }
   };
 
-  const selectSuggestion = (name: string) => {
-    setFormData({ ...formData, partnerName: name });
+  const selectSuggestion = (name: string, id: string) => {
+    setFormData({ ...formData, partnerName: name, supplierId: id });
     setSuggestions([]);
     setShowSuggestions(false);
   };
@@ -222,7 +223,7 @@ export function PayableOpeningBalanceOffcanvas({ open, onClose, onSuccess, initi
                           key={idx}
                           className="list-group-item list-group-item-action cursor-pointer"
                           style={{ fontSize: 13, padding: "8px 12px" }}
-                          onClick={() => selectSuggestion(c.name)}
+                          onClick={() => selectSuggestion(c.name, c.id)}
                         >
                           <div className="fw-bold">{c.name}</div>
                           {c.dienThoai && <div className="text-muted small">ĐT: {c.dienThoai}</div>}

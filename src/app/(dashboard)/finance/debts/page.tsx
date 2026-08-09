@@ -223,6 +223,7 @@ export default function DebtsPage() {
   const getColumns = (): TableColumn<any>[] => {
     const isLoan = currentStepId === "LOAN";
     const isExpense = currentStepId === "EXPENSE";
+    const isSupplier = currentStepId === "PAYABLE";
 
     const commonCols: TableColumn<any>[] = [
       {
@@ -230,6 +231,17 @@ export default function DebtsPage() {
         render: (row) => {
           if (row.isGroupHeader) {
             const isAgency = row.partnerName?.toLowerCase().startsWith("đại lý");
+            
+            let textColorClass = "text-dark";
+            let textColorStyle = {};
+            if (isSupplier) {
+              textColorClass = "text-uppercase";
+              textColorStyle = { color: "#8b0000" }; // Dark red
+            } else if (isAgency) {
+              textColorClass = "text-uppercase";
+              textColorStyle = { color: "#0d6efd" }; // Blue
+            }
+
             return (
               <div 
                 className="d-flex align-items-center gap-2 cursor-pointer py-1"
@@ -242,7 +254,7 @@ export default function DebtsPage() {
                 <i className={`bi bi-chevron-${row.isCollapsed ? 'right' : 'down'} text-muted fs-5`} />
                 <div>
                   <div className="d-flex align-items-center gap-2">
-                    <span className={`fw-bold ${isAgency ? 'text-uppercase' : 'text-dark'}`} style={isAgency ? { color: '#0d6efd' } : {}}>
+                    <span className={`fw-bold ${textColorClass}`} style={textColorStyle}>
                       {row.partnerName}
                     </span>
                     <span className="badge bg-secondary-subtle text-secondary rounded-pill" style={{ fontSize: 10 }}>{row.items.length} khoản nợ</span>
@@ -271,7 +283,7 @@ export default function DebtsPage() {
             {row.isChild ? (
               <>
                 <div className="fw-bold text-dark">
-                  {row.referenceId || "Không có số ĐH"} <span className="text-muted mx-1">|</span> <span className={`text-${STATUS_MAP[row.status]?.color || "secondary"}`}>{STATUS_MAP[row.status]?.label || row.status}</span>
+                  {row.referenceId || "Không có số ĐH"} <span className="text-muted mx-1">|</span> <span className={`text-${STATUS_MAP[row.status]?.color || "secondary"}`} style={{ fontSize: 12 }}>{STATUS_MAP[row.status]?.label || row.status}</span>
                 </div>
                 <div className="text-muted small">
                   {row.createdAt ? format(new Date(row.createdAt), "HH:mm:ss dd/MM/yyyy") : "---"} <span className="mx-1">|</span> Hệ thống
@@ -386,6 +398,14 @@ export default function DebtsPage() {
                       <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
                         <i className="bi bi-bell text-warning fs-6" />
                         <span>Gửi nhắc nợ</span>
+                      </button>
+                    </li>
+                  )}
+                  {currentStepId === "PAYABLE" && (
+                    <li>
+                      <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
+                        <i className="bi bi-send-check text-warning fs-6" />
+                        <span>Đề nghị thanh toán</span>
                       </button>
                     </li>
                   )}
@@ -627,7 +647,7 @@ export default function DebtsPage() {
                           }
                         }}
                       >
-                        {currentStepId === "EXPENSE" ? "Thêm chi phí" : "Nhập dư nợ cũ"}
+                        {currentStepId === "EXPENSE" ? "Thêm chi phí" : currentStepId === "LOAN" ? "Thêm khoản nợ" : "Nhập dư nợ cũ"}
                       </BrandButton>
                     </div>
                   )}

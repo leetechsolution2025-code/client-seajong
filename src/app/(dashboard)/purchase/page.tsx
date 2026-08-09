@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 
 const STEP_ITEMS: ModernStepItem[] = [
   { num: 1, id: "requests", title: "Yêu cầu mua hàng", desc: "Khởi tạo & duyệt nhu cầu", icon: "bi-file-earmark-plus" },
@@ -152,6 +153,7 @@ const getDateRange = (option: string): { start: string; end: string } => {
 };
 
 export default function PurchasePage() {
+  const { success, error } = useToast();
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -173,6 +175,26 @@ export default function PurchasePage() {
   const [ordPage, setOrdPage] = useState<number>(1);
   const [ordLoading, setOrdLoading] = useState<boolean>(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  const [multiDeleteOrdConfirmOpen, setMultiDeleteOrdConfirmOpen] = useState(false);
+
+  const handleBulkDeleteOrders = async () => {
+    try {
+      const ids = Array.from(selectedOrderIds);
+      await Promise.all(
+        ids.map((id) =>
+          fetch(`/api/plan-finance/purchasing/${id}`, {
+            method: "DELETE",
+          })
+        )
+      );
+      success(`Đã xoá ${ids.length} đơn hàng.`);
+      setSelectedOrderIds(new Set());
+      setMultiDeleteOrdConfirmOpen(false);
+      fetchOrders();
+    } catch (e) {
+      error("Có lỗi xảy ra khi xoá đơn hàng.");
+    }
+  };
   const [ordStatus, setOrdStatus] = useState<string>("");
   const [ordSearch, setOrdSearch] = useState<string>("");
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
@@ -513,8 +535,19 @@ export default function PurchasePage() {
       width: "160px"
     },
     {
-      header: "Khách hàng",
-      render: (o) => <span className="text-dark fw-semibold">{o.supplier?.name ?? "—"}</span>
+      header: "Nhà cung cấp",
+      render: (o) => (
+        <div className="d-flex flex-column">
+          <span className="text-dark fw-semibold">{o.supplier?.name ?? "—"}</span>
+          {(o.supplier?.address || o.supplier?.phone) && (
+            <div className="text-muted d-flex align-items-center mt-1" style={{ fontSize: "11px", gap: "6px" }}>
+              {o.supplier?.phone && <span><i className="bi bi-telephone-fill me-1 opacity-50"></i>{o.supplier.phone}</span>}
+              {o.supplier?.phone && o.supplier?.address && <span>|</span>}
+              {o.supplier?.address && <span className="text-truncate" style={{ maxWidth: 200 }}><i className="bi bi-geo-alt-fill me-1 opacity-50"></i>{o.supplier.address}</span>}
+            </div>
+          )}
+        </div>
+      )
     },
     {
       header: "Ngày tạo đơn",
@@ -689,14 +722,42 @@ export default function PurchasePage() {
         </div>
       </div>
       <div>
-        <button
-          onClick={handleAddNewOrder}
-          className="btn btn-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-2"
-          style={{ height: 32, fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap" }}
-        >
-          <i className="bi bi-plus-lg" />
-          Thêm mới
-        </button>
+        <div className="d-flex align-items-center gap-2">
+          <button
+            onClick={handleAddNewOrder}
+            className="btn btn-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-2"
+            style={{ height: 32, fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap" }}
+          >
+            <i className="bi bi-plus-lg" />
+            Thêm mới
+          </button>
+          {selectedOrderIds.size > 0 && (
+            <button
+              onClick={() => setMultiDeleteOrdConfirmOpen(true)}
+              className="btn btn-outline-danger btn-sm rounded-pill px-3 d-flex align-items-center gap-2"
+              style={{ height: 32, fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap", paddingRight: "8px" }}
+            >
+              <i className="bi bi-trash" />
+              Xoá
+              <span style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: "18px",
+                height: "18px",
+                borderRadius: "50%",
+                background: "#dc3545",
+                color: "#fff",
+                fontSize: "10.5px",
+                fontWeight: 800,
+                padding: "0 4px",
+                lineHeight: 1
+              }}>
+                {selectedOrderIds.size}
+              </span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   ) : null;
@@ -1053,6 +1114,23 @@ export default function PurchasePage() {
           editOrderCode={printOrderData.orderCode}
         />
       )}
+
+      {/* Xác nhận xoá nhiều đơn hàng */}
+      <ConfirmDialog
+        open={multiDeleteOrdConfirmOpen}
+        title="Xoá hàng loạt đơn hàng"
+        message={
+          <>
+            Bạn có chắc chắn muốn xoá <strong>{selectedOrderIds.size}</strong> đơn hàng đã chọn?<br />
+            Thao tác này không thể hoàn tác.
+          </>
+        }
+        confirmLabel="Xoá tất cả"
+        cancelLabel="Huỷ"
+        variant="danger"
+        onConfirm={handleBulkDeleteOrders}
+        onCancel={() => setMultiDeleteOrdConfirmOpen(false)}
+      />
     </div>
   );
 }

@@ -752,6 +752,7 @@ async function syncEntityStatus(
                       where: { id: existingDebt.id },
                       data: {
                         partnerName: supplierName,
+                        supplierId: poFull.supplierId,
                         amount: poFull.tongTien,
                         paidAmount: poFull.daThanhToan,
                         dueDate: poFull.ngayNhan,
@@ -764,6 +765,7 @@ async function syncEntityStatus(
                       data: {
                         type: "phai-tra",
                         partnerName: supplierName,
+                        supplierId: poFull.supplierId,
                         amount: poFull.tongTien,
                         paidAmount: poFull.daThanhToan,
                         dueDate: poFull.ngayNhan,

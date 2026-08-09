@@ -43,6 +43,7 @@ export function LoanFormOffcanvas({ open, onClose, onSuccess, initialData }: Loa
     dueDate: new Date().toISOString().split("T")[0],
     createdAt: format(new Date(), "yyyy-MM-dd'T'HH:mm:ss"),
     interestRate: 0,
+    termMonths: 0,
     description: "",
     referenceId: "",
     status: "UNPAID"
@@ -79,15 +80,32 @@ export function LoanFormOffcanvas({ open, onClose, onSuccess, initialData }: Loa
     }, 300);
   };
 
+  const VIETNAM_BANKS = [
+    { name: "Vietcombank", fullName: "Ngân hàng TMCP Ngoại thương Việt Nam" },
+    { name: "VietinBank", fullName: "Ngân hàng TMCP Công Thương Việt Nam" },
+    { name: "BIDV", fullName: "Ngân hàng TMCP Đầu tư và Phát triển Việt Nam" },
+    { name: "Agribank", fullName: "Ngân hàng NN&PTNT Việt Nam" },
+    { name: "Techcombank", fullName: "Ngân hàng TMCP Kỹ Thương Việt Nam" },
+    { name: "MBBank", fullName: "Ngân hàng TMCP Quân đội" },
+    { name: "VPBank", fullName: "Ngân hàng TMCP Việt Nam Thịnh Vượng" },
+    { name: "ACB", fullName: "Ngân hàng TMCP Á Châu" },
+    { name: "Sacombank", fullName: "Ngân hàng TMCP Sài Gòn Thương Tín" },
+    { name: "TPBank", fullName: "Ngân hàng TMCP Tiên Phong" },
+    { name: "VIB", fullName: "Ngân hàng TMCP Quốc tế Việt Nam" },
+    { name: "HDBank", fullName: "Ngân hàng TMCP Phát triển TPHCM" },
+    { name: "SHB", fullName: "Ngân hàng TMCP Sài Gòn - Hà Nội" },
+    { name: "SeABank", fullName: "Ngân hàng TMCP Đông Nam Á" },
+    { name: "MSB", fullName: "Ngân hàng TMCP Hàng Hải Việt Nam" }
+  ];
+
   const fetchSuggestions = async (query: string) => {
     try {
       setSearching(true);
-      const res = await fetch(`/api/plan-finance/customers?search=${encodeURIComponent(query)}&page=1&pageSize=1000`);
-      if (res.ok) {
-        const data = await res.json();
-        setSuggestions(data.customers || []);
-        setShowSuggestions(true);
-      }
+      const q = query.toLowerCase();
+      const filtered = VIETNAM_BANKS.filter(b => b.name.toLowerCase().includes(q) || b.fullName.toLowerCase().includes(q));
+      
+      setSuggestions(filtered.map(b => ({ name: b.name, dienThoai: b.fullName })));
+      setShowSuggestions(true);
     } catch (e) {
       console.error(e);
     } finally {
@@ -186,10 +204,10 @@ export function LoanFormOffcanvas({ open, onClose, onSuccess, initialData }: Loa
 
         <div className="offcanvas-body p-4 overflow-auto d-flex flex-column">
           <form id="debt-form" onSubmit={handleSubmit} className="d-flex flex-column flex-grow-1">
-            <div className="mb-4">
-              <label className="form-label fw-bold text-primary small text-uppercase mb-3" style={{ letterSpacing: 0.5 }}>Thông tin đối tác</label>
+            <div className="mb-3">
+              <label className="form-label fw-bold text-primary small text-uppercase mb-2" style={{ letterSpacing: 0.5 }}>Thông tin đối tác</label>
               
-              <div className="mb-3" ref={suggestionsRef}>
+              <div className="mb-2" ref={suggestionsRef}>
                 <label className="form-label" style={labelStyle}>
                   Ngân hàng / Tổ chức tín dụng <span className="text-danger">*</span>
                 </label>
@@ -233,7 +251,7 @@ export function LoanFormOffcanvas({ open, onClose, onSuccess, initialData }: Loa
                 </div>
               </div>
 
-              <div className="mb-3">
+              <div className="mb-2">
                 <label className="form-label" style={labelStyle}>Mã tham chiếu / REF</label>
                 <input
                   type="text"
@@ -246,34 +264,73 @@ export function LoanFormOffcanvas({ open, onClose, onSuccess, initialData }: Loa
               </div>
             </div>
 
-            <div className="mb-4">
-              <label className="form-label fw-bold text-primary small text-uppercase mb-3" style={{ letterSpacing: 0.5 }}>Tài chính & Thời hạn</label>
+            <div className="mb-3">
+              <label className="form-label fw-bold text-primary small text-uppercase mb-2" style={{ letterSpacing: 0.5 }}>Tài chính & Thời hạn</label>
               
-              <div className="row g-2 mb-3">
-                <div className="col-12">
-                  <label className="form-label" style={labelStyle}>Số tiền vay (đồng) <span className="text-danger">*</span></label>
-                  <CurrencyInput
-                    className="form-control"
-                    value={formData.amount}
-                    onChange={val => setFormData({ ...formData, amount: val })}
+              <div className="row g-2 mb-2">
+                <div className="col-7">
+                  <label className="form-label" style={labelStyle}>Số tiền vay <span className="text-danger">*</span></label>
+                  <div className="input-group">
+                    <CurrencyInput
+                      className="form-control"
+                      value={formData.amount}
+                      onChange={val => setFormData({ ...formData, amount: val })}
+                      style={inputStyle}
+                    />
+                    <span className="input-group-text bg-light text-muted" style={{ fontSize: 13, borderLeft: 0 }}>đồng</span>
+                  </div>
+                </div>
+                <div className="col-5">
+                  <label className="form-label" style={labelStyle}>Trạng thái</label>
+                  <select 
+                    className="form-select"
+                    value={formData.status}
+                    onChange={e => setFormData({ ...formData, status: e.target.value })}
                     style={inputStyle}
-                  />
+                  >
+                    <option value="UNPAID">Chưa thanh toán</option>
+                    <option value="PARTIAL">Thanh toán một phần</option>
+                    <option value="PAID">Đã tất toán</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="mb-3">
-                <label className="form-label" style={labelStyle}>Lãi suất (% / năm)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  className="form-control"
-                  value={formData.interestRate ?? ""}
-                  onChange={e => setFormData({ ...formData, interestRate: e.target.value === "" ? 0 : parseFloat(e.target.value) })}
-                  style={inputStyle}
-                />
+              <div className="row g-2 mb-3">
+                <div className="col-6">
+                  <label className="form-label" style={labelStyle}>Kỳ hạn</label>
+                  <div className="input-group">
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={formData.termMonths || ""}
+                      onChange={e => {
+                        const val = e.target.value === "" ? 0 : parseInt(e.target.value);
+                        const currentCreatedAt = new Date(formData.createdAt || new Date());
+                        const newDueDate = new Date(currentCreatedAt.setMonth(currentCreatedAt.getMonth() + val)).toISOString().split("T")[0];
+                        setFormData({ ...formData, termMonths: val, dueDate: newDueDate });
+                      }}
+                      style={inputStyle}
+                    />
+                    <span className="input-group-text bg-light text-muted" style={{ fontSize: 13, borderLeft: 0 }}>tháng</span>
+                  </div>
+                </div>
+                <div className="col-6">
+                  <label className="form-label" style={labelStyle}>Lãi suất</label>
+                  <div className="input-group">
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="form-control"
+                      value={formData.interestRate ?? ""}
+                      onChange={e => setFormData({ ...formData, interestRate: e.target.value === "" ? 0 : parseFloat(e.target.value) })}
+                      style={inputStyle}
+                    />
+                    <span className="input-group-text bg-light text-muted" style={{ fontSize: 13, borderLeft: 0 }}>% / năm</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="row g-2 mb-3">
+              <div className="row g-2 mb-2">
                 <div className="col-6">
                   <label className="form-label" style={labelStyle}>Ngày khởi tạo</label>
                   <input
@@ -299,21 +356,7 @@ export function LoanFormOffcanvas({ open, onClose, onSuccess, initialData }: Loa
             </div>
 
             <div className="mb-0 d-flex flex-column flex-grow-1">
-              <label className="form-label fw-bold text-primary small text-uppercase mb-3" style={{ letterSpacing: 0.5 }}>Thông tin thêm</label>
-
-              <div className="mb-3">
-                <label className="form-label" style={labelStyle}>Trạng thái</label>
-                <select 
-                  className="form-select"
-                  value={formData.status}
-                  onChange={e => setFormData({ ...formData, status: e.target.value })}
-                  style={inputStyle}
-                >
-                  <option value="UNPAID">Chưa thanh toán</option>
-                  <option value="PARTIAL">Thanh toán một phần</option>
-                  <option value="PAID">Đã tất toán</option>
-                </select>
-              </div>
+              <label className="form-label fw-bold text-primary small text-uppercase mb-2" style={{ letterSpacing: 0.5 }}>Thông tin thêm</label>
 
               <div className="mb-0 d-flex flex-column flex-grow-1">
                 <label className="form-label" style={labelStyle}>Ghi chú / Diễn giải</label>

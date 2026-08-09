@@ -1,0 +1,40 @@
+--- src/app/(dashboard)/finance/page.tsx
++++ src/app/(dashboard)/finance/page.tsx
+@@ -16,3 +16,4 @@
+ import { useToast } from "@/components/ui/Toast";
+ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
++import { BrandButton } from "@/components/ui/BrandButton";
+ 
+@@ -1274,3 +1275,5 @@
+             <div className="offcanvas-header border-bottom">
+-              <h5 className="offcanvas-title fw-bold">Chi tiết</h5>
+-              <button 
+-                type="button" 
+-                className="btn-close" 
+-                onClick={() => {
+-                  if (currentStep === 1) setSelectedOrder(null);
+-                  if (currentStep === 2) setSelectedRequest(null);
+-                  if (currentStep === 3) setSelectedPaymentNotification(null);
+-                  if (currentStep === 4) setSelectedExpense(null);
+-                }}
+-              ></button>
++              <h5 className="offcanvas-title fw-bold">
++                {showItemsOffcanvas ? "Chi tiết hàng hoá / Vật tư" : "Chi tiết"}
++              </h5>
++              {showItemsOffcanvas ? (
++                <button type="button" className="btn btn-sm btn-light border" onClick={() => setShowItemsOffcanvas(false)}>
++                  <i className="bi bi-arrow-left me-1"></i> Quay lại
++                </button>
++              ) : (
++                <button 
++                  type="button" 
++                  className="btn-close" 
++                  onClick={() => {
++                    if (currentStep === 1) setSelectedOrder(null);
++                    if (currentStep === 2) setSelectedRequest(null);
++                    if (currentStep === 3) setSelectedPaymentNotification(null);
++                    if (currentStep === 4) setSelectedExpense(null);
++                  }}
++                ></button>
++              )}
+             </div>

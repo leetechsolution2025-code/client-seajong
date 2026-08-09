@@ -179,7 +179,7 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
       const defaultStart = oldestItem?.createdAt ? new Date(oldestItem.createdAt) : new Date();
       setStartDate(format(defaultStart, "yyyy-MM-dd'T'HH:mm:ss"));
       
-      const defaultEnd = debt.createdAt ? new Date(debt.createdAt) : new Date();
+      const defaultEnd = new Date();
       setEndDate(format(defaultEnd, "yyyy-MM-dd'T'HH:mm:ss"));
       
       setActivePrintItem(null);
@@ -226,11 +226,24 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
           cleanedNote = cleanedNote.replace(new RegExp(`\\s*-\\s*${item.partnerName}`, "g"), "");
         }
         let pDate;
-        if (p.date && p.date.length === 10) {
-           const [y, m, d] = p.date.split("-");
-           pDate = new Date(Number(y), Number(m) - 1, Number(d), 23, 59, 59);
+        if (p.date) {
+           if (p.date.length === 10) {
+             const [y, m, d] = p.date.split("-");
+             pDate = new Date(Number(y), Number(m) - 1, Number(d), 23, 59, 59);
+           } else if (p.date.length === 16) {
+             const [datePart, timePart] = p.date.split("T");
+             const [y, m, d] = datePart.split("-");
+             const [hr, min] = timePart.split(":");
+             pDate = new Date(Number(y), Number(m) - 1, Number(d), Number(hr), Number(min), 0);
+           } else if (p.date.endsWith("T00:00:00.000Z")) {
+             // Production old data might be stored as midnight UTC -> force to end of day local
+             pDate = new Date(p.date);
+             pDate.setHours(23, 59, 59);
+           } else {
+             pDate = new Date(p.date);
+           }
         } else {
-           pDate = new Date(p.date);
+           pDate = new Date();
         }
         
         list.push({
@@ -524,7 +537,7 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
               <div className="recon-card p-3 d-flex align-items-center justify-content-between">
                 <div>
                   <span className="text-muted small text-uppercase fw-semibold" style={{ letterSpacing: 0.5 }}>
-                    {isReceivable ? "Phát sinh tăng" : "Phát sinh giảm"}
+                    Phát sinh tăng
                   </span>
                   <h4 className="fw-bold text-primary mb-0 mt-1" style={{ fontSize: 20 }}>
                     {formatCurrency(totals.increase)}
@@ -540,7 +553,7 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
               <div className="recon-card p-3 d-flex align-items-center justify-content-between">
                 <div>
                   <span className="text-muted small text-uppercase fw-semibold" style={{ letterSpacing: 0.5 }}>
-                    {isReceivable ? "Phát sinh giảm (Đã thu)" : "Phát sinh tăng (Đã trả)"}
+                    Phát sinh giảm
                   </span>
                   <h4 className="fw-bold text-success mb-0 mt-1" style={{ fontSize: 20 }}>
                     {formatCurrency(totals.decrease)}

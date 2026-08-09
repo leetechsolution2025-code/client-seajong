@@ -374,7 +374,9 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
   const remainingAmt = debt ? debt.amount - debt.paidAmount : 0;
   const formattedDate = (dStr: string) => {
     if (!dStr) return "";
-    const parts = dStr.split("-");
+    let dateStr = dStr;
+    if (dStr.includes("T")) dateStr = dStr.split("T")[0];
+    const parts = dateStr.split("-");
     if (parts.length === 3) return `Ngày ${parts[2]} tháng ${parts[1]} năm ${parts[0]}`;
     return dStr;
   };
