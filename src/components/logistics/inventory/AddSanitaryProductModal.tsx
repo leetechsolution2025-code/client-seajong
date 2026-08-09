@@ -715,7 +715,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
 
                   {/* Supplementary Info Card */}
                   {(() => {
-                    const isEditable = !!isMaterialWarehouse || warehouseId === "cmoit7ttx0000i4514gkqzm1k" || (editItem && editItem.source !== "inventory");
+                    const isEditable = true;
                     return (
                       <div 
                         className="p-3 rounded-4 border shadow-sm d-flex flex-column flex-grow-1" 

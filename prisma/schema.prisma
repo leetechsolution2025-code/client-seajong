@@ -1462,6 +1462,10 @@ model MarketingYearlyPlan {
   updatedAt       DateTime                  @updatedAt
   revisionCount   Int                       @default(0)
   revisionData    String?
+  financeApprovalStatus String?
+  directorApprovalStatus String?
+  financeApprovedAt  DateTime?
+  directorApprovedAt DateTime?
   approvedAt      DateTime?
   approvedById    String?
   budgetPlan      MarketingBudgetPlan?
@@ -2577,7 +2581,11 @@ model SalesMonthlyPlan {
 model MasterYearlyPlan {
   id        String   @id @default(cuid())
   year      Int      @unique
-  status    String   @default("draft") // draft, approved
+  status    String   @default("draft") // draft, pending_approval, approved, rejected
+  financeApprovalStatus  String?
+  directorApprovalStatus String?
+  financeApprovedAt  DateTime?
+  directorApprovedAt DateTime?
   planData  String // JSON string of all planning state parameters
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

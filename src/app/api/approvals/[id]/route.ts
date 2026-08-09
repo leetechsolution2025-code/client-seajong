@@ -879,7 +879,7 @@ async function syncEntityStatus(
           recall: "draft",
           on_hold: "draft",
         };
-        const nextStatus = statusMap[action] || "draft";
+        let nextStatus = statusMap[action] || "draft";
 
         const appReq = await prisma.approvalRequest.findFirst({
           where: {
@@ -897,13 +897,57 @@ async function syncEntityStatus(
               });
               if (plan) {
                 const planObj = JSON.parse(plan.planData) || {};
-                if (!planObj.mkt_monthly_plans) {
-                  planObj.mkt_monthly_plans = {};
+                if (!planObj.mkt_monthly_plans) planObj.mkt_monthly_plans = {};
+                if (!planObj.mkt_monthly_plans[month]) planObj.mkt_monthly_plans[month] = {};
+                
+                const mPlan = planObj.mkt_monthly_plans[month];
+
+                const employee = await prisma.employee.findFirst({ where: { userId } });
+                const isFinanceManager = employee?.position === "vtr-20260401-1964-sbmg" && 
+                  (employee?.departmentCode === "finance" || employee?.departmentName?.includes("Kế toán") || employee?.departmentName?.includes("Tài chính"));
+                const isDirector = employee?.position === "Giám đốc" || employee?.position === "vtr-20260401-8730-eauc";
+
+                if (action === "approve") {
+                  if (isFinanceManager) mPlan.financeApprovalStatus = "approved";
+                  if (isDirector) mPlan.directorApprovalStatus = "approved";
+
+                  const bothApproved = mPlan.financeApprovalStatus === "approved" && mPlan.directorApprovalStatus === "approved";
+
+                  if (bothApproved) {
+                    mPlan.status = "approved";
+                    nextStatus = "approved";
+                    
+                    let totalBudget = 0;
+                    try {
+                        const budgets = planObj.monthlyBudgets || {};
+                        totalBudget = budgets[month] || 0;
+                    } catch(e) {}
+                    
+                    await prisma.expense.create({
+                      data: {
+                        tenChiPhi: `Chi phí marketing kế hoạch tháng ${month}/${year}`,
+                        soTien: totalBudget,
+                        trangThai: "pending",
+                        nguoiChiTra: "Phòng Tài chính - Kế toán",
+                        ghiChu: "Sinh tự động từ kế hoạch marketing tháng đã duyệt"
+                      }
+                    });
+                  } else {
+                    mPlan.status = "pending_approval";
+                    nextStatus = "pending";
+                    await prisma.approvalRequest.update({
+                      where: { id: appReq.id },
+                      data: { status: "pending", approvedById: null, approvedAt: null }
+                    });
+                  }
+                } else if (action === "reject") {
+                  mPlan.status = "rejected";
+                  if (isFinanceManager) mPlan.financeApprovalStatus = "rejected";
+                  if (isDirector) mPlan.directorApprovalStatus = "rejected";
+                  nextStatus = "rejected";
+                } else {
+                  mPlan.status = nextStatus;
                 }
-                if (!planObj.mkt_monthly_plans[month]) {
-                  planObj.mkt_monthly_plans[month] = {};
-                }
-                planObj.mkt_monthly_plans[month].status = nextStatus;
 
                 await prisma.masterYearlyPlan.update({
                   where: { year: parseInt(year, 10) },
@@ -912,7 +956,7 @@ async function syncEntityStatus(
                   }
                 });
 
-                if (action === "approve") {
+                if (nextStatus === "approved") {
                   const mPlan = planObj.mkt_monthly_plans[month];
                   const planCode = mPlan?.code || appReq.entityCode || `KH-MKT-${month}${year}`;
 

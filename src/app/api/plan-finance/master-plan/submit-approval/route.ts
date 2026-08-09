@@ -147,9 +147,7 @@ export async function POST(req: NextRequest) {
         entityCode:      proposalCode,
         entityTitle:     isYearly
           ? `Phê duyệt Kế hoạch Marketing tổng thể và ngân sách năm ${year}`
-          : isMonthlyPlan
-            ? `Phê duyệt Kế hoạch Marketing tháng ${month}/${year}`
-            : `Phê duyệt Đề xuất chi phí hoạt động Marketing tháng ${month}/${year}`,
+          : `Phê duyệt Kế hoạch Marketing tháng ${month}/${year}`,
         status:          "pending",
         priority:        "high",
         department:      "Marketing",
@@ -159,6 +157,19 @@ export async function POST(req: NextRequest) {
         approverId:      null // Broadcast to department managers / Director
       }
     });
+
+    if (isYearly) {
+      await prisma.masterYearlyPlan.update({
+        where: { year: parseInt(year) },
+        data: {
+          status: "pending_approval",
+          financeApprovalStatus: "pending",
+          directorApprovalStatus: "pending",
+          financeApprovedAt: null,
+          directorApprovedAt: null
+        }
+      }).catch(e => console.error("Could not update MasterYearlyPlan:", e));
+    }
 
     return NextResponse.json({ 
       success: true, 

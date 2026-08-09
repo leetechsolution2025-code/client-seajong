@@ -44,6 +44,9 @@ export type OrderItem = {
   dinhMucTen?: string | null;
   khoTen?: string | null;
   source?: string;
+  loiNhuanKyVong?: number;
+  phuongPhapTinhLoiNhuan?: string;
+  baseGiaBan?: number;
 };
 
 // Helper: number to words (VND)
@@ -87,6 +90,23 @@ const FLabel = ({ text, required }: { text: string; required?: boolean }) => (
     {text}{required && <span style={{ color: "#f43f5e", marginLeft: 2 }}>*</span>}
   </label>
 );
+
+const calculateBomPrice = (dm: any, baseGiaBan: number, margin: number, method: string) => {
+  if (!dm) return baseGiaBan;
+  if (dm.giaBan > 0) return dm.giaBan;
+  if (dm.vatTu && dm.vatTu.length > 0) {
+    const totalCost = dm.vatTu.reduce((acc: number, vt: any) => acc + (vt.soLuong * (vt.inventoryItem?.giaNhap || 0)), 0);
+    if (margin > 0 && totalCost > 0) {
+      if (method === 'revenue' && margin < 100) {
+        return Math.round(totalCost / (1 - margin / 100));
+      } else {
+        return Math.round(totalCost * (1 + margin / 100));
+      }
+    }
+    if (totalCost > 0) return totalCost;
+  }
+  return baseGiaBan;
+};
 
 // ── Main TaoDonHangModal Component ──────────────────────────────────────────
 export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agency", editOrder }: {
@@ -628,7 +648,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       ten: item.tenHang,
       khoTen: khoTenStr,
       dvt: item.donVi ?? "cái",
-      donGia: defaultDinhMuc ? (defaultDinhMuc.giaBan || item.giaBan) : item.giaBan,
+      donGia: calculateBomPrice(defaultDinhMuc, item.giaBan, item.loiNhuanKyVong, item.phuongPhapTinhLoiNhuan),
       soLuongTon,
       trangThaiKho: item.trangThai,
       inventoryId: item.id,
@@ -637,7 +657,10 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       dinhMucs: item.dinhMucs || [],
       dinhMucId: defaultDinhMuc ? defaultDinhMuc.id : null,
       dinhMucTen: defaultDinhMuc ? defaultDinhMuc.tenDinhMuc : null,
-      source: item.source
+      source: item.source,
+      loiNhuanKyVong: item.loiNhuanKyVong || 0,
+      phuongPhapTinhLoiNhuan: item.phuongPhapTinhLoiNhuan || 'revenue',
+      baseGiaBan: item.giaBan || 0
     };
 
     if (rowId === -1) {
@@ -663,7 +686,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     } else {
       setItems(r => [...r, { ...formItem, id: nextId.current++ }]);
     }
-    setFormItem({ id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: "" });
+    setFormItem({ id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: "", loiNhuanKyVong: 0, phuongPhapTinhLoiNhuan: "revenue", baseGiaBan: 0 });
   };
 
   const removeRow = (id: number) => {
@@ -1230,7 +1253,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         ...p,
                         dinhMucId: dmId,
                         dinhMucTen: dm ? dm.tenDinhMuc : null,
-                        donGia: dm ? (dm.giaBan || p.donGia) : p.donGia
+                        donGia: calculateBomPrice(dm, (p as any).baseGiaBan || p.donGia, (p as any).loiNhuanKyVong || 0, (p as any).phuongPhapTinhLoiNhuan || 'revenue')
                       }));
                     }}
                     disabled={formItem.source === "inventory"}
@@ -1335,9 +1358,11 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               <tbody>
                 {items.length === 0 ? (
                   <tr><td colSpan={8} style={{ padding: 20, textAlign: "center", color: "var(--muted-foreground)" }}>Chưa có sản phẩm nào</td></tr>
-                ) : items.map((it, idx) => {
+                ) : items.map((originalIt, idx) => {
+                  const it = formItem.id === originalIt.id ? (formItem as any) : originalIt;
                   const isMainShortOfStock = it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number);
-                  const hasBOM = it.dinhMucs && it.dinhMucs.length > 0 && it.dinhMucs[0].vatTu && it.dinhMucs[0].vatTu.length > 0 && isMainShortOfStock;
+                  const activeDinhMuc = (it.dinhMucs || []).find((dm: any) => dm.id === it.dinhMucId) || (it.dinhMucs && it.dinhMucs.length > 0 ? it.dinhMucs[0] : null);
+                  const hasBOM = activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0 && isMainShortOfStock;
                   const isExpanded = !!expandedBOMRows[it.id];
                   return (
                     <React.Fragment key={it.id}>
@@ -1348,7 +1373,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
                         <td style={{ padding: "6px 10px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            {it.dinhMucs && it.dinhMucs.length > 0 && it.dinhMucs[0].vatTu && it.dinhMucs[0].vatTu.length > 0 && (
+                            {activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0 && (
                               <button
                                 type="button"
                                 disabled={!isMainShortOfStock}
@@ -1395,7 +1420,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                       {hasBOM && isExpanded && (
                         <tr style={{ background: "rgba(59,130,246,0.03)", borderBottom: "1px solid var(--border)" }}>
                           <td colSpan={8} style={{ padding: "10px 10px 10px 40px" }}>
-                            <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 6, fontWeight: 600 }}>Định mức vật tư ({it.dinhMucs[0].tenDinhMuc})</div>
+                            <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 6, fontWeight: 600 }}>Định mức vật tư ({activeDinhMuc.tenDinhMuc})</div>
                             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                               <thead>
                                 <tr style={{ background: "var(--muted)", textAlign: "left", color: "var(--muted-foreground)" }}>
@@ -1407,7 +1432,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                                 </tr>
                               </thead>
                               <tbody>
-                                {it.dinhMucs[0].vatTu.map((vt: any, vtIdx: number) => {
+                                {activeDinhMuc.vatTu.map((vt: any, vtIdx: number) => {
                                   const vtStocks = vt.inventoryItem?.stocks || [];
                                   const vtRelevantStocks = vtStocks.filter((s: any) => s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP");
                                   const vtSoLuong = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
@@ -1492,7 +1517,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
       {showBomDetail && (
         <>
-          <div className="offcanvas offcanvas-end show" tabIndex={-1} style={{ visibility: "visible", width: 400, zIndex: 1060 }}>
+          <div className="offcanvas offcanvas-end show" tabIndex={-1} style={{ visibility: "visible", width: 400, zIndex: 1060, boxShadow: "-5px 0 15px rgba(0,0,0,0.1)" }}>
             <div className="offcanvas-header border-bottom">
               <h5 className="offcanvas-title fw-bold">Chi tiết định mức</h5>
               <button type="button" className="btn-close" onClick={() => setShowBomDetail(false)}></button>
@@ -1653,8 +1678,6 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               )}
             </div>
           </div>
-          <div className="offcanvas-backdrop fade show" style={{ zIndex: 1050 }} onClick={() => setShowBomDetail(false)}></div>
-
           {/* Modal xem danh sách vật tư thay thế */}
           {showAlternative && (
             <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1070 }}>

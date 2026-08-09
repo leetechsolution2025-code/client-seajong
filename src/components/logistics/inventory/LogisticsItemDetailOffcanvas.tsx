@@ -27,6 +27,7 @@ interface Item {
   stocks: any[];
   updatedAt: string | null;
   source: string;
+  soLuongGiu?: number;
 }
 
 import toast from "react-hot-toast";
@@ -282,10 +283,10 @@ export function LogisticsItemDetailOffcanvas({ item, open, onClose, onEdit, onDe
                     Chưa có lịch sử nhập kho
                   </div>
                 )}
-                {item.soLuongGiu > 0 && (
+                {(item.soLuongGiu || 0) > 0 && (
                   <div className="d-flex align-items-center justify-content-between p-2 px-3 rounded-pill bg-warning-subtle border border-warning border-opacity-25">
                     <span className="small fw-bold text-warning-emphasis">Đã giữ</span>
-                    <span className="badge bg-warning text-dark border-warning border rounded-pill px-3">{item.soLuongGiu.toLocaleString("vi-VN")} {item.donVi || "Cái"}</span>
+                    <span className="badge bg-warning text-dark border-warning border rounded-pill px-3">{(item.soLuongGiu || 0).toLocaleString("vi-VN")} {item.donVi || "Cái"}</span>
                   </div>
                 )}
               </div>

@@ -29,6 +29,14 @@ export type QuoteItem = {
   giaDaiLy?: number;
   imageUrl?: string | null;
   code?: string | null;
+  dinhMucs?: any[];
+  dinhMucId?: string | null;
+  dinhMucTen?: string | null;
+  khoTen?: string | null;
+  source?: string | null;
+  loiNhuanKyVong?: number;
+  phuongPhapTinhLoiNhuan?: string;
+  baseGiaBan?: number;
 };
 
 export interface QuotationEditData {
@@ -1207,6 +1215,23 @@ const getProductCode = (it: { ten: string; code?: string | null }) => {
   return "";
 };
 
+const calculateBomPrice = (dm: any, baseGiaBan: number, margin: number, method: string) => {
+  if (!dm) return baseGiaBan;
+  if (dm.giaBan > 0) return dm.giaBan;
+  if (dm.vatTu && dm.vatTu.length > 0) {
+    const totalCost = dm.vatTu.reduce((acc: number, vt: any) => acc + (vt.soLuong * (vt.inventoryItem?.giaNhap || 0)), 0);
+    if (margin > 0 && totalCost > 0) {
+      if (method === 'revenue' && margin < 100) {
+        return Math.round(totalCost / (1 - margin / 100));
+      } else {
+        return Math.round(totalCost * (1 + margin / 100));
+      }
+    }
+    if (totalCost > 0) return totalCost;
+  }
+  return baseGiaBan;
+};
+
 // ── Main BaoGiaSanitaryModal Component ──────────────────────────────────
 export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved, type = "agency", isDirectOrder }: {
   open: boolean;
@@ -1399,8 +1424,8 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
     { id: nextId.current++, ten: "", dvt: "", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null },
   ]);
 
-  const [formItem, setFormItem] = React.useState<QuoteItem & { khoTen?: string; source?: string; dinhMucs?: any[]; dinhMucId?: string | null; dinhMucTen?: string | null }>({
-    id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: ""
+  const [formItem, setFormItem] = React.useState<QuoteItem & { khoTen?: string; source?: string; dinhMucs?: any[]; dinhMucId?: string | null; dinhMucTen?: string | null; loiNhuanKyVong?: number; phuongPhapTinhLoiNhuan?: string; baseGiaBan?: number }>({
+    id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: "", loiNhuanKyVong: 0, phuongPhapTinhLoiNhuan: 'revenue', baseGiaBan: 0
   });
 
   const [showBomDetail, setShowBomDetail] = React.useState(false);
@@ -1427,7 +1452,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
         return;
       }
       setItems(r => [...r, { ...formItem, id: nextId.current++ }]);
-      setFormItem({ id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: "" });
+      setFormItem({ id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: "", loiNhuanKyVong: 0, phuongPhapTinhLoiNhuan: 'revenue', baseGiaBan: 0 });
     } else {
       setItems(r => [...r, { id: nextId.current++, ten: "", dvt: "", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, giaDaiLy: 0, viTri: "Khu vực 1" }]);
     }
@@ -1671,7 +1696,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
       ten: item.tenHang,
       khoTen: khoTenStr,
       dvt: item.donVi ?? "cái",
-      donGia: defaultDinhMuc ? (defaultDinhMuc.giaBan ?? item.giaBan) : item.giaBan,
+      donGia: calculateBomPrice(defaultDinhMuc, item.giaBan, item.loiNhuanKyVong, item.phuongPhapTinhLoiNhuan),
       soLuongTon,
       trangThaiKho: item.trangThai,
       inventoryId: item.id,
@@ -1681,7 +1706,10 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
       dinhMucId: defaultDinhMuc ? defaultDinhMuc.id : null,
       dinhMucTen: defaultDinhMuc ? defaultDinhMuc.tenDinhMuc : null,
       source: item.source,
-      giaDaiLy: Math.round((item.giaBan || 0) * (tyLeGiaDaiLy / 100))
+      giaDaiLy: Math.round((item.giaBan || 0) * (tyLeGiaDaiLy / 100)),
+      loiNhuanKyVong: item.loiNhuanKyVong || 0,
+      phuongPhapTinhLoiNhuan: item.phuongPhapTinhLoiNhuan || 'revenue',
+      baseGiaBan: item.giaBan || 0
     };
 
     if (rowId === -1) {
@@ -1797,7 +1825,8 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
   const removeRow = (id: number) => setItems(r => r.filter(x => x.id !== id));
   const updateRow = (id: number, f: string, v: any) => setItems(r => r.map(x => x.id === id ? { ...x, [f]: v } : x));
 
-  const renderQuayKeRow = (it: QuoteItem, idx: number) => {
+  const renderQuayKeRow = (originalIt: QuoteItem, idx: number) => {
+    const it = formItem.id === originalIt.id ? (formItem as any) : originalIt;
     return (
       <tr key={it.id} style={{ borderBottom: "1px solid var(--border)", verticalAlign: "top" }}>
         <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
@@ -2356,7 +2385,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                       </div>
                       <div>
                         <span style={{ fontSize: 9.5, color: "var(--muted-foreground)", display: "block", fontWeight: 600 }}>HẠN MỨC CÔNG NỢ</span>
-                        <strong style={{ fontSize: 11.5, color: "var(--primary)" }}>{debtInfo.creditLimit.toLocaleString("vi-VN")} ₫</strong>
+                        <strong style={{ fontSize: 11.5, color: "#primary" }}>{debtInfo.creditLimit.toLocaleString("vi-VN")} ₫</strong>
                       </div>
                     </div>
                   )}
@@ -2415,7 +2444,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                         </div>
                         <div>
                           <span style={{ fontSize: 9.5, color: "var(--muted-foreground)", display: "block", fontWeight: 600 }}>HẠN MỨC CÔNG NỢ</span>
-                          <strong style={{ fontSize: 11.5, color: "var(--primary)" }}>{debtInfo.creditLimit.toLocaleString("vi-VN")} ₫</strong>
+                          <strong style={{ fontSize: 11.5, color: "#primary" }}>{debtInfo.creditLimit.toLocaleString("vi-VN")} ₫</strong>
                         </div>
                       </div>
                     )}
@@ -2467,7 +2496,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                         </div>
                         <div>
                           <span style={{ fontSize: 9.5, color: "var(--muted-foreground)", display: "block", fontWeight: 600 }}>HẠN MỨC CÔNG NỢ</span>
-                          <strong style={{ fontSize: 11.5, color: "var(--primary)" }}>{debtInfo.creditLimit.toLocaleString("vi-VN")} ₫</strong>
+                          <strong style={{ fontSize: 11.5, color: "#primary" }}>{debtInfo.creditLimit.toLocaleString("vi-VN")} ₫</strong>
                         </div>
                       </div>
                     )}
@@ -2719,7 +2748,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                           ...p,
                           dinhMucId: dmId,
                           dinhMucTen: dm ? dm.tenDinhMuc : null,
-                          donGia: dm ? (dm.giaBan ?? 0) : p.donGia
+                          donGia: calculateBomPrice(dm, (p as any).baseGiaBan || p.donGia, (p as any).loiNhuanKyVong || 0, (p as any).phuongPhapTinhLoiNhuan || 'revenue')
                         }));
                       }}
                       disabled={formItem.source === "inventory"}
@@ -2886,9 +2915,11 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                 ) : (
                   items.length === 0 ? (
                     <tr><td colSpan={8} style={{ padding: 20, textAlign: "center", color: "var(--muted-foreground)" }}>Chưa có sản phẩm nào</td></tr>
-                  ) : items.map((it, idx) => {
+                  ) : items.map((originalIt, idx) => {
+                    const it = formItem.id === originalIt.id ? (formItem as any) : originalIt;
                     const isMainShortOfStock = it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number);
-                    const hasBOM = it.dinhMucs && it.dinhMucs.length > 0 && it.dinhMucs[0].vatTu && it.dinhMucs[0].vatTu.length > 0 && isMainShortOfStock;
+                    const activeDinhMuc = (it.dinhMucs || []).find((dm: any) => dm.id === it.dinhMucId) || (it.dinhMucs && it.dinhMucs.length > 0 ? it.dinhMucs[0] : null);
+                    const hasBOM = activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0 && isMainShortOfStock;
                     const isExpanded = !!expandedBOMRows[it.id];
                     return (
                       <React.Fragment key={it.id}>
@@ -2896,7 +2927,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                           <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
                           <td style={{ padding: "6px 10px" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              {it.dinhMucs && it.dinhMucs.length > 0 && it.dinhMucs[0].vatTu && it.dinhMucs[0].vatTu.length > 0 && (
+                              {activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0 && (
                                 <button
                                   type="button"
                                   disabled={!isMainShortOfStock}
@@ -2943,7 +2974,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                         {hasBOM && isExpanded && (
                           <tr style={{ background: "rgba(59,130,246,0.03)", borderBottom: "1px solid var(--border)" }}>
                             <td colSpan={8} style={{ padding: "10px 10px 10px 40px" }}>
-                              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 6, fontWeight: 600 }}>Định mức vật tư ({it.dinhMucs[0].tenDinhMuc})</div>
+                              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 6, fontWeight: 600 }}>Định mức vật tư ({activeDinhMuc.tenDinhMuc})</div>
                               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                                 <thead>
                                   <tr style={{ background: "var(--muted)", textAlign: "left", color: "var(--muted-foreground)" }}>
@@ -2955,7 +2986,7 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {it.dinhMucs[0].vatTu.map((vt: any, vtIdx: number) => {
+                                  {activeDinhMuc.vatTu.map((vt: any, vtIdx: number) => {
                                     const vtStocks = vt.inventoryItem?.stocks || [];
                                     const vtRelevantStocks = vtStocks.filter((s: any) => s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP");
                                     const vtSoLuong = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);

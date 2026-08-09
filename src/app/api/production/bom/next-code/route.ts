@@ -15,17 +15,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing originalCode" }, { status: 400 });
     }
 
+    let baseCode = originalCode;
+    // Nếu originalCode đã có hậu tố -01, -02... thì cắt đi để lấy mã gốc
+    if (/-\d{2}$/.test(baseCode)) {
+      baseCode = baseCode.replace(/-\d{2}$/, '');
+    }
+
     const existingBoms = await prisma.dinhMuc.findMany({
-      where: { code: { startsWith: `${originalCode}-` } },
+      where: { code: { startsWith: `${baseCode}-` } },
       select: { code: true }
     });
 
     const existingNumbers: number[] = [];
     for (const b of existingBoms) {
       if (!b.code) continue;
-      const parts = b.code.split('-');
-      const lastPart = parts[parts.length - 1];
-      const num = parseInt(lastPart, 10);
+      // Chỉ lấy phần sau baseCode để tránh lỗi nếu baseCode chứa nhiều dấu '-'
+      const suffix = b.code.replace(`${baseCode}-`, '');
+      const num = parseInt(suffix, 10);
       if (!isNaN(num) && num > 0) {
         existingNumbers.push(num);
       }
@@ -42,7 +48,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const nextCode = `${originalCode}-${String(nextNum).padStart(2, '0')}`;
+    const nextCode = `${baseCode}-${String(nextNum).padStart(2, '0')}`;
     
     return NextResponse.json({ nextCode });
   } catch (e: any) {

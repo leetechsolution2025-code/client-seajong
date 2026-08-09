@@ -287,7 +287,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                 <div>
                   <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 14, color: "var(--foreground)", display: "flex", alignItems: "center", gap: 8 }}>
                     {displayCustomer.name}
-                    {order?.customer?.nhom === 'ca-nhan' || !order?.customer?.id ? (
+                    {(order?.customer as any)?.nhom === 'ca-nhan' || !order?.customer?.id ? (
                       <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: "#f3f4f6", color: "#4b5563", border: "1px solid #e5e7eb" }}>Khách vãng lai</span>
                     ) : (
                       <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0" }}>Đại lý</span>

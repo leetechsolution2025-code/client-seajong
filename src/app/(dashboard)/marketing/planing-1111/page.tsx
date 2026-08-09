@@ -2435,14 +2435,12 @@ export default function Planing1111Page() {
   const toast = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedYear, setSelectedYear] = useState("2026");
-  const [selectedMonth, setSelectedMonth] = useState<number>(6);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
 
 
   const [editedWeeklyAssign, setEditedWeeklyAssign] = useState<{ [key: string]: boolean[] }>({});
   const [showStep3AddOffcanvas, setShowStep3AddOffcanvas] = useState(false);
-  const [showProposalModal, setShowProposalModal] = useState(false);
-  const [isGeneralInfoCollapsed, setIsGeneralInfoCollapsed] = useState(false);
-
+    
   interface ProposalItem {
     label: string;
     proposedAmount: number;
@@ -2548,8 +2546,7 @@ export default function Planing1111Page() {
   const [editRowAmount, setEditRowAmount] = useState<number>(0);
   const [editRowDescription, setEditRowDescription] = useState("");
   const [editRowNotes, setEditRowNotes] = useState("");
-  const [showPrintModal, setShowPrintModal] = useState(false);
-  const [rowPadding, setRowPadding] = useState<number>(3);
+    const [rowPadding, setRowPadding] = useState<number>(3);
   const [proposerSig, setProposerSig] = useState<string | null>(null);
   const [approverSig, setApproverSig] = useState<string | null>(null);
   const [showPlanPrintModal, setShowPlanPrintModal] = useState(false);
@@ -2691,6 +2688,7 @@ export default function Planing1111Page() {
 
   const [masterPlanData, setMasterPlanData] = useState<any>(null);
   const [planStatus, setPlanStatus] = useState<string>("draft");
+  const [masterPlanRecord, setMasterPlanRecord] = useState<any>(null);
   const [loadingMasterPlan, setLoadingMasterPlan] = useState<boolean>(false);
   const [isSubmittingProposal, setIsSubmittingProposal] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -3135,7 +3133,7 @@ export default function Planing1111Page() {
         throw new Error(errData.error || "Gặp lỗi khi gửi trình duyệt kế hoạch.");
       }
 
-      setPlanStatus("pending");
+      setPlanStatus("pending_approval");
       toast.success(
         "Thành công",
         "Kế hoạch Marketing năm đã được lưu, kết xuất PDF và tự động gửi thông báo phê duyệt đến Giám đốc cùng Trưởng phòng TC-KT thành công!"
@@ -3145,6 +3143,41 @@ export default function Planing1111Page() {
       toast.error("Lỗi", err?.message || "Không thể gửi trình duyệt kế hoạch.");
     } finally {
       setIsSubmittingPlan(false);
+    }
+  };
+
+  const handleApprovePlan = async () => {
+    if (!confirm("Xác nhận phê duyệt kế hoạch marketing năm " + selectedYear + "?")) return;
+    try {
+      const res = await fetch(`/api/plan-finance/master-plan/${selectedYear}/approve`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Lỗi phê duyệt");
+      toast.success("Thành công", "Đã phê duyệt kế hoạch.");
+      
+      // update state
+      if (data.plan) {
+        setPlanStatus(data.plan.status);
+        setMasterPlanRecord(data.plan);
+      }
+    } catch (err: any) {
+      toast.error("Lỗi", err.message);
+    }
+  };
+
+  const handleRejectPlan = async () => {
+    if (!confirm("Xác nhận từ chối kế hoạch marketing năm " + selectedYear + "?")) return;
+    try {
+      const res = await fetch(`/api/plan-finance/master-plan/${selectedYear}/reject`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Lỗi từ chối");
+      toast.success("Thành công", "Đã từ chối kế hoạch.");
+      
+      if (data.plan) {
+        setPlanStatus(data.plan.status);
+        setMasterPlanRecord(data.plan);
+      }
+    } catch (err: any) {
+      toast.error("Lỗi", err.message);
     }
   };
 
@@ -4258,6 +4291,7 @@ export default function Planing1111Page() {
           if (data.success && data.plan) {
             const parsed = JSON.parse(data.plan.planData);
             setMasterPlanData(parsed);
+            setMasterPlanRecord(data.plan);
             setPlanStatus(data.plan.status || "draft");
             if (parsed && parsed.mkt_monthlyBudgets) {
               setMonthlyBudgets(parsed.mkt_monthlyBudgets);
@@ -6738,7 +6772,7 @@ export default function Planing1111Page() {
                       className="btn btn-sm btn-outline-primary"
                       title="Trình duyệt kế hoạch"
                       onClick={handleSubmitPlan}
-                      disabled={isSubmittingPlan}
+                      disabled={isSubmittingPlan || planStatus === "pending_approval"}
                       style={{ height: 32, width: 32, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
                     >
                       {isSubmittingPlan ? (
@@ -6756,6 +6790,46 @@ export default function Planing1111Page() {
                       <i className="bi bi-file-earmark-bar-graph" /> Báo cáo
                     </button>
                   </div>
+                </div>
+
+                {/* Plan Status and Approval Controls */}
+                <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 12 }}>
+                  {planStatus === "pending_approval" && (
+                    <span className="badge bg-warning text-dark" style={{ fontSize: "12px", padding: "6px 12px", borderRadius: "6px" }}>
+                      Đang chờ duyệt
+                      {masterPlanRecord?.financeApprovalStatus === "approved" && " (Tài chính đã duyệt)"}
+                      {masterPlanRecord?.directorApprovalStatus === "approved" && " (Giám đốc đã duyệt)"}
+                    </span>
+                  )}
+                  {planStatus === "approved" && (
+                    <span className="badge bg-success" style={{ fontSize: "12px", padding: "6px 12px", borderRadius: "6px" }}>
+                      Kế hoạch đã phê duyệt
+                    </span>
+                  )}
+                  {planStatus === "rejected" && (
+                    <span className="badge bg-danger" style={{ fontSize: "12px", padding: "6px 12px", borderRadius: "6px" }}>
+                      Kế hoạch bị từ chối
+                    </span>
+                  )}
+
+                  {planStatus === "pending_approval" && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        className="btn btn-sm btn-success"
+                        onClick={handleApprovePlan}
+                        style={{ fontSize: 12, fontWeight: 600 }}
+                      >
+                        <i className="bi bi-check-circle me-1" /> Phê duyệt
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={handleRejectPlan}
+                        style={{ fontSize: 12, fontWeight: 600 }}
+                      >
+                        <i className="bi bi-x-circle me-1" /> Từ chối
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Progress Bar & Revenue Structure Chart */}
@@ -7448,72 +7522,6 @@ export default function Planing1111Page() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ fontSize: 18, fontWeight: 700, color: "var(--primary)" }}>
                       {(monthlyBudgets[selectedMonth] || 0).toLocaleString("vi-VN")} đ
-                    </div>
-                    <div className="d-flex align-items-center gap-2">
-                      {(() => {
-                        const propStatus = masterPlanData?.mkt_proposals?.[selectedMonth]?.status || "draft";
-                        if (propStatus === "draft") return null;
-                        return (
-                          <span className={`badge bg-${
-                            propStatus === "approved" ? "success" :
-                            propStatus === "pending" ? "warning text-dark" :
-                            propStatus === "rejected" ? "danger" : "secondary"
-                          }`} style={{ fontSize: "11px", padding: "4px 8px", borderRadius: "6px", fontWeight: 600 }}>
-                            {propStatus === "approved" ? "Đã duyệt chi phí" :
-                             propStatus === "pending" ? "Đang chờ duyệt CP" :
-                             propStatus === "rejected" ? "Từ chối duyệt CP" : ""}
-                          </span>
-                        );
-                      })()}
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
-                        onClick={() => {
-                          const existingProposal = masterPlanData?.mkt_proposals?.[selectedMonth];
-                          if (existingProposal) {
-                            const updated = { ...existingProposal };
-                            if (
-                              !updated.proposerName ||
-                              updated.proposerName === "Nguyễn Văn A" ||
-                              updated.proposerName === "Trưởng phòng marketing"
-                            ) {
-                              updated.proposerName = marketingManagerName;
-                            }
-                            if (
-                              !updated.approverName ||
-                              updated.approverName === "Trần Thị B" ||
-                              updated.approverName === "Giám đốc"
-                            ) {
-                              updated.approverName = directorName;
-                            }
-                            setProposalData(updated);
-                          } else {
-                            setProposalData({
-                              proposerName: marketingManagerName,
-                              approverName: directorName,
-                              date: new Date().toLocaleDateString("vi-VN"),
-                              purpose: `Lập đề xuất chi phí marketing tháng ${selectedMonth}/${selectedYear}`,
-                              notes: "",
-                              code: `DX-MKT-${selectedMonth.toString().padStart(2, "0")}${selectedYear}-${Math.floor(1000 + Math.random() * 9000)}`,
-                              department: "Phòng Marketing",
-                              items: {},
-                              advReserve: 0,
-                              status: "draft"
-                            });
-                          }
-                          setShowProposalModal(true);
-                        }}
-                        style={{
-                          height: 28,
-                          fontSize: 11.5,
-                          fontWeight: 600,
-                          borderRadius: 6,
-                          padding: "0 10px",
-                        }}
-                      >
-                        <i className="bi bi-magic" style={{ fontSize: 12 }} />
-                        Đề xuất chi phí
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -8466,16 +8474,23 @@ export default function Planing1111Page() {
                       <i className="bi bi-printer" style={{ fontSize: 12 }} />
                     </button>
                     {(() => {
-                      const mStatus = masterPlanData?.mkt_monthly_plans?.[selectedMonth]?.status || "draft";
+                      const mPlan = masterPlanData?.mkt_monthly_plans?.[selectedMonth];
+                      const mStatus = mPlan?.status || "draft";
                       if (mStatus === "draft") return null;
                       return (
                         <span className={`badge bg-${
                           mStatus === "approved" ? "success" :
-                          mStatus === "pending" ? "warning text-dark" :
+                          (mStatus === "pending" || mStatus === "pending_approval") ? "warning text-dark" :
                           mStatus === "rejected" ? "danger" : "secondary"
                         } d-flex align-items-center`} style={{ fontSize: "11px", padding: "4px 10px", borderRadius: "6px", fontWeight: 600 }}>
                           {mStatus === "approved" ? "Kế hoạch đã duyệt" :
-                           mStatus === "pending" ? "Kế hoạch chờ duyệt" :
+                           (mStatus === "pending" || mStatus === "pending_approval") ? (
+                             <>
+                               Kế hoạch chờ duyệt
+                               {mPlan?.financeApprovalStatus === "approved" && " (Tài chính đã duyệt)"}
+                               {mPlan?.directorApprovalStatus === "approved" && " (Giám đốc đã duyệt)"}
+                             </>
+                           ) :
                            mStatus === "rejected" ? "Kế hoạch bị từ chối" : ""}
                         </span>
                       );
@@ -8485,7 +8500,7 @@ export default function Planing1111Page() {
                       className="btn btn-sm btn-outline-info d-flex align-items-center justify-content-center"
                       title="Gửi duyệt kế hoạch"
                       onClick={handleSubmitMonthlyPlan}
-                      disabled={isSubmittingMonthlyPlan}
+                      disabled={isSubmittingMonthlyPlan || masterPlanData?.mkt_monthly_plans?.[selectedMonth]?.status === "pending" || masterPlanData?.mkt_monthly_plans?.[selectedMonth]?.status === "pending_approval"}
                       style={{
                         height: 30,
                         width: 30,
@@ -10439,1331 +10454,9 @@ export default function Planing1111Page() {
         </>
       )}
 
-      {showProposalModal && (
-        <>
-          {/* Backdrop with Blur */}
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 1080,
-              backgroundColor: "rgba(15, 23, 42, 0.4)",
-              backdropFilter: "blur(8px)",
-              transition: "opacity 0.2s ease"
-            }}
-          />
+      
 
-          {/* Fullscreen Container */}
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 1090,
-              backgroundColor: "#f8fafc",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden"
-            }}
-          >
-            {/* Modal Header */}
-            <div className="proposal-modal-header">
-              <div className="proposal-modal-header-left">
-                <div className="d-flex align-items-center gap-2">
-                  <i className="bi bi-file-earmark-text text-primary" style={{ fontSize: 20 }} />
-                  <span className="fw-bold text-slate-800" style={{ fontSize: 15, letterSpacing: "0.02em" }}>
-                    Đề xuất chi phí hoạt động marketing - Tháng {selectedMonth}/{selectedYear}
-                  </span>
-                </div>
-                {(() => {
-                  const propStatus = proposalData.status || "draft";
-                  return (
-                    <span className={`badge bg-${
-                      propStatus === "approved" ? "success" :
-                      propStatus === "pending" ? "warning text-dark" :
-                      propStatus === "rejected" ? "danger" : "secondary"
-                    }`} style={{ fontSize: "11px", padding: "4px 8px", borderRadius: "6px", fontWeight: 600 }}>
-                      {propStatus === "approved" ? "Đã duyệt" :
-                       propStatus === "pending" ? "Chờ duyệt" :
-                       propStatus === "rejected" ? "Từ chối" : "Bản nháp"}
-                    </span>
-                  );
-                })()}
-              </div>
-              <div className="proposal-modal-header-right">
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2"
-                  onClick={() => setShowProposalModal(false)}
-                  style={{ height: 34, padding: "0 16px", fontSize: 13, fontWeight: 600 }}
-                >
-                  <i className="bi bi-x-lg" style={{ fontSize: 13 }} />
-                  Đóng
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-2"
-                  onClick={() => setShowPrintModal(true)}
-                  style={{ height: 34, padding: "0 16px", fontSize: 13, fontWeight: 600 }}
-                >
-                  <i className="bi bi-printer" style={{ fontSize: 14 }} />
-                  In và xuất PDF
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-2"
-                  onClick={async () => {
-                    const ok = await handleSaveProposal(proposalData);
-                    if (ok) {
-                      toast.success("Thành công", "Đã lưu đề xuất chi phí thành công!");
-                    } else {
-                      toast.error("Lỗi", "Không thể lưu đề xuất chi phí vào cơ sở dữ liệu.");
-                    }
-                  }}
-                  style={{ height: 34, padding: "0 16px", fontSize: 13, fontWeight: 600 }}
-                >
-                  <i className="bi bi-floppy" style={{ fontSize: 14 }} />
-                  Lưu đề xuất
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary d-inline-flex align-items-center gap-2"
-                  disabled={isSubmittingProposal}
-                  onClick={async () => {
-                    if (isSubmittingProposal) return;
-                    setIsSubmittingProposal(true);
-                    try {
-                      // 1. Lưu đề xuất trước
-                      const ok = await handleSaveProposal(proposalData);
-                      if (!ok) {
-                        toast.error("Lỗi", "Không thể lưu dữ liệu đề xuất chi phí.");
-                        setIsSubmittingProposal(false);
-                        return;
-                      }
-
-                      // Hiển thị thông báo đang xử lý
-                      toast.info("Đang xử lý", "Đang kết xuất bản PDF đề xuất và chuẩn bị gửi thông báo...");
-
-                      // 2. Tạo PDF Blob từ giao diện in ẩn
-                      const pdfBlob = await generatePDFBlob("proposal-print-doc-hidden", {
-                        orientation: "portrait",
-                        scale: 2
-                      });
-
-                      // 3. Tải lên tệp PDF qua API upload
-                      const file = new File(
-                        [pdfBlob],
-                        `De_xuat_chi_phi_MKT_${proposalData.code || "Proposal"}.pdf`,
-                        { type: "application/pdf" }
-                      );
-                      const formData = new FormData();
-                      formData.append("file", file);
-
-                      const uploadRes = await fetch("/api/upload", {
-                        method: "POST",
-                        body: formData
-                      });
-                      if (!uploadRes.ok) {
-                        throw new Error("Không thể tải bản PDF đề xuất lên hệ thống.");
-                      }
-                      const uploadData = await uploadRes.json();
-                      const pdfUrl = window.location.origin + uploadData.url;
-
-                      // 4. Tính toán tổng kinh phí đề xuất
-                      const localItemsList: any[] = [];
-                      Object.entries(proposalData.items).forEach(([mainTaskId, mainTask]: any) => {
-                        localItemsList.push({
-                          proposedAmount: mainTask.proposedAmount,
-                          isSubTask: false
-                        });
-                        if (mainTask.subTasks) {
-                          mainTask.subTasks.forEach((sub: any) => {
-                            localItemsList.push({
-                              proposedAmount: sub.proposedAmount,
-                              isSubTask: true
-                            });
-                          });
-                        }
-                      });
-                      const totalProposedAmount = localItemsList
-                        .filter(item => !item.isSubTask)
-                        .reduce((sum, item) => sum + (item.proposedAmount || 0), 0) + (proposalData.advReserve || 0);
-
-                      // 5. Gửi trình duyệt kèm thông báo đến Giám đốc & Trưởng phòng Kế toán
-                      const submitRes = await fetch("/api/plan-finance/master-plan/submit-approval", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          year: parseInt(selectedYear, 10),
-                          month: selectedMonth,
-                          pdfUrl,
-                          proposalCode: proposalData.code || "DX-MKT",
-                          proposerName: proposalData.proposerName || "Nguyễn Thu Huyền",
-                          proposedAmount: totalProposedAmount
-                        })
-                      });
-
-                      if (!submitRes.ok) {
-                        const errData = await submitRes.json();
-                        throw new Error(errData.error || "Gặp lỗi khi tạo thông báo gửi trình duyệt.");
-                      }
-
-                      toast.success(
-                        "Thành công",
-                        "Đề xuất chi phí đã được lưu, kết xuất PDF và tự động gửi thông báo phê duyệt đến Giám đốc cùng Trưởng phòng TC-KT thành công!"
-                      );
-                      setShowProposalModal(false);
-                    } catch (err: any) {
-                      console.error("Lỗi trình duyệt đề xuất:", err);
-                      toast.error("Lỗi", err?.message || "Không thể gửi trình duyệt đề xuất.");
-                    } finally {
-                      setIsSubmittingProposal(false);
-                    }
-                  }}
-                  style={{ height: 34, padding: "0 18px", fontSize: 13, fontWeight: 600 }}
-                >
-                  {isSubmittingProposal ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: "12px", height: "12px" }} />
-                      Đang xử lý...
-                    </>
-                  ) : (
-                    <>
-                      <i className="bi bi-send" style={{ fontSize: 14 }} />
-                      Trình duyệt đề xuất
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div className="proposal-modal-body">
-              {/* Left Column Panel */}
-              <div className="card m-0 p-3 border-0 shadow-sm rounded-0 d-flex flex-column" style={{ borderRadius: 0, background: "#fff", margin: 0, height: "100%", maxHeight: "100%", minHeight: 0, overflow: "hidden" }}>
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <SectionTitle
-                    title="Thông tin chung"
-                    className="m-0"
-                    style={{ color: "var(--primary)", fontSize: 13, letterSpacing: "0.02em" }}
-                  />
-                  <button
-                    type="button"
-                    className="proposal-sidebar-toggle btn btn-sm btn-link p-0 text-primary fw-semibold d-inline-flex align-items-center gap-1"
-                    onClick={() => setIsGeneralInfoCollapsed(!isGeneralInfoCollapsed)}
-                    style={{ fontSize: 12, textDecoration: "none", boxShadow: "none" }}
-                  >
-                    <i className={`bi ${isGeneralInfoCollapsed ? "bi-chevron-down" : "bi-chevron-up"}`} />
-                    <span>{isGeneralInfoCollapsed ? "Mở rộng" : "Thu gọn"}</span>
-                  </button>
-                </div>
-
-                <div className={`proposal-sidebar-content-wrapper ${isGeneralInfoCollapsed ? "collapsed-on-tablet" : ""}`}>
-                    <div className="proposal-sidebar-inputs">
-                      <div className="d-flex flex-column gap-2">
-                        {/* Row 1: Số hiệu & Ngày đề xuất */}
-                        <div className="row g-2">
-                          <div className="col-6">
-                            <label className="fw-semibold text-secondary mb-1" style={{ fontSize: 11 }}>Số hiệu</label>
-                            <input
-                              type="text"
-                              className="form-control form-control-sm bg-light fw-semibold"
-                              value={proposalData.code}
-                              readOnly
-                              style={{ fontSize: 12, height: 32 }}
-                            />
-                          </div>
-                          <div className="col-6">
-                            <label className="fw-semibold text-secondary mb-1" style={{ fontSize: 11 }}>Ngày đề xuất</label>
-                            <input
-                              type="text"
-                              className="form-control form-control-sm"
-                              value={proposalData.date}
-                              onChange={(e) => setProposalData({ ...proposalData, date: e.target.value })}
-                              style={{ fontSize: 12, height: 32 }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Row 2: Người đề xuất & Người duyệt */}
-                        <div className="row g-2">
-                          <div className="col-6">
-                            <label className="fw-semibold text-secondary mb-1" style={{ fontSize: 11 }}>Người đề xuất</label>
-                            <input
-                              type="text"
-                              className="form-control form-control-sm"
-                              value={proposalData.proposerName}
-                              onChange={(e) => setProposalData({ ...proposalData, proposerName: e.target.value })}
-                              style={{ fontSize: 12, height: 32 }}
-                            />
-                          </div>
-                          <div className="col-6">
-                            <label className="fw-semibold text-secondary mb-1" style={{ fontSize: 11 }}>Người duyệt</label>
-                            <input
-                              type="text"
-                              className="form-control form-control-sm"
-                              value={proposalData.approverName}
-                              onChange={(e) => setProposalData({ ...proposalData, approverName: e.target.value })}
-                              style={{ fontSize: 12, height: 32 }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Row 3: Chi phí dự phòng */}
-                        <div className="row g-2">
-                          <div className="col-12">
-                            <label className="fw-semibold text-secondary mb-1" style={{ fontSize: 11 }}>Chi phí dự phòng</label>
-                            <div className="input-group input-group-sm">
-                              <input
-                                type="text"
-                                className="form-control"
-                                placeholder="Nhập chi phí dự phòng..."
-                                value={proposalData.advReserve ? proposalData.advReserve.toLocaleString("vi-VN") : ""}
-                                onChange={(e) => {
-                                  const raw = e.target.value.replace(/[^0-9]/g, "");
-                                  const val = raw ? Number(raw) : 0;
-                                  setProposalData({ ...proposalData, advReserve: val });
-                                }}
-                                style={{ fontSize: 12, height: 32 }}
-                              />
-                              <span className="input-group-text bg-light text-secondary" style={{ fontSize: 12, height: 32, fontWeight: 500 }}>
-                                đồng
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="proposal-sidebar-card">
-                      {/* Visa-style Budget Summary Card */}
-                      {(() => {
-                        const agencySum = BUDGET_CATEGORIES.slice(0, 3).reduce((sum, cat) => {
-                          const alloc = (monthlyAllocations[selectedMonth] || {})[cat.id] || { budget: 0 };
-                          return sum + (alloc.budget || 0);
-                        }, 0);
-
-                        const advSum = BUDGET_CATEGORIES.slice(3).reduce((sum, cat) => {
-                          const alloc = (monthlyAllocations[selectedMonth] || {})[cat.id] || { budget: 0 };
-                          return sum + (alloc.budget || 0);
-                        }, 0);
-
-                        const allocatedBudget = agencySum + advSum;
-                        const totalProposed = Object.values(proposalData.items).reduce((sum, item) => sum + (item.proposedAmount || 0), 0) + (proposalData.advReserve || 0);
-                        const rawPercent = allocatedBudget > 0 ? (totalProposed / allocatedBudget) * 100 : 0;
-                        const percentText = rawPercent.toFixed(1) + "%";
-                        const barPercent = Math.min(rawPercent, 100);
-
-                        // Color progress bar depending on percentage
-                        const isOverBudget = rawPercent > 100;
-                        const progressBarColor = isOverBudget ? "#ef4444" : "#10b981"; // Red if over budget, green otherwise
-
-                        return (
-                          <div 
-                            className="mt-2 text-white position-relative overflow-hidden" 
-                            style={{
-                              padding: "16px",
-                              borderRadius: "12px",
-                              background: "linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #3b82f6 100%)",
-                              border: "1px solid rgba(255, 255, 255, 0.1)",
-                              boxShadow: "0 8px 20px rgba(15, 23, 42, 0.25)",
-                              aspectRatio: "85.6 / 53.98", // Standard credit card dimension ratio
-                              display: "flex",
-                              flexDirection: "column",
-                              justifyContent: "space-between",
-                              flexShrink: 0
-                            }}
-                          >
-                            {/* Glossy overlay effect */}
-                            <div 
-                              style={{
-                                position: "absolute",
-                                top: "-50%",
-                                left: "-50%",
-                                width: "200%",
-                                height: "200%",
-                                background: "radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 60%)",
-                                pointerEvents: "none"
-                              }}
-                            />
-
-                            {/* Top Row: Card Brand and Chip */}
-                            <div className="d-flex justify-content-between align-items-center">
-                              <div>
-                                <span style={{ fontSize: "9px", letterSpacing: "1.5px", color: "#94a3b8", textTransform: "uppercase", fontWeight: 600 }}>Marketing Card</span>
-                              </div>
-                              {/* Golden Card Chip Mockup */}
-                              <div 
-                                style={{
-                                  width: "24px",
-                                  height: "16px",
-                                  borderRadius: "3px",
-                                  background: "linear-gradient(135deg, #eab308 0%, #ca8a04 100%)",
-                                  position: "relative",
-                                  border: "1px solid rgba(0,0,0,0.1)"
-                                }}
-                              >
-                                {/* Inner lines of chip */}
-                                <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: "1px", background: "rgba(0,0,0,0.15)" }} />
-                                <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: "1px", background: "rgba(0,0,0,0.15)" }} />
-                              </div>
-                            </div>
-
-                            {/* Middle Row: Proposed Cost */}
-                            <div className="my-1">
-                              <label className="text-secondary mb-0 d-block" style={{ fontSize: "9px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1px", lineHeight: 1.2 }}>Kinh phí dự kiến</label>
-                              <div className="fw-bold" style={{ fontSize: "16px", letterSpacing: "0.5px" }}>
-                                {totalProposed.toLocaleString("vi-VN")} đ
-                              </div>
-                            </div>
-
-                            {/* Bottom Section: Allocated Budget and Progress Bar */}
-                            <div>
-                              {/* Allocated Budget Text */}
-                              <div className="d-flex justify-content-between align-items-end mb-1" style={{ fontSize: "11px" }}>
-                                <div>
-                                  <span style={{ color: "#94a3b8", marginRight: "4px" }}>Ngân sách phân bổ:</span>
-                                  <span className="fw-semibold">{allocatedBudget.toLocaleString("vi-VN")} đ</span>
-                                </div>
-                                <span className="fw-bold" style={{ color: progressBarColor }}>{percentText}</span>
-                              </div>
-
-                              {/* Progress Bar */}
-                              <div style={{ width: "100%", height: "4px", background: "rgba(255, 255, 255, 0.15)", borderRadius: "2px", overflow: "hidden" }}>
-                                <div 
-                                  style={{ 
-                                    width: `${barPercent}%`, 
-                                    height: "100%", 
-                                    background: progressBarColor, 
-                                    borderRadius: "2px",
-                                    transition: "width 0.3s ease" 
-                                  }} 
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column (8 parts) */}
-              <div className="d-flex flex-column" style={{ minWidth: 0, flex: 1, height: "100%", maxHeight: "100%", minHeight: 0 }}>
-                {/* Right Column Panel */}
-                <div className="card m-0 p-3 border-0 shadow-sm rounded-0 d-flex flex-column" style={{ borderRadius: 0, background: "#fff", margin: 0, flex: 1, height: "100%", maxHeight: "100%", minHeight: 0, overflow: "hidden" }}>
-                  <SectionTitle
-                    title="Thông tin chi tiết"
-                    className="mb-3"
-                    style={{ color: "var(--primary)", fontSize: 13, letterSpacing: "0.02em" }}
-                  />
-
-                  {/* Input field and Add button */}
-                  <div className="d-flex gap-2 mb-3">
-                    <input
-                      type="text"
-                      className="form-control form-control-sm text-uppercase fw-bold text-primary"
-                      value={newMainTaskLabel}
-                      onChange={(e) => setNewMainTaskLabel(e.target.value)}
-                      placeholder="Nhập tên công việc chính..."
-                      style={{ fontSize: 12, height: 32, flex: 1 }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          if (e.nativeEvent.isComposing) return;
-                          e.preventDefault();
-                          const taskLabel = newMainTaskLabel.trim().toUpperCase();
-                          if (taskLabel) {
-                            const newId = `task_${Date.now()}`;
-                            const updatedItems = {
-                              ...proposalData.items,
-                              [newId]: {
-                                label: taskLabel,
-                                proposedAmount: 0,
-                                description: "",
-                                notes: ""
-                              }
-                            };
-                            setProposalData({
-                              ...proposalData,
-                              items: updatedItems
-                            });
-                            setNewMainTaskLabel("");
-                            toast.success("Thành công", `Đã thêm công việc chính: ${taskLabel}`);
-                          }
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-primary d-flex align-items-center justify-content-center"
-                      onClick={() => {
-                        if (newMainTaskLabel.trim()) {
-                          const newId = `task_${Date.now()}`;
-                          const updatedItems = {
-                            ...proposalData.items,
-                            [newId]: {
-                              label: newMainTaskLabel.trim().toUpperCase(),
-                              proposedAmount: 0,
-                              description: "",
-                              notes: ""
-                            }
-                          };
-                          setProposalData({
-                            ...proposalData,
-                            items: updatedItems
-                          });
-                          setNewMainTaskLabel("");
-                          toast.success("Thành công", `Đã thêm công việc chính: ${newMainTaskLabel.trim().toUpperCase()}`);
-                        }
-                      }}
-                      style={{ height: 32, width: 32, padding: 0 }}
-                      title="Thêm công việc chính"
-                      disabled={!newMainTaskLabel.trim()}
-                    >
-                      <i className="bi bi-plus-lg" style={{ fontSize: 14 }} />
-                    </button>
-                  </div>
-
-                  {(() => {
-                    const itemsList: any[] = [];
-                    Object.entries(proposalData.items).forEach(([mainTaskId, mainTask], mainIndex) => {
-                      itemsList.push({
-                        id: mainTaskId,
-                        mainTaskId: null,
-                        label: mainTask.label,
-                        proposedAmount: mainTask.proposedAmount,
-                        description: mainTask.description,
-                        notes: mainTask.notes,
-                        isSubTask: false,
-                        indexStr: `${mainIndex + 1}`
-                      });
-
-                      const isCollapsed = collapsedMainTaskIds[mainTaskId];
-                      if (!isCollapsed && mainTask.subTasks) {
-                        mainTask.subTasks.forEach((sub, subIndex) => {
-                          itemsList.push({
-                            id: sub.id,
-                            mainTaskId: mainTaskId,
-                            label: sub.label,
-                            proposedAmount: sub.proposedAmount,
-                            description: sub.description,
-                            notes: sub.notes,
-                            category: sub.category,
-                            executionMethod: sub.executionMethod,
-                            department: sub.department,
-                            isSubTask: true,
-                            indexStr: `${mainIndex + 1}.${subIndex + 1}`
-                          });
-                        });
-                      }
-                    });
-
-                    const proposalTableColumns: TableColumn<any>[] = [
-                      {
-                        header: "STT",
-                        width: 45,
-                        align: "center",
-                        render: (row) => {
-                          return (
-                            <span className={row.isSubTask ? "text-muted font-monospace" : "fw-semibold text-muted"} style={{ fontSize: 11 }}>
-                              {row.indexStr}
-                            </span>
-                          );
-                        }
-                      },
-                      {
-                        header: "Hạng mục công việc",
-                        width: 250,
-                        align: "left",
-                        render: (row) => {
-                          if (editingRowId === row.id) {
-                            return (
-                              <input
-                                type="text"
-                                className="form-control form-control-sm text-uppercase fw-bold text-primary"
-                                value={editRowLabel}
-                                onChange={(e) => setEditRowLabel(e.target.value)}
-                                style={{ fontSize: 12, height: 28 }}
-                                autoFocus
-                              />
-                            );
-                          }
-                          if (row.isSubTask) {
-                            return (
-                              <div className="d-flex flex-column ps-3 text-secondary text-start" style={{ fontSize: 12 }}>
-                                <div className="d-flex align-items-center">
-                                  <i className="bi bi-arrow-return-right text-muted me-2" style={{ fontSize: 11 }} />
-                                  <span style={{ color: "#000", fontWeight: 500 }}>{row.label || ""}</span>
-                                </div>
-                                {(row.category || row.executionMethod || row.department) && (
-                                  <div className="d-flex flex-wrap align-items-center gap-1.5 mt-1 ps-3" style={{ fontSize: "8.5px" }}>
-                                    {row.category && (
-                                      <span className="rounded border d-inline-flex align-items-center gap-1" style={{ padding: "0.5px 4px", fontSize: "8.5px", background: "#f5f3ff", color: "#7c3aed", borderColor: "#ddd6fe" }} title="Hạng mục">
-                                        <i className="bi bi-tag-fill" style={{ fontSize: "9px" }} />
-                                        <span style={{ color: "#4c1d95" }}>{row.category}</span>
-                                      </span>
-                                    )}
-                                    {row.executionMethod && (
-                                      <span className="rounded border d-inline-flex align-items-center gap-1" style={{ padding: "0.5px 4px", fontSize: "8.5px", background: "#eff6ff", color: "#2563eb", borderColor: "#bfdbfe" }} title="Hình thức triển khai">
-                                        <i className="bi bi-sliders" style={{ fontSize: "9px" }} />
-                                        <span style={{ color: "#1e3a8a" }}>{row.executionMethod}</span>
-                                      </span>
-                                    )}
-                                    {row.department && (
-                                      <span className="rounded border d-inline-flex align-items-center gap-1" style={{ padding: "0.5px 4px", fontSize: "8.5px", background: "#f0fdf4", color: "#16a34a", borderColor: "#bbf7d0" }} title="Bộ phận thực hiện">
-                                        <i className="bi bi-people-fill" style={{ fontSize: "9px" }} />
-                                        <span style={{ color: "#14532d" }}>{row.department}</span>
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          }
-                          const parentItem = proposalData.items[row.id];
-                          const hasSubTasks = !!(parentItem && parentItem.subTasks && parentItem.subTasks.length > 0);
-                          const isCollapsed = collapsedMainTaskIds[row.id];
-                          return (
-                            <div className="d-flex align-items-center gap-1">
-                              {hasSubTasks && (
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-link p-0 text-muted d-inline-flex align-items-center justify-content-center me-1"
-                                  style={{ width: 16, height: 16, border: "none", boxShadow: "none" }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setCollapsedMainTaskIds({
-                                      ...collapsedMainTaskIds,
-                                      [row.id]: !isCollapsed
-                                    });
-                                  }}
-                                >
-                                  <i className={`bi ${isCollapsed ? "bi-chevron-right" : "bi-chevron-down"}`} style={{ fontSize: 11 }} />
-                                </button>
-                              )}
-                              {!hasSubTasks && <div style={{ width: 16 }} className="me-1" />}
-                              <span className="fw-bold text-uppercase text-primary" style={{ fontSize: 12 }}>
-                                {row.label || ""}
-                              </span>
-                            </div>
-                          );
-                        }
-                      },
-                      {
-                        header: "Nội dung chi tiết",
-                        width: 280,
-                        align: "left",
-                        render: (row) => {
-                          if (editingRowId === row.id) {
-                            return (
-                              <textarea
-                                className="form-control form-control-sm text-secondary"
-                                value={editRowDescription}
-                                onChange={(e) => setEditRowDescription(e.target.value)}
-                                style={{ fontSize: 12, minHeight: 40, resize: "vertical" }}
-                                rows={2}
-                              />
-                            );
-                          }
-
-                          if (!row.description) return null;
-                          const { cleanDesc } = parseDescriptionTime(row.description);
-                          return renderTaskDescription(cleanDesc, row.isSubTask, false);
-                        }
-                      },
-                      {
-                        header: "Chi phí",
-                        width: 120,
-                        align: "right",
-                        render: (row) => {
-                          if (editingRowId === row.id) {
-                            return (
-                              <input
-                                type="text"
-                                className="form-control form-control-sm text-secondary fw-semibold text-end"
-                                value={editRowAmount ? editRowAmount.toLocaleString("vi-VN") : ""}
-                                onChange={(e) => {
-                                  const raw = e.target.value.replace(/[^0-9]/g, "");
-                                  setEditRowAmount(raw ? Number(raw) : 0);
-                                }}
-                                style={{ fontSize: 12, height: 28 }}
-                              />
-                            );
-                          }
-
-                          let displayAmount = row.proposedAmount;
-                          if (!row.isSubTask) {
-                            const mainTaskData = proposalData.items[row.id];
-                            if (mainTaskData?.subTasks && mainTaskData.subTasks.length > 0) {
-                              displayAmount = mainTaskData.subTasks.reduce((sum, s) => sum + s.proposedAmount, 0);
-                            }
-                          }
-
-                          const { timeStr } = parseDescriptionTime(row.description);
-
-                          return (
-                            <div className="d-flex flex-column align-items-end text-end w-100">
-                              <span className={row.isSubTask ? "text-secondary" : "fw-semibold text-secondary"} style={{ fontSize: 12 }}>
-                                {displayAmount ? displayAmount.toLocaleString("vi-VN") + " đ" : "0 đ"}
-                              </span>
-                              {timeStr && (
-                                <span className="text-muted mt-1 fw-normal" style={{ fontSize: "10.5px" }}>
-                                  {timeStr}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        }
-                      },
-
-                      {
-                        header: "",
-                        width: 70,
-                        align: "center",
-                        render: (row, idx) => {
-                          if (editingRowId === row.id) {
-                            return (
-                              <div className="d-flex align-items-center justify-content-center gap-2">
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-link text-success p-0"
-                                  style={{ width: 24, height: 24 }}
-                                  title="Lưu"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const updatedItems = { ...proposalData.items };
-                                    if (!row.isSubTask) {
-                                      updatedItems[row.id] = {
-                                        ...updatedItems[row.id],
-                                        label: editRowLabel.trim().toUpperCase(),
-                                        proposedAmount: editRowAmount,
-                                        description: editRowDescription,
-                                        notes: editRowNotes
-                                      };
-                                      if (updatedItems[row.id].subTasks && updatedItems[row.id].subTasks!.length > 0) {
-                                        updatedItems[row.id].proposedAmount = updatedItems[row.id].subTasks!.reduce((sum, s) => sum + s.proposedAmount, 0);
-                                      }
-                                    } else {
-                                      const parent = updatedItems[row.mainTaskId];
-                                      if (parent && parent.subTasks) {
-                                        parent.subTasks = parent.subTasks.map(sub => {
-                                          if (sub.id === row.id) {
-                                            return {
-                                              ...sub,
-                                              label: editRowLabel.trim().toUpperCase(),
-                                              proposedAmount: editRowAmount,
-                                              description: editRowDescription,
-                                              notes: editRowNotes
-                                            };
-                                          }
-                                          return sub;
-                                        });
-                                        parent.proposedAmount = parent.subTasks.reduce((sum, s) => sum + s.proposedAmount, 0);
-                                      }
-                                    }
-                                    setProposalData({ ...proposalData, items: updatedItems });
-                                    setEditingRowId(null);
-                                    toast.success("Thành công", "Đã cập nhật công việc");
-                                  }}
-                                >
-                                  <i className="bi bi-check-lg" style={{ fontSize: 16 }} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-link text-secondary p-0"
-                                  style={{ width: 24, height: 24 }}
-                                  title="Hủy"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingRowId(null);
-                                  }}
-                                >
-                                  <i className="bi bi-x-lg" style={{ fontSize: 14 }} />
-                                </button>
-                              </div>
-                            );
-                          }
-
-                          const isNearBottom = idx >= itemsList.length - 3;
-                          return (
-                            <div className="position-relative d-inline-block">
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-link text-secondary p-0 d-inline-flex align-items-center justify-content-center hover-bg-light"
-                                style={{ width: 24, height: 24, borderRadius: 4 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuRowId(activeMenuRowId === row.id ? null : row.id);
-                                }}
-                              >
-                                <i className="bi bi-three-dots-vertical" style={{ fontSize: 15 }} />
-                              </button>
-
-                              {activeMenuRowId === row.id && (
-                                <div
-                                  className="dropdown-menu show shadow"
-                                  style={{
-                                    position: "absolute",
-                                    top: isNearBottom ? "auto" : "100%",
-                                    bottom: isNearBottom ? "100%" : "auto",
-                                    right: 0,
-                                    zIndex: 1060,
-                                    minWidth: "180px",
-                                    padding: "4px 0",
-                                    margin: isNearBottom ? "0 0 4px" : "4px 0 0",
-                                    fontSize: "12px",
-                                    backgroundColor: "#fff",
-                                    border: "1px solid rgba(0,0,0,.15)",
-                                    borderRadius: "6px",
-                                    textAlign: "left"
-                                  }}
-                                >
-                                  {!row.isSubTask ? (
-                                    <>
-                                      <button
-                                        type="button"
-                                        className="dropdown-item d-flex align-items-center gap-2 py-2"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setActiveMenuRowId(null);
-                                          setEditingRowId(row.id);
-                                          setEditRowLabel(row.label);
-                                          setEditRowAmount(row.proposedAmount);
-                                          setEditRowDescription(row.description);
-                                          setEditRowNotes(row.notes || "");
-                                        }}
-                                      >
-                                        <i className="bi bi-pencil-square text-primary" /> Sửa công việc chính
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="dropdown-item d-flex align-items-center gap-2 py-2"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setActiveMenuRowId(null);
-                                          setSubTaskParentId(row.id);
-                                          setSubTaskEditingId(null);
-                                          setNewSubTaskLabel("");
-                                          setNewSubTaskAmount(0);
-                                          setNewSubTaskDescription("");
-                                          setNewSubTaskNotes("");
-                                          setNewSubTaskCategory("");
-                                          setNewSubTaskExecutionMethod("");
-                                          setNewSubTaskDepartment("");
-                                          setShowAddSubTaskModal(true);
-                                        }}
-                                      >
-                                        <i className="bi bi-plus-circle text-success" /> Thêm công việc chi tiết
-                                      </button>
-                                      <hr className="my-1" />
-                                      <button
-                                        type="button"
-                                        className="dropdown-item d-flex align-items-center gap-2 py-2 text-danger"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setActiveMenuRowId(null);
-                                          const updated = { ...proposalData.items };
-                                          delete updated[row.id];
-                                          setProposalData({ ...proposalData, items: updated });
-                                          toast.success("Đã xóa", `Đã xóa công việc khỏi đề xuất`);
-                                        }}
-                                      >
-                                        <i className="bi bi-trash" /> Xoá công việc
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <button
-                                        type="button"
-                                        className="dropdown-item d-flex align-items-center gap-2 py-2"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setActiveMenuRowId(null);
-                                          setSubTaskParentId(row.mainTaskId);
-                                          setSubTaskEditingId(row.id);
-                                          setNewSubTaskLabel(row.label);
-                                          setNewSubTaskAmount(row.proposedAmount);
-                                          setNewSubTaskDescription(row.description || "");
-                                          setNewSubTaskCategory(row.category || "");
-                                          setNewSubTaskExecutionMethod(row.executionMethod || "");
-                                          setNewSubTaskDepartment(row.department || "");
-                                          setShowAddSubTaskModal(true);
-                                        }}
-                                      >
-                                        <i className="bi bi-pencil-square text-primary" /> Sửa công việc chi tiết
-                                      </button>
-                                      <hr className="my-1" />
-                                      <button
-                                        type="button"
-                                        className="dropdown-item d-flex align-items-center gap-2 py-2 text-danger"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setActiveMenuRowId(null);
-                                          const updated = { ...proposalData.items };
-                                          const parent = updated[row.mainTaskId];
-                                          if (parent && parent.subTasks) {
-                                            parent.subTasks = parent.subTasks.filter(sub => sub.id !== row.id);
-                                            parent.proposedAmount = parent.subTasks.reduce((sum, s) => sum + s.proposedAmount, 0);
-                                          }
-                                          setProposalData({ ...proposalData, items: updated });
-                                          toast.success("Đã xóa", `Đã xóa công việc chi tiết`);
-                                        }}
-                                      >
-                                        <i className="bi bi-trash" /> Xoá công việc chi tiết
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-                      }
-                    ];
-
-                    return (
-                      <Table
-                        rows={itemsList}
-                        columns={proposalTableColumns}
-                        fixedLayout={true}
-                        wrapperClassName="mkt-plan-table-no-min"
-                        wrapperStyle={{
-                          flex: 1,
-                          overflowY: "auto",
-                        }}
-                        cellStyle={(row: any, col) => ({
-                          padding: "6px 8px",
-                        })}
-                      />
-                    );
-                  })()}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Add Subtask Offcanvas */}
-          {showAddSubTaskModal && (
-            <>
-              {/* Backdrop */}
-              <div
-                style={{
-                  position: "fixed",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  zIndex: 1100,
-                  backgroundColor: "rgba(15, 23, 42, 0.4)",
-                  backdropFilter: "blur(4px)",
-                  transition: "opacity 0.2s ease"
-                }}
-                onClick={() => { setShowAddSubTaskModal(false); setSubTaskEditingId(null); }}
-              />
-
-              {/* Offcanvas Panel */}
-              <div
-                className="offcanvas offcanvas-end show"
-                tabIndex={-1}
-                style={{
-                  visibility: "visible",
-                  width: 400,
-                  zIndex: 1110,
-                  boxShadow: "-4px 0 24px rgba(0,0,0,0.15)",
-                  borderLeft: "1px solid var(--border)",
-                  background: "#fff",
-                  display: "flex",
-                  flexDirection: "column",
-                  height: "100%",
-                  position: "fixed",
-                  top: 0,
-                  right: 0
-                }}
-              >
-                {/* Header */}
-                <div
-                  className="offcanvas-header d-flex justify-content-between align-items-center"
-                  style={{
-                    borderBottom: "1px solid var(--border)",
-                    padding: "16px 20px",
-                    flexShrink: 0
-                  }}
-                >
-                  <h5 className="offcanvas-title fw-bold" style={{ fontSize: 13, color: "#2563eb", letterSpacing: "0.04em", margin: 0 }}>
-                    {subTaskEditingId ? "Sửa công việc chi tiết" : "Thêm công việc chi tiết"}
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => { setShowAddSubTaskModal(false); setSubTaskEditingId(null); }}
-                    aria-label="Close"
-                    style={{ fontSize: 12 }}
-                  />
-                </div>
-
-                {/* Body */}
-                <div className="offcanvas-body d-flex flex-column gap-3" style={{ padding: "20px", overflowY: "auto", flex: "1 1 auto" }}>
-                  {/* Parent Main Task Info Banner */}
-                  <div className="p-3 rounded bg-light border-start border-primary border-4 text-start" style={{ marginBottom: "2px" }}>
-                    <span className="text-muted d-block fw-semibold mb-1" style={{ fontSize: "10px", letterSpacing: "0.05em", textTransform: "uppercase" }}>Công việc chính</span>
-                    <span className="fw-bold text-primary text-uppercase" style={{ fontSize: "12px" }}>
-                      {subTaskParentId ? proposalData.items[subTaskParentId]?.label || "" : ""}
-                    </span>
-                  </div>
-
-                  <div className="d-flex flex-column gap-1 text-start" style={{ position: "relative" }}>
-                    <label className="form-label fw-semibold text-secondary mb-1" style={{ fontSize: "12px" }}>
-                      Tên công việc chi tiết <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Nhập tên công việc chi tiết..."
-                      value={newSubTaskLabel}
-                      onChange={(e) => {
-                        setNewSubTaskLabel(e.target.value);
-                        setShowSuggestions(true);
-                        setFocusedSuggestionIndex(-1);
-                      }}
-                      onFocus={() => {
-                        setShowSuggestions(true);
-                        setFocusedSuggestionIndex(-1);
-                      }}
-                      onBlur={() => {
-                        setTimeout(() => {
-                          setShowSuggestions(false);
-                        }, 200);
-                      }}
-                      onKeyDown={handleSubTaskKeyDown}
-                      autoFocus
-                      style={{
-                        fontSize: "13px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "6px",
-                        padding: "8px 10px"
-                      }}
-                    />
-                    {showSuggestions && filteredSuggestions.length > 0 && (
-                      <div 
-                        className="position-absolute shadow border rounded bg-white w-100" 
-                        style={{ 
-                          zIndex: 1200, 
-                          maxHeight: "180px", 
-                          overflowY: "auto", 
-                          top: "100%", 
-                          left: 0,
-                          marginTop: "2px"
-                        }}
-                      >
-                        {filteredSuggestions.map((suggestion, idx) => (
-                          <div
-                            key={idx}
-                            ref={(el) => { itemRefs.current[idx] = el; }}
-                            className="px-3 py-2 cursor-pointer text-dark text-start"
-                            style={{ 
-                              fontSize: "12.5px",
-                              backgroundColor: focusedSuggestionIndex === idx ? "#eff6ff" : "#fff",
-                              color: focusedSuggestionIndex === idx ? "#1e40af" : "#212529",
-                              fontWeight: focusedSuggestionIndex === idx ? 600 : "normal",
-                              transition: "background-color 0.1s ease"
-                            }}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setNewSubTaskLabel(suggestion);
-                              setShowSuggestions(false);
-                            }}
-                            onMouseEnter={() => setFocusedSuggestionIndex(idx)}
-                          >
-                            {suggestion}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="d-flex flex-column gap-1 text-start">
-                    <label className="form-label fw-semibold text-secondary mb-1" style={{ fontSize: "12px" }}>
-                      Hạng mục
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Nhập hạng mục..."
-                      value={newSubTaskCategory}
-                      onChange={(e) => setNewSubTaskCategory(e.target.value)}
-                      style={{
-                        fontSize: "13px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "6px",
-                        padding: "8px 10px"
-                      }}
-                    />
-                  </div>
-
-                  <div className="d-flex flex-column gap-1 text-start">
-                    <label className="form-label fw-semibold text-secondary mb-1" style={{ fontSize: "12px" }}>
-                      Hình thức triển khai
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Nhập hình thức triển khai..."
-                      value={newSubTaskExecutionMethod}
-                      onChange={(e) => setNewSubTaskExecutionMethod(e.target.value)}
-                      style={{
-                        fontSize: "13px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "6px",
-                        padding: "8px 10px"
-                      }}
-                    />
-                  </div>
-
-                  <div className="row g-2">
-                    <div className="col-6 text-start d-flex flex-column gap-1">
-                      <label className="form-label fw-semibold text-secondary mb-1" style={{ fontSize: "12px" }}>
-                        Chi phí đề xuất (đ)
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="Nhập số tiền..."
-                        value={newSubTaskAmount ? newSubTaskAmount.toLocaleString("vi-VN") : ""}
-                        onChange={(e) => {
-                          const raw = e.target.value.replace(/[^0-9]/g, "");
-                          setNewSubTaskAmount(raw ? Number(raw) : 0);
-                        }}
-                        style={{
-                          fontSize: "13px",
-                          border: "1px solid var(--border)",
-                          borderRadius: "6px",
-                          padding: "8px 10px"
-                        }}
-                      />
-                    </div>
-                    <div className="col-6 text-start d-flex flex-column gap-1">
-                      <label className="form-label fw-semibold text-secondary mb-1" style={{ fontSize: "12px" }}>
-                        Bộ phận thực hiện
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="Nhập bộ phận thực hiện..."
-                        value={newSubTaskDepartment}
-                        onChange={(e) => setNewSubTaskDepartment(e.target.value)}
-                        style={{
-                          fontSize: "13px",
-                          border: "1px solid var(--border)",
-                          borderRadius: "6px",
-                          padding: "8px 10px"
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="d-flex flex-column gap-1 text-start flex-grow-1" style={{ minHeight: "150px" }}>
-                    <label className="form-label fw-semibold text-secondary mb-1" style={{ fontSize: "12px" }}>
-                      Nội dung chi tiết
-                    </label>
-                    <textarea
-                      className="form-control flex-grow-1"
-                      placeholder="Nhập nội dung chi tiết..."
-                      value={newSubTaskDescription}
-                      onChange={(e) => setNewSubTaskDescription(e.target.value)}
-                      style={{
-                        fontSize: "13px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "6px",
-                        padding: "8px 10px",
-                        resize: "none",
-                        height: "100%"
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div
-                  className="px-4 py-3 border-top d-flex justify-content-end gap-2 bg-light"
-                  style={{ flexShrink: 0 }}
-                >
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-secondary px-3"
-                    onClick={() => { setShowAddSubTaskModal(false); setSubTaskEditingId(null); }}
-                    style={{ fontSize: 12, fontWeight: 600 }}
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-primary px-3"
-                    onClick={() => {
-                      if (!newSubTaskLabel.trim()) {
-                        toast.error("Lỗi", "Vui lòng nhập tên công việc chi tiết");
-                        return;
-                      }
-                      if (subTaskParentId) {
-                        const updated = { ...proposalData.items };
-                        const parent = updated[subTaskParentId];
-                        if (parent) {
-                          const subTasks = parent.subTasks || [];
-                          if (subTaskEditingId) {
-                            parent.subTasks = subTasks.map(sub => {
-                              if (sub.id === subTaskEditingId) {
-                                return {
-                                  ...sub,
-                                  label: newSubTaskLabel.trim().toUpperCase(),
-                                  proposedAmount: newSubTaskAmount,
-                                  description: newSubTaskDescription,
-                                  category: newSubTaskCategory,
-                                  executionMethod: newSubTaskExecutionMethod,
-                                  department: newSubTaskDepartment
-                                };
-                              }
-                              return sub;
-                            });
-                            toast.success("Thành công", `Đã cập nhật công việc chi tiết: ${newSubTaskLabel.trim().toUpperCase()}`);
-                          } else {
-                            const newSubId = `sub_${Date.now()}`;
-                            const newSub = {
-                              id: newSubId,
-                              label: newSubTaskLabel.trim().toUpperCase(),
-                              proposedAmount: newSubTaskAmount,
-                              description: newSubTaskDescription,
-                              notes: "",
-                              category: newSubTaskCategory,
-                              executionMethod: newSubTaskExecutionMethod,
-                              department: newSubTaskDepartment
-                            };
-                            parent.subTasks = [...subTasks, newSub];
-                            toast.success("Thành công", `Đã thêm công việc chi tiết: ${newSub.label}`);
-                          }
-                          parent.proposedAmount = parent.subTasks.reduce((sum, s) => sum + s.proposedAmount, 0);
-                          setProposalData({ ...proposalData, items: updated });
-                        }
-                      }
-                      setShowAddSubTaskModal(false);
-                      setSubTaskEditingId(null);
-                    }}
-                    style={{ fontSize: 12, fontWeight: 600 }}
-                  >
-                    {subTaskEditingId ? "Cập nhật" : "Thêm mới"}
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </>
-      )}
-
-      {showPrintModal && (
-        <PrintPreviewModal
-          title="Xem trước bản in Đề xuất chi phí"
-          subtitle={<>Số hiệu: <strong>{proposalData.code}</strong>&nbsp;·&nbsp;Bộ phận: {proposalData.department || "Phòng Marketing"}</>}
-          actions={
-            <div className="d-flex align-items-center gap-3 me-3">
-              <div className="d-flex align-items-center gap-2" style={{ color: "var(--foreground)", fontSize: "12.5px" }}>
-                <span>Chiều cao dòng:</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="12"
-                  value={rowPadding}
-                  onChange={(e) => setRowPadding(Number(e.target.value))}
-                  style={{ width: "90px", accentColor: "#1d4ed8", cursor: "pointer" }}
-                />
-                <span className="fw-bold text-primary" style={{ minWidth: "28px", textAlign: "right" }}>{rowPadding}px</span>
-                <button
-                  type="button"
-                  title="Đặt lại chiều cao mặc định"
-                  onClick={() => setRowPadding(3)}
-                  style={{ border: "none", background: "none", padding: "0 0 0 4px", display: "inline-flex", alignItems: "center", color: "var(--muted-foreground)", cursor: "pointer" }}
-                >
-                  <i className="bi bi-arrow-counterclockwise" style={{ fontSize: "14px" }} />
-                </button>
-              </div>
-              <button
-                onClick={() => printDocumentById("proposal-print-doc", "portrait", `Đề xuất chi phí - ${proposalData.code}`)}
-                style={{ padding: "8px 18px", border: "none", background: "#1d4ed8", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}
-              >
-                <i className="bi bi-printer" /> In đề xuất
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    await exportElementToPDF("proposal-print-doc", `De_xuat_chi_phi_MKT_${proposalData.code || "Proposal"}.pdf`, {
-                      orientation: "portrait",
-                      scale: 2,
-                      keepOriginalStyles: true
-                    });
-                    toast.success("Thành công", "Đã xuất và tải xuống file PDF thành công!");
-                  } catch (err) {
-                    console.error(err);
-                    toast.error("Lỗi", "Không thể xuất PDF trực tiếp.");
-                  }
-                }}
-                style={{ padding: "8px 18px", border: "none", background: "#dc2626", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7 }}
-              >
-                <i className="bi bi-file-earmark-pdf" /> Xuất PDF
-              </button>
-            </div>
-          }
-          sidebar={
-            <div className="d-flex flex-column gap-4">
-              <div>
-                <p className="fw-bold text-secondary mb-2" style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Chữ ký người lập đề xuất
-                </p>
-                <SignaturePad
-                  placeholder="Ký vào đây bằng ngón tay hoặc bút"
-                  onSave={(dataUrl) => setProposerSig(dataUrl)}
-                  onClear={() => setProposerSig(null)}
-                  width={268}
-                  height={100}
-                />
-              </div>
-              <hr className="my-0" style={{ borderColor: "var(--border)" }} />
-              <div>
-                <p className="fw-bold text-secondary mb-2" style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Chữ ký người phê duyệt
-                </p>
-                <SignaturePad
-                  placeholder="Ký vào đây bằng ngón tay hoặc bút"
-                  onSave={(dataUrl) => setApproverSig(dataUrl)}
-                  onClear={() => setApproverSig(null)}
-                  width={268}
-                  height={100}
-                />
-              </div>
-            </div>
-          }
-          document={
-            <ProposalPrintDocument
-              proposalData={proposalData}
-              selectedMonth={selectedMonth}
-              selectedYear={selectedYear}
-              plannedBudget={monthlyBudgets[selectedMonth] || 0}
-              rowPadding={rowPadding}
-              proposerSig={proposerSig}
-              approverSig={approverSig}
-            />
-          }
-          onClose={() => {
-            setShowPrintModal(false);
-            setProposerSig(null);
-            setApproverSig(null);
-          }}
-          documentId="proposal-print-modal-wrapper"
-          hideSidebarOnDesktop={true}
-        />
-      )}
+      
 
       {showPlanPrintModal && (
         <PrintPreviewModal
