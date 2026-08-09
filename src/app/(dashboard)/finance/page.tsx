@@ -981,37 +981,39 @@ export default function FinancePage() {
             {currentStep === 4 && (
               <FullWidthTableLayout 
                 tableWrapperClassName="" 
-                header={
-                <div className="d-flex align-items-center gap-2">
-                  <FilterSelect
-                    options={[
+                header={undefined}
+                footer={
+                  <div className="d-flex align-items-center justify-content-between w-100 gap-3">
+                    <div className="d-flex align-items-center gap-2 flex-grow-1">
+                      <FilterSelect
+                        options={[
                       { label: "Chưa thực hiện", value: "pending" },
                       { label: "Đã thực hiện", value: "paid" },
                     ]}
-                    value={expenseStatus}
-                    onChange={setExpenseStatus}
-                    placeholder="Tất cả trạng thái"
-                    width={180}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <SearchInput
-                      value={expenseSearch}
-                      onChange={setExpenseSearch}
-                      placeholder="Tìm mã CP, người chi trả..."
-                    />
+                        value={expenseStatus}
+                        onChange={setExpenseStatus}
+                        placeholder="Tất cả trạng thái"
+                        width={180}
+                      />
+                      <div style={{ flex: 1, maxWidth: "400px" }}>
+                        <SearchInput
+                          value={expenseSearch}
+                          onChange={setExpenseSearch}
+                          placeholder="Tìm mã CP, người chi trả..."
+                        />
+                      </div>
+                    </div>
+                    {expensesTotalPages > 1 && (
+                      <div className="d-flex justify-content-end">
+                        <Pagination
+                          page={expensePage}
+                          totalPages={expensesTotalPages}
+                          onChange={setExpensePage}
+                        />
+                      </div>
+                    )}
                   </div>
-                </div>
-                }
-                footer={expensesTotalPages > 1 ? (
-                <div className="d-flex justify-content-end w-100">
-                  <Pagination
-                    page={expensePage}
-                    totalPages={expensesTotalPages}
-                    onChange={setExpensePage}
-                  />
-                </div>
-                ) : undefined}
-                table={
+                } table={
               <Table
                 columns={expenseColumns}
                 rows={expenses}
@@ -1116,28 +1118,36 @@ export default function FinancePage() {
             
           >
             {currentStep === 1 && (
-              <FullWidthTableLayout tableWrapperClassName="" header={<div className="d-flex align-items-center gap-2">
-                  <FilterSelect
-                    options={orderStatusOptions}
-                    value={orderStatus}
-                    onChange={setOrderStatus}
-                    placeholder="Tất cả trạng thái"
-                    width={180}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <SearchInput
-                      value={orderSearch}
-                      onChange={setOrderSearch}
-                      placeholder="Tìm mã đơn hàng, tên khách hàng..."
-                    />
+              <FullWidthTableLayout tableWrapperClassName="" header={undefined}
+                footer={
+                  <div className="d-flex align-items-center justify-content-between w-100 gap-3">
+                    <div className="d-flex align-items-center gap-2 flex-grow-1">
+                      <FilterSelect
+                        options={orderStatusOptions}
+                        value={orderStatus}
+                        onChange={setOrderStatus}
+                        placeholder="Tất cả trạng thái"
+                        width={180}
+                      />
+                      <div style={{ flex: 1, maxWidth: "400px" }}>
+                        <SearchInput
+                          value={orderSearch}
+                          onChange={setOrderSearch}
+                          placeholder="Tìm mã đơn hàng, tên khách hàng..."
+                        />
+                      </div>
+                    </div>
+                    {ordersTotalPages > 1 && (
+                      <div className="d-flex justify-content-end">
+                        <Pagination
+                          page={orderPage}
+                          totalPages={ordersTotalPages}
+                          onChange={setOrderPage}
+                        />
+                      </div>
+                    )}
                   </div>
-                </div>} footer={ordersTotalPages > 1 ? (<div className="d-flex justify-content-end w-100">
-                  <Pagination
-                    page={orderPage}
-                    totalPages={ordersTotalPages}
-                    onChange={setOrderPage}
-                  />
-                </div>) : undefined} table={ <Table
+                } table={ <Table
                 columns={orderColumns}
                 rows={orders}
                 loading={ordersLoading}
@@ -1148,32 +1158,40 @@ export default function FinancePage() {
               /> } />
             )}
             {currentStep === 2 && (
-              <FullWidthTableLayout tableWrapperClassName="" header={<div className="d-flex align-items-center gap-2">
-                  <FilterSelect
-                    options={[
-                      { label: "Chờ duyệt", value: "pending" },
-                      { label: "Đã duyệt", value: "approved" },
-                      { label: "Từ chối", value: "rejected" },
-                    ]}
-                    value={requestStatus}
-                    onChange={setRequestStatus}
-                    placeholder="Tất cả trạng thái"
-                    width={180}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <SearchInput
-                      value={requestSearch}
-                      onChange={setRequestSearch}
-                      placeholder="Tìm mã yêu cầu, lý do..."
-                    />
+              <FullWidthTableLayout tableWrapperClassName="" header={undefined}
+                footer={
+                  <div className="d-flex align-items-center justify-content-between w-100 gap-3">
+                    <div className="d-flex align-items-center gap-2 flex-grow-1">
+                      <FilterSelect
+                        options={[
+                          { label: "Chờ duyệt", value: "pending" },
+                          { label: "Đã duyệt", value: "approved" },
+                          { label: "Từ chối", value: "rejected" },
+                        ]}
+                        value={requestStatus}
+                        onChange={setRequestStatus}
+                        placeholder="Tất cả trạng thái"
+                        width={180}
+                      />
+                      <div style={{ flex: 1, maxWidth: "400px" }}>
+                        <SearchInput
+                          value={requestSearch}
+                          onChange={setRequestSearch}
+                          placeholder="Tìm mã yêu cầu, lý do..."
+                        />
+                      </div>
+                    </div>
+                    {requestsTotalPages > 1 && (
+                      <div className="d-flex justify-content-end">
+                        <Pagination
+                          page={requestPage}
+                          totalPages={requestsTotalPages}
+                          onChange={setRequestPage}
+                        />
+                      </div>
+                    )}
                   </div>
-                </div>} footer={requestsTotalPages > 1 ? (<div className="d-flex justify-content-end w-100">
-                  <Pagination
-                    page={requestPage}
-                    totalPages={requestsTotalPages}
-                    onChange={setRequestPage}
-                  />
-                </div>) : undefined} table={ <Table
+                } table={ <Table
                 columns={requestColumns}
                 rows={requests}
                 loading={requestsLoading}
@@ -1184,32 +1202,40 @@ export default function FinancePage() {
               /> } />
             )}
             {currentStep === 3 && (
-              <FullWidthTableLayout tableWrapperClassName="" header={<div className="d-flex align-items-center gap-2">
-                  <FilterSelect
-                    options={[
-                      { label: "Chờ xác nhận", value: "pending" },
-                      { label: "Đã xác nhận", value: "verified" },
-                      { label: "Từ chối", value: "rejected" },
-                    ]}
-                    value={paymentNotificationStatus}
-                    onChange={setPaymentNotificationStatus}
-                    placeholder="Tất cả trạng thái"
-                    width={180}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <SearchInput
-                      value={paymentNotificationSearch}
-                      onChange={setPaymentNotificationSearch}
-                      placeholder="Tìm mã yêu cầu, lý do..."
-                    />
+              <FullWidthTableLayout tableWrapperClassName="" header={undefined}
+                footer={
+                  <div className="d-flex align-items-center justify-content-between w-100 gap-3">
+                    <div className="d-flex align-items-center gap-2 flex-grow-1">
+                      <FilterSelect
+                        options={[
+                          { label: "Chờ xác nhận", value: "pending" },
+                          { label: "Đã xác nhận", value: "verified" },
+                          { label: "Từ chối", value: "rejected" },
+                        ]}
+                        value={paymentNotificationStatus}
+                        onChange={setPaymentNotificationStatus}
+                        placeholder="Tất cả trạng thái"
+                        width={180}
+                      />
+                      <div style={{ flex: 1, maxWidth: "400px" }}>
+                        <SearchInput
+                          value={paymentNotificationSearch}
+                          onChange={setPaymentNotificationSearch}
+                          placeholder="Tìm mã yêu cầu, lý do..."
+                        />
+                      </div>
+                    </div>
+                    {paymentNotificationsTotalPages > 1 && (
+                      <div className="d-flex justify-content-end">
+                        <Pagination
+                          page={paymentNotificationPage}
+                          totalPages={paymentNotificationsTotalPages}
+                          onChange={setPaymentNotificationPage}
+                        />
+                      </div>
+                    )}
                   </div>
-                </div>} footer={paymentNotificationsTotalPages > 1 ? (<div className="d-flex justify-content-end w-100">
-                  <Pagination
-                    page={paymentNotificationPage}
-                    totalPages={paymentNotificationsTotalPages}
-                    onChange={setPaymentNotificationPage}
-                  />
-                </div>) : undefined} table={ <Table
+                } table={ <Table
                 columns={paymentNotificationColumns}
                 rows={paymentNotifications}
                 loading={paymentNotificationsLoading}
