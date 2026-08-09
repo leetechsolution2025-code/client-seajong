@@ -1336,7 +1336,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 {items.length === 0 ? (
                   <tr><td colSpan={8} style={{ padding: 20, textAlign: "center", color: "var(--muted-foreground)" }}>Chưa có sản phẩm nào</td></tr>
                 ) : items.map((it, idx) => {
-                  const hasBOM = it.dinhMucs && it.dinhMucs.length > 0 && it.dinhMucs[0].vatTu && it.dinhMucs[0].vatTu.length > 0;
+                  const isMainShortOfStock = it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number);
+                  const hasBOM = it.dinhMucs && it.dinhMucs.length > 0 && it.dinhMucs[0].vatTu && it.dinhMucs[0].vatTu.length > 0 && isMainShortOfStock;
                   const isExpanded = !!expandedBOMRows[it.id];
                   return (
                     <React.Fragment key={it.id}>
@@ -1347,17 +1348,18 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                         <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
                         <td style={{ padding: "6px 10px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            {hasBOM && (
+                            {it.dinhMucs && it.dinhMucs.length > 0 && it.dinhMucs[0].vatTu && it.dinhMucs[0].vatTu.length > 0 && (
                               <button
                                 type="button"
+                                disabled={!isMainShortOfStock}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setExpandedBOMRows(prev => ({ ...prev, [it.id]: !prev[it.id] }));
                                 }}
-                                style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--primary)", display: "flex" }}
-                                title={isExpanded ? "Ẩn vật tư" : "Hiện vật tư"}
+                                style={{ background: "none", border: "none", cursor: isMainShortOfStock ? "pointer" : "not-allowed", padding: 0, color: isMainShortOfStock ? "var(--primary)" : "var(--muted-foreground)", display: "flex", opacity: isMainShortOfStock ? 1 : 0.3 }}
+                                title={!isMainShortOfStock ? "Đủ hàng, không cần kiểm tra vật tư" : (isExpanded ? "Ẩn vật tư" : "Hiện vật tư")}
                               >
-                                <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: 12, strokeWidth: 2 }}></i>
+                                <i className={`bi bi-chevron-${isExpanded && isMainShortOfStock ? 'up' : 'down'}`} style={{ fontSize: 12, strokeWidth: 2 }}></i>
                               </button>
                             )}
                             <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{it.ten}</span>
@@ -1405,15 +1407,36 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                                 </tr>
                               </thead>
                               <tbody>
-                                {it.dinhMucs[0].vatTu.map((vt: any, vtIdx: number) => (
-                                  <tr key={vt.id || vtIdx} style={{ borderBottom: "1px solid var(--border)" }}>
-                                    <td style={{ padding: "6px 10px", fontFamily: "monospace" }}>{vt.maVatTu || "-"}</td>
-                                    <td style={{ padding: "6px 10px", fontWeight: 500, color: "var(--foreground)" }}>{vt.tenVatTu}</td>
-                                    <td style={{ padding: "6px 10px", textAlign: "center" }}>{vt.donViTinh || "-"}</td>
-                                    <td style={{ padding: "6px 10px", textAlign: "right" }}>{vt.soLuong}</td>
-                                    <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 600, color: "var(--primary)" }}>{vt.soLuong * it.soLuong}</td>
-                                  </tr>
-                                ))}
+                                {it.dinhMucs[0].vatTu.map((vt: any, vtIdx: number) => {
+                                  const vtStocks = vt.inventoryItem?.stocks || [];
+                                  const vtRelevantStocks = vtStocks.filter((s: any) => s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP");
+                                  const vtSoLuong = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
+                                  const vtSoLuongGiu = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);
+                                  const vtThucTon = Math.max(0, vtSoLuong - vtSoLuongGiu);
+                                  const needed = vt.soLuong * it.soLuong;
+                                  const isVTOOS = vtThucTon < needed;
+                                  const vtName = vt.inventoryItem?.tenHang || vt.tenVatTu;
+
+                                  return (
+                                    <tr key={vt.id || vtIdx} style={{ borderBottom: "1px solid var(--border)" }}>
+                                      <td style={{ padding: "6px 10px", fontFamily: "monospace" }}>{vt.inventoryItem?.code || vt.maVatTu || "-"}</td>
+                                      <td style={{ padding: "6px 10px", fontWeight: 500, color: "var(--foreground)" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                          {vtName}
+                                          {isVTOOS && (
+                                            <span title={`Thiếu hàng (thực tồn: ${vtThucTon})`} style={{ color: "#f97316", display: "flex", alignItems: "center", gap: 4 }}>
+                                              <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 13 }} />
+                                              <span style={{ fontSize: 11, fontWeight: 600 }}>Thiếu {needed - vtThucTon} (tồn {vtThucTon})</span>
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td style={{ padding: "6px 10px", textAlign: "center" }}>{vt.donViTinh || "-"}</td>
+                                      <td style={{ padding: "6px 10px", textAlign: "right" }}>{vt.soLuong}</td>
+                                      <td style={{ padding: "6px 10px", textAlign: "right", fontWeight: 600, color: "var(--primary)" }}>{needed}</td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           </td>

@@ -289,7 +289,7 @@ export async function GET(req: Request) {
           category: { select: { id: true, name: true, code: true } },
           erpCategory: { select: { id: true, name: true, code: true } },
           stocks: { include: { warehouse: true } },
-          dinhMucs: { include: { vatTu: true } },
+          dinhMucs: { include: { vatTu: { include: { inventoryItem: { include: { stocks: { include: { warehouse: true } } } } } } } },
         },
         orderBy: { updatedAt: "desc" },
       }),
