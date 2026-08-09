@@ -227,7 +227,8 @@ export default function DebtsPage() {
                 className="d-flex align-items-center gap-2 cursor-pointer fw-bold text-dark py-1"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setCollapsedGroups(prev => ({ ...prev, [row.partnerName]: !prev[row.partnerName] }));
+                  const groupKey = row.items[0]?.customerId || row.items[0]?.supplierId || row.partnerName;
+                  setCollapsedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
                 }}
               >
                 <i className={`bi bi-chevron-${row.isCollapsed ? 'right' : 'down'} text-muted`} />
@@ -625,19 +626,23 @@ export default function DebtsPage() {
                 const groupedDebts: any[] = [];
                 if (currentStepId === "RECEIVABLE" || currentStepId === "PAYABLE") {
                   const groupedByPartner = debts.reduce((acc, curr) => {
-                    if (!acc[curr.partnerName]) acc[curr.partnerName] = [];
-                    acc[curr.partnerName].push(curr);
+                    // Ưu tiên nhóm theo ID, nếu không có thì nhóm theo Tên
+                    const groupKey = curr.customerId || curr.supplierId || curr.partnerName;
+                    if (!acc[groupKey]) acc[groupKey] = [];
+                    acc[groupKey].push(curr);
                     return acc;
                   }, {} as Record<string, any[]>);
 
-                  Object.entries(groupedByPartner).forEach(([partnerName, itemsValue]) => {
+                  Object.entries(groupedByPartner).forEach(([groupKey, itemsValue]) => {
                     const items = itemsValue as any[];
+                    const displayName = items[0].partnerName; // Tên hiển thị lấy từ record đầu tiên
+                    
                     if (items.length > 1) {
-                      const isCollapsed = collapsedGroups[partnerName];
+                      const isCollapsed = collapsedGroups[groupKey];
                       groupedDebts.push({
-                        id: `group_${partnerName}`,
+                        id: `group_${groupKey}`,
                         isGroupHeader: true,
-                        partnerName,
+                        partnerName: displayName,
                         items,
                         amount: items.reduce((s: number, i: any) => s + i.amount, 0),
                         paidAmount: items.reduce((s: number, i: any) => s + i.paidAmount, 0),

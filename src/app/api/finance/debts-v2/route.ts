@@ -103,10 +103,25 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { type, partnerName, amount, paidAmount, dueDate, interestRate, description, referenceId, status } = body;
 
+    let customerId = body.customerId || null;
+    let supplierId = body.supplierId || null;
+    if (!customerId && !supplierId && partnerName) {
+       const baseName = partnerName.split(/[-–]/)[0].trim();
+       if (type === "phai-thu" || type === "RECEIVABLE") {
+          const cust = await prisma.customer.findFirst({ where: { name: { startsWith: baseName } }});
+          if (cust) customerId = cust.id;
+       } else if (type === "phai-tra" || type === "PAYABLE") {
+          const supp = await prisma.supplier.findFirst({ where: { name: { startsWith: baseName } }});
+          if (supp) supplierId = supp.id;
+       }
+    }
+
     const debt = await (prisma.debt as any).create({
       data: {
         type,
         partnerName,
+        customerId,
+        supplierId,
         amount: Number(amount) || 0,
         paidAmount: Number(paidAmount) || 0,
         dueDate: dueDate ? new Date(dueDate) : null,
@@ -137,11 +152,26 @@ export async function PUT(request: Request) {
     const oldDebt = await (prisma.debt as any).findUnique({ where: { id } });
     console.log("OLD DEBT FOUND:", oldDebt ? oldDebt.id : "NULL");
 
+    let customerId = body.customerId || undefined;
+    let supplierId = body.supplierId || undefined;
+    if (partnerName && customerId === undefined && supplierId === undefined) {
+       const baseName = partnerName.split(/[-–]/)[0].trim();
+       if (type === "phai-thu" || type === "RECEIVABLE") {
+          const cust = await prisma.customer.findFirst({ where: { name: { startsWith: baseName } }});
+          if (cust) customerId = cust.id;
+       } else if (type === "phai-tra" || type === "PAYABLE") {
+          const supp = await prisma.supplier.findFirst({ where: { name: { startsWith: baseName } }});
+          if (supp) supplierId = supp.id;
+       }
+    }
+
     const debt = await (prisma.debt as any).update({
       where: { id },
       data: {
         type,
         partnerName,
+        ...(customerId !== undefined && { customerId }),
+        ...(supplierId !== undefined && { supplierId }),
         amount: Number(amount) || 0,
         paidAmount: Number(paidAmount) || 0,
         dueDate: dueDate ? new Date(dueDate) : null,

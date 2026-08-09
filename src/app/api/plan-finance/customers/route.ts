@@ -73,15 +73,14 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    // Query outstanding debts for customers
-    const customerNames = customers.map(c => c.name).filter(Boolean);
+    const customerIds = customers.map(c => c.id);
     const customerDebts = await prisma.debt.findMany({
       where: {
-        partnerName: { in: customerNames },
+        customerId: { in: customerIds },
         type: { in: ["RECEIVABLE", "phai-thu"] },
       },
       select: {
-        partnerName: true,
+        customerId: true,
         amount: true,
         paidAmount: true,
       }
@@ -89,12 +88,12 @@ export async function GET(req: NextRequest) {
 
     const debtMap = new Map<string, number>();
     for (const d of customerDebts) {
-      const outstanding = (d.amount || 0) - (d.paidAmount || 0);
-      const prev = debtMap.get(d.partnerName) || 0;
-      debtMap.set(d.partnerName, prev + outstanding);
+      if (d.customerId) {
+        const outstanding = (d.amount || 0) - (d.paidAmount || 0);
+        const prev = debtMap.get(d.customerId) || 0;
+        debtMap.set(d.customerId, prev + outstanding);
+      }
     }
-
-    const customerIds = customers.map(c => c.id);
 
     // Query yearly sales (from current year)
     const currentYear = new Date().getFullYear();
@@ -170,7 +169,7 @@ export async function GET(req: NextRequest) {
 
     const customersWithDebt = customers.map(c => ({
       ...c,
-      outstandingDebt: debtMap.get(c.name) || 0,
+      outstandingDebt: debtMap.get(c.id) || 0,
       creditLimit: c.hanMucCongNo,
       yearlySales: yearlySalesMap.get(c.id) || 0,
       committedSales: committedSalesMap.get(c.id) || 0,

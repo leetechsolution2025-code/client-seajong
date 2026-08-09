@@ -526,6 +526,7 @@ model Customer {
   daiDien        String?
   xungHo         String?               @default("Anh")
   paymentNotifications PaymentNotification[]
+  debts          Debt[]
   chucVu         String?
   dienThoai      String?
   email          String?
@@ -593,6 +594,7 @@ model Supplier {
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   purchaseOrders       PurchaseOrder[]
+  debts                Debt[]
   purchaseRequestItems PurchaseRequestItem[]
   categories           SupplierCategory[]
   hrTransactions       HrSupplyTransaction[]
@@ -789,6 +791,11 @@ model Expense {
 }
 
 model Debt {
+  customerId   String?
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+
   id           String    @id @default(cuid())
   type         String
   partnerName  String

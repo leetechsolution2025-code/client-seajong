@@ -2,9 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  const tasks = await prisma.task.findMany({
-    where: { title: { contains: "Nhập kho" } }
-  });
-  console.log(JSON.stringify(tasks, null, 2));
+  const ws = await prisma.warehouse.findMany({ select: { id: true, code: true, name: true } });
+  console.log(JSON.stringify(ws, null, 2));
 }
 main().finally(() => prisma.$disconnect());

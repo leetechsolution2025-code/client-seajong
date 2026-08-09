@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       include: {
         category: { select: { name: true } },
-        stocks: { select: { soLuong: true, soLuongMin: true } },
+        stocks: { select: { soLuong: true, soLuongMin: true, warehouse: { select: { code: true } } } },
       },
     });
 
@@ -90,12 +90,12 @@ export async function GET(req: NextRequest) {
         const searchWords = searchNorm.split(/\s+/).filter(Boolean);
         return searchWords.every(word => nameNorm.includes(word) || codeNorm.includes(word));
       })
-      .map(item => {
-        const hasStocks = item.stocks.length > 0;
-        const soLuongThuc = hasStocks
-          ? item.stocks.reduce((sum, s) => sum + s.soLuong, 0)
-          : item.soLuong;
-        const soLuongMinKho = item.stocks.reduce((sum, s) => sum + s.soLuongMin, 0);
+      .map((item: any) => {
+        const validStocks = item.stocks ? item.stocks.filter((s: any) => s.warehouse?.code !== 'KHO-LOI') : [];
+        const soLuongThuc = validStocks.length > 0
+          ? validStocks.reduce((sum: number, s: any) => sum + s.soLuong, 0)
+          : (item.stocks && item.stocks.length > 0 ? 0 : item.soLuong);
+        const soLuongMinKho = validStocks.reduce((sum: number, s: any) => sum + s.soLuongMin, 0);
         const minThreshold = soLuongMinKho > 0 ? soLuongMinKho : item.soLuongMin;
         const trangThaiLive =
           soLuongThuc === 0 ? "het-hang" :

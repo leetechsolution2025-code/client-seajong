@@ -36,15 +36,9 @@ export async function GET(
     if (!customer) return NextResponse.json({ error: "Customer not found" }, { status: 404 });
 
     // Query outstanding debt from Debt table
-    const possiblePartnerNames = Array.from(new Set([
-      customer.name,
-      customer.dienThoai ? `${customer.name} - ${customer.dienThoai}` : null,
-      customer.dienThoai ? `${customer.name} – ${customer.dienThoai}` : null,
-    ].filter(Boolean) as string[]));
-
     const customerDebts = await prisma.debt.findMany({
       where: {
-        partnerName: { in: possiblePartnerNames },
+        customerId: id,
         type: { in: ["RECEIVABLE", "phai-thu"] },
       },
       select: {

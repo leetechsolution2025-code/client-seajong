@@ -106,6 +106,10 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
   const [poLoading, setPoLoading] = React.useState(false);
   const [selectedPO, setSelectedPO] = React.useState<POSuggestion | null>(null);
 
+  const [woLoading, setWoLoading] = React.useState(false);
+  const [woList, setWoList] = React.useState<any[]>([]);
+  const [selectedWO, setSelectedWO] = React.useState<any | null>(null);
+
   const toast = useToast();
 
   // Data
@@ -208,6 +212,33 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, initialSoBienBanQC, initialItems]);
 
+  // Fetch pending import tasks for mode === "production"
+  React.useEffect(() => {
+    if (mode !== "production") return;
+    setWoLoading(true);
+    setSelectedWO(null);
+    fetch("/api/logistics/tasks/pending-import")
+      .then(r => r.json())
+      .then(d => {
+        const list = Array.isArray(d.items) ? d.items : [];
+        setWoList(list);
+        
+        let matchedWo = null;
+        if (initialTaskId) {
+          matchedWo = list.find((t: any) => t.id === initialTaskId);
+        } else if (initialSoBienBanQC) {
+          matchedWo = list.find((t: any) => t.title.includes(initialSoBienBanQC));
+        }
+        
+        if (matchedWo) {
+          onSelectWOById(matchedWo.id, list, !!(initialItems && initialItems.length > 0));
+        }
+      })
+      .catch(() => setWoList([]))
+      .finally(() => setWoLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, initialSoBienBanQC, initialTaskId, initialItems]);
+
   // ── PO select ──────────────────────────────────────────────────────────────
   const onSelectPOById = async (id: string, fallbackList?: POSuggestion[], keepExistingLines?: boolean) => {
     if (!id) { 
@@ -242,6 +273,60 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
       }
     } catch { /* giữ lines cũ */ }
     finally { setPoLoading(false); }
+  };
+
+  // ── WO select ──────────────────────────────────────────────────────────────
+  const onSelectWOById = async (taskId: string, fallbackList?: any[], keepExistingLines?: boolean) => {
+    if (!taskId) {
+      setSelectedWO(null);
+      if (!keepExistingLines) setLines([emptyLine()]);
+      return;
+    }
+    const listToSearch = fallbackList || woList;
+    const task = listToSearch.find(t => t.id === taskId);
+    setSelectedWO(task);
+    if (!task) return;
+
+    setLyDo(`Theo yêu cầu: ${task.title}`);
+    
+    if (task.actualResult && !keepExistingLines) {
+      try {
+        const parsed = JSON.parse(task.actualResult);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setResolvingItems(true);
+          const resolved = await Promise.all(parsed.map(async (it: any) => {
+            const rawName = typeof it.name === 'string' ? it.name : (typeof it.tenHang === 'string' ? it.tenHang : "");
+            const cleanName = rawName.replace(/\s*\(x\d+\)$/, "");
+            try {
+              const res = await fetch(`/api/plan-finance/inventory/search?q=${encodeURIComponent(cleanName)}&limit=1`);
+              const data = await res.json();
+              const found = Array.isArray(data) && data.length > 0 ? data[0] : null;
+              return {
+                id: uid(),
+                item: found ? found : null,
+                itemSearch: found ? found.tenHang : cleanName,
+                suggestions: [],
+                showSugg: false,
+                soLuong: it.qty || it.soLuong || 1,
+                soLuongThucTe: it.qty || it.soLuong || 1,
+                donGia: found ? found.giaNhap : 0,
+                viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
+              } as StockLine;
+            } catch (e) {
+              return {
+                id: uid(), item: null, itemSearch: cleanName, suggestions: [], showSugg: false,
+                soLuong: it.qty || it.soLuong || 1, soLuongThucTe: it.qty || it.soLuong || 1, donGia: 0, viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
+              } as StockLine;
+            }
+          }));
+          setLines(resolved);
+        }
+      } catch (e) {
+        console.error("Error parsing task result", e);
+      } finally {
+        setResolvingItems(false);
+      }
+    }
   };
 
   // ── Item search (per line) ─────────────────────────────────────────────────
@@ -328,9 +413,10 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Lỗi lưu"); }
       
       // Update task status if applicable
-      if (initialTaskId) {
+      const taskIdToComplete = initialTaskId || selectedWO?.id;
+      if (taskIdToComplete) {
         try {
-          await fetch(`/api/board/tasks/${initialTaskId}`, {
+          await fetch(`/api/board/tasks/${taskIdToComplete}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status: "done" })
@@ -467,6 +553,49 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
                   </select>
                   <i className="bi bi-chevron-down position-absolute" style={{ right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 12, pointerEvents: "none", color: selectedPO ? "#059669" : "var(--muted-foreground)" }} />
                   {selectedPO && (
+                    <span className="position-absolute" style={{ top: -10, right: -10, fontSize: 10, color: "#fff", fontWeight: 600, background: "#10b981", borderRadius: 20, padding: "2px 8px", boxShadow: "0 2px 4px rgba(16, 185, 129, 0.3)", zIndex: 10 }}>
+                      <i className="bi bi-check" style={{ marginRight: 2 }} />Đã chọn
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* WO select */}
+          {mode === "production" && (
+            <div className="nk-po-select position-relative" style={{ display: "flex", alignItems: "center" }}>
+              {woLoading ? (
+                <div style={{ fontSize: 13, color: "var(--muted-foreground)", padding: "0 10px" }}>
+                  <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> Đang tải…
+                </div>
+              ) : (
+                <div className="position-relative">
+                  <select
+                    value={selectedWO?.id ?? ""}
+                    onChange={e => onSelectWOById(e.target.value)}
+                    style={{
+                      height: 38, padding: "0 36px 0 16px",
+                      border: `1px solid ${selectedWO ? "rgba(16,185,129,0.4)" : "var(--border)"}`,
+                      borderRadius: 10,
+                      background: selectedWO ? "rgba(16,185,129,0.05)" : "var(--background)",
+                      color: selectedWO ? "#059669" : "var(--foreground)",
+                      fontSize: 13, fontWeight: selectedWO ? 600 : 400,
+                      outline: "none", cursor: "pointer",
+                      width: 280, transition: "all 0.2s",
+                      appearance: "none", textOverflow: "ellipsis"
+                    }}
+                  >
+                    <option value="">-- Chọn lệnh chờ nhập --</option>
+                    {woList.length === 0 && <option disabled value="">Không có lệnh chờ nhập</option>}
+                    {woList.map(wo => (
+                      <option key={wo.id} value={wo.id}>
+                        {wo.title.replace("Yêu cầu ", "")}
+                      </option>
+                    ))}
+                  </select>
+                  <i className="bi bi-chevron-down position-absolute" style={{ right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 12, pointerEvents: "none", color: selectedWO ? "#059669" : "var(--muted-foreground)" }} />
+                  {selectedWO && (
                     <span className="position-absolute" style={{ top: -10, right: -10, fontSize: 10, color: "#fff", fontWeight: 600, background: "#10b981", borderRadius: 20, padding: "2px 8px", boxShadow: "0 2px 4px rgba(16, 185, 129, 0.3)", zIndex: 10 }}>
                       <i className="bi bi-check" style={{ marginRight: 2 }} />Đã chọn
                     </span>

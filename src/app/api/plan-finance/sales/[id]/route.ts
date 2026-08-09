@@ -295,11 +295,12 @@ export async function GET(
     const customerId = resolvedOrder.customer?.id;
     let tongNoCu = 0;
     let totalDebt = 0;
-    if (customerName && customerName !== "Khách vãng lai") {
+    if (customerId) {
       const debts = await prisma.debt.findMany({
         where: {
           type: { in: ["phai-thu", "RECEIVABLE"] },
-          partnerName: { startsWith: customerName },
+          customerId: customerId, // Sử dụng mã khách hàng
+          createdAt: { lt: order.createdAt }, // Chỉ lấy nợ phát sinh TRƯỚC đơn hàng này
         },
         select: { amount: true, paidAmount: true, referenceId: true }
       });
@@ -309,14 +310,17 @@ export async function GET(
       
       let debtFromOrders = 0;
       let totalDebtFromOrders = 0;
-      if (customerId) {
-        const unpaidOrders = await prisma.saleOrder.findMany({
-          where: { customerId, trangThai: { notIn: ["cancelled", "draft"] } },
-          select: { id: true, code: true, tongTien: true, daThanhToan: true }
-        });
-        debtFromOrders = unpaidOrders.filter(o => !orderIds.includes(o.id) && !orderIds.includes(o.code!)).reduce((sum, o) => sum + (o.tongTien - (o.daThanhToan || 0)), 0);
-        totalDebtFromOrders = unpaidOrders.reduce((sum, o) => sum + (o.tongTien - (o.daThanhToan || 0)), 0);
-      }
+      const unpaidOrders = await prisma.saleOrder.findMany({
+        where: { 
+          customerId, 
+          trangThai: { notIn: ["cancelled", "draft"] },
+          createdAt: { lt: order.createdAt }, // Chỉ lấy nợ phát sinh TRƯỚC đơn hàng này
+        },
+        select: { id: true, code: true, tongTien: true, daThanhToan: true }
+      });
+      debtFromOrders = unpaidOrders.filter(o => !orderIds.includes(o.id) && !orderIds.includes(o.code!)).reduce((sum, o) => sum + (o.tongTien - (o.daThanhToan || 0)), 0);
+      totalDebtFromOrders = unpaidOrders.reduce((sum, o) => sum + (o.tongTien - (o.daThanhToan || 0)), 0);
+
       
       tongNoCu = debtFromDebts + debtFromOrders;
       totalDebt = totalDebtFromDebts + totalDebtFromOrders;
@@ -961,6 +965,7 @@ export async function PATCH(
               data: {
                 type: "phai-thu",
                 partnerName: order.customer?.name || "Khách hàng lẻ",
+                customerId: order.customerId || null,
                 amount: orderUpdate.tongTien,
                 paidAmount: orderUpdate.daThanhToan || 0,
                 status: (orderUpdate.daThanhToan || 0) >= orderUpdate.tongTien ? "PAID" : "UNPAID",

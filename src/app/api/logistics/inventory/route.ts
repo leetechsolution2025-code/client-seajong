@@ -323,9 +323,13 @@ export async function GET(req: Request) {
     let sapHetCount = 0;
 
     const allItemsWithStock = deduplicatedItems.map(item => {
-      const relevantStocks = warehouseId
-        ? item.stocks.filter((s: any) => s.warehouseId === warehouseId)
-        : item.stocks;
+      let relevantStocks = item.stocks.filter((s: any) => s.warehouse?.code !== 'KHO-LOI');
+
+      if (warehouseCode === "KHO-CHINH" || warehouseCode === "KVP") {
+        relevantStocks = relevantStocks.filter((s: any) => s.warehouse?.code === 'KHO-CHINH' || s.warehouse?.code === 'KVP');
+      } else if (warehouseId) {
+        relevantStocks = relevantStocks.filter((s: any) => s.warehouseId === warehouseId);
+      }
 
       const soLuong = relevantStocks.reduce((acc: number, s: any) => acc + s.soLuong, 0);
       const soLuongGiu = relevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);

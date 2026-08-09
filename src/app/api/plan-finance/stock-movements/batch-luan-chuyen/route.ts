@@ -182,9 +182,10 @@ export async function POST(req: NextRequest) {
       // ── Cập nhật tổng tồn trên InventoryItem ──
       const allStocks   = await prisma.inventoryStock.findMany({
         where: { inventoryItemId },
-        include: { inventoryItem: { select: { soLuongMin: true } } },
+        include: { inventoryItem: { select: { soLuongMin: true } }, warehouse: { select: { code: true } } },
       });
-      const tongSoLuong = allStocks.reduce((s, st) => s + st.soLuong, 0);
+      const validStocks = allStocks.filter((st: any) => st.warehouse?.code !== 'KHO-LOI');
+      const tongSoLuong = validStocks.reduce((s, st) => s + st.soLuong, 0);
       const soLuongMin  = allStocks[0]?.inventoryItem.soLuongMin ?? 0;
       const trangThai   = tongSoLuong === 0     ? "het-hang"
                         : soLuongMin > 0 && tongSoLuong <= soLuongMin ? "sap-het"

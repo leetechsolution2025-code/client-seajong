@@ -94,11 +94,27 @@ export async function POST(req: NextRequest) {
 
     const statusMap: Record<string, string> = { "chua-thu": "UNPAID", "da-thu": "PAID", "mot-phan": "PARTIAL", "qua-han": "OVERDUE" };
     let mappedStatus = trangThai ? statusMap[trangThai] || trangThai : "UNPAID";
+    let customerId = body.customerId || null;
+    let supplierId = body.supplierId || null;
+    
+    // Tự động map ID nếu có thể
+    if (!customerId && !supplierId && doiTuong) {
+       const baseName = doiTuong.split(/[-–]/)[0].trim();
+       if (loai === "phai-thu" || loai === "RECEIVABLE") {
+          const cust = await prisma.customer.findFirst({ where: { name: { startsWith: baseName } }});
+          if (cust) customerId = cust.id;
+       } else if (loai === "phai-tra" || loai === "PAYABLE") {
+          const supp = await prisma.supplier.findFirst({ where: { name: { startsWith: baseName } }});
+          if (supp) supplierId = supp.id;
+       }
+    }
 
     const item = await prisma.debt.create({
       data: {
         type: loai ?? "phai-thu", 
         partnerName: doiTuong.trim(),
+        customerId,
+        supplierId,
         amount: parseFloat(soTien ?? 0),
         paidAmount:  parseFloat(daThu  ?? 0),
         status: mappedStatus,

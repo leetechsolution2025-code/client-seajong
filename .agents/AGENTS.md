@@ -32,3 +32,8 @@ Quy định về luồng hàng hoá và quản lý kho (Logistics):
 3. **Kho hàng lỗi** (Mã: `KHO-LOI`):
    - Dùng để lưu trữ các hàng hoá bị lỗi trong quá trình sản xuất, lưu kho, hoặc hàng bị khách hàng trả lại.
 
+## Database Query Rules
+
+1. **Use ID over Names (Mã thay vì Tên)**:
+   - Đảm bảo trong toàn bộ dự án, việc truy xuất đối tượng có quan hệ (như Khách hàng, Công nợ, Người dùng, Đối tác, Nhà cung cấp...) ĐỀU PHẢI dùng mã ID (vd: `customerId`, `supplierId`, `userId`), KHÔNG dùng tên (vd: `partnerName`, `name`).
+   - Lý do: Tên người/đối tác có thể trùng lặp, sai chính tả hoặc thay đổi. Việc gom nhóm, lọc hay tính toán dựa trên tên sẽ gây ra sai số lớn (ví dụ tính Nợ cũ bị lệch nếu tên chứa số điện thoại). Dùng ID là bắt buộc để đảm bảo an toàn và nhất quán dữ liệu.
