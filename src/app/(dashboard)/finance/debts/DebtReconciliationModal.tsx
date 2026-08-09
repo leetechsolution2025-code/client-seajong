@@ -225,10 +225,12 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
         if (item.partnerName) {
           cleanedNote = cleanedNote.replace(new RegExp(`\\s*-\\s*${item.partnerName}`, "g"), "");
         }
-        // Giả sử p.date là YYYY-MM-DD, chuyển về cuối ngày để thanh toán thường sau lúc tạo đơn
-        const pDate = new Date(p.date);
-        if (pDate.getHours() === 0) {
-           pDate.setHours(23, 59, 59);
+        let pDate;
+        if (p.date && p.date.length === 10) {
+           const [y, m, d] = p.date.split("-");
+           pDate = new Date(Number(y), Number(m) - 1, Number(d), 23, 59, 59);
+        } else {
+           pDate = new Date(p.date);
         }
         
         list.push({
@@ -973,7 +975,7 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                     {formatCurrency(activePrintItem.totals.decrease)}
                   </td>
                   <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right", color: "red" }}>
-                    {formatCurrency((activePrintItem.debt.amount - activePrintItem.debt.paidAmount))}
+                    {formatCurrency((activePrintItem.totals.openingBalance + activePrintItem.totals.increase - activePrintItem.totals.decrease))}
                   </td>
                 </tr>
               </tbody>
@@ -983,8 +985,8 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
             <div style={{ marginBottom: "25px", fontSize: "12.5px" }}>
               <div style={{ fontWeight: "bold", marginBottom: "5px" }}>Kết luận đối chiếu:</div>
               <ul style={{ paddingLeft: "20px", margin: "5px 0" }}>
-                <li>Số dư cuối kỳ Bên B nợ Bên A là: <strong>{formatCurrency((activePrintItem.debt.amount - activePrintItem.debt.paidAmount))} đồng</strong></li>
-                <li>Bằng chữ: <em>{docSoTien(activePrintItem.debt.amount - activePrintItem.debt.paidAmount)}</em></li>
+                <li>Số dư cuối kỳ Bên B nợ Bên A là: <strong>{formatCurrency((activePrintItem.totals.openingBalance + activePrintItem.totals.increase - activePrintItem.totals.decrease))} đồng</strong></li>
+                <li>Bằng chữ: <em>{docSoTien(activePrintItem.totals.openingBalance + activePrintItem.totals.increase - activePrintItem.totals.decrease)}</em></li>
                 <li>Tình trạng khớp số liệu: <strong>{
                   activePrintItem.log.status === "MATCHED" ? "HAI BÊN KHỚP ĐÚNG SỐ LIỆU, KHÔNG CÓ CHÊNH LỆCH" : 
                   activePrintItem.log.status === "DISCREPANCY" ? `CÓ CHÊNH LỆCH SỐ TIỀN: ${activePrintItem.log.differenceAmount?.toLocaleString("vi-VN")}` : "ĐANG CHỜ XÁC THỰC THÊM"

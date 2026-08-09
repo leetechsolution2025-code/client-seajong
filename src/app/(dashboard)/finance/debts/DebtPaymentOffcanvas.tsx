@@ -223,7 +223,10 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
       const remaining = Math.max(0, debt.amount - debt.paidAmount);
       const isRec = debt.type?.toUpperCase() === "RECEIVABLE" || debt.type === "phai-thu";
       setPayAmount(remaining);
-      setPayDate(new Date().toISOString().split("T")[0]);
+      const now = new Date();
+      const tzoffset = now.getTimezoneOffset() * 60000;
+      const localISOTime = new Date(now.getTime() - tzoffset).toISOString().slice(0, 16);
+      setPayDate(localISOTime);
       setPayRef(generateReceiptCode(isRec));
       setPayMethod("Chuyển khoản");
       setShouldPrintOnSubmit(true);
@@ -486,7 +489,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
                   <div className="col-6">
                     <label className="form-label" style={labelStyle}>Ngày thu</label>
                     <input
-                      type="date"
+                      type="datetime-local"
                       className="form-control"
                       value={payDate}
                       onChange={e => setPayDate(e.target.value)}
