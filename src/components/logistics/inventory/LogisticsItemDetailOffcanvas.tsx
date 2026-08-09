@@ -181,7 +181,7 @@ export function LogisticsItemDetailOffcanvas({ item, open, onClose, onEdit, onDe
               <div className="d-flex flex-column gap-3">
                 <DetailRow label="Thương hiệu" value={item.brand} />
                 <DetailRow label="Kiểu dáng" value={item.model || item.spec} />
-                <DetailRow label="Giá nhập dự kiến" value={formatCurrency(item.giaNhap)} />
+                <DetailRow label="Giá nhập dự kiến" value="***" />
                 <div className="d-flex align-items-center justify-content-between p-2 rounded-3 hover-bg-light transition-all">
                   <span className="text-muted" style={{ fontSize: 13 }}>Giá bán niêm yết</span>
                   {isEditingPrice ? (
@@ -280,6 +280,12 @@ export function LogisticsItemDetailOffcanvas({ item, open, onClose, onEdit, onDe
                 )) : (
                   <div className="text-center p-3 text-muted small bg-light rounded-4 border border-dashed">
                     Chưa có lịch sử nhập kho
+                  </div>
+                )}
+                {item.soLuongGiu > 0 && (
+                  <div className="d-flex align-items-center justify-content-between p-2 px-3 rounded-pill bg-warning-subtle border border-warning border-opacity-25">
+                    <span className="small fw-bold text-warning-emphasis">Đã giữ</span>
+                    <span className="badge bg-warning text-dark border-warning border rounded-pill px-3">{item.soLuongGiu.toLocaleString("vi-VN")} {item.donVi || "Cái"}</span>
                   </div>
                 )}
               </div>

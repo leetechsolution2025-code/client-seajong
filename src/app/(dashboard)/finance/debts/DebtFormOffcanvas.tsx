@@ -71,21 +71,16 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
 
   const handlePartnerNameChange = (val: string) => {
     setFormData({ ...formData, partnerName: val });
-    if (val.trim().length > 0) {
-      if (searchTimeout.current) clearTimeout(searchTimeout.current);
-      searchTimeout.current = setTimeout(() => {
-        fetchSuggestions(val);
-      }, 300);
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      fetchSuggestions(val);
+    }, 300);
   };
 
   const fetchSuggestions = async (query: string) => {
     try {
       setSearching(true);
-      const res = await fetch(`/api/plan-finance/customers?search=${encodeURIComponent(query)}&page=1`);
+      const res = await fetch(`/api/plan-finance/customers?search=${encodeURIComponent(query)}&page=1&pageSize=1000`);
       if (res.ok) {
         const data = await res.json();
         setSuggestions(data.customers || []);
@@ -210,7 +205,11 @@ export function DebtFormOffcanvas({ open, onClose, onSuccess, type, initialData 
                     value={formData.partnerName}
                     onChange={e => handlePartnerNameChange(e.target.value)}
                     onFocus={() => {
-                      if (suggestions.length > 0) setShowSuggestions(true);
+                      if (!formData.partnerName.trim()) {
+                        fetchSuggestions("");
+                      } else if (suggestions.length > 0) {
+                        setShowSuggestions(true);
+                      }
                     }}
                     style={inputStyle}
                   />

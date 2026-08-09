@@ -2197,7 +2197,7 @@ function OrderDetailOffcanvas({ order, onClose, onChanged, onEditOrder, onPrintO
 
                   {order.ghiChu && (
                     <div style={{ borderTop: "1px solid var(--border)", paddingTop: "8px", marginTop: "4px" }}>
-                      <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 500 }}>Ghi chú đơn hàng</span>
+                      <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 500 }}>Ghi chú nội bộ</span>
                       <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--foreground)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{order.ghiChu}</p>
                     </div>
                   )}

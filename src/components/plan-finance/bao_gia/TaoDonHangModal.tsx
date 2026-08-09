@@ -702,6 +702,24 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       setSaveError("Vui lòng chọn ngày giao hàng");
       return;
     }
+    if (!custInfo.id) {
+      if (!info.tenNguoiNhan?.trim()) {
+        setSaveError("Vui lòng nhập tên khách hàng");
+        return;
+      }
+      if (!info.sdtNguoiNhan?.trim()) {
+        setSaveError("Vui lòng nhập số điện thoại");
+        return;
+      }
+      if (!custInfo.address?.trim()) {
+        setSaveError("Vui lòng nhập địa chỉ khách hàng");
+        return;
+      }
+      if (!info.diaChiGiaoHang?.trim()) {
+        setSaveError("Vui lòng nhập địa chỉ giao hàng");
+        return;
+      }
+    }
     const validItems = items.filter(it => it.ten.trim());
     if (validItems.length === 0) {
       setSaveError("Vui lòng nhập ít nhất một mặt hàng");
@@ -711,7 +729,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     setSaving(true);
     setSaveError("");
     try {
-      const finalCustomerId = custInfo.id;
+      let finalCustomerId = custInfo.id;
       let finalGhiChu = [
         info.ghiChu,
         info.tenNguoiNhan ? `Tên khách hàng: ${info.tenNguoiNhan}` : "",
@@ -722,12 +740,30 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
       ].filter(Boolean).join("\n");
 
       if (!finalCustomerId) {
-        const guestInfo = {
-          name: custInfo.name.trim() || "Khách vãng lai",
-          dienThoai: custInfo.dienThoai.trim(),
-          address: custInfo.address.trim()
-        };
-        finalGhiChu = `[GuestInfo:${JSON.stringify(guestInfo)}]\n` + finalGhiChu;
+        const guestName = info.tenNguoiNhan?.trim() || "Khách vãng lai";
+        try {
+          const custRes = await fetch("/api/plan-finance/customers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: guestName,
+              dienThoai: info.sdtNguoiNhan?.trim() || "",
+              address: info.diaChiGiaoHang?.trim() || "",
+              nhom: "ca-nhan",
+              nguon: "walk-in",
+            })
+          });
+          if (custRes.ok) {
+            const newCust = await custRes.json();
+            finalCustomerId = newCust.id;
+          } else {
+            const guestInfo = { name: guestName, dienThoai: info.sdtNguoiNhan?.trim() || "", address: info.diaChiGiaoHang?.trim() || "" };
+            finalGhiChu = `[GuestInfo:${JSON.stringify(guestInfo)}]\n` + finalGhiChu;
+          }
+        } catch (err) {
+          const guestInfo = { name: guestName, dienThoai: info.sdtNguoiNhan?.trim() || "", address: info.diaChiGiaoHang?.trim() || "" };
+          finalGhiChu = `[GuestInfo:${JSON.stringify(guestInfo)}]\n` + finalGhiChu;
+        }
       }
 
       if (editOrder) {
@@ -1023,7 +1059,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
-                <FLabel text="Tên khách hàng" />
+                <FLabel text="Tên khách hàng" required={!custInfo.id} />
                 <input
                   type="text"
                   value={info.tenNguoiNhan}
@@ -1036,7 +1072,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 />
               </div>
               <div>
-                <FLabel text="Số điện thoại" />
+                <FLabel text="Số điện thoại" required={!custInfo.id} />
                 <input
                   type="text"
                   value={info.sdtNguoiNhan}
@@ -1051,20 +1087,21 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
             </div>
 
             <div>
-              <FLabel text="Địa chỉ khách hàng" />
+              <FLabel text="Địa chỉ khách hàng" required={!custInfo.id} />
               <input
                 type="text"
                 value={custInfo.address}
                 onChange={e => {
                   const val = e.target.value;
                   setCustInfo(prev => ({ ...prev, address: val }));
+                  if (!customer) setInfo(prev => ({ ...prev, diaChiGiaoHang: val }));
                 }}
                 style={inputSt}
               />
             </div>
 
             <div>
-              <FLabel text="Địa chỉ giao hàng" />
+              <FLabel text="Địa chỉ giao hàng" required={!custInfo.id} />
               <input
                 type="text"
                 value={info.diaChiGiaoHang}
@@ -1110,7 +1147,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
             </div>
 
             <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-              <FLabel text="Ghi chú đơn hàng" />
+              <FLabel text="Ghi chú nội bộ" />
               <textarea
                 value={info.ghiChu}
                 onChange={e => setInfo(prev => ({ ...prev, ghiChu: e.target.value }))}

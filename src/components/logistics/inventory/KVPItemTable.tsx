@@ -12,6 +12,8 @@ interface InventoryItem {
   donVi: string | null;
   soLuong: number;
   soLuongMin: number;
+  soLuongGiu?: number;
+  thucTon?: number;
   trangThai: string;
   webProductId: number | null;
   webVariationId?: number | null;
@@ -77,7 +79,9 @@ export function KVPItemTable({
             {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "15%", minWidth: "140px", whiteSpace: "nowrap" }}>Danh mục</th>}
             {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "20%", minWidth: "140px", whiteSpace: "nowrap" }}>Model / Màu</th>}
             {!compactMode && <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "70px", whiteSpace: "nowrap" }}>ĐVT</th>}
-            {!compactMode && <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px", whiteSpace: "nowrap" }}>Tồn kho</th>}
+            <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "100px", whiteSpace: "nowrap" }}>Tồn hệ thống</th>
+            <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px", whiteSpace: "nowrap" }}>Đã giữ</th>
+            <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "90px", whiteSpace: "nowrap" }}>Thực tồn</th>
             <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px", whiteSpace: "nowrap" }}>Trạng thái</th>
             {hideActions ? null : <th className="pe-4 border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "110px", minWidth: "110px", whiteSpace: "nowrap" }}>Thao tác</th>}
           </tr>
@@ -85,14 +89,14 @@ export function KVPItemTable({
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={hideActions ? 7 : 8} className="text-center py-5">
+              <td colSpan={hideActions ? 9 : 10} className="text-center py-5">
                 <div className="spinner-border spinner-border-sm text-primary me-2" />
                 Đang tải dữ liệu...
               </td>
             </tr>
           ) : items.length === 0 ? (
             <tr>
-              <td colSpan={hideActions ? 7 : 8} className="text-center py-5 text-muted">
+              <td colSpan={hideActions ? 9 : 10} className="text-center py-5 text-muted">
                 <i className="bi bi-inbox fs-2 d-block mb-2 opacity-25" />
                 Không tìm thấy hàng hóa nào
               </td>
@@ -165,7 +169,7 @@ export function KVPItemTable({
                         )}
                       </div>
                       <div className="text-muted d-flex align-items-center gap-2 mt-1" style={{ fontSize: 12 }}>
-                        <span className="fw-medium text-dark">{item.code || <span className="opacity-50">Không có mã</span>}</span>
+                        <span className="fw-medium text-dark"><i className="bi bi-upc-scan me-1 text-muted"></i>{item.code || <span className="opacity-50">Không có mã</span>}</span>
                         {item.brand && (
                           <>
                             <span className="opacity-25">•</span>
@@ -195,14 +199,20 @@ export function KVPItemTable({
                 {!compactMode && <td className="text-center text-muted fw-medium" style={{ fontSize: 12 }}>
                   {item.donVi || "---"}
                 </td>}
-                {!compactMode && <td className="text-end">
+                <td className="text-end">
                   <div className="fw-bold" style={{ fontSize: 13, color: item.soLuong <= 0 ? "var(--bs-danger)" : (item.soLuong <= item.soLuongMin ? "var(--bs-warning)" : "var(--bs-success)") }}>
                     {new Intl.NumberFormat("vi-VN").format(item.soLuong)}
                   </div>
                   {item.soLuongMin > 0 && (
                     <div className="text-muted" style={{ fontSize: 10 }}>Min: {item.soLuongMin}</div>
                   )}
-                </td>}
+                </td>
+                <td className="text-end text-muted" style={{ fontSize: 12.5 }}>
+                  {(item.soLuongGiu || 0).toLocaleString("vi-VN")}
+                </td>
+                <td className="text-end fw-bold text-primary">
+                  {(item.thucTon || 0).toLocaleString("vi-VN")}
+                </td>
                 <td className="text-center">
                   <span
                     className="badge rounded-pill"

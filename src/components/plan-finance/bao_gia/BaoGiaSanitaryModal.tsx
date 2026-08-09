@@ -1924,15 +1924,36 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
         : (type === "retail"
           ? (editData?.id ? editData.trangThai : "draft")
           : (mode === "draft" ? "draft" : (pheduyet ? "pending_approval" : "approved")));
-      const finalCustomerId = custInfo.id;
+      let finalCustomerId = custInfo.id;
       let finalGhiChu = [info.ghiChu, info.dieuKhoanTT ? `ĐKTT: ${info.dieuKhoanTT}` : "", info.dieuKhoanGH ? `ĐKGH: ${info.dieuKhoanGH}` : ""].filter(Boolean).join("\n");
+      
       if (!finalCustomerId) {
-        const guestInfo = {
-          name: custInfo.name.trim() || "Khách vãng lai",
-          dienThoai: custInfo.dienThoai.trim(),
-          address: custInfo.address.trim()
-        };
-        finalGhiChu = `[GuestInfo:${JSON.stringify(guestInfo)}]\n` + finalGhiChu;
+        // Create walk-in customer on the fly
+        const guestName = custInfo.name.trim() || "Khách vãng lai";
+        try {
+          const custRes = await fetch("/api/plan-finance/customers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: guestName,
+              dienThoai: custInfo.dienThoai.trim(),
+              address: custInfo.address.trim(),
+              nhom: "ca-nhan",
+              nguon: "walk-in",
+            })
+          });
+          if (custRes.ok) {
+            const newCust = await custRes.json();
+            finalCustomerId = newCust.id;
+          } else {
+            // Fallback to GuestInfo note if creation fails
+            const guestInfo = { name: guestName, dienThoai: custInfo.dienThoai.trim(), address: custInfo.address.trim() };
+            finalGhiChu = `[GuestInfo:${JSON.stringify(guestInfo)}]\n` + finalGhiChu;
+          }
+        } catch (err) {
+          const guestInfo = { name: guestName, dienThoai: custInfo.dienThoai.trim(), address: custInfo.address.trim() };
+          finalGhiChu = `[GuestInfo:${JSON.stringify(guestInfo)}]\n` + finalGhiChu;
+        }
       }
 
       const payload = {

@@ -82,7 +82,8 @@ export default function LogisticsOverviewPage() {
   }, [printQuantities, showPrintLabelModal]);
   
   // Mobile tab state
-  const [activeTab, setActiveTab] = useState<"orders" | "inventory">("orders");
+  const [deletedOrders, setDeletedOrders] = useState<Set<string>>(new Set());
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<"ALL" | "IMPORT" | "EXPORT">("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -90,6 +91,7 @@ export default function LogisticsOverviewPage() {
   const STEPS = [
     { num: 1, id: "orders", title: "Danh sách công việc", desc: "Quản lý các lệnh xuất/nhập kho", icon: "bi-card-list" },
     { num: 2, id: "inventory", title: "Danh sách hàng hoá", desc: "Quản lý số lượng tồn kho", icon: "bi-box-seam" },
+    { num: 3, id: "deleted", title: "Dữ liệu đã xoá", desc: "Các lệnh đã xoá", icon: "bi-trash" },
   ];
   
   const [staffList, setStaffList] = useState<any[]>([]);
@@ -371,6 +373,12 @@ export default function LogisticsOverviewPage() {
         };
       })
       .filter((group) => {
+        if (currentStep === 3) {
+          if (!deletedOrders.has(group.orderCode)) return false;
+        } else {
+          if (deletedOrders.has(group.orderCode)) return false;
+        }
+
         if (statusFilter !== "ALL") {
           const status = group.groupStatusText;
           if (statusFilter === "PENDING" && !status.includes("Chưa")) return false;
@@ -430,6 +438,39 @@ export default function LogisticsOverviewPage() {
                   </span>
                 )}
               </div>
+              <div className="dropdown ms-3" onClick={(e) => e.stopPropagation()}>
+                <button className="btn btn-sm btn-light rounded-circle shadow-none p-1" style={{ width: 26, height: 26, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} data-bs-toggle="dropdown">
+                  <i className="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul className="dropdown-menu dropdown-menu-end shadow border-0" style={{ fontSize: 13 }}>
+                  <li>
+                    <button className="dropdown-item py-2" onClick={() => toast.success("Đã gửi", "Báo cáo sự cố đã được ghi nhận!")}>
+                      <i className="bi bi-exclamation-triangle me-2 text-warning"></i>Báo cáo sự cố
+                    </button>
+                  </li>
+                  {currentStep !== 3 && (
+                    <li>
+                      <button className="dropdown-item py-2 text-danger" onClick={() => setOrderToDelete(orderCode)}>
+                        <i className="bi bi-trash me-2"></i>Xoá
+                      </button>
+                    </li>
+                  )}
+                  {currentStep === 3 && (
+                    <li>
+                      <button className="dropdown-item py-2 text-success" onClick={() => {
+                        setDeletedOrders(prev => {
+                          const newSet = new Set(prev);
+                          newSet.delete(orderCode);
+                          return newSet;
+                        });
+                        toast.success("Thành công", "Đã khôi phục lệnh");
+                      }}>
+                        <i className="bi bi-arrow-counterclockwise me-2"></i>Khôi phục
+                      </button>
+                    </li>
+                  )}
+                </ul>
+              </div>
             </div>
             
             {isGroupImport && (orderCode.includes("-DH-") || orderCode.startsWith("QC-")) && (
@@ -480,7 +521,7 @@ export default function LogisticsOverviewPage() {
     }
     
     return finalOrders;
-  }, [rawOrders, collapsedGroups, typeFilter]);
+  }, [rawOrders, collapsedGroups, typeFilter, deletedOrders, currentStep, statusFilter, searchQuery]);
 
   return (
     <div className="d-flex flex-column h-100" style={{ background: "var(--background)", position: "relative" }}>
@@ -506,7 +547,7 @@ export default function LogisticsOverviewPage() {
           }
         >
           <div className="flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ minHeight: 0 }}>
-            {currentStep === 1 && (
+            {(currentStep === 1 || currentStep === 3) && (
               <div className="flex-grow-1 d-flex flex-column h-100" style={{ minHeight: 0 }}>
                 <div className="flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
                 <Table
@@ -972,6 +1013,27 @@ export default function LogisticsOverviewPage() {
         loading={isDeleting}
         onConfirm={handleDeleteOrder}
         onCancel={() => setConfirmDeleteId(null)}
+      />
+
+      <ConfirmDialog
+        open={!!orderToDelete}
+        variant="danger"
+        title="Xoá lệnh / đơn hàng?"
+        message={`Bạn có chắc chắn muốn xoá đơn hàng/lệnh "${orderToDelete}"? Lệnh này sẽ được chuyển vào mục Dữ liệu đã xoá.`}
+        confirmLabel="Xoá"
+        loading={false}
+        onConfirm={() => {
+          if (orderToDelete) {
+            setDeletedOrders(prev => {
+              const newSet = new Set(prev);
+              newSet.add(orderToDelete);
+              return newSet;
+            });
+            setOrderToDelete(null);
+            toast.success("Thành công", "Đã chuyển lệnh vào mục Dữ liệu đã xoá");
+          }
+        }}
+        onCancel={() => setOrderToDelete(null)}
       />
 
       {showPrintLabelModal && (

@@ -81,14 +81,15 @@ export async function GET(req: NextRequest) {
     if (warehouseId) {
       if (stocks.length > 0) {
         // Đã có InventoryStock cho kho này → dùng số chính xác theo kho
-        soLuongTon = stocks[0].soLuong;
+        // Nếu số lượng trong kho = 0 nhưng có tồn đầu kỳ (it.soLuong) thì lấy tồn đầu kỳ
+        soLuongTon = Math.max(stocks[0].soLuong, it.soLuong || 0);
         viTriHang  = stocks[0].viTriHang ?? null;
         viTriCot   = stocks[0].viTriCot  ?? null;
         viTriTang  = stocks[0].viTriTang ?? null;
       } else {
         // Chưa có InventoryStock nào (dữ liệu legacy / nhập trực tiếp)
         // → fallback về soLuong tổng để tránh báo thiếu hàng sai
-        soLuongTon = it.soLuong;
+        soLuongTon = it.soLuong || 0;
       }
     } else {
       // Không chọn kho cụ thể → tổng tất cả kho, fallback legacy nếu chưa có record

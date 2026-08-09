@@ -2,7 +2,11 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  const debts = await prisma.debt.findMany();
-  console.log(debts.map(d => ({ id: d.id, referenceId: d.referenceId })));
+  const counts = await prisma.inventoryItem.groupBy({
+    by: ['loai'],
+    _count: { loai: true }
+  });
+  console.log("Counts by loai:", counts);
 }
-main().catch(console.error).finally(() => prisma.$disconnect());
+
+main().catch(e => console.error(e)).finally(() => prisma.$disconnect());

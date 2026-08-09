@@ -149,13 +149,49 @@ export async function POST(req: NextRequest) {
         });
         soLuongTruoc = legacyItem?.soLuong ?? 0;
       }
+      
+      // Khôi phục số lượng Đã giữ nếu có (InventoryReservation)
+      let deductGiuQty = 0;
+      if (existing) {
+        let ticketsToCheck: string[] = [];
+        if (body.ticketId) {
+          ticketsToCheck.push(body.ticketId);
+        } else if (salesOrderId) {
+          const tickets = await prisma.logisticsTicket.findMany({ where: { saleOrderId: salesOrderId } });
+          ticketsToCheck.push(...tickets.map(t => t.id));
+        }
+
+        if (ticketsToCheck.length > 0) {
+           const reservations = await prisma.inventoryReservation.findMany({
+              where: { 
+                 inventoryStockId: existing.id,
+                 ticketItem: { ticketId: { in: ticketsToCheck } },
+                 reservedQty: { gt: 0 }
+              }
+           });
+           
+           let remainingToDeduct = soLuong;
+           for (const res of reservations) {
+              if (remainingToDeduct <= 0) break;
+              const deduct = Math.min(res.reservedQty, remainingToDeduct);
+              await prisma.inventoryReservation.update({
+                 where: { id: res.id },
+                 data: { reservedQty: res.reservedQty - deduct }
+              });
+              deductGiuQty += deduct;
+              remainingToDeduct -= deduct;
+           }
+        }
+      }
+
       const soLuongSau   = soLuongTruoc - soLuong;
+      const soLuongGiuSau = existing ? Math.max(0, (existing.soLuongGiu || 0) - deductGiuQty) : 0;
 
       // Cập nhật InventoryStock
       await prisma.inventoryStock.upsert({
         where:  { inventoryItemId_warehouseId: { inventoryItemId, warehouseId: fromWarehouseId } },
         create: { inventoryItemId, warehouseId: fromWarehouseId, soLuong: Math.max(0, soLuongSau) },
-        update: { soLuong: Math.max(0, soLuongSau) },
+        update: { soLuong: Math.max(0, soLuongSau), soLuongGiu: soLuongGiuSau },
       });
 
       // Ghi StockMovement

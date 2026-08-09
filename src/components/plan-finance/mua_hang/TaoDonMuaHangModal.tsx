@@ -695,7 +695,7 @@ export default function TaoDonMuaHangModal({
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 6 }}>Ghi chú đơn hàng</label>
+                  <label style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 6 }}>Ghi chú nội bộ</label>
                   <textarea
                     value={editGhiChuState ?? ""}
                     onChange={e => setEditGhiChuState(e.target.value)}

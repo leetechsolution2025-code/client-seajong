@@ -51,7 +51,7 @@ export function FullWidthTableLayout({
           padding-right: 1.5rem !important;
         }
       `}</style>
-      <div className={cn("full-width-table-wrapper d-flex flex-column", tableWrapperClassName)} style={{ flexGrow: 1, overflow: "hidden", minHeight: 0 }}>
+      <div className={cn("full-width-table-wrapper d-flex flex-column", tableWrapperClassName)} style={{ flexGrow: 1, overflow: "auto", minHeight: 0 }}>
         {table}
       </div>
 

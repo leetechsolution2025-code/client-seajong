@@ -231,6 +231,28 @@ export async function POST(req: NextRequest) {
              where: { id: targetStock.id },
              data: { soLuongGiu: (targetStock.soLuongGiu || 0) + delta }
           });
+
+          // Lưu vết vào InventoryReservation
+          const existingRes = await (prisma as any).inventoryReservation.findFirst({
+            where: { ticketItemId, inventoryStockId: targetStock.id }
+          });
+          
+          if (addQty === 0 && existingRes) {
+            await (prisma as any).inventoryReservation.delete({
+              where: { id: existingRes.id }
+            });
+          } else if (addQty > 0) {
+            if (existingRes) {
+              await (prisma as any).inventoryReservation.update({
+                where: { id: existingRes.id },
+                data: { reservedQty: addQty }
+              });
+            } else {
+              await (prisma as any).inventoryReservation.create({
+                data: { ticketItemId, inventoryStockId: targetStock.id, reservedQty: addQty }
+              });
+            }
+          }
         }
       }
 

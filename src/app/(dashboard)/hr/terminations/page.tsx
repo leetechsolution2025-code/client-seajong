@@ -25,6 +25,7 @@ import {
 import { Table, TableColumn } from "@/components/ui/Table";
 import { BrandButton } from "@/components/ui/BrandButton";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
+import { SectionTitle } from "@/components/ui/SectionTitle";
 import { ModernStepper } from "@/components/ui/ModernStepper";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { EmployeeAvatar } from "@/components/hr/EmployeeAvatar";
@@ -95,15 +96,13 @@ export default function TerminationsPage() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch("/api/hr/employees");
+      const res = await fetch("/api/hr/employees?pageSize=1000");
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setEmployees(data.filter((e: any) => e.status === "active"));
-      } else if (data && Array.isArray(data.data)) {
-        setEmployees(data.data.filter((e: any) => e.status === "active"));
-      }
+      const list = Array.isArray(data) ? data : (data?.employees || data?.data || []);
+      console.log("Fetched employees:", list);
+      setEmployees(list || []);
     } catch (err) {
-      console.error(err);
+      console.error("fetchEmployees error:", err);
     }
   };
 
@@ -404,31 +403,32 @@ function TerminationFormOffcanvas({ isOpen, onClose, employees, onSuccess }: any
   if (!isOpen) return null;
 
   return (
-    <div className="position-fixed top-0 end-0 h-100 bg-white shadow-lg border-start overflow-hidden fs-termination-drawer" style={{ width: "450px", maxWidth: "100%", zIndex: 1060 }}>
+    <div className="position-fixed top-0 end-0 h-100 bg-white shadow-lg border-start overflow-hidden fs-termination-drawer" style={{ width: "400px", maxWidth: "100%", zIndex: 1060 }}>
       <div className="p-4 h-100 d-flex flex-column">
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h5 className="fw-bold mb-0">Tạo thủ tục mới</h5>
           <button className="btn btn-sm btn-light border" onClick={onClose}>&times;</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-grow-1 overflow-auto pe-2">
+        <form onSubmit={handleSubmit} className="flex-grow-1 overflow-auto pe-2 d-flex flex-column">
           <div className="mb-4">
-            <label className="form-label small fw-bold text-muted">1. Chọn nhân sự</label>
+            <SectionTitle title="Chọn nhân sự" className="mb-2" />
             <select 
               className="form-select" 
               required 
               value={formData.employeeId}
               onChange={e => setFormData({...formData, employeeId: e.target.value})}
+              style={{ fontSize: 13 }}
             >
               <option value="">-- Tìm nhân viên --</option>
               {employees.map((e: any) => (
-                <option key={e.id} value={e.id}>{e.fullName} ({e.code})</option>
+                <option key={e.id} value={e.id}>{e.fullName} | {e.departmentName || "Chưa xếp phòng"}</option>
               ))}
             </select>
           </div>
 
           <div className="mb-4">
-            <label className="form-label small fw-bold text-muted">2. Loại thủ tục</label>
+            <SectionTitle title="Loại thủ tục" className="mb-2" />
             <div className="d-flex gap-2">
               <button 
                 type="button"
@@ -451,22 +451,24 @@ function TerminationFormOffcanvas({ isOpen, onClose, employees, onSuccess }: any
 
           <div className="row g-3 mb-4">
             <div className="col-6">
-              <label className="form-label small fw-bold text-muted">3. Ngày thông báo</label>
+              <SectionTitle title="Ngày thông báo" className="mb-2" />
               <input 
                 type="date" 
                 className="form-control" 
                 required
                 value={formData.requestDate}
                 onChange={e => setFormData({...formData, requestDate: e.target.value})}
+                style={{ fontSize: 13 }}
               />
             </div>
             <div className="col-6">
-              <label className="form-label small fw-bold text-muted">4. Ngày dự kiến nghỉ</label>
+              <SectionTitle title="Ngày dự kiến nghỉ" className="mb-2" />
               <input 
                 type="date" 
                 className="form-control" 
                 value={formData.lastWorkingDay}
                 onChange={e => setFormData({...formData, lastWorkingDay: e.target.value})}
+                style={{ fontSize: 13 }}
               />
             </div>
           </div>
@@ -474,15 +476,15 @@ function TerminationFormOffcanvas({ isOpen, onClose, employees, onSuccess }: any
             * Để trống ngày dự kiến nghỉ nếu chưa xác định chính xác
           </div>
 
-          <div className="mb-4">
-            <label className="form-label small fw-bold text-muted">5. Lý do chi tiết</label>
+          <div className="mb-4 flex-grow-1 d-flex flex-column">
+            <SectionTitle title="Lý do chi tiết" className="mb-2" />
             <textarea 
-              className="form-control" 
-              rows={4} 
+              className="form-control flex-grow-1" 
               placeholder="Nhập lý do cụ thể..."
               required
               value={formData.reason}
               onChange={e => setFormData({...formData, reason: e.target.value})}
+              style={{ fontSize: 13 }}
             />
           </div>
         </form>

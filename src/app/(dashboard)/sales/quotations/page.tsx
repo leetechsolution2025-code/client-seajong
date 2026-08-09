@@ -150,15 +150,9 @@ export function QuotationsContent() {
 
   // Customer selection modal states
   const [showCustomerSelectModal, setShowCustomerSelectModal] = useState(false);
+  const [customerTab, setCustomerTab] = useState<"dai_ly" | "vang_lai">("dai_ly");
   const [customersList, setCustomersList] = useState<any[]>([]);
   const [customerSearchTerm, setCustomerSearchTerm] = useState("");
-
-  // Quick create customer form states
-  const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
-  const [newCustomerName, setNewCustomerName] = useState("");
-  const [newCustomerPhone, setNewCustomerPhone] = useState("");
-  const [newCustomerAddress, setNewCustomerAddress] = useState("");
-  const [isSavingCustomer, setIsSavingCustomer] = useState(false);
 
   // Bulk delete states
   const [confirmDeleteBaoGia, setConfirmDeleteBaoGia] = useState(false);
@@ -287,7 +281,8 @@ export function QuotationsContent() {
     if (!showCustomerSelectModal) return;
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/plan-finance/customers?search=${customerSearchTerm}`);
+        const nhom = customerTab === "dai_ly" ? "dai-ly" : "ca-nhan";
+        const res = await fetch(`/api/plan-finance/customers?search=${customerSearchTerm}&nhom=${nhom}`);
         if (res.ok) {
           const data = await res.json();
           setCustomersList(data.customers || []);
@@ -297,7 +292,7 @@ export function QuotationsContent() {
       }
     }, 250);
     return () => clearTimeout(timer);
-  }, [customerSearchTerm, showCustomerSelectModal]);
+  }, [customerSearchTerm, showCustomerSelectModal, customerTab]);
 
   // Trigger modal in edit mode
   const handleEditQuotation = async (row: Quotation) => {
@@ -409,39 +404,6 @@ export function QuotationsContent() {
       setIsDonHangModalOpen(true);
     } else {
       setIsQuotationModalOpen(true);
-    }
-  };
-
-  // Handle new customer form submission
-  const handleCreateCustomerSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCustomerName.trim()) return;
-    setIsSavingCustomer(true);
-    try {
-      const res = await fetch("/api/plan-finance/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newCustomerName.trim(),
-          dienThoai: newCustomerPhone.trim(),
-          address: newCustomerAddress.trim(),
-          nhom: "ca-nhan",
-        })
-      });
-      if (res.ok) {
-        const newCust = await res.json();
-        toast.success("Thành công", "Đã tạo khách hàng mới");
-        handleSelectCustomer(newCust);
-        setIsCreatingNewCustomer(false);
-      } else {
-        const errData = await res.json();
-        toast.error("Lỗi", errData.error || "Không thể tạo khách hàng");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Lỗi", "Lỗi kết nối máy chủ");
-    } finally {
-      setIsSavingCustomer(false);
     }
   };
 
@@ -834,156 +796,104 @@ export function QuotationsContent() {
           <div className="offcanvas offcanvas-end show d-flex flex-column shadow-lg border-start-0" style={{ width: 400, zIndex: 1060, visibility: "visible" }} tabIndex={-1}>
             <div className="offcanvas-header bg-light border-bottom py-3 px-4 flex-shrink-0">
               <h5 className="offcanvas-title fw-bold text-dark" style={{ fontSize: 15 }}>
-                {isCreatingNewCustomer ? "Tạo khách hàng mới" : (isDirectOrder ? "Chọn khách hàng cho đơn hàng" : "Chọn khách hàng cho báo giá")}
+                {isDirectOrder ? "Chọn khách hàng cho đơn hàng" : "Chọn khách hàng cho báo giá"}
               </h5>
                 <button
                   type="button"
                   className="btn-close shadow-none"
-                  onClick={() => {
-                    setShowCustomerSelectModal(false);
-                    setIsCreatingNewCustomer(false);
-                  }}
+                  onClick={() => setShowCustomerSelectModal(false)}
                 />
               </div>
               <div className="offcanvas-body p-4 d-flex flex-column overflow-hidden">
-                {!isCreatingNewCustomer ? (
-                  <div className="d-flex flex-column gap-3 h-100">
-                    <div className="d-flex gap-2 flex-shrink-0">
-                      <div className="position-relative flex-grow-1">
-                        <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" style={{ fontSize: 13 }} />
-                        <input
-                          type="text"
-                          className="form-control form-control-sm ps-5 rounded-3 border-light bg-light"
-                          placeholder="Tìm tên, số điện thoại..."
-                          value={customerSearchTerm}
-                          onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                          style={{ fontSize: 13, height: 38 }}
-                        />
-                      </div>
-                      <button
-                        className="btn btn-outline-primary d-flex align-items-center gap-2 rounded-3 border"
-                        onClick={() => {
-                          setNewCustomerName("");
-                          setNewCustomerPhone("");
-                          setNewCustomerAddress("");
-                          setIsCreatingNewCustomer(true);
-                        }}
-                        style={{ fontSize: 13, fontWeight: 600, height: 38, borderColor: "#003087", color: "#003087" }}
-                      >
-                        <i className="bi bi-person-plus" />
-                        Tạo mới
-                      </button>
-                    </div>
+                <div className="d-flex bg-light p-1 rounded-3 mb-3 flex-shrink-0">
+                  <button
+                    className={`btn flex-grow-1 rounded-2 shadow-none py-1.5 ${customerTab === "dai_ly" ? "bg-white text-primary border shadow-sm" : "border-0 text-muted"}`}
+                    style={{ fontSize: 13, fontWeight: customerTab === "dai_ly" ? 600 : 500, height: 36 }}
+                    onClick={() => setCustomerTab("dai_ly")}
+                  >
+                    Đại lý
+                  </button>
+                  <button
+                    className={`btn flex-grow-1 rounded-2 shadow-none py-1.5 ms-1 ${customerTab === "vang_lai" ? "bg-white text-primary border shadow-sm" : "border-0 text-muted"}`}
+                    style={{ fontSize: 13, fontWeight: customerTab === "vang_lai" ? 600 : 500, height: 36 }}
+                    onClick={() => setCustomerTab("vang_lai")}
+                  >
+                    Khách vãng lai
+                  </button>
+                </div>
 
-                    <button
-                      className="btn w-100 d-flex align-items-center justify-content-between p-3 rounded-3 border text-start shadow-sm flex-shrink-0"
-                      onClick={handleSelectWalkIn}
-                      style={{
-                        backgroundColor: "rgba(0, 48, 135, 0.04)",
-                        borderColor: "rgba(0, 48, 135, 0.15)",
-                        color: "#003087",
-                        fontWeight: 700,
-                        transition: "all 0.15s"
-                      }}
-                    >
-                      <div className="d-flex align-items-center gap-3">
-                        <div className="rounded-circle d-flex align-items-center justify-content-center text-white" style={{ width: 32, height: 32, backgroundColor: "#003087" }}>
-                          <i className="bi bi-people" style={{ fontSize: 15 }} />
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 13.5 }}>Khách hàng mua lẻ vãng lai</div>
-                          <div className="text-muted fw-normal" style={{ fontSize: 11 }}>Không lưu thông tin chi tiết</div>
-                        </div>
-                      </div>
-                      <i className="bi bi-chevron-right" />
-                    </button>
-
-                    <div className="border-top pt-2 mt-1 d-flex flex-column flex-grow-1" style={{ minHeight: 0 }}>
-                      <div className="text-muted small fw-bold text-uppercase mb-2 flex-shrink-0" style={{ letterSpacing: "0.04em", fontSize: 10 }}>Khách hàng hiện tại</div>
-                      <div className="overflow-auto list-group rounded-0 flex-grow-1">
-                        {customersList.length === 0 ? (
-                          <div className="text-center py-4 text-muted small">
-                            <i className="bi bi-inbox fs-4 d-block mb-1 opacity-50" />
-                            Không tìm thấy khách hàng nào
-                          </div>
-                        ) : (
-                          customersList.map((c) => (
-                            <div
-                              key={c.id}
-                              className="list-group-item list-group-item-action border rounded-3 p-3 mb-2 d-flex align-items-center justify-content-between cursor-pointer"
-                              onClick={() => handleSelectCustomer(c)}
-                            >
-                              <div>
-                                <div className="fw-bold text-dark" style={{ fontSize: 13.5 }}>{c.name}</div>
-                                <div className="text-muted mt-1" style={{ fontSize: 11 }}>
-                                  {c.dienThoai && <span className="me-3"><i className="bi bi-telephone me-1" />{c.dienThoai}</span>}
-                                  {c.address && <span><i className="bi bi-geo-alt me-1" />{c.address}</span>}
-                                </div>
-                              </div>
-                              <i className="bi bi-chevron-right text-muted" style={{ fontSize: 12 }} />
-                            </div>
-                          ))
-                        )}
-                      </div>
+                <div className="d-flex flex-column gap-3 h-100 overflow-hidden">
+                  <div className="d-flex gap-2 flex-shrink-0">
+                    <div className="flex-grow-1">
+                      <SearchInput
+                        value={customerSearchTerm}
+                        onChange={(val) => setCustomerSearchTerm(val)}
+                        placeholder="Tìm tên, số điện thoại..."
+                        className="bg-light border-light shadow-none"
+                        style={{ fontSize: 13, height: 38 }}
+                      />
                     </div>
                   </div>
-                ) : (
-                  <form onSubmit={handleCreateCustomerSubmit} className="d-flex flex-column gap-3 h-100 overflow-y-auto">
-                    <div>
-                      <label className="form-label fw-bold text-muted text-uppercase mb-1" style={{ fontSize: 10.5, letterSpacing: "0.04em" }}>Tên khách hàng *</label>
-                      <input
-                        type="text"
-                        className="form-control rounded-3 border-light bg-light"
-                        placeholder="Nhập tên khách hàng..."
-                        value={newCustomerName}
-                        onChange={(e) => setNewCustomerName(e.target.value)}
-                        required
-                        style={{ fontSize: 13, height: 38 }}
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label fw-bold text-muted text-uppercase mb-1" style={{ fontSize: 10.5, letterSpacing: "0.04em" }}>Số điện thoại</label>
-                      <input
-                        type="text"
-                        className="form-control rounded-3 border-light bg-light"
-                        placeholder="Nhập số điện thoại..."
-                        value={newCustomerPhone}
-                        onChange={(e) => setNewCustomerPhone(e.target.value)}
-                        style={{ fontSize: 13, height: 38 }}
-                      />
-                    </div>
-                    <div>
-                      <label className="form-label fw-bold text-muted text-uppercase mb-1" style={{ fontSize: 10.5, letterSpacing: "0.04em" }}>Địa chỉ</label>
-                      <input
-                        type="text"
-                        className="form-control rounded-3 border-light bg-light"
-                        placeholder="Nhập địa chỉ..."
-                        value={newCustomerAddress}
-                        onChange={(e) => setNewCustomerAddress(e.target.value)}
-                        style={{ fontSize: 13, height: 38 }}
-                      />
-                    </div>
 
-                    <div className="d-flex justify-content-end gap-2 border-top pt-3 mt-auto flex-shrink-0">
+                  {customerTab === "vang_lai" && (
+                    <div className="flex-shrink-0">
                       <button
-                        type="button"
-                        className="btn btn-light rounded-3"
-                        onClick={() => setIsCreatingNewCustomer(false)}
-                        style={{ fontSize: 13, fontWeight: 600, height: 38 }}
+                        className="btn w-100 d-flex align-items-center justify-content-between p-3 rounded-3 border text-start shadow-sm"
+                        onClick={handleSelectWalkIn}
+                        style={{
+                          backgroundColor: "rgba(0, 48, 135, 0.04)",
+                          borderColor: "rgba(0, 48, 135, 0.15)",
+                          color: "#003087",
+                          fontWeight: 700,
+                          transition: "all 0.15s"
+                        }}
                       >
-                        Quay lại
-                      </button>
-                      <button
-                        type="submit"
-                        className="btn btn-primary rounded-3 text-white"
-                        disabled={isSavingCustomer}
-                        style={{ fontSize: 13, fontWeight: 600, height: 38, backgroundColor: "#003087", borderColor: "#003087" }}
-                      >
-                        {isSavingCustomer ? "Đang lưu..." : "Tạo & Tiếp tục"}
+                        <div className="d-flex align-items-center gap-3">
+                          <div className="rounded-circle d-flex align-items-center justify-content-center text-white" style={{ width: 32, height: 32, backgroundColor: "#003087" }}>
+                            <i className="bi bi-people" style={{ fontSize: 15 }} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 13.5 }}>Tạo khách vãng lai mới</div>
+                            <div className="text-muted fw-normal" style={{ fontSize: 11 }}>Nhập thông tin tại màn hình tạo đơn</div>
+                          </div>
+                        </div>
+                        <i className="bi bi-chevron-right" />
                       </button>
                     </div>
-                  </form>
-                )}
+                  )}
+
+                  <div className="border-top pt-2 mt-1 d-flex flex-column flex-grow-1 overflow-hidden">
+                    <div className="text-muted small fw-bold text-uppercase mb-2 flex-shrink-0" style={{ letterSpacing: "0.04em", fontSize: 10 }}>Khách hàng hiện tại</div>
+                    <div className="overflow-auto list-group rounded-0 flex-grow-1">
+                      {customersList.length === 0 ? (
+                        <div className="text-center py-4 text-muted small">
+                          <i className="bi bi-inbox fs-4 d-block mb-1 opacity-50" />
+                          Không tìm thấy khách hàng nào
+                        </div>
+                      ) : (
+                        customersList.map((c) => (
+                          <div
+                            key={c.id}
+                            className="list-group-item list-group-item-action border rounded-3 p-3 mb-2 d-flex align-items-center justify-content-between cursor-pointer"
+                            onClick={() => handleSelectCustomer(c)}
+                          >
+                            <div>
+                              <div className="fw-bold text-dark" style={{ fontSize: 13.5 }}>{c.name}</div>
+                              <div className="text-muted mt-1" style={{ fontSize: 11 }}>
+                                {c.address ? (
+                                  <span><i className="bi bi-geo-alt me-1" />{c.address}</span>
+                                ) : (
+                                  <span className="fst-italic opacity-75">Chưa có thông tin địa chỉ</span>
+                                )}
+                              </div>
+                            </div>
+                            <i className="bi bi-chevron-right text-muted" style={{ fontSize: 12 }} />
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
             </div>
           </div>
         </>

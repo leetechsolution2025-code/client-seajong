@@ -205,12 +205,12 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
           { name: "Hàng hoá trong kho", href: "/finance/inventory", icon: "bi-box-seam" },
         ]
       },
-      {
-        group: "Khởi tạo dữ liệu", items: [
-          { name: "Danh mục tài khoản", href: "/finance/accounts", icon: "bi-journal-bookmark" },
-          { name: "Khai báo số dư đầu kỳ", href: "/finance/opening-balances", icon: "bi-wallet2" },
-        ]
-      },
+      // {
+      //   group: "Khởi tạo dữ liệu", items: [
+      //     { name: "Danh mục tài khoản", href: "/finance/accounts", icon: "bi-journal-bookmark" },
+      //     { name: "Khai báo số dư đầu kỳ", href: "/finance/opening-balances", icon: "bi-wallet2" },
+      //   ]
+      // },
       {
         group: "Kế toán nội bộ", items: [
           { name: "Sổ nhật ký chung", href: "/finance/journal-entries", icon: "bi-journal-text" },

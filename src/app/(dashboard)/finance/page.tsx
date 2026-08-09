@@ -1748,7 +1748,7 @@ export default function FinancePage() {
                             {requestDetail.ghiChu && (
                               <div>
                                 <span className="fw-bold text-secondary text-uppercase d-block mb-1" style={{ fontSize: "10px", letterSpacing: "0.05em" }}>
-                                  Ghi chú đơn hàng
+                                  Ghi chú nội bộ
                                 </span>
                                 <p className="text-muted mb-0" style={{ fontSize: "12.5px", lineHeight: "1.4" }}>
                                   {requestDetail.ghiChu}

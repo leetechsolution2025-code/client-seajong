@@ -437,7 +437,7 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
               {/* Ghi chú */}
               {order.ghiChu && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label style={{ fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.02em" }}>Ghi chú đơn hàng</label>
+                  <label style={{ fontSize: 11.5, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.02em" }}>Ghi chú nội bộ</label>
                   <div style={{ padding: "10px 12px", background: "var(--muted)", borderRadius: 8, fontSize: 12.5, color: "var(--foreground)", whiteSpace: "pre-line" }}>
                     {order.ghiChu}
                   </div>

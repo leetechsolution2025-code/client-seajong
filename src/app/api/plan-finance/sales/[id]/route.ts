@@ -285,6 +285,7 @@ export async function GET(
 
     // Calculate total receivable debt
     const customerName = resolvedOrder.customer?.name;
+    const customerId = resolvedOrder.customer?.id;
     let tongNoCu = 0;
     let totalDebt = 0;
     if (customerName && customerName !== "Khách vãng lai") {
@@ -296,8 +297,22 @@ export async function GET(
         select: { amount: true, paidAmount: true, referenceId: true }
       });
       const orderIds = [order.code, order.id].filter(Boolean) as string[];
-      tongNoCu = debts.filter(d => !orderIds.includes(d.referenceId!)).reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
-      totalDebt = debts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
+      let debtFromDebts = debts.filter(d => !orderIds.includes(d.referenceId!)).reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
+      let totalDebtFromDebts = debts.reduce((sum, d) => sum + (d.amount - d.paidAmount), 0);
+      
+      let debtFromOrders = 0;
+      let totalDebtFromOrders = 0;
+      if (customerId) {
+        const unpaidOrders = await prisma.saleOrder.findMany({
+          where: { customerId, trangThai: { notIn: ["cancelled", "draft"] } },
+          select: { id: true, code: true, tongTien: true, daThanhToan: true }
+        });
+        debtFromOrders = unpaidOrders.filter(o => !orderIds.includes(o.id) && !orderIds.includes(o.code!)).reduce((sum, o) => sum + (o.tongTien - (o.daThanhToan || 0)), 0);
+        totalDebtFromOrders = unpaidOrders.reduce((sum, o) => sum + (o.tongTien - (o.daThanhToan || 0)), 0);
+      }
+      
+      tongNoCu = debtFromDebts + debtFromOrders;
+      totalDebt = totalDebtFromDebts + totalDebtFromOrders;
     }
     
     // Add to payload

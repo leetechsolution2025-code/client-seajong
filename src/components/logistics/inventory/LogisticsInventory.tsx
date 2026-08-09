@@ -42,6 +42,8 @@ interface InventoryItem {
   donVi: string | null;
   soLuong: number;
   soLuongMin: number;
+  soLuongGiu?: number;
+  thucTon?: number;
   trangThai: string;
   webProductId: number | null;
   webVariationId?: number | null;
@@ -51,6 +53,7 @@ interface InventoryItem {
   category: { id: string; name: string } | null;
   source?: string;
   images?: string[];
+  stocks?: any[];
 }
 
 export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, hideActions, compactMode }: { defaultWarehouseNameMatch?: string, hideAddButton?: boolean, hideActions?: boolean, compactMode?: boolean } = {}) {
@@ -505,7 +508,9 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
                 {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "15%", minWidth: "140px", whiteSpace: "nowrap" }}>Danh mục</th>}
                 {!compactMode && <th className="border-0 text-uppercase" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "20%", minWidth: "140px", whiteSpace: "nowrap" }}>Model / Màu</th>}
                 {!compactMode && <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "70px", whiteSpace: "nowrap" }}>ĐVT</th>}
-                {!compactMode && <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px", whiteSpace: "nowrap" }}>Tồn kho</th>}
+                <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "100px", whiteSpace: "nowrap" }}>Tồn hệ thống</th>
+                <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px", whiteSpace: "nowrap" }}>Đã giữ</th>
+                <th className="border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "90px", whiteSpace: "nowrap" }}>Thực tồn</th>
                 <th className="border-0 text-uppercase text-center" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "10%", minWidth: "80px", whiteSpace: "nowrap" }}>Trạng thái</th>
                 {hideActions ? null : <th className="pe-4 border-0 text-uppercase text-end" style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: "110px", minWidth: "110px", whiteSpace: "nowrap" }}>Thao tác</th>}
               </tr>
@@ -513,14 +518,14 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={hideActions ? 7 : 8} className="text-center py-5">
+                  <td colSpan={hideActions ? 9 : 10} className="text-center py-5">
                     <div className="spinner-border spinner-border-sm text-primary me-2" />
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={hideActions ? 7 : 8} className="text-center py-5 text-muted">
+                  <td colSpan={hideActions ? 9 : 10} className="text-center py-5 text-muted">
                     <i className="bi bi-inbox fs-2 d-block mb-2 opacity-25" />
                     Không tìm thấy hàng hóa nào
                   </td>
@@ -592,6 +597,21 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
                               </span>
                             )}
                           </div>
+                          {(item.code || (!filterWarehouse && item.stocks && item.stocks.length > 0)) && (
+                            <div className="text-muted mt-1 d-flex align-items-center gap-3 flex-wrap" style={{ fontSize: 11 }}>
+                              {item.code && (
+                                <div>
+                                  <i className="bi bi-upc-scan me-1"></i> {item.code}
+                                </div>
+                              )}
+                              {!filterWarehouse && item.stocks && item.stocks.length > 0 && (
+                                <div className="text-primary opacity-75" title="Kho chứa hàng">
+                                  <i className="bi bi-box-seam me-1"></i>
+                                  {Array.from(new Set(item.stocks.map((s: any) => s.warehouse?.name).filter(Boolean))).join(", ")}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -613,11 +633,15 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
                       </td>
                     )}
                     {!compactMode && <td className="text-center" style={{ color: "var(--foreground)" }}>{item.donVi || "—"}</td>}
-                    {!compactMode && (
-                      <td className="text-end fw-bold" style={{ color: "var(--foreground)" }}>
-                        {item.soLuong.toLocaleString("vi-VN")}
-                      </td>
-                    )}
+                    <td className="text-end fw-bold" style={{ color: "var(--foreground)" }}>
+                      {item.soLuong.toLocaleString("vi-VN")}
+                    </td>
+                    <td className="text-end text-muted" style={{ fontSize: 12.5 }}>
+                      {(item.soLuongGiu || 0).toLocaleString("vi-VN")}
+                    </td>
+                    <td className="text-end fw-bold text-primary">
+                      {(item.thucTon || 0).toLocaleString("vi-VN")}
+                    </td>
                     <td className="text-center">
                       {item.trangThai === "con-hang" ? (
                         <span className="badge bg-success-subtle text-success border border-success border-opacity-20 rounded-pill">Còn hàng</span>

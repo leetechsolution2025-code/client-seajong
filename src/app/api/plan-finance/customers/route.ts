@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = req.nextUrl;
     const page   = Math.max(1, parseInt(searchParams.get("page")  ?? "1"));
+    const pageSize = parseInt(searchParams.get("pageSize") ?? "10");
     const search = searchParams.get("search") ?? "";
     const nguon  = searchParams.get("nguon")  ?? "";
     const nhom   = searchParams.get("nhom")   ?? "";
@@ -62,8 +63,8 @@ export async function GET(req: NextRequest) {
       prisma.customer.count({ where }),
       prisma.customer.findMany({
         where,
-        skip: (page - 1) * PAGE_SIZE,
-        take: PAGE_SIZE,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
         orderBy: { createdAt: "desc" },
         include: { 
           nguoiChamSoc: { select: { id: true, fullName: true } },

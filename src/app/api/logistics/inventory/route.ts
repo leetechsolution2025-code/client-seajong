@@ -266,6 +266,10 @@ export async function GET(req: Request) {
     if (warehouseId) {
       if (warehouseType === "DEFECT") {
         where.stocks = { some: { warehouseId, soLuong: { gt: 0 } } };
+      } else if (warehouseType === "PRODUCT_SYNC") {
+        where.AND = [{ OR: [{ loai: { in: ["hang-hoa", "thanh-pham"] } }, { stocks: { some: { warehouseId } } }] }];
+      } else if (warehouseType === "MATERIAL") {
+        where.AND = [{ OR: [{ loai: "vat-tu" }, { stocks: { some: { warehouseId } } }] }];
       } else {
         where.stocks = { some: { warehouseId } };
       }
