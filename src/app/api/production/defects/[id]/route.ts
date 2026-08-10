@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import fs from 'fs';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -36,7 +38,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             include: {
               vatTu: {
                 include: {
-                  inventoryItem: { select: { soLuong: true } }
+                  inventoryItem: { select: { soLuong: true, tenHang: true } }
                 }
               }
             }
@@ -48,7 +50,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         bomCode = latestDinhMuc.code;
         bomItems = latestDinhMuc.vatTu.map((vt: any) => ({
           id: vt.maVatTu || vt.id,
-          name: vt.tenVatTu,
+          realInventoryItemId: vt.inventoryItem?.id,
+          name: vt.inventoryItem?.tenHang || vt.tenVatTu,
           unit: vt.donViTinh || 'Cái',
           qty: vt.soLuong,
           stock: vt.inventoryItem?.soLuong || 0

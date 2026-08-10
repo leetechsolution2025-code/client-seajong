@@ -3,11 +3,12 @@ import { DefectRecord, DefectStatus } from '../mockData';
 
 const getStatusBadge = (status: DefectStatus) => {
   switch (status) {
-    case 'NEW': return <span className="badge bg-primary">Chưa thực hiện</span>;
+    case 'NEW': return <span className="badge bg-primary">Chưa xử lý</span>;
     case 'TECH_EVALUATING': return <span className="badge bg-info">Đang chẩn đoán</span>;
     case 'WAITING_APPROVAL': return <span className="badge bg-warning text-dark">Chờ duyệt</span>;
     case 'PROCESSING': return <span className="badge bg-secondary">Đang xử lý</span>;
-    case 'COMPLETED': return <span className="badge bg-success">Hoàn tất</span>;
+    case 'WAITING_INVENTORY': return <span className="badge bg-secondary">Đang thực hiện</span>;
+    case 'COMPLETED': return <span className="badge bg-success">Đã xử lý</span>;
     default: return <span className="badge bg-light text-dark">{status}</span>;
   }
 };

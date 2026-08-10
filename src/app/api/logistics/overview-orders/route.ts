@@ -111,6 +111,9 @@ export async function GET(_req: NextRequest) {
               }
             } 
           },
+          defectRecord: {
+            select: { code: true }
+          },
           items: {
             select: {
               requestedQty: true,
@@ -162,10 +165,10 @@ export async function GET(_req: NextRequest) {
         id:        t.id,
         code:      t.code,
         type:      "logistics-ticket" as const,
-        typeLabel: t.type === "BATCH_PACKING" ? "Gom hàng & đóng gói" : "Cấp phát vật tư",
-        customer:  t.saleOrder?.customer?.name ?? null,
+        typeLabel: t.type === "BATCH_PACKING" ? "Gom hàng & đóng gói" : (t.type === "WARRANTY_MATERIAL" ? "Vật tư bảo hành" : "Cấp phát vật tư"),
+        customer:  t.saleOrder?.customer?.name ?? (t.defectRecord ? `Từ hồ sơ: ${t.defectRecord.code}` : null),
         customerAddress: t.saleOrder?.customer?.address ?? null,
-        ghiChu:    t.saleOrder?.ghiChu ?? null,
+        ghiChu:    t.saleOrder?.ghiChu ?? (t.defectRecord ? `Yêu cầu vật tư cho lỗi ${t.defectRecord.code}` : null),
         tongTien:  null,
         trangThai: t.status,
         isAssigned: assignedOrderIds.has(t.id),

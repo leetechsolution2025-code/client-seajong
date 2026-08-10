@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import fs from 'fs';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const defects = await (prisma as any).defectRecord.findMany({
@@ -53,8 +55,22 @@ export async function POST(req: Request) {
     if (!code) {
       const isWarranty = formData.get('source') === 'WARRANTY';
       const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const count = await (prisma as any).defectRecord.count();
-      code = `${isWarranty ? 'WR' : 'ERR'}-${timestamp}-${(count + 1).toString().padStart(2, '0')}`;
+      const prefix = isWarranty ? 'WR' : 'ERR';
+      
+      const lastDefect = await (prisma as any).defectRecord.findFirst({
+        where: { code: { startsWith: `${prefix}-${timestamp}` } },
+        orderBy: { code: 'desc' }
+      });
+      
+      let nextNumber = 1;
+      if (lastDefect && lastDefect.code) {
+        const parts = lastDefect.code.split('-');
+        if (parts.length === 3) {
+          nextNumber = parseInt(parts[2], 10) + 1;
+        }
+      }
+      
+      code = `${prefix}-${timestamp}-${nextNumber.toString().padStart(2, '0')}`;
     }
 
     const defect = await (prisma as any).defectRecord.create({

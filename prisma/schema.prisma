@@ -2773,11 +2773,12 @@ model JournalLine {
 // THÔNG TIN XỬ LÝ HÀNG LỖI (DEFECTS)
 // ==========================================
 model DefectRecord {
-  activities DefectActivity[]
-  id         String           @id @default(cuid())
-  code       String           @unique
-  source     String // INTERNAL, WARRANTY
-  status     String           @default("NEW")
+  activities       DefectActivity[]
+  logisticsTickets LogisticsTicket[]
+  id               String           @id @default(cuid())
+  code             String           @unique
+  source           String // INTERNAL, WARRANTY
+  status           String           @default("NEW")
 
   productName String
   productCode String
@@ -2920,6 +2921,7 @@ model QualityInspection {
 enum LogisticsTicketType {
   BATCH_PACKING
   MATERIAL_PICKING
+  WARRANTY_MATERIAL
 }
 
 enum LogisticsTicketStatus {
@@ -2937,8 +2939,10 @@ model LogisticsTicket {
   status LogisticsTicketStatus @default(PENDING)
 
   // Relations to source documents
-  saleOrderId String?
-  saleOrder   SaleOrder? @relation(fields: [saleOrderId], references: [id], onDelete: Cascade)
+  saleOrderId    String?
+  saleOrder      SaleOrder?    @relation(fields: [saleOrderId], references: [id], onDelete: Cascade)
+  defectRecordId String?
+  defectRecord   DefectRecord? @relation(fields: [defectRecordId], references: [id], onDelete: SetNull)
   // productionPlanId String? // Có thể thêm Lệnh sản xuất sau
 
   // Assignments
@@ -2954,6 +2958,7 @@ model LogisticsTicket {
   @@index([type])
   @@index([status])
   @@index([saleOrderId])
+  @@index([defectRecordId])
   @@index([assignedToId])
 }
 

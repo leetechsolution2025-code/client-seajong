@@ -344,7 +344,7 @@ export default function FinancePage() {
     try {
       const params = new URLSearchParams();
       params.set("page", String(requestPage));
-      params.set("entityType", "purchase_order,marketing_proposal,marketing_monthly_plan,purchase_request");
+      params.set("entityType", "purchase_order,marketing_proposal,marketing_monthly_plan,purchase_request,DEFECT_MATERIAL_EXPORT,DEFECT_PRODUCT_EXPORT");
       if (requestSearch) params.set("search", requestSearch);
       if (requestStatus) params.set("status", requestStatus);
 
@@ -472,6 +472,8 @@ export default function FinancePage() {
         } else {
           setRequestDetail(null);
         }
+      } else if (currentSelected.entityType === "DEFECT_MATERIAL_EXPORT" || currentSelected.entityType === "DEFECT_PRODUCT_EXPORT") {
+        setRequestDetail(currentSelected.metadata ? JSON.parse(currentSelected.metadata) : {});
       } else if (currentSelected.entityType === "purchase_request") {
         const res = await fetch(`/api/plan-finance/purchase-requests/${currentSelected.entityId}`);
         const data = await res.json();
@@ -1803,6 +1805,31 @@ export default function FinancePage() {
                               </div>
                             )}
                           </div>
+                        ) : (selectedRequest.entityType === "DEFECT_MATERIAL_EXPORT" || selectedRequest.entityType === "DEFECT_PRODUCT_EXPORT") ? (
+                          <div className="d-flex flex-column gap-2">
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Đơn vị yêu cầu:</span>
+                              <span className="text-dark fw-semibold">Sản xuất - Kỹ thuật</span>
+                            </div>
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Người yêu cầu:</span>
+                              <span className="text-dark fw-semibold">{selectedRequest.requestedByName || "—"}</span>
+                            </div>
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Mã hồ sơ lỗi:</span>
+                              <span className="text-dark fw-semibold">{selectedRequest.entityCode}</span>
+                            </div>
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Loại yêu cầu:</span>
+                              <span className="text-dark fw-semibold">{selectedRequest.entityType === "DEFECT_MATERIAL_EXPORT" ? "Cấp phát vật tư" : "Cấp mới thành phẩm"}</span>
+                            </div>
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="text-muted">Ngày yêu cầu:</span>
+                              <span className="text-dark fw-medium">
+                                {selectedRequest.createdAt ? new Date(selectedRequest.createdAt).toLocaleDateString("vi-VN") : "—"}
+                              </span>
+                            </div>
+                          </div>
                         ) : selectedRequest.entityType === "purchase_request" ? (
                           <div className="d-flex flex-column gap-2">
                             <div className="d-flex align-items-center justify-content-between">
@@ -2049,6 +2076,45 @@ export default function FinancePage() {
                             </div>
                           );
                         })()
+                      ) : (selectedRequest.entityType === "DEFECT_MATERIAL_EXPORT" || selectedRequest.entityType === "DEFECT_PRODUCT_EXPORT") ? (
+                        <div>
+                          <span className="fw-bold text-secondary text-uppercase d-block mb-2" style={{ fontSize: "10px", letterSpacing: "0.05em" }}>
+                            Chi tiết yêu cầu xuất
+                          </span>
+                          <div className="p-2 bg-light rounded-3 border" style={{ fontSize: "12.5px" }}>
+                            <span className="fw-bold text-dark d-block">Thông số yêu cầu:</span>
+                            {Array.isArray(requestDetail) ? (
+                              <div className="table-responsive mt-2">
+                                <table className="table table-bordered table-sm mb-0 bg-white" style={{ fontSize: "12px" }}>
+                                  <thead className="table-light text-muted">
+                                    <tr>
+                                      <th className="text-center align-middle" style={{ width: "40px" }}>STT</th>
+                                      <th className="align-middle">Mã vật tư</th>
+                                      <th className="align-middle">Tên vật tư</th>
+                                      <th className="text-end align-middle">Số lượng</th>
+                                      <th className="align-middle">Đơn vị</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {requestDetail.map((item: any, idx: number) => (
+                                      <tr key={item.id || idx}>
+                                        <td className="text-center align-middle">{idx + 1}</td>
+                                        <td className="align-middle"><span className="badge bg-light text-dark border">{item.code || item.id}</span></td>
+                                        <td className="fw-medium align-middle">{item.name}</td>
+                                        <td className="text-end fw-bold text-primary align-middle">{item.quantity}</td>
+                                        <td className="align-middle text-muted">{item.unit}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <pre className="text-muted mb-0 mt-2" style={{ fontSize: "11px", whiteSpace: "pre-wrap" }}>
+                                {JSON.stringify(requestDetail, null, 2)}
+                              </pre>
+                            )}
+                          </div>
+                        </div>
                       ) : (
                         <div>
                           <span className="fw-bold text-secondary text-uppercase d-block mb-2" style={{ fontSize: "10px", letterSpacing: "0.05em" }}>

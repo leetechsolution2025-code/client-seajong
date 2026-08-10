@@ -114,7 +114,7 @@ export async function PATCH(
     });
 
     // Đồng bộ ngược về model gốc
-    await syncEntityStatus(existing.entityType, existing.entityId, action, userId, note, rejectedReason, candidateDecisions);
+    await syncEntityStatus(existing.entityType, existing.entityId, action, userId, note, rejectedReason, candidateDecisions, id);
 
     // ── Gửi thông báo tự động cho người gửi yêu cầu ──────────────────────────
     try {
@@ -311,10 +311,110 @@ async function syncEntityStatus(
   userId: string,
   note?: string,
   rejectedReason?: string,
-  candidateDecisions?: Record<string, string>
+  candidateDecisions?: Record<string, string>,
+  approvalRequestId?: string
 ) {
   try {
     switch (entityType) {
+      case "DEFECT_MATERIAL_EXPORT":
+      case "DEFECT_PRODUCT_EXPORT": {
+        if (action === "approve" && approvalRequestId) {
+          const approval = await prisma.approvalRequest.findUnique({
+            where: { id: approvalRequestId }
+          });
+          const defect = await prisma.defectRecord.findUnique({
+            where: { id: entityId }
+          });
+
+          if (approval && defect) {
+            let items: any[] = [];
+            if (approval.metadata) {
+              try {
+                const parsed = JSON.parse(approval.metadata);
+                if (Array.isArray(parsed)) {
+                  items = parsed;
+                } else if (typeof parsed === 'object' && parsed !== null) {
+                  // Old format: { "code": quantity }
+                  // We need to look up inventoryItem IDs
+                  const codes = Object.keys(parsed);
+                  const inventoryItems = await prisma.inventoryItem.findMany({
+                    where: { code: { in: codes } }
+                  });
+                  items = codes.map(code => {
+                    const invItem = inventoryItems.find(i => i.code === code);
+                    return {
+                      inventoryItemId: invItem?.id,
+                      quantity: parsed[code]
+                    };
+                  });
+                }
+              } catch (e) {}
+            }
+            
+            const validItems = items.filter(i => i.inventoryItemId);
+            if (validItems.length > 0) {
+              const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+              const count = await prisma.logisticsTicket.count();
+              const ticketCode = `PK-${dateStr}-${(count + 1).toString().padStart(3, '0')}`;
+              
+              await prisma.logisticsTicket.create({
+                data: {
+                  code: ticketCode,
+                  type: "WARRANTY_MATERIAL",
+                  status: "PENDING",
+                  defectRecordId: entityId,
+                  items: {
+                    create: validItems.map((i: any) => ({
+                      inventoryItemId: i.inventoryItemId,
+                      quantity: parseInt(i.quantity, 10) || 1,
+                    }))
+                  }
+                }
+              });
+
+              // Tạo Notification cho Thủ Kho
+              const storekeepers = await prisma.employee.findMany({
+                where: {
+                  OR: [
+                    { departmentName: { contains: "Kho" } },
+                    { departmentCode: { contains: "logistics" } },
+                    { position: { contains: "Thủ kho" } }
+                  ],
+                  userId: { not: null }
+                },
+                select: { userId: true }
+              });
+              
+              const uniqueStorekeeperIds = [...new Set(storekeepers.map(s => s.userId).filter(Boolean) as string[])];
+              if (uniqueStorekeeperIds.length > 0) {
+                const title = `📦 Yêu cầu xuất/nhập vật tư bảo hành`;
+                const content = `Phiếu kho **${ticketCode}** vừa được tạo tự động từ hồ sơ bảo hành **${defect.code}** (đã được kế toán duyệt).\n\nVui lòng kiểm tra và xử lý cấp phát vật tư!`;
+                
+                const notif = await prisma.notification.create({
+                  data: {
+                    title,
+                    content,
+                    type: "info",
+                    priority: "high",
+                    audienceType: "group",
+                    audienceValue: JSON.stringify(uniqueStorekeeperIds),
+                    createdById: userId,
+                  }
+                });
+                
+                await Promise.allSettled(
+                  uniqueStorekeeperIds.map(uid =>
+                    prisma.notificationRecipient.create({
+                      data: { notificationId: notif.id, userId: uid }
+                    })
+                  )
+                );
+              }
+            }
+          }
+        }
+        break;
+      }
       case "RECRUITMENT_REPORT": {
         if (action === "approve" && candidateDecisions) {
           // Cập nhật từng ứng viên theo quyết định riêng lẻ

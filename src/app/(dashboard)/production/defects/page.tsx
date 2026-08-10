@@ -71,11 +71,9 @@ export default function DefectHandlingPage() {
 
                   <FilterSelect 
                     options={[
-                      { label: "Tất cả trạng thái", value: "" },
-                      { label: "Chưa thực hiện", value: "NEW" },
-                      { label: "Chờ duyệt", value: "WAITING_APPROVAL" },
+                      { label: "Chưa xử lý", value: "NEW" },
                       { label: "Đang xử lý", value: "PROCESSING" },
-                      { label: "Hoàn tất", value: "COMPLETED" }
+                      { label: "Đã xử lý", value: "COMPLETED" }
                     ]}
                     value={statusFilter}
                     onChange={setStatusFilter}
