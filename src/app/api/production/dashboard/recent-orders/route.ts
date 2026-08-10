@@ -30,13 +30,38 @@ export async function GET(req: Request) {
       }
     });
 
-    let result = orders.map(order => {
+    let result = await Promise.all(orders.map(async (order) => {
       // Phân loại trạng thái lệnh sản xuất dựa trên trạng thái đơn hàng
       const isCompleted = order.ngayHoanThanhSanXuat !== null;
       const isRunning = order.trangThai === "in_production";
       
       const qty = order.saleOrderItems.reduce((sum: number, item: any) => sum + item.soLuong, 0);
-      const name = order.saleOrderItems.map((i: any) => i.tenHang).join(", ");
+
+      // Tìm task sản xuất để biết mặt hàng nào được yêu cầu sản xuất
+      const prodTask = await prisma.task.findFirst({
+        where: {
+          deptCode: "production",
+          description: { contains: order.code || "" }
+        },
+        orderBy: { createdAt: "desc" }
+      });
+
+      let prodItemIds: string[] = [];
+      if (prodTask && prodTask.actualResult) {
+        try {
+          const prodItems = JSON.parse(prodTask.actualResult);
+          prodItemIds = prodItems.map((pi: any) => pi.saleOrderItemId).filter(Boolean);
+        } catch (e) {}
+      }
+
+      // Lọc ra những hàng hoá được chọn để sản xuất, hoặc nếu không tìm thấy task thì fallback
+      const targetItems = prodItemIds.length > 0 
+        ? order.saleOrderItems.filter(i => prodItemIds.includes(i.id))
+        : order.saleOrderItems.filter(i => i.dinhMucId != null);
+
+      const name = targetItems.length > 0 
+        ? targetItems.map((i: any) => i.tenHang).join(", ")
+        : order.saleOrderItems.map((i: any) => i.tenHang).join(", ");
 
       const orderCode = order.code ? order.code.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX') : order.id;
 
@@ -52,7 +77,7 @@ export async function GET(req: Request) {
         updatedAt: order.updatedAt,
         name: name
       };
-    });
+    }));
 
     if (q) {
       result = result.filter(r => r.id.toLowerCase().includes(q.toLowerCase()) || r.name.toLowerCase().includes(q.toLowerCase()));

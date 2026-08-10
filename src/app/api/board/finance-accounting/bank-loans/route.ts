@@ -10,29 +10,32 @@ export async function POST(req: NextRequest) {
         contractNumber: data.contractNumber,
         bankName: data.bankName,
         loanType: data.loanType,
-        repaymentMethod: data.repaymentMethod,
-        loanAmount: Number(data.loanAmount) || 0,
-        disbursementDate: data.disbursementDate ? new Date(data.disbursementDate) : null,
-        termMonths: data.termMonths ? Number(data.termMonths) : null,
+        creditLimit: Number(data.loanAmount) || 0,
+        startDate: data.disbursementDate ? new Date(data.disbursementDate) : null,
         maturityDate: data.disbursementDate && data.termMonths ? new Date(new Date(data.disbursementDate).setMonth(new Date(data.disbursementDate).getMonth() + Number(data.termMonths))) : null,
-        interestType: data.interestType,
-        interestRate: data.interestRate ? Number(data.interestRate) : null,
-        paymentFrequency: data.paymentFrequency,
-        gracePeriodMonths: data.gracePeriodMonths ? Number(data.gracePeriodMonths) : 0,
         collateralType: data.collateralType || null,
         collateralValue: data.collateralValue ? Number(data.collateralValue) : null,
         ltvRatio: data.ltvRatio ? Number(data.ltvRatio) : null,
-        loanPurpose: data.loanPurpose || null,
         status: "ACTIVE",
-        remainingPrincipal: Number(data.loanAmount) || 0,
+        disbursements: {
+          create: {
+            disbursementNumber: "GN-" + (data.contractNumber || Date.now()),
+            amount: Number(data.loanAmount) || 0,
+            disbursementDate: data.disbursementDate ? new Date(data.disbursementDate) : new Date(),
+            termMonths: data.termMonths ? Number(data.termMonths) : 0,
+            interestRate: data.interestRate ? Number(data.interestRate) : null,
+            interestType: data.interestType,
+            repaymentMethod: data.repaymentMethod,
+            purpose: data.loanPurpose || undefined,
+            status: "UNPAID",
+          }
+        }
+      },
+      include: {
+        disbursements: true
       }
     });
 
-    // To show up in the current `Debt` query which fetches from `Debt`, we could 
-    // optionally also insert a record in `Debt` with type="bank", or the dashboard 
-    // needs to query BankLoan. Since the user wants it to work right now and we don't 
-    // want to alter the existing GET API drastically (or we can just insert into Debt).
-    // Let's insert into Debt as well to ensure dashboard compatibility for now.
     const debtRecord = await prisma.debt.create({
       data: {
         type: "bank",

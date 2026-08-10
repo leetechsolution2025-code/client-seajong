@@ -35,10 +35,12 @@ export function MissingMaterialsOffcanvas({ show, onClose }: { show: boolean; on
         </div>
         
         <div className="offcanvas-body p-0">
-          <div className="p-3 bg-danger-soft text-danger small border-bottom">
-            <i className="bi bi-info-circle me-1"></i>
-            Đây là danh sách các sản phẩm và vật tư đang bị thiếu hoặc không tồn tại trong hệ thống.
-          </div>
+          {(items.length > 0 || missingProducts.length > 0) && (
+            <div className="p-3 bg-danger-soft text-danger small border-bottom">
+              <i className="bi bi-info-circle me-1"></i>
+              Đây là danh sách các sản phẩm và vật tư đang bị thiếu hoặc không tồn tại trong hệ thống.
+            </div>
+          )}
           
           {loading ? (
             <div className="d-flex justify-content-center align-items-center p-5 text-muted">

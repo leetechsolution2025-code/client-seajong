@@ -291,16 +291,27 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
       const updatedHistory = [...paymentHistory, newHistoryItem];
       const updatedDescription = serializeDebtDescription(originalDesc, updatedHistory, reconciliations);
 
-      const res = await fetch(`/api/finance/debts-v2?id=${debt.id}`, {
+      let url = `/api/finance/debts-v2?id=${debt.id}`;
+      let bodyData: any = {
+        ...debt,
+        paidAmount: newPaidAmount,
+        status: newStatus,
+        description: updatedDescription,
+        newPayment: newHistoryItem,
+      };
+
+      if (debt.isDisbursement) {
+        url = `/api/finance/bank-disbursements/${debt.id}`;
+        bodyData = {
+          paidPrincipal: newPaidAmount,
+          status: newStatus,
+        };
+      }
+
+      const res = await fetch(url, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...debt,
-          paidAmount: newPaidAmount,
-          status: newStatus,
-          description: updatedDescription,
-          newPayment: newHistoryItem,
-        }),
+        body: JSON.stringify(bodyData),
       });
 
       if (res.ok) {

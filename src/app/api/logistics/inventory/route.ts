@@ -303,7 +303,7 @@ export async function GET(req: Request) {
       dinhMucs: it.dinhMucs || []
     }));
 
-    // Restore deduplication: Merge items with same code/name and COMBINE their stocks
+    // Restore deduplication: Merge items with same code/name and COMBINE their stocks and dinhMucs
     const deduplicatedMap = new Map();
     for (const item of allItems) {
       const key = item.code ? item.code.toLowerCase() : item.tenHang.toLowerCase();
@@ -311,8 +311,13 @@ export async function GET(req: Request) {
         const existing = deduplicatedMap.get(key);
         // Combine stocks
         existing.stocks = [...existing.stocks, ...item.stocks];
+        // Combine dinhMucs
+        if (item.dinhMucs && item.dinhMucs.length > 0) {
+          const newDinhMucs = item.dinhMucs.filter((dm: any) => !existing.dinhMucs?.some((edm: any) => edm.id === dm.id));
+          existing.dinhMucs = [...(existing.dinhMucs || []), ...newDinhMucs];
+        }
       } else {
-        deduplicatedMap.set(key, { ...item, stocks: [...item.stocks] });
+        deduplicatedMap.set(key, { ...item, stocks: [...item.stocks], dinhMucs: [...(item.dinhMucs || [])] });
       }
     }
     const deduplicatedItems = Array.from(deduplicatedMap.values());

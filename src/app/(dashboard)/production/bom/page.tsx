@@ -141,7 +141,7 @@ export default function BOMPage() {
   const [showPriceOffcanvas, setShowPriceOffcanvas] = useState(false);
   const [initialCost, setInitialCost] = useState(0);
   useEffect(() => {
-    fetch("/api/plan-finance/categories?hasBom=true")
+    fetch("/api/plan-finance/categories?types=danh_muc_thanh_pham,vat_tu_san_xuat")
       .then(res => res.json())
       .then(data => setProductGroups(data))
       .catch(err => console.error(err));
@@ -427,7 +427,10 @@ export default function BOMPage() {
         res = await fetch(`/api/production/bom/${bomData.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(bomData)
+          body: JSON.stringify({
+            ...bomData,
+            inventoryItemId: selectedProduct.id
+          })
         });
       } else {
         res = await fetch(`/api/production/bom`, {
@@ -583,9 +586,7 @@ export default function BOMPage() {
                 >
                   <i className="bi bi-upload"></i>
                 </button>
-                <button className="btn btn-sm btn-primary" onClick={() => { resetProductForm(); setShowAddProduct(true); }}>
-                  <i className="bi bi-plus-lg"></i>
-                </button>
+
               </div>
             </div>
 
@@ -720,25 +721,24 @@ export default function BOMPage() {
               }}
             />
 
-            <div className="mb-3 d-flex gap-2">
+            <div className="mb-2">
               <select
-                className="form-select form-select-sm"
-                style={{ width: "200px" }}
+                className="form-select form-select-sm w-100"
                 value={filterCategoryId}
                 onChange={(e) => setFilterCategoryId(e.target.value)}
               >
-                <option value="">-- Tất cả nhóm hàng --</option>
+                <option value="">Tất cả nhóm hàng</option>
                 {productGroups.map((g) => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
               </select>
-              <div className="flex-grow-1">
-                <SearchInput
-                  value={search}
-                  onChange={setSearch}
-                  placeholder="Tìm kiếm hàng hoá..."
-                />
-              </div>
+            </div>
+            <div className="mb-3">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Tìm kiếm hàng hoá..."
+              />
             </div>
             <div className="flex-grow-1 d-flex flex-column pe-2" style={{ minHeight: 0 }}>
               <Table
@@ -979,8 +979,7 @@ export default function BOMPage() {
                       <button
                         className="btn btn-sm btn-outline-danger"
                         onClick={() => setShowConfirmDeleteBom(true)}
-                        title={bomData.code === `DM-${selectedProduct?.code}` ? "Không thể xoá định mức tiêu chuẩn" : "Xóa định mức"}
-                        disabled={bomData.code === `DM-${selectedProduct?.code}`}
+                        title="Xóa định mức"
                       >
                         <i className="bi bi-trash"></i> Xóa
                       </button>
@@ -988,8 +987,8 @@ export default function BOMPage() {
                     <button 
                       className="btn btn-sm btn-primary" 
                       onClick={handleSaveBom} 
-                      disabled={saving || isSameAsStandard || !bomData?.vatTu?.length}
-                      title={!bomData?.vatTu?.length ? "Vui lòng thêm ít nhất 1 vật tư" : isSameAsStandard ? "Danh sách vật tư trùng khớp hoàn toàn với tiêu chuẩn, vui lòng thay đổi để lưu bản biến thể" : ""}
+                      disabled={saving || isSameAsStandard}
+                      title={isSameAsStandard ? "Danh sách vật tư trùng khớp hoàn toàn với tiêu chuẩn, vui lòng thay đổi để lưu bản biến thể" : ""}
                     >
                       {saving ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-save me-2"></i>}
                       Lưu định mức

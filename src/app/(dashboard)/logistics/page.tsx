@@ -324,14 +324,28 @@ export default function LogisticsOverviewPage() {
         let customerName: string | null = null;
         let customerAddress: string | null = null;
         let ghiChu: string | null = null;
+        
+        let hasMaterialCompleted = false;
+        let hasPackingCompleted = false;
+        let hasPackingPacked = false;
+        let allExported = totalTickets > 0;
 
         items.forEach((it: any) => {
           if (!customerName && it.customer) customerName = it.customer;
           if (!customerAddress && it.customerAddress) customerAddress = it.customerAddress;
           if (!ghiChu && it.ghiChu) ghiChu = it.ghiChu;
           
-          if (it.trangThai === 'completed' || it.trangThai === 'done' || it.trangThai === 'packed') {
+          const tStatus = (it.trangThai || '').toLowerCase();
+          const isExported = tStatus === 'completed' || tStatus === 'done' || tStatus === 'delivered';
+          if (isExported) {
             completedCount++;
+            if (it.ticketType === 'MATERIAL_ALLOCATION' || it.type === 'material-export') hasMaterialCompleted = true;
+            if (it.ticketType === 'BATCH_PACKING') hasPackingCompleted = true;
+          } else {
+            allExported = false;
+            if (tStatus === 'packed' && it.ticketType === 'BATCH_PACKING') {
+              hasPackingPacked = true;
+            }
           }
           const time = new Date(it.ngayGiao || it.createdAt).getTime();
           if (time > latestDate) latestDate = time;
@@ -346,12 +360,30 @@ export default function LogisticsOverviewPage() {
         let groupStatusText = isGroupImport ? "Chưa nhập kho" : "Chưa xuất kho";
         let groupStatusColor = "bg-secondary text-white";
         
-        if (completedCount === totalTickets && totalTickets > 0) {
-          groupStatusText = isGroupImport ? "Đã nhập kho" : "Đã xuất kho";
-          groupStatusColor = "bg-success text-white";
-        } else if (completedCount > 0) {
-          groupStatusText = isGroupImport ? "Đã nhập một phần" : "Đã xuất một phần";
-          groupStatusColor = "bg-warning text-dark";
+        if (totalTickets > 0) {
+          if (allExported) {
+            groupStatusText = isGroupImport ? "Đã nhập kho" : "Đã xuất kho";
+            groupStatusColor = "bg-success text-white";
+          } else if (!isGroupImport) {
+             if (hasMaterialCompleted && hasPackingPacked) {
+               groupStatusText = "Đã xuất VT & Gom đủ hàng";
+               groupStatusColor = "bg-warning text-dark";
+             } else if (hasMaterialCompleted) {
+               groupStatusText = "Đã xuất vật tư";
+               groupStatusColor = "bg-warning text-dark";
+             } else if (hasPackingPacked) {
+               groupStatusText = "Đã gom đủ hàng";
+               groupStatusColor = "bg-warning text-dark";
+             } else if (completedCount > 0) {
+               groupStatusText = "Đã xuất một phần";
+               groupStatusColor = "bg-warning text-dark";
+             }
+          } else {
+             if (completedCount > 0) {
+               groupStatusText = "Đã nhập một phần";
+               groupStatusColor = "bg-warning text-dark";
+             }
+          }
         }
         
         // Priority: 0 for incomplete (Chưa xuất kho, Đã xuất một phần), 1 for complete (Đã xuất kho)

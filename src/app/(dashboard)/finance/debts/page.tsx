@@ -17,6 +17,7 @@ import { ExpenseFormOffcanvas } from "./ExpenseFormOffcanvas";
 import { ReceivableOpeningBalanceOffcanvas } from "./ReceivableOpeningBalanceOffcanvas";
 import { PayableOpeningBalanceOffcanvas } from "./PayableOpeningBalanceOffcanvas";
 import { LoanFormOffcanvas } from "./LoanFormOffcanvas";
+import { DisbursementFormOffcanvas } from "./DisbursementFormOffcanvas";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
 import { DebtPaymentOffcanvas, parseDebtDescription } from "./DebtPaymentOffcanvas";
@@ -90,6 +91,7 @@ export default function DebtsPage() {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingType, setDeletingType] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
@@ -100,6 +102,7 @@ export default function DebtsPage() {
   ]);
   
   const [showDebtForm, setShowDebtForm] = useState(false);
+  const [showDisbursementForm, setShowDisbursementForm] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [showPaymentOffcanvas, setShowPaymentOffcanvas] = useState(false);
@@ -153,6 +156,28 @@ export default function DebtsPage() {
           overdueCount: items.filter((i: any) => i.status === "rejected").length,
           countByFilter: { ALL: items.length, PENDING: pending, APPROVED: approved, PAID: items.filter((i: any) => i.status === "paid").length, OVER_60: 0 }
         });
+      } else if (currentStepId === "LOAN") {
+        const params = new URLSearchParams({
+          status,
+          search: searchTerm,
+        });
+        const res = await fetch(`/api/finance/bank-loans?${params}`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setDebts(data);
+          
+          const totalAmount = data.reduce((sum, loan) => sum + loan.creditLimit, 0);
+          const totalPaid = data.reduce((sum, loan) => sum + loan.totalDisbursed, 0); // Using totalPaid slot for totalDisbursed
+          setStats({
+            totalAmount,
+            totalPaid,
+            recoveryRate: 0,
+            upcomingCount: data.length,
+            avgDays: 0,
+            overdueCount: data.filter((l: any) => l.status === "OVERDUE").length,
+            countByFilter: { ALL: data.length, OVERDUE: 0, DAYS_30: 0, DAYS_30_60: 0, OVER_60: 0 }
+          });
+        }
       } else {
         const params = new URLSearchParams({
           type: currentStepId,
@@ -198,9 +223,14 @@ export default function DebtsPage() {
     if (!deletingId) return;
     setIsDeleting(true);
     try {
-      const endpoint = currentStepId === "EXPENSE" 
-        ? `/api/plan-finance/expenses/${deletingId}`
-        : `/api/finance/debts-v2?id=${deletingId}`;
+      let endpoint = `/api/finance/debts-v2?id=${deletingId}`;
+      if (currentStepId === "EXPENSE") {
+        endpoint = `/api/plan-finance/expenses/${deletingId}`;
+      } else if (currentStepId === "LOAN") {
+        endpoint = deletingType === "disbursement" 
+          ? `/api/finance/bank-disbursements/${deletingId}` 
+          : `/api/finance/bank-loans/${deletingId}`;
+      }
       
       const res = await fetch(endpoint, {
         method: "DELETE",
@@ -217,6 +247,7 @@ export default function DebtsPage() {
       setIsDeleting(false);
       setShowDeleteConfirm(false);
       setDeletingId(null);
+      setDeletingType(null);
     }
   };
 
@@ -330,8 +361,9 @@ export default function DebtsPage() {
       align: "center",
       width: 40,
       render: (row) => {
-        if (row.isGroupHeader) return null;
+        if (row.isGroupHeader && !isLoan) return null;
         if (row.id?.toString().startsWith("AUTO_")) return null;
+        
         return (
           <div className="dropdown position-static">
             <button 
@@ -343,83 +375,140 @@ export default function DebtsPage() {
               <i className="bi bi-three-dots-vertical" />
             </button>
             <ul className="dropdown-menu dropdown-menu-end shadow border-0 py-2" style={{ fontSize: 12.5, minWidth: 200, zIndex: 1050 }}>
-              <li>
-                <button 
-                  className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    if (isExpense) {
-                      // Custom approval logic for expenses
-                    } else {
-                      setSelectedPaymentDebt(row);
-                      setShowPaymentOffcanvas(true);
-                    }
-                  }}
-                >
-                  <i className="bi bi-cash-coin text-success fs-6" />
-                  <span>{isExpense ? "Duyệt chi" : "Ghi nhận thanh toán"}</span>
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    if (isExpense) {
-                      setEditingItem(row);
-                      setShowExpenseForm(true);
-                    } else {
-                      setEditingItem(row);
-                      setShowDebtForm(true);
-                    }
-                  }}
-                >
-                  <i className="bi bi-pencil-square text-primary fs-6" />
-                  <span>{isExpense ? "Chỉnh sửa khoản chi" : "Chỉnh sửa thông tin"}</span>
-                </button>
-              </li>
-              {!isExpense && (
+              {isLoan && row.isGroupHeader && (
                 <>
                   <li>
                     <button 
                       className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
                       onClick={(e) => { 
                         e.stopPropagation(); 
-                        setSelectedReconciliationDebt(row);
-                        setShowReconciliationModal(true);
+                        setEditingItem(row);
+                        setShowDisbursementForm(true); // TODO: implement this state and offcanvas
                       }}
                     >
-                      <i className="bi bi-file-earmark-check text-info fs-6" />
-                      <span>Đối chiếu công nợ</span>
+                      <i className="bi bi-box-arrow-right text-success fs-6" />
+                      <span className="fw-medium text-success">Rút vốn / Giải ngân</span>
                     </button>
                   </li>
-                  {currentStepId === "RECEIVABLE" && (
-                    <li>
-                      <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
-                        <i className="bi bi-bell text-warning fs-6" />
-                        <span>Gửi nhắc nợ</span>
-                      </button>
-                    </li>
-                  )}
-                  {currentStepId === "PAYABLE" && (
-                    <li>
-                      <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
-                        <i className="bi bi-send-check text-warning fs-6" />
-                        <span>Đề nghị thanh toán</span>
-                      </button>
-                    </li>
+                  <li><hr className="dropdown-divider opacity-50" /></li>
+                  <li>
+                    <button 
+                      className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setEditingItem(row);
+                        setShowDebtForm(true); // Edit Credit Line
+                      }}
+                    >
+                      <i className="bi bi-pencil-square text-primary fs-6" />
+                      <span>Chỉnh sửa hạn mức</span>
+                    </button>
+                  </li>
+                </>
+              )}
+              
+              {isLoan && !row.isGroupHeader && (
+                // This is a BankDisbursement (Khế ước)
+                <>
+                  <li>
+                    <button 
+                      className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setSelectedPaymentDebt(row);
+                        setShowPaymentOffcanvas(true); // Repay a disbursement
+                      }}
+                    >
+                      <i className="bi bi-cash-coin text-success fs-6" />
+                      <span>Ghi nhận trả nợ</span>
+                    </button>
+                  </li>
+                </>
+              )}
+
+              {!isLoan && (
+                <>
+                  <li>
+                    <button 
+                      className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (isExpense) {
+                          // Custom approval logic for expenses
+                        } else {
+                          setSelectedPaymentDebt(row);
+                          setShowPaymentOffcanvas(true);
+                        }
+                      }}
+                    >
+                      <i className="bi bi-cash-coin text-success fs-6" />
+                      <span>{isExpense ? "Duyệt chi" : "Ghi nhận thanh toán"}</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button 
+                      className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (isExpense) {
+                          setEditingItem(row);
+                          setShowExpenseForm(true);
+                        } else {
+                          setEditingItem(row);
+                          setShowDebtForm(true);
+                        }
+                      }}
+                    >
+                      <i className="bi bi-pencil-square text-primary fs-6" />
+                      <span>{isExpense ? "Chỉnh sửa khoản chi" : "Chỉnh sửa thông tin"}</span>
+                    </button>
+                  </li>
+                  {!isExpense && (
+                    <>
+                      <li>
+                        <button 
+                          className="dropdown-item d-flex align-items-center gap-2 py-1.5" 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setSelectedReconciliationDebt(row);
+                            setShowReconciliationModal(true);
+                          }}
+                        >
+                          <i className="bi bi-file-earmark-check text-info fs-6" />
+                          <span>Đối chiếu công nợ</span>
+                        </button>
+                      </li>
+                      {currentStepId === "RECEIVABLE" && (
+                        <li>
+                          <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
+                            <i className="bi bi-bell text-warning fs-6" />
+                            <span>Gửi nhắc nợ</span>
+                          </button>
+                        </li>
+                      )}
+                      {currentStepId === "PAYABLE" && (
+                        <li>
+                          <button className="dropdown-item d-flex align-items-center gap-2 py-1.5" onClick={(e) => { e.stopPropagation(); }}>
+                            <i className="bi bi-send-check text-warning fs-6" />
+                            <span>Đề nghị thanh toán</span>
+                          </button>
+                        </li>
+                      )}
+                    </>
                   )}
                 </>
               )}
+
               <li><hr className="dropdown-divider opacity-50" /></li>
               <li>
                 <button className="dropdown-item d-flex align-items-center gap-2 py-1.5 text-danger" onClick={(e) => { 
                   e.stopPropagation(); 
                   setDeletingId(row.id);
+                  setDeletingType(row.isDisbursement ? "disbursement" : "loan");
                   setShowDeleteConfirm(true);
                 }}>
                   <i className="bi bi-trash fs-6" />
-                  <span>Xóa khoản nợ</span>
+                  <span>Xóa dữ liệu</span>
                 </button>
               </li>
             </ul>
@@ -432,44 +521,36 @@ export default function DebtsPage() {
       return [
         ...commonCols,
         {
+          header: "Dư nợ gốc",
+          align: "right",
+          render: (row) => row.isGroupHeader ? (
+            <span className="fw-bold">{formatCurrency(row.remainingPrincipal)}</span>
+          ) : (
+            <span className="fw-medium">{formatCurrency(row.amount - row.paidPrincipal)}</span>
+          ),
+        },
+        {
+          header: "Hạn mức khả dụng",
+          align: "right",
+          render: (row) => row.isGroupHeader ? (
+            <div className="d-flex flex-column align-items-end">
+              <span className="fw-bold text-primary">{formatCurrency(row.availableLimit)}</span>
+              <div className="mt-1 bg-light rounded-pill overflow-hidden" style={{ width: 70, height: 4 }}>
+                <div 
+                  className="h-100 bg-primary" 
+                  style={{ width: `${Math.min(100, (row.availableLimit / row.creditLimit) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ) : <span className="text-muted">---</span>,
+        },
+        {
           header: "Lãi suất",
           align: "center",
-          render: (row) => row.interestRate ? (
+          render: (row) => row.isGroupHeader ? <span className="text-muted">---</span> : row.interestRate ? (
             <span className="badge rounded-pill fw-bold" style={{ background: "rgba(79, 70, 229, 0.1)", color: "#4f46e5", padding: "5px 12px", border: "1px solid rgba(79, 70, 229, 0.15)", fontSize: 10.5 }}>
               {row.interestRate}%<span className="opacity-75 ms-1" style={{ fontWeight: 400, fontSize: 9.5 }}>/năm</span>
             </span>
-          ) : "---",
-        },
-        {
-          header: "Dư nợ hiện tại",
-          align: "right",
-          render: (row) => {
-            const remaining = row.amount - row.paidAmount;
-            return (
-              <div className="d-flex flex-column align-items-end">
-                <span>
-                  {formatCurrency(remaining)}
-                </span>
-                <div className="mt-1 bg-light rounded-pill overflow-hidden" style={{ width: 70, height: 4 }}>
-                  <div 
-                    className="h-100 bg-primary" 
-                    style={{ width: `${Math.min(100, (row.paidAmount / row.amount) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            );
-          },
-        },
-        {
-          header: "Ngày đáo hạn",
-          align: "center",
-          render: (row) => row.dueDate ? (
-            <div className="d-flex flex-column align-items-center">
-              <span className="fw-medium">{new Date(row.dueDate).toLocaleDateString("vi-VN")}</span>
-              {new Date(row.dueDate) < new Date() && row.status !== "PAID" && (
-                <span className="text-danger" style={{ fontSize: 10, fontWeight: 600 }}>Đã quá hạn</span>
-              )}
-            </div>
           ) : "---",
         },
         {
@@ -481,7 +562,6 @@ export default function DebtsPage() {
           },
         },
         actionsCol
-
       ];
     }
 
@@ -647,7 +727,7 @@ export default function DebtsPage() {
                           }
                         }}
                       >
-                        {currentStepId === "EXPENSE" ? "Thêm chi phí" : currentStepId === "LOAN" ? "Thêm khoản nợ" : "Nhập dư nợ cũ"}
+                        {currentStepId === "EXPENSE" ? "Thêm chi phí" : currentStepId === "LOAN" ? "Thêm Hợp đồng Hạn mức" : "Nhập dư nợ cũ"}
                       </BrandButton>
                     </div>
                   )}
@@ -665,7 +745,7 @@ export default function DebtsPage() {
             table={
               <div className="flex-grow-1 d-flex flex-column position-relative" style={{ minHeight: 400 }}>
                 {(() => {
-                  if (currentStepId === "RECEIVABLE" || currentStepId === "PAYABLE" || currentStepId === "EXPENSE") {
+                  if (true) {
                     if (debts.length === 0) return (
                   <Table columns={columns} rows={[]} loading={loading} emptyText={currentStepId === "EXPENSE" ? "Không tìm thấy khoản chi nào" : "Không tìm thấy khoản công nợ nào"} />
                 );
@@ -721,12 +801,40 @@ export default function DebtsPage() {
                       groupedDebts.push({ ...items[0], partnerName: displayName, groupItems: items });
                     }
                   });
+                } else if (currentStepId === "LOAN") {
+                  debts.forEach(loan => {
+                    const isCollapsed = collapsedGroups[loan.id];
+                    groupedDebts.push({
+                      ...loan,
+                      id: loan.id,
+                      isGroupHeader: true,
+                      partnerName: loan.bankName,
+                      referenceId: loan.contractNumber,
+                      amount: loan.creditLimit,
+                      paidAmount: loan.totalDisbursed,
+                      isCollapsed,
+                      items: loan.disbursements || []
+                    });
+                    if (!isCollapsed && loan.disbursements) {
+                      loan.disbursements.forEach((d: any) => {
+                        groupedDebts.push({
+                          ...d,
+                          isChild: true,
+                          isDisbursement: true,
+                          partnerName: "Giải ngân",
+                          referenceId: d.disbursementNumber,
+                          amount: d.amount,
+                          paidAmount: d.paidPrincipal,
+                        });
+                      });
+                    }
+                  });
                 } else {
                   groupedDebts.push(...debts.map(d => ({ ...d, groupItems: [d] })));
                 }
 
-                const totalAmount = debts.reduce((sum, d) => sum + d.amount, 0);
-                const totalPaid = debts.reduce((sum, d) => sum + d.paidAmount, 0);
+                const totalAmount = debts.reduce((sum, d) => sum + (currentStepId === "LOAN" ? d.creditLimit : d.amount), 0);
+                const totalPaid = debts.reduce((sum, d) => sum + (currentStepId === "LOAN" ? d.totalDisbursed : d.paidAmount), 0);
                 const totalRows = [{
                   id: "TOTAL_ROW",
                   partnerName: "TỔNG CỘNG",
@@ -829,16 +937,6 @@ export default function DebtsPage() {
                     compact={true}
                   />
                 );
-              } else {
-                return (
-                  <Table 
-                    columns={columns} 
-                    rows={debts} 
-                    loading={loading}
-                    emptyText="Không tìm thấy khoản nợ vay nào"
-                    compact={true}
-                  />
-                );
               }
               })()}
               </div>
@@ -889,6 +987,15 @@ export default function DebtsPage() {
         <LoanFormOffcanvas
           open={showDebtForm}
           onClose={() => setShowDebtForm(false)}
+          onSuccess={fetchDebts}
+          initialData={editingItem}
+        />
+      )}
+
+      {showDisbursementForm && currentStepId === "LOAN" && (
+        <DisbursementFormOffcanvas
+          open={showDisbursementForm}
+          onClose={() => setShowDisbursementForm(false)}
           onSuccess={fetchDebts}
           initialData={editingItem}
         />

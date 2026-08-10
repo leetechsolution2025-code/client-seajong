@@ -2307,7 +2307,7 @@ export default function FinancePage() {
             <div className="offcanvas-footer border-top p-3 bg-light d-flex justify-content-end gap-2">
               {currentStep === 1 && selectedOrder && (
                 <>
-                  {selectedOrder.keToanDuyet !== "approved" && !showItemsOffcanvas && (
+                  {selectedOrder.keToanDuyet !== "approved" && (
                     <>
                       <BrandButton
                         variant="outline"
@@ -2353,7 +2353,7 @@ export default function FinancePage() {
                     </>
                   )}
                   {showItemsOffcanvas && (
-                    <button className="btn btn-secondary w-100 fw-bold" onClick={() => setShowItemsOffcanvas(false)}>
+                    <button className="btn btn-secondary fw-bold" onClick={() => setShowItemsOffcanvas(false)}>
                       Đóng
                     </button>
                   )}

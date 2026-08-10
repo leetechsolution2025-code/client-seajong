@@ -98,7 +98,7 @@ export default function ProductionDashboardPage() {
 
       <div className="row g-3 flex-grow-1" style={{ minHeight: 0 }}>
         {/* ── Left Column: Orders & Progress ── */}
-        <div className="col-12 col-xl-8 d-flex flex-column gap-3">
+        <div className="col-12 d-flex flex-column gap-3">
           
           {/* Recent Orders */}
           <div className="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
@@ -232,72 +232,9 @@ export default function ProductionDashboardPage() {
             </div>
           </div>
 
-
-        </div>
-
-        {/* ── Right Column: Alerts & Shifts ── */}
-        <div className="col-12 col-xl-4 d-flex flex-column gap-3">
-          
-          {/* Quick Actions */}
-          <div className="bg-white rounded-4 shadow-sm border p-3">
-            <SectionTitle title="Thao tác nhanh" icon="bi-lightning-fill" />
-            <div className="d-flex flex-column gap-2">
-              <button className="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 shadow-sm" style={{ fontSize: 13, fontWeight: 600 }}>
-                <i className="bi bi-plus-circle" /> Tạo lệnh sản xuất mới
-              </button>
-              <button className="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2 py-2 rounded-3" style={{ fontSize: 13, fontWeight: 600 }}>
-                <i className="bi bi-calendar-event" /> Lập kế hoạch tuần
-              </button>
-            </div>
-          </div>
-
-
-
-          {/* Critical Alerts */}
-          <div className="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
-            <SectionTitle title="Cảnh báo vận hành" icon="bi-bell-fill" />
-            <div className="table-responsive flex-grow-1 overflow-auto">
-              <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
-                <thead className="table-light">
-                  <tr>
-                    <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>THÔNG TIN SỰ CỐ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {incidents.length > 0 ? incidents.map((incident) => {
-                    const date = new Date(incident.createdAt);
-                    const timeStr = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')} ${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
-                    return (
-                      <tr key={incident.id}>
-                        <td>
-                          <div className="d-flex justify-content-between align-items-center mb-1">
-                            <a 
-                              href="#" 
-                              onClick={(e) => { e.preventDefault(); setSelectedOrderId(incident.saleOrder?.id || incident.orderId); setShowDetail(true); }}
-                              className="text-decoration-none fw-bold text-primary"
-                            >
-                              {incident.saleOrder?.code ? incident.saleOrder.code.replace(/^(DHBL|DBH|DH)/, 'LSX') : "-"}
-                            </a>
-                            <span className="text-muted small">{timeStr}</span>
-                          </div>
-                          <div className="text-danger fw-medium" style={{ fontSize: 13 }}>
-                            {incident.message}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  }) : (
-                    <tr>
-                      <td className="text-center py-4 text-muted">Chưa có cảnh báo nào</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
         </div>
       </div>
+
       <ProductionOrderDetailOffcanvas 
         orderId={selectedOrderId} 
         show={showDetail} 

@@ -16,10 +16,7 @@ export async function GET(req: NextRequest) {
   let whFilter: any = {};
   if (warehouseId) {
     const wh = await prisma.warehouse.findUnique({ where: { id: warehouseId }, select: { code: true } });
-
-    if (wh?.code === "KVP") whFilter = { loai: "vat-tu" };
-    else if (wh?.code === "KHO-CHINH") whFilter = { loai: "hang-hoa" };
-    else if (wh?.code === "KHO-LOI") whFilter = { stocks: { some: { warehouseId: warehouseId, soLuong: { gt: 0 } } } };
+    if (wh?.code === "KHO-LOI") whFilter = { stocks: { some: { warehouseId: warehouseId, soLuong: { gt: 0 } } } };
   }
 
   // Fetch toàn bộ khi có q để filter JS-side chính xác (SQLite không normalize dấu tiếng Việt)
@@ -36,19 +33,15 @@ export async function GET(req: NextRequest) {
       trangThai: true,
       imageUrl:  true,
       // Luôn fetch stocks để tính tồn kho chính xác
-      stocks: warehouseId
-        ? {
-            where:  { warehouseId },
-            select: {
-              soLuong:   true,
-              viTriHang: true,
-              viTriCot:  true,
-              viTriTang: true,
-            },
-          }
-        : {
-            select: { soLuong: true },
-          },
+      stocks: {
+        select: { 
+          warehouseId: true,
+          soLuong: true,
+          viTriHang: true,
+          viTriCot: true,
+          viTriTang: true,
+        },
+      },
     },
     orderBy: { tenHang: "asc" },
     take: q ? undefined : limit,
@@ -69,7 +62,7 @@ export async function GET(req: NextRequest) {
   const items = filtered.slice(0, limit);
 
   // Tính soLuongTon + vị trí
-  type StockWithPos = { soLuong: number; viTriHang?: string | null; viTriCot?: string | null; viTriTang?: string | null };
+  type StockWithPos = { warehouseId: string; soLuong: number; viTriHang?: string | null; viTriCot?: string | null; viTriTang?: string | null };
   const result = items.map(it => {
     const stocks = it.stocks as StockWithPos[];
 
@@ -78,24 +71,20 @@ export async function GET(req: NextRequest) {
     let viTriCot:  string | null = null;
     let viTriTang: string | null = null;
 
+    // Theo yêu cầu: không phân biệt tồn kho ở kho chính và kho KVP, lượng tồn là tổng số
+    const totalSoLuong = stocks.length > 0 
+      ? stocks.reduce((s, st) => s + st.soLuong, 0) 
+      : (it.soLuong || 0);
+      
+    soLuongTon = totalSoLuong;
+
     if (warehouseId) {
-      if (stocks.length > 0) {
-        // Đã có InventoryStock cho kho này → dùng số chính xác theo kho
-        // Nếu số lượng trong kho = 0 nhưng có tồn đầu kỳ (it.soLuong) thì lấy tồn đầu kỳ
-        soLuongTon = Math.max(stocks[0].soLuong, it.soLuong || 0);
-        viTriHang  = stocks[0].viTriHang ?? null;
-        viTriCot   = stocks[0].viTriCot  ?? null;
-        viTriTang  = stocks[0].viTriTang ?? null;
-      } else {
-        // Chưa có InventoryStock nào (dữ liệu legacy / nhập trực tiếp)
-        // → fallback về soLuong tổng để tránh báo thiếu hàng sai
-        soLuongTon = it.soLuong || 0;
+      const whStock = stocks.find(s => s.warehouseId === warehouseId);
+      if (whStock) {
+        viTriHang  = whStock.viTriHang ?? null;
+        viTriCot   = whStock.viTriCot  ?? null;
+        viTriTang  = whStock.viTriTang ?? null;
       }
-    } else {
-      // Không chọn kho cụ thể → tổng tất cả kho, fallback legacy nếu chưa có record
-      soLuongTon = stocks.length > 0
-        ? stocks.reduce((s, st) => s + st.soLuong, 0)
-        : it.soLuong;
     }
 
     return {

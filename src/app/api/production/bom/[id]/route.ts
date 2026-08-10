@@ -214,9 +214,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       where: { id },
       include: { inventoryItem: true }
     });
-    if (dm && dm.inventoryItem && dm.code === `DM-${dm.inventoryItem.code}`) {
-      return NextResponse.json({ error: "Không được phép xoá định mức tiêu chuẩn" }, { status: 400 });
-    }
 
     await prisma.$executeRaw`DELETE FROM DinhMucVatTu WHERE dinhMucId = ${id}`;
     await prisma.$executeRaw`DELETE FROM DinhMuc WHERE id = ${id}`;

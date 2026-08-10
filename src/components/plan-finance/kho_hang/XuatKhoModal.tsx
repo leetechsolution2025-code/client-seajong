@@ -70,14 +70,15 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
   const toast = useToast();
 
   const [mode, setMode]                 = React.useState<"manual" | "so" | "wo">(initialMode || "manual");
-  const [warehouses, setWarehouses]     = React.useState<Warehouse[]>([]);
-  const [fromWarehouseId, setFromWarehouseId] = React.useState("");
+  const [fromWarehouseId, setFromWarehouseId] = React.useState<string>("");
+  const [suggestedWarehouseType, setSuggestedWarehouseType] = React.useState<"vat-tu" | "hang-hoa" | null>(null);
   const [soChungTu, setSoChungTu]       = React.useState(() => {
     const d = new Date();
     const yyyymmdd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
     return `PXH-${yyyymmdd}-001`;
   });
   const [ngayXuat, setNgayXuat]         = React.useState(new Date().toISOString().slice(0,10));
+  const [warehouses, setWarehouses]     = React.useState<Warehouse[]>([]);
   const [lockDate, setLockDate]         = React.useState(true);
   const [lyDo, setLyDo]                 = React.useState("Xuất kho hàng hoá");
   const [loaiXuatKho, setLoaiXuatKho]   = React.useState("Xuất bán hàng");
@@ -124,17 +125,26 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
       .catch(() => {});
   }, []);
 
-  // Tự động chọn kho theo mode
+  // Tự động chọn kho theo mode hoặc theo cấu trúc hàng hoá của đơn
   React.useEffect(() => {
     if (warehouses.length === 0) return;
-    if (mode === "so") {
-      const khoChinh = warehouses.find(w => w.code === "KHO-CHINH" || w.name.toLowerCase().includes("kho hàng hoá"));
-      if (khoChinh) setFromWarehouseId(khoChinh.id);
-    } else if (mode === "wo") {
+    
+    if (suggestedWarehouseType === "vat-tu") {
       const kvp = warehouses.find(w => w.code === "KVP" || w.name.toLowerCase().includes("vật tư"));
       if (kvp) setFromWarehouseId(kvp.id);
+    } else if (suggestedWarehouseType === "hang-hoa") {
+      const khoChinh = warehouses.find(w => w.code === "KHO-CHINH" || w.name.toLowerCase().includes("kho hàng hoá"));
+      if (khoChinh) setFromWarehouseId(khoChinh.id);
+    } else {
+      if (mode === "so") {
+        const khoChinh = warehouses.find(w => w.code === "KHO-CHINH" || w.name.toLowerCase().includes("kho hàng hoá"));
+        if (khoChinh) setFromWarehouseId(khoChinh.id);
+      } else if (mode === "wo") {
+        const kvp = warehouses.find(w => w.code === "KVP" || w.name.toLowerCase().includes("vật tư"));
+        if (kvp) setFromWarehouseId(kvp.id);
+      }
     }
-  }, [mode, warehouses]);
+  }, [mode, warehouses, suggestedWarehouseType]);
 
   // Fetch danh sách đơn bán hàng khi chuyển sang mode "so"
   React.useEffect(() => {
@@ -241,9 +251,8 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
         return;
       }
 
-      // Tự động chuyển Kho xuất sang KVP nếu đơn hàng chủ yếu là Vật tư
-      let overriddenWarehouseId: string | undefined = undefined;
-      if (so.type === "sale-order" && warehouses.length > 0) {
+      // Đánh giá xem đơn hàng chủ yếu là Vật tư hay Hàng hoá để auto-switch kho
+      if (so.type === "sale-order") {
         let vatTuCount = 0;
         let hangHoaCount = 0;
         rawLines.forEach((r: any) => {
@@ -252,11 +261,9 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
         });
 
         if (vatTuCount > 0 && vatTuCount >= hangHoaCount) {
-          const kvp = warehouses.find(w => w.code === "KVP" || w.name.toLowerCase().includes("vật tư"));
-          if (kvp && fromWarehouseId !== kvp.id) {
-            setFromWarehouseId(kvp.id);
-            overriddenWarehouseId = kvp.id;
-          }
+          setSuggestedWarehouseType("vat-tu");
+        } else if (hangHoaCount > 0) {
+          setSuggestedWarehouseType("hang-hoa");
         }
       }
 

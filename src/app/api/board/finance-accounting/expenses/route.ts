@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
       prisma.asset.findMany(),
       prisma.payroll.findMany(),
       prisma.bankLoan.findMany({
-        where: { status: "ACTIVE" }
+        where: { status: "ACTIVE" },
+        include: { disbursements: true }
       })
     ]);
 
@@ -123,72 +124,76 @@ export async function GET(request: NextRequest) {
 
     // Process virtual expenses for Bank Loans
     dbLoans.forEach(loan => {
-      const disbursementDate = loan.disbursementDate ? new Date(loan.disbursementDate) : new Date(loan.createdAt);
-      const term = loan.termMonths || 12;
-      const loanAmount = loan.loanAmount || 0;
-      const interestRate = loan.interestRate || 0;
-      const maturityDate = loan.maturityDate || new Date(new Date(disbursementDate).setMonth(disbursementDate.getMonth() + term));
+      const disbursements = (loan as any).disbursements || [];
+      disbursements.forEach((d: any) => {
+        const disbursementDate = d.disbursementDate ? new Date(d.disbursementDate) : new Date(d.createdAt);
+        const term = d.termMonths || 12;
+        const loanAmount = d.amount || 0;
+        const interestRate = d.interestRate || 0;
+        const maturityDate = d.maturityDate || new Date(new Date(disbursementDate).setMonth(disbursementDate.getMonth() + term));
+        const repaymentMethod = d.repaymentMethod || "goc_lai_cuoi_ky";
 
-      if (loan.repaymentMethod === "goc_lai_cuoi_ky") {
-        // Generate only ONE pending expense for the maturity date
-        const totalInterest = (loanAmount * interestRate * term) / 100 / 12;
-        const hasRealExpense = dbExpenses.some(e => e.referenceType === "bank_loan" && e.referenceId === loan.id && (e.tenChiPhi.includes("Tất toán") || e.tenChiPhi.includes("Cuối kỳ")));
-        
-        if (!hasRealExpense) {
-          virtualExpenses.push({
-            id: `virtual-interest-${loan.id}-maturity`,
-            tenChiPhi: `Thanh toán khoản vay ${loan.bankName} (Tất toán)`,
-            loai: "interest",
-            categoryName: "Chi phí tài chính",
-            soTien: Math.round(loanAmount + totalInterest),
-            ngayChiTra: maturityDate.toISOString().split("T")[0],
-            nguoiChiTra: "Hệ thống tự động",
-            trangThai: "pending",
-            ghiChu: JSON.stringify({ principalPayment: loanAmount, interestPayment: Math.round(totalInterest), contractNumber: loan.contractNumber }),
-            referenceType: "bank_loan",
-            referenceId: loan.id
-          });
-        }
-      } else {
-        // For other methods, generate monthly installments up to current month of current year
-        for (let m = 1; m <= currentMonth; m++) {
-          const targetMonthDate = new Date(currentYear, m - 1, 1);
-          const startNorm = new Date(disbursementDate.getFullYear(), disbursementDate.getMonth(), 1);
+        if (repaymentMethod === "goc_lai_cuoi_ky") {
+          // Generate only ONE pending expense for the maturity date
+          const totalInterest = (loanAmount * interestRate * term) / 100 / 12;
+          const hasRealExpense = dbExpenses.some(e => e.referenceType === "bank_loan" && e.referenceId === loan.id && (e.tenChiPhi.includes("Tất toán") || e.tenChiPhi.includes("Cuối kỳ")));
           
-          if (targetMonthDate >= startNorm) {
-            const hasRealExpense = dbExpenses.some(e => e.referenceType === "bank_loan" && e.referenceId === loan.id && e.tenChiPhi.includes(`Tháng ${m}/${currentYear}`));
+          if (!hasRealExpense) {
+            virtualExpenses.push({
+              id: `virtual-interest-${loan.id}-${d.id}-maturity`,
+              tenChiPhi: `Thanh toán KƯ ${d.disbursementNumber || "Mới"} - HĐ ${loan.bankName} (Tất toán)`,
+              loai: "interest",
+              categoryName: "Chi phí tài chính",
+              soTien: Math.round(loanAmount + totalInterest),
+              ngayChiTra: maturityDate.toISOString().split("T")[0],
+              nguoiChiTra: "Hệ thống tự động",
+              trangThai: "pending",
+              ghiChu: JSON.stringify({ principalPayment: loanAmount, interestPayment: Math.round(totalInterest), contractNumber: loan.contractNumber }),
+              referenceType: "bank_loan",
+              referenceId: loan.id
+            });
+          }
+        } else {
+          // For other methods, generate monthly installments up to current month of current year
+          for (let m = 1; m <= currentMonth; m++) {
+            const targetMonthDate = new Date(currentYear, m - 1, 1);
+            const startNorm = new Date(disbursementDate.getFullYear(), disbursementDate.getMonth(), 1);
             
-            if (!hasRealExpense) {
-              const monthlyInterest = (loanAmount * interestRate) / 100 / 12;
-              let monthlyPrincipal = 0;
+            if (targetMonthDate >= startNorm) {
+              const hasRealExpense = dbExpenses.some(e => e.referenceType === "bank_loan" && e.referenceId === loan.id && e.tenChiPhi.includes(`Tháng ${m}/${currentYear}`));
               
-              if (loan.repaymentMethod === "goc_deu_lai_giam" || loan.repaymentMethod === "tra_gop_deu") {
-                monthlyPrincipal = loanAmount / term;
-              } else if (loan.repaymentMethod === "lai_hang_thang_goc_cuoi_ky") {
-                if (m === maturityDate.getMonth() + 1 && currentYear === maturityDate.getFullYear()) {
-                  monthlyPrincipal = loanAmount;
+              if (!hasRealExpense) {
+                const monthlyInterest = (loanAmount * interestRate) / 100 / 12;
+                let monthlyPrincipal = 0;
+                
+                if (repaymentMethod === "goc_deu_lai_giam" || repaymentMethod === "tra_gop_deu") {
+                  monthlyPrincipal = loanAmount / term;
+                } else if (repaymentMethod === "lai_hang_thang_goc_cuoi_ky") {
+                  if (m === maturityDate.getMonth() + 1 && currentYear === maturityDate.getFullYear()) {
+                    monthlyPrincipal = loanAmount;
+                  }
                 }
-              }
 
-              if (monthlyInterest > 0 || monthlyPrincipal > 0) {
-                virtualExpenses.push({
-                  id: `virtual-interest-${loan.id}-${currentYear}-${String(m).padStart(2, "0")}`,
-                  tenChiPhi: `Thanh toán khoản vay ${loan.bankName} (Kỳ Tháng ${m}/${currentYear})`,
-                  loai: "interest",
-                  categoryName: "Chi phí tài chính",
-                  soTien: Math.round(monthlyPrincipal + monthlyInterest),
-                  ngayChiTra: `${currentYear}-${String(m).padStart(2, "0")}-28`, // default monthly due date
-                  nguoiChiTra: "Hệ thống tự động",
-                  trangThai: "pending",
-                  ghiChu: JSON.stringify({ principalPayment: Math.round(monthlyPrincipal), interestPayment: Math.round(monthlyInterest), month: m, year: currentYear, contractNumber: loan.contractNumber }),
-                  referenceType: "bank_loan",
-                  referenceId: loan.id
-                });
+                if (monthlyInterest > 0 || monthlyPrincipal > 0) {
+                  virtualExpenses.push({
+                    id: `virtual-interest-${loan.id}-${d.id}-${currentYear}-${String(m).padStart(2, "0")}`,
+                    tenChiPhi: `Thanh toán KƯ ${d.disbursementNumber || "Mới"} - HĐ ${loan.bankName} (Kỳ Tháng ${m}/${currentYear})`,
+                    loai: "interest",
+                    categoryName: "Chi phí tài chính",
+                    soTien: Math.round(monthlyPrincipal + monthlyInterest),
+                    ngayChiTra: `${currentYear}-${String(m).padStart(2, "0")}-28`, // default monthly due date
+                    nguoiChiTra: "Hệ thống tự động",
+                    trangThai: "pending",
+                    ghiChu: JSON.stringify({ principalPayment: Math.round(monthlyPrincipal), interestPayment: Math.round(monthlyInterest), month: m, year: currentYear, contractNumber: loan.contractNumber }),
+                    referenceType: "bank_loan",
+                    referenceId: loan.id
+                  });
+                }
               }
             }
           }
         }
-      }
+      });
     });
 
     // Merge database expenses and virtual expenses

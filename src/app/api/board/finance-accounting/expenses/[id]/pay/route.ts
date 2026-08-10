@@ -18,10 +18,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const year = parts[3];
       const month = parts[4];
       
-      const loan = await prisma.bankLoan.findUnique({ where: { id: loanId } });
+      const loan = await (prisma as any).bankLoan.findUnique({ where: { id: loanId }, include: { disbursements: true } });
       if (!loan) return NextResponse.json({ success: false, error: "Loan not found" }, { status: 404 });
       
-      const monthlyInterest = ((loan.loanAmount || 0) * (loan.interestRate || 0)) / 100 / 12;
+      const monthlyInterest = (loan.disbursements || []).reduce((sum: number, d: any) => sum + (d.amount * (d.interestRate || 0)) / 100 / 12, 0);
       
       const category = await prisma.category.findFirst({ where: { code: "interest", type: "expense_type" } });
       const catCode = category ? category.code : "Khác";
@@ -104,13 +104,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             }
           });
           
-          // Decrease remainingPrincipal in BankLoan as well
-          await prisma.bankLoan.update({
-            where: { id: loan.id },
-            data: {
-              remainingPrincipal: Math.max(0, (loan.remainingPrincipal || loan.loanAmount) - principalPayment)
-            }
-          });
         }
       }
     }

@@ -1,17 +1,17 @@
 PrismaClientKnownRequestError: 
 Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dinhMuc.create()` invocation in
-/Users/leanhvan/client-seajong/.next/dev/server/chunks/[root-of-the-server]__389d99be._.js:422:163
+/Users/leanhvan/client-seajong/.next/dev/server/chunks/[root-of-the-server]__389d99be._.js:429:163
 
-  419     }
-  420 }
-  421 // Tạo định mức mới
-→ 422 const dm = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dinhMuc.create(
+  426     }
+  427 }
+  428 // Tạo định mức mới
+→ 429 const dm = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$prisma$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["prisma"].dinhMuc.create(
 Unique constraint failed on the fields: (`code`)
     at ei.handleRequestError (/Users/leanhvan/client-seajong/node_modules/@prisma/client/runtime/library.js:121:7268)
     at ei.handleAndLogRequestError (/Users/leanhvan/client-seajong/node_modules/@prisma/client/runtime/library.js:121:6593)
     at ei.request (/Users/leanhvan/client-seajong/node_modules/@prisma/client/runtime/library.js:121:6300)
     at async a (/Users/leanhvan/client-seajong/node_modules/@prisma/client/runtime/library.js:130:9551)
-    at async POST (/Users/leanhvan/client-seajong/.next/dev/server/chunks/[root-of-the-server]__389d99be._.js:422:20)
+    at async POST (/Users/leanhvan/client-seajong/.next/dev/server/chunks/[root-of-the-server]__389d99be._.js:429:20)
     at async AppRouteRouteModule.do (/Users/leanhvan/client-seajong/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:37866)
     at async AppRouteRouteModule.handle (/Users/leanhvan/client-seajong/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:45156)
     at async responseGenerator (/Users/leanhvan/client-seajong/.next/dev/server/chunks/node_modules_next_62331262._.js:16529:38)

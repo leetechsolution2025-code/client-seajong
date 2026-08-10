@@ -2631,42 +2631,55 @@ model BankLoan {
   bankName       String
 
   // Phân loại
-  loanType        String // vay_the_chap, vay_tin_chap, vay_thau_chi...
-  repaymentMethod String // goc_deu_lai_giam, tra_gop_deu, lai_hang_thang_goc_cuoi_ky...
+  loanType        String // vay_han_muc, vay_thau_chi, vay_tung_lan
 
-  // Thông tin số tiền & kỳ hạn
-  loanAmount       Float // Số tiền vay hoặc hạn mức thấu chi
-  disbursementDate DateTime? // Ngày giải ngân
-  termMonths       Int? // Kỳ hạn (Tháng)
-  maturityDate     DateTime? // Ngày đáo hạn / Ngày hết hạn hạn mức
-
-  // Lãi suất
-  interestType String? // co_dinh, tha_noi
-  interestRate Float? // Lãi suất % / năm
-
-  // Phương thức thanh toán
-  paymentFrequency  String? // hang_thang, hang_quy, 6_thang, cuoi_ky
-  gracePeriodMonths Int     @default(0) // Số tháng ân hạn gốc
+  // Thông tin Hạn mức
+  creditLimit      Float // Tổng hạn mức được cấp
+  startDate        DateTime? // Ngày bắt đầu hạn mức
+  maturityDate     DateTime? // Ngày hết hạn hạn mức
 
   // Thông tin thêm cho Vay thế chấp
   collateralType  String? // Bất động sản, máy móc...
   collateralValue Float? // Giá trị định giá
   ltvRatio        Float? // Tỷ lệ cho vay / Giá trị (%)
 
-  // Thông tin thêm cho Vay tín chấp
-  loanPurpose String? // Mục đích vay
-
   // Trạng thái theo dõi
-  status             String @default("ACTIVE") // ACTIVE, SETTLED, OVERDUE
-  remainingPrincipal Float? // Dư nợ gốc còn lại (tự động cập nhật hoặc tính toán)
-  totalInterestPaid  Float? @default(0) // Tổng lãi đã trả
-  totalPrincipalPaid Float? @default(0) // Tổng gốc đã trả
+  status             String @default("ACTIVE") // ACTIVE, CLOSED, OVERDUE
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  disbursements BankDisbursement[]
+
   @@index([bankName])
   @@index([loanType])
+  @@index([status])
+}
+
+model BankDisbursement {
+  id                 String    @id @default(cuid())
+  bankLoanId         String
+  bankLoan           BankLoan  @relation(fields: [bankLoanId], references: [id], onDelete: Cascade)
+  
+  disbursementNumber String?   // Mã khế ước nhận nợ
+  amount             Float     // Số tiền rút vốn
+  disbursementDate   DateTime  // Ngày giải ngân
+  termMonths         Int       // Kỳ hạn (tháng)
+  maturityDate       DateTime? // Ngày đáo hạn
+  
+  interestRate       Float?    // Lãi suất %/năm
+  interestType       String?   // co_dinh, tha_noi
+  repaymentMethod    String?   // goc_deu_lai_giam, tra_gop_deu, lai_hang_thang_goc_cuoi_ky
+  purpose            String?   // Mục đích giải ngân
+  
+  status             String    @default("UNPAID") // UNPAID, PARTIAL, PAID
+  paidPrincipal      Float     @default(0) // Dư nợ gốc đã trả
+  paidInterest       Float     @default(0) // Lãi đã trả
+  
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([bankLoanId])
   @@index([status])
 }
 
