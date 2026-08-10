@@ -18,7 +18,7 @@ export async function GET() {
     });
     const financeUserIds = financeEmployees.map(e => e.userId).filter(Boolean) as string[];
 
-    const [pendingOrders, pendingRequests, debts] = await Promise.all([
+    const [pendingOrders, pendingRequests, debts, pendingPayments, pendingExpenses] = await Promise.all([
       // 1. Đơn hàng cần duyệt
       prisma.saleOrder.count({
         where: {
@@ -42,6 +42,16 @@ export async function GET() {
           paidAmount: true,
         },
       }),
+
+      // 4. Thông báo tiền vào cần duyệt
+      prisma.paymentNotification.count({
+        where: { status: "pending" },
+      }),
+
+      // 5. Lệnh chi tiền cần duyệt
+      prisma.expense.count({
+        where: { trangThai: "pending" },
+      }),
     ]);
 
     let debtReceivable = 0;
@@ -60,6 +70,8 @@ export async function GET() {
     return NextResponse.json({
       pendingOrders,
       pendingRequests,
+      pendingPayments,
+      pendingExpenses,
       debtReceivable,
       debtPayable,
     });

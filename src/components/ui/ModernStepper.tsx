@@ -9,6 +9,7 @@ export interface ModernStepItem {
   desc: string;
   icon: string;
   locked?: boolean;
+  hasNewData?: boolean;
 }
 
 interface ModernStepperProps {
@@ -28,7 +29,7 @@ export const ModernStepper: React.FC<ModernStepperProps> = ({
   paddingX = 24,
   paddingY = 16
 }) => {
-  const renderStepIcon = (num: number, icon: string) => {
+  const renderStepIcon = (num: number, icon: string, hasNewData?: boolean) => {
     const isActive = currentStep === num;
     let bg = "var(--muted)";
     let color = "var(--muted-foreground)";
@@ -39,12 +40,22 @@ export const ModernStepper: React.FC<ModernStepperProps> = ({
     }
 
     return (
-      <div className="modern-step-icon" style={{ 
+      <div className="modern-step-icon position-relative" style={{ 
         width: 34, height: 34, borderRadius: 8, background: bg, color, 
         display: "flex", alignItems: "center", justifyContent: "center", 
         fontSize: 15, transition: "all 0.3s", flexShrink: 0 
       }}>
         <i className={`bi ${icon}`} />
+        {hasNewData && (
+          <span 
+            className="position-absolute translate-middle bg-danger rounded-circle" 
+            style={{ 
+              top: '4px', right: '-4px', width: '10px', height: '10px', 
+              animation: "pulse-red 1.5s infinite",
+              border: "2px solid #fff"
+            }}
+          />
+        )}
       </div>
     );
   };
@@ -52,6 +63,11 @@ export const ModernStepper: React.FC<ModernStepperProps> = ({
   return (
     <div className="modern-stepper-container" style={{ padding: `${typeof paddingY === 'number' ? paddingY + 'px' : paddingY} ${typeof paddingX === 'number' ? paddingX + 'px' : paddingX}` }}>
       <style>{`
+        @keyframes pulse-red {
+          0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+          70% { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
         .modern-step-item {
           gap: 6px;
         }
@@ -133,7 +149,7 @@ export const ModernStepper: React.FC<ModernStepperProps> = ({
                   if (!s.locked) onStepChange(s.num);
                 }}
               >
-                {renderStepIcon(s.num, s.locked ? "bi-lock-fill" : s.icon)}
+                {renderStepIcon(s.num, s.locked ? "bi-lock-fill" : s.icon, s.hasNewData)}
                 <div className="modern-step-text d-flex flex-column align-items-center align-items-md-start">
                   <div className="d-flex align-items-center gap-1">
                     <h3 className="modern-step-title" style={{ margin: "0 0 1px", fontWeight: 700, color: isActive ? "#003087" : "var(--muted-foreground, #64748b)" }}>{s.title}</h3>

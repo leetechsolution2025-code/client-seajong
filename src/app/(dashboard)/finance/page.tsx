@@ -19,6 +19,8 @@ import { BrandButton } from "@/components/ui/BrandButton";
 interface KPIData {
   pendingOrders: number;
   pendingRequests: number;
+  pendingPayments?: number;
+  pendingExpenses?: number;
   debtReceivable: number;
   debtPayable: number;
 }
@@ -29,6 +31,31 @@ export default function FinancePage() {
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [seenCounts, setSeenCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("financeSeenCounts");
+      if (stored) setSeenCounts(JSON.parse(stored));
+    } catch(e) {}
+  }, []);
+
+  const updateSeenCount = useCallback((stepId: string, count: number) => {
+    setSeenCounts(prev => {
+      if (prev[stepId] === count) return prev;
+      const next = { ...prev, [stepId]: count };
+      localStorage.setItem("financeSeenCounts", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!data) return;
+    if (currentStep === 1) updateSeenCount("orders", data.pendingOrders);
+    if (currentStep === 2) updateSeenCount("requests", data.pendingRequests);
+    if (currentStep === 3) updateSeenCount("payment-notifications", data.pendingPayments || 0);
+    if (currentStep === 4) updateSeenCount("expenses", data.pendingExpenses || 0);
+  }, [currentStep, data, updateSeenCount]);
 
   // States for Sales Orders (step 1)
   const [orders, setOrders] = useState<any[]>([]);
@@ -673,6 +700,7 @@ export default function FinancePage() {
       title: "Đơn hàng",
       desc: "Quản lý đơn hàng cần duyệt",
       icon: "bi-cart-check",
+      hasNewData: data ? (data.pendingOrders > (seenCounts["orders"] || 0)) : false,
     },
     {
       num: 2,
@@ -680,6 +708,7 @@ export default function FinancePage() {
       title: "Yêu cầu",
       desc: "Phiếu yêu cầu phòng ban",
       icon: "bi-file-earmark-text",
+      hasNewData: data ? (data.pendingRequests > (seenCounts["requests"] || 0)) : false,
     },
     {
       num: 3,
@@ -687,6 +716,7 @@ export default function FinancePage() {
       title: "Thông báo tiền vào",
       desc: "Xác nhận tiền khách hàng thanh toán",
       icon: "bi-cash-coin",
+      hasNewData: data ? ((data.pendingPayments || 0) > (seenCounts["payment-notifications"] || 0)) : false,
     },
     {
       num: 4,
@@ -694,6 +724,7 @@ export default function FinancePage() {
       title: "Lệnh chi tiền",
       desc: "Quản lý các khoản chi tiền",
       icon: "bi-wallet2",
+      hasNewData: data ? ((data.pendingExpenses || 0) > (seenCounts["expenses"] || 0)) : false,
     },
   ];
 
