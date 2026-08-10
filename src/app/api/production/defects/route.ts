@@ -61,6 +61,7 @@ export async function POST(req: Request) {
       data: {
         code,
         source: formData.get('source') as string || 'INTERNAL',
+        status: formData.get('status') as string || 'NEW',
         productName: formData.get('productName') as string || 'Sản phẩm',
         productCode: formData.get('productCode') as string || 'SP-001',
         quantity: parseInt(formData.get('quantity') as string) || 1,
@@ -69,9 +70,10 @@ export async function POST(req: Request) {
         reporterName: formData.get('reporterName') as string || 'Unknown',
         reporterDepartment: formData.get('reporterDepartment') as string || 'Unknown',
         customerName: formData.get('customerName') as string || null,
-        customerPhone: formData.get('customerPhone') as string || null,
-        customerAddress: formData.get('customerAddress') as string || null,
-        purchaseDate: formData.get('purchaseDate') ? new Date(formData.get('purchaseDate') as string) : null,
+        customerId: formData.get('customerId') as string || null,
+        orderNumber: formData.get('orderNumber') as string || null,
+        assignedTo: formData.get('assignedTo') as string || null,
+        completionDate: formData.get('completionDate') ? new Date(formData.get('completionDate') as string) : null,
       }
     });
 

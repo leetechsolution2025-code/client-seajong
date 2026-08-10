@@ -16,8 +16,53 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
+    let customerInfo = null;
+    if (defect.customerId) {
+      customerInfo = await (prisma as any).customer.findUnique({
+        where: { id: defect.customerId },
+        select: { dienThoai: true, address: true, name: true }
+      });
+    }
+
+    let bomCode = null;
+    let bomItems: any[] = [];
+    if (defect.productCode) {
+      const inventoryItem = await (prisma as any).inventoryItem.findUnique({
+        where: { code: defect.productCode },
+        include: { 
+          dinhMucs: { 
+            take: 1, 
+            orderBy: { createdAt: 'desc' },
+            include: {
+              vatTu: {
+                include: {
+                  inventoryItem: { select: { soLuong: true } }
+                }
+              }
+            }
+          } 
+        }
+      });
+      if (inventoryItem?.dinhMucs?.length > 0) {
+        const latestDinhMuc = inventoryItem.dinhMucs[0];
+        bomCode = latestDinhMuc.code;
+        bomItems = latestDinhMuc.vatTu.map((vt: any) => ({
+          id: vt.maVatTu || vt.id,
+          name: vt.tenVatTu,
+          unit: vt.donViTinh || 'Cái',
+          qty: vt.soLuong,
+          stock: vt.inventoryItem?.soLuong || 0
+        }));
+      }
+    }
+
     return NextResponse.json({
       ...defect,
+      customerName: customerInfo?.name || defect.customerName,
+      customerPhone: customerInfo?.dienThoai || defect.customerPhone,
+      customerAddress: customerInfo?.address || defect.customerAddress,
+      bomCode,
+      bomItems,
       mediaUrls: defect.mediaUrls ? JSON.parse(defect.mediaUrls) : []
     });
   } catch (error: any) {

@@ -1,5 +1,8 @@
 import React from 'react';
-import { DefectRecord, DefectStatus, MOCK_DEFECTS } from '../mockData';
+import useSWR from 'swr';
+import { DefectRecord, DefectStatus } from '../mockData';
+
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 interface DefectDetailProps {
   defectId: string;
@@ -7,9 +10,10 @@ interface DefectDetailProps {
 }
 
 export function DefectDetail({ defectId, onBack }: DefectDetailProps) {
-  const defect = MOCK_DEFECTS.find(d => d.id === defectId);
+  const { data: defect, error } = useSWR(`/api/production/defects/${defectId}`, fetcher);
 
-  if (!defect) return <div>Không tìm thấy hồ sơ</div>;
+  if (error) return <div>Lỗi tải dữ liệu</div>;
+  if (!defect) return <div>Đang tải dữ liệu...</div>;
 
   return (
     <div className="h-100 d-flex flex-column" style={{ fontSize: '13px' }}>
@@ -135,7 +139,7 @@ export function DefectDetail({ defectId, onBack }: DefectDetailProps) {
                           <div className="col-12">
                             <div className="text-muted small mb-2">Hình ảnh / Video đính kèm</div>
                             <div className="d-flex gap-2">
-                              {defect.mediaUrls.map((url, idx) => (
+                              {defect.mediaUrls.map((url: string, idx: number) => (
                                 <img key={idx} src={url} alt="Lỗi" className="rounded border" style={{ width: 100, height: 100, objectFit: 'cover' }} />
                               ))}
                             </div>

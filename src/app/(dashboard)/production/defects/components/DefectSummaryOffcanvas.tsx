@@ -1,6 +1,7 @@
 import { DefectStatus } from '../mockData';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { BrandButton } from '@/components/ui/BrandButton';
 
 const getStatusBadge = (status: DefectStatus) => {
   switch (status) {
@@ -149,17 +150,7 @@ export function DefectSummaryOffcanvas({ defectId, defect, onClose, onRefresh, o
                                 <i className="bi bi-play-fill fs-5"></i>
                               </div>
                             
-      <ConfirmDialog
-        open={showConfirmDelete}
-        title="Xoá hồ sơ lỗi"
-        message="Bạn có chắc chắn muốn xoá hồ sơ lỗi này và toàn bộ tập tin đính kèm? Hành động này không thể hoàn tác."
-        confirmLabel="Xoá"
-        cancelLabel="Huỷ"
-        loading={isDeleting}
-        onConfirm={executeDelete}
-        onCancel={() => setShowConfirmDelete(false)}
-      />
-    </>
+                            </>
                           ) : (
                             <img src={url} alt="Lỗi" className="w-100 h-100" style={{ objectFit: 'cover' }} />
                           )}
@@ -179,23 +170,36 @@ export function DefectSummaryOffcanvas({ defectId, defect, onClose, onRefresh, o
         {/* Footer */}
         {defect && (
           <div className="offcanvas-footer border-top p-3 bg-light d-flex justify-content-between">
-            <button 
-              className="btn btn-sm btn-outline-danger px-4 fw-medium" 
+            <BrandButton 
+              variant="outline-danger"
+              icon="bi-trash"
               onClick={handleDelete}
               disabled={isDeleting}
+              loading={isDeleting}
             >
-              <i className="bi bi-trash me-1"></i> {isDeleting ? 'Đang xoá...' : 'Xoá'}
-            </button>
-            <button 
-              className="btn btn-sm btn-primary px-4 fw-medium shadow-sm"
+              {isDeleting ? 'Đang xoá...' : 'Xoá'}
+            </BrandButton>
+            <BrandButton 
+              variant="primary"
               disabled={defect.status === 'COMPLETED'}
               onClick={onOpenProcess}
             >
               Tiến trình xử lý <i className="bi bi-arrow-right ms-1"></i>
-            </button>
+            </BrandButton>
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={showConfirmDelete}
+        title="Xoá hồ sơ lỗi"
+        message="Bạn có chắc chắn muốn xoá hồ sơ lỗi này và toàn bộ tập tin đính kèm? Hành động này không thể hoàn tác."
+        confirmLabel="Xoá"
+        cancelLabel="Huỷ"
+        loading={isDeleting}
+        onConfirm={executeDelete}
+        onCancel={() => setShowConfirmDelete(false)}
+      />
     </>
   );
 }

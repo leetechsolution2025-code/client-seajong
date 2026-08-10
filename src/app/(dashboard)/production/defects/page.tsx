@@ -5,6 +5,7 @@ import { StandardPage } from "@/components/layout/StandardPage";
 import { DefectList } from "./components/DefectList";
 import { DefectSummaryOffcanvas } from "./components/DefectSummaryOffcanvas";
 import { DefectProcessModal } from "./components/DefectProcessModal";
+import { CreateDefectOffcanvas } from "./components/CreateDefectOffcanvas";
 import { BrandButton } from "@/components/ui/BrandButton";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
@@ -16,7 +17,8 @@ const fetcher = (url: string) => fetch(url).then(r => r.json());
 export default function DefectHandlingPage() {
   const [selectedDefectId, setSelectedDefectId] = useState<string | null>(null);
   const [isProcessModalOpen, setIsProcessModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'ALL' | 'INTERNAL' | 'WARRANTY'>('ALL');
+  const [isCreateOffcanvasOpen, setIsCreateOffcanvasOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'ALL' | 'INTERNAL' | 'WARRANTY' | 'RETURN'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   
@@ -60,6 +62,11 @@ export default function DefectHandlingPage() {
                     <label className={`btn btn-sm rounded-pill px-4 ${activeTab === 'WARRANTY' ? 'btn-primary shadow-sm fw-bold' : 'btn-white text-muted'}`} htmlFor="btnradio3" style={{ fontSize: '12px' }}>
                       Bảo hành
                     </label>
+
+                    <input type="radio" className="btn-check" name="btnradio" id="btnradio4" autoComplete="off" checked={activeTab === 'RETURN'} onChange={() => setActiveTab('RETURN')} />
+                    <label className={`btn btn-sm rounded-pill px-4 ${activeTab === 'RETURN' ? 'btn-warning text-dark shadow-sm fw-bold' : 'btn-white text-muted'}`} htmlFor="btnradio4" style={{ fontSize: '12px' }}>
+                      Trả về
+                    </label>
                   </div>
 
                   <FilterSelect 
@@ -87,6 +94,7 @@ export default function DefectHandlingPage() {
                   <BrandButton 
                     variant="primary" 
                     className="px-3 shadow-sm rounded-3"
+                    onClick={() => setIsCreateOffcanvasOpen(true)}
                   >
                     <i className="bi bi-plus-lg me-1"></i> Tạo hồ sơ lỗi
                   </BrandButton>
@@ -106,6 +114,12 @@ export default function DefectHandlingPage() {
           onClose={() => setSelectedDefectId(null)} 
           onRefresh={() => mutate()}
           onOpenProcess={() => setIsProcessModalOpen(true)}
+        />
+        
+        <CreateDefectOffcanvas 
+          show={isCreateOffcanvasOpen}
+          onClose={() => setIsCreateOffcanvasOpen(false)}
+          onRefresh={() => mutate()}
         />
         
         {isProcessModalOpen && (

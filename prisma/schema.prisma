@@ -2786,6 +2786,8 @@ model DefectRecord {
   mediaUrls   String @default("[]")
 
   customerName    String?
+  customerId      String?
+  orderNumber     String?
   customerPhone   String?
   customerAddress String?
   purchaseDate    DateTime?
@@ -2797,6 +2799,7 @@ model DefectRecord {
   reporterName       String
   reporterDepartment String
   assignedTo         String?
+  completionDate     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

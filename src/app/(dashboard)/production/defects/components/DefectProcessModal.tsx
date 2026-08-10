@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import useSWR from "swr";
 import { DefectStatus } from "../mockData";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -77,71 +78,146 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
               <button type="button" className="btn-close shadow-none" onClick={onClose}></button>
             </div>
             
-            <div className="modal-body p-4 bg-white" style={{ minHeight: '60vh' }}>
+            <div className="modal-body p-2 bg-white" style={{ minHeight: '60vh', fontSize: '13px' }}>
               {!defect ? (
                 <div className="text-center py-5 text-muted">Đang tải dữ liệu...</div>
               ) : defect.error ? (
                 <div className="text-center py-5 text-danger">Không tìm thấy hồ sơ lỗi!</div>
               ) : (
-                <div className="row g-4 h-100">
+                <div className="d-flex h-100 align-items-stretch" style={{ gap: '4px' }}>
                   {/* Left Column: Info & Timeline */}
-                  <div className="col-lg-5 d-flex flex-column gap-4">
-                    <div className="bg-light rounded-4 border p-4">
-                      <SectionTitle title="Thông tin gốc" icon="bi-info-circle" />
-                      <div className="d-flex gap-4 small mb-3 text-muted">
-                        <div>Sản phẩm: <strong className="text-dark">{defect.productName}</strong></div>
-                        <div>Mã SP: <strong className="text-dark">{defect.productCode}</strong></div>
-                        <div>SL lỗi: <strong className="text-danger">{defect.quantity}</strong></div>
-                      </div>
-                      <div className="p-3 bg-white rounded-3 small mb-3 border">
-                        <strong>Mô tả hiện trạng:</strong><br/>
-                        {defect.description || 'Không có mô tả'}
-                      </div>
+                  <div className="d-flex flex-column flex-shrink-0" style={{ width: '420px' }}>
+                    <div className="bg-white rounded-4 shadow-sm border overflow-hidden d-flex flex-column h-100">
                       
-                      {defect.mediaUrls && defect.mediaUrls.length > 0 && (
-                        <div className="d-flex flex-wrap gap-2">
-                          {defect.mediaUrls.map((url: string, i: number) => {
-                            const isVideo = url.endsWith('.mp4');
-                            return (
-                              <a key={i} href={url} target="_blank" rel="noreferrer" className="border rounded overflow-hidden position-relative" style={{width: 80, height: 80}}>
-                                {isVideo ? <video src={url} className="w-100 h-100 object-fit-cover"/> : <img src={url} className="w-100 h-100 object-fit-cover"/>}
-                              </a>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="bg-white rounded-4 border p-4 flex-grow-1">
-                      <SectionTitle title="Lịch sử xử lý" icon="bi-clock-history" className="mb-4" />
-                      
-                      <div className="position-relative ms-2 ps-3 border-start border-2 border-primary border-opacity-25" style={{ fontSize: '13px' }}>
-                        {defect.activities && defect.activities.map((act: any) => (
-                          <div key={act.id} className="mb-4 position-relative">
-                            <div className="position-absolute bg-primary rounded-circle" style={{ width: '12px', height: '12px', left: '-22px', top: '4px' }}></div>
-                            <div className="text-muted small mb-1">{new Date(act.createdAt).toLocaleString()} • {act.performedBy}</div>
-                            <div className="fw-bold text-dark mb-1">{act.action}</div>
-                            {act.description && <div className="p-2 bg-light rounded border text-secondary">{act.description}</div>}
-                          </div>
-                        ))}
+                      {/* Top Half: Info */}
+                      <div className="p-3 bg-light border-bottom flex-shrink-0">
+                        <SectionTitle title="Thông tin gốc" icon="bi-info-circle" className="mb-3" />
                         
-                        <div className="mb-0 position-relative">
-                          <div className="position-absolute bg-secondary rounded-circle" style={{ width: '10px', height: '10px', left: '-21px', top: '4px' }}></div>
-                          <div className="text-muted small">Khởi tạo hồ sơ lỗi</div>
+                        <div className="small mb-3 text-muted">
+                          <div className="mb-2">Sản phẩm: <strong className="text-dark">{defect.productName}</strong></div>
+                          <div className="d-flex gap-4 mb-2">
+                            <div>Mã SP: <strong className="text-dark">{defect.productCode}</strong></div>
+                            <div>Số lượng: <strong className="text-danger">{defect.quantity}</strong></div>
+                          </div>
+                          <div className="d-flex gap-4">
+                            <div>Mã định mức: <strong className="text-dark">{defect.bomCode || 'Không có'}</strong></div>
+                          </div>
                         </div>
+                        
+                        {defect.mediaUrls && defect.mediaUrls.length > 0 && (
+                          <>
+                            <div className="small fw-bold text-dark mb-2">Hình ảnh thực tế:</div>
+                            <div className="d-flex flex-wrap gap-2 mb-3">
+                              {defect.mediaUrls.map((url: string, i: number) => {
+                                const isVideo = url.endsWith('.mp4');
+                                return (
+                                  <a key={i} href={url} target="_blank" rel="noreferrer" className="border rounded overflow-hidden position-relative" style={{width: 80, height: 80}}>
+                                    {isVideo ? <video src={url} className="w-100 h-100 object-fit-cover"/> : <img src={url} className="w-100 h-100 object-fit-cover"/>}
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+
+                        <SectionTitle title="Mô tả hiện trạng" icon="bi-card-text" className="mb-2" />
+                        <div className="small text-muted mt-0">
+                          {defect.description || 'Không có mô tả'}
+                        </div>
+                      </div>
+
+                      {/* Bottom Half: BOM Table */}
+                      <div className="flex-grow-1 position-relative" style={{ minHeight: 0 }}>
+                        <FullWidthTableLayout 
+                          className="h-100"
+                          tableWrapperClassName="border-top"
+                          header={
+                            <SectionTitle 
+                              className="m-0 py-1"
+                              title="Vật tư linh kiện phân rã" 
+                              icon="bi-box-seam" 
+                              action={<span className="badge bg-danger text-white border-0 fw-normal" style={{ textTransform: 'none' }}>{defect.bomCode || 'Không có định mức'}</span>}
+                            />
+                          }
+                          table={
+                            <table className="table table-hover align-middle table-sm mb-0" style={{ '--bs-table-border-color': 'rgba(0,0,0,0.05)' } as React.CSSProperties}>
+                              <thead className="text-muted small" style={{ position: "sticky", top: 0, zIndex: 1 }}>
+                                <tr>
+                                  <th style={{ width: '40px', borderBottomWidth: 1 }} className="text-center align-middle py-3">
+                                    <input type="checkbox" className="form-check-input shadow-none cursor-pointer" />
+                                  </th>
+                                  <th style={{ borderBottomWidth: 1 }} className="fw-medium align-middle py-3">Tên linh kiện</th>
+                                  <th style={{ borderBottomWidth: 1 }} className="fw-medium text-center align-middle py-3">ĐVT</th>
+                                  <th style={{ borderBottomWidth: 1 }} className="fw-medium text-center align-middle py-3">Số lượng</th>
+                                  <th style={{ borderBottomWidth: 1 }} className="fw-medium text-end align-middle py-3">Tồn kho</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {defect.bomItems && defect.bomItems.length > 0 ? (
+                                  defect.bomItems.map((item: any) => (
+                                     <tr key={item.id} className="cursor-pointer">
+                                       <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                                         <input type="checkbox" className="form-check-input shadow-none cursor-pointer" />
+                                       </td>
+                                       <td className="align-middle">
+                                         <div className="fw-medium small text-dark">{item.name}</div>
+                                         <div className="text-muted mt-1" style={{ fontSize: '11px' }}>{item.id}</div>
+                                       </td>
+                                       <td className="text-center small text-muted">{item.unit}</td>
+                                       <td className="text-center small fw-bold text-primary">{item.qty}</td>
+                                       <td className="text-end small">
+                                         <span className={item.stock > 20 ? "text-success" : (item.stock > 0 ? "text-warning" : "text-danger")}>{item.stock}</span>
+                                       </td>
+                                     </tr>
+                                  ))
+                                ) : (
+                                  <tr>
+                                    <td colSpan={5} className="text-center py-4 text-muted small">
+                                      Không có dữ liệu định mức cho sản phẩm này.
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          }
+                          footer={
+                            <div className="text-muted w-100" style={{ fontSize: '12.5px' }}>
+                              <i className="bi bi-info-circle me-1"></i> Trích xuất tự động dựa trên <strong>{defect?.productCode}</strong>.
+                            </div>
+                          }
+                        />
                       </div>
                     </div>
                   </div>
 
                   {/* Right Column: Action Board & BOM */}
-                  <div className="col-lg-7 d-flex flex-column gap-4">
-                    <div className="bg-white rounded-4 shadow-sm border p-4">
-                      <SectionTitle 
-                        title="Bảng Thao tác" 
-                        icon="bi-gear" 
-                        className="mb-4"
-                        action={<span className="badge bg-dark rounded-pill px-3 py-2 fw-normal" style={{ fontSize: '13px', textTransform: 'none' }}>{STATUS_LABELS[defect.status] || defect.status}</span>}
-                      />
+                  <div className="flex-grow-1 d-flex flex-column" style={{ minWidth: 0 }}>
+                    <div className="bg-white rounded-4 shadow-sm border d-flex flex-column h-100 overflow-hidden">
+                      
+                      {/* Customer Info header/section */}
+                      <div className="p-3 bg-light border-bottom flex-shrink-0">
+                        <div className="d-flex align-items-center text-muted">
+                          <div className="pe-4 border-end">
+                            <div className="mb-1">Khách hàng: <strong className="text-dark">{defect.customerName || 'Không có'}</strong></div>
+                            <div className="d-flex gap-4">
+                              <div>SĐT: <strong className="text-dark">{defect.customerPhone || 'Không có'}</strong></div>
+                              <div>Địa chỉ: <strong className="text-dark">{defect.customerAddress || 'Không có'}</strong></div>
+                            </div>
+                          </div>
+                          <div className="ps-4">
+                            <div className="mb-1">Đơn hàng: <strong className="text-dark">{defect.orderNumber || 'Không có'}</strong></div>
+                            <div>Ngày giao/mua: <strong className="text-dark">{defect.purchaseDate ? new Date(defect.purchaseDate).toLocaleDateString() : 'Không có'}</strong></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-3 p-md-4 d-flex flex-column flex-grow-1" style={{ minHeight: 0, overflowY: 'auto' }}>
+                        <SectionTitle 
+                          title="Bảng Thao tác" 
+                          icon="bi-gear" 
+                          className="mb-4 flex-shrink-0"
+                          action={<span className="badge bg-dark rounded-pill px-3 py-2 fw-normal" style={{ fontSize: '12.5px', textTransform: 'none' }}>{STATUS_LABELS[defect.status] || defect.status}</span>}
+                        />
 
                       {defect.status === 'COMPLETED' ? (
                         <div className="alert alert-success d-flex align-items-center rounded-3 border-0">
@@ -223,56 +299,6 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                           </div>
                         </div>
                       )}
-                    </div>
-
-                    {/* BOM Card */}
-                    <div className="bg-white rounded-4 shadow-sm border p-4 flex-grow-1">
-                      <SectionTitle 
-                        title="Vật tư linh kiện phân rã" 
-                        icon="bi-box-seam" 
-                        action={<span className="badge bg-light text-secondary border fw-normal" style={{ textTransform: 'none' }}>Theo định mức (BOM)</span>}
-                      />
-                      
-                      <div className="table-responsive">
-                        <table className="table table-hover align-middle table-sm border mb-0">
-                          <thead className="table-light text-muted small">
-                            <tr>
-                              <th style={{ width: '40px' }} className="text-center">
-                                <input type="checkbox" className="form-check-input shadow-none cursor-pointer" />
-                              </th>
-                              <th className="fw-medium">Mã VT</th>
-                              <th className="fw-medium">Tên linh kiện</th>
-                              <th className="fw-medium text-center">ĐVT</th>
-                              <th className="fw-medium text-center">Số lượng / 1 SP</th>
-                              <th className="fw-medium text-end">Tình trạng kho</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {[
-                              { id: 'VT-001', name: 'Lõi sen nóng lạnh phi 35', unit: 'Cái', qty: 1, stock: 145 },
-                              { id: 'VT-015', name: 'Dây sen mạ Crom 1.5m', unit: 'Sợi', qty: 1, stock: 89 },
-                              { id: 'VT-042', name: 'Bát sen tắm đứng nhựa ABS', unit: 'Cái', qty: 1, stock: 32 },
-                              { id: 'VT-099', name: 'Ron cao su chống rò rỉ đệm 21', unit: 'Cái', qty: 2, stock: 500 },
-                              { id: 'VT-023', name: 'Tay gạt sen đồng mạ Crom', unit: 'Cái', qty: 1, stock: 12 }
-                            ].map(item => (
-                               <tr key={item.id} className="cursor-pointer">
-                                 <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                                   <input type="checkbox" className="form-check-input shadow-none cursor-pointer" />
-                                 </td>
-                                 <td className="small text-muted">{item.id}</td>
-                                 <td className="fw-medium small text-dark">{item.name}</td>
-                                 <td className="text-center small text-muted">{item.unit}</td>
-                                 <td className="text-center small fw-bold text-primary">{item.qty}</td>
-                                 <td className="text-end small">
-                                   <span className={item.stock > 20 ? "text-success" : "text-warning"}>{item.stock} sẵn có</span>
-                                 </td>
-                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="mt-3 text-muted" style={{ fontSize: '12.5px' }}>
-                        <i className="bi bi-info-circle me-1"></i> Bảng vật tư được tự động trích xuất dựa trên mã sản phẩm gốc <strong>{defect?.productCode}</strong>. Dùng để tham khảo khi có yêu cầu thay thế.
                       </div>
                     </div>
                   </div>

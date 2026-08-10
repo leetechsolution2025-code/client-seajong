@@ -40,10 +40,9 @@ export function DefectList({ data, onSelect }: DefectListProps) {
             <tr key={defect.id} onClick={() => onSelect(defect.id)} style={{ cursor: 'pointer' }}>
               <td>
                 <div className="d-flex align-items-center">
-                  {getSourceIcon(defect.source)}
                   <div>
                     <div className="fw-medium text-dark d-flex align-items-center gap-2">
-                      {defect.code} 
+                      {defect.code} <span className="badge bg-light text-dark border fw-normal">{defect.source === 'INTERNAL' ? 'Nội bộ' : defect.source === 'WARRANTY' ? 'Bảo hành' : 'Trả về'}</span>
                     </div>
                     <div className="text-muted d-flex align-items-center gap-2 mt-1" style={{ fontSize: '11px' }}>
                       <span>{new Date(defect.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} {new Date(defect.createdAt).toLocaleDateString('vi-VN')}</span>
@@ -52,8 +51,8 @@ export function DefectList({ data, onSelect }: DefectListProps) {
                   </div>
                 </div>
               </td>
-              <td>
-                <div className="fw-medium text-dark">{defect.productName}</div>
+              <td style={{ maxWidth: '250px' }}>
+                <div className="fw-medium text-dark text-truncate" title={defect.productName}>{defect.productName}</div>
                 <div className="text-muted small">{defect.productCode} - SL: {defect.quantity}</div>
               </td>
               <td style={{ maxWidth: '350px' }}>
