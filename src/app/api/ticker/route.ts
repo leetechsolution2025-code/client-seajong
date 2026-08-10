@@ -104,9 +104,10 @@ export async function GET(req: Request) {
     } else if (moduleStr === "finance") {
       const debts = await prisma.debt.findMany();
 
-      let phaiThuTotal = 0; let phaiThuCon = 0;
-      let phaiTraTotal = 0; let phaiTraCon = 0;
-      let noVayTotal = 0; let noVayCon = 0;
+      let phaiThuTotal = 0, phaiThuCon = 0;
+      let phaiTraTotal = 0, phaiTraCon = 0;
+      let noVayTotal = 0, noVayCon = 0;
+      let totalExpense = 0;
 
       debts.forEach((d: any) => {
         const amt = d.amount || 0;
@@ -131,8 +132,6 @@ export async function GET(req: Request) {
       const currentYear = now.getFullYear();
       const firstDay = new Date(currentYear, currentMonth, 1);
       const lastDay = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
-
-      let totalExpense = 0;
 
       // 1. Manual expenses
       const expenses = await prisma.expense.aggregate({

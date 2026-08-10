@@ -109,10 +109,21 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { type, partnerName, amount, paidAmount, dueDate, createdAt, interestRate, description, referenceId, status } = body;
+    const { type, partnerName, amount, paidAmount, dueDate, createdAt, interestRate, description, referenceId, status, customerCode, supplierCode } = body;
 
     let customerId = body.customerId || null;
     let supplierId = body.supplierId || null;
+
+    if (!customerId && customerCode) {
+      const cust = await prisma.customer.findUnique({ where: { code: customerCode } });
+      if (cust) customerId = cust.id;
+    }
+    
+    if (!supplierId && supplierCode) {
+      const supp = await prisma.supplier.findUnique({ where: { code: supplierCode } });
+      if (supp) supplierId = supp.id;
+    }
+
     if (!customerId && !supplierId && partnerName) {
        const baseName = partnerName.split(/[-–]/)[0].trim();
        if (type === "phai-thu" || type === "RECEIVABLE") {

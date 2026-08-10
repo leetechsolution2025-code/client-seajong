@@ -153,7 +153,7 @@ export async function PATCH(
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
     const body = await req.json();
-    const { name, address, nguon, nhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu, nguoiChamSocId, hanMucCongNo, formValues } = body;
+    const { code, name, address, nguon, nhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu, nguoiChamSocId, hanMucCongNo, formValues } = body;
 
     let extraData: any = {};
     if (formValues !== undefined) {
@@ -167,9 +167,11 @@ export async function PATCH(
       } catch (e) {}
     }
 
+    // @ts-ignore
     const updated = await prisma.customer.update({
       where: { id },
       data: {
+        ...(code        !== undefined && { code }),
         ...(name        !== undefined && { name }),
         ...(address     !== undefined && { address }),
         ...(nguon       !== undefined && { nguon }),

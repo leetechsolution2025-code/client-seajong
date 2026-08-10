@@ -516,6 +516,7 @@ model MessageParticipant {
 
 model Customer {
   id             String                @id @default(cuid())
+  code           String?               @unique
   name           String
   address        String?
   nguon          String?

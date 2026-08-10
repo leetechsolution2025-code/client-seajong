@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { BrandButton } from "@/components/ui/BrandButton";
 import { useToast } from "@/components/ui/Toast";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { format } from "date-fns";
+import * as XLSX from "xlsx";
 
 interface ReceivableOpeningBalanceOffcanvasProps {
   open: boolean;
@@ -17,7 +18,9 @@ interface ReceivableOpeningBalanceOffcanvasProps {
 export function ReceivableOpeningBalanceOffcanvas({ open, onClose, onSuccess, initialData }: ReceivableOpeningBalanceOffcanvasProps) {
   const { success, error } = useToast();
   const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -142,6 +145,102 @@ export function ReceivableOpeningBalanceOffcanvas({ open, onClose, onSuccess, in
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["Mã khách hàng (*)", "Tên khách hàng (*)", "Mã tham chiếu", "Số dư nợ cũ (*)", "Ngày khởi tạo (YYYY-MM-DD)", "Ngày đến hạn (YYYY-MM-DD)", "Ghi chú"]
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "DuNoCu");
+    XLSX.writeFile(wb, "Template_NhapDuNoCu.xlsx");
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        setImporting(true);
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
+
+        // Skip header
+        const rows = data.slice(1).filter(r => r.length > 0);
+        let successCount = 0;
+        let errorCount = 0;
+
+        const debtsToImport = [];
+
+        for (const row of rows) {
+          const [customerCode, partnerName, ref, amount, createdAtStr, dueDateStr, note] = row;
+          if (!customerCode || !amount) {
+            errorCount++;
+            continue;
+          }
+
+          let formattedCreatedAt = new Date().toISOString();
+          if (createdAtStr) {
+             const pd = Date.parse(createdAtStr);
+             if (!isNaN(pd)) formattedCreatedAt = new Date(pd).toISOString();
+          }
+
+          let formattedDueDate = null;
+          if (dueDateStr) {
+             const pd = Date.parse(dueDateStr);
+             if (!isNaN(pd)) formattedDueDate = new Date(pd).toISOString();
+          }
+
+          debtsToImport.push({
+            customerCode: String(customerCode).trim(),
+            partnerName: partnerName ? String(partnerName).trim() : String(customerCode).trim(),
+            referenceId: ref ? String(ref).trim() : "Dư nợ đầu kỳ",
+            amount: Number(amount) || 0,
+            createdAt: formattedCreatedAt,
+            dueDate: formattedDueDate,
+            description: note ? String(note).trim() : ""
+          });
+        }
+
+        if (debtsToImport.length > 0) {
+          const res = await fetch("/api/finance/debts-v2/bulk-import", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "RECEIVABLE",
+              clearOld: true,
+              debts: debtsToImport
+            })
+          });
+
+          if (res.ok) {
+            const result = await res.json();
+            successCount = result.successCount || 0;
+            const deleted = result.deletedCount || 0;
+            success("Thành công", `Đã xoá ${deleted} dư nợ cũ và nhập mới ${successCount} khách hàng`);
+            onSuccess();
+            onClose();
+          } else {
+            error("Lỗi", `Không thể import dữ liệu từ API.`);
+          }
+        } else {
+          error("Lỗi", "File không có dữ liệu hợp lệ.");
+        }
+
+
+      } catch (err) {
+        error("Lỗi import", "Đã xảy ra lỗi khi đọc file Excel.");
+      } finally {
+        setImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
   if (!mounted) return null;
@@ -303,12 +402,48 @@ export function ReceivableOpeningBalanceOffcanvas({ open, onClose, onSuccess, in
         </div>
 
         <div className="offcanvas-footer p-3 border-top bg-light">
-          <div className="d-flex gap-2">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            style={{ display: 'none' }} 
+            accept=".xlsx, .xls"
+            onChange={handleFileUpload}
+          />
+          <div className="d-flex align-items-center gap-2">
+            {!initialData && (
+              <div className="d-flex gap-2 me-2">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary d-flex align-items-center justify-content-center"
+                  style={{ width: 40, height: 40, borderRadius: 8, padding: 0 }}
+                  title="Tải file mẫu Excel"
+                  onClick={handleDownloadTemplate}
+                  disabled={loading || importing}
+                >
+                  <i className="bi bi-download"></i>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-success d-flex align-items-center justify-content-center"
+                  style={{ width: 40, height: 40, borderRadius: 8, padding: 0 }}
+                  title="Nhập dữ liệu từ Excel"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading || importing}
+                >
+                  {importing ? (
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                  ) : (
+                    <i className="bi bi-file-earmark-excel"></i>
+                  )}
+                </button>
+              </div>
+            )}
+            
             <BrandButton
               variant="outline"
               className="flex-grow-1 py-2"
               onClick={onClose}
-              disabled={loading}
+              disabled={loading || importing}
               style={{ fontSize: 13 }}
             >
               Hủy bỏ
@@ -317,7 +452,7 @@ export function ReceivableOpeningBalanceOffcanvas({ open, onClose, onSuccess, in
               type="submit"
               form="debt-form"
               className="flex-grow-1 py-2"
-              loading={loading}
+              loading={loading || importing}
               style={{ fontSize: 13 }}
             >
               Lưu dữ liệu

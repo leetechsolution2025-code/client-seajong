@@ -113,7 +113,7 @@ export default function DebtsPage() {
   const { success, error } = useToast();
   const currentStepId = DEBT_STEPS.find(s => s.num === currentStep)?.id || "RECEIVABLE";
 
-  const fetchDebts = async () => {
+  const fetchDebts = async (refresh = false) => {
     setLoading(true);
     try {
       if (currentStepId === "EXPENSE") {
@@ -123,7 +123,7 @@ export default function DebtsPage() {
           loai: selectedSubCategory || status,
           trangThai: selectedExpenseStatus,
         });
-        const res = await fetch(`/api/plan-finance/expenses?${params}`);
+        const res = await fetch(`/api/plan-finance/expenses?${params}`, { cache: 'no-store' });
         const data = await res.json();
         
         // Map expense data to debt-like structure for the table
@@ -161,7 +161,7 @@ export default function DebtsPage() {
           status,
           search: searchTerm,
         });
-        const res = await fetch(`/api/finance/bank-loans?${params}`);
+        const res = await fetch(`/api/finance/bank-loans?${params}`, { cache: 'no-store' });
         const data = await res.json();
         if (Array.isArray(data)) {
           setDebts(data);
@@ -185,7 +185,8 @@ export default function DebtsPage() {
           search: searchTerm,
           daysFilter
         });
-        const res = await fetch(`/api/finance/debts-v2?${params}`);
+        if (refresh) params.append("_t", Date.now().toString());
+        const res = await fetch(`/api/finance/debts-v2?${params}`, { cache: 'no-store' });
         const data = await res.json();
         if (data.debts) {
           setDebts(data.debts);

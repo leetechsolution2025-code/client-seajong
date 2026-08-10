@@ -189,9 +189,26 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { name, address, nguon, nhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu, nguoiChamSocId, ngayTao, hanMucCongNo, formValues } = body;
+    const { code, name, address, nguon, nhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu, nguoiChamSocId, ngayTao, hanMucCongNo, formValues } = body;
 
     const resolvedName = name?.trim() || daiDien?.trim() || "—";
+    
+    let finalCode = code?.trim();
+    if (!finalCode) {
+      // Auto generate code e.g. KH0001
+      const count = await prisma.customer.count();
+      let nextId = count + 1;
+      let codeStr = `KH${String(nextId).padStart(4, "0")}`;
+      // @ts-ignore
+      let exists = await prisma.customer.findUnique({ where: { code: codeStr } });
+      while(exists) {
+        nextId++;
+        codeStr = `KH${String(nextId).padStart(4, "0")}`;
+        // @ts-ignore
+        exists = await prisma.customer.findUnique({ where: { code: codeStr } });
+      }
+      finalCode = codeStr;
+    }
 
     let doanhSoCamKet = 0;
     let thuongThanhToan = "";
@@ -207,24 +224,43 @@ export async function POST(req: NextRequest) {
       } catch (e) {}
     }
 
-    const customer = await prisma.customer.create({
-      data: {
-        name: resolvedName, address, nguon, nhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu,
-        hanMucCongNo: parseFloat(hanMucCongNo) || 0,
-        formValues: typeof formValues === "object" ? JSON.stringify(formValues) : formValues,
-        doanhSoCamKet,
-        thuongThanhToan,
-        thuongDoanhSoNam,
-        thuongVuotDoanhSo,
-        ...(nguoiChamSocId && { nguoiChamSocId }),
-        ...(ngayTao && { createdAt: new Date(ngayTao) }),
-      },
-    });
+    const customerData = {
+      code: finalCode, name: resolvedName, address, nguon, nhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu,
+      hanMucCongNo: parseFloat(hanMucCongNo) || 0,
+      formValues: typeof formValues === "object" ? JSON.stringify(formValues) : formValues,
+      doanhSoCamKet,
+      thuongThanhToan,
+      thuongDoanhSoNam,
+      thuongVuotDoanhSo,
+      ...(nguoiChamSocId && { nguoiChamSocId }),
+      ...(ngayTao && { createdAt: new Date(ngayTao) }),
+    };
+
+    let existing;
+    if (finalCode) {
+      // @ts-ignore
+      existing = await prisma.customer.findUnique({ where: { code: finalCode } });
+    }
+
+    let customer;
+    if (existing) {
+      // @ts-ignore
+      customer = await prisma.customer.update({
+        where: { id: existing.id },
+        data: customerData,
+      });
+    } else {
+      // @ts-ignore
+      customer = await prisma.customer.create({
+        data: customerData,
+      });
+    }
 
     return NextResponse.json(customer, { status: 201 });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[POST /customers]", msg);
+    require('fs').writeFileSync('/tmp/customer_err.txt', msg);
     return NextResponse.json({ error: `Lỗi: ${msg}` }, { status: 500 });
   }
 }

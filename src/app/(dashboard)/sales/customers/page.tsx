@@ -14,6 +14,8 @@ import Link from "next/link";
 import { BaoGiaSanitaryModal } from "@/components/plan-finance/bao_gia/BaoGiaSanitaryModal";
 import { TaoDonHangModal } from "@/components/plan-finance/bao_gia/TaoDonHangModal";
 import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
+import * as XLSX from "xlsx";
+import { useToast } from "@/components/ui/Toast";
 import dynamic from "next/dynamic";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -50,6 +52,9 @@ export default function SalesCustomersPage() {
   // States for table data
   const { data: session } = useSession();
   const [employees, setEmployees] = useState<any[]>([]);
+  const { success, error } = useToast();
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/hr/employees")
@@ -89,6 +94,7 @@ export default function SalesCustomersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [editForm, setEditForm] = useState<{
+    code: string;
     name: string;
     nhom: string;
     nguon: string;
@@ -107,6 +113,7 @@ export default function SalesCustomersPage() {
     nguoiChamSocId: string;
     coCamKet: boolean;
   }>({
+    code: "",
     name: "",
     nhom: "",
     nguon: "",
@@ -253,7 +260,9 @@ export default function SalesCustomersPage() {
   }, [selectedCustomer?.id]);
 
   const handleOpenCreate = () => {
+    setSelectedCustomer(null);
     setEditForm({
+      code: "",
       name: "",
       nhom: "ca-nhan",
       nguon: "tu-nhien",
@@ -277,40 +286,143 @@ export default function SalesCustomersPage() {
     setEditModalOpen(true);
   };
 
-  const handleOpenEdit = (customer?: any) => {
-    const target = customer || selectedCustomer;
-    if (!target) return;
-    
-    if (customer) {
-      setSelectedCustomer(customer);
-    }
-
-    let fv: any = {};
-    if (target.formValues) {
-      try { fv = JSON.parse(target.formValues); } catch (e) {}
-    }
+  const handleOpenEdit = (customer: any) => {
+    setSelectedCustomer(customer);
+    const fv = typeof customer.formValues === "string" ? JSON.parse(customer.formValues) : (customer.formValues || {});
     setEditForm({
-      name: target.name || "",
-      nhom: target.nhom || "",
-      nguon: target.nguon || "",
-      loai: target.loai || "",
-      dienThoai: target.dienThoai || "",
-      email: target.email || "",
-      address: target.address || "",
-      daiDien: target.daiDien || "",
-      xungHo: target.xungHo || "Anh",
-      chucVu: target.chucVu || "",
-      hanMucCongNo: target.creditLimit || 0,
-      doanhSoCamKet: target.doanhSoCamKet || fv.doanhSoCamKet || 0,
-      thuongThanhToan: target.thuongThanhToan || fv.thuongThanhToan || "Mức thưởng = 2% * Doanh số thanh toán đúng hạn (Chưa VAT)",
-      thuongDoanhSoNam: target.thuongDoanhSoNam || fv.thuongDoanhSoNam || "Doanh số thực tế năm >= 100% Cam kết: Thưởng 1.5% tổng doanh số thực tế",
-      thuongVuotDoanhSo: target.thuongVuotDoanhSo || fv.thuongVuotDoanhSo || "Vượt chỉ tiêu: Thưởng 3% trên phần doanh số vượt chỉ tiêu cam kết",
-      nguoiChamSocId: target.nguoiChamSocId || employees.find(e => e.userId === (session?.user as any)?.id)?.id || "",
+      code: customer.code || "",
+      name: customer.name || "",
+      nhom: customer.nhom || "",
+      nguon: customer.nguon || "",
+      loai: customer.loai || "",
+      dienThoai: customer.dienThoai || "",
+      email: customer.email || "",
+      address: customer.address || "",
+      daiDien: customer.daiDien || "",
+      xungHo: customer.xungHo || "Anh",
+      chucVu: customer.chucVu || "",
+      hanMucCongNo: customer.creditLimit || 0,
+      doanhSoCamKet: customer.doanhSoCamKet || fv.doanhSoCamKet || 0,
+      thuongThanhToan: customer.thuongThanhToan || fv.thuongThanhToan || "Mức thưởng = 2% * Doanh số thanh toán đúng hạn (Chưa VAT)",
+      thuongDoanhSoNam: customer.thuongDoanhSoNam || fv.thuongDoanhSoNam || "Doanh số thực tế năm >= 100% Cam kết: Thưởng 1.5% tổng doanh số thực tế",
+      thuongVuotDoanhSo: customer.thuongVuotDoanhSo || fv.thuongVuotDoanhSo || "Vượt chỉ tiêu: Thưởng 3% trên phần doanh số vượt chỉ tiêu cam kết",
+      nguoiChamSocId: customer.nguoiChamSocId || employees.find(e => e.userId === (session?.user as any)?.id)?.id || "",
       coCamKet: fv.coCamKet !== false,
     });
     setIsCreateMode(false);
     setErrorMsg("");
     setEditModalOpen(true);
+  };
+
+  const handleDownloadTemplate = () => {
+    import("xlsx").then(XLSX => {
+        const ws = XLSX.utils.aoa_to_sheet([
+          ["Mã KH", "Tên khách hàng (*)", "Nhóm", "Nguồn", "Phân loại", "Điện thoại", "Email", "Địa chỉ", "Người đại diện", "Xưng hô", "Chức vụ"]
+        ]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "KhachHang");
+        XLSX.writeFile(wb, "Template_KhachHang.xlsx");
+    });
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        setImporting(true);
+        const XLSX = await import("xlsx");
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
+
+        // Find header row (the row containing "Tên khách hàng" or similar)
+        let headerRowIdx = -1;
+        for (let i = 0; i < Math.min(10, data.length); i++) {
+           const row = data[i] || [];
+           if (row.some(cell => typeof cell === 'string' && cell.toLowerCase().includes("tên kh"))) {
+              headerRowIdx = i;
+              break;
+           }
+        }
+
+        if (headerRowIdx === -1) {
+           error("Lỗi", "Không tìm thấy cột 'Tên khách hàng' trong file Excel.");
+           setImporting(false);
+           return;
+        }
+
+        const headers = (data[headerRowIdx] || []).map(h => typeof h === 'string' ? h.toLowerCase().trim() : '');
+        const colCode = headers.findIndex(h => h.includes("mã kh"));
+        const colName = headers.findIndex(h => h.includes("tên kh"));
+        const colAddress = headers.findIndex(h => h.includes("địa chỉ"));
+        const colPhone = headers.findIndex(h => h.includes("điện thoại") || h.includes("sđt"));
+        const colNhom = headers.findIndex(h => h.includes("nhóm"));
+        const colNguon = headers.findIndex(h => h.includes("nguồn"));
+
+        const rows = data.slice(headerRowIdx + 1).filter(r => r.length > 0);
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const row of rows) {
+          const code = colCode >= 0 ? row[colCode] : undefined;
+          const name = colName >= 0 ? row[colName] : undefined;
+          const address = colAddress >= 0 ? row[colAddress] : undefined;
+          const dienThoai = colPhone >= 0 ? row[colPhone] : undefined;
+          const nhom = colNhom >= 0 ? row[colNhom] : undefined;
+          const nguon = colNguon >= 0 ? row[colNguon] : undefined;
+
+          if (!name) {
+            errorCount++;
+            continue;
+          }
+
+          const res = await fetch("/api/plan-finance/customers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              code: code ? String(code).trim() : undefined,
+              name: String(name).trim(),
+              nhom: nhom ? String(nhom).trim() : "dai-ly",
+              nguon: nguon ? String(nguon).trim() : "",
+              loai: "",
+              dienThoai: dienThoai ? String(dienThoai).trim() : "",
+              email: "",
+              address: address ? String(address).trim() : "",
+              daiDien: "",
+              xungHo: "Anh",
+              chucVu: "",
+              hanMucCongNo: 0,
+              doanhSoCamKet: 0,
+              thuongThanhToan: "Mức thưởng = 2% * Doanh số thanh toán đúng hạn (Chưa VAT)",
+              thuongDoanhSoNam: "Doanh số thực tế năm >= 100% Cam kết: Thưởng 1.5% tổng doanh số thực tế",
+              thuongVuotDoanhSo: "Vượt chỉ tiêu: Thưởng 3% trên phần doanh số vượt chỉ tiêu cam kết",
+              coCamKet: true
+            })
+          });
+
+          if (res.ok) successCount++;
+          else errorCount++;
+        }
+
+        if (successCount > 0) {
+          success("Thành công", `Đã nhập ${successCount} khách hàng (Lỗi: ${errorCount})`);
+          fetchCustomers();
+        } else {
+          error("Lỗi", `Không thể nhập dữ liệu. Vui lòng kiểm tra file mẫu.`);
+        }
+      } catch (err) {
+        error("Lỗi import", "Đã xảy ra lỗi khi đọc file Excel.");
+      } finally {
+        setImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
   const handleSaveCustomer = async (e: React.FormEvent) => {
@@ -325,6 +437,7 @@ export default function SalesCustomersPage() {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          code: editForm.code,
           name: editForm.name,
           nhom: editForm.nhom || null,
           nguon: editForm.nguon || null,
@@ -425,10 +538,14 @@ export default function SalesCustomersPage() {
         }
         return (
           <div className="d-flex flex-column">
-            <span className="fw-bold text-dark">{row.name}</span>
+            <div className="d-flex align-items-center gap-2">
+              <span className="badge bg-secondary" style={{ fontSize: '10px' }}>{row.code || "N/A"}</span>
+              <span className="fw-bold text-dark">{row.name}</span>
+            </div>
             {actualAddress && (
-              <span className="text-muted" style={{ fontSize: "11px" }}>
-                <i className="bi bi-geo-alt me-1" />{actualAddress}
+              <span className="text-muted small mt-1">
+                <i className="bi bi-geo-alt me-1" />
+                {actualAddress}
               </span>
             )}
           </div>
@@ -857,9 +974,40 @@ export default function SalesCustomersPage() {
                           Tất cả
                         </label>
                       </div>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        style={{ display: 'none' }} 
+                        accept=".xlsx, .xls"
+                        onChange={handleFileUpload}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary d-flex align-items-center justify-content-center shadow-sm"
+                        style={{ width: 34, height: 34, borderRadius: 8, padding: 0 }}
+                        title="Tải file mẫu Excel"
+                        onClick={handleDownloadTemplate}
+                        disabled={importing}
+                      >
+                        <i className="bi bi-download"></i>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline-success d-flex align-items-center justify-content-center shadow-sm"
+                        style={{ width: 34, height: 34, borderRadius: 8, padding: 0 }}
+                        title="Nhập dữ liệu từ Excel"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={importing}
+                      >
+                        {importing ? (
+                          <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        ) : (
+                          <i className="bi bi-file-earmark-excel"></i>
+                        )}
+                      </button>
                       <button
                         onClick={handleOpenCreate}
-                        className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                        className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm ms-2"
                         style={{
                           height: 34,
                           fontSize: "12.5px",
@@ -1207,6 +1355,26 @@ export default function SalesCustomersPage() {
                 )}
 
                 <div className="row g-3">
+                  <div className="col-12 mb-3">
+                    <label className="form-label fw-bold text-secondary mb-1">Mã khách hàng</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Để trống để tự động sinh mã"
+                      value={editForm.code}
+                      onChange={e => setEditForm({ ...editForm, code: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-12 mb-3">
+                    <label className="form-label fw-bold text-secondary mb-1">Tên khách hàng <span className="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      value={editForm.name}
+                      onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                      required
+                    />
+                  </div>
                   <div className="col-12">
                     <label className="form-label fw-bold text-secondary mb-1" style={{ fontSize: "11px" }}>NGƯỜI PHỤ TRÁCH</label>
                     <select
