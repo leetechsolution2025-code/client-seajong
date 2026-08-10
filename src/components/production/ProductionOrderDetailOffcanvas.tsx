@@ -253,14 +253,7 @@ export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate
         {data && data.order?.trangThai !== "completed" && (
           <div className="p-3 border-top bg-light mt-auto">
             <div className="d-flex gap-2">
-              <button 
-                className="btn btn-outline-danger flex-grow-1" 
-                style={{ fontSize: 13, fontWeight: 500 }}
-                onClick={() => setShowIncidentModal(true)}
-              >
-                <i className="bi bi-exclamation-triangle me-2"></i>
-                Báo cáo sự cố
-              </button>
+
               
               {data.order?.trangThai === "pending" && (
                 <button 

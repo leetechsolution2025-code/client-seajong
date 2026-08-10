@@ -26,7 +26,7 @@ export async function GET(req: Request) {
       orderBy: { updatedAt: 'desc' },
       take: 100, // Tăng limit để có thể lọc
       include: {
-        saleOrderItems: true
+        saleOrderItems: { include: { inventoryItem: true } }
       }
     });
 
@@ -59,9 +59,20 @@ export async function GET(req: Request) {
         ? order.saleOrderItems.filter(i => prodItemIds.includes(i.id))
         : order.saleOrderItems.filter(i => i.dinhMucId != null);
 
-      const name = targetItems.length > 0 
-        ? targetItems.map((i: any) => i.tenHang).join(", ")
-        : order.saleOrderItems.map((i: any) => i.tenHang).join(", ");
+      const targetItemsWithDetails = await Promise.all(targetItems.map(async (i: any) => {
+        let dmCode = "";
+        if (i.dinhMucId) {
+          const dm = await prisma.dinhMuc.findUnique({ where: { id: i.dinhMucId }, select: { code: true } });
+          if (dm?.code) dmCode = dm.code;
+        }
+        const qtyStr = i.soLuong || 0;
+        const unitStr = i.inventoryItem?.donVi || "cái";
+        return dmCode ? `${i.tenHang} | ${dmCode} | ${qtyStr} ${unitStr}` : `${i.tenHang} | ${qtyStr} ${unitStr}`;
+      }));
+
+      const name = targetItemsWithDetails.length > 0 
+        ? targetItemsWithDetails.join(", ")
+        : order.saleOrderItems.map((i: any) => `${i.tenHang} | ${i.soLuong || 0} ${i.inventoryItem?.donVi || "cái"}`).join(", ");
 
       const orderCode = order.code ? order.code.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX') : order.id;
 

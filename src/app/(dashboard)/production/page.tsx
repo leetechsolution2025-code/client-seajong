@@ -182,15 +182,18 @@ export default function ProductionDashboardPage() {
                       <td>
                         <div className="d-flex align-items-center gap-2">
                           <div className="fw-bold text-primary">{order.id}</div>
-                          {order.status === "pending" && <span className="badge bg-danger rounded-pill" style={{ fontSize: 9, padding: "2px 6px" }}>Mới</span>}
+                          {order.saleOrderCode && (
+                            <>
+                              <span className="text-muted" style={{ fontSize: 12 }}>|</span>
+                              <div className="text-muted" style={{ fontSize: 11 }}>
+                                Đơn hàng: <span className="fw-medium">{order.saleOrderCode}</span>
+                              </div>
+                            </>
+                          )}
+                          {order.status === "pending" && <span className="badge bg-danger rounded-pill ms-2" style={{ fontSize: 9, padding: "2px 6px" }}>Mới</span>}
                         </div>
-                        {order.saleOrderCode && (
-                          <div className="text-muted mt-1" style={{ fontSize: 11 }}>
-                            Đơn hàng: <span className="fw-medium">{order.saleOrderCode}</span>
-                          </div>
-                        )}
                         {order.name && (
-                          <div className="text-muted text-truncate mt-1" style={{ fontSize: 11, maxWidth: 200 }} title={order.name}>
+                          <div className="text-muted text-truncate mt-1" style={{ fontSize: 11, maxWidth: 450 }} title={order.name}>
                             {order.name}
                           </div>
                         )}
