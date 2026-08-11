@@ -118,6 +118,7 @@ export function EmployeeManagement() {
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
         employeeId={selectedEmployeeId}
+        onActionSuccess={fetchEmployees}
       />
 
       {isCreateModalOpen && (

@@ -13,6 +13,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const [employeeRaw] = await db.$queryRaw<any[]>`SELECT * FROM "Employee" WHERE id = ${id}`;
+    if (!employeeRaw) return NextResponse.json({ error: "Không tìm thấy nhân viên" }, { status: 404 });
+
     const employee = await db.employee.findUnique({
       where: { id },
       include: {
@@ -21,6 +24,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     });
 
     if (!employee) return NextResponse.json({ error: "Không tìm thấy nhân viên" }, { status: 404 });
+
+    // Merge to bypass TurboPack's stale Prisma client cache
+    const mergedEmployee = {
+      ...employee,
+      ...employeeRaw,
+    };
 
     // Sử dụng $queryRaw để bypass hoàn toàn bộ đệm (cache) của Turbopack đối với node_modules/@prisma/client
     // Việc này gọi trực tiếp xuống database SQLite, bỏ qua các model Javascript đang bị kẹt ở phiên bản cũ.
@@ -31,7 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ 
       employee: {
-        ...employee,
+        ...mergedEmployee,
         laborContracts: contracts,
         employmentHistory: history
       } 
@@ -91,6 +100,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         taxCode               = ${toStr(body.taxCode)},
         isInsuranceEnrolled   = ${body.isInsuranceEnrolled ? 1 : 0},
         baseSalary            = ${toFloat(body.baseSalary)},
+        insuranceSalary       = ${toFloat(body.insuranceSalary)},
         mealAllowance         = ${toFloat(body.mealAllowance)},
         fuelAllowance         = ${toFloat(body.fuelAllowance)},
         phoneAllowance        = ${toFloat(body.phoneAllowance)},

@@ -24,36 +24,32 @@ export async function GET(request: Request) {
       ? config.employeeBhxh + config.employeeBhyt + config.employeeBhtn
       : 10.5;
 
-    // Pull enrolled employees directly
-    const employees = await (prisma as any).employee.findMany({
-      where: {
-        OR: [
-          { isInsuranceEnrolled: true },
-          {
-            AND: [
-              { socialInsuranceNumber: { not: null } },
-              { socialInsuranceNumber: { not: "" } }
-            ]
-          }
-        ],
-        status: "active",
-        AND: [
-          {
-            OR: [
-              { fullName: { contains: search } },
-              { code: { contains: search } },
-            ],
-          },
-          department !== "all" ? { departmentCode: department } : {},
-        ],
-      },
-      orderBy: { fullName: "asc" },
-    });
+    // Pull enrolled employees directly via raw SQL to bypass stale Prisma cache
+    let query = `
+      SELECT * FROM "Employee"
+      WHERE (isInsuranceEnrolled = 1 OR (socialInsuranceNumber IS NOT NULL AND socialInsuranceNumber != ''))
+        AND status = 'active'
+    `;
+    const queryParams: any[] = [];
+
+    if (search) {
+      query += ` AND (fullName LIKE ? OR code LIKE ?)`;
+      queryParams.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (department && department !== "all") {
+      query += ` AND departmentCode = ?`;
+      queryParams.push(department);
+    }
+
+    query += ` ORDER BY fullName ASC`;
+
+    const employees = await (prisma as any).$queryRawUnsafe(query, ...queryParams);
 
     // For each employee, upsert an InsuranceHistory record for the given month/year
     const results = await Promise.all(
       employees.map(async (emp: any) => {
-        const salary = emp.baseSalary || 0;
+        const salary = emp.insuranceSalary || 0;
         const employerAmount = Math.round((salary * employerRate) / 100);
         const employeeAmount = Math.round((salary * employeeRate) / 100);
         const totalAmount = employerAmount + employeeAmount;

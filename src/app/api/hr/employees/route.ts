@@ -203,8 +203,8 @@ export async function POST(req: NextRequest) {
           socialInsuranceNumber: toStr(body.socialInsuranceNumber),
           taxCode: toStr(body.taxCode),
           isInsuranceEnrolled: !!body.isInsuranceEnrolled,
-          // ── Lương & Phúc lợi
           baseSalary: toFloat(body.baseSalary),
+          insuranceSalary: toFloat(body.insuranceSalary),
           mealAllowance: toFloat(body.mealAllowance),
           fuelAllowance: toFloat(body.fuelAllowance),
           phoneAllowance: toFloat(body.phoneAllowance),

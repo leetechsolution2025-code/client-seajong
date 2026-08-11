@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/Toast";
 import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
 import { EmployeeAvatar } from "./EmployeeAvatar";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface LaborContract {
   id: string;
@@ -46,6 +47,7 @@ interface EmployeeDetail {
   employeeType: string;
   startDate: string | null;
   baseSalary: number | null;
+  insuranceSalary?: number | null;
   bankAccount: string | null;
   bankName: string | null;
   education: string | null;
@@ -90,6 +92,7 @@ interface EmployeeDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   employeeId: string | null;
+  onActionSuccess?: () => void;
 }
 
 function FieldGroup({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
@@ -186,10 +189,14 @@ const getContractTypeLabel = (t: string) => {
 };
 
 
-export function EmployeeDetailOffcanvas({ isOpen, onClose, employeeId }: EmployeeDetailModalProps) {
+export function EmployeeDetailOffcanvas({ isOpen, onClose, employeeId, onActionSuccess }: EmployeeDetailModalProps) {
   const toast = useToast();
   const [data, setData] = useState<EmployeeDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [confirmResignOpen, setConfirmResignOpen] = useState(false);
+  const [confirmRestoreOpen, setConfirmRestoreOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -291,6 +298,77 @@ export function EmployeeDetailOffcanvas({ isOpen, onClose, employeeId }: Employe
       toast.error("Lỗi dữ liệu", error.message || "Không thể tải hồ sơ");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResign = async () => {
+    if (!data) return;
+    setConfirmResignOpen(false);
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/hr/employees/${data.id}/resign`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resign: true }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Lỗi ${res.status}`);
+      }
+      toast.success("Thành công", `Đã cập nhật trạng thái nghỉ việc cho ${data.fullName}`);
+      await fetchDetail(data.id);
+      onActionSuccess?.();
+    } catch (e: any) {
+      toast.error("Lỗi", e.message || "Không thể thực hiện hành động");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!data) return;
+    setConfirmRestoreOpen(false);
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/hr/employees/${data.id}/resign`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resign: false }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Lỗi ${res.status}`);
+      }
+      toast.success("Thành công", `Đã khôi phục trạng thái làm việc cho ${data.fullName}`);
+      await fetchDetail(data.id);
+      onActionSuccess?.();
+    } catch (e: any) {
+      toast.error("Lỗi", e.message || "Không thể thực hiện hành động");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!data) return;
+    setConfirmDeleteOpen(false);
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/hr/employees/${data.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Lỗi ${res.status}`);
+      }
+      toast.success("Thành công", `Đã xoá vĩnh viễn hồ sơ của nhân viên ${data.fullName}`);
+      onActionSuccess?.();
+      onClose();
+    } catch (e: any) {
+      toast.error("Lỗi", e.message || "Không thể thực hiện hành động");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -682,7 +760,7 @@ export function EmployeeDetailOffcanvas({ isOpen, onClose, employeeId }: Employe
               flexDirection: "column",
               gap: 20,
               overflowY: "auto",
-              height: "100%",
+              flex: 1,
             }}>
               {/* Close & Action row */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -908,12 +986,131 @@ export function EmployeeDetailOffcanvas({ isOpen, onClose, employeeId }: Employe
                   </div>
                 </div>
               </>
-            ) : null}
-          </div>
-          </motion.div>
+              ) : null}
+            </div>
+
+            {/* Footer containing Terminate and Delete actions */}
+            {data && (
+              <div style={{
+                padding: "16px 24px",
+                borderTop: "1px solid var(--border)",
+                background: "var(--card)",
+                display: "flex",
+                gap: 12,
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexShrink: 0
+              }}>
+                {data.status === "resigned" ? (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmRestoreOpen(true)}
+                    disabled={actionLoading}
+                    className="btn btn-success rounded-pill"
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      height: 38,
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6
+                    }}
+                  >
+                    <i className="bi bi-arrow-counterclockwise" />
+                    <span>Khôi phục làm việc</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmResignOpen(true)}
+                    disabled={actionLoading}
+                    className="btn btn-outline-warning rounded-pill"
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      height: 38,
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                      color: "#d97706",
+                      borderColor: "#d97706"
+                    }}
+                  >
+                    <i className="bi bi-person-x" />
+                    <span>Nghỉ việc</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteOpen(true)}
+                  disabled={actionLoading || data.status !== "resigned"}
+                  title={data.status !== "resigned" ? "Chỉ có thể xoá khi nhân viên đã nghỉ việc" : undefined}
+                  className="btn btn-danger rounded-pill"
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    height: 38,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    background: data.status !== "resigned" ? "var(--muted)" : "#dc3545",
+                    borderColor: data.status !== "resigned" ? "var(--border)" : "#dc3545",
+                    color: data.status !== "resigned" ? "var(--muted-foreground)" : "#fff",
+                    cursor: data.status !== "resigned" ? "not-allowed" : "pointer",
+                  }}
+                >
+                  <i className="bi bi-trash" />
+                  <span>Xoá hồ sơ</span>
+                </button>
+              </div>
+            )}
+            </motion.div>
         </>
       )}
     </AnimatePresence>
+
+    {/* Confirm Dialogs */}
+    {data && (
+      <>
+        <ConfirmDialog
+          open={confirmResignOpen}
+          variant="warning"
+          title="Cho nghỉ việc?"
+          message={`Bạn có chắc chắn muốn cho nhân viên ${data.fullName} nghỉ việc?`}
+          confirmLabel="Nghỉ việc"
+          loading={actionLoading}
+          onConfirm={handleResign}
+          onCancel={() => setConfirmResignOpen(false)}
+        />
+        <ConfirmDialog
+          open={confirmRestoreOpen}
+          variant="info"
+          title="Khôi phục nhân viên?"
+          message={`Bạn có chắc chắn muốn khôi phục trạng thái làm việc cho nhân viên ${data.fullName}?`}
+          confirmLabel="Khôi phục"
+          loading={actionLoading}
+          onConfirm={handleRestore}
+          onCancel={() => setConfirmRestoreOpen(false)}
+        />
+        <ConfirmDialog
+          open={confirmDeleteOpen}
+          variant="danger"
+          title="Xoá vĩnh viễn?"
+          message={`Bạn có chắc chắn muốn xoá vĩnh viễn hồ sơ của nhân viên ${data.fullName}? Hành động này không thể hoàn tác.`}
+          confirmLabel="Xoá vĩnh viễn"
+          loading={actionLoading}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmDeleteOpen(false)}
+        />
+      </>
+    )}
 
     {/* Print Modal */}
     {showPrintModal && data && (
