@@ -192,6 +192,13 @@ export default function QaPage() {
       toast.error("Yêu cầu này đã hoàn thành, không thể lưu lại!");
       return;
     }
+    const oqcPass = parseInt(oqcFormData.passQuantity?.toString() || "0", 10);
+    const oqcFail = parseInt(oqcFormData.failQuantity?.toString() || "0", 10);
+    const oqcTotal = parseInt(oqcFormData.totalQuantity?.toString() || "0", 10);
+    if (oqcPass + oqcFail !== oqcTotal) {
+      toast.error("Tổng số lượng đạt và lỗi phải bằng tổng sản lượng!");
+      return;
+    }
     try {
       const res = await fetch(`/api/qa/inspections/${selectedInspection.id}`, {
         method: "PATCH",
@@ -221,6 +228,16 @@ export default function QaPage() {
     if (!selectedInspection) return;
     if (selectedInspection.result !== "Pending") {
       toast.error("Yêu cầu này đã hoàn thành, không thể lưu lại!");
+      return;
+    }
+    const hasMismatch = iqcFormData.items.some(item => {
+      const qty = parseInt(item.quantity?.toString() || "0", 10);
+      const pass = parseInt(item.passQuantity?.toString() || "0", 10);
+      const fail = parseInt(item.failQuantity?.toString() || "0", 10);
+      return pass + fail !== qty;
+    });
+    if (hasMismatch) {
+      toast.error("Tổng số lượng đạt và lỗi của các mặt hàng phải bằng số lượng giao!");
       return;
     }
     try {
@@ -831,7 +848,21 @@ export default function QaPage() {
                     <div className="p-2 border-top bg-light d-flex justify-content-between gap-2">
                        <button className="btn btn-light btn-sm border flex-grow-1" onClick={() => { setShowIqcModal(false); setSelectedInspection(null); }}>Hủy</button>
                        <button className="btn btn-primary btn-sm flex-grow-1" onClick={() => printDocumentById("iqc-preview-doc", "portrait", "IQC-" + selectedInspection.id)}><i className="bi bi-printer me-1"></i>In</button>
-                       <button className="btn btn-success btn-sm flex-grow-1" onClick={handleSaveIqcResult} disabled={selectedInspection?.result !== "Pending"}><i className="bi bi-floppy me-1"></i>Lưu</button>
+                        <button 
+                          className="btn btn-success btn-sm flex-grow-1" 
+                          onClick={handleSaveIqcResult} 
+                          disabled={
+                            selectedInspection?.result !== "Pending" ||
+                            iqcFormData.items.some(item => {
+                              const qty = parseInt(item.quantity?.toString() || "0", 10);
+                              const pass = parseInt(item.passQuantity?.toString() || "0", 10);
+                              const fail = parseInt(item.failQuantity?.toString() || "0", 10);
+                              return pass + fail !== qty;
+                            })
+                          }
+                        >
+                          <i className="bi bi-floppy me-1"></i>Lưu
+                        </button>
                     </div>
                   </div>
 
@@ -1113,7 +1144,16 @@ export default function QaPage() {
                     <div className="p-2 border-top bg-light d-flex justify-content-between gap-2">
                        <button className="btn btn-light btn-sm border flex-grow-1" onClick={() => { setShowOqcModal(false); setSelectedInspection(null); }}>Hủy</button>
                        <button className="btn btn-primary btn-sm flex-grow-1" onClick={() => printDocumentById("oqc-preview-doc", "portrait", "OQC-" + selectedInspection.id)}><i className="bi bi-printer me-1"></i>In</button>
-                       <button className="btn btn-success btn-sm flex-grow-1" onClick={handleSaveOqcResult} disabled={selectedInspection?.result !== "Pending"}><i className="bi bi-floppy me-1"></i>Lưu</button>
+                        <button 
+                          className="btn btn-success btn-sm flex-grow-1" 
+                          onClick={handleSaveOqcResult} 
+                          disabled={
+                            selectedInspection?.result !== "Pending" ||
+                            (parseInt(oqcFormData.passQuantity?.toString() || "0", 10) + parseInt(oqcFormData.failQuantity?.toString() || "0", 10) !== parseInt(oqcFormData.totalQuantity?.toString() || "0", 10))
+                          }
+                        >
+                          <i className="bi bi-floppy me-1"></i>Lưu
+                        </button>
                     </div>
                   </div>
 
