@@ -1865,7 +1865,6 @@ export default function StationeryToolsPage() {
                     <input
                       type="text"
                       className="form-control form-control-sm border-0 bg-light"
-                      placeholder="VD: Văn phòng phẩm"
                       required
                       value={newCat.name}
                       onChange={e => {
@@ -1974,7 +1973,6 @@ export default function StationeryToolsPage() {
                       <label className="form-label fw-bold small text-muted mb-1">Tên vật tư / Dụng cụ <span className="text-danger">*</span></label>
                       <input 
                         className="form-control border p-2 px-3 rounded-2 shadow-none" 
-                        placeholder="VD: Giấy in Double A A4" 
                         required
                         style={{ height: 38, fontSize: 13.5, background: "var(--background)" }}
                         value={itemForm.name}
@@ -2060,7 +2058,6 @@ export default function StationeryToolsPage() {
                       <label className="form-label fw-bold small text-muted mb-1">Ghi chú thêm</label>
                       <textarea 
                         className="form-control border p-3 rounded-2 shadow-none flex-grow-1" 
-                        placeholder="Nhập ghi chú hoặc mô tả chi tiết nếu có..."
                         style={{ background: "var(--background)", fontSize: 13, resize: "none" }}
                         value={itemForm.note}
                         onChange={e => setItemForm(p => ({ ...p, note: e.target.value }))}
@@ -2219,7 +2216,7 @@ export default function StationeryToolsPage() {
                       <div className="col-12">
                         <label className="form-label fw-bold small text-muted mb-1">Thiết bị bàn giao</label>
                         <FilterSelect
-                          placeholder="Chọn thiết bị từ kho..."
+                          placeholder=""
                           options={availableAssets.map(a => ({ 
                             label: a.tenTaiSan, 
                             value: a.id 
@@ -2259,7 +2256,6 @@ export default function StationeryToolsPage() {
                           <input 
                             type="text" 
                             className="form-control border shadow-none" 
-                            placeholder="Mô tả tình trạng..."
                             value={assignForm.condition}
                             onChange={e => setAssignForm(p => ({ ...p, condition: e.target.value }))}
                           />
@@ -2381,7 +2377,6 @@ export default function StationeryToolsPage() {
                             <input 
                               type="text" 
                               className="form-control border border-secondary-subtle" 
-                              placeholder="Nhập số hóa đơn nếu có..."
                               value={purchaseForm.invoiceNo}
                               onChange={e => setPurchaseForm(p => ({ ...p, invoiceNo: e.target.value }))}
                             />
@@ -2392,7 +2387,6 @@ export default function StationeryToolsPage() {
                             <textarea 
                               className="form-control border border-secondary-subtle" 
                               rows={3}
-                              placeholder="VD: Mua văn phòng phẩm bổ sung cho quý..."
                               value={purchaseForm.note}
                               onChange={e => setPurchaseForm(p => ({ ...p, note: e.target.value }))}
                             />
