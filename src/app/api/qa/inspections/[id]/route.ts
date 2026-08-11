@@ -68,7 +68,14 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       }
 
       // 2. Định nghĩa hàm helper gửi thông báo đa bộ phận trong Transaction
-      const sendNotification = async (title: string, content: string, userIds: string[], type = "success") => {
+      const sendNotification = async (
+        title: string,
+        content: string,
+        userIds: string[],
+        audienceType: string,
+        audienceValue: string,
+        type = "success"
+      ) => {
         if (userIds.length === 0) return;
         const notif = await tx.notification.create({
           data: {
@@ -76,8 +83,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
             content,
             type,
             priority: "high",
-            audienceType: "group",
-            audienceValue: JSON.stringify(userIds),
+            audienceType,
+            audienceValue,
             createdById: session.user.id
           }
         });
@@ -97,9 +104,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         where: {
           status: "active",
           OR: [
-            { departmentCode: { contains: "logistics" } },
-            { departmentName: { contains: "kho" } },
+            { departmentCode: { in: ["logistics", "BPKV"] } },
             { departmentName: { contains: "Kho" } },
+            { departmentName: { contains: "kho" } },
             { position: { contains: "thủ kho" } }
           ]
         },
@@ -113,10 +120,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         where: {
           status: "active",
           OR: [
-            { departmentCode: { contains: "production" } },
+            { departmentCode: { in: ["production", "BPSX"] } },
             { departmentCode: { contains: "sản xuất" } },
-            { departmentName: { contains: "sản xuất" } },
-            { departmentName: { contains: "Sản xuất" } }
+            { departmentName: { contains: "Sản xuất" } },
+            { departmentName: { contains: "sản xuất" } }
           ]
         },
         select: { userId: true }
@@ -127,10 +134,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         where: {
           status: "active",
           OR: [
-            { departmentCode: { contains: "accounting" } },
+            { departmentCode: { in: ["finance", "accounting", "BPKT"] } },
             { departmentCode: { contains: "kế toán" } },
-            { departmentName: { contains: "kế toán" } },
-            { departmentName: { contains: "Kế toán" } }
+            { departmentName: { contains: "Kế toán" } },
+            { departmentName: { contains: "kế toán" } }
           ]
         },
         select: { userId: true }
@@ -250,15 +257,36 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       if (totalFailedQty > 0) {
         khoNotifContent += `Vui lòng nhập kho hàng lỗi KHO-LOI cho ${totalFailedQty} sản phẩm lỗi.`;
       }
-      await sendNotification(`📦 Yêu cầu nhập kho ${inspection.type} (${inspection.code})`, khoNotifContent, storekeeperUserIds);
+      await sendNotification(
+        `📦 Yêu cầu nhập kho ${inspection.type} (${inspection.code})`,
+        khoNotifContent,
+        storekeeperUserIds,
+        "department",
+        "logistics",
+        "success"
+      );
 
       // B. Thông báo Kế toán
       const accountingNotifContent = `Báo cáo kết quả kiểm định ${inspection.type} (${inspection.code}) từ ${subjectText}. Kết quả: ${displayResult}. Số lượng đạt: ${totalPassedQty}, Số lượng lỗi: ${totalFailedQty}. Vui lòng đối chiếu công nợ và chứng từ tương ứng.`;
-      await sendNotification(`💰 Báo cáo kiểm định QA (${inspection.code})`, accountingNotifContent, accountingUserIds, "info");
+      await sendNotification(
+        `💰 Báo cáo kiểm định QA (${inspection.code})`,
+        accountingNotifContent,
+        accountingUserIds,
+        "department",
+        "finance",
+        "info"
+      );
 
       // C. Thông báo Sản xuất
       const prodNotifContent = `Kết quả đánh giá chất lượng ${inspection.type} (${inspection.code}) cho ${subjectText}: ${displayResult}. Trạng thái: ${displayResult === "Đạt" ? "Sẵn sàng sử dụng/xuất xưởng" : "Cần rà soát hoặc xử lý hàng lỗi"}.`;
-      await sendNotification(`🏭 Kết quả kiểm định QA (${inspection.code})`, prodNotifContent, productionUserIds, displayResult === "Đạt" ? "success" : "warning");
+      await sendNotification(
+        `🏭 Kết quả kiểm định QA (${inspection.code})`,
+        prodNotifContent,
+        productionUserIds,
+        "department",
+        "production",
+        displayResult === "Đạt" ? "success" : "warning"
+      );
     });
 
     return NextResponse.json({ success: true });
