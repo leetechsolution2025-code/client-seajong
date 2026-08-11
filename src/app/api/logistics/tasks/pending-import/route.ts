@@ -13,8 +13,9 @@ export async function GET() {
         deptCode: "logistics",
         status: "pending",
         OR: [
-          { title: { contains: "Nhập kho thành phẩm" } },
-          { title: { contains: "nhập kho vật tư" } }
+          { title: { contains: "nhập kho thành phẩm" } },
+          { title: { contains: "nhập kho vật tư" } },
+          { title: { contains: "nhập kho hàng lỗi" } }
         ]
       },
       orderBy: { createdAt: "desc" },

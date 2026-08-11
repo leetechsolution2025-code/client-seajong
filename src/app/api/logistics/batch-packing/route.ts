@@ -35,7 +35,13 @@ export async function GET(req: NextRequest) {
           include: {
             inventoryItem: {
               include: {
-                stocks: true
+                stocks: {
+                  include: {
+                    warehouse: {
+                      select: { code: true }
+                    }
+                  }
+                }
               }
             }
           }
@@ -62,7 +68,15 @@ export async function GET(req: NextRequest) {
             for (const p of relevantItems) {
               const matchedInvItem = await (prisma as any).inventoryItem.findFirst({
                 where: { tenHang: p.tenHang },
-                include: { stocks: true }
+                include: {
+                  stocks: {
+                    include: {
+                      warehouse: {
+                        select: { code: true }
+                      }
+                    }
+                  }
+                }
               });
               
               if (matchedInvItem) {
@@ -75,7 +89,17 @@ export async function GET(req: NextRequest) {
                     pickedQty: 0
                   },
                   include: {
-                    inventoryItem: { include: { stocks: true } }
+                    inventoryItem: {
+                      include: {
+                        stocks: {
+                          include: {
+                            warehouse: {
+                              select: { code: true }
+                            }
+                          }
+                        }
+                      }
+                    }
                   }
                 });
                 items.push(newItem);
@@ -115,7 +139,8 @@ export async function GET(req: NextRequest) {
           if (stock) {
             viTriStr = [stock.viTriTang && `Tầng ${stock.viTriTang}`, stock.viTriCot && `Cột ${stock.viTriCot}`, stock.viTriHang && `Hàng ${stock.viTriHang}`].filter(Boolean).join(" - ");
           }
-          thucTon = item.inventoryItem.stocks.reduce((acc: number, cur: any) => acc + (cur.soLuong || 0), 0);
+          const validStocks = item.inventoryItem.stocks.filter((st: any) => st.warehouse?.code !== 'KHO-LOI');
+          thucTon = validStocks.reduce((acc: number, cur: any) => acc + (cur.soLuong || 0), 0);
         }
 
         if (!batchMap.has(key)) {

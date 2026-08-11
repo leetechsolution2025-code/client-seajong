@@ -240,6 +240,7 @@ export default function LogisticsOverviewPage() {
             color: it.color || it.inventoryItem?.color,
             giaBan: it.giaBan || it.inventoryItem?.giaBan,
             imageUrl: it.imageUrl || it.inventoryItem?.imageUrl,
+            inventoryItemId: it.inventoryItemId || it.inventoryItem?.id || null,
           };
         });
         
@@ -252,7 +253,7 @@ export default function LogisticsOverviewPage() {
               const filterType = row.ticketType === "MATERIAL_PICKING" ? "Kho Vật Tư Phụ Kiện (KVP)" : "Kho Hàng Hoá (KHO-CHINH)";
               items = detail.logisticsItems
                 .filter((it: any) => it.type === filterType)
-                .map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type, isShortage: it.isShortage, code: it.code || it.inventoryItem?.code, color: it.color || it.inventoryItem?.color, giaBan: it.giaBan || it.inventoryItem?.giaBan, imageUrl: it.imageUrl || it.inventoryItem?.imageUrl }));
+                .map((it: any) => ({ name: it.tenHang, qty: it.soLuong, unit: it.donVi, type: it.type, isShortage: it.isShortage, code: it.code || it.inventoryItem?.code, color: it.color || it.inventoryItem?.color, giaBan: it.giaBan || it.inventoryItem?.giaBan, imageUrl: it.imageUrl || it.inventoryItem?.imageUrl, inventoryItemId: it.inventoryItemId || it.inventoryItem?.id || null }));
             }
           }
         }
@@ -992,8 +993,10 @@ export default function LogisticsOverviewPage() {
                 }
                 
                 setXuatKhoOrderType(isSo ? "so" : "wo");
-                setXuatKhoSoId(isSo ? targetId : undefined);
-                setXuatKhoWoId(!isSo ? targetId : undefined);
+                setXuatKhoSoId(selectedOrder?.saleOrderId || (selectedOrder?.type === "sale-order" ? selectedOrder.id : undefined));
+                setXuatKhoWoId(selectedOrder?.saleOrderCode 
+                  ? selectedOrder.saleOrderCode.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX')
+                  : (selectedOrder?.type === "sale-order" && selectedOrder.code ? selectedOrder.code.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX') : selectedOrder?.id));
                 setXuatKhoTicketId(selectedOrder?.type === "logistics-ticket" ? selectedOrder.id : undefined);
                 setShowXuatKhoModal(true);
               }

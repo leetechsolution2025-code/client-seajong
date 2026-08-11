@@ -12,6 +12,98 @@ export async function GET(req: NextRequest) {
   const q           = searchParams.get("q")           ?? "";
   const limit       = Math.min(50, parseInt(searchParams.get("limit") ?? "20"));
   const warehouseId = searchParams.get("warehouseId") ?? null;
+  const id          = searchParams.get("id");
+  const code        = searchParams.get("code");
+
+  if (id) {
+    const item = await prisma.inventoryItem.findUnique({
+      where: { id },
+      select: {
+        id:        true,
+        code:      true,
+        tenHang:   true,
+        donVi:     true,
+        soLuong:   true,
+        giaNhap:   true,
+        giaBan:    true,
+        trangThai: true,
+        imageUrl:  true,
+        stocks: {
+          select: { 
+            warehouseId: true,
+            soLuong: true,
+            viTriHang: true,
+            viTriCot: true,
+            viTriTang: true,
+          },
+        },
+      }
+    });
+    if (item) {
+      const stocks = item.stocks || [];
+      const totalSoLuong = stocks.length > 0 ? stocks.reduce((s, st) => s + st.soLuong, 0) : (item.soLuong || 0);
+      return NextResponse.json([{
+        id:         item.id,
+        code:       item.code,
+        tenHang:    item.tenHang,
+        donVi:      item.donVi,
+        giaNhap:    item.giaNhap,
+        giaBan:     item.giaBan,
+        trangThai:  item.trangThai,
+        imageUrl:   item.imageUrl,
+        soLuongTon: totalSoLuong,
+        viTriHang:  null,
+        viTriCot:   null,
+        viTriTang:  null,
+      }]);
+    }
+    return NextResponse.json([]);
+  }
+
+  if (code) {
+    const item = await prisma.inventoryItem.findFirst({
+      where: { code },
+      select: {
+        id:        true,
+        code:      true,
+        tenHang:   true,
+        donVi:     true,
+        soLuong:   true,
+        giaNhap:   true,
+        giaBan:    true,
+        trangThai: true,
+        imageUrl:  true,
+        stocks: {
+          select: { 
+            warehouseId: true,
+            soLuong: true,
+            viTriHang: true,
+            viTriCot: true,
+            viTriTang: true,
+          },
+        },
+      }
+    });
+    if (item) {
+      const stocks = item.stocks || [];
+      const totalSoLuong = stocks.length > 0 ? stocks.reduce((s, st) => s + st.soLuong, 0) : (item.soLuong || 0);
+      return NextResponse.json([{
+        id:         item.id,
+        code:       item.code,
+        tenHang:    item.tenHang,
+        donVi:      item.donVi,
+        giaNhap:    item.giaNhap,
+        giaBan:     item.giaBan,
+        trangThai:  item.trangThai,
+        imageUrl:   item.imageUrl,
+        soLuongTon: totalSoLuong,
+        viTriHang:  null,
+        viTriCot:   null,
+        viTriTang:  null,
+      }]);
+    }
+    return NextResponse.json([]);
+  }
 
   let whFilter: any = {};
   if (warehouseId) {
@@ -58,8 +150,35 @@ export async function GET(req: NextRequest) {
       })
     : rawItems;
 
+  // Sắp xếp ưu tiên trùng khớp chính xác mã hoặc tên lên đầu
+  const sorted = q
+    ? [...filtered].sort((a, b) => {
+        const qLower = q.toLowerCase();
+        const aNameLower = a.tenHang.toLowerCase();
+        const bNameLower = b.tenHang.toLowerCase();
+        const aCodeLower = (a.code || "").toLowerCase();
+        const bCodeLower = (b.code || "").toLowerCase();
+
+        const aExactName = aNameLower === qLower || removeVietnameseTones(aNameLower) === qNorm;
+        const bExactName = bNameLower === qLower || removeVietnameseTones(bNameLower) === qNorm;
+        const aExactCode = aCodeLower === qLower;
+        const bExactCode = bCodeLower === qLower;
+
+        if ((aExactName || aExactCode) && !(bExactName || bExactCode)) return -1;
+        if (!(aExactName || aExactCode) && (bExactName || bExactCode)) return 1;
+
+        // Ưu tiên trùng khớp bắt đầu bằng
+        const aStartName = aNameLower.startsWith(qLower);
+        const bStartName = bNameLower.startsWith(qLower);
+        if (aStartName && !bStartName) return -1;
+        if (!aStartName && bStartName) return 1;
+
+        return 0;
+      })
+    : filtered;
+
   // Lấy đúng limit sau khi filter
-  const items = filtered.slice(0, limit);
+  const items = sorted.slice(0, limit);
 
   // Tính soLuongTon + vị trí
   type StockWithPos = { warehouseId: string; soLuong: number; viTriHang?: string | null; viTriCot?: string | null; viTriTang?: string | null };

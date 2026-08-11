@@ -40,7 +40,7 @@ interface StockLine {
 interface NhapKhoModalProps { 
   onClose: () => void; 
   onSaved: () => void; 
-  initialItems?: { name?: string, tenHang?: string, qty?: number, soLuong?: number, unit?: string }[];
+  initialItems?: { name?: string, tenHang?: string, qty?: number, soLuong?: number, unit?: string, inventoryItemId?: string | null, code?: string | null }[];
   initialTaskId?: string;
   initialSoBienBanQC?: string;
   initialMode?: "manual" | "po" | "production";
@@ -84,7 +84,16 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
   const [lockDate, setLockDate] = React.useState(true); // khoá ngày nhập vào hôm nay
   const [toWarehouseId, setToWarehouseId] = React.useState("");
   const [nguoiThucHien, setNguoiThucHien] = React.useState("");
-  const [lyDo, setLyDo] = React.useState(initialItems && initialItems.length > 0 ? "Nhập kho thành phẩm OQC" : "Nhập kho hàng hoá");
+  const [lyDo, setLyDo] = React.useState(() => {
+    const isDefect = initialItems && initialItems.some((it: any) => 
+      it.type === "Kho Hàng Lỗi" || 
+      it.warehouseCode === "KHO-LOI" || 
+      (typeof it.name === "string" && it.name.includes("(Hàng lỗi)")) ||
+      (typeof it.tenHang === "string" && it.tenHang.includes("(Hàng lỗi)"))
+    );
+    if (isDefect) return "Nhập kho hàng lỗi OQC";
+    return initialItems && initialItems.length > 0 ? "Nhập kho thành phẩm OQC" : "Nhập kho hàng hoá";
+  });
   const [loaiNhapKho, setLoaiNhapKho] = React.useState(initialItems && initialItems.length > 0 ? "Nhập từ sản xuất" : "Nhập mua hàng");
 
   React.useEffect(() => {
@@ -128,11 +137,20 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
     if (initialItems && initialItems.length > 0) {
       setResolvingItems(true);
       Promise.all(initialItems.map(async (it) => {
-        // Remove (xN) suffix from QA tests if present
         const rawName = typeof it.name === 'string' ? it.name : (typeof it.tenHang === 'string' ? it.tenHang : "");
-        const cleanName = rawName.replace(/\s*\(x\d+\)$/, "");
+        const cleanName = rawName
+          .replace(/\s*\(x\d+\)$/, "")
+          .replace(/\s*\(Hàng\s+lỗi\)$/i, "")
+          .replace(/\s*\(Hàng\s+hỏng\)$/i, "");
         try {
-          const res = await fetch(`/api/plan-finance/inventory/search?q=${encodeURIComponent(cleanName)}&limit=1`);
+          let url = `/api/plan-finance/inventory/search?q=${encodeURIComponent(cleanName)}&limit=1`;
+          if (it.inventoryItemId) {
+            url = `/api/plan-finance/inventory/search?id=${it.inventoryItemId}`;
+          } else if (it.code) {
+            url = `/api/plan-finance/inventory/search?code=${it.code}`;
+          }
+
+          const res = await fetch(url);
           const data = await res.json();
           const found = Array.isArray(data) && data.length > 0 ? data[0] : null;
           return {
@@ -164,6 +182,22 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
       .then((d: Warehouse[]) => {
         const active = Array.isArray(d) ? d.filter(w => w.isActive) : [];
         setWarehouses(active);
+        
+        const isDefect = initialItems && initialItems.some((it: any) => 
+          it.type === "Kho Hàng Lỗi" || 
+          it.warehouseCode === "KHO-LOI" || 
+          (typeof it.name === "string" && it.name.includes("(Hàng lỗi)")) ||
+          (typeof it.tenHang === "string" && it.tenHang.includes("(Hàng lỗi)"))
+        );
+
+        if (isDefect) {
+          const khoLoi = active.find(w => w.code === "KHO-LOI");
+          if (khoLoi) {
+            setToWarehouseId(khoLoi.id);
+            return;
+          }
+        }
+
         const kvp = active.find(w => w.code === "KVP");
         if (kvp) {
           setToWarehouseId(kvp.id);
@@ -178,7 +212,7 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
         if (d.nextCode) setSoChungTu(d.nextCode);
       })
       .catch(() => {});
-  }, []);
+  }, [initialItems]);
 
   // ESC close
   React.useEffect(() => {

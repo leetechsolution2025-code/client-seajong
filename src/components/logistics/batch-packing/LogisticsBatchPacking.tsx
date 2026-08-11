@@ -460,7 +460,10 @@ export function LogisticsBatchPacking() {
                               let pickedCount = 0;
                               let fullyPickedCount = 0;
                               groupItems.forEach(item => {
-                                const qty = pickedQuantities[item.id] !== undefined ? pickedQuantities[item.id] : (item.tongDaNhat || 0);
+                                const qty = Math.min(
+                                  pickedQuantities[item.id] !== undefined ? pickedQuantities[item.id] : (item.tongDaNhat || 0),
+                                  Math.min(item.tongSoLuong, item.thucTon || 0)
+                                );
                                 if (qty > 0) {
                                   pickedCount++;
                                   if (qty >= item.tongSoLuong) {
@@ -525,7 +528,10 @@ export function LogisticsBatchPacking() {
                   );
                 })()}
                 {!collapsedDates.has(dateStr) && groupedItems[dateStr].map(item => {
-                  const currentInputQty = pickedQuantities[item.id] !== undefined ? pickedQuantities[item.id] : (item.tongDaNhat || 0);
+                  const currentInputQty = Math.min(
+                    pickedQuantities[item.id] !== undefined ? pickedQuantities[item.id] : (item.tongDaNhat || 0),
+                    Math.min(item.tongSoLuong, item.thucTon || 0)
+                  );
                   const isPicked = currentInputQty > 0;
                   const isFullyPicked = currentInputQty === item.tongSoLuong;
                   const isEdited = pickedQuantities[item.id] !== undefined;

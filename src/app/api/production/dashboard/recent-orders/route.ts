@@ -13,10 +13,27 @@ export async function GET(req: Request) {
     const status = searchParams.get('status') || '';
     const date = searchParams.get('date') || '';
     const todayCompleted = searchParams.get('todayCompleted') === 'true';
+    const includeId = searchParams.get('includeId');
+    let codeToInclude = "";
+    if (includeId) {
+      codeToInclude = includeId.replace(/^LSX-/, 'DBH-');
+    }
 
     // Lấy các SaleOrder được duyệt (kế toán duyệt)
     const orders = await prisma.saleOrder.findMany({
-      where: {
+      where: includeId ? {
+        OR: [
+          {
+            keToanDuyet: "approved",
+            OR: [
+              { trangThai: "in_production" },
+              { ngayHoanThanhSanXuat: { not: null } }
+            ]
+          },
+          { code: codeToInclude },
+          { id: includeId }
+        ]
+      } : {
         keToanDuyet: "approved",
         OR: [
           { trangThai: "in_production" },

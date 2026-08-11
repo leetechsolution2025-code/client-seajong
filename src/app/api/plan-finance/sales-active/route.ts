@@ -13,10 +13,18 @@ export async function GET(_req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const { searchParams } = new URL(_req.url);
+    const includeId = searchParams.get("includeId") || undefined;
+
     const [contracts, saleOrders, retailInvoices, materialTasks, inboundTasks, batchPickingTasks] = await Promise.all([
       // Hợp đồng đang thực hiện
       prisma.contract.findMany({
-        where: { trangThai: "active" },
+        where: includeId ? {
+          OR: [
+            { trangThai: "active" },
+            { id: includeId }
+          ]
+        } : { trangThai: "active" },
         orderBy: { createdAt: "desc" },
         take: 100,
         select: {
@@ -27,7 +35,15 @@ export async function GET(_req: NextRequest) {
       }),
       // Đơn bán hàng đang thực hiện và ĐÃ ĐƯỢC KẾ TOÁN DUYỆT (Bao gồm cả đang sản xuất để xuất hàng hoá)
       prisma.saleOrder.findMany({
-        where: { 
+        where: includeId ? {
+          OR: [
+            { 
+              trangThai: { in: ["active", "confirmed", "processing", "in_production", "approved"] },
+              keToanDuyet: "approved"
+            },
+            { id: includeId }
+          ]
+        } : { 
           trangThai: { in: ["active", "confirmed", "processing", "in_production", "approved"] },
           keToanDuyet: "approved"
         },
@@ -41,7 +57,12 @@ export async function GET(_req: NextRequest) {
       }),
       // Hoá đơn bán lẻ chưa thanh toán hết / còn nợ
       prisma.retailInvoice.findMany({
-        where: { trangThai: { in: ["partial", "pending", "unpaid"] } },
+        where: includeId ? {
+          OR: [
+            { trangThai: { in: ["partial", "pending", "unpaid"] } },
+            { id: includeId }
+          ]
+        } : { trangThai: { in: ["partial", "pending", "unpaid"] } },
         orderBy: { createdAt: "desc" },
         take: 100,
         select: {

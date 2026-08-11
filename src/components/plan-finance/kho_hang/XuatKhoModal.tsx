@@ -150,18 +150,20 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
   React.useEffect(() => {
     if (mode !== "so") return;
     setListLoading(true); setSelectedSo(null);
-    fetch("/api/plan-finance/sales-active")
+    const url = "/api/plan-finance/sales-active" + (initialSoId ? `?includeId=${initialSoId}` : "");
+    fetch(url)
       .then(r => r.json())
       .then(d => setSaleOrders(Array.isArray(d) ? d : []))
       .catch(() => setSaleOrders([]))
       .finally(() => setListLoading(false));
-  }, [mode]);
+  }, [mode, initialSoId]);
 
   // Fetch danh sách lệnh sản xuất khi chuyển sang mode "wo"
   React.useEffect(() => {
     if (mode !== "wo") return;
     setListLoading(true); setSelectedWo(null);
-    fetch("/api/production/dashboard/recent-orders")
+    const url = "/api/production/dashboard/recent-orders" + (initialWoId ? `?includeId=${initialWoId}` : "");
+    fetch(url)
       .then(r => r.json())
       .then((d: any[]) => {
         if (Array.isArray(d)) {
@@ -172,23 +174,22 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
       })
       .catch(() => setWorkOrders([]))
       .finally(() => setListLoading(false));
-  }, [mode]);
+  }, [mode, initialWoId]);
 
-  const hasAutoSelected = React.useRef(false);
+  const hasAutoSelected = React.useRef<Record<string, boolean>>({});
   React.useEffect(() => {
-    if (initialMode === "so" && initialSoId && saleOrders.length > 0 && !hasAutoSelected.current) {
-      hasAutoSelected.current = true;
+    if (mode === "so" && initialSoId && saleOrders.length > 0 && !hasAutoSelected.current["so"]) {
+      hasAutoSelected.current["so"] = true;
       onSelectSo(initialSoId);
     }
-  }, [initialMode, initialSoId, saleOrders]);
+  }, [mode, initialSoId, saleOrders]);
 
-  const hasAutoSelectedWo = React.useRef(false);
   React.useEffect(() => {
-    if (initialMode === "wo" && initialWoId && workOrders.length > 0 && !hasAutoSelectedWo.current) {
-      hasAutoSelectedWo.current = true;
+    if (mode === "wo" && initialWoId && workOrders.length > 0 && !hasAutoSelected.current["wo"]) {
+      hasAutoSelected.current["wo"] = true;
       onSelectWo(initialWoId);
     }
-  }, [initialMode, initialWoId, workOrders]);
+  }, [mode, initialWoId, workOrders]);
 
   const onSelectSo = (id: string) => {
     if (!id) { setSelectedSo(null); setLines([emptyLine()]); return; }

@@ -328,7 +328,12 @@ export async function GET(req: Request) {
     let sapHetCount = 0;
 
     const allItemsWithStock = deduplicatedItems.map(item => {
-      let relevantStocks = item.stocks.filter((s: any) => s.warehouse?.code !== 'KHO-LOI');
+      // Khi chọn "Tất cả kho", hệ thống mặc định không cộng dồn hàng lỗi để tránh nhầm lẫn tồn kho bán được.
+      // Nhưng nếu chọn đích danh Kho hàng lỗi (hoặc một kho cụ thể), ta giữ lại stock để tính toán.
+      let relevantStocks = item.stocks;
+      if (!warehouseId && !warehouseCode) {
+        relevantStocks = item.stocks.filter((s: any) => s.warehouse?.code !== 'KHO-LOI');
+      }
 
       if (warehouseCode === "KHO-CHINH" || warehouseCode === "KVP") {
         relevantStocks = relevantStocks.filter((s: any) => s.warehouse?.code === 'KHO-CHINH' || s.warehouse?.code === 'KVP');

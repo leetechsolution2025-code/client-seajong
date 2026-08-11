@@ -940,12 +940,14 @@ async function syncEntityStatus(
         };
         const nextStatus = statusMap[action] || "draft";
 
-        const appReq = await prisma.approvalRequest.findFirst({
-          where: {
-            entityType: "marketing_proposal",
-            entityId: entityId
-          }
-        });
+        const appReq = approvalRequestId
+          ? await prisma.approvalRequest.findUnique({ where: { id: approvalRequestId } })
+          : await prisma.approvalRequest.findFirst({
+              where: {
+                entityType: "marketing_proposal",
+                entityId: entityId
+              }
+            });
 
         if (appReq && appReq.metadata) {
           try {
@@ -983,12 +985,14 @@ async function syncEntityStatus(
         };
         let nextStatus = statusMap[action] || "draft";
 
-        const appReq = await prisma.approvalRequest.findFirst({
-          where: {
-            entityType: "marketing_monthly_plan",
-            entityId: entityId
-          }
-        });
+        const appReq = approvalRequestId
+          ? await prisma.approvalRequest.findUnique({ where: { id: approvalRequestId } })
+          : await prisma.approvalRequest.findFirst({
+              where: {
+                entityType: "marketing_monthly_plan",
+                entityId: entityId
+              }
+            });
 
         if (appReq && appReq.metadata) {
           try {
@@ -1024,6 +1028,22 @@ async function syncEntityStatus(
                         const budgets = planObj.monthlyBudgets || {};
                         totalBudget = budgets[month] || 0;
                     } catch(e) {}
+
+                    if (totalBudget === 0 && mPlan) {
+                      try {
+                        const itemsVal = Object.values(mPlan.items || {});
+                        totalBudget = itemsVal.reduce((sum: number, item: any) => sum + (item.proposedAmount || 0), 0) + (mPlan.advReserve || 0);
+                      } catch(e) {}
+                    }
+
+                    if (totalBudget === 0 && appReq && appReq.metadata) {
+                      try {
+                        const meta = JSON.parse(appReq.metadata);
+                        if (meta.proposedAmount) {
+                          totalBudget = parseFloat(meta.proposedAmount);
+                        }
+                      } catch(e) {}
+                    }
                     
                     await prisma.expense.create({
                       data: {
@@ -1110,12 +1130,14 @@ async function syncEntityStatus(
         };
         const nextStatus = statusMap[action] || "draft";
 
-        const appReq = await prisma.approvalRequest.findFirst({
-          where: {
-            entityType: "master_yearly_plan",
-            entityId: entityId
-          }
-        });
+        const appReq = approvalRequestId
+          ? await prisma.approvalRequest.findUnique({ where: { id: approvalRequestId } })
+          : await prisma.approvalRequest.findFirst({
+              where: {
+                entityType: "master_yearly_plan",
+                entityId: entityId
+              }
+            });
 
         if (appReq && appReq.metadata) {
           try {

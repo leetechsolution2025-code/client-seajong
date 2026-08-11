@@ -558,9 +558,9 @@ export default function FinancePage() {
       const res = await fetch(`/api/plan-finance/expenses?${params.toString()}`);
       if (!res.ok) throw new Error("Không thể tải khoản chi.");
       const resData = await res.json();
-      const fetchedExp = resData.data || [];
+      const fetchedExp = resData.items || resData.data || [];
       setExpenses(fetchedExp);
-      const limit = resData.limit || 15;
+      const limit = resData.pageSize || resData.limit || 15;
       const total = resData.total || 0;
       setExpensesTotalPages(Math.max(1, Math.ceil(total / limit)));
       setSelectedExpense((prev: any) => {
@@ -1029,54 +1029,6 @@ export default function FinancePage() {
               {isNew && (
                 <span className="badge bg-danger rounded-pill shadow-sm" style={{ fontSize: "9px", padding: "3px 6px" }}>MỚI</span>
               )}
-            {currentStep === 4 && (
-              <FullWidthTableLayout 
-                tableWrapperClassName="" 
-                header={undefined}
-                footer={
-                  <div className="d-flex align-items-center justify-content-between w-100 gap-3">
-                    <div className="d-flex align-items-center gap-2 flex-grow-1">
-                      <FilterSelect
-                        options={[
-                      { label: "Chưa thực hiện", value: "pending" },
-                      { label: "Đã thực hiện", value: "paid" },
-                    ]}
-                        value={expenseStatus}
-                        onChange={setExpenseStatus}
-                        placeholder="Tất cả trạng thái"
-                        width={180}
-                      />
-                      <div style={{ flex: 1, maxWidth: "400px" }}>
-                        <SearchInput
-                          value={expenseSearch}
-                          onChange={setExpenseSearch}
-                          placeholder="Tìm mã CP, người chi trả..."
-                        />
-                      </div>
-                    </div>
-                    {expensesTotalPages > 1 && (
-                      <div className="d-flex justify-content-end">
-                        <Pagination
-                          page={expensePage}
-                          totalPages={expensesTotalPages}
-                          onChange={setExpensePage}
-                        />
-                      </div>
-                    )}
-                  </div>
-                } table={
-              <Table
-                columns={expenseColumns}
-                rows={expenses}
-                loading={expensesLoading}
-                rowKey={(row) => row.id}
-                emptyText="Không tìm thấy khoản chi nào"
-                compact
-                onRowClick={setSelectedExpense}
-              />
-            } />
-            )}
-
             </div>
             <span className="text-muted d-flex align-items-center gap-1" style={{ fontSize: "10.5px", whiteSpace: "nowrap" }}>
               <i className="bi bi-calendar3" style={{ fontSize: "9.5px" }} /> {dateStr}
@@ -1301,6 +1253,49 @@ export default function FinancePage() {
                     localStorage.setItem('readPaymentNotifications', JSON.stringify(newRead));
                   }
                 }}
+              /> } />
+            )}
+            {currentStep === 4 && (
+              <FullWidthTableLayout tableWrapperClassName="" header={undefined}
+                footer={
+                  <div className="d-flex align-items-center justify-content-between w-100 gap-3">
+                    <div className="d-flex align-items-center gap-2 flex-grow-1">
+                      <FilterSelect
+                        options={[
+                          { label: "Chưa thực hiện", value: "pending" },
+                          { label: "Đã thực hiện", value: "paid" },
+                        ]}
+                        value={expenseStatus}
+                        onChange={setExpenseStatus}
+                        placeholder="Tất cả trạng thái"
+                        width={180}
+                      />
+                      <div style={{ flex: 1, maxWidth: "400px" }}>
+                        <SearchInput
+                          value={expenseSearch}
+                          onChange={setExpenseSearch}
+                          placeholder="Tìm mã CP, người chi trả..."
+                        />
+                      </div>
+                    </div>
+                    {expensesTotalPages > 1 && (
+                      <div className="d-flex justify-content-end">
+                        <Pagination
+                          page={expensePage}
+                          totalPages={expensesTotalPages}
+                          onChange={setExpensePage}
+                        />
+                      </div>
+                    )}
+                  </div>
+                } table={ <Table
+                columns={expenseColumns}
+                rows={expenses}
+                loading={expensesLoading}
+                rowKey={(row) => row.id}
+                emptyText="Không tìm thấy khoản chi nào"
+                compact
+                onRowClick={setSelectedExpense}
               /> } />
             )}
           </WorkflowCard>

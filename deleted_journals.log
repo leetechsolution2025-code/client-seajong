@@ -25,3 +25,9 @@ Lines: [{"id":"cmseitsmo00148ottma97pfwu","journalEntryId":"cmseitsmo00128ottmyv
 [2026-07-15T07:35:10.964Z] DELETED: DBH-20260804-07 - Ghi nhận doanh thu từ HĐ - Đại lý Vính Thinh – 09345675833 - Reason: Huỷ/xoá đơn hàng bán
 Lines: [{"id":"cmseitsmz001a8ott3pvdgpdw","journalEntryId":"cmseitsmz00188ottl9gff9xh","accountId":"cmrln1vse005a8ovfj9xbdl8s","type":"DEBIT","amount":38000000,"description":"Ghi nhận doanh thu từ HĐ - Đại lý Vính Thinh – 09345675833"},{"id":"cmseitsmz001b8ottjqgeocxa","journalEntryId":"cmseitsmz00188ottl9gff9xh","accountId":"cmrlmib2m000v8o5mqxsjn8lb","type":"CREDIT","amount":38000000,"description":"Ghi nhận doanh thu từ HĐ - Đại lý Vính Thinh – 09345675833"}]
 
+[2026-07-15T07:35:10.964Z] DELETED: DBH-20260809-01 - Thu tiền khách hàng - Đại lý Hồng Liên – 09343343434 - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmslz6lvy001qgooiu19iunsd","journalEntryId":"cmslz6lvy001ogooiyc1tuoni","accountId":"cmrlmib2e00078o5mu1q6ffjo","type":"DEBIT","amount":73000,"description":"Thu tiền khách hàng - Đại lý Hồng Liên – 09343343434"},{"id":"cmslz6lvy001rgooi57bd1sug","journalEntryId":"cmslz6lvy001ogooiyc1tuoni","accountId":"cmrlmib2f000a8o5mbfh4csxq","type":"CREDIT","amount":73000,"description":"Thu tiền khách hàng - Đại lý Hồng Liên – 09343343434"}]
+
+[2026-07-15T07:35:10.964Z] DELETED: DBH-20260809-01 - Ghi nhận doanh thu từ HĐ - Đại lý Hồng Liên – 09343343434 - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmslz6lw7001wgooi4zd9pdzu","journalEntryId":"cmslz6lw7001ugooicspmhc7e","accountId":"cmrln1vse005a8ovfj9xbdl8s","type":"DEBIT","amount":73000,"description":"Ghi nhận doanh thu từ HĐ - Đại lý Hồng Liên – 09343343434"},{"id":"cmslz6lw7001xgooibil328ja","journalEntryId":"cmslz6lw7001ugooicspmhc7e","accountId":"cmrlmib2m000v8o5mqxsjn8lb","type":"CREDIT","amount":73000,"description":"Ghi nhận doanh thu từ HĐ - Đại lý Hồng Liên – 09343343434"}]
+
