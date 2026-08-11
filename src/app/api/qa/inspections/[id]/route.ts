@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     const params = await props.params;
     const { id } = params;
     const body = await req.json();
-    const { result, notes, passedQuantity, failedQuantity, items } = body;
+    const { result, notes, passedQuantity, failedQuantity, items, checks } = body;
 
     const inspection = await prisma.qualityInspection.findUnique({
       where: { code: id } // Note: The frontend passes 'code' as 'id' in selectedInspection
@@ -31,6 +31,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       newMeta.failedQuantity = failedQuantity;
       if (items && Array.isArray(items)) {
         newMeta.items = items;
+      }
+      if (checks && Array.isArray(checks)) {
+        newMeta.checks = checks;
       }
 
       // 1. Cập nhật trạng thái phiếu QC
@@ -64,36 +67,87 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         });
       }
 
-      // 2. Nếu đạt yêu cầu và là OQC -> Tạo lệnh nhập kho
-      if (result === "Đạt" && inspection.type === "OQC") {
-        const storekeepers = await tx.employee.findMany({
-          where: {
-            status: "active",
-            OR: [
-              { departmentCode: { contains: "logistics" } },
-              { departmentName: { contains: "kho" } },
-              { departmentName: { contains: "Kho" } },
-              { position: { contains: "thủ kho" } }
-            ]
-          },
-          select: { userId: true, position: true }
+      // 2. Định nghĩa hàm helper gửi thông báo đa bộ phận trong Transaction
+      const sendNotification = async (title: string, content: string, userIds: string[], type = "success") => {
+        if (userIds.length === 0) return;
+        const notif = await tx.notification.create({
+          data: {
+            title,
+            content,
+            type,
+            priority: "high",
+            audienceType: "group",
+            audienceValue: JSON.stringify(userIds),
+            createdById: session.user.id
+          }
         });
-        const storekeeperUserIds = storekeepers.map(u => u.userId).filter(Boolean) as string[];
-        const thuKhoUserIds = storekeepers.filter(s => (s.position || "").toLowerCase().includes("thủ kho")).map(s => s.userId).filter(Boolean) as string[];
+        await Promise.all(
+          userIds.map(uid =>
+            tx.notificationRecipient.upsert({
+              where: { notificationId_userId: { notificationId: notif.id, userId: uid } },
+              update: {},
+              create: { notificationId: notif.id, userId: uid }
+            })
+          )
+        );
+      };
 
-        // Ghi nhận số lượng thực tế
-        const meta = (inspection as any).metadata ? JSON.parse((inspection as any).metadata as string) : {};
-        const finalPassedQty = passedQuantity !== undefined ? passedQuantity : (meta.passQuantity || meta.totalQuantity || 1);
-        const finalFailedQty = failedQuantity !== undefined ? failedQuantity : (meta.failQuantity || 0);
-        const itemName = meta.model ? meta.model.split(',')[0].trim() : inspection.productName;
+      // 3. Lấy thông tin nhân viên các bộ phận liên quan
+      const storekeepers = await tx.employee.findMany({
+        where: {
+          status: "active",
+          OR: [
+            { departmentCode: { contains: "logistics" } },
+            { departmentName: { contains: "kho" } },
+            { departmentName: { contains: "Kho" } },
+            { position: { contains: "thủ kho" } }
+          ]
+        },
+        select: { userId: true, position: true }
+      });
+      const storekeeperUserIds = storekeepers.map(u => u.userId).filter(Boolean) as string[];
+      const thuKhoUserIds = storekeepers.filter(s => (s.position || "").toLowerCase().includes("thủ kho")).map(s => s.userId).filter(Boolean) as string[];
+      const assigneeId = thuKhoUserIds[0] || storekeeperUserIds[0] || session.user.id;
 
-        const assigneeId = thuKhoUserIds[0] || storekeeperUserIds[0] || session.user.id;
+      const productionStaff = await tx.employee.findMany({
+        where: {
+          status: "active",
+          OR: [
+            { departmentCode: { contains: "production" } },
+            { departmentCode: { contains: "sản xuất" } },
+            { departmentName: { contains: "sản xuất" } },
+            { departmentName: { contains: "Sản xuất" } }
+          ]
+        },
+        select: { userId: true }
+      });
+      const productionUserIds = productionStaff.map(u => u.userId).filter(Boolean) as string[];
 
-        // A. Tạo Task nhập kho thành phẩm đạt (chỉ khi có số lượng đạt > 0)
+      const accountingStaff = await tx.employee.findMany({
+        where: {
+          status: "active",
+          OR: [
+            { departmentCode: { contains: "accounting" } },
+            { departmentCode: { contains: "kế toán" } },
+            { departmentName: { contains: "kế toán" } },
+            { departmentName: { contains: "Kế toán" } }
+          ]
+        },
+        select: { userId: true }
+      });
+      const accountingUserIds = accountingStaff.map(u => u.userId).filter(Boolean) as string[];
+
+      // 4. Tạo các lệnh nhập kho (Task) cho Kho vận
+      if (inspection.type === "OQC") {
+        const finalPassedQty = passedQuantity !== undefined ? parseInt(passedQuantity.toString(), 10) : 0;
+        const finalFailedQty = failedQuantity !== undefined ? parseInt(failedQuantity.toString(), 10) : 0;
+        const itemName = oldMeta.model ? oldMeta.model.split(',')[0].trim() : inspection.productName;
+
+        // A. Nhập kho thành phẩm đạt
         if (finalPassedQty > 0) {
           await tx.task.create({
             data: {
-              title: `Yêu cầu nhập kho thành phẩm (${inspection.code})`,
+              title: `Yêu cầu nhập kho thành phẩm đạt (${inspection.code})`,
               description: `Kiểm tra OQC đạt yêu cầu. Đề nghị bộ phận Kho vận tiến hành nhập kho thành phẩm.\nSản phẩm: ${itemName}`,
               assigneeId,
               creatorId: session.user.id,
@@ -101,13 +155,13 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
               priority: "high",
               status: "pending",
               actualResult: JSON.stringify([
-                { tenHang: itemName, soLuong: finalPassedQty, donVi: "Bộ", type: "Kho Thành Phẩm", isShortage: false, inventoryItemId: meta.inventoryItemId || null }
+                { tenHang: itemName, soLuong: finalPassedQty, donVi: "Bộ", type: "Kho Thành Phẩm", isShortage: false, inventoryItemId: oldMeta.inventoryItemId || null }
               ])
             }
           });
         }
 
-        // B. Tạo Task nhập kho hàng lỗi (chỉ khi số lượng lỗi > 0)
+        // B. Nhập kho thành phẩm lỗi (KHO-LOI)
         if (finalFailedQty > 0) {
           await tx.task.create({
             data: {
@@ -119,73 +173,31 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
               priority: "high",
               status: "pending",
               actualResult: JSON.stringify([
-                { tenHang: `${itemName} (Hàng lỗi)`, soLuong: finalFailedQty, donVi: "Bộ", type: "Kho Hàng Lỗi", isShortage: false, inventoryItemId: meta.inventoryItemId || null, warehouseCode: "KHO-LOI" }
+                { tenHang: `${itemName} (Hàng lỗi)`, soLuong: finalFailedQty, donVi: "Bộ", type: "Kho Hàng Lỗi", isShortage: false, inventoryItemId: oldMeta.inventoryItemId || null, warehouseCode: "KHO-LOI" }
               ])
             }
           });
         }
-
-        // Gửi Notification
-        if (storekeeperUserIds.length > 0) {
-          const content = `Sản phẩm từ sản xuất đã có kết quả OQC (${inspection.code}). Vui lòng tiến hành nhập kho: ${finalPassedQty} Đạt (Kho Thành Phẩm) ${finalFailedQty > 0 ? `và ${finalFailedQty} Lỗi (Kho Hàng Lỗi KHO-LOI)` : ""}.`;
-          const khoNotif = await tx.notification.create({
-            data: {
-              title: `📦 Yêu cầu nhập kho thành phẩm & hàng lỗi`,
-              content,
-              type: "success",
-              priority: "high",
-              audienceType: "group",
-              audienceValue: JSON.stringify(storekeeperUserIds),
-              createdById: session.user.id
-            }
-          });
-          
-          await Promise.all(
-            storekeeperUserIds.map(uid =>
-              tx.notificationRecipient.upsert({
-                where: { notificationId_userId: { notificationId: khoNotif.id, userId: uid } },
-                update: {},
-                create: { notificationId: khoNotif.id, userId: uid }
-              })
-            )
-          );
-        }
-      }
-
-      // 3. Nếu là IQC và có items đạt -> Tạo lệnh nhập kho vật tư
-      if (inspection.type === "IQC" && passedQuantity > 0 && Array.isArray(items)) {
-        const storekeepers = await tx.employee.findMany({
-          where: {
-            status: "active",
-            OR: [
-              { departmentCode: { contains: "logistics" } },
-              { departmentName: { contains: "kho" } },
-              { departmentName: { contains: "Kho" } },
-              { position: { contains: "thủ kho" } }
-            ]
-          },
-          select: { userId: true, position: true }
-        });
-        const storekeeperUserIds = storekeepers.map((u: any) => u.userId).filter(Boolean) as string[];
-        const thuKhoUserIds = storekeepers.filter((s: any) => (s.position || "").toLowerCase().includes("thủ kho")).map((s: any) => s.userId).filter(Boolean) as string[];
-
+      } else if (inspection.type === "IQC" && Array.isArray(items)) {
         const passedItems = items.filter((it: any) => parseInt(it.passQuantity?.toString() || "0", 10) > 0);
-        
+        const failedItems = items.filter((it: any) => parseInt(it.failQuantity?.toString() || "0", 10) > 0);
+
+        // A. Nhập kho vật tư đạt (KVP)
         if (passedItems.length > 0) {
           const taskItems = passedItems.map((it: any) => ({
             tenHang: it.name || it.productName || it.tenHang || "Vật tư không tên",
             soLuong: parseInt(it.passQuantity?.toString() || "0", 10),
-            donVi: "Cái", // Defaulting to Cái, can be extended if needed
+            donVi: "Cái",
             type: "Kho Vật Tư / Linh kiện",
             isShortage: false,
             inventoryItemId: it.inventoryItemId || it.id || null
           }));
 
-          const khoTask = await tx.task.create({
+          await tx.task.create({
             data: {
-              title: `Yêu cầu nhập kho vật tư (${inspection.code})`,
-              description: `Kiểm tra IQC có hàng hóa đạt yêu cầu. Đề nghị bộ phận Kho vận tiến hành nhập kho vật tư / linh kiện.\nTừ đơn: ${inspection.productName || "N/A"}`,
-              assigneeId: thuKhoUserIds[0] || storekeeperUserIds[0] || session.user.id,
+              title: `Yêu cầu nhập kho vật tư đạt (${inspection.code})`,
+              description: `Kiểm tra IQC có hàng hóa đạt yêu cầu. Đề nghị bộ phận Kho vận tiến hành nhập kho vật tư / linh kiện.\nTừ nhà cung cấp: ${oldMeta.supplierName || "N/A"}`,
+              assigneeId,
               creatorId: session.user.id,
               deptCode: "logistics",
               priority: "high",
@@ -193,33 +205,60 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
               actualResult: JSON.stringify(taskItems)
             }
           });
+        }
 
-          // Gửi Notification
-          if (storekeeperUserIds.length > 0) {
-            const khoNotif = await tx.notification.create({
-              data: {
-                title: `📦 Yêu cầu nhập kho vật tư mới`,
-                content: `Hàng hóa nhập từ nhà cung cấp đã vượt qua kiểm định IQC (${inspection.code}). Vui lòng tiến hành nhập kho vật tư / linh kiện.`,
-                type: "success",
-                priority: "high",
-                audienceType: "group",
-                audienceValue: JSON.stringify(storekeeperUserIds),
-                createdById: session.user.id
-              }
-            });
-            
-            await Promise.all(
-              storekeeperUserIds.map(uid =>
-                tx.notificationRecipient.upsert({
-                  where: { notificationId_userId: { notificationId: khoNotif.id, userId: uid } },
-                  update: {},
-                  create: { notificationId: khoNotif.id, userId: uid }
-                })
-              )
-            );
-          }
+        // B. Nhập kho vật tư lỗi (KHO-LOI)
+        if (failedItems.length > 0) {
+          const taskFailedItems = failedItems.map((it: any) => ({
+            tenHang: `${it.name || it.productName || it.tenHang || "Vật tư không tên"} (Hàng lỗi)`,
+            soLuong: parseInt(it.failQuantity?.toString() || "0", 10),
+            donVi: "Cái",
+            type: "Kho Hàng Lỗi",
+            isShortage: false,
+            inventoryItemId: it.inventoryItemId || it.id || null,
+            warehouseCode: "KHO-LOI"
+          }));
+
+          await tx.task.create({
+            data: {
+              title: `Yêu cầu nhập kho hàng lỗi (${inspection.code})`,
+              description: `Kiểm tra IQC phát hiện hàng hóa lỗi. Đề nghị bộ phận Kho vận tiến hành nhập kho hàng lỗi.\nTừ nhà cung cấp: ${oldMeta.supplierName || "N/A"}`,
+              assigneeId,
+              creatorId: session.user.id,
+              deptCode: "logistics",
+              priority: "high",
+              status: "pending",
+              actualResult: JSON.stringify(taskFailedItems)
+            }
+          });
         }
       }
+
+      // 5. Gửi thông báo đa bộ phận
+      const displayResult = result;
+      const typeText = inspection.type === "IQC" ? "Nhập khẩu vật tư" : "Thành phẩm sản xuất";
+      const subjectText = inspection.type === "IQC" ? (oldMeta.supplierName || "Nhà cung cấp") : inspection.productName;
+
+      // A. Thông báo Kho vận
+      let khoNotifContent = `Kết quả kiểm định ${inspection.type} (${inspection.code}) cho ${typeText}: ${displayResult}. `;
+      const totalPassedQty = inspection.type === "OQC" ? passedQuantity : items?.reduce((sum: number, it: any) => sum + (parseInt(it.passQuantity?.toString() || "0", 10)), 0);
+      const totalFailedQty = inspection.type === "OQC" ? failedQuantity : items?.reduce((sum: number, it: any) => sum + (parseInt(it.failQuantity?.toString() || "0", 10)), 0);
+
+      if (totalPassedQty > 0) {
+        khoNotifContent += `Vui lòng nhập kho ${totalPassedQty} sản phẩm đạt. `;
+      }
+      if (totalFailedQty > 0) {
+        khoNotifContent += `Vui lòng nhập kho hàng lỗi KHO-LOI cho ${totalFailedQty} sản phẩm lỗi.`;
+      }
+      await sendNotification(`📦 Yêu cầu nhập kho ${inspection.type} (${inspection.code})`, khoNotifContent, storekeeperUserIds);
+
+      // B. Thông báo Kế toán
+      const accountingNotifContent = `Báo cáo kết quả kiểm định ${inspection.type} (${inspection.code}) từ ${subjectText}. Kết quả: ${displayResult}. Số lượng đạt: ${totalPassedQty}, Số lượng lỗi: ${totalFailedQty}. Vui lòng đối chiếu công nợ và chứng từ tương ứng.`;
+      await sendNotification(`💰 Báo cáo kiểm định QA (${inspection.code})`, accountingNotifContent, accountingUserIds, "info");
+
+      // C. Thông báo Sản xuất
+      const prodNotifContent = `Kết quả đánh giá chất lượng ${inspection.type} (${inspection.code}) cho ${subjectText}: ${displayResult}. Trạng thái: ${displayResult === "Đạt" ? "Sẵn sàng sử dụng/xuất xưởng" : "Cần rà soát hoặc xử lý hàng lỗi"}.`;
+      await sendNotification(`🏭 Kết quả kiểm định QA (${inspection.code})`, prodNotifContent, productionUserIds, displayResult === "Đạt" ? "success" : "warning");
     });
 
     return NextResponse.json({ success: true });

@@ -32,6 +32,9 @@ export default function QaPage() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [activeEvalItemIdx, setActiveEvalItemIdx] = useState<number | null>(null);
+  const [tempEvalComment, setTempEvalComment] = useState("");
+  const [tempEvalResult, setTempEvalResult] = useState("pass");
   const [tempRejectReason, setTempRejectReason] = useState("");
   const [tempRejectCategories, setTempRejectCategories] = useState<string[]>(["Loại khác"]);
   const [tempRejectFiles, setTempRejectFiles] = useState<File[]>([]);
@@ -39,10 +42,6 @@ export default function QaPage() {
   const [iqcFormData, setIqcFormData] = useState({
     supplier: "",
     items: [] as any[],
-    check1: "pass",
-    check2: "pass",
-    check3: "pass",
-    check4: "pass",
     result: "pass",
     rejectReason: "",
     rejectCategories: ["Loại khác"]
@@ -74,11 +73,6 @@ export default function QaPage() {
     sampleQuantity: "",
     passQuantity: "",
     failQuantity: "",
-    check1: "pass",
-    check2: "pass",
-    check3: "pass",
-    check4: "pass",
-    check5: "pass",
     result: "pass",
     rejectReason: "",
     rejectCategories: ["Loại khác"]
@@ -111,6 +105,10 @@ export default function QaPage() {
         batch: selectedInspection.metadata.batch || "",
         totalQuantity: selectedInspection.metadata.totalQuantity?.toString() || "",
         sampleQuantity: selectedInspection.metadata.sampleQuantity?.toString() || "",
+        passQuantity: selectedInspection.metadata.passedQuantity || selectedInspection.metadata.passQuantity || "",
+        failQuantity: selectedInspection.metadata.failedQuantity || selectedInspection.metadata.failQuantity || "",
+        result: selectedInspection.result === "Fail" ? "fail" : "pass",
+        rejectReason: selectedInspection.notes || ""
       }));
     }
   }, [showOqcModal, selectedInspection]);
@@ -125,7 +123,9 @@ export default function QaPage() {
           batch: it.batch || selectedInspection.metadata.batch || "",
           sampleQuantity: it.sampleQuantity || "",
           passQuantity: it.passQuantity || "",
-          failQuantity: it.failQuantity || ""
+          failQuantity: it.failQuantity || "",
+          comment: it.comment || "",
+          result: it.result || "pass"
         }));
       } else {
         // Fallback cho bản ghi cũ
@@ -136,7 +136,9 @@ export default function QaPage() {
           quantity: selectedInspection.metadata.quantity || "",
           sampleQuantity: "",
           passQuantity: "",
-          failQuantity: ""
+          failQuantity: "",
+          comment: "",
+          result: "pass"
         }];
       }
 
@@ -186,6 +188,10 @@ export default function QaPage() {
 
   const handleSaveOqcResult = async () => {
     if (!selectedInspection) return;
+    if (selectedInspection.result !== "Pending") {
+      toast.error("Yêu cầu này đã hoàn thành, không thể lưu lại!");
+      return;
+    }
     try {
       const res = await fetch(`/api/qa/inspections/${selectedInspection.id}`, {
         method: "PATCH",
@@ -213,6 +219,10 @@ export default function QaPage() {
   };
   const handleSaveIqcResult = async () => {
     if (!selectedInspection) return;
+    if (selectedInspection.result !== "Pending") {
+      toast.error("Yêu cầu này đã hoàn thành, không thể lưu lại!");
+      return;
+    }
     try {
       // Calculate total passed
       let totalPassed = 0;
@@ -691,14 +701,14 @@ export default function QaPage() {
                     
                     <div className="mb-3">
                       <label className="form-label small fw-medium">Nhà cung cấp</label>
-                      <input type="text" className="form-control form-control-sm" name="supplier" value={iqcFormData.supplier} onChange={handleIqcChange} />
+                      <input type="text" className="form-control form-control-sm" name="supplier" value={iqcFormData.supplier} onChange={handleIqcChange} disabled={selectedInspection?.result !== "Pending"} />
                     </div>
                     
                     <hr className="my-4 text-muted" />
                     <h6 className="fw-bold mb-3">CHI TIẾT VẬT TƯ</h6>
                     
                     <div className="table-responsive">
-                      <table className="table table-sm table-bordered align-middle" style={{ fontSize: "12px" }}>
+                      <table className="table table-sm table-bordered table-hover align-middle" style={{ fontSize: "12px" }}>
                         <thead className="table-light text-center">
                           <tr>
                             <th>Tên vật tư / Mã SP / Lô</th>
@@ -709,7 +719,15 @@ export default function QaPage() {
                         <tbody>
                           {iqcFormData.items.map((item, idx) => (
                             <tr key={idx}>
-                              <td>
+                              <td 
+                                onClick={() => {
+                                  setActiveEvalItemIdx(idx);
+                                  setTempEvalComment(item.comment || "");
+                                  setTempEvalResult(item.result || "pass");
+                                }}
+                                style={{ cursor: "pointer" }}
+                                title="Nhấp để nhận xét/đánh giá QC"
+                              >
                                 <div className="fw-bold text-primary mb-1" style={{ fontSize: "11px", lineHeight: "1.2" }}>
                                   {idx + 1}. {item.productName}
                                 </div>
@@ -723,7 +741,9 @@ export default function QaPage() {
                                     newItems[idx].model = e.target.value;
                                     setIqcFormData(prev => ({ ...prev, items: newItems }));
                                   }} 
+                                  onClick={(e) => e.stopPropagation()}
                                   style={{ fontSize: "11px", padding: "2px 4px", height: "24px" }} 
+                                  disabled={selectedInspection?.result !== "Pending"}
                                 />
                                 <input 
                                   type="text" 
@@ -735,7 +755,9 @@ export default function QaPage() {
                                     newItems[idx].batch = e.target.value;
                                     setIqcFormData(prev => ({ ...prev, items: newItems }));
                                   }} 
+                                  onClick={(e) => e.stopPropagation()}
                                   style={{ fontSize: "11px", padding: "2px 4px", height: "24px" }} 
+                                  disabled={selectedInspection?.result !== "Pending"}
                                 />
                               </td>
                               <td>
@@ -751,6 +773,7 @@ export default function QaPage() {
                                   }} 
                                   title="SL giao (N)"
                                   style={{ fontSize: "11px", padding: "2px 4px", height: "24px" }} 
+                                  disabled={selectedInspection?.result !== "Pending"}
                                 />
                                 <input 
                                   type="number" 
@@ -764,6 +787,7 @@ export default function QaPage() {
                                   }} 
                                   title="Mẫu rút (n)"
                                   style={{ fontSize: "11px", padding: "2px 4px", height: "24px" }} 
+                                  disabled={selectedInspection?.result !== "Pending"}
                                 />
                               </td>
                               <td>
@@ -779,6 +803,7 @@ export default function QaPage() {
                                   }} 
                                   title="SL Đạt"
                                   style={{ fontSize: "11px", padding: "2px 4px", height: "24px" }} 
+                                  disabled={selectedInspection?.result !== "Pending"}
                                 />
                                 <input 
                                   type="number" 
@@ -792,6 +817,7 @@ export default function QaPage() {
                                   }} 
                                   title="SL Không đạt"
                                   style={{ fontSize: "11px", padding: "2px 4px", height: "24px" }} 
+                                  disabled={selectedInspection?.result !== "Pending"}
                                 />
                               </td>
                             </tr>
@@ -799,11 +825,13 @@ export default function QaPage() {
                         </tbody>
                       </table>
                     </div>
+                    
+                    {/* QC evaluation is now done directly on each item above */}
                     </div>
                     <div className="p-2 border-top bg-light d-flex justify-content-between gap-2">
                        <button className="btn btn-light btn-sm border flex-grow-1" onClick={() => { setShowIqcModal(false); setSelectedInspection(null); }}>Hủy</button>
                        <button className="btn btn-primary btn-sm flex-grow-1" onClick={() => printDocumentById("iqc-preview-doc", "portrait", "IQC-" + selectedInspection.id)}><i className="bi bi-printer me-1"></i>In</button>
-                       <button className="btn btn-success btn-sm flex-grow-1" onClick={handleSaveIqcResult}><i className="bi bi-floppy me-1"></i>Lưu</button>
+                       <button className="btn btn-success btn-sm flex-grow-1" onClick={handleSaveIqcResult} disabled={selectedInspection?.result !== "Pending"}><i className="bi bi-floppy me-1"></i>Lưu</button>
                     </div>
                   </div>
 
@@ -901,83 +929,36 @@ export default function QaPage() {
                     {/* Section III */}
                     <div className="mb-4 mt-4">
                       <div className="fw-bold text-uppercase mb-2" style={{ fontSize: "11pt" }}>III. BẢNG ĐÁNH GIÁ CHẤT LƯỢNG</div>
-                      <div className="fst-italic mb-3" style={{ fontSize: "10pt" }}>
-                        QC đối chiếu trực tiếp sản phẩm rút mẫu với các tiêu chuẩn kỹ thuật quy định dưới đây:
-                      </div>
                       
-                      <table className="table table-bordered border-dark align-middle mb-0" style={{ borderColor: 'black', fontSize: "9pt" }}>
+                      <table className="table table-bordered border-dark align-middle mb-0" style={{ borderColor: 'black', fontSize: "9.5pt" }}>
                         <thead className="table-light text-center align-middle">
                           <tr>
-                            <th style={{ width: "5%" }} className="border-dark">STT</th>
-                            <th style={{ width: "20%" }} className="border-dark">Đặc tính kiểm tra</th>
-                            <th style={{ width: "50%" }} className="border-dark">Tiêu chuẩn chất lượng Seajong quy định</th>
-                            <th style={{ width: "25%" }} className="border-dark">Phương pháp & Công cụ test nhanh tại kho</th>
+                            <th style={{ width: "8%" }} className="border-dark">STT</th>
+                            <th className="border-dark">Tên vật tư / Linh kiện / Sản phẩm</th>
                           </tr>
                         </thead>
                         <tbody>
-                          <tr>
-                            <td className="text-center border-dark">1</td>
-                            <td className="fw-medium border-dark">Bao bì & Quy cách</td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Đầy đủ giấy tờ chứng chỉ xuất xưởng (COA).</li>
-                                <li>Có màng xốp bọc lót chống va đập giữa các sản phẩm.</li>
-                                <li>Xốp định hình dày &ge; 3cm (cho đồ sứ/kính).</li>
-                              </ul>
-                            </td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Kiểm tra hồ sơ bàn giao.</li>
-                                <li>Quan sát cách xếp hàng trong hộp carton.</li>
-                              </ul>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-center border-dark">2</td>
-                            <td className="fw-medium border-dark">Ngoại quan bề mặt (Thẩm mỹ & Men)</td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Nhóm xi mạ/PVD/Inox: Sáng bóng soi gương, không nổ mạ (mụn nước), không xước dăm dài &gt; 2mm ở mặt tiền.</li>
-                                <li>Nhóm Sứ/Kính: Men phủ đều 100%, láng mịn, không nứt chân chim, không lỗ châm kim đen (&gt; 0.5mm).</li>
-                              </ul>
-                            </td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Quan sát bằng mắt thường dưới ánh sáng đèn bàn test (&ge; 500 Lux).</li>
-                              </ul>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-center border-dark">3</td>
-                            <td className="fw-medium border-dark">Độ chuẩn ren nối (Cơ khí)</td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Ren kết nối chuẩn côn G1/2B hoặc G3/4B (ISO 228-1).</li>
-                                <li>Không mẻ ren, không dập ren, không bavia ren (&gt; 0.1mm).</li>
-                              </ul>
-                            </td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Vặn thử bằng tay vào Dưỡng ren chuẩn / Linh kiện mẫu chuẩn (Master Sample).<br/>&rarr; Yêu cầu: Trơn tru, khít chặt, không rơ lắc.</li>
-                              </ul>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-center border-dark">4</td>
-                            <td className="fw-medium border-dark">Vật liệu & Độ dày (Cơ lý)</td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Độ biến dạng nén: Gioăng cao su đàn hồi tốt, kéo giãn gấp đôi phải co lại ngay, không bị nứt nẻ, biến dạng.</li>
-                                <li>Độ phẳng bề mặt: Độ hở bập bênh của đế sứ/mặt chậu lavabo khi đặt phẳng không quá 1 mm.</li>
-                              </ul>
-                            </td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Dùng tay co kéo thử độ đàn hồi.</li>
-                                <li>Đặt úp sản phẩm lên bàn phẳng chuẩn của kho để kiểm tra độ bập bênh.</li>
-                              </ul>
-                            </td>
-                          </tr>
+                          {iqcFormData.items.map((item: any, idx: number) => (
+                            <tr key={idx}>
+                              <td className="text-center border-dark">{idx + 1}</td>
+                              <td className="border-dark text-start">
+                                <div className="fw-bold">{item.productName}</div>
+                                <div className="text-muted small mb-1">Mã SP: {item.model} {item.batch ? `| Lô: ${item.batch}` : ""}</div>
+                                {item.comment && (
+                                  <div className="mt-1 p-2 bg-light border-start border-3 border-secondary rounded" style={{ fontSize: "9pt" }}>
+                                    <div className="fw-bold text-muted mb-1" style={{ fontSize: "8.5pt" }}>QC nhận xét:</div>
+                                    <ul className="list-unstyled mb-0 ps-1" style={{ lineHeight: "1.4" }}>
+                                      {item.comment.split('\n').filter((line: string) => line.trim() !== "").map((line: string, lineIdx: number) => (
+                                        <li key={lineIdx} className="fst-italic">
+                                          • {line.trim()}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
@@ -1065,47 +1046,74 @@ export default function QaPage() {
                     
                     <div className="mb-3">
                       <label className="form-label small fw-medium">Tổ lắp ráp / Ca sản xuất</label>
-                      <input type="text" className="form-control form-control-sm" name="assemblyTeam" value={oqcFormData.assemblyTeam} onChange={handleOqcChange} />
+                      <input type="text" className="form-control form-control-sm" name="assemblyTeam" value={oqcFormData.assemblyTeam} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
                     </div>
                     <div className="mb-3">
                       <label className="form-label small fw-medium">Lệnh sản xuất</label>
-                      <input type="text" className="form-control form-control-sm" name="productionOrder" value={oqcFormData.productionOrder} onChange={handleOqcChange} />
+                      <input type="text" className="form-control form-control-sm" name="productionOrder" value={oqcFormData.productionOrder} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
                     </div>
                     <div className="mb-3">
                       <label className="form-label small fw-medium">Mã định mức (nếu có)</label>
-                      <input type="text" className="form-control form-control-sm" name="bomCode" value={oqcFormData.bomCode} onChange={handleOqcChange} />
+                      <input type="text" className="form-control form-control-sm" name="bomCode" value={oqcFormData.bomCode} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
                     </div>
                     <div className="mb-3">
                       <label className="form-label small fw-medium">Mã sản phẩm (Model/SKU)</label>
-                      <input type="text" className="form-control form-control-sm" name="model" value={oqcFormData.model} onChange={handleOqcChange} />
+                      <input type="text" className="form-control form-control-sm" name="model" value={oqcFormData.model} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
                     </div>
                     <div className="mb-3">
                       <label className="form-label small fw-medium">Mã số lô sản xuất (Lot No)</label>
-                      <input type="text" className="form-control form-control-sm" name="batch" value={oqcFormData.batch} onChange={handleOqcChange} />
+                      <input type="text" className="form-control form-control-sm" name="batch" value={oqcFormData.batch} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
                     </div>
-                    <div className="row g-2 mb-4">
+                    <div className="row g-2 mb-3">
                       <div className="col-6">
                         <label className="form-label small fw-medium">Tổng sản lượng</label>
-                        <input type="number" className="form-control form-control-sm" name="totalQuantity" value={oqcFormData.totalQuantity} onChange={handleOqcChange} />
+                        <input type="number" className="form-control form-control-sm" name="totalQuantity" value={oqcFormData.totalQuantity} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
                       </div>
                       <div className="col-6">
                         <label className="form-label small fw-medium">Số lượng mẫu</label>
-                        <input type="number" className="form-control form-control-sm" name="sampleQuantity" value={oqcFormData.sampleQuantity} onChange={handleOqcChange} />
+                        <input type="number" className="form-control form-control-sm" name="sampleQuantity" value={oqcFormData.sampleQuantity} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
                       </div>
                       <div className="col-6">
                         <label className="form-label small fw-medium">SL Đạt</label>
-                        <input type="number" className="form-control form-control-sm text-success fw-bold" name="passQuantity" value={oqcFormData.passQuantity} onChange={handleOqcChange} />
+                        <input type="number" className="form-control form-control-sm text-success fw-bold" name="passQuantity" value={oqcFormData.passQuantity} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
                       </div>
                       <div className="col-6">
                         <label className="form-label small fw-medium">SL Không đạt</label>
-                        <input type="number" className="form-control form-control-sm text-danger fw-bold" name="failQuantity" value={oqcFormData.failQuantity} onChange={handleOqcChange} />
+                        <input type="number" className="form-control form-control-sm text-danger fw-bold" name="failQuantity" value={oqcFormData.failQuantity} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
                       </div>
+                    </div>
+                    
+                    <hr className="my-3 text-muted" />
+                    <h6 className="fw-bold mb-3">NHẬN XÉT & ĐÁNH GIÁ QC</h6>
+                    <div className="mb-3">
+                      <label className="form-label small fw-medium">Nhận xét, đánh giá của QC</label>
+                      <textarea
+                        className="form-control form-control-sm" 
+                        placeholder="Nhập nhận xét..." 
+                        name="rejectReason" 
+                        value={oqcFormData.rejectReason} 
+                        onChange={handleOqcChange} 
+                        disabled={selectedInspection?.result !== "Pending"}
+                      ></textarea>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label small fw-medium">Kết quả</label>
+                      <select 
+                        className={`form-select form-select-sm fw-medium ${oqcFormData.result === "fail" ? "text-danger" : "text-success"}`}
+                        name="result" 
+                        value={oqcFormData.result} 
+                        onChange={handleOqcChange} 
+                        disabled={selectedInspection?.result !== "Pending"}
+                      >
+                        <option value="pass" className="text-success">Đạt (Chấp nhận)</option>
+                        <option value="fail" className="text-danger">Lỗi (Từ chối)</option>
+                      </select>
                     </div>
                     </div>
                     <div className="p-2 border-top bg-light d-flex justify-content-between gap-2">
                        <button className="btn btn-light btn-sm border flex-grow-1" onClick={() => { setShowOqcModal(false); setSelectedInspection(null); }}>Hủy</button>
                        <button className="btn btn-primary btn-sm flex-grow-1" onClick={() => printDocumentById("oqc-preview-doc", "portrait", "OQC-" + selectedInspection.id)}><i className="bi bi-printer me-1"></i>In</button>
-                       <button className="btn btn-success btn-sm flex-grow-1" onClick={handleSaveOqcResult}><i className="bi bi-floppy me-1"></i>Lưu</button>
+                       <button className="btn btn-success btn-sm flex-grow-1" onClick={handleSaveOqcResult} disabled={selectedInspection?.result !== "Pending"}><i className="bi bi-floppy me-1"></i>Lưu</button>
                     </div>
                   </div>
 
@@ -1201,99 +1209,32 @@ export default function QaPage() {
                     {/* Section III */}
                     <div className="mb-4 mt-4">
                       <div className="fw-bold text-uppercase mb-2" style={{ fontSize: "11pt" }}>III. BẢNG ĐÁNH GIÁ CHẤT LƯỢNG</div>
-                      <div className="fst-italic mb-3" style={{ fontSize: "10pt" }}>
-                        QC đối chiếu trực tiếp sản phẩm rút mẫu với các tiêu chuẩn kỹ thuật quy định dưới đây:
-                      </div>
                       
-                      <table className="table table-bordered border-dark align-middle mb-0" style={{ borderColor: 'black', fontSize: "9pt" }}>
+                      <table className="table table-bordered border-dark align-middle mb-0" style={{ borderColor: 'black', fontSize: "9.5pt" }}>
                         <thead className="table-light text-center align-middle">
                           <tr>
-                            <th style={{ width: "5%" }} className="border-dark">STT</th>
-                            <th style={{ width: "20%" }} className="border-dark">Đặc tính kiểm tra</th>
-                            <th style={{ width: "50%" }} className="border-dark">Tiêu chuẩn chất lượng Seajong quy định</th>
-                            <th style={{ width: "25%" }} className="border-dark">Phương pháp & Thao tác kiểm tra tại chuyền</th>
+                            <th style={{ width: "8%" }} className="border-dark">STT</th>
+                            <th className="border-dark">Tên sản phẩm / Thành phẩm</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr>
                             <td className="text-center border-dark">1</td>
-                            <td className="fw-medium border-dark">Độ kín khít & Áp lực<br/>(Cho đồ dẫn nước)</td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Thử áp lực khí/nước: Chịu áp tĩnh từ 4 bar - 6 bar trong vòng 10 giây.</li>
-                                <li>Đánh giá: Thân vòi khô ráo hoàn toàn. Không rò rỉ nước, không thấm ẩm hoặc sủi bong bóng khí.</li>
-                              </ul>
-                            </td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Đấu nối sản phẩm vào gá kẹp nhanh của máy thử áp tĩnh cuối chuyền.</li>
-                                <li>Quan sát bằng mắt thường dưới đèn soi.</li>
-                              </ul>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-center border-dark">2</td>
-                            <td className="fw-medium border-dark">Cơ cấu đóng mở & Chuyển động</td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Lực gạt van (Cần gạt): Đầm tay, đều lực, không sương rít, không tự trôi vị trí.</li>
-                                <li>Bản lề cánh tủ/Nắp bồn cầu: Rơi êm từ từ (Soft-close), không rơi tự do tạo tiếng động mạnh.</li>
-                              </ul>
-                            </td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Thao tác trực tiếp bằng tay: Gạt cần nóng lạnh, nhấn nút bộ xả, thử đóng nắp bồn cầu 3-5 lần để cảm nhận.</li>
-                              </ul>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-center border-dark">3</td>
-                            <td className="fw-medium border-dark">Độ nảy & Phản hồi hồi vị</td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Các nút nhấn xả nước, nút chuyển ngả sen tắm phải có độ nảy đàn hồi tốt.</li>
-                                <li>Phải tự động trả về vị trí ban đầu ngay sau khi buông tay hoặc ngắt áp lực nước.</li>
-                              </ul>
-                            </td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Nhấn thả thủ công liên tục bằng tay.</li>
-                                <li>Quan sát hành trình nảy hồi vị của lò xo/piston.</li>
-                              </ul>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-center border-dark">4</td>
-                            <td className="fw-medium border-dark">Mạch điện & Cảm ứng<br/>(Cho đồ điện tử)</td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Bảng điều khiển cảm ứng (Bếp từ/Hút mùi) nhận tín hiệu nhạy bằng cả tay khô/ướt.</li>
-                                <li>Đèn LED hiển thị đủ nét, không mờ nhòe.</li>
-                                <li>Motor quạt chạy êm, không phát ra tiếng va quệt, vỏ không rung lắc mạnh.</li>
-                              </ul>
-                            </td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Cắm nguồn điện trực tiếp.</li>
-                                <li>Thao tác chạm cảm ứng thử các phím chức năng, tăng giảm công suất quạt.</li>
-                              </ul>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="text-center border-dark">5</td>
-                            <td className="fw-medium border-dark">Vệ sinh & Đóng gói xuất xưởng</td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Sản phẩm phải được lau khô tuyệt đối nước thử trước khi đóng gói.</li>
-                                <li>Bề mặt sạch keo dán, không dính vân tay.</li>
-                                <li>Đầy đủ phụ kiện đi kèm theo hộp (ron, chân nối, ốc vít...) và sách HDSD, phiếu bảo hành.</li>
-                              </ul>
-                            </td>
-                            <td className="border-dark">
-                              <ul className="mb-0 ps-3">
-                                <li>Kiểm tra ngoại quan sản phẩm trước khi bọc túi bóng khí.</li>
-                                <li>Đối chiếu trực tiếp phụ kiện xếp trong hộp với nhãn kiểm gói.</li>
-                              </ul>
+                            <td className="border-dark text-start">
+                              <div className="fw-bold">{selectedInspection.product}</div>
+                              <div className="text-muted small mb-1">Mã SP: {oqcFormData.model} {oqcFormData.batch ? `| Lô: ${oqcFormData.batch}` : ""}</div>
+                              {oqcFormData.rejectReason && (
+                                <div className="mt-1 p-2 bg-light border-start border-3 border-secondary rounded" style={{ fontSize: "9pt" }}>
+                                  <div className="fw-bold text-muted mb-1" style={{ fontSize: "8.5pt" }}>QC nhận xét:</div>
+                                  <ul className="list-unstyled mb-0 ps-1" style={{ lineHeight: "1.4" }}>
+                                    {oqcFormData.rejectReason.split('\n').filter((line: string) => line.trim() !== "").map((line: string, lineIdx: number) => (
+                                      <li key={lineIdx} className="fst-italic">
+                                        • {line.trim()}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         </tbody>
@@ -1361,6 +1302,86 @@ export default function QaPage() {
         </div>
       </>
       )}
+
+    {/* Item Evaluation Offcanvas */}
+    {activeEvalItemIdx !== null && (
+      <>
+        <div className="offcanvas-backdrop fade show" style={{ zIndex: 1060 }} onClick={() => setActiveEvalItemIdx(null)}></div>
+        <div className="offcanvas offcanvas-end show border-start shadow d-flex flex-column" tabIndex={-1} style={{ zIndex: 1065, width: "400px", visibility: "visible" }}>
+          <div className="offcanvas-header border-bottom py-3 px-4 bg-white d-flex align-items-center justify-content-between">
+            <h6 className="offcanvas-title fw-bold text-dark mb-0">Đánh giá chất lượng vật tư</h6>
+            <button type="button" className="btn-close" onClick={() => setActiveEvalItemIdx(null)}></button>
+          </div>
+          
+          <div className="offcanvas-body p-4 custom-scrollbar d-flex flex-column gap-3 flex-grow-1 min-h-0" style={{ overflowY: "auto" }}>
+            <div>
+              <label className="form-label small text-muted mb-1">Tên vật tư / Linh kiện</label>
+              <div className="fw-bold text-primary" style={{ fontSize: "14px" }}>
+                {iqcFormData.items[activeEvalItemIdx]?.productName}
+              </div>
+            </div>
+
+            <div>
+              <label className="form-label small text-muted mb-1">Mã sản phẩm (Model/SKU)</label>
+              <div className="fw-semibold text-dark">
+                {iqcFormData.items[activeEvalItemIdx]?.model || "--"}
+              </div>
+            </div>
+
+            {iqcFormData.items[activeEvalItemIdx]?.batch && (
+              <div>
+                <label className="form-label small text-muted mb-1">Số lô (Batch)</label>
+                <div className="fw-semibold text-dark">
+                  {iqcFormData.items[activeEvalItemIdx]?.batch}
+                </div>
+              </div>
+            )}
+
+            <hr className="my-2 text-muted" />
+
+            <div className="d-flex flex-column flex-grow-1 min-h-0">
+              <label className="form-label small fw-medium mb-1">Nhận xét, đánh giá của QC</label>
+              <textarea 
+                className="form-control form-control-sm flex-grow-1" 
+                placeholder="Nhập nhận xét chi tiết về chất lượng sản phẩm..." 
+                value={tempEvalComment} 
+                onChange={(e) => setTempEvalComment(e.target.value)}
+                disabled={selectedInspection?.result !== "Pending"}
+                style={{ fontSize: "13px", resize: "none" }}
+              />
+            </div>
+          </div>
+
+          <div className="offcanvas-footer border-top bg-light p-3 d-flex gap-2">
+            <button 
+              type="button" 
+              className="btn btn-secondary btn-sm flex-grow-1" 
+              onClick={() => setActiveEvalItemIdx(null)}
+            >
+              Đóng
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-primary btn-sm flex-grow-1" 
+              onClick={() => {
+                const newItems = [...iqcFormData.items];
+                const isFailed = parseInt(newItems[activeEvalItemIdx]?.failQuantity?.toString() || "0", 10) > 0;
+                newItems[activeEvalItemIdx] = {
+                  ...newItems[activeEvalItemIdx],
+                  comment: tempEvalComment,
+                  result: isFailed ? "fail" : "pass"
+                };
+                setIqcFormData(prev => ({ ...prev, items: newItems }));
+                setActiveEvalItemIdx(null);
+              }}
+              disabled={selectedInspection?.result !== "Pending"}
+            >
+              Cập nhật
+            </button>
+          </div>
+        </div>
+      </>
+    )}
 
     {/* Reject Reason Modal */}
     {showRejectModal && (
