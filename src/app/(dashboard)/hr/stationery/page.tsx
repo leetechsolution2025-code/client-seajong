@@ -1081,6 +1081,7 @@ export default function StationeryToolsPage() {
           icon="bi-cart-plus"
           style={{ height: 32, fontSize: 12, padding: "0 12px" }}
           onClick={handleOpenPurchaseModal}
+          disabled={true}
         >
           Mua hàng
         </BrandButton>
