@@ -228,7 +228,7 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
       {
         group: "Báo cáo và phân tích", items: [
           { name: "Báo cáo tài chính", href: "/finance/reports", icon: "bi-file-earmark-bar-graph", requiredOrder: 2 },
-          { name: "Phân tích doanh thu và chi phí", href: "/finance/revenue-expense-analysis", icon: "bi-pie-chart", requiredOrder: 3 },
+          // { name: "Phân tích doanh thu và chi phí", href: "/finance/revenue-expense-analysis", icon: "bi-pie-chart", requiredOrder: 3 },
         ]
       },
     ],
