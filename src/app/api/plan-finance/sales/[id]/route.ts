@@ -625,13 +625,13 @@ export async function PATCH(
             const actualExportQty = Math.min(requiredQty, availableStock);
 
             // BƯỚC 1: XÁC ĐỊNH HÀNG CẦN SẢN XUẤT
-            if (isSelectedForProduction && actualMissingQty > 0) {
-              // CASE A: Sản xuất phần thiếu -> Bóc tách vật tư
+            if (isSelectedForProduction) {
+              // CASE A: Nếu được tick chọn sản xuất -> Sản xuất toàn bộ số lượng khách đặt, bất kể tồn kho
               missingThanhPhamItems.push({
                 saleOrderItemId: item.id,
                 tenHang: item.tenHang || "Hàng hoá",
                 donVi: invItem?.donVi || "cái",
-                missingQty: actualMissingQty,
+                missingQty: requiredQty,
                 dinhMucId: bomId // có thể null nếu sản xuất ngoài định mức
               });
             } else if (actualMissingQty > 0) {

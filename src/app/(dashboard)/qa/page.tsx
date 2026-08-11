@@ -193,7 +193,8 @@ export default function QaPage() {
         body: JSON.stringify({ 
           result: oqcFormData.result === "pass" ? "Đạt" : "Không đạt",
           notes: oqcFormData.rejectReason || "",
-          passedQuantity: parseInt(oqcFormData.totalQuantity.toString()) || 1
+          passedQuantity: parseInt(oqcFormData.passQuantity.toString()) || 0,
+          failedQuantity: parseInt(oqcFormData.failQuantity.toString()) || 0
         })
       });
       if (res.ok) {
