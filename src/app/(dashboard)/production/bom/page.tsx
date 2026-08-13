@@ -525,6 +525,38 @@ export default function BOMPage() {
     });
   };
 
+  const searchBomByCode = async (code: string) => {
+    if (!code.trim()) return;
+    try {
+      const res = await fetch(`/api/production/bom/search?code=${encodeURIComponent(code.trim())}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.bom && data.bom.inventoryItem) {
+          const product = data.bom.inventoryItem;
+          setSelectedProduct(product);
+          setEditProductId(product.id);
+          setNewProduct({
+            code: product.code || "",
+            name: (product.tenHang || product.name) || "",
+            categoryId: product.categoryId || "",
+            unit: (product.donVi || product.unit) || "bộ",
+            defaultWarehouse: product.defaultWarehouse || "KHO-CHINH",
+            notes: product.notes || ""
+          });
+          fetchBom(data.bom.id);
+          toastSuccess("Thành công", "Đã tải định mức");
+        } else {
+           toastError("Lỗi", "Định mức không liên kết với sản phẩm nào");
+        }
+      } else {
+        toastError("Không tìm thấy", "Không tìm thấy mã định mức này");
+      }
+    } catch (error) {
+      console.error(error);
+      toastError("Lỗi", "Đã có lỗi xảy ra");
+    }
+  };
+
   const productColumns: TableColumn<any>[] = [
     {
       header: "Tên sản phẩm",
@@ -760,7 +792,26 @@ export default function BOMPage() {
           </div>
 
           {/* RIGHT COLUMN: BOM EDITOR */}
-          <div className="col-12 col-md-8 col-lg-8 d-flex flex-column bg-white" style={{ padding: "24px", height: "100%", fontSize: "0.9rem" }}>
+          <div className="col-12 col-md-8 col-lg-8 d-flex flex-column bg-white position-relative" style={{ padding: "24px", height: "100%", fontSize: "0.9rem" }}>
+            <div className="position-absolute top-0 end-0 p-3" style={{ zIndex: 10 }}>
+              <div className="input-group input-group-sm shadow-sm rounded" style={{ width: "250px" }}>
+                <input 
+                  type="text" 
+                  className="form-control border-secondary text-secondary" 
+                  placeholder="Tìm mã định mức..." 
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') searchBomByCode(e.currentTarget.value);
+                  }}
+                />
+                <button className="btn btn-outline-secondary bg-white" type="button" onClick={(e) => {
+                  const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                  if (input) searchBomByCode(input.value);
+                }}>
+                  <i className="bi bi-search"></i>
+                </button>
+              </div>
+            </div>
+
             {!selectedProduct ? (
               <div className="d-flex align-items-center justify-content-center h-100 text-muted">
                 <div className="text-center">
