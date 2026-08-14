@@ -99,6 +99,7 @@ export async function GET(req: Request) {
     const categoryId = searchParams.get("categoryId");
     const exactCode = searchParams.get("exactCode");
     const nolimit = searchParams.get("nolimit") === "true";
+    const excludeDinhMucs = searchParams.get("excludeDinhMucs") === "true";
     const search = searchParams.get("search");
     const reqTrangThai = searchParams.get("trangThai");
     const page = parseInt(searchParams.get("page") || "1");
@@ -289,7 +290,6 @@ export async function GET(req: Request) {
           category: { select: { id: true, name: true, code: true } },
           erpCategory: { select: { id: true, name: true, code: true } },
           stocks: { include: { warehouse: true } },
-          dinhMucs: { include: { vatTu: { include: { inventoryItem: { include: { stocks: { include: { warehouse: true } } } } } } } },
         },
         orderBy: { updatedAt: "desc" },
       }),
@@ -300,7 +300,7 @@ export async function GET(req: Request) {
       ...it,
       source: it.loai === "hang-hoa" ? "inventory" : (it.loai === "vat-tu" ? "material" : "manufactured"),
       categoryName: it.category?.name ?? it.erpCategory?.name,
-      dinhMucs: it.dinhMucs || []
+      dinhMucs: []
     }));
 
     // Restore deduplication: Merge items with same code/name and COMBINE their stocks and dinhMucs
@@ -309,15 +309,11 @@ export async function GET(req: Request) {
       const key = item.code ? item.code.toLowerCase() : item.tenHang.toLowerCase();
       if (deduplicatedMap.has(key)) {
         const existing = deduplicatedMap.get(key);
+        existing.rawIds.push(item.id);
         // Combine stocks
         existing.stocks = [...existing.stocks, ...item.stocks];
-        // Combine dinhMucs
-        if (item.dinhMucs && item.dinhMucs.length > 0) {
-          const newDinhMucs = item.dinhMucs.filter((dm: any) => !existing.dinhMucs?.some((edm: any) => edm.id === dm.id));
-          existing.dinhMucs = [...(existing.dinhMucs || []), ...newDinhMucs];
-        }
       } else {
-        deduplicatedMap.set(key, { ...item, stocks: [...item.stocks], dinhMucs: [...(item.dinhMucs || [])] });
+        deduplicatedMap.set(key, { ...item, rawIds: [item.id], stocks: [...item.stocks], dinhMucs: [] });
       }
     }
     const deduplicatedItems = Array.from(deduplicatedMap.values());
@@ -392,6 +388,28 @@ export async function GET(req: Request) {
     // Paginate manually
     const total = filteredItems.length;
     const paginated = nolimit ? filteredItems : filteredItems.slice(skip, skip + limit);
+
+    // FETCH DETAILED dinhMucs FOR PAGINATED ITEMS ONLY
+    if (!excludeDinhMucs) {
+      const paginatedRawIds = paginated.flatMap(p => p.rawIds);
+      const detailedItems = await prisma.inventoryItem.findMany({
+        where: { id: { in: paginatedRawIds } },
+        include: {
+          dinhMucs: { include: { vatTu: { include: { inventoryItem: { include: { stocks: { include: { warehouse: true } } } } } } } },
+        }
+      });
+
+      for (const p of paginated) {
+        p.dinhMucs = [];
+        for (const rawId of p.rawIds) {
+          const detail = detailedItems.find((d: any) => d.id === rawId);
+          if (detail && detail.dinhMucs) {
+            const newDinhMucs = detail.dinhMucs.filter((dm: any) => !p.dinhMucs.some((edm: any) => edm.id === dm.id));
+            p.dinhMucs = [...p.dinhMucs, ...newDinhMucs];
+          }
+        }
+      }
+    }
 
     const paginatedWithImages = await attachWebImages(paginated);
 

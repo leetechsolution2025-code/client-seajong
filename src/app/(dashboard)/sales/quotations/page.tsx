@@ -16,6 +16,7 @@ import { ChiTietDonHang } from "@/components/plan-finance/bao_gia/ChiTietDonHang
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { OmnichannelContent } from "../omnichannel/page";
+import { CreateDefectOffcanvas } from "../../production/defects/components/CreateDefectOffcanvas";
 
 interface Quotation {
   id: string;
@@ -96,8 +97,15 @@ const STEP_ITEMS: ModernStepItem[] = [
     num: 3,
     id: "OMNICHANNEL",
     title: "Bán hàng đa kênh",
-    desc: "Gom đơn từ Shopee, Lazada, TikTok và Showroom",
+    desc: "Gom đơn từ các kênh bán hàng",
     icon: "bi-shop",
+  },
+  {
+    num: 4,
+    id: "RETURN",
+    title: "Hàng trả về",
+    desc: "Xử lý hàng trả về",
+    icon: "bi-arrow-return-left",
   },
 ];
 
@@ -123,6 +131,13 @@ export function QuotationsContent() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+  // Step 4: Returns state
+  const [returnStatusFilter, setReturnStatusFilter] = useState("");
+  const [returnSearchTerm, setReturnSearchTerm] = useState("");
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [returns, setReturns] = useState<any[]>([]);
+  const [returnsLoading, setReturnsLoading] = useState(false);
 
   useEffect(() => {
     if (isManager) {
@@ -308,6 +323,45 @@ export function QuotationsContent() {
     }
   };
 
+  const fetchReturns = async () => {
+    setReturnsLoading(true);
+    try {
+      const res = await fetch(`/api/production/defects`);
+      if (res.ok) {
+        const data = await res.json();
+        // Lọc các hồ sơ lỗi do phòng Kinh doanh (Sales) khởi tạo
+        let items = data.filter((d: any) => 
+          (d.reporterDepartment || '').toLowerCase().includes('kinh doanh') ||
+          (d.reporterDepartment || '').toLowerCase().includes('sales')
+        );
+        
+        if (returnStatusFilter) {
+          items = items.filter((d: any) => d.status === returnStatusFilter);
+        }
+        if (returnSearchTerm) {
+          items = items.filter((d: any) => 
+            (d.code || '').toLowerCase().includes(returnSearchTerm.toLowerCase()) ||
+            (d.customerName || '').toLowerCase().includes(returnSearchTerm.toLowerCase()) ||
+            (d.orderNumber || '').toLowerCase().includes(returnSearchTerm.toLowerCase())
+          );
+        }
+
+        setReturns(items);
+      }
+    } catch (e) {
+      console.error("Lỗi tải danh sách hàng trả về", e);
+      toast.error("Lỗi", "Không thể tải danh sách hàng trả về");
+    } finally {
+      setReturnsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentStep === 4) {
+      fetchReturns();
+    }
+  }, [currentStep, returnStatusFilter, returnSearchTerm]);
+
   useEffect(() => {
     if (currentStep === 2) {
       fetchOrders();
@@ -444,6 +498,76 @@ export function QuotationsContent() {
       setIsQuotationModalOpen(true);
     }
   };
+
+  const returnColumns: TableColumn<any>[] = useMemo(() => {
+    return [
+      {
+        header: "Mã lỗi",
+        render: (row) => {
+          const getSourceLabel = (s: string) => {
+            if (s === 'INTERNAL') return "Nội bộ";
+            if (s === 'WARRANTY') return "Bảo hành";
+            if (s === 'RETURN') return "Trả về";
+            return s;
+          };
+          return (
+            <div>
+              <div className="fw-bold text-primary cursor-pointer hover-underline">{row.code || "ERR-—"}</div>
+              <div className="mt-1">
+                <span className="badge bg-light border text-dark fw-normal" style={{ fontSize: "0.75rem" }}>
+                  {getSourceLabel(row.source)}
+                </span>
+              </div>
+            </div>
+          );
+        },
+        width: "140px",
+      },
+      {
+        header: "Khách hàng",
+        render: (row) => (
+          <div>
+            <div className="text-dark fw-semibold">{row.customerName || "—"}</div>
+            {row.customerAddress && <div className="text-muted" style={{ fontSize: "0.8rem", marginTop: 2 }}>{row.customerAddress}</div>}
+          </div>
+        ),
+      },
+      {
+        header: "Đơn hàng",
+        render: (row) => (
+          <span className="text-dark">{row.orderNumber || "—"}</span>
+        ),
+      },
+      {
+        header: "Ngày tạo",
+        render: (row) => <span>{row.createdAt ? new Date(row.createdAt).toLocaleDateString("vi-VN") : "—"}</span>,
+        width: "140px",
+      },
+      {
+        header: "Mô tả lỗi",
+        render: (row) => <span className="text-muted text-truncate d-inline-block" style={{ maxWidth: 250 }} title={row.description}>{row.description || "—"}</span>,
+      },
+      {
+        header: "Trạng thái",
+        render: (row) => {
+          const getStatusBadge = (status: string) => {
+            switch (status) {
+              case 'NEW': return <span className="badge bg-primary">Chưa xử lý</span>;
+              case 'TECH_EVALUATING': return <span className="badge bg-info">Đang chẩn đoán</span>;
+              case 'WAITING_APPROVAL': return <span className="badge bg-warning text-dark">Chờ duyệt</span>;
+              case 'PROCESSING': return <span className="badge bg-secondary">Đang xử lý</span>;
+              case 'WAITING_INVENTORY': return <span className="badge bg-secondary">Đang thực hiện</span>;
+              case 'COMPLETED': return <span className="badge bg-success">Đã xử lý</span>;
+              default: return <span className="badge bg-light text-dark">{status || 'Chưa xử lý'}</span>;
+            }
+          };
+          return getStatusBadge(row.status);
+        },
+        align: "center",
+        width: "120px",
+      },
+    ];
+  }, []);
 
   const orderColumns: TableColumn<any>[] = useMemo(() => {
     return [
@@ -824,6 +948,65 @@ export function QuotationsContent() {
           {currentStep === 3 && (
             <OmnichannelContent />
           )}
+          {currentStep === 4 && (
+            <FullWidthTableLayout
+              className="flex-grow-1 overflow-hidden"
+              style={{ minHeight: 0 }}
+              header={
+                <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                  <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
+                    <FilterSelect
+                      options={[
+                        { label: "Chưa xử lý", value: "NEW" },
+                        { label: "Đã xử lý", value: "COMPLETED" },
+                      ]}
+                      value={returnStatusFilter}
+                      onChange={setReturnStatusFilter}
+                      placeholder="Tất cả trạng thái"
+                      width={180}
+                    />
+                    <div className="flex-grow-1" style={{ maxWidth: 300 }}>
+                      <SearchInput
+                        placeholder="Tìm kiếm..."
+                        value={returnSearchTerm}
+                        onChange={setReturnSearchTerm}
+                      />
+                    </div>
+                  </div>
+                  <div className="d-flex align-items-center gap-2">
+                    <button
+                      className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
+                      style={{
+                        height: 34,
+                        fontSize: "12.5px",
+                        backgroundColor: "#003087",
+                        borderColor: "#003087",
+                        borderRadius: 8,
+                        fontWeight: 700,
+                        whiteSpace: "nowrap"
+                      }}
+                      onClick={() => setIsReturnModalOpen(true)}
+                    >
+                      <i className="bi bi-plus-lg" />
+                      Tạo mới
+                    </button>
+                  </div>
+                </div>
+              }
+              table={
+                <Table
+                  columns={returnColumns}
+                  rows={returns}
+                  loading={returnsLoading}
+                  rowKey={(row) => row.id}
+                  emptyText="Không tìm thấy hồ sơ lỗi nào"
+                  compact={true}
+                  stickyHeader={true}
+                  wrapperStyle={{ overflowY: "auto", flex: 1, minHeight: 0 }}
+                />
+              }
+            />
+          )}
         </div>
       </WorkflowCard>
 
@@ -1039,6 +1222,13 @@ export function QuotationsContent() {
         confirmLabel={isDeleting ? "Đang xoá..." : "Xoá"}
         onConfirm={handleDeleteDonHang}
         onCancel={() => setConfirmDeleteDonHang(false)}
+      />
+      
+      <CreateDefectOffcanvas 
+        show={isReturnModalOpen}
+        onClose={() => setIsReturnModalOpen(false)}
+        onRefresh={fetchReturns}
+        defaultSource="RETURN"
       />
     </>
   );

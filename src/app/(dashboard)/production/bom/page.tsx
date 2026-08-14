@@ -39,6 +39,7 @@ export default function BOMPage() {
   const [materials, setMaterials] = useState<any[]>([]);
   const [searchMaterial, setSearchMaterial] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const isSearchingBomRef = useRef(false);
   const listGroupRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -69,7 +70,7 @@ export default function BOMPage() {
         return;
       }
 
-      let url = `/api/logistics/inventory?warehouseCode=KVP&page=1&nolimit=true`;
+      let url = `/api/logistics/inventory?warehouseCode=KVP&page=1&nolimit=true&excludeDinhMucs=true`;
       if (swapSearchMode === "exact") {
         url += `&exactCode=${encodeURIComponent(swapBaseExact)}`;
       } else if (swapSearchMode === "group") {
@@ -472,7 +473,7 @@ export default function BOMPage() {
   // Add material line
   const fetchMaterials = async (q: string) => {
     try {
-      const res = await fetch(`/api/logistics/inventory?warehouseCode=KVP&search=${encodeURIComponent(q)}&page=1&nolimit=true`);
+      const res = await fetch(`/api/logistics/inventory?warehouseCode=KVP&search=${encodeURIComponent(q)}&page=1&nolimit=true&excludeDinhMucs=true`);
       if (res.ok) {
         const data = await res.json();
         setMaterials(data.items || []);
@@ -526,7 +527,8 @@ export default function BOMPage() {
   };
 
   const searchBomByCode = async (code: string) => {
-    if (!code.trim()) return;
+    if (!code.trim() || isSearchingBomRef.current) return;
+    isSearchingBomRef.current = true;
     try {
       const res = await fetch(`/api/production/bom/search?code=${encodeURIComponent(code.trim())}`);
       if (res.ok) {
@@ -554,6 +556,8 @@ export default function BOMPage() {
     } catch (error) {
       console.error(error);
       toastError("Lỗi", "Đã có lỗi xảy ra");
+    } finally {
+      isSearchingBomRef.current = false;
     }
   };
 
@@ -800,7 +804,10 @@ export default function BOMPage() {
                   className="form-control border-secondary text-secondary" 
                   placeholder="Tìm mã định mức..." 
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') searchBomByCode(e.currentTarget.value);
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      searchBomByCode(e.currentTarget.value);
+                    }
                   }}
                 />
                 <button className="btn btn-outline-secondary bg-white" type="button" onClick={(e) => {

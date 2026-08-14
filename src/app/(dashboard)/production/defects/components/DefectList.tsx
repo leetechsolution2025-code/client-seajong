@@ -33,7 +33,7 @@ export function DefectList({ data, onSelect }: DefectListProps) {
             <th style={{ width: '280px' }}>Mã lỗi</th>
             <th style={{ width: '250px' }}>Sản phẩm</th>
             <th>Mô tả hiện trạng</th>
-            <th style={{ width: '180px' }}>Người báo cáo</th>
+            <th style={{ width: '250px' }}>Người báo cáo</th>
           </tr>
         </thead>
         <tbody style={{ fontSize: '13px' }}>

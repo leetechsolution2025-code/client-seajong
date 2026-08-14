@@ -2,6 +2,7 @@ import { DefectStatus } from '../mockData';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { BrandButton } from '@/components/ui/BrandButton';
+import { Offcanvas } from '@/components/ui/Offcanvas';
 
 const getStatusBadge = (status: DefectStatus) => {
   switch (status) {
@@ -57,26 +58,14 @@ export function DefectSummaryOffcanvas({ defectId, defect, onClose, onRefresh, o
 
   return (
     <>
-      {/* Backdrop */}
-      {defectId && (
-        <div 
-          className="offcanvas-backdrop fade show" 
-          onClick={onClose}
-          style={{ zIndex: 1040 }}
-        ></div>
-      )}
-
-      {/* Offcanvas */}
-      <div 
-        className={`offcanvas offcanvas-end shadow ${defectId ? 'show' : ''}`} 
-        tabIndex={-1} 
-        style={{ width: '400px', zIndex: 1045, visibility: defectId ? 'visible' : 'hidden' }}
+      <Offcanvas
+        show={!!defectId}
+        onClose={onClose}
+        title={`Chi tiết lỗi: ${defect?.code}`}
+        width="400px"
+        bodyClassName="offcanvas-body d-flex flex-column p-0"
       >
-        <div className="offcanvas-header border-bottom bg-light">
-          <h6 className="offcanvas-title fw-bold">Chi tiết lỗi: {defect?.code}</h6>
-          <button type="button" className="btn-close" onClick={onClose} aria-label="Close"></button>
-        </div>
-        <div className="offcanvas-body" style={{ fontSize: '13px' }}>
+        <div className="flex-grow-1 overflow-auto p-3" style={{ fontSize: '13px' }}>
           {defect ? (
             <div className="d-flex flex-column gap-3">
               <div className="d-flex justify-content-between align-items-center">
@@ -169,7 +158,7 @@ export function DefectSummaryOffcanvas({ defectId, defect, onClose, onRefresh, o
         
         {/* Footer */}
         {defect && (
-          <div className="offcanvas-footer border-top p-3 bg-light d-flex justify-content-between">
+          <div className="border-top p-3 bg-light d-flex justify-content-between mt-auto">
             <BrandButton 
               variant="outline-danger"
               icon="bi-trash"
@@ -188,7 +177,7 @@ export function DefectSummaryOffcanvas({ defectId, defect, onClose, onRefresh, o
             </BrandButton>
           </div>
         )}
-      </div>
+      </Offcanvas>
 
       <ConfirmDialog
         open={showConfirmDelete}

@@ -177,39 +177,98 @@ export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate
               </div>
 
               {/* Hàng hoá cần sản xuất */}
-              <div className="p-3 border-bottom">
+              <div className="p-3 border-bottom bg-white">
                 <h6 className="fw-bold mb-3 d-flex align-items-center gap-2 text-dark">
                   <i className="bi bi-box-seam text-primary"></i> 
                   Hàng hoá cần sản xuất
                 </h6>
                 {data.items?.length > 0 ? (
-                  <div className="d-flex flex-column gap-2">
-                    {data.items.map((item: any) => (
-                      <div key={item.id} className="d-flex justify-content-between align-items-start border p-2 rounded bg-white">
-                        <div>
-                          <div className="fw-medium text-dark" style={{ fontSize: 13 }}>{item.tenHang}</div>
-                          {!item.bomFound && (
-                            <div className="text-danger mt-1" style={{ fontSize: 11 }}>
-                              <i className="bi bi-exclamation-triangle me-1"></i> Chưa có định mức
+                  <div className="accordion" id="accordionProducts">
+                    {data.items.map((item: any, index: number) => (
+                      <div className="accordion-item mb-2 border rounded overflow-hidden" key={item.id}>
+                        <h2 className="accordion-header" id={`heading-${item.id}`}>
+                          <button 
+                            className={`accordion-button collapsed p-3 bg-light`} 
+                            type="button" 
+                            data-bs-toggle="collapse" 
+                            data-bs-target={`#collapse-${item.id}`} 
+                            aria-expanded="false" 
+                            aria-controls={`collapse-${item.id}`}
+                            style={{ boxShadow: "none" }}
+                          >
+                            <div className="d-flex justify-content-between align-items-center w-100 pe-3">
+                              <div>
+                                <div className="fw-bold text-dark" style={{ fontSize: 13.5 }}>{item.tenHang}</div>
+                                <div className="d-flex align-items-center gap-2 mt-1">
+                                  {item.bomFound ? (
+                                    <span className="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill fw-medium" style={{ fontSize: 11 }}>
+                                      <i className="bi bi-diagram-3 me-1"></i> {item.bomCode || "Đã có định mức"}
+                                    </span>
+                                  ) : (
+                                    <span className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill fw-medium" style={{ fontSize: 11 }}>
+                                      <i className="bi bi-exclamation-triangle me-1"></i> Chưa có định mức
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="fw-bold text-primary px-2 py-1 bg-white border border-primary border-opacity-25 rounded text-center shadow-sm" style={{ fontSize: 13, minWidth: 45 }}>
+                                x{item.soLuong}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                        <div className="fw-bold text-primary px-2 py-1 bg-primary-subtle rounded text-center min-w-40" style={{ fontSize: 12 }}>
-                          x{item.soLuong}
+                          </button>
+                        </h2>
+                        <div 
+                          id={`collapse-${item.id}`} 
+                          className={`accordion-collapse collapse`} 
+                          aria-labelledby={`heading-${item.id}`} 
+                          data-bs-parent="#accordionProducts"
+                        >
+                          <div className="accordion-body p-0 bg-white">
+                            {item.materials && item.materials.length > 0 ? (
+                              <table className="table table-sm table-borderless table-striped mb-0" style={{ fontSize: 12 }}>
+                                <thead className="border-bottom text-muted">
+                                  <tr>
+                                    <th className="fw-medium ps-3 py-2">Vật tư, phụ kiện</th>
+                                    <th className="fw-medium text-end pe-3 py-2" style={{ width: 80 }}>Số lượng</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {item.materials.map((mat: any, mIdx: number) => (
+                                    <tr key={mIdx}>
+                                      <td className="ps-3 py-2">
+                                        <div className="fw-medium text-dark">{mat.tenVatTu}</div>
+                                        <div className="text-muted" style={{ fontSize: 10.5 }}>Mã: {mat.code}</div>
+                                      </td>
+                                      <td className="text-end pe-3 py-2 align-middle">
+                                        <span className="fw-bold text-dark">{mat.soLuong}</span>
+                                        <span className="text-muted ms-1 small">{mat.donViTinh}</span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            ) : (
+                              <div className="p-3 text-center text-muted small fst-italic">
+                                Không có vật tư chi tiết
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-muted small fst-italic">Không có hàng hoá</div>
+                  <div className="text-muted small fst-italic p-3 bg-light rounded text-center border">
+                    Không có dữ liệu hàng hoá
+                  </div>
                 )}
               </div>
 
               {/* Bóc tách vật tư */}
               <div className="p-3">
                 <h6 className="fw-bold mb-3 d-flex align-items-center gap-2 text-dark">
-                  <i className="bi bi-tools text-warning"></i> 
-                  Bóc tách vật tư & phụ kiện
+                  <i className="bi bi-boxes text-warning"></i> 
+                  Tổng hợp xuất kho toàn đơn
                 </h6>
                 {data.materials?.length > 0 ? (
                   <div className="table-responsive">

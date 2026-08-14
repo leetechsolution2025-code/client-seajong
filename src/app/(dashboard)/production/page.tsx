@@ -147,16 +147,26 @@ export default function ProductionDashboardPage() {
                 />
                 <label className="form-check-label text-muted" style={{ fontSize: 12 }} htmlFor="todaySwitch">Hoàn thành hôm nay</label>
               </div>
-              <div className="input-group input-group-sm ms-auto" style={{ width: 180 }}>
-                <span className="input-group-text bg-light border-end-0 text-muted" style={{ paddingRight: 4 }}><i className="bi bi-search"></i></span>
-                <input 
-                  type="text" 
-                  className="form-control border-start-0 ps-1 bg-light shadow-none" 
-                  style={{ fontSize: 12 }}
-                  placeholder="Tìm kiếm lệnh..." 
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
+              <div className="d-flex align-items-center gap-2 ms-auto">
+                <div className="input-group input-group-sm" style={{ width: 180 }}>
+                  <span className="input-group-text bg-light border-end-0 text-muted" style={{ paddingRight: 4 }}><i className="bi bi-search"></i></span>
+                  <input 
+                    type="text" 
+                    className="form-control border-start-0 ps-1 bg-light shadow-none" 
+                    style={{ fontSize: 12 }}
+                    placeholder="Tìm kiếm lệnh..." 
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <button 
+                  className="btn btn-primary btn-sm d-flex align-items-center justify-content-center shadow-sm hover-shadow-sm transition-all" 
+                  style={{ width: 31, height: 31, padding: 0, borderRadius: 6 }}
+                  title="Tạo yêu cầu sản xuất"
+                  onClick={() => alert("Chức năng tạo yêu cầu sản xuất đang được phát triển.")}
+                >
+                  <i className="bi bi-plus-lg"></i>
+                </button>
               </div>
             </div>
             <div className="table-responsive flex-grow-1 overflow-auto">

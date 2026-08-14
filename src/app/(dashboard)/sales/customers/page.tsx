@@ -325,6 +325,61 @@ export default function SalesCustomersPage() {
     });
   };
 
+  const handleExportExcel = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (searchQuery) params.set("search", searchQuery);
+      if (nguonFilter) params.set("nguon", nguonFilter);
+      if (!showAllCustomers) params.set("nhom", "dai-ly");
+      if (hangFilter) params.set("loai", hangFilter);
+      if (employeeFilter) params.set("employeeId", employeeFilter);
+      params.set("pageSize", "10000"); // fetch all filtered
+
+      const res = await fetch(`/api/plan-finance/customers?${params}`);
+      const data = await res.json();
+      const exportData = data.customers || [];
+
+      const XLSX = await import("xlsx");
+      const rows = exportData.map((c: any) => {
+        let fv: any = {};
+        try { if (c.formValues) fv = JSON.parse(c.formValues); } catch(e){}
+        
+        let displayDaiDien = c.daiDien || "";
+        let displayPhone = c.dienThoai || fv.phone || "";
+        if (!displayDaiDien && fv.contact) {
+          const parts = String(fv.contact).split("-").map(p => p.trim());
+          displayDaiDien = parts[0] || "";
+          if (!displayPhone && parts.length > 1) displayPhone = parts[1];
+        }
+
+        return [
+          c.code || "",
+          c.name || "",
+          c.nhom || "dai-ly",
+          c.nguon || "",
+          c.loai || fv.scale || "",
+          displayPhone,
+          c.email || fv.email || "",
+          c.address || fv.detailBusinessAddress || fv.address || "",
+          displayDaiDien,
+          c.xungHo || "Anh",
+          c.chucVu || fv.position || ""
+        ];
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet([
+        ["Mã KH", "Tên khách hàng (*)", "Nhóm", "Nguồn", "Phân loại", "Điện thoại", "Email", "Địa chỉ", "Người đại diện", "Xưng hô", "Chức vụ"],
+        ...rows
+      ]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "KhachHang");
+      XLSX.writeFile(wb, "Danh_sach_dai_ly_Export.xlsx");
+    } catch (error) {
+      console.error(error);
+      error("Lỗi", "Có lỗi xảy ra khi xuất dữ liệu");
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -990,6 +1045,16 @@ export default function SalesCustomersPage() {
                         disabled={importing}
                       >
                         <i className="bi bi-download"></i>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline-primary d-flex align-items-center justify-content-center shadow-sm ms-1"
+                        style={{ width: 34, height: 34, borderRadius: 8, padding: 0 }}
+                        title="Xuất dữ liệu ra Excel"
+                        onClick={handleExportExcel}
+                        disabled={importing}
+                      >
+                        <i className="bi bi-file-earmark-arrow-down"></i>
                       </button>
                       <button
                         type="button"

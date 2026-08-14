@@ -34,6 +34,7 @@ export default function QaPage() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [activeEvalItemIdx, setActiveEvalItemIdx] = useState<number | null>(null);
   const [tempEvalComment, setTempEvalComment] = useState("");
+  const [tempDefectDesc, setTempDefectDesc] = useState("");
   const [tempEvalResult, setTempEvalResult] = useState("pass");
   const [tempRejectReason, setTempRejectReason] = useState("");
   const [tempRejectCategories, setTempRejectCategories] = useState<string[]>(["Loại khác"]);
@@ -421,7 +422,7 @@ export default function QaPage() {
           <div className="d-flex align-items-center">
             <span className="fw-bold text-dark small">{row.id}</span>
             <span className="text-muted mx-1">|</span>
-            <span className={`fw-medium small ${getStatusColor(row.result)}`}>{getStatusText(row.result)}</span>
+            <span className={`fw-medium ${getStatusColor(row.result)}`} style={{ fontSize: 11 }}>{getStatusText(row.result)}</span>
           </div>
           <span className="text-muted mt-1" style={{ fontSize: 11 }}>
             {row.date} <span className="mx-1">|</span> {getTypeLabel(row.type)}
@@ -740,6 +741,7 @@ export default function QaPage() {
                                 onClick={() => {
                                   setActiveEvalItemIdx(idx);
                                   setTempEvalComment(item.comment || "");
+                                  setTempDefectDesc(item.defectDesc || "");
                                   setTempEvalResult(item.result || "pass");
                                 }}
                                 style={{ cursor: "pointer" }}
@@ -980,6 +982,18 @@ export default function QaPage() {
                                     <div className="fw-bold text-muted mb-1" style={{ fontSize: "8.5pt" }}>QC nhận xét:</div>
                                     <ul className="list-unstyled mb-0 ps-1" style={{ lineHeight: "1.4" }}>
                                       {item.comment.split('\n').filter((line: string) => line.trim() !== "").map((line: string, lineIdx: number) => (
+                                        <li key={lineIdx} className="fst-italic">
+                                          • {line.trim()}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                                {item.defectDesc && (
+                                  <div className="mt-1 p-2 bg-light border-start border-3 border-danger rounded" style={{ fontSize: "9pt" }}>
+                                    <div className="fw-bold mb-1" style={{ fontSize: "8.5pt", color: "darkred" }}>Mô tả các lỗi:</div>
+                                    <ul className="list-unstyled mb-0 ps-1" style={{ lineHeight: "1.4", color: "darkred" }}>
+                                      {item.defectDesc.split('\n').filter((line: string) => line.trim() !== "").map((line: string, lineIdx: number) => (
                                         <li key={lineIdx} className="fst-italic">
                                           • {line.trim()}
                                         </li>
@@ -1390,6 +1404,18 @@ export default function QaPage() {
                 style={{ fontSize: "13px", resize: "none" }}
               />
             </div>
+
+            <div className="d-flex flex-column mt-3 flex-grow-1 min-h-0">
+              <label className="form-label small fw-medium mb-1">Mô tả các lỗi</label>
+              <textarea 
+                className="form-control form-control-sm flex-grow-1" 
+                placeholder="Mô tả chi tiết các lỗi phát hiện (nếu có)..." 
+                value={tempDefectDesc} 
+                onChange={(e) => setTempDefectDesc(e.target.value)}
+                disabled={selectedInspection?.result !== "Pending"}
+                style={{ fontSize: "13px", resize: "none" }}
+              />
+            </div>
           </div>
 
           <div className="offcanvas-footer border-top bg-light p-3 d-flex gap-2">
@@ -1409,6 +1435,7 @@ export default function QaPage() {
                 newItems[activeEvalItemIdx] = {
                   ...newItems[activeEvalItemIdx],
                   comment: tempEvalComment,
+                  defectDesc: tempDefectDesc,
                   result: isFailed ? "fail" : "pass"
                 };
                 setIqcFormData(prev => ({ ...prev, items: newItems }));

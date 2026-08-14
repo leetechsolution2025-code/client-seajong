@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { LogisticsInventory } from "@/components/logistics/inventory/LogisticsInventory";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Table, TableColumn } from "@/components/ui/Table";
+import { Pagination } from "@/components/ui/Pagination";
 import { XuatKhoModal } from "@/components/plan-finance/kho_hang/XuatKhoModal";
 import { NhapKhoModal } from "@/components/plan-finance/kho_hang/NhapKhoModal";
 import { useToast } from "@/components/ui/Toast";
@@ -46,6 +47,7 @@ export default function LogisticsOverviewPage() {
   const [showPrintLabelModal, setShowPrintLabelModal] = useState(false);
   const [selectedItemIndexesForPrint, setSelectedItemIndexesForPrint] = useState<number[]>([]);
   const [printQuantities, setPrintQuantities] = useState<Record<number, any>>({});
+  const [hidePrice, setHidePrice] = useState(false);
   const [companyInfo, setCompanyInfo] = useState<any>(null);
 
   useEffect(() => {
@@ -88,6 +90,12 @@ export default function LogisticsOverviewPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentStep, setCurrentStep] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [currentStep, typeFilter, statusFilter, searchQuery]);
   const STEPS = [
     { num: 1, id: "orders", title: "Danh sách công việc", desc: "Quản lý các lệnh xuất/nhập kho", icon: "bi-card-list" },
     { num: 2, id: "inventory", title: "Danh sách hàng hoá", desc: "Quản lý số lượng tồn kho", icon: "bi-box-seam" },
@@ -286,7 +294,7 @@ export default function LogisticsOverviewPage() {
     }
   };
 
-  const orders = React.useMemo(() => {
+  const sortedGroups = React.useMemo(() => {
     interface GroupedOrder {
       orderCode: string;
       items: any[];
@@ -301,8 +309,6 @@ export default function LogisticsOverviewPage() {
       ghiChu: string | null;
       isGroupImport: boolean;
     }
-    
-    readOrderIds; // Access it to ensure re-render when read states change
 
     const grouped: Record<string, any[]> = rawOrders.reduce((acc: Record<string, any[]>, curr: any) => {
       const isImport = curr.type === 'material-import';
@@ -387,8 +393,13 @@ export default function LogisticsOverviewPage() {
           }
         }
         
-        // Priority: 0 for incomplete (Chưa xuất kho, Đã xuất một phần), 1 for complete (Đã xuất kho)
-        const priority = (groupStatusText.includes("Đã xuất kho") || groupStatusText.includes("Đã nhập kho")) ? 1 : 0;
+        // Priority: 0 for totally unexecuted, 1 for in progress / partially completed, 2 for fully completed
+        let priority = 1;
+        if (groupStatusText === "Chưa nhập kho" || groupStatusText === "Chưa xuất kho") {
+          priority = 0;
+        } else if (groupStatusText === "Đã nhập kho" || groupStatusText === "Đã xuất kho") {
+          priority = 2;
+        }
         
         return {
           orderCode,
@@ -434,8 +445,20 @@ export default function LogisticsOverviewPage() {
       return b.latestDate - a.latestDate;
     });
 
+    return { groupArray, grouped };
+  }, [rawOrders, typeFilter, deletedOrders, currentStep, statusFilter, searchQuery]);
+
+  const totalPages = Math.ceil(sortedGroups.groupArray.length / pageSize);
+
+  const orders = React.useMemo(() => {
+    readOrderIds; // Access it to ensure re-render when read states change
+
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedGroups = sortedGroups.groupArray.slice(startIndex, endIndex);
+
     const finalOrders: any[] = [];
-    groupArray.forEach((group, index) => {
+    paginatedGroups.forEach((group, index) => {
       const { orderCode, items, groupStatusText, groupStatusColor, customerName, customerAddress, ghiChu, isGroupImport, latestDate } = group;
       
       const isToggled = collapsedGroups.has(orderCode);
@@ -450,13 +473,13 @@ export default function LogisticsOverviewPage() {
              className="d-flex flex-column justify-content-center w-100 pe-2 py-0" 
              style={{ cursor: 'pointer', userSelect: 'none', textTransform: 'none', fontWeight: 'normal' }}
              onClick={(e) => {
-               e.stopPropagation();
-               setCollapsedGroups(prev => {
-                 const newSet = new Set(prev);
-                 if (newSet.has(orderCode)) newSet.delete(orderCode);
-                 else newSet.add(orderCode);
-                 return newSet;
-               });
+                e.stopPropagation();
+                setCollapsedGroups(prev => {
+                  const newSet = new Set(prev);
+                  if (newSet.has(orderCode)) newSet.delete(orderCode);
+                  else newSet.add(orderCode);
+                  return newSet;
+                });
              }}
           >
             <div className="d-flex align-items-center justify-content-between mb-1">
@@ -549,12 +572,11 @@ export default function LogisticsOverviewPage() {
       }
     });
 
-    if (grouped["Khác"]) {
-      finalOrders.push(...(grouped["Khác"] as any[]));
+    if (sortedGroups.grouped["Khác"]) {
+      finalOrders.push(...(sortedGroups.grouped["Khác"] as any[]));
     }
-    
     return finalOrders;
-  }, [rawOrders, collapsedGroups, typeFilter, deletedOrders, currentStep, statusFilter, searchQuery]);
+  }, [sortedGroups, collapsedGroups, currentPage, readOrderIds]);
 
   return (
     <div className="d-flex flex-column h-100" style={{ background: "var(--background)", position: "relative" }}>
@@ -701,6 +723,15 @@ export default function LogisticsOverviewPage() {
                   wrapperClassName="mkt-plan-table-no-min flex-grow-1 table-hover"
                   wrapperStyle={{ overflowX: "hidden", cursor: "pointer" }}
                 />
+                {totalPages > 1 && (
+                  <div className="py-2 border-top bg-white px-3 flex-shrink-0">
+                    <Pagination 
+                      page={currentPage} 
+                      totalPages={totalPages} 
+                      onChange={setCurrentPage} 
+                    />
+                  </div>
+                )}
               </div>
               <div className="p-3 border-top bg-light mt-auto" style={{ borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
                  <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
@@ -1098,7 +1129,19 @@ export default function LogisticsOverviewPage() {
           sidebar={
             <div className="p-0 border-end d-flex flex-column" style={{ width: 350, height: "100%" }}>
               <div className="p-3 border-bottom bg-light">
-                <h6 className="fw-semibold mb-0">Chọn hàng hoá để in nhãn</h6>
+                <h6 className="fw-semibold mb-2">Chọn hàng hoá để in nhãn</h6>
+                <div className="form-check form-switch mb-0">
+                  <input 
+                    type="checkbox" 
+                    className="form-check-input shadow-none" 
+                    id="hidePriceSwitch"
+                    checked={hidePrice}
+                    onChange={(e) => setHidePrice(e.target.checked)}
+                  />
+                  <label className="form-check-label fw-medium text-secondary" htmlFor="hidePriceSwitch" style={{ fontSize: 13, cursor: "pointer" }}>
+                    Ẩn giá bán trên tem nhãn (***)
+                  </label>
+                </div>
               </div>
               <div className="flex-grow-1" style={{ overflowY: "auto", overflowX: "hidden" }}>
                 <table className="table table-sm table-hover table-borderless align-middle mb-0" style={{ fontSize: 13 }}>
@@ -1240,7 +1283,7 @@ export default function LogisticsOverviewPage() {
                                         </div>
                                         <div className="mt-1">Mã SP: <b style={{ fontSize: 12 }}>{item.code || "N/A"}</b></div>
                                         <div className="mt-1">Màu: <b>{item.color || "N/A"}</b></div>
-                                        <div className="mt-1">Giá: <b>{item.giaBan ? item.giaBan.toLocaleString("vi-VN") : "N/A"}</b></div>
+                                        <div className="mt-1">Giá: <b>{hidePrice ? "***" : (item.giaBan ? item.giaBan.toLocaleString("vi-VN") : "N/A")}</b></div>
                                         <div className="mt-1">Bảo hành đến: <b>5 năm</b></div>
                                      </div>
                                      

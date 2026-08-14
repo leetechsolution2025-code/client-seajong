@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { BrandButton } from '@/components/ui/BrandButton';
+import { Offcanvas } from '@/components/ui/Offcanvas';
 
 interface CreateDefectOffcanvasProps {
   show: boolean;
   onClose: () => void;
   onRefresh?: () => void;
+  defaultSource?: string;
 }
 
-export function CreateDefectOffcanvas({ show, onClose, onRefresh }: CreateDefectOffcanvasProps) {
+export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource = 'INTERNAL' }: CreateDefectOffcanvasProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    source: 'INTERNAL',
+    source: defaultSource,
     status: 'NEW',
     productName: '',
     productCode: '',
@@ -18,9 +21,10 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh }: CreateDefect
     description: '',
     customerId: '',
     customerName: '',
+    customerAddress: '',
     orderNumber: '',
-    reporterName: 'Lê Công Vụ',
-    reporterDepartment: 'Ban Giám đốc',
+    reporterName: '',
+    reporterDepartment: '',
     assignedTo: '',
     completionDate: '',
   });
@@ -31,8 +35,21 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh }: CreateDefect
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
 
+  const { data: session } = useSession();
+
+  useEffect(() => {
+    if (session?.user) {
+      setFormData(prev => ({ 
+        ...prev, 
+        reporterName: session.user.name || '',
+        reporterDepartment: (session.user as any).departmentName || 'Phòng ban khác'
+      }));
+    }
+  }, [session]);
+
   useEffect(() => {
     if (show) {
+      setFormData(prev => ({ ...prev, source: defaultSource }));
       fetch('/api/plan-finance/customers?pageSize=200')
         .then(res => res.json())
         .then(data => {
@@ -122,7 +139,7 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh }: CreateDefect
         onRefresh?.();
         onClose();
         setFormData({
-          source: 'INTERNAL',
+          source: defaultSource,
           status: 'NEW',
           productName: '',
           productCode: '',
@@ -130,9 +147,10 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh }: CreateDefect
           description: '',
           customerId: '',
           customerName: '',
+          customerAddress: '',
           orderNumber: '',
-          reporterName: 'Lê Công Vụ',
-          reporterDepartment: 'Ban Giám đốc',
+          reporterName: session?.user?.name || '',
+          reporterDepartment: (session?.user as any)?.departmentName || 'Phòng ban khác',
           assignedTo: employees.find(e => e.level === 'Trưởng phòng' || e.level === 'Trưởng bộ phận')?.fullName || employees[0]?.fullName || '',
           completionDate: '',
         });
@@ -151,32 +169,19 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh }: CreateDefect
   const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(formData.customerName.toLowerCase()));
 
   return (
-    <>
-      {show && (
-        <div 
-          className="offcanvas-backdrop fade show" 
-          onClick={onClose}
-          style={{ zIndex: 1040 }}
-        ></div>
-      )}
-
-      <div 
-        className={`offcanvas offcanvas-end shadow ${show ? 'show' : ''}`} 
-        tabIndex={-1} 
-        style={{ width: '400px', zIndex: 1045, visibility: show ? 'visible' : 'hidden' }}
-      >
-        <div className="offcanvas-header border-bottom bg-light">
-          <h6 className="offcanvas-title fw-bold">Tạo hồ sơ lỗi mới</h6>
-          <button type="button" className="btn-close shadow-none" onClick={onClose}></button>
-        </div>
-        
-        <div className="offcanvas-body d-flex flex-column p-0">
-          <form onSubmit={handleSubmit} className="d-flex flex-column h-100 overflow-hidden">
+    <Offcanvas 
+      show={show} 
+      onClose={onClose} 
+      title="Tạo hồ sơ lỗi mới"
+      width="400px"
+      bodyClassName="offcanvas-body d-flex flex-column p-0"
+    >
+      <form onSubmit={handleSubmit} className="d-flex flex-column h-100 overflow-hidden">
             <div className="p-3 flex-grow-1 overflow-auto">
               <div className="row g-2 mb-3">
                 <div className="col-7">
                   <label className="form-label fw-semibold text-muted" style={{ fontSize: 12 }}>Người tạo</label>
-                  <input type="text" className="form-control shadow-none bg-light" style={{ fontSize: 13 }} value="Lê Công Vụ" readOnly />
+                  <input type="text" className="form-control shadow-none bg-light" style={{ fontSize: 13 }} value={formData.reporterName} readOnly />
                 </div>
                 <div className="col-5">
                   <label className="form-label fw-semibold text-muted" style={{ fontSize: 12 }}>Ngày tạo</label>
@@ -250,7 +255,7 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh }: CreateDefect
                             className="px-3 py-2 border-bottom hover-bg-light"
                             style={{ fontSize: 13, cursor: 'pointer' }}
                             onMouseDown={() => {
-                              setFormData({ ...formData, customerId: c.id, customerName: c.name, orderNumber: '' });
+                              setFormData({ ...formData, customerId: c.id, customerName: c.name, customerAddress: c.address || '', orderNumber: '' });
                               setShowCustomerDropdown(false);
                             }}
                           >
@@ -364,6 +369,19 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh }: CreateDefect
               </div>
 
               <div className="mb-3">
+                <label className="form-label fw-semibold text-muted" style={{ fontSize: 12 }}>Mô tả hiện trạng <span className="text-danger">*</span></label>
+                <textarea 
+                  className="form-control shadow-none" 
+                  rows={4}
+                  style={{ fontSize: 13 }}
+                  placeholder="Mô tả chi tiết tình trạng lỗi..."
+                  value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  required
+                ></textarea>
+              </div>
+
+              <div className="mb-3">
                 <label className="form-label fw-semibold text-muted" style={{ fontSize: 12 }}>Đính kèm tệp</label>
                 <div 
                   className="border rounded p-3 text-center bg-light" 
@@ -399,19 +417,6 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh }: CreateDefect
                   </div>
                 )}
               </div>
-
-              <div className="mb-3">
-                <label className="form-label fw-semibold text-muted" style={{ fontSize: 12 }}>Mô tả hiện trạng <span className="text-danger">*</span></label>
-                <textarea 
-                  className="form-control shadow-none" 
-                  rows={4}
-                  style={{ fontSize: 13 }}
-                  placeholder="Mô tả chi tiết tình trạng lỗi..."
-                  value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  required
-                ></textarea>
-              </div>
             </div>
 
             <div className="p-3 border-top bg-light mt-auto d-flex justify-content-end gap-2">
@@ -433,8 +438,6 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh }: CreateDefect
               </BrandButton>
             </div>
           </form>
-        </div>
-      </div>
-    </>
+    </Offcanvas>
   );
 }

@@ -137,18 +137,20 @@ export async function GET(
         bom = invItem?.dinhMucs?.[0] || null;
       }
 
-      items.push({
-        id: orderItem.id,
-        tenHang: orderItem.tenHang,
-        soLuong: targetQty,
-        donGia: orderItem.donGia,
-        bomFound: !!bom,
-      });
-
+      const itemMaterials = [];
       if (bom) {
         for (const vt of bom.vatTu) {
           const matId = vt.inventoryItem?.id || vt.id; // Fallback if material is null
           const totalQty = vt.soLuong * targetQty;
+
+          itemMaterials.push({
+            id: matId,
+            tenVatTu: vt.inventoryItem?.tenHang || vt.tenVatTu,
+            code: vt.inventoryItem?.code || "-",
+            soLuong: totalQty,
+            donViTinh: vt.inventoryItem?.donVi || vt.donViTinh || "cái",
+            ghiChu: vt.ghiChu,
+          });
 
           if (materialMap.has(matId)) {
             const existing = materialMap.get(matId);
@@ -166,6 +168,16 @@ export async function GET(
           }
         }
       }
+
+      items.push({
+        id: orderItem.id,
+        tenHang: orderItem.tenHang,
+        soLuong: targetQty,
+        donGia: orderItem.donGia,
+        bomFound: !!bom,
+        bomCode: bom ? bom.code : null,
+        materials: itemMaterials,
+      });
     }
 
     const isCompleted =

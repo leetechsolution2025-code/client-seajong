@@ -18,7 +18,7 @@ export async function GET(_req: NextRequest) {
       prisma.contract.findMany({
         where: { trangThai: "active" },
         orderBy: { createdAt: "desc" },
-        take: 100,
+        take: 500,
         select: {
           id: true, code: true, trangThai: true,
           giaTriHopDong: true,
@@ -32,7 +32,7 @@ export async function GET(_req: NextRequest) {
           keToanDuyet: "approved"
         },
         orderBy: { createdAt: "desc" },
-        take: 100,
+        take: 500,
         select: {
           id: true, code: true, trangThai: true,
           tongTien: true,
@@ -45,7 +45,7 @@ export async function GET(_req: NextRequest) {
       prisma.retailInvoice.findMany({
         where: { trangThai: { in: ["partial", "pending", "unpaid"] } },
         orderBy: { createdAt: "desc" },
-        take: 100,
+        take: 500,
         select: {
           id: true, code: true, trangThai: true,
           tongCong: true, tenKhach: true, diaChi: true,
@@ -59,7 +59,7 @@ export async function GET(_req: NextRequest) {
           title: { contains: "Lệnh xuất kho KVP" }
         },
         orderBy: { createdAt: "desc" },
-        take: 100,
+        take: 500,
         select: {
           id: true, title: true, status: true,
           actualResult: true, createdAt: true,
@@ -78,7 +78,7 @@ export async function GET(_req: NextRequest) {
           ]
         },
         orderBy: { createdAt: "desc" },
-        take: 100,
+        take: 500,
         select: {
           id: true, title: true, status: true,
           actualResult: true, createdAt: true,
@@ -96,7 +96,7 @@ export async function GET(_req: NextRequest) {
       // Logistics Tickets (MỚI)
       (prisma as any).logisticsTicket.findMany({
         orderBy: { createdAt: "desc" },
-        take: 100,
+        take: 500,
         select: {
           id: true, code: true, status: true, type: true, createdAt: true,
           saleOrder: { 

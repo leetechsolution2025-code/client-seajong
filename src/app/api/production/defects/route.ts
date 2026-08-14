@@ -87,6 +87,7 @@ export async function POST(req: Request) {
         reporterDepartment: formData.get('reporterDepartment') as string || 'Unknown',
         customerName: formData.get('customerName') as string || null,
         customerId: formData.get('customerId') as string || null,
+        customerAddress: formData.get('customerAddress') as string || null,
         orderNumber: formData.get('orderNumber') as string || null,
         assignedTo: formData.get('assignedTo') as string || null,
         completionDate: formData.get('completionDate') ? new Date(formData.get('completionDate') as string) : null,

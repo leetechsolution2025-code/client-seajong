@@ -487,6 +487,11 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
           { name: "Tiêu chuẩn chất lượng", href: "/qa/standards", icon: "bi-award" },
         ]
       },
+      {
+        group: "Tổng hợp hàng lỗi", flat: true, items: [
+          { name: "Tổng hợp hàng lỗi", href: "/qa/defects-summary", icon: "bi-exclamation-triangle" },
+        ]
+      },
 
     ],
   },
