@@ -24,6 +24,40 @@ import { BaoGiaSanitaryModal } from "@/components/plan-finance/bao_gia/BaoGiaSan
 import { SignaturePad } from "@/components/ui/SignaturePad";
 import { BrandButton } from "@/components/ui/BrandButton";
 
+const AccordionSection = ({ title, titleColor = "#003087", titleStyle = {}, children, defaultOpen = false, rightElement = null }: any) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  return (
+    <div className="accordion-item">
+      <h2 className="accordion-header m-0 p-0">
+        <div 
+          role="button"
+          className={`accordion-button ${isOpen ? '' : 'collapsed'} py-2 px-3`} 
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest('.accordion-no-toggle') || (e.target as HTMLElement).tagName === 'INPUT') return;
+            setIsOpen(!isOpen);
+          }}
+        >
+          <div className="w-100 d-flex justify-content-between align-items-center me-3">
+            <h6 style={{ fontWeight: 800, color: titleColor, fontSize: 13, margin: 0, ...titleStyle }}>
+              {title}
+            </h6>
+            {rightElement && (
+              <div className="accordion-no-toggle" onClick={e => e.stopPropagation()}>
+                {rightElement}
+              </div>
+            )}
+          </div>
+        </div>
+      </h2>
+      <div className={`accordion-collapse collapse ${isOpen ? 'show' : ''}`}>
+        <div className="accordion-body p-3 bg-white">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface PartnerProcessItem {
   id: string;
   name: string;
@@ -182,6 +216,7 @@ interface PartnerProcessItem {
   plPhase3Amount?: string;
   plPhase3AmountText?: string;
   plPenaltyMaxDelay?: string;
+  plCustomClauses?: { title: string; content: string }[];
 }
 
 export interface PartnerQuoteNegotiationItem {
@@ -901,6 +936,7 @@ export default function PartnersPage() {
   const [plPhase3Amount, setPlPhase3Amount] = useState("3.220.000");
   const [plPhase3AmountText, setPlPhase3AmountText] = useState("Ba triệu hai trăm hai mươi nghìn đồng");
   const [plPenaltyMaxDelay, setPlPenaltyMaxDelay] = useState("4");
+  const [plCustomClauses, setPlCustomClauses] = useState<{ title: string; content: string }[]>([]);
 
   const handleOpenEditQuotation = async (quoteId: string) => {
     try {
@@ -3542,6 +3578,7 @@ export default function PartnersPage() {
     setPlPhase3AmountText(selectedPartner.plPhase3AmountText || "Ba triệu hai trăm hai mươi nghìn đồng");
 
     setPlPenaltyMaxDelay(selectedPartner.plPenaltyMaxDelay || "4");
+    setPlCustomClauses(selectedPartner.plCustomClauses || []);
 
     setHdANguoiKy(selectedPartner.hdANguoiKy || companyInfo?.legalRep || "Lê Công Vụ");
     setHdAChucVu(selectedPartner.hdAChucVu || "Giám đốc");
@@ -3596,6 +3633,7 @@ export default function PartnersPage() {
           plPhase3Amount,
           plPhase3AmountText,
           plPenaltyMaxDelay,
+          plCustomClauses,
           hdANguoiKy,
           hdAChucVu,
           hdB_Ten,
@@ -5079,10 +5117,24 @@ export default function PartnersPage() {
             </ul>
           </div>
 
+          {/* Custom clauses */}
+          {plCustomClauses.map((clause, index) => (
+            <div key={index} style={{ marginBottom: 12 }}>
+              <div style={{ color: "#003087", padding: "2px 0px", fontWeight: "bold", fontSize: "11px", marginBottom: "4px" }}>
+                {6 + index}. {clause.title}
+              </div>
+              <ul style={{ margin: "0", paddingLeft: 18, fontSize: "12px", lineHeight: 1.45 }}>
+                {clause.content.split('\n').filter(line => line.trim() !== '').map((line, i) => (
+                  <li key={i} style={{ whiteSpace: "pre-wrap" }}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+
           {/* Section 6 */}
           <div style={{ marginBottom: 10 }}>
             <div style={{ color: "#003087", padding: "2px 0px", fontWeight: "bold", fontSize: "11px", marginBottom: "4px" }}>
-              6. Cam kết
+              {6 + plCustomClauses.length}. Cam kết
             </div>
             <div style={{ paddingLeft: 8, fontSize: "12px", lineHeight: 1.4, textAlign: "justify" }}>
               <div style={{ fontWeight: "bold", marginBottom: 2 }}>Bên A: CÔNG TY CỔ PHẦN SEAJONG FAUCET VIỆT NAM</div>
@@ -5587,6 +5639,7 @@ export default function PartnersPage() {
         plPhase3Amount: "",
         plPhase3AmountText: "",
         plPenaltyMaxDelay: "",
+        plCustomClauses: [],
         plPdf: "",
         step: 6 // Move partner to "Đã từ bỏ" (step 6)
       };
@@ -10990,12 +11043,9 @@ export default function PartnersPage() {
               flexShrink: 0
             }}>
               <div style={{ padding: "16px", overflowY: "auto", flexGrow: 1 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div className="accordion">
                   {/* Section A: Thông tin chung */}
-                  <div>
-                    <h6 style={{ fontWeight: 800, color: "#003087", fontSize: 12, paddingBottom: 4, textTransform: "uppercase", marginBottom: 10 }}>
-                      Thông tin chung hợp đồng
-                    </h6>
+                  <AccordionSection title="Thông tin chung hợp đồng" titleColor="#003087" titleStyle={{ paddingBottom: 4 }}>
                     <div className="row g-2">
                       <div className="col-6">
                         <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Số hợp đồng</label>
@@ -11028,13 +11078,10 @@ export default function PartnersPage() {
                         />
                       </div>
                     </div>
-                  </div>
+                  </AccordionSection>
 
                   {/* Section B: Bên A */}
-                  <div>
-                    <h6 style={{ fontWeight: 800, color: "#003087", fontSize: 12, paddingBottom: 4, textTransform: "uppercase", marginBottom: 10 }}>
-                      Bên A (Bên giao đại lý)
-                    </h6>
+                  <AccordionSection title="Bên A (Bên giao đại lý)" titleColor="#003087" titleStyle={{ paddingBottom: 4 }}>
                     <div className="row g-2">
                       <div className="col-6">
                         <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Đại diện</label>
@@ -11057,13 +11104,10 @@ export default function PartnersPage() {
                         />
                       </div>
                     </div>
-                  </div>
+                  </AccordionSection>
 
                   {/* Section C: Bên B */}
-                  <div>
-                    <h6 style={{ fontWeight: 800, color: "#ef4444", fontSize: 12, paddingBottom: 4, textTransform: "uppercase", marginBottom: 10 }}>
-                      Bên B (Bên nhận đại lý)
-                    </h6>
+                  <AccordionSection title="Bên B (Bên nhận đại lý)" titleColor="#ef4444" titleStyle={{ paddingBottom: 4 }}>
                     <div className="row g-2">
                       <div className="col-12">
                         <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Tên Công ty / Cửa hàng</label>
@@ -11140,13 +11184,10 @@ export default function PartnersPage() {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </AccordionSection>
 
                   {/* Section D: Điều khoản Showroom */}
-                  <div>
-                    <h6 style={{ fontWeight: 800, color: "#000", fontSize: 12, borderBottom: "1.5px solid #475569", paddingBottom: 4, textTransform: "uppercase", marginBottom: 10 }}>
-                      Điều khoản Showroom
-                    </h6>
+                  <AccordionSection title="Điều khoản Showroom" titleColor="#000" titleStyle={{ paddingBottom: 4 }}>
                     <div className="row g-2">
                       <div className="col-12">
                         <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Địa chỉ Showroom trưng bày</label>
@@ -11169,13 +11210,10 @@ export default function PartnersPage() {
                         />
                       </div>
                     </div>
-                  </div>
+                  </AccordionSection>
 
                   {/* Section E: Chỉ tiêu & Độc quyền */}
-                  <div>
-                    <h6 style={{ fontWeight: 800, color: "#000", fontSize: 12, borderBottom: "1.5px solid #475569", paddingBottom: 4, textTransform: "uppercase", marginBottom: 10 }}>
-                      Chỉ tiêu doanh số & Độc quyền
-                    </h6>
+                  <AccordionSection title="Chỉ tiêu doanh số & Độc quyền" titleColor="#000" titleStyle={{ paddingBottom: 4 }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                       <div>
                         <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Doanh số cam kết năm (VNĐ)</label>
@@ -11228,7 +11266,7 @@ export default function PartnersPage() {
                         />
                       </div>
                     </div>
-                  </div>
+                  </AccordionSection>
                 </div>
               </div>
             </div>
@@ -11326,12 +11364,9 @@ export default function PartnersPage() {
               flexShrink: 0
             }}>
               <div style={{ padding: "16px", overflowY: "auto", flexGrow: 1 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div className="accordion">
                   {/* Section A: Thông tin chung */}
-                  <div>
-                    <h6 style={{ fontWeight: 800, color: "#003087", fontSize: 12, paddingBottom: 4, textTransform: "uppercase", marginBottom: 10 }}>
-                      Thông tin chung phụ lục
-                    </h6>
+                  <AccordionSection title="Thông tin chung phụ lục" titleColor="#003087" titleStyle={{ paddingBottom: 4 }}>
                     <div className="row g-2">
                       <div className="col-6">
                         <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Số phụ lục</label>
@@ -11364,13 +11399,10 @@ export default function PartnersPage() {
                         />
                       </div>
                     </div>
-                  </div>
+                  </AccordionSection>
 
                   {/* Section B: Chi phí & Doanh thu */}
-                  <div>
-                    <h6 style={{ fontWeight: 800, color: "#003087", fontSize: 12, paddingBottom: 4, textTransform: "uppercase", marginBottom: 10 }}>
-                      Chi phí & Doanh thu cam kết
-                    </h6>
+                  <AccordionSection title="Chi phí & Doanh thu cam kết" titleColor="#003087" titleStyle={{ paddingBottom: 4 }}>
                     <div className="row g-2">
                       <div className="col-12">
                         <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Chi phí thi công (CPTC)</label>
@@ -11433,13 +11465,10 @@ export default function PartnersPage() {
                         />
                       </div>
                     </div>
-                  </div>
+                  </AccordionSection>
 
                   {/* Section C: Thời gian thi công */}
-                  <div>
-                    <h6 style={{ fontWeight: 800, color: "#000", fontSize: 12, borderBottom: "1.5px solid #475569", paddingBottom: 4, textTransform: "uppercase", marginBottom: 10 }}>
-                      Thời gian & Tiến độ thi công
-                    </h6>
+                  <AccordionSection title="Thời gian & Tiến độ thi công" titleColor="#000" titleStyle={{ paddingBottom: 4 }}>
                     <div className="row g-2">
                       <div className="col-6">
                         <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Tổng thời gian (Ngày)</label>
@@ -11466,7 +11495,7 @@ export default function PartnersPage() {
                         />
                       </div>
                       <div className="col-12">
-                        <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Timeline Đo đạc & Thiết kế 3D</label>
+                        <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Đo đạc & Thiết kế 3D</label>
                         <input
                           type="text"
                           className="form-control form-control-sm rounded-2 shadow-none border"
@@ -11477,7 +11506,7 @@ export default function PartnersPage() {
                         />
                       </div>
                       <div className="col-12">
-                        <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Timeline Chuẩn bị nguyên vật liệu</label>
+                        <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Chuẩn bị nguyên vật liệu</label>
                         <input
                           type="text"
                           className="form-control form-control-sm rounded-2 shadow-none border"
@@ -11488,7 +11517,7 @@ export default function PartnersPage() {
                         />
                       </div>
                       <div className="col-12">
-                        <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Timeline Thi công, lắp đặt quầy kệ</label>
+                        <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Thi công, lắp đặt quầy kệ</label>
                         <input
                           type="text"
                           className="form-control form-control-sm rounded-2 shadow-none border"
@@ -11499,7 +11528,7 @@ export default function PartnersPage() {
                         />
                       </div>
                       <div className="col-12">
-                        <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Timeline Lắp sản phẩm trưng bày</label>
+                        <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Lắp sản phẩm trưng bày</label>
                         <input
                           type="text"
                           className="form-control form-control-sm rounded-2 shadow-none border"
@@ -11510,7 +11539,7 @@ export default function PartnersPage() {
                         />
                       </div>
                       <div className="col-12">
-                        <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Timeline Bàn giao, nghiệm thu</label>
+                        <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Bàn giao, nghiệm thu</label>
                         <input
                           type="text"
                           className="form-control form-control-sm rounded-2 shadow-none border"
@@ -11521,19 +11550,16 @@ export default function PartnersPage() {
                         />
                       </div>
                     </div>
-                  </div>
+                  </AccordionSection>
 
                   {/* Section D: Tiến độ thanh toán */}
-                  <div>
-                    <h6 style={{ fontWeight: 800, color: "#ef4444", fontSize: 12, paddingBottom: 4, textTransform: "uppercase", marginBottom: 10 }}>
-                      Tiến độ thanh toán CPTC
-                    </h6>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <AccordionSection title="Tiến độ thanh toán CPTC" titleColor="#003087" titleStyle={{ paddingBottom: 4 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                       {/* Đợt 1 */}
-                      <div className="border p-2 rounded-2 bg-light/30">
+                      <div>
                         <div style={{ fontSize: 11, fontWeight: "bold", color: "#003087", marginBottom: 6 }}>Thanh toán Đợt 1</div>
                         <div className="row g-2">
-                          <div className="col-6">
+                          <div className="col-12">
                             <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Mốc thời gian</label>
                             <input
                               type="text"
@@ -11544,18 +11570,18 @@ export default function PartnersPage() {
                               onChange={(e) => setPlPhase1Date(e.target.value)}
                             />
                           </div>
-                          <div className="col-6">
-                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Tỷ lệ thanh toán</label>
+                          <div className="col-4">
+                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Tỷ lệ</label>
                             <input
                               type="text"
-                              className="form-control form-control-sm rounded-2 shadow-none border"
+                              className="form-control form-control-sm rounded-2 shadow-none border text-center"
                               style={{ fontSize: 11 }}
                               value={plPhase1Rate}
                               onChange={(e) => setPlPhase1Rate(e.target.value)}
                             />
                           </div>
-                          <div className="col-12">
-                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Số tiền đợt 1</label>
+                          <div className="col-8">
+                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Số tiền</label>
                             <input
                               type="text"
                               className="form-control form-control-sm rounded-2 shadow-none border font-monospace"
@@ -11564,24 +11590,14 @@ export default function PartnersPage() {
                               onChange={(e) => handleCurrencyChange(e.target.value, setPlPhase1Amount)}
                             />
                           </div>
-                          <div className="col-12">
-                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Số tiền đợt 1 bằng chữ</label>
-                            <input
-                              type="text"
-                              className="form-control form-control-sm rounded-2 shadow-none border"
-                              style={{ fontSize: 11 }}
-                              value={plPhase1AmountText}
-                              onChange={(e) => setPlPhase1AmountText(e.target.value)}
-                            />
-                          </div>
                         </div>
                       </div>
 
                       {/* Đợt 2 */}
-                      <div className="border p-2 rounded-2 bg-light/30">
+                      <div>
                         <div style={{ fontSize: 11, fontWeight: "bold", color: "#003087", marginBottom: 6 }}>Thanh toán Đợt 2</div>
                         <div className="row g-2">
-                          <div className="col-6">
+                          <div className="col-12">
                             <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Mốc thời gian</label>
                             <input
                               type="text"
@@ -11592,18 +11608,18 @@ export default function PartnersPage() {
                               onChange={(e) => setPlPhase2Date(e.target.value)}
                             />
                           </div>
-                          <div className="col-6">
-                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Tỷ lệ thanh toán</label>
+                          <div className="col-4">
+                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Tỷ lệ</label>
                             <input
                               type="text"
-                              className="form-control form-control-sm rounded-2 shadow-none border"
+                              className="form-control form-control-sm rounded-2 shadow-none border text-center"
                               style={{ fontSize: 11 }}
                               value={plPhase2Rate}
                               onChange={(e) => setPlPhase2Rate(e.target.value)}
                             />
                           </div>
-                          <div className="col-12">
-                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Số tiền đợt 2</label>
+                          <div className="col-8">
+                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Số tiền</label>
                             <input
                               type="text"
                               className="form-control form-control-sm rounded-2 shadow-none border font-monospace"
@@ -11612,24 +11628,14 @@ export default function PartnersPage() {
                               onChange={(e) => handleCurrencyChange(e.target.value, setPlPhase2Amount)}
                             />
                           </div>
-                          <div className="col-12">
-                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Số tiền đợt 2 bằng chữ</label>
-                            <input
-                              type="text"
-                              className="form-control form-control-sm rounded-2 shadow-none border"
-                              style={{ fontSize: 11 }}
-                              value={plPhase2AmountText}
-                              onChange={(e) => setPlPhase2AmountText(e.target.value)}
-                            />
-                          </div>
                         </div>
                       </div>
 
                       {/* Đợt 3 */}
-                      <div className="border p-2 rounded-2 bg-light/30">
+                      <div>
                         <div style={{ fontSize: 11, fontWeight: "bold", color: "#003087", marginBottom: 6 }}>Thanh toán Đợt 3</div>
                         <div className="row g-2">
-                          <div className="col-6">
+                          <div className="col-12">
                             <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Mốc thời gian</label>
                             <input
                               type="text"
@@ -11640,18 +11646,18 @@ export default function PartnersPage() {
                               onChange={(e) => setPlPhase3Date(e.target.value)}
                             />
                           </div>
-                          <div className="col-6">
-                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Tỷ lệ thanh toán</label>
+                          <div className="col-4">
+                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Tỷ lệ</label>
                             <input
                               type="text"
-                              className="form-control form-control-sm rounded-2 shadow-none border"
+                              className="form-control form-control-sm rounded-2 shadow-none border text-center"
                               style={{ fontSize: 11 }}
                               value={plPhase3Rate}
                               onChange={(e) => setPlPhase3Rate(e.target.value)}
                             />
                           </div>
-                          <div className="col-12">
-                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Số tiền đợt 3</label>
+                          <div className="col-8">
+                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Số tiền</label>
                             <input
                               type="text"
                               className="form-control form-control-sm rounded-2 shadow-none border font-monospace"
@@ -11660,26 +11666,15 @@ export default function PartnersPage() {
                               onChange={(e) => handleCurrencyChange(e.target.value, setPlPhase3Amount)}
                             />
                           </div>
-                          <div className="col-12">
-                            <label className="form-label small fw-bold text-secondary mb-0.5" style={{ fontSize: 9 }}>Số tiền đợt 3 bằng chữ</label>
-                            <input
-                              type="text"
-                              className="form-control form-control-sm rounded-2 shadow-none border"
-                              style={{ fontSize: 11 }}
-                              value={plPhase3AmountText}
-                              onChange={(e) => setPlPhase3AmountText(e.target.value)}
-                            />
-                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </AccordionSection>
+
+
 
                   {/* Section E: Phạt chậm trễ */}
-                  <div>
-                    <h6 style={{ fontWeight: 800, color: "#000", fontSize: 12, borderBottom: "1.5px solid #475569", paddingBottom: 4, textTransform: "uppercase", marginBottom: 10 }}>
-                      Mức phạt thi công chậm trễ
-                    </h6>
+                  <AccordionSection title="Mức phạt thi công chậm trễ" titleColor="#000" titleStyle={{ paddingBottom: 4 }}>
                     <div className="row g-2">
                       <div className="col-12">
                         <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Thời gian tối đa cam kết trước phạt (Ngày)</label>
@@ -11692,7 +11687,60 @@ export default function PartnersPage() {
                         />
                       </div>
                     </div>
-                  </div>
+                  </AccordionSection>
+
+                  {/* Section F: Các điều khoản bổ sung */}
+                  <AccordionSection 
+                    title="Các điều khoản bổ sung" 
+                    titleColor="#000" 
+                    titleStyle={{ margin: 0 }}
+                    rightElement={<button type="button" className="btn btn-sm btn-outline-primary" style={{ fontSize: 10, padding: "2px 6px" }} onClick={() => setPlCustomClauses([...plCustomClauses, { title: "", content: "" }])}>+ Thêm điều khoản</button>}
+                  >
+                    
+                    {plCustomClauses.map((clause, index) => (
+                      <div key={index} className="mb-2 border p-2 rounded position-relative" style={{ background: "#f8fafc" }}>
+                        <button 
+                          type="button"
+                          className="btn-close position-absolute"
+                          style={{ top: "6px", right: "6px", fontSize: "10px" }}
+                          onClick={() => {
+                            const newClauses = [...plCustomClauses];
+                            newClauses.splice(index, 1);
+                            setPlCustomClauses(newClauses);
+                          }}
+                        ></button>
+                        <div className="row g-2">
+                          <div className="col-12 pr-4">
+                            <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Tiêu đề (VD: Hỗ trợ vận chuyển)</label>
+                            <input
+                              type="text"
+                              className="form-control form-control-sm shadow-none border"
+                              style={{ fontSize: 12 }}
+                              value={clause.title}
+                              onChange={(e) => {
+                                const newClauses = [...plCustomClauses];
+                                newClauses[index].title = e.target.value;
+                                setPlCustomClauses(newClauses);
+                              }}
+                            />
+                          </div>
+                          <div className="col-12">
+                            <label className="form-label small fw-bold text-secondary mb-1" style={{ fontSize: 10 }}>Nội dung chi tiết</label>
+                            <textarea
+                              className="form-control form-control-sm shadow-none border"
+                              style={{ fontSize: 12, minHeight: "100px" }}
+                              value={clause.content}
+                              onChange={(e) => {
+                                const newClauses = [...plCustomClauses];
+                                newClauses[index].content = e.target.value;
+                                setPlCustomClauses(newClauses);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </AccordionSection>
                 </div>
               </div>
             </div>
