@@ -750,6 +750,8 @@ model PurchaseOrderItem {
   donGia              Float                @default(0)
   thanhTien           Float                @default(0)
   soLuongDaNhan       Float                @default(0)
+  dinhMucId           String?
+  dinhMuc             DinhMuc?             @relation(fields: [dinhMucId], references: [id])
   ghiChu              String?
   sortOrder           Int                  @default(0)
   ngayGiao            DateTime?
@@ -942,6 +944,7 @@ model DinhMuc {
   vatTu           DinhMucVatTu[]
   inventoryItemId String?
   inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  purchaseOrderItems PurchaseOrderItem[]
 
   @@index([code])
   @@index([inventoryItemId])

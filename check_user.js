@@ -2,9 +2,10 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  const defect = await prisma.defectRecord.findFirst({
-    orderBy: { createdAt: 'desc' }
+  const user = await prisma.user.findFirst({
+    where: { name: "Phạm Quang Việt" },
+    include: { employee: true }
   });
-  console.log(defect);
+  console.log(user);
 }
 main().finally(() => prisma.$disconnect());

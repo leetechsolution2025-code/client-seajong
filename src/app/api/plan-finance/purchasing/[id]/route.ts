@@ -21,6 +21,7 @@ export async function GET(
         items: {
           include: {
             inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true, imageUrl: true } },
+            dinhMuc: { select: { code: true } }
           },
           orderBy: { sortOrder: "asc" },
         },
@@ -68,7 +69,8 @@ export async function PATCH(
           supplier: { select: { id: true, name: true, address: true, phone: true, email: true } },
           items: {
             include: {
-              inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true, imageUrl: true } }
+              inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true, imageUrl: true } },
+              dinhMuc: { select: { code: true } }
             },
             orderBy: { sortOrder: "asc" }
           }
@@ -242,7 +244,8 @@ export async function PATCH(
           inventoryItemId: item.inventoryItem?.id || null,
           model: item.inventoryItem?.code || null,
           quantity: item.soLuong,
-          unit: item.donVi
+          unit: item.donVi,
+          bomCode: item.dinhMuc?.code || null
         }));
 
         await prisma.qualityInspection.create({
@@ -316,9 +319,58 @@ export async function DELETE(
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id } = await params;
-    await prisma.purchaseOrder.delete({
-      where: { id }
+    
+    await prisma.$transaction(async (tx) => {
+      // 1. Get PO items to reset PurchaseRequestItems
+      const poItems = await tx.purchaseOrderItem.findMany({
+        where: { purchaseOrderId: id },
+        select: { id: true }
+      });
+      const poItemIds = poItems.map((i: any) => i.id);
+
+      // 2. Reset PurchaseRequestItems linked to these PO items
+      if (poItemIds.length > 0) {
+        // Lấy danh sách PurchaseRequest bị ảnh hưởng TRƯỚC KHI update null
+        const affectedPrItems = await (tx as any).purchaseRequestItem.findMany({
+          where: { purchaseOrderItemId: { in: poItemIds } },
+          select: { purchaseRequestId: true }
+        });
+        const prIds = [...new Set(affectedPrItems.map((i: any) => i.purchaseRequestId))] as string[];
+
+        // Cập nhật lại các item
+        await (tx as any).purchaseRequestItem.updateMany({
+          where: { purchaseOrderItemId: { in: poItemIds } },
+          data: {
+            trangThaiXuLy: "cho-xu-ly",
+            purchaseOrderItemId: null
+          }
+        });
+        
+        // Cập nhật lại trạng thái PurchaseRequest
+        for (const prId of prIds) {
+          if (prId) {
+            await (tx as any).purchaseRequest.update({
+               where: { id: prId },
+               data: { trangThai: "dang-xu-ly" } // Đang xử lý vì có item quay lại "cho-xu-ly"
+            });
+          }
+        }
+      }
+
+      // 3. Delete related ApprovalRequests
+      await tx.approvalRequest.deleteMany({
+        where: {
+          entityType: "purchase_order",
+          entityId: id
+        }
+      });
+
+      // 4. Delete the PurchaseOrder
+      await tx.purchaseOrder.delete({
+        where: { id }
+      });
     });
+
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error("[DELETE /purchasing/[id]]", e);
@@ -458,7 +510,8 @@ export async function PUT(
           supplier: { select: { id: true, name: true, address: true, phone: true, email: true } },
           items: {
             include: {
-              inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true, imageUrl: true } }
+              inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true, imageUrl: true } },
+              dinhMuc: { select: { code: true } }
             },
             orderBy: { sortOrder: "asc" }
           }
@@ -476,16 +529,30 @@ export async function PUT(
       });
 
       // 2. Tạo các items mới
-      const newItems = items.map((item, idx) => ({
-        inventoryItemId: item.inventoryItemId,
-        tenHang: item.tenHang,
-        donVi: item.donVi,
-        soLuong: item.soLuong,
-        donGia: item.donGia,
-        thanhTien: item.soLuong * item.donGia,
-        ghiChu: item.ghiChu,
-        sortOrder: idx,
-        ngayGiao: item.ngayGiao ? new Date(item.ngayGiao) : null,
+      const newItems = await Promise.all(items.map(async (item: any, idx: number) => {
+        let dinhMucId = null;
+        if (item.inventoryItemId) {
+           const invItem = await tx.inventoryItem.findUnique({
+              where: { id: item.inventoryItemId },
+              include: { dinhMucs: { orderBy: { createdAt: 'desc' } } }
+           });
+           if (invItem && invItem.dinhMucs.length > 0) {
+              const stdBom = invItem.dinhMucs.find(d => d.code === `DM-${invItem.model}`) || invItem.dinhMucs[0];
+              dinhMucId = stdBom.id;
+           }
+        }
+        return {
+          inventoryItemId: item.inventoryItemId,
+          tenHang: item.tenHang,
+          donVi: item.donVi,
+          soLuong: item.soLuong,
+          donGia: item.donGia,
+          thanhTien: item.soLuong * item.donGia,
+          ghiChu: item.ghiChu,
+          sortOrder: idx,
+          ngayGiao: item.ngayGiao ? new Date(item.ngayGiao) : null,
+          dinhMucId
+        };
       }));
 
       // 3. Cập nhật PurchaseOrder
@@ -504,7 +571,8 @@ export async function PUT(
           supplier: { select: { id: true, name: true, address: true, phone: true, email: true } },
           items: {
             include: {
-              inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true, imageUrl: true } }
+              inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true, imageUrl: true } },
+              dinhMuc: { select: { code: true } }
             },
             orderBy: { sortOrder: "asc" }
           }

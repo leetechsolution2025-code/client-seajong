@@ -122,6 +122,7 @@ export default function QaPage() {
           ...it,
           model: it.model || it.productCode || it.code || it.sku || selectedInspection.model || "",
           batch: it.batch || selectedInspection.metadata.batch || "",
+          bomCode: it.bomCode || it.dinhMucCode || selectedInspection.metadata.bomCode || "",
           sampleQuantity: it.sampleQuantity || "",
           passQuantity: it.passQuantity || "",
           failQuantity: it.failQuantity || "",
@@ -134,6 +135,7 @@ export default function QaPage() {
           productName: selectedInspection.product || "",
           model: selectedInspection.model || selectedInspection.metadata.model || "",
           batch: selectedInspection.metadata.batch || "",
+          bomCode: selectedInspection.metadata.bomCode || "",
           quantity: selectedInspection.metadata.quantity || "",
           sampleQuantity: "",
           passQuantity: "",
@@ -977,6 +979,7 @@ export default function QaPage() {
                               <td className="border-dark text-start">
                                 <div className="fw-bold">{item.productName}</div>
                                 <div className="text-muted small mb-1">Mã SP: {item.model} {item.batch ? `| Lô: ${item.batch}` : ""}</div>
+                                <div className="text-muted small mb-1">Mã định mức: <span className="fw-medium text-dark">{item.bomCode || "Không có dữ liệu"}</span></div>
                                 {item.comment && (
                                   <div className="mt-1 p-2 bg-light border-start border-3 border-secondary rounded" style={{ fontSize: "9pt" }}>
                                     <div className="fw-bold text-muted mb-1" style={{ fontSize: "8.5pt" }}>QC nhận xét:</div>
@@ -1277,6 +1280,7 @@ export default function QaPage() {
                             <td className="border-dark text-start">
                               <div className="fw-bold">{selectedInspection.product}</div>
                               <div className="text-muted small mb-1">Mã SP: {oqcFormData.model} {oqcFormData.batch ? `| Lô: ${oqcFormData.batch}` : ""}</div>
+                              <div className="text-muted small mb-1">Mã định mức: <span className="fw-medium text-dark">{oqcFormData.bomCode || "Không có dữ liệu"}</span></div>
                               {oqcFormData.rejectReason && (
                                 <div className="mt-1 p-2 bg-light border-start border-3 border-secondary rounded" style={{ fontSize: "9pt" }}>
                                   <div className="fw-bold text-muted mb-1" style={{ fontSize: "8.5pt" }}>QC nhận xét:</div>

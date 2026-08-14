@@ -28,27 +28,43 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     let bomCode = null;
     let bomItems: any[] = [];
-    if (defect.productCode) {
-      const inventoryItem = await (prisma as any).inventoryItem.findUnique({
-        where: { code: defect.productCode },
-        include: { 
-          dinhMucs: { 
-            take: 1, 
-            orderBy: { createdAt: 'desc' },
+    
+    let overrideBomCode = null;
+    if (defect.orderNumber) {
+      if (defect.orderNumber.startsWith("QC-")) {
+        const inspection = await prisma.qualityInspection.findUnique({ where: { code: defect.orderNumber } });
+        if (inspection && inspection.metadata) {
+          try {
+            const meta = JSON.parse(inspection.metadata);
+            if (meta.bomCode) overrideBomCode = meta.bomCode;
+          } catch (e) {}
+        }
+      } else if (defect.orderNumber.startsWith("SO-")) {
+        const saleOrder = await (prisma as any).saleOrder.findUnique({
+          where: { code: defect.orderNumber },
+          include: { saleOrderItems: { include: { inventoryItem: true, dinhMuc: true } } }
+        });
+        if (saleOrder) {
+          const item = saleOrder.saleOrderItems.find((i: any) => i.inventoryItem?.code === defect.productCode || i.inventoryItem?.model === defect.productCode);
+          if (item && item.dinhMuc) overrideBomCode = item.dinhMuc.code;
+        }
+      }
+    }
+
+    if (overrideBomCode) {
+      const specificDinhMuc = await prisma.dinhMuc.findUnique({
+        where: { code: overrideBomCode },
+        include: {
+          vatTu: {
             include: {
-              vatTu: {
-                include: {
-                  inventoryItem: { select: { soLuong: true, tenHang: true } }
-                }
-              }
+              inventoryItem: { select: { soLuong: true, tenHang: true } }
             }
-          } 
+          }
         }
       });
-      if (inventoryItem?.dinhMucs?.length > 0) {
-        const latestDinhMuc = inventoryItem.dinhMucs[0];
-        bomCode = latestDinhMuc.code;
-        bomItems = latestDinhMuc.vatTu.map((vt: any) => ({
+      if (specificDinhMuc) {
+        bomCode = specificDinhMuc.code;
+        bomItems = specificDinhMuc.vatTu.map((vt: any) => ({
           id: vt.maVatTu || vt.id,
           realInventoryItemId: vt.inventoryItem?.id,
           name: vt.inventoryItem?.tenHang || vt.tenVatTu,
@@ -58,6 +74,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         }));
       }
     }
+
+
 
     return NextResponse.json({
       ...defect,

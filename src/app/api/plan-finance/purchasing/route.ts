@@ -78,15 +78,29 @@ export async function POST(req: NextRequest) {
         ...(ngayNhan   && { ngayNhan: new Date(ngayNhan) }),
         ...(items && Array.isArray(items) && items.length > 0 && {
           items: {
-            create: items.map((i: any, index: number) => ({
-              inventoryItemId: i.inventoryItemId || null,
-              tenHang: i.tenHang,
-              donVi: i.donVi || null,
-              soLuong: parseFloat(i.soLuong) || 1,
-              donGia: parseFloat(i.donGia) || 0,
-              thanhTien: parseFloat(i.thanhTien) || 0,
-              ghiChu: i.ghiChu || null,
-              sortOrder: index,
+            create: await Promise.all(items.map(async (i: any, index: number) => {
+              let dinhMucId = null;
+              if (i.inventoryItemId) {
+                const invItem = await prisma.inventoryItem.findUnique({
+                   where: { id: i.inventoryItemId },
+                   include: { dinhMucs: { orderBy: { createdAt: 'desc' } } }
+                });
+                if (invItem && invItem.dinhMucs.length > 0) {
+                   const stdBom = invItem.dinhMucs.find(d => d.code === `DM-${invItem.model}`) || invItem.dinhMucs[0];
+                   dinhMucId = stdBom.id;
+                }
+              }
+              return {
+                inventoryItemId: i.inventoryItemId || null,
+                tenHang: i.tenHang,
+                donVi: i.donVi || null,
+                soLuong: parseFloat(i.soLuong) || 1,
+                donGia: parseFloat(i.donGia) || 0,
+                thanhTien: parseFloat(i.thanhTien) || 0,
+                ghiChu: i.ghiChu || null,
+                sortOrder: index,
+                dinhMucId
+              };
             }))
           }
         }),

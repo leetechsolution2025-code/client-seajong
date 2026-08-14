@@ -77,11 +77,16 @@ export function DefectSummaryOffcanvas({ defectId, defect, onClose, onRefresh, o
                 <div className="text-muted small">Sản phẩm</div>
                 <div className="fw-bold text-primary">{defect.productName}</div>
                 <div className="text-muted">{defect.productCode} - SL: <span className="text-danger fw-bold">{defect.quantity}</span></div>
+                <div className="text-muted mt-1" style={{ fontSize: '13px' }}>
+                  Mã định mức: <span className="fw-medium text-dark">{defect.bomCode || "Không có định mức"}</span>
+                </div>
               </div>
 
               <div className="p-3 bg-light rounded border">
                 <div className="text-muted small mb-1">Mô tả hiện trạng</div>
-                <div className="fw-medium">{defect.description}</div>
+                <div className="fw-medium" style={{ whiteSpace: 'pre-wrap' }}>
+                  {defect.description?.split('\nNhận xét QC:')[0]?.trim() || defect.description}
+                </div>
               </div>
 
               {defect.source === 'WARRANTY' && (
@@ -114,7 +119,17 @@ export function DefectSummaryOffcanvas({ defectId, defect, onClose, onRefresh, o
                   <div className="card-body">
                     <div className="mb-2">
                       <div className="text-muted small">Bộ phận / Người phát hiện</div>
-                      <div className="fw-medium">{defect.reporterName} - {defect.reporterDepartment}</div>
+                      <div className="fw-medium">
+                        {defect.reporterName} - {(() => {
+                          const dept = (defect.reporterDepartment || "").toLowerCase();
+                          if (dept === "qa") return "Quản lý Chất lượng (QA)";
+                          if (dept === "production") return "Sản xuất";
+                          if (dept === "logistics") return "Kho vận";
+                          if (dept === "sales") return "Kinh doanh";
+                          if (dept === "customer_service") return "CSKH";
+                          return defect.reporterDepartment || "Khác";
+                        })()}
+                      </div>
                     </div>
                     <div>
                       <div className="text-muted small">Trách nhiệm xử lý hiện tại</div>

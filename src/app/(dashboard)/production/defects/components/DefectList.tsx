@@ -37,7 +37,9 @@ export function DefectList({ data, onSelect }: DefectListProps) {
           </tr>
         </thead>
         <tbody style={{ fontSize: '13px' }}>
-          {data && data.length > 0 ? data.map(defect => (
+          {data && data.length > 0 ? data.map(defect => {
+            const displayDesc = defect.description?.split('\nNhận xét QC:')[0]?.trim() || defect.description;
+            return (
             <tr key={defect.id} onClick={() => onSelect(defect.id)} style={{ cursor: 'pointer' }}>
               <td>
                 <div className="d-flex align-items-center">
@@ -54,21 +56,44 @@ export function DefectList({ data, onSelect }: DefectListProps) {
               </td>
               <td style={{ maxWidth: '250px' }}>
                 <div className="fw-medium text-dark text-truncate" title={defect.productName}>{defect.productName}</div>
-                <div className="text-muted small">{defect.productCode} - SL: {defect.quantity}</div>
+                <div className="text-muted small">
+                  {defect.productCode} - SL: {defect.quantity}
+                </div>
+                <div className="text-muted small mt-1">
+                  Mã định mức: <span className="fw-medium text-dark">{defect.bomCode || "Không có định mức"}</span>
+                </div>
               </td>
               <td style={{ maxWidth: '350px' }}>
-                <div className="text-truncate text-muted small" title={defect.description}>
-                  {defect.description}
+                <div 
+                  className="text-muted small" 
+                  title={displayDesc}
+                  style={{ 
+                    display: '-webkit-box', 
+                    WebkitLineClamp: 3, 
+                    WebkitBoxOrient: 'vertical', 
+                    overflow: 'hidden', 
+                    whiteSpace: 'pre-wrap' 
+                  }}
+                >
+                  {displayDesc}
                 </div>
               </td>
               <td>
                 <div className="text-dark">
-                  {defect.reporterName} <span className="text-muted mx-1">|</span> {defect.reporterDepartment}
+                  {defect.reporterName} <span className="text-muted mx-1">|</span> {(() => {
+                    const dept = (defect.reporterDepartment || "").toLowerCase();
+                    if (dept === "qa") return "Quản lý Chất lượng (QA)";
+                    if (dept === "production") return "Sản xuất";
+                    if (dept === "logistics") return "Kho vận";
+                    if (dept === "sales") return "Kinh doanh";
+                    if (dept === "customer_service") return "CSKH";
+                    return defect.reporterDepartment || "Khác";
+                  })()}
                 </div>
                 <div className="text-muted small">Phụ trách: {defect.assignedTo}</div>
               </td>
             </tr>
-          )) : (
+          )}) : (
             <tr>
               <td colSpan={5} className="text-center py-5 text-muted">Chưa có hồ sơ lỗi nào.</td>
             </tr>

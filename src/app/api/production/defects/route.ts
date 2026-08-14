@@ -11,10 +11,78 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }
     });
     
-    const formatted = defects.map((d: any) => ({
-      ...d,
-      mediaUrls: d.mediaUrls ? JSON.parse(d.mediaUrls) : []
-    }));
+    const productCodes = [...new Set(defects.map((d: any) => d.productCode).filter(Boolean))] as string[];
+    const orderNumbers = [...new Set(defects.map((d: any) => d.orderNumber).filter(Boolean))] as string[];
+    const qcCodes = orderNumbers.filter(c => c.startsWith("QC-"));
+    const soCodes = orderNumbers.filter(c => c.startsWith("SO-"));
+
+    const [items, inspections, saleOrders] = await Promise.all([
+      prisma.inventoryItem.findMany({
+        where: {
+          OR: [
+            { code: { in: productCodes } },
+            { model: { in: productCodes } }
+          ]
+        },
+        include: {
+          dinhMucs: {
+            orderBy: { createdAt: 'desc' },
+            select: { code: true }
+          }
+        }
+      }),
+      qcCodes.length > 0 ? prisma.qualityInspection.findMany({
+        where: { code: { in: qcCodes } },
+        select: { code: true, metadata: true }
+      }) : Promise.resolve([]),
+      soCodes.length > 0 ? (prisma as any).saleOrder.findMany({
+        where: { code: { in: soCodes } },
+        include: { saleOrderItems: { include: { inventoryItem: true, dinhMuc: true } } }
+      }) : Promise.resolve([])
+    ]);
+
+    const bomMap: Record<string, string> = {};
+    items.forEach(item => {
+      const bom = item.dinhMucs?.[0]?.code || "Không có định mức";
+      if (item.code) bomMap[item.code] = bom;
+      if (item.model) bomMap[item.model] = bom;
+    });
+
+    const specificBomMap: Record<string, string> = {};
+    
+    inspections.forEach((ins: any) => {
+      if (ins.metadata) {
+         try {
+           const meta = JSON.parse(ins.metadata);
+           if (meta.bomCode) specificBomMap[ins.code] = meta.bomCode;
+         } catch(e) {}
+      }
+    });
+
+    defects.forEach((d: any) => {
+      if (d.orderNumber && d.orderNumber.startsWith("SO-")) {
+         const so = saleOrders.find((s: any) => s.code === d.orderNumber);
+         if (so) {
+            const item = so.saleOrderItems.find((i: any) => i.inventoryItem?.code === d.productCode || i.inventoryItem?.model === d.productCode);
+            if (item && item.dinhMuc) specificBomMap[`${d.orderNumber}_${d.productCode}`] = item.dinhMuc.code;
+         }
+      }
+    });
+    
+    const formatted = defects.map((d: any) => {
+      let bom = "Không có định mức";
+      if (d.orderNumber && d.orderNumber.startsWith("QC-") && specificBomMap[d.orderNumber]) {
+         bom = specificBomMap[d.orderNumber];
+      } else if (d.orderNumber && d.orderNumber.startsWith("SO-") && specificBomMap[`${d.orderNumber}_${d.productCode}`]) {
+         bom = specificBomMap[`${d.orderNumber}_${d.productCode}`];
+      }
+
+      return {
+        ...d,
+        mediaUrls: d.mediaUrls ? JSON.parse(d.mediaUrls) : [],
+        bomCode: bom
+      };
+    });
     
     return NextResponse.json(formatted);
   } catch (error) {

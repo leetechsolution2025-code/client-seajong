@@ -21,6 +21,7 @@ export interface DefectRecord {
   quantity: number;
   description: string;
   mediaUrls: string[];
+  bomCode?: string;
   
   // Thông tin bảo hành
   customerName?: string;

@@ -99,3 +99,35 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const currentNotification = await prisma.paymentNotification.findUnique({
+      where: { id },
+    });
+
+    if (!currentNotification) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Usually we don't allow deleting verified notifications easily, 
+    // but we can just delete it if the user requests it.
+    await prisma.paymentNotification.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Error deleting payment notification:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

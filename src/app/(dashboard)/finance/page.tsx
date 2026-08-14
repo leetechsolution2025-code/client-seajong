@@ -67,6 +67,8 @@ export default function FinancePage() {
   const [expensePage, setExpensePage] = useState(1);
   const [expensesTotalPages, setExpensesTotalPages] = useState(1);
   const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
+  const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
+  const [showExpenseDeleteConfirm, setShowExpenseDeleteConfirm] = useState(false);
 
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -133,6 +135,8 @@ export default function FinancePage() {
   const [paymentNotificationPage, setPaymentNotificationPage] = useState(1);
   const [paymentNotificationsTotalPages, setPaymentNotificationsTotalPages] = useState(1);
   const [selectedPaymentNotification, setSelectedPaymentNotification] = useState<any | null>(null);
+  const [selectedPaymentNotificationIds, setSelectedPaymentNotificationIds] = useState<string[]>([]);
+  const [showPaymentNotificationDeleteConfirm, setShowPaymentNotificationDeleteConfirm] = useState(false);
   const [paymentNotificationDetail, setPaymentNotificationDetail] = useState<any | null>(null);
   const [paymentNotificationDetailLoading, setPaymentNotificationDetailLoading] = useState(false);
   const [readNotifIds, setReadNotifIds] = useState<string[]>([]);
@@ -736,6 +740,38 @@ export default function FinancePage() {
 
   const expenseColumns: TableColumn<any>[] = [
     {
+      header: (
+        <input 
+          type="checkbox" 
+          className="form-check-input m-0"
+          checked={expenses.length > 0 && selectedExpenseIds.length === expenses.length}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedExpenseIds(expenses.map((ex: any) => ex.id));
+            } else {
+              setSelectedExpenseIds([]);
+            }
+          }}
+        />
+      ),
+      width: "40px",
+      render: (row) => (
+        <input 
+          type="checkbox" 
+          className="form-check-input m-0"
+          checked={selectedExpenseIds.includes(row.id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedExpenseIds(prev => [...prev, row.id]);
+            } else {
+              setSelectedExpenseIds(prev => prev.filter(id => id !== row.id));
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      )
+    },
+    {
       header: "Mã CP",
       render: (row: any) => (
         <span className="fw-bold" style={{ color: "var(--primary)", fontFamily: "'Roboto Condensed', sans-serif" }}>
@@ -1016,6 +1052,38 @@ export default function FinancePage() {
 
   const paymentNotificationColumns: TableColumn<any>[] = [
     {
+      header: (
+        <input 
+          type="checkbox" 
+          className="form-check-input m-0"
+          checked={paymentNotifications.length > 0 && selectedPaymentNotificationIds.length === paymentNotifications.length}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedPaymentNotificationIds(paymentNotifications.map((pn: any) => pn.id));
+            } else {
+              setSelectedPaymentNotificationIds([]);
+            }
+          }}
+        />
+      ),
+      width: "40px",
+      render: (row) => (
+        <input 
+          type="checkbox" 
+          className="form-check-input m-0"
+          checked={selectedPaymentNotificationIds.includes(row.id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedPaymentNotificationIds(prev => [...prev, row.id]);
+            } else {
+              setSelectedPaymentNotificationIds(prev => prev.filter(id => id !== row.id));
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      )
+    },
+    {
       header: "Số đơn hàng",
       render: (row) => {
         const dateStr = row.createdAt ? new Date(row.createdAt).toLocaleDateString("vi-VN") : "—";
@@ -1139,6 +1207,16 @@ export default function FinancePage() {
                           placeholder="Tìm mã đơn hàng, tên khách hàng..."
                         />
                       </div>
+                      {selectedOrderIds.length > 0 && (
+                        <button 
+                          className="btn btn-outline-danger fw-bold rounded-3 d-flex align-items-center justify-content-center"
+                          onClick={() => setShowDeleteConfirm(true)}
+                          style={{ height: "36px", fontSize: "13px" }}
+                          title="Xóa đã chọn"
+                        >
+                          <i className="bi bi-trash me-2" /> Xóa ({selectedOrderIds.length})
+                        </button>
+                      )}
                     </div>
                     {ordersTotalPages > 1 && (
                       <div className="d-flex justify-content-end">
@@ -1183,6 +1261,16 @@ export default function FinancePage() {
                           placeholder="Tìm mã yêu cầu, lý do..."
                         />
                       </div>
+                      {selectedRequestIds.length > 0 && (
+                        <button 
+                          className="btn btn-outline-danger fw-bold rounded-3 d-flex align-items-center justify-content-center"
+                          onClick={() => setShowRequestDeleteConfirm(true)}
+                          style={{ height: "36px", fontSize: "13px" }}
+                          title="Xóa đã chọn"
+                        >
+                          <i className="bi bi-trash me-2" /> Xóa ({selectedRequestIds.length})
+                        </button>
+                      )}
                     </div>
                     {requestsTotalPages > 1 && (
                       <div className="d-flex justify-content-end">
@@ -1227,6 +1315,16 @@ export default function FinancePage() {
                           placeholder="Tìm mã yêu cầu, lý do..."
                         />
                       </div>
+                      {selectedPaymentNotificationIds.length > 0 && (
+                        <button 
+                          className="btn btn-outline-danger fw-bold rounded-3 d-flex align-items-center justify-content-center"
+                          onClick={() => setShowPaymentNotificationDeleteConfirm(true)}
+                          style={{ height: "36px", fontSize: "13px" }}
+                          title="Xóa đã chọn"
+                        >
+                          <i className="bi bi-trash me-2" /> Xóa ({selectedPaymentNotificationIds.length})
+                        </button>
+                      )}
                     </div>
                     {paymentNotificationsTotalPages > 1 && (
                       <div className="d-flex justify-content-end">
@@ -1277,6 +1375,16 @@ export default function FinancePage() {
                           placeholder="Tìm mã CP, người chi trả..."
                         />
                       </div>
+                      {selectedExpenseIds.length > 0 && (
+                        <button 
+                          className="btn btn-outline-danger fw-bold rounded-3 d-flex align-items-center justify-content-center"
+                          onClick={() => setShowExpenseDeleteConfirm(true)}
+                          style={{ height: "36px", fontSize: "13px" }}
+                          title="Xóa đã chọn"
+                        >
+                          <i className="bi bi-trash me-2" /> Xóa ({selectedExpenseIds.length})
+                        </button>
+                      )}
                     </div>
                     {expensesTotalPages > 1 && (
                       <div className="d-flex justify-content-end">
@@ -2474,7 +2582,7 @@ export default function FinancePage() {
                   <BrandButton 
                     variant="outline"
                     onClick={() => {
-                      if (selectedRequest) setShowDeleteConfirm(true);
+                      if (selectedRequest) setShowRequestDeleteConfirm(true);
                     }}
                     style={{ color: "#dc3545", borderColor: "#dc3545", fontSize: 13 }}
                   >
@@ -2577,6 +2685,80 @@ export default function FinancePage() {
           }
         }}
         onCancel={() => setShowRequestDeleteConfirm(false)}
+      />
+
+      <ConfirmDialog
+        open={showExpenseDeleteConfirm}
+        title="Xác nhận xóa"
+        message={
+          <div className="text-dark">
+            Bạn có chắc chắn muốn xóa {selectedExpenseIds.length > 0 ? `${selectedExpenseIds.length} lệnh chi tiền đã chọn` : "lệnh chi tiền này"} không?<br/>
+            Hành động này không thể hoàn tác.
+          </div>
+        }
+        confirmLabel="Xóa"
+        cancelLabel="Hủy"
+        variant="danger"
+        onConfirm={async () => {
+          setShowExpenseDeleteConfirm(false);
+          try {
+            if (selectedExpenseIds.length > 0) {
+              await Promise.all(selectedExpenseIds.map(id => 
+                fetch(`/api/plan-finance/expenses/${id}`, { method: 'DELETE' })
+              ));
+              setExpenses(prev => prev.filter(e => !selectedExpenseIds.includes(e.id)));
+              if (selectedExpense && selectedExpenseIds.includes(selectedExpense.id)) {
+                setSelectedExpense(null);
+              }
+              setSelectedExpenseIds([]);
+            } else if (selectedExpense) {
+              await fetch(`/api/plan-finance/expenses/${selectedExpense.id}`, { method: 'DELETE' });
+              setExpenses(prev => prev.filter(e => e.id !== selectedExpense.id));
+              setSelectedExpense(null);
+            }
+            toast.success("Đã xóa lệnh chi tiền thành công!");
+          } catch (e) {
+            toast.error("Lỗi khi xóa lệnh chi tiền");
+          }
+        }}
+        onCancel={() => setShowExpenseDeleteConfirm(false)}
+      />
+
+      <ConfirmDialog
+        open={showPaymentNotificationDeleteConfirm}
+        title="Xác nhận xóa"
+        message={
+          <div className="text-dark">
+            Bạn có chắc chắn muốn xóa {selectedPaymentNotificationIds.length > 0 ? `${selectedPaymentNotificationIds.length} thông báo tiền vào đã chọn` : "thông báo tiền vào này"} không?<br/>
+            Hành động này không thể hoàn tác.
+          </div>
+        }
+        confirmLabel="Xóa"
+        cancelLabel="Hủy"
+        variant="danger"
+        onConfirm={async () => {
+          setShowPaymentNotificationDeleteConfirm(false);
+          try {
+            if (selectedPaymentNotificationIds.length > 0) {
+              await Promise.all(selectedPaymentNotificationIds.map(id => 
+                fetch(`/api/finance/payment-notifications/${id}`, { method: 'DELETE' })
+              ));
+              setPaymentNotifications(prev => prev.filter(p => !selectedPaymentNotificationIds.includes(p.id)));
+              if (selectedPaymentNotification && selectedPaymentNotificationIds.includes(selectedPaymentNotification.id)) {
+                setSelectedPaymentNotification(null);
+              }
+              setSelectedPaymentNotificationIds([]);
+            } else if (selectedPaymentNotification) {
+              await fetch(`/api/finance/payment-notifications/${selectedPaymentNotification.id}`, { method: 'DELETE' });
+              setPaymentNotifications(prev => prev.filter(p => p.id !== selectedPaymentNotification.id));
+              setSelectedPaymentNotification(null);
+            }
+            toast.success("Đã xóa thông báo tiền vào thành công!");
+          } catch (e) {
+            toast.error("Lỗi khi xóa thông báo tiền vào");
+          }
+        }}
+        onCancel={() => setShowPaymentNotificationDeleteConfirm(false)}
       />
     </StandardPage>
   );

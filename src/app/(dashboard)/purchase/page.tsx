@@ -1989,13 +1989,28 @@ function OrderDetailOffcanvas({ order, onClose, onChanged, onEditOrder, onPrintO
   };
 
   const handleSaveActivity = async () => {
-    if (!actNote.trim()) return;
+    if (!actNote.trim()) {
+      alert("Vui lòng nhập nội dung hoạt động!");
+      return;
+    }
     setSaving(true);
     try {
+      // Fix date issue: if selected date is today, use current time so it sorts at the top
+      let finalDate = new Date();
+      if (actDate) {
+        const selected = new Date(actDate);
+        const today = new Date();
+        if (selected.toDateString() === today.toDateString()) {
+          finalDate = today;
+        } else {
+          finalDate = selected;
+        }
+      }
+
       const res = await fetch(`/api/plan-finance/purchasing/${order.id}/activities`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ loai: actType, ngay: actDate, nguoiThucHien: actPerson, ketQua: actNote }),
+        body: JSON.stringify({ loai: actType, ngay: finalDate.toISOString(), nguoiThucHien: actPerson, ketQua: actNote }),
       });
       if (res.ok) {
         const created = await res.json();
@@ -2447,8 +2462,8 @@ function OrderDetailOffcanvas({ order, onClose, onChanged, onEditOrder, onPrintO
               >Huỷ</button>
               <button
                 onClick={handleSaveActivity}
-                disabled={saving || !actNote.trim()}
-                style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: !actNote.trim() ? "var(--muted)" : selType.color, color: !actNote.trim() ? "var(--muted-foreground)" : "#fff", fontSize: 13, fontWeight: 700, cursor: !actNote.trim() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, transition: "opacity 0.15s" }}
+                disabled={saving}
+                style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: selType.color, color: "#fff", fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, transition: "opacity 0.15s" }}
               >
                 {saving ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 0.8s linear infinite" }} /> : <i className="bi bi-check2" />}Lưu hoạt động
               </button>

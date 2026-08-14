@@ -374,8 +374,8 @@ export default function SalesCustomersPage() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "KhachHang");
       XLSX.writeFile(wb, "Danh_sach_dai_ly_Export.xlsx");
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       error("Lỗi", "Có lỗi xảy ra khi xuất dữ liệu");
     }
   };

@@ -38,7 +38,17 @@ export async function POST(
     // Xác nhận phiếu YC tồn tại
     const purchaseRequests = await prisma.purchaseRequest.findMany({
       where: { id: { in: ids } },
-      include: { items: true },
+      include: { 
+        items: {
+          include: {
+            inventoryItem: {
+              include: {
+                dinhMucs: true
+              }
+            }
+          }
+        } 
+      },
     });
 
     if (purchaseRequests.length === 0) {
@@ -84,6 +94,21 @@ export async function POST(
       const orderItems = group.map((a, idx) => {
         const item = itemMap.get(a.itemId)!;
         const donGia = a.donGia ?? item.donGiaDK;
+        
+        // Yêu cầu: Định mức tiêu chuẩn là định mức không có đuôi phiên bản (ví dụ không có -01, -02, ...)
+        let dinhMucId = null;
+        if (item.inventoryItem && item.inventoryItem.dinhMucs && item.inventoryItem.dinhMucs.length > 0) {
+           // Ưu tiên tìm mã không có dấu gạch ngang số ở cuối (VD: -01, -02, -1, -2)
+           const standardBom = item.inventoryItem.dinhMucs.find((d: any) => d.code && !/-\d+$/.test(d.code));
+           if (standardBom) {
+              dinhMucId = standardBom.id;
+           } else {
+              // Fallback nếu không có mã nào thoả mãn, lấy mã ngắn nhất (thường là mã gốc)
+              const sortedByLength = [...item.inventoryItem.dinhMucs].sort((a: any, b: any) => (a.code?.length || 0) - (b.code?.length || 0));
+              dinhMucId = sortedByLength[0].id;
+           }
+        }
+
         return {
           inventoryItemId: item.inventoryItemId,
           tenHang:    item.tenHang,
@@ -91,6 +116,7 @@ export async function POST(
           soLuong:    item.soLuong,
           donGia,
           thanhTien:  item.soLuong * donGia,
+          dinhMucId,
           ghiChu:     item.ghiChu,
           sortOrder:  idx,
           ngayGiao:   a.ngayGiao ? new Date(a.ngayGiao) : null,
