@@ -40,8 +40,13 @@ export async function GET(
 
     const { id } = await params;
 
-    const order = await prisma.saleOrder.findUnique({
-      where: { id },
+    const order = await prisma.saleOrder.findFirst({
+      where: {
+        OR: [
+          { id },
+          { code: id }
+        ]
+      },
       include: {
         customer: { select: { id: true, name: true, dienThoai: true, address: true, hanMucCongNo: true, nhom: true } },
         saleOrderItems: {
@@ -49,6 +54,14 @@ export async function GET(
             inventoryItem: { select: { imageUrl: true, code: true, loai: true, webProductId: true, color: true, giaBan: true } }
           }
         },
+        logisticsTickets: {
+          include: {
+            items: {
+              include: { inventoryItem: { select: { tenHang: true, code: true } } }
+            },
+            assignedTo: { select: { fullName: true } }
+          }
+        }
       },
     });
 
@@ -270,6 +283,14 @@ export async function GET(
       } catch (e) {}
     }
 
+    // Fetch QC tickets associated with this order
+    const qcTickets = await prisma.qualityInspection.findMany({
+      where: {
+        metadata: { contains: order.code || "" }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
     const resolvedOrder = {
       ...order,
       ghiChu: cleanGhiChu(order.ghiChu),
@@ -280,6 +301,7 @@ export async function GET(
       items: await attachWebImages(orderItems),
       logisticsItems,
       productionItemIds,
+      qcTickets,
       customer: order.customer || (guest ? {
         id: null,
         name: guest.name,

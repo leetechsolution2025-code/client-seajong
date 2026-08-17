@@ -323,6 +323,7 @@ function mapLeadToPartnerProcessItem(lead: any, matchingQuotation: any = null): 
     plPhase3Amount: formValues.plPhase3Amount || undefined,
     plPhase3AmountText: formValues.plPhase3AmountText || undefined,
     plPenaltyMaxDelay: formValues.plPenaltyMaxDelay || undefined,
+    plCustomClauses: formValues.plCustomClauses || undefined,
     plPdf: formValues.plPdf || undefined,
     consTimeline1: formValues.consTimeline1 || undefined,
     consTimeline2: formValues.consTimeline2 || undefined,

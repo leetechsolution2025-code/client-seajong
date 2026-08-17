@@ -579,12 +579,11 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
         throw new Error(data.error ?? "Lỗi lưu");
       }
       toast.success("✅ Xuất kho thành công!", `Phiếu ${soChungTu} đã được xác nhận`, 5000);
+      setSuccess(true);
       if (printAfter) {
-        setSuccess(true);
         setShowPreview(true);
-      } else {
-        onSaved();
       }
+      onSaved();
     } catch (e) {
       toast.error("Xuất kho thất bại", e instanceof Error ? e.message : "Lỗi không xác định");
     } finally { setSaving(false); }
@@ -780,8 +779,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
 
           {/* Close Button Top Right */}
           <button onClick={() => {
-            if (success) onSaved();
-            else onClose();
+            onClose();
           }} className="xk-top-close" style={{ width: 36, height: 36, border: "none", background: "var(--muted)", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)", transition: "all 0.2s" }}>
             <i className="bi bi-x-lg" style={{ fontSize: 16 }} />
           </button>

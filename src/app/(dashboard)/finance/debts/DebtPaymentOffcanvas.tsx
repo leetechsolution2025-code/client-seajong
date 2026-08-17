@@ -218,11 +218,26 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
     return `${prefix}-${yyyy}${mm}${dd}-${rand}`;
   };
 
+  const isGroup = !!debt?.groupItems;
+  const itemsToConsider = isGroup ? debt.groupItems : [debt];
+
   useEffect(() => {
     if (open && debt) {
-      const remaining = Math.max(0, debt.amount - debt.paidAmount);
+      let calcAmount = 0;
+      let calcPaid = 0;
+      
+      if (isGroup) {
+        calcAmount = debt.groupItems.reduce((s: number, i: any) => s + (i.amount || 0), 0);
+        calcPaid = debt.groupItems.reduce((s: number, i: any) => s + (i.paidAmount || 0), 0);
+      } else {
+        calcAmount = debt.amount || 0;
+        calcPaid = debt.paidAmount || 0;
+      }
+      
+      const remaining = Math.max(0, calcAmount - calcPaid);
       const isRec = debt.type?.toUpperCase() === "RECEIVABLE" || debt.type === "phai-thu";
       setPayAmount(remaining);
+      
       const now = new Date();
       const tzoffset = now.getTimezoneOffset() * 60000;
       const localISOTime = new Date(now.getTime() - tzoffset).toISOString().slice(0, 16);
@@ -240,10 +255,28 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
       }
       setPayNote(defaultNote);
 
-      const parsed = parseDebtDescription(debt.description);
-      setOriginalDesc(parsed.originalDesc);
-      setPaymentHistory(parsed.history);
-      setReconciliations(parsed.reconciliations);
+      // Nếu là group thì gom toàn bộ lịch sử thanh toán của các đơn
+      if (isGroup) {
+        let allHistory: PaymentHistoryItem[] = [];
+        let allRecon: ReconciliationLog[] = [];
+        debt.groupItems.forEach((item: any) => {
+           const p = parseDebtDescription(item.description);
+           allHistory = [...allHistory, ...p.history];
+           allRecon = [...allRecon, ...p.reconciliations];
+        });
+        // Sắp xếp lịch sử giảm dần theo thời gian
+        allHistory.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+        allRecon.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+        setOriginalDesc("");
+        setPaymentHistory(allHistory);
+        setReconciliations(allRecon);
+      } else {
+        const parsed = parseDebtDescription(debt.description);
+        setOriginalDesc(parsed.originalDesc);
+        setPaymentHistory(parsed.history);
+        setReconciliations(parsed.reconciliations);
+      }
+      
       setActivePrintItem(null);
 
       // Fetch companyInfo
@@ -256,7 +289,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
         })
         .catch((err) => console.error("Error fetching company info:", err));
     }
-  }, [open, debt]);
+  }, [open, debt, isGroup]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -267,18 +300,25 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
       return;
     }
 
-    const remaining = debt.amount - debt.paidAmount;
-    if (payAmount > remaining) {
+    let calcAmount = 0;
+    let calcPaid = 0;
+    if (isGroup) {
+      calcAmount = debt.groupItems.reduce((s: number, i: any) => s + (i.amount || 0), 0);
+      calcPaid = debt.groupItems.reduce((s: number, i: any) => s + (i.paidAmount || 0), 0);
+    } else {
+      calcAmount = debt.amount || 0;
+      calcPaid = debt.paidAmount || 0;
+    }
+    
+    const remaining = calcAmount - calcPaid;
+    // Bỏ qua validate số dư tối đa nếu là thanh toán gộp
+    if (!isGroup && payAmount > remaining) {
       error("Lỗi", `Số tiền thanh toán vượt quá số dư nợ còn lại (${formatCurrency(remaining)}đ)`);
       return;
     }
 
     setLoading(true);
     try {
-      const newPaidAmount = debt.paidAmount + payAmount;
-      const isCompleted = newPaidAmount >= debt.amount;
-      const newStatus = isCompleted ? "PAID" : "PARTIAL";
-
       const newHistoryItem: PaymentHistoryItem = {
         id: `PT-${Date.now()}`,
         amount: payAmount,
@@ -288,28 +328,58 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
         note: payNote,
       };
 
-      const updatedHistory = [...paymentHistory, newHistoryItem];
-      const updatedDescription = serializeDebtDescription(originalDesc, updatedHistory, reconciliations);
+      let url = "";
+      let method = "PUT";
+      let bodyData: any = {};
 
-      let url = `/api/finance/debts-v2?id=${debt.id}`;
-      let bodyData: any = {
-        ...debt,
-        paidAmount: newPaidAmount,
-        status: newStatus,
-        description: updatedDescription,
-        newPayment: newHistoryItem,
-      };
-
-      if (debt.isDisbursement) {
-        url = `/api/finance/bank-disbursements/${debt.id}`;
+      if (isGroup) {
+        // Thu theo khách hàng -> POST phiếu thu độc lập
+        url = `/api/finance/debts-v2`;
+        method = "POST";
+        const newDesc = serializeDebtDescription("", [newHistoryItem], []);
         bodyData = {
-          paidPrincipal: newPaidAmount,
-          status: newStatus,
+          type: debt.type,
+          partnerName: debt.partnerName,
+          customerId: debt.customerId,
+          supplierId: debt.supplierId,
+          amount: 0, // Là khoản thu nên phát sinh nợ = 0
+          paidAmount: payAmount,
+          dueDate: null,
+          createdAt: payDate,
+          referenceId: payRef,
+          status: "PAID",
+          description: newDesc,
         };
+      } else {
+        // Thu theo đơn cụ thể -> PUT cập nhật
+        const newPaidAmount = debt.paidAmount + payAmount;
+        const isCompleted = newPaidAmount >= debt.amount;
+        const newStatus = isCompleted ? "PAID" : "PARTIAL";
+
+        const updatedHistory = [...paymentHistory, newHistoryItem];
+        const updatedDescription = serializeDebtDescription(originalDesc, updatedHistory, reconciliations);
+
+        url = `/api/finance/debts-v2?id=${debt.id}`;
+        const { groupItems, ...safeDebtData } = debt;
+        bodyData = {
+          ...safeDebtData,
+          paidAmount: newPaidAmount,
+          status: newStatus,
+          description: updatedDescription,
+          newPayment: newHistoryItem,
+        };
+
+        if (debt.isDisbursement) {
+          url = `/api/finance/bank-disbursements/${debt.id}`;
+          bodyData = {
+            paidPrincipal: newPaidAmount,
+            status: newStatus,
+          };
+        }
       }
 
       const res = await fetch(url, {
-        method: "PUT",
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyData),
       });
@@ -382,7 +452,20 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
 
   if (!mounted) return null;
 
-  const remainingAmt = debt ? debt.amount - debt.paidAmount : 0;
+  let calcAmount = 0;
+  let calcPaid = 0;
+  if (debt) {
+    if (isGroup) {
+      calcAmount = debt.groupItems.reduce((s: number, i: any) => s + (i.amount || 0), 0);
+      calcPaid = debt.groupItems.reduce((s: number, i: any) => s + (i.paidAmount || 0), 0);
+    } else {
+      calcAmount = debt.amount || 0;
+      calcPaid = debt.paidAmount || 0;
+    }
+  }
+
+  const remainingAmt = Math.max(0, calcAmount - calcPaid);
+
   const formattedDate = (dStr: string) => {
     if (!dStr) return "";
     let dateStr = dStr;
@@ -440,11 +523,9 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
               </span>
             </div>
             
-            {debt.referenceId && (
-              <div className="mb-2 text-muted small">
-                <strong>REF:</strong> {debt.referenceId}
-              </div>
-            )}
+            <div className="mb-2 text-muted small">
+              <strong>REF:</strong> {isGroup ? `Nhiều khoản nợ (${debt.groupItems.length} khoản)` : (debt.referenceId || "---")}
+            </div>
 
             <hr className="my-2 opacity-50" />
 
@@ -452,13 +533,13 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
               <div className="col-4">
                 <span className="text-muted block" style={{ fontSize: 10.5 }}>TỔNG NỢ</span>
                 <div className="fw-bold text-dark mt-0.5" style={{ fontSize: 13 }}>
-                  {formatCurrency(debt.amount)}đ
+                  {formatCurrency(calcAmount)}đ
                 </div>
               </div>
               <div className="col-4 border-start">
                 <span className="text-muted block" style={{ fontSize: 10.5 }}>ĐÃ THANH TOÁN</span>
                 <div className="fw-bold text-success mt-0.5" style={{ fontSize: 13 }}>
-                  {formatCurrency(debt.paidAmount)}đ
+                  {formatCurrency(calcPaid)}đ
                 </div>
               </div>
               <div className="col-4 border-start">

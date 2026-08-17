@@ -206,16 +206,18 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
            openingBalanceDate = createdAt.toISOString();
         }
       } else {
-        const pDesc = parseDebtDescription(item.description);
-        list.push({
-          id: `MAIN_DEBT_${item.id}`,
-          date: createdAt.toISOString(), // Giữ nguyên full time
-          ref: item.referenceId || "---",
-          type: isReceivable ? "Bán hàng" : "Mua hàng",
-          increase: item.amount,
-          decrease: 0,
-          note: pDesc.originalDesc || (isReceivable ? "Phát sinh công nợ phải thu" : "Phát sinh công nợ phải trả")
-        });
+        if (item.amount > 0) {
+          const pDesc = parseDebtDescription(item.description);
+          list.push({
+            id: `MAIN_DEBT_${item.id}`,
+            date: createdAt.toISOString(),
+            ref: item.referenceId || "---",
+            type: isReceivable ? "Bán hàng" : "Mua hàng",
+            increase: item.amount,
+            decrease: 0,
+            note: pDesc.originalDesc || (isReceivable ? "Phát sinh công nợ phải thu" : "Phát sinh công nợ phải trả")
+          });
+        }
       }
 
       // Payments from this item
@@ -365,11 +367,13 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
       const updatedReconHistory = [newLog, ...reconHistory];
       const updatedDescription = serializeDebtDescription(originalDesc, paymentHistory, updatedReconHistory);
 
+      const { groupItems, ...debtDataToSave } = debt;
+      
       const res = await fetch(`/api/finance/debts-v2?id=${debt.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...debt,
+          ...debtDataToSave,
           description: updatedDescription,
         }),
       });
