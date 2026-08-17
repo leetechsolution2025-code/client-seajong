@@ -29,9 +29,8 @@ function buildPages(page: number, total: number, siblings: number): (number | ".
 }
 
 export function Pagination({ page, totalPages, onChange, siblingCount = 1 }: PaginationProps) {
-  if (totalPages <= 1) return null;
-
-  const pages = buildPages(page, totalPages, siblingCount);
+  const safeTotal = Math.max(1, totalPages);
+  const pages = buildPages(page, safeTotal, siblingCount);
 
   const btnBase: React.CSSProperties = {
     minWidth: 32, height: 32, display: "inline-flex", alignItems: "center",
@@ -86,9 +85,9 @@ export function Pagination({ page, totalPages, onChange, siblingCount = 1 }: Pag
 
       {/* Next */}
       <button
-        style={page >= totalPages ? btnDisabled : btnBase}
+        style={page >= safeTotal ? btnDisabled : btnBase}
         onClick={() => onChange(page + 1)}
-        disabled={page >= totalPages}
+        disabled={page >= safeTotal}
       >
         <i className="bi bi-chevron-right" style={{ fontSize: 12 }} />
       </button>

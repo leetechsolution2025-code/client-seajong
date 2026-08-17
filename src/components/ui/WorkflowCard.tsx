@@ -30,7 +30,7 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
   bottomToolbar
 }) => {
   return (
-    <div 
+    <div
       className={`bg-card rounded-4 shadow-sm border flex-grow-1 d-flex flex-column overflow-hidden ${className}`}
       style={{ minHeight: 0 }}
     >

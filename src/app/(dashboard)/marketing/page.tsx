@@ -5,6 +5,12 @@ import * as XLSX from "xlsx";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { DynamicTicker } from "@/components/layout/DynamicTicker";
+import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
+import { WorkflowCard } from "@/components/ui/WorkflowCard";
+import { CustomerListTable, CustomerData } from "@/components/shared/CustomerListTable";
+import { MarketingLeadOffcanvas } from "./MarketingLeadOffcanvas";
+import { TableFooter } from "@/components/ui/TableFooter";
 
 const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -72,68 +78,68 @@ function CreateCampaignOffcanvas({ open, onClose }: { open: boolean; onClose: ()
             <i className="bi bi-x" style={{ fontSize: 20 }} />
           </button>
         </div>
-        
+
         {/* Body */}
         <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px" }}>
-           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-             <div>
-               <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>Tên chiến dịch <span style={{color: "#ef4444"}}>*</span></label>
-               <input type="text" placeholder="VD: Khuyến mãi Hè 2026..." style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", boxSizing: "border-box", fontWeight: 500 }} />
-             </div>
-             
-             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-               <div>
-                 <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>Ngày bắt đầu</label>
-                 <input type="date" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", boxSizing: "border-box", fontWeight: 500 }} />
-               </div>
-               <div>
-                 <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>Ngày kết thúc</label>
-                 <input type="date" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", boxSizing: "border-box", fontWeight: 500 }} />
-               </div>
-             </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>Tên chiến dịch <span style={{ color: "#ef4444" }}>*</span></label>
+              <input type="text" placeholder="VD: Khuyến mãi Hè 2026..." style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", boxSizing: "border-box", fontWeight: 500 }} />
+            </div>
 
-             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-               <div>
-                 <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>Ngân sách (VND)</label>
-                 <input type="number" placeholder="VD: 50000000" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", boxSizing: "border-box", fontWeight: 500 }} />
-               </div>
-               <div>
-                 <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>Số Lead mục tiêu</label>
-                 <input type="number" placeholder="VD: 500" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", boxSizing: "border-box", fontWeight: 500 }} />
-               </div>
-             </div>
-             
-             <div>
-               <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 10 }}>Nguồn Lead (Kênh Ads)</label>
-               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                 {[
-                   { key: "fb", label: "Facebook", icon: "bi-facebook", color: "#1877F2" },
-                   { key: "yt", label: "Youtube", icon: "bi-youtube", color: "#FF0000" },
-                   { key: "ig", label: "Instagram", icon: "bi-instagram", color: "#E4405F" },
-                   { key: "tt", label: "Tiktok", icon: "bi-tiktok", color: "var(--foreground)" }
-                 ].map(src => {
-                   const isActive = sources[src.key as keyof typeof sources];
-                   return (
-                     <div key={src.key} onClick={() => toggleSource(src.key as keyof typeof sources)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, border: `1px solid ${isActive ? src.color : "var(--border)"}`, background: isActive ? `color-mix(in srgb, ${src.color} 8%, transparent)` : "var(--background)", cursor: "pointer", transition: "all 0.2s" }}>
-                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                         <i className={`bi ${src.icon}`} style={{ color: isActive ? src.color : "var(--muted-foreground)", fontSize: 15 }} />
-                         <span style={{ fontSize: 13, fontWeight: 600, color: isActive ? "var(--foreground)" : "var(--muted-foreground)" }}>{src.label}</span>
-                       </div>
-                       {/* Switch Toggle UI */}
-                       <div style={{ width: 32, height: 18, borderRadius: 10, background: isActive ? src.color : "var(--muted)", position: "relative", transition: "background 0.2s" }}>
-                         <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: isActive ? 16 : 2, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
-                       </div>
-                     </div>
-                   );
-                 })}
-               </div>
-             </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>Ngày bắt đầu</label>
+                <input type="date" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", boxSizing: "border-box", fontWeight: 500 }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>Ngày kết thúc</label>
+                <input type="date" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", boxSizing: "border-box", fontWeight: 500 }} />
+              </div>
+            </div>
 
-             <div>
-               <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>Mục tiêu & Ghi chú</label>
-               <textarea rows={4} placeholder="Mô tả chi tiết mục tiêu của chiến dịch..." style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit", fontWeight: 500 }} />
-             </div>
-           </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>Ngân sách (VND)</label>
+                <input type="number" placeholder="VD: 50000000" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", boxSizing: "border-box", fontWeight: 500 }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>Số Lead mục tiêu</label>
+                <input type="number" placeholder="VD: 500" style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", boxSizing: "border-box", fontWeight: 500 }} />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 10 }}>Nguồn Lead (Kênh Ads)</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[
+                  { key: "fb", label: "Facebook", icon: "bi-facebook", color: "#1877F2" },
+                  { key: "yt", label: "Youtube", icon: "bi-youtube", color: "#FF0000" },
+                  { key: "ig", label: "Instagram", icon: "bi-instagram", color: "#E4405F" },
+                  { key: "tt", label: "Tiktok", icon: "bi-tiktok", color: "var(--foreground)" }
+                ].map(src => {
+                  const isActive = sources[src.key as keyof typeof sources];
+                  return (
+                    <div key={src.key} onClick={() => toggleSource(src.key as keyof typeof sources)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, border: `1px solid ${isActive ? src.color : "var(--border)"}`, background: isActive ? `color-mix(in srgb, ${src.color} 8%, transparent)` : "var(--background)", cursor: "pointer", transition: "all 0.2s" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <i className={`bi ${src.icon}`} style={{ color: isActive ? src.color : "var(--muted-foreground)", fontSize: 15 }} />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: isActive ? "var(--foreground)" : "var(--muted-foreground)" }}>{src.label}</span>
+                      </div>
+                      {/* Switch Toggle UI */}
+                      <div style={{ width: 32, height: 18, borderRadius: 10, background: isActive ? src.color : "var(--muted)", position: "relative", transition: "background 0.2s" }}>
+                        <div style={{ width: 14, height: 14, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: isActive ? 16 : 2, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>Mục tiêu & Ghi chú</label>
+              <textarea rows={4} placeholder="Mô tả chi tiết mục tiêu của chiến dịch..." style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit", fontWeight: 500 }} />
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
@@ -147,16 +153,16 @@ function CreateCampaignOffcanvas({ open, onClose }: { open: boolean; onClose: ()
 }
 
 // ── Offcanvas Kết nối API ────────────────────────────────────────────────────
-function ConnectAdsOffcanvas({ 
-  open, 
-  onClose, 
+function ConnectAdsOffcanvas({
+  open,
+  onClose,
   onShowDoc,
   activeTab,
   setActiveTab,
   redirectUri
-}: { 
-  open: boolean; 
-  onClose: () => void; 
+}: {
+  open: boolean;
+  onClose: () => void;
   onShowDoc: () => void;
   activeTab: string;
   setActiveTab: (t: string) => void;
@@ -168,7 +174,7 @@ function ConnectAdsOffcanvas({
   useEffect(() => {
     setOrigin(window.location.origin);
   }, []);
-  
+
   // Trạng thái chung cho 4 nền tảng
   const [statuses, setStatuses] = useState<Record<string, any>>({ fb: null, yt: null, ig: null, tt: null });
   const [configs, setConfigs] = useState<Record<string, { appId: string; appSecret: string }>>({
@@ -285,12 +291,12 @@ function ConnectAdsOffcanvas({
         <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
           <AnimatePresence mode="wait">
             <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }}>
-              
+
               {/* ── RECOMMENDED: WEBHOOK METHOD (FOR FACEBOOK & TIKTOK LEADS) ── */}
               {(activeTab === 'fb' || activeTab === 'tt') && (
                 <div style={{ background: "rgba(16, 185, 129, 0.05)", borderRadius: 20, padding: "24px", border: "1px solid rgba(16, 185, 129, 0.2)", marginBottom: 24, position: "relative", overflow: "hidden" }}>
                   <div style={{ position: "absolute", top: 0, right: 0, width: 100, height: 100, background: "radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%)", zIndex: 0 }} />
-                  
+
                   <div style={{ position: "relative", zIndex: 1 }}>
                     <div style={{ display: "flex", gap: 14, marginBottom: 20 }}>
                       <div style={{ width: 44, height: 44, borderRadius: 14, background: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 8px 16px rgba(16,185,129,0.2)" }}>
@@ -331,7 +337,7 @@ function ConnectAdsOffcanvas({
                     {showGuide && (
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} style={{ marginTop: 20, borderTop: "1px dashed var(--border)", paddingTop: 20 }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                           <p style={{ margin: 0, fontSize: 12, color: "var(--muted-foreground)" }}>Mở tài liệu hướng dẫn để xem chi tiết cách cấu hình Webhook trên Make.com.</p>
+                          <p style={{ margin: 0, fontSize: 12, color: "var(--muted-foreground)" }}>Mở tài liệu hướng dẫn để xem chi tiết cách cấu hình Webhook trên Make.com.</p>
                         </div>
                       </motion.div>
                     )}
@@ -342,146 +348,146 @@ function ConnectAdsOffcanvas({
               {/* ── NATIVE INTEGRATION: YOUTUBE ANALYTICS (DIRECT) ── */}
               {activeTab === 'yt' && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                   <div style={{ background: "rgba(255, 0, 0, 0.03)", borderRadius: 24, padding: "28px", border: "1px solid rgba(255, 0, 0, 0.1)", position: "relative" }}>
-                      <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
-                        <div style={{ width: 48, height: 48, borderRadius: 16, background: "#FF0000", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 8px 20px rgba(255,0,0,0.2)" }}>
-                          <i className="bi bi-youtube" style={{ color: "#fff", fontSize: 24 }} />
-                        </div>
-                        <div>
-                          <h4 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "var(--foreground)" }}>Kết nối trực tiếp YouTube API</h4>
-                          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.5 }}>
-                             Tự động đồng bộ các chỉ số View, Subscribe và Watch-time về Dashboard của bạn.
-                          </p>
-                        </div>
+                  <div style={{ background: "rgba(255, 0, 0, 0.03)", borderRadius: 24, padding: "28px", border: "1px solid rgba(255, 0, 0, 0.1)", position: "relative" }}>
+                    <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 16, background: "#FF0000", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 8px 20px rgba(255,0,0,0.2)" }}>
+                        <i className="bi bi-youtube" style={{ color: "#fff", fontSize: 24 }} />
                       </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "var(--foreground)" }}>Kết nối trực tiếp YouTube API</h4>
+                        <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.5 }}>
+                          Tự động đồng bộ các chỉ số View, Subscribe và Watch-time về Dashboard của bạn.
+                        </p>
+                      </div>
+                    </div>
 
-                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        {[
-                          { step: "BƯỚC 1", title: "Tạo dự án Google Cloud", content: "Truy cập Google Cloud Console, tạo Project mới và bật YouTube Analytics API." },
-                          { step: "BƯỚC 2", title: "Cấu hình OAuth Consent Screen", content: "Chọn External, thêm Email hỗ trợ và thêm Scope: '.../auth/yt-analytics.readonly'." },
-                          { step: "BƯỚC 3", title: "Tạo Credentials", content: "Chọn 'OAuth Client ID' -> 'Web Application'. Thêm Redirect URI bên dưới và nhận Client ID/Secret." }
-                        ].map((s, i) => (
-                          <div key={i} style={{ display: "flex", gap: 12 }}>
-                             <span style={{ fontSize: 9, fontWeight: 900, color: "#FF0000", background: "rgba(255,0,0,0.1)", padding: "2px 8px", borderRadius: 4, height: "fit-content", marginTop: 4 }}>{s.step}</span>
-                             <div>
-                               <div style={{ fontSize: 13, fontWeight: 800 }}>{s.title}</div>
-                               <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{s.content}</div>
-                             </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {[
+                        { step: "BƯỚC 1", title: "Tạo dự án Google Cloud", content: "Truy cập Google Cloud Console, tạo Project mới và bật YouTube Analytics API." },
+                        { step: "BƯỚC 2", title: "Cấu hình OAuth Consent Screen", content: "Chọn External, thêm Email hỗ trợ và thêm Scope: '.../auth/yt-analytics.readonly'." },
+                        { step: "BƯỚC 3", title: "Tạo Credentials", content: "Chọn 'OAuth Client ID' -> 'Web Application'. Thêm Redirect URI bên dưới và nhận Client ID/Secret." }
+                      ].map((s, i) => (
+                        <div key={i} style={{ display: "flex", gap: 12 }}>
+                          <span style={{ fontSize: 9, fontWeight: 900, color: "#FF0000", background: "rgba(255,0,0,0.1)", padding: "2px 8px", borderRadius: 4, height: "fit-content", marginTop: 4 }}>{s.step}</span>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 800 }}>{s.title}</div>
+                            <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{s.content}</div>
                           </div>
-                        ))}
-                      </div>
-
-                      <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" style={{ padding: "12px", borderRadius: 12, border: "1px solid rgba(255,0,0,0.2)", background: "transparent", color: "#FF0000", fontSize: 12, fontWeight: 700, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                           <i className="bi bi-box-arrow-up-right" />
-                           Google Console
-                        </a>
-                        <button onClick={() => onShowDoc()} style={{ padding: "12px", borderRadius: 12, border: "none", background: "#FF0000", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                           <i className="bi bi-file-earmark-richtext" />
-                           Tài liệu đầy đủ
-                        </button>
-                      </div>
-
-                      <div style={{ marginTop: 24, padding: 16, background: "var(--muted)", borderRadius: 16, border: "1px dashed var(--border)" }}>
-                        <div style={{ fontSize: 10, fontWeight: 900, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 8 }}>Authorized redirect URIs</div>
-                        <div style={{ display: "flex", gap: 8 }}>
-                           <code style={{ flex: 1, fontSize: 11, color: "#FF0000", fontWeight: 700, wordBreak: "break-all" }}>{redirectUri}</code>
-                           <button onClick={() => copyToClipboard(redirectUri)} style={{ border: "none", background: "transparent", color: "var(--foreground)", cursor: "pointer", fontSize: 14 }}><i className="bi bi-clipboard" /></button>
                         </div>
-                      </div>
-                   </div>
+                      ))}
+                    </div>
 
-                   {/* CONFIG FORM & AUTHORIZE FOR YOUTUBE */}
-                   <div style={{ border: currentStatus?.configured ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 20, padding: 24, position: "relative", background: "var(--card)" }}>
-                      <div style={{ position: "absolute", top: -12, left: 20, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.configured ? "#10b981" : "var(--muted-foreground)" }}>CẤU HÌNH CLIENT ID & SECRET</div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <input value={configs[activeTab].appId} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appId: e.target.value } }))} placeholder="Client ID..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
-                        <input type="password" value={configs[activeTab].appSecret} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appSecret: e.target.value } }))} placeholder="Client Secret..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
-                        <button onClick={() => handleSave(activeTab)} disabled={!configs[activeTab].appId || savingStatus[activeTab]} style={{ padding: "12px", borderRadius: 12, border: "none", background: configs[activeTab].appId ? "#FF0000" : "var(--muted)", color: "#fff", cursor: "pointer", fontWeight: 800 }}>
-                          {savingStatus[activeTab] ? "Đang lưu..." : "Lưu cấu hình"}
-                        </button>
-                      </div>
-                   </div>
-
-                   <div style={{ border: currentStatus?.connected ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 20, padding: 24, position: "relative", opacity: currentStatus?.configured ? 1 : 0.5, background: "var(--card)", marginBottom: 24 }}>
-                      <div style={{ position: "absolute", top: -12, left: 20, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.connected ? "#10b981" : "var(--muted-foreground)" }}>BƯỚC 2: ỦY QUYỀN</div>
-                      <button onClick={() => handleConnect(activeTab)} disabled={!currentStatus?.configured} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "none", background: "#FF0000", color: "#fff", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
-                        <i className="bi bi-google" /> Kết nối tài khoản Google
+                    <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" style={{ padding: "12px", borderRadius: 12, border: "1px solid rgba(255,0,0,0.2)", background: "transparent", color: "#FF0000", fontSize: 12, fontWeight: 700, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        <i className="bi bi-box-arrow-up-right" />
+                        Google Console
+                      </a>
+                      <button onClick={() => onShowDoc()} style={{ padding: "12px", borderRadius: 12, border: "none", background: "#FF0000", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        <i className="bi bi-file-earmark-richtext" />
+                        Tài liệu đầy đủ
                       </button>
-                   </div>
+                    </div>
+
+                    <div style={{ marginTop: 24, padding: 16, background: "var(--muted)", borderRadius: 16, border: "1px dashed var(--border)" }}>
+                      <div style={{ fontSize: 10, fontWeight: 900, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 8 }}>Authorized redirect URIs</div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <code style={{ flex: 1, fontSize: 11, color: "#FF0000", fontWeight: 700, wordBreak: "break-all" }}>{redirectUri}</code>
+                        <button onClick={() => copyToClipboard(redirectUri)} style={{ border: "none", background: "transparent", color: "var(--foreground)", cursor: "pointer", fontSize: 14 }}><i className="bi bi-clipboard" /></button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CONFIG FORM & AUTHORIZE FOR YOUTUBE */}
+                  <div style={{ border: currentStatus?.configured ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 20, padding: 24, position: "relative", background: "var(--card)" }}>
+                    <div style={{ position: "absolute", top: -12, left: 20, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.configured ? "#10b981" : "var(--muted-foreground)" }}>CẤU HÌNH CLIENT ID & SECRET</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <input value={configs[activeTab].appId} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appId: e.target.value } }))} placeholder="Client ID..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
+                      <input type="password" value={configs[activeTab].appSecret} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appSecret: e.target.value } }))} placeholder="Client Secret..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
+                      <button onClick={() => handleSave(activeTab)} disabled={!configs[activeTab].appId || savingStatus[activeTab]} style={{ padding: "12px", borderRadius: 12, border: "none", background: configs[activeTab].appId ? "#FF0000" : "var(--muted)", color: "#fff", cursor: "pointer", fontWeight: 800 }}>
+                        {savingStatus[activeTab] ? "Đang lưu..." : "Lưu cấu hình"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ border: currentStatus?.connected ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 20, padding: 24, position: "relative", opacity: currentStatus?.configured ? 1 : 0.5, background: "var(--card)", marginBottom: 24 }}>
+                    <div style={{ position: "absolute", top: -12, left: 20, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.connected ? "#10b981" : "var(--muted-foreground)" }}>BƯỚC 2: ỦY QUYỀN</div>
+                    <button onClick={() => handleConnect(activeTab)} disabled={!currentStatus?.configured} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "none", background: "#FF0000", color: "#fff", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+                      <i className="bi bi-google" /> Kết nối tài khoản Google
+                    </button>
+                  </div>
                 </div>
               )}
 
               {/* ── TIKTOK DIRECT API CONFIG ── */}
               {activeTab === 'tt' && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                   <div style={{ background: "rgba(0,0,0,0.03)", borderRadius: 24, padding: 28, border: "1px solid var(--border)" }}>
-                      <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
-                        <div style={{ width: 54, height: 54, borderRadius: 16, background: "var(--foreground)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--background)" }}>
-                           <i className="bi bi-tiktok" style={{ fontSize: 28 }} />
-                        </div>
-                        <div>
-                          <h4 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "var(--foreground)" }}>Kết nối trực tiếp TikTok Ads API</h4>
-                          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.5 }}>
-                             Theo dõi hiệu quả chiến dịch TikTok Ads (Cost, Click, Conversion) ngay trên Dashboard.
-                          </p>
-                        </div>
+                  <div style={{ background: "rgba(0,0,0,0.03)", borderRadius: 24, padding: 28, border: "1px solid var(--border)" }}>
+                    <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+                      <div style={{ width: 54, height: 54, borderRadius: 16, background: "var(--foreground)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--background)" }}>
+                        <i className="bi bi-tiktok" style={{ fontSize: 28 }} />
                       </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "var(--foreground)" }}>Kết nối trực tiếp TikTok Ads API</h4>
+                        <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.5 }}>
+                          Theo dõi hiệu quả chiến dịch TikTok Ads (Cost, Click, Conversion) ngay trên Dashboard.
+                        </p>
+                      </div>
+                    </div>
 
-                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        {[
-                          { step: "BƯỚC 1", title: "Tạo App trên TikTok Developer", content: "Đăng ký tài khoản Developer và tạo App mới tại ads.tiktok.com." },
-                          { step: "BƯỚC 2", title: "Cấu hình Permissions", content: "Thêm các quyền 'Ads Management' và 'Ads Reporting' cho App của bạn." },
-                          { step: "BƯỚC 3", title: "Nhận App ID & Secret", content: "Thêm Redirect URI bên dưới vào cài đặt App và lấy thông tin Key." }
-                        ].map((s, i) => (
-                          <div key={i} style={{ display: "flex", gap: 12 }}>
-                             <span style={{ fontSize: 9, fontWeight: 900, color: "var(--background)", background: "var(--foreground)", padding: "2px 8px", borderRadius: 4, height: "fit-content", marginTop: 4 }}>{s.step}</span>
-                             <div>
-                               <div style={{ fontSize: 13, fontWeight: 800 }}>{s.title}</div>
-                               <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{s.content}</div>
-                             </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {[
+                        { step: "BƯỚC 1", title: "Tạo App trên TikTok Developer", content: "Đăng ký tài khoản Developer và tạo App mới tại ads.tiktok.com." },
+                        { step: "BƯỚC 2", title: "Cấu hình Permissions", content: "Thêm các quyền 'Ads Management' và 'Ads Reporting' cho App của bạn." },
+                        { step: "BƯỚC 3", title: "Nhận App ID & Secret", content: "Thêm Redirect URI bên dưới vào cài đặt App và lấy thông tin Key." }
+                      ].map((s, i) => (
+                        <div key={i} style={{ display: "flex", gap: 12 }}>
+                          <span style={{ fontSize: 9, fontWeight: 900, color: "var(--background)", background: "var(--foreground)", padding: "2px 8px", borderRadius: 4, height: "fit-content", marginTop: 4 }}>{s.step}</span>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 800 }}>{s.title}</div>
+                            <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{s.content}</div>
                           </div>
-                        ))}
-                      </div>
-
-                      <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        <a href="https://ads.tiktok.com/marketing_api/homepage/" target="_blank" rel="noreferrer" style={{ padding: "12px", borderRadius: 12, border: "1px solid var(--border)", background: "transparent", color: "var(--foreground)", fontSize: 12, fontWeight: 700, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                           <i className="bi bi-box-arrow-up-right" />
-                           TikTok Console
-                        </a>
-                        <button onClick={() => onShowDoc()} style={{ padding: "12px", borderRadius: 12, border: "none", background: "var(--foreground)", color: "var(--background)", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                           <i className="bi bi-file-earmark-richtext" />
-                           Tài liệu đầy đủ
-                        </button>
-                      </div>
-
-                      <div style={{ marginTop: 24, padding: 16, background: "var(--muted)", borderRadius: 16, border: "1px dashed var(--border)" }}>
-                        <div style={{ fontSize: 10, fontWeight: 900, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 8 }}>Authorized redirect URIs</div>
-                        <div style={{ display: "flex", gap: 8 }}>
-                           <code style={{ flex: 1, fontSize: 11, color: "var(--foreground)", fontWeight: 700, wordBreak: "break-all" }}>{redirectUri}</code>
-                           <button onClick={() => copyToClipboard(redirectUri)} style={{ border: "none", background: "transparent", color: "var(--foreground)", cursor: "pointer", fontSize: 14 }}><i className="bi bi-clipboard" /></button>
                         </div>
-                      </div>
-                   </div>
+                      ))}
+                    </div>
 
-                   {/* CONFIG FORM & AUTHORIZE FOR TIKTOK */}
-                   <div style={{ border: currentStatus?.configured ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 20, padding: 24, position: "relative", background: "var(--card)" }}>
-                      <div style={{ position: "absolute", top: -12, left: 20, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.configured ? "#10b981" : "var(--muted-foreground)" }}>CẤU HÌNH APP ID & SECRET KEY</div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <input value={configs[activeTab].appId} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appId: e.target.value } }))} placeholder="App ID..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
-                        <input type="password" value={configs[activeTab].appSecret} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appSecret: e.target.value } }))} placeholder="Secret Key..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
-                        <button onClick={() => handleSave(activeTab)} disabled={!configs[activeTab].appId || savingStatus[activeTab]} style={{ padding: "12px", borderRadius: 12, border: "none", background: configs[activeTab].appId ? "var(--foreground)" : "var(--muted)", color: "var(--background)", cursor: "pointer", fontWeight: 800 }}>
-                          {savingStatus[activeTab] ? "Đang lưu..." : "Lưu cấu hình"}
-                        </button>
-                      </div>
-                   </div>
-
-                   <div style={{ border: currentStatus?.connected ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 20, padding: 24, position: "relative", opacity: currentStatus?.configured ? 1 : 0.5, background: "var(--card)", marginBottom: 24 }}>
-                      <div style={{ position: "absolute", top: -12, left: 20, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.connected ? "#10b981" : "var(--muted-foreground)" }}>BƯỚC 2: ỦY QUYỀN</div>
-                      <button onClick={() => handleConnect(activeTab)} disabled={!currentStatus?.configured} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "none", background: "var(--foreground)", color: "var(--background)", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
-                        <i className="bi bi-tiktok" /> Kết nối tài khoản TikTok
+                    <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <a href="https://ads.tiktok.com/marketing_api/homepage/" target="_blank" rel="noreferrer" style={{ padding: "12px", borderRadius: 12, border: "1px solid var(--border)", background: "transparent", color: "var(--foreground)", fontSize: 12, fontWeight: 700, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        <i className="bi bi-box-arrow-up-right" />
+                        TikTok Console
+                      </a>
+                      <button onClick={() => onShowDoc()} style={{ padding: "12px", borderRadius: 12, border: "none", background: "var(--foreground)", color: "var(--background)", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        <i className="bi bi-file-earmark-richtext" />
+                        Tài liệu đầy đủ
                       </button>
-                   </div>
+                    </div>
+
+                    <div style={{ marginTop: 24, padding: 16, background: "var(--muted)", borderRadius: 16, border: "1px dashed var(--border)" }}>
+                      <div style={{ fontSize: 10, fontWeight: 900, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 8 }}>Authorized redirect URIs</div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <code style={{ flex: 1, fontSize: 11, color: "var(--foreground)", fontWeight: 700, wordBreak: "break-all" }}>{redirectUri}</code>
+                        <button onClick={() => copyToClipboard(redirectUri)} style={{ border: "none", background: "transparent", color: "var(--foreground)", cursor: "pointer", fontSize: 14 }}><i className="bi bi-clipboard" /></button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CONFIG FORM & AUTHORIZE FOR TIKTOK */}
+                  <div style={{ border: currentStatus?.configured ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 20, padding: 24, position: "relative", background: "var(--card)" }}>
+                    <div style={{ position: "absolute", top: -12, left: 20, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.configured ? "#10b981" : "var(--muted-foreground)" }}>CẤU HÌNH APP ID & SECRET KEY</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <input value={configs[activeTab].appId} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appId: e.target.value } }))} placeholder="App ID..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
+                      <input type="password" value={configs[activeTab].appSecret} onChange={e => setConfigs(p => ({ ...p, [activeTab]: { ...p[activeTab], appSecret: e.target.value } }))} placeholder="Secret Key..." style={{ width: "100%", padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontSize: 14 }} />
+                      <button onClick={() => handleSave(activeTab)} disabled={!configs[activeTab].appId || savingStatus[activeTab]} style={{ padding: "12px", borderRadius: 12, border: "none", background: configs[activeTab].appId ? "var(--foreground)" : "var(--muted)", color: "var(--background)", cursor: "pointer", fontWeight: 800 }}>
+                        {savingStatus[activeTab] ? "Đang lưu..." : "Lưu cấu hình"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ border: currentStatus?.connected ? "2px solid #10b981" : "2px solid var(--border)", borderRadius: 20, padding: 24, position: "relative", opacity: currentStatus?.configured ? 1 : 0.5, background: "var(--card)", marginBottom: 24 }}>
+                    <div style={{ position: "absolute", top: -12, left: 20, background: "var(--card)", padding: "0 8px", fontSize: 11, fontWeight: 900, color: currentStatus?.connected ? "#10b981" : "var(--muted-foreground)" }}>BƯỚC 2: ỦY QUYỀN</div>
+                    <button onClick={() => handleConnect(activeTab)} disabled={!currentStatus?.configured} style={{ width: "100%", padding: "16px", borderRadius: 16, border: "none", background: "var(--foreground)", color: "var(--background)", fontWeight: 800, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+                      <i className="bi bi-tiktok" /> Kết nối tài khoản TikTok
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -500,7 +506,7 @@ function ConnectAdsOffcanvas({
                         </p>
                       </div>
                     </div>
-                    
+
                     <button onClick={() => onShowDoc()} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: "#1877F2", color: "#fff", fontWeight: 800, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
                       <i className="bi bi-file-earmark-text" /> Xem hướng dẫn thiết lập
                     </button>
@@ -532,9 +538,9 @@ function ConnectAdsOffcanvas({
 
         {/* Footer */}
         <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", textAlign: "center" }}>
-           <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)", fontWeight: 500 }}>
-             <i className="bi bi-shield-check" /> Hệ thống này hỗ trợ cơ chế Client-Project, dữ liệu App ID độc lập cho từng khách hàng.
-           </p>
+          <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)", fontWeight: 500 }}>
+            <i className="bi bi-shield-check" /> Hệ thống này hỗ trợ cơ chế Client-Project, dữ liệu App ID độc lập cho từng khách hàng.
+          </p>
         </div>
       </div>
     </>
@@ -558,19 +564,28 @@ export default function MarketingPage() {
   const [importMode, setImportMode] = useState<"upsert" | "skip">("upsert");
   const [isImporting, setIsImporting] = useState(false);
   const [chartRange, setChartRange] = useState<"7" | "14" | "30" | "custom">("30");
-  
+
   // === LIFTED STATE FOR INTEGRATIONS ===
   const [activeTab, setActiveTab] = useState('fb');
   const [redirectUri, setRedirectUri] = useState("");
+  const [selectedLead, setSelectedLead] = useState<any | null>(null);
 
   // === FACEBOOK CAMPAIGNS LISTING ===
   const [fbCampaigns, setFbCampaigns] = useState<any[]>([]);
   const [fbCampaignsLoading, setFbCampaignsLoading] = useState(true);
 
-  // === CUSTOMER DATA/LEADS TABS AND STATE ===
-  const [activeListTab, setActiveListTab] = useState<"campaigns" | "leads">("campaigns");
+  // === WORKFLOW STEP STATE ===
+  const [currentStep, setCurrentStep] = useState(1);
+  const workflowSteps: ModernStepItem[] = [
+    { num: 1, id: "marketing", title: "Hoạt động Marketing", desc: "Quản lý chiến dịch", icon: "bi-megaphone-fill" },
+    { num: 2, id: "customers", title: "Danh sách khách hàng", desc: "Dữ liệu Leads", icon: "bi-people-fill" }
+  ];
+
   const [leads, setLeads] = useState<any[]>([]);
   const [leadsLoading, setLeadsLoading] = useState(true);
+  const [customerPage, setCustomerPage] = useState(1);
+  const CUSTOMER_PAGE_SIZE = 20;
+  const [crmEmployees, setCrmEmployees] = useState<{ id: string; fullName: string; phone?: string | null }[]>([]);
 
   useEffect(() => {
     const uri = `${window.location.protocol}//${window.location.host}/api/${activeTab === 'yt' ? 'youtube' : activeTab === 'fb' ? 'facebook' : activeTab === 'ig' ? 'instagram' : 'tiktok'}/callback`;
@@ -600,6 +615,16 @@ export default function MarketingPage() {
       console.error("Fetch leads error:", err);
     } finally {
       setLeadsLoading(false);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await fetch("/api/hr/employees?department=sales&pageSize=100");
+      const d = await res.json();
+      if (d.employees && Array.isArray(d.employees)) setCrmEmployees(d.employees);
+    } catch (e) {
+      console.error("Fetch employees error", e);
     }
   };
 
@@ -707,6 +732,7 @@ export default function MarketingPage() {
   useEffect(() => {
     fetchDashboard();
     fetchLeads();
+    fetchEmployees();
   }, []);
 
   // Update leadSeries and chartDates when activeFeedIndex or range changes
@@ -724,7 +750,7 @@ export default function MarketingPage() {
     if (chartRange === "7") rangeLimit = 7;
     else if (chartRange === "14") rangeLimit = 14;
     else if (chartRange === "30") rangeLimit = 30;
-    
+
     // Nếu rangeLimit lớn hơn số data có sẵn hoặc chế độ Custom -> Lấy tất cả
     const dataSlice = (chartRange === "custom" || sorted.length <= rangeLimit) ? sorted : sorted.slice(-rangeLimit);
 
@@ -733,10 +759,11 @@ export default function MarketingPage() {
       { name: "Lượt tiếp cận", data: dataSlice.map(d => parseInt(d.reach || "0")) },
       { name: "Lượt tương tác (Clicks)", data: dataSlice.map(d => parseInt(d.clicks || "0")) },
       { name: "Lượt thích (Likes)", data: dataSlice.map(d => parseInt(d.likes || "0")) },
-      { name: "Khách hàng tiềm năng (Leads)", data: dataSlice.map(d => {
+      {
+        name: "Khách hàng tiềm năng (Leads)", data: dataSlice.map(d => {
           const lAct = d.actions?.find((a: any) => a.action_type === "lead");
           return parseInt(lAct?.value || d.leads || "0");
-        }) 
+        })
       }
     ]);
   }, [fbCampaigns, activeFeedIndex, chartRange]);
@@ -768,20 +795,20 @@ export default function MarketingPage() {
     stroke: { curve: "smooth", width: 2 },
     xaxis: {
       categories: chartDates.length > 0 ? chartDates : ["-8d", "-7d", "-6d", "-5d", "-4d", "-3d", "-2d", "-1d", "Hôm nay"],
-      labels: { 
+      labels: {
         rotate: 0,
         style: { colors: "#64748b" },
         formatter: (val: string) => {
-           if (!val || !val.includes('-')) return val;
-           
-           // Nếu là 30 ngày, ép buộc cách 1 ngày mới hiện 1 nhãn (bằng cách lấy index)
-           if (chartRange === "30") {
-             const idx = chartDates.indexOf(val);
-             if (idx % 2 !== 0) return "";
-           }
-           
-           const parts = val.split('-');
-           return `${parts[2]}/${parts[1]}`; // dd/mm
+          if (!val || !val.includes('-')) return val;
+
+          // Nếu là 30 ngày, ép buộc cách 1 ngày mới hiện 1 nhãn (bằng cách lấy index)
+          if (chartRange === "30") {
+            const idx = chartDates.indexOf(val);
+            if (idx % 2 !== 0) return "";
+          }
+
+          const parts = val.split('-');
+          return `${parts[2]}/${parts[1]}`; // dd/mm
         }
       },
       axisBorder: { show: false },
@@ -799,25 +826,25 @@ export default function MarketingPage() {
       borderColor: "rgba(100, 116, 139, 0.1)",
       strokeDashArray: 4,
     },
-    tooltip: { 
+    tooltip: {
       shared: true,
       intersect: false,
       theme: "light",
       custom: ({ series, seriesIndex, dataPointIndex, w }: any) => {
-            const rawDate = chartDates[dataPointIndex]; 
-            const displayDate = rawDate.includes('-') ? rawDate.split('-').reverse().join('/') : rawDate; 
-            let itemsHtml = "";
-            
-            // Tính tổng chi phí ngày đó (cho tất cả platform)
-            const dayEntries = fbCampaigns[activeFeedIndex]?.insights?.data?.filter((d: any) => d.date_start === rawDate) || [];
-            const daySpend = dayEntries.reduce((sum: number, d: any) => sum + parseFloat(d.spend || "0"), 0);
+        const rawDate = chartDates[dataPointIndex];
+        const displayDate = rawDate.includes('-') ? rawDate.split('-').reverse().join('/') : rawDate;
+        let itemsHtml = "";
 
-            series.forEach((s: any, idx: number) => {
-               const val = s[dataPointIndex];
-               const name = w.config.series[idx].name;
-               const color = w.config.colors[idx % w.config.colors.length];
-               
-               itemsHtml += `
+        // Tính tổng chi phí ngày đó (cho tất cả platform)
+        const dayEntries = fbCampaigns[activeFeedIndex]?.insights?.data?.filter((d: any) => d.date_start === rawDate) || [];
+        const daySpend = dayEntries.reduce((sum: number, d: any) => sum + parseFloat(d.spend || "0"), 0);
+
+        series.forEach((s: any, idx: number) => {
+          const val = s[dataPointIndex];
+          const name = w.config.series[idx].name;
+          const color = w.config.colors[idx % w.config.colors.length];
+
+          itemsHtml += `
                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                    <div style="display: flex; align-items: center; gap: 8px;">
                      <div style="width: 8px; height: 8px; border-radius: 50%; background: ${color};"></div>
@@ -826,9 +853,9 @@ export default function MarketingPage() {
                    <b style="font-size: 12px; color: #1e293b;">${val.toLocaleString()}</b>
                  </div>
                `;
-            });
+        });
 
-            return `
+        return `
               <div style="padding: 12px; min-width: 200px; background: #fff; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border: 1px solid #f1f5f9;">
                 <div style="font-weight: 800; font-size: 12px; margin-bottom: 10px; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; display: flex; justify-content: space-between;">
                   <span>Hiệu quả ngày</span>
@@ -851,7 +878,7 @@ export default function MarketingPage() {
         .mkt-page-body {
           flex: 1;
           overflow-y: auto;
-          padding: 20px 24px;
+          padding: 8px;
           display: flex;
           flex-direction: column;
         }
@@ -919,7 +946,7 @@ export default function MarketingPage() {
             gap: 10px;
           }
           .mkt-page-body {
-            padding: 14px 16px;
+            padding: 8px;
             overflow-y: auto;
           }
           .mkt-metrics-wrapper {
@@ -948,7 +975,7 @@ export default function MarketingPage() {
             font-size: 10px !important;
           }
           .mkt-page-body {
-            padding: 10px 12px;
+            padding: 8px;
           }
           .mkt-chart-header {
             flex-direction: column;
@@ -994,167 +1021,195 @@ export default function MarketingPage() {
         icon="bi-megaphone"
       />
 
-      <div className="mkt-page-body">
+      {/* QUICK SUMMARY Ticker — Dữ liệu thực từ Facebook */}
+      {(() => {
+        const totalActive = fbCampaigns.filter(c => c.status?.toUpperCase() === "ACTIVE").length;
+        const totalLeads = fbCampaigns.reduce((sum, c) => {
+          const days = (c as any).insights?.data || [];
+          return sum + days.reduce((s: number, d: any) => s + (parseFloat(d.leads || "0")), 0);
+        }, 0);
+        const totalSpend = fbCampaigns.reduce((sum, c) => {
+          const days = (c as any).insights?.data || [];
+          return sum + days.reduce((s: number, d: any) => s + (parseFloat(d.spend || "0")), 0);
+        }, 0);
+        const avgCPA = totalLeads > 0 ? Math.round(totalSpend / totalLeads) : 0;
 
-        {/* QUICK SUMMARY CARDS — Dữ liệu thực từ Facebook */}
-        {(() => {
-          const totalActive = fbCampaigns.filter(c => c.status?.toUpperCase() === "ACTIVE").length;
-          const totalLeads = fbCampaigns.reduce((sum, c) => {
-            const days = (c as any).insights?.data || [];
-            return sum + days.reduce((s: number, d: any) => s + (parseFloat(d.leads || "0")), 0);
-          }, 0);
-          const totalSpend = fbCampaigns.reduce((sum, c) => {
-            const days = (c as any).insights?.data || [];
-            return sum + days.reduce((s: number, d: any) => s + (parseFloat(d.spend || "0")), 0);
-          }, 0);
-          const avgCPA = totalLeads > 0 ? Math.round(totalSpend / totalLeads) : 0;
+        const fmt = (v: number) => v.toLocaleString('vi-VN');
 
-          const fmt = (v: number) => v.toLocaleString('vi-VN');
+        return (
+          <DynamicTicker
+            pageTitle="TỔNG QUAN"
+            customNews={[
+              { type: "marketing", text: `Chiến dịch đang chạy: <strong>${fbCampaignsLoading ? "…" : totalActive.toString()}</strong>` },
+              { type: "marketing", text: `Tổng Lead: <strong style="color:#10b981">${fbCampaignsLoading ? "…" : fmt(totalLeads)} khách</strong>` },
+              { type: "marketing", text: `Ngân sách đã sử dụng: <strong style="color:#f59e0b">${fbCampaignsLoading ? "…" : fmt(Math.round(totalSpend))} đ</strong>` },
+              { type: "marketing", text: `CPA Trung bình: <strong style="color:#8b5cf6">${fbCampaignsLoading ? "…" : avgCPA > 0 ? fmt(avgCPA) + " đ" : "—"}</strong>` }
+            ]}
+          />
+        );
+      })()}
 
-          return (
-            <div className="mkt-kpi-grid">
-              <KpiCard icon="bi-rocket-takeoff" label="Chiến dịch đang chạy" value={fbCampaignsLoading ? "…" : totalActive.toString()} color="#3b82f6" />
-              <KpiCard icon="bi-person-lines-fill" label="Tổng Lead (Toàn thời gian)" value={fbCampaignsLoading ? "…" : `${fmt(totalLeads)} khách`} color="#10b981" />
-              <KpiCard icon="bi-cash-coin" label="Ngân sách đã sử dụng" value={fbCampaignsLoading ? "…" : `${fmt(Math.round(totalSpend))} đ`} color="#f59e0b" />
-              <KpiCard icon="bi-bullseye" label="CPA Trung bình" value={fbCampaignsLoading ? "…" : avgCPA > 0 ? `${fmt(avgCPA)} đ` : "—"} color="#8b5cf6" />
-            </div>
-          );
-        })()}
-
-        {/* LIVE METRICS & FEED */}
-        <div className="mkt-metrics-wrapper" style={{ display: "flex", flexDirection: "column", gap: 24, flex: 1, minHeight: 0 }}>
-          {/* Tùy kích thước màn hình mà chia 2 hoặc 3 cột, dùng CSS Grid để responsive */}
-          <div className="mkt-live-charts">
-            {/* LIVE CHART SECTION */}
-            <div className="app-card" style={{ display: "flex", flexDirection: "column", border: "1px solid var(--border)", borderRadius: 16, background: "var(--card)", padding: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", height: "100%" }}>
-              {/* Header Card */}
-              <div className="mkt-chart-header">
-                <div>
-                  <h2 className="mkt-chart-title">
-                    <i className="bi bi-graph-up-arrow" style={{ color: "#10b981" }} />
-                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 400 }} title={fbCampaigns[activeFeedIndex]?.name}>
-                      Hiệu quả: {fbCampaigns[activeFeedIndex]?.name || "Đang tải..."}
-                    </span>
-                  </h2>
-                  <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 4, marginBottom: 0 }}>Xu hướng tiếp cận, tương tác và chuyển đổi khách hàng tiềm năng.</p>
-                </div>
-                <div className="mkt-chart-actions">
-                  <button
-                    onClick={() => setIsConnectOpen(true)}
-                    style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-                    onMouseEnter={e => e.currentTarget.style.background = "var(--muted)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "var(--background)"}
-                    title="Cấu hình kết nối API"
-                  >
-                    <i className="bi bi-gear-fill" style={{ color: "var(--muted-foreground)" }} />
-                  </button>
-                  <button
-                    onClick={() => setIsCreateOpen(true)}
-                    style={{ padding: "6px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #10b981, #059669)", color: "white", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, boxShadow: "0 4px 14px rgba(16, 185, 129, 0.25)", transition: "transform 0.2s" }}
-                    onMouseEnter={e => e.currentTarget.style.transform = "translateY(-1px)"}
-                    onMouseLeave={e => e.currentTarget.style.transform = "none"}
-                  >
-                    <i className="bi bi-plus-lg" /> Tạo chiến dịch
-                  </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-                    onMouseEnter={e => e.currentTarget.style.background = "var(--muted)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "var(--background)"}
-                    title="Import Báo cáo Excel"
-                  >
-                    <i className="bi bi-file-earmark-arrow-up" />
-                  </button>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    onChange={handleImportExcel} 
-                    accept=".xlsx, .xls, .csv" 
-                    style={{ display: "none" }} 
-                  />
-                </div>
-              </div>
-
-              {/* Chart Area */}
-              <div style={{ margin: "0 -10px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-                <div style={{ flex: 1 }}>
-                  <ReactApexChart options={chartOptions} series={leadSeries} type="area" height="100%" />
-                </div>
-                
-                {/* BỘ LỌC KHOẢNG THỜI GIAN (GÓC DƯỚI BÊN TRÁI) */}
-                <div style={{ display: "flex", gap: 6, paddingLeft: 10, marginTop: 2, zIndex: 10, position: "relative" }}>
-                  {[
-                    { value: "7", label: "7 ngày" },
-                    { value: "14", label: "14 ngày" },
-                    { value: "30", label: "30 ngày" },
-                    { value: "custom", label: "Tùy chỉnh..." }
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      disabled={opt.value === "custom"}
-                      onClick={() => setChartRange(opt.value as any)}
-                      style={{
-                        padding: "3px 10px",
-                        borderRadius: 14,
-                        border: chartRange === opt.value ? "1px solid #10b981" : "1px solid var(--border)",
-                        background: chartRange === opt.value ? "rgba(16,185,129,0.1)" : "var(--background)",
-                        color: chartRange === opt.value ? "#10b981" : "var(--muted-foreground)",
-                        fontSize: 10,
-                        fontWeight: 700,
-                        cursor: opt.value === "custom" ? "not-allowed" : "pointer",
-                        opacity: opt.value === "custom" ? 0.4 : 1,
-                        transition: "all 0.2s"
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Realtime Active Campaigns Feed */}
-              <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.02em" }}>Cập nhật Mới nhất</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {fbCampaigns.filter(c => c.status === "ACTIVE").length > 1 && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginRight: 6 }}>
-                        <button 
-                          onClick={() => setActiveFeedIndex(prev => Math.max(0, prev - 1))}
-                          disabled={activeFeedIndex === 0}
-                          style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid var(--border)", background: "var(--background)", color: activeFeedIndex === 0 ? "var(--muted-foreground)" : "var(--foreground)", cursor: activeFeedIndex === 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-                        ><i className="bi bi-chevron-left" style={{ fontSize: 10 }} /></button>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>
-                          {Math.min(activeFeedIndex + 1, fbCampaigns.filter(c => c.status === "ACTIVE").length)} / {fbCampaigns.filter(c => c.status === "ACTIVE").length}
+      <div className="mkt-page-body d-flex flex-column flex-grow-1" style={{ minHeight: 0 }}>
+        <WorkflowCard
+          stepper={
+            <ModernStepper
+              steps={workflowSteps}
+              currentStep={currentStep}
+              onStepChange={setCurrentStep}
+              paddingX={24}
+              paddingY={12}
+            />
+          }
+          className="border shadow-sm bg-card"
+          contentPadding="p-4"
+          bottomToolbar={
+            currentStep === 2 ? (
+              <TableFooter
+                currentCount={Math.min(leads.length - (customerPage - 1) * CUSTOMER_PAGE_SIZE, CUSTOMER_PAGE_SIZE)}
+                totalCount={leads.length}
+                itemName="khách hàng"
+                page={customerPage}
+                totalPages={Math.ceil(leads.length / CUSTOMER_PAGE_SIZE)}
+                onPageChange={setCustomerPage}
+              />
+            ) : null
+          }
+        >
+          {/* LIVE METRICS & FEED */}
+          <div className="mkt-metrics-wrapper" style={{ display: "flex", flexDirection: "column", gap: 24, flex: 1, minHeight: 0 }}>
+            {/* Tùy kích thước màn hình mà chia 2 hoặc 3 cột, dùng CSS Grid để responsive */}
+            <div className="mkt-live-charts" style={{ gridTemplateColumns: currentStep === 2 ? "1fr" : undefined }}>
+              {/* LIVE CHART SECTION */}
+              {currentStep === 1 && (
+                <div style={{ display: "flex", flexDirection: "column", paddingRight: 20, height: "100%" }}>
+                  {/* Header Card */}
+                  <div className="mkt-chart-header">
+                    <div>
+                      <h2 className="mkt-chart-title">
+                        <i className="bi bi-graph-up-arrow" style={{ color: "#10b981" }} />
+                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 400 }} title={fbCampaigns[activeFeedIndex]?.name}>
+                          Hiệu quả: {fbCampaigns[activeFeedIndex]?.name || "Đang tải..."}
                         </span>
-                        <button 
-                          onClick={() => setActiveFeedIndex(prev => Math.min(fbCampaigns.filter(c => c.status === "ACTIVE").length - 1, prev + 1))}
-                          disabled={activeFeedIndex >= fbCampaigns.filter(c => c.status === "ACTIVE").length - 1}
-                          style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid var(--border)", background: "var(--background)", color: activeFeedIndex >= fbCampaigns.filter(c => c.status === "ACTIVE").length - 1 ? "var(--muted-foreground)" : "var(--foreground)", cursor: activeFeedIndex >= fbCampaigns.filter(c => c.status === "ACTIVE").length - 1 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-                        ><i className="bi bi-chevron-right" style={{ fontSize: 10 }} /></button>
-                      </div>
-                    )}
-                    <span style={{ 
-                      fontSize: 11, 
-                      background: "rgba(16,185,129,0.12)", 
-                      color: "#10b981", 
-                      padding: "4px 10px", 
-                      borderRadius: 12, 
-                      fontWeight: 800, 
-                      display: "inline-flex", 
-                      alignItems: "center", 
-                      gap: 6,
-                      boxShadow: "0 0 15px rgba(16,185,129,0.2)",
-                      border: "1px solid rgba(16,185,129,0.2)"
-                    }}>
-                      <i className="bi bi-lightning-charge-fill" style={{ 
-                        fontSize: 12,
-                        filter: "drop-shadow(0 0 4px #10b981)",
-                        animation: "pulse-lightning 1.5s infinite"
-                      }} /> 
-                      KẾT NỐI TỨC THÌ
-                    </span>
-                    <style>{`
+                      </h2>
+                      <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 4, marginBottom: 0 }}>Xu hướng tiếp cận, tương tác và chuyển đổi khách hàng tiềm năng.</p>
+                    </div>
+                    <div className="mkt-chart-actions">
+                      <button
+                        onClick={() => setIsConnectOpen(true)}
+                        style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "var(--muted)"}
+                        onMouseLeave={e => e.currentTarget.style.background = "var(--background)"}
+                        title="Cấu hình kết nối API"
+                      >
+                        <i className="bi bi-gear-fill" style={{ color: "var(--muted-foreground)" }} />
+                      </button>
+                      <button
+                        onClick={() => setIsCreateOpen(true)}
+                        style={{ padding: "6px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #10b981, #059669)", color: "white", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, boxShadow: "0 4px 14px rgba(16, 185, 129, 0.25)", transition: "transform 0.2s" }}
+                        onMouseEnter={e => e.currentTarget.style.transform = "translateY(-1px)"}
+                        onMouseLeave={e => e.currentTarget.style.transform = "none"}
+                      >
+                        <i className="bi bi-plus-lg" /> Tạo chiến dịch
+                      </button>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", color: "var(--foreground)", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "var(--muted)"}
+                        onMouseLeave={e => e.currentTarget.style.background = "var(--background)"}
+                        title="Import Báo cáo Excel"
+                      >
+                        <i className="bi bi-file-earmark-arrow-up" />
+                      </button>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImportExcel}
+                        accept=".xlsx, .xls, .csv"
+                        style={{ display: "none" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Chart Area */}
+                  <div style={{ margin: "0 -10px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+                    <div style={{ flex: 1 }}>
+                      <ReactApexChart options={chartOptions} series={leadSeries} type="area" height="100%" />
+                    </div>
+
+                    {/* BỘ LỌC KHOẢNG THỜI GIAN (GÓC DƯỚI BÊN TRÁI) */}
+                    <div style={{ display: "flex", gap: 6, paddingLeft: 10, marginTop: 2, zIndex: 10, position: "relative" }}>
+                      {[
+                        { value: "7", label: "7 ngày" },
+                        { value: "14", label: "14 ngày" },
+                        { value: "30", label: "30 ngày" },
+                        { value: "custom", label: "Tùy chỉnh..." }
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          disabled={opt.value === "custom"}
+                          onClick={() => setChartRange(opt.value as any)}
+                          style={{
+                            padding: "3px 10px",
+                            borderRadius: 14,
+                            border: chartRange === opt.value ? "1px solid #10b981" : "1px solid var(--border)",
+                            background: chartRange === opt.value ? "rgba(16,185,129,0.1)" : "var(--background)",
+                            color: chartRange === opt.value ? "#10b981" : "var(--muted-foreground)",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            cursor: opt.value === "custom" ? "not-allowed" : "pointer",
+                            opacity: opt.value === "custom" ? 0.4 : 1,
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Realtime Active Campaigns Feed */}
+                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.02em" }}>Cập nhật Mới nhất</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {fbCampaigns.filter(c => c.status === "ACTIVE").length > 1 && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginRight: 6 }}>
+                            <button
+                              onClick={() => setActiveFeedIndex(prev => Math.max(0, prev - 1))}
+                              disabled={activeFeedIndex === 0}
+                              style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid var(--border)", background: "var(--background)", color: activeFeedIndex === 0 ? "var(--muted-foreground)" : "var(--foreground)", cursor: activeFeedIndex === 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                            ><i className="bi bi-chevron-left" style={{ fontSize: 10 }} /></button>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>
+                              {Math.min(activeFeedIndex + 1, fbCampaigns.filter(c => c.status === "ACTIVE").length)} / {fbCampaigns.filter(c => c.status === "ACTIVE").length}
+                            </span>
+                            <button
+                              onClick={() => setActiveFeedIndex(prev => Math.min(fbCampaigns.filter(c => c.status === "ACTIVE").length - 1, prev + 1))}
+                              disabled={activeFeedIndex >= fbCampaigns.filter(c => c.status === "ACTIVE").length - 1}
+                              style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid var(--border)", background: "var(--background)", color: activeFeedIndex >= fbCampaigns.filter(c => c.status === "ACTIVE").length - 1 ? "var(--muted-foreground)" : "var(--foreground)", cursor: activeFeedIndex >= fbCampaigns.filter(c => c.status === "ACTIVE").length - 1 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                            ><i className="bi bi-chevron-right" style={{ fontSize: 10 }} /></button>
+                          </div>
+                        )}
+                        <span style={{
+                          fontSize: 11,
+                          background: "rgba(16,185,129,0.12)",
+                          color: "#10b981",
+                          padding: "4px 10px",
+                          borderRadius: 12,
+                          fontWeight: 800,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          boxShadow: "0 0 15px rgba(16,185,129,0.2)",
+                          border: "1px solid rgba(16,185,129,0.2)"
+                        }}>
+                          <i className="bi bi-lightning-charge-fill" style={{
+                            fontSize: 12,
+                            filter: "drop-shadow(0 0 4px #10b981)",
+                            animation: "pulse-lightning 1.5s infinite"
+                          }} />
+                          KẾT NỐI TỨC THÌ
+                        </span>
+                        <style>{`
                       @keyframes pulse-lightning {
                         0% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 2px #10b981); }
                         50% { transform: scale(1.2); opacity: 0.8; filter: drop-shadow(0 0 8px #10b981); }
@@ -1166,317 +1221,244 @@ export default function MarketingPage() {
                         100% { transform: scale(0.85); opacity: 0.6; }
                       }
                     `}</style>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "hidden", minHeight: 90, paddingRight: 4 }}>
-                  {fbCampaignsLoading ? (
-                    <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Đang đồng bộ trạng thái trực tiếp...</div>
-                  ) : (() => {
-                    const activeCamps = fbCampaigns.filter(c => c.status === "ACTIVE");
-                    if (activeCamps.length === 0) {
-                      return <div style={{ fontSize: 12, color: "var(--muted-foreground)", fontStyle: "italic" }}>Không có chiến dịch nào đang chạy lúc này.</div>;
-                    }
-                    
-                    const safeIndex = Math.min(activeFeedIndex, activeCamps.length - 1);
-                    const c = activeCamps[safeIndex];
-
-                    type InsightAction = { action_type: string; value: string };
-                    type InsightData = { spend?: string; clicks?: string; impressions?: string; actions?: InsightAction[]; ctr?: string; cpcr?: string };
-                    const days: InsightData[] = (c as { insights?: { data?: InsightData[] } }).insights?.data || [];
-                    const todayData = days[days.length - 1] || {};
-                    const spend = parseFloat(todayData.spend || "0");
-                    const clicks = parseInt(todayData.clicks || "0");
-                    const impressions = parseInt(todayData.impressions || "0");
-                    const leads = parseInt(todayData.actions?.find(x => x.action_type === "lead")?.value || "0");
-                    const ctr = todayData.ctr ? parseFloat(todayData.ctr).toFixed(2) + "%" : "0%";
-                    const cpaValue = leads > 0 ? Math.round(spend / leads) : 0;
-
-                    return (
-                      <AnimatePresence mode="wait">
-                        <motion.div 
-                          key={c.id} 
-                          initial={{ opacity: 0, x: 20 }} 
-                          animate={{ opacity: 1, x: 0 }} 
-                          exit={{ opacity: 0, x: -20 }} 
-                          transition={{ duration: 0.2 }}
-                          className="mkt-campaign-feed-row"
-                          style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid var(--border)", background: "rgba(100, 116, 139, 0.02)" }}
-                        >
-                          <div style={{ flex: 1, minWidth: 200 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                              {c.platform === "facebook" ? <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 16 }} /> : 
-                               c.platform === "instagram" ? <i className="bi bi-instagram" style={{ color: "#E4405F", fontSize: 16 }} /> :
-                               c.platform === "tiktok" ? <i className="bi bi-tiktok" style={{ color: "var(--foreground)", fontSize: 16 }} /> :
-                               c.platform === "youtube" ? <i className="bi bi-youtube" style={{ color: "#FF0000", fontSize: 16 }} /> :
-                               <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 16 }} />}
-                              <span style={{ fontSize: 14, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 300 }} title={c.name}>{c.name}</span>
-                            </div>
-                            <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", gap: 16, flexWrap: "wrap" }}>
-                              <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-bullseye" style={{ color: "#10b981" }}></i> Mục tiêu: {c.objective || "Lượt tương tác"}</span>
-                              <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-eye"></i> {impressions.toLocaleString()} lượt hiển thị</span>
-                              <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-cursor"></i> CTR: {ctr}</span>
-                              <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-wallet2"></i> CPA: {cpaValue > 0 ? `${cpaValue.toLocaleString('vi-VN')}đ` : "—"}</span>
-                            </div>
-                          </div>
-                          
-                          <div className="mkt-campaign-metrics">
-                            <div>
-                              <span style={{ display: "block", fontSize: 10, color: "var(--muted-foreground)", marginBottom: 2 }}>Hôm nay chi</span>
-                              <span style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)", fontFamily: "monospace" }}>{Math.round(spend / 1000).toLocaleString()}k</span>
-                            </div>
-                            <div>
-                              <span style={{ display: "block", fontSize: 10, color: "var(--muted-foreground)", marginBottom: 2 }}>Clicks mới</span>
-                              <span style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)", fontFamily: "monospace" }}>{clicks.toLocaleString()}</span>
-                            </div>
-                            <div style={{ minWidth: 70 }}>
-                              <span style={{ display: "block", fontSize: 10, color: "var(--muted-foreground)", marginBottom: 2 }}>Tốc độ Lead</span>
-                              <span style={{ fontSize: 16, fontWeight: 800, color: "#10b981", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
-                                <i className="bi bi-person-plus-fill" style={{ fontSize: 12 }} /> +{leads}
-                              </span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      </AnimatePresence>
-                    );
-                  })()}
-                </div>
-              </div>
-            </div>
-
-            {/* ── BẢNG CHIẾN DỊCH TỔNG HỢP ── */}
-            <div className="app-card" style={{ display: "flex", flexDirection: "column", border: "1px solid var(--border)", borderRadius: 16, background: "var(--card)", padding: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.03)", overflow: "hidden", height: "100%" }}>
-              <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 10, background: activeListTab === "campaigns" ? "linear-gradient(135deg, #6366f1, #a855f7)" : "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: activeListTab === "campaigns" ? "0 4px 12px rgba(99, 102, 241, 0.25)" : "0 4px 12px rgba(16, 185, 129, 0.25)", transition: "all 0.3s" }}>
-                    <i className={activeListTab === "campaigns" ? "bi bi-megaphone-fill" : "bi bi-people-fill"} style={{ fontSize: 16, color: "#fff" }} />
-                  </div>
-                  <div style={{ display: "flex", background: "var(--muted)", padding: 3, borderRadius: 10, gap: 4 }}>
-                    <button 
-                      onClick={() => setActiveListTab("campaigns")}
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: 8,
-                        border: "none",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        background: activeListTab === "campaigns" ? "var(--card)" : "transparent",
-                        color: activeListTab === "campaigns" ? "var(--foreground)" : "var(--muted-foreground)",
-                        boxShadow: activeListTab === "campaigns" ? "0 2px 6px rgba(0,0,0,0.08)" : "none",
-                        transition: "all 0.2s"
-                      }}
-                    >
-                      Chiến dịch quảng cáo
-                    </button>
-                    <button 
-                      onClick={() => setActiveListTab("leads")}
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: 8,
-                        border: "none",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        background: activeListTab === "leads" ? "var(--card)" : "transparent",
-                        color: activeListTab === "leads" ? "var(--foreground)" : "var(--muted-foreground)",
-                        boxShadow: activeListTab === "leads" ? "0 2px 6px rgba(0,0,0,0.08)" : "none",
-                        transition: "all 0.2s"
-                      }}
-                    >
-                      Dữ liệu khách hàng
-                    </button>
-                  </div>
-                </div>
-                {activeListTab === "campaigns" ? (
-                  <span style={{ flexShrink: 0, fontSize: 12, background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)", padding: "4px 10px", borderRadius: 20, fontWeight: 700 }}>
-                    {fbCampaigns.length} chiến dịch
-                  </span>
-                ) : (
-                  <span style={{ flexShrink: 0, fontSize: 12, background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)", padding: "4px 10px", borderRadius: 20, fontWeight: 700 }}>
-                    {leads.length} lead
-                  </span>
-                )}
-              </div>
-              
-              <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
-                {activeListTab === "campaigns" ? (
-                  fbCampaignsLoading ? (
-                    <div style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)" }}>
-                      <i className="bi bi-arrow-repeat" style={{ fontSize: 24, display: "block", marginBottom: 8 }} />
-                      <span style={{ fontSize: 12 }}>Đang tải dữ liệu...</span>
+                      </div>
                     </div>
-                  ) : fbCampaigns.length === 0 ? (
-                    <div style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)" }}>
-                      <i className="bi bi-inbox" style={{ fontSize: 32, display: "block", marginBottom: 12, opacity: 0.4 }} />
-                      <p style={{ margin: 0, fontWeight: 600 }}>Chưa có chiến dịch nào</p>
-                      <p style={{ margin: "6px 0 0", fontSize: 12 }}>Tài khoản quảng cáo chưa có campaign, hoặc thẻ thiếu quyền truy cập</p>
-                    </div>
-                  ) : (
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                      <thead>
-                        <tr style={{ background: "var(--muted)" }}>
-                          {["Tên chiến dịch", "Trạng thái", "Tổng chi phí (đ)"].map(h => (
-                            <th key={h} style={{ padding: "10px 14px", textAlign: h === "Tổng chi phí (đ)" ? "right" : "left", fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {fbCampaigns.map((c, i) => {
-                          type DayInsight = { spend?: string; impressions?: string; clicks?: string; ctr?: string; leads?: string; reach?: string; likes?: string; unit?: string };
-                          const days: DayInsight[] = (c as { insights?: { data?: DayInsight[] } }).insights?.data || [];
-                          const totalSpend = days.reduce((a, d) => a + parseFloat(d.spend || "0"), 0);
-                          const statusColor = c.status === "ACTIVE" ? "#10b981" : c.status === "PAUSED" ? "#f59e0b" : "#6b7280";
-                          
-                          return (
-                            <tr key={c.id} style={{ borderTop: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(100,116,139,0.03)" }}>
-                              <td style={{ padding: "12px 14px", fontWeight: 600, maxWidth: 160 }}>
-                                <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                                  <div style={{ marginTop: 2 }}>
-                                    {c.platform === "facebook" ? <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 14 }} /> : 
-                                     c.platform === "instagram" ? <i className="bi bi-instagram" style={{ color: "#E4405F", fontSize: 14 }} /> :
-                                     c.platform === "tiktok" ? <i className="bi bi-tiktok" style={{ color: "var(--foreground)", fontSize: 14 }} /> :
-                                     c.platform === "youtube" ? <i className="bi bi-youtube" style={{ color: "#FF0000", fontSize: 14 }} /> :
-                                     <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 14 }} />}
-                                  </div>
-                                  <span style={{ display: "block", whiteSpace: "wrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 12, lineHeight: 1.4 }}>{c.name}</span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "hidden", minHeight: 90, paddingRight: 4 }}>
+                      {fbCampaignsLoading ? (
+                        <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Đang đồng bộ trạng thái trực tiếp...</div>
+                      ) : (() => {
+                        const activeCamps = fbCampaigns.filter(c => c.status === "ACTIVE");
+                        if (activeCamps.length === 0) {
+                          return <div style={{ fontSize: 12, color: "var(--muted-foreground)", fontStyle: "italic" }}>Không có chiến dịch nào đang chạy lúc này.</div>;
+                        }
+
+                        const safeIndex = Math.min(activeFeedIndex, activeCamps.length - 1);
+                        const c = activeCamps[safeIndex];
+
+                        type InsightAction = { action_type: string; value: string };
+                        type InsightData = { spend?: string; clicks?: string; impressions?: string; actions?: InsightAction[]; ctr?: string; cpcr?: string };
+                        const days: InsightData[] = (c as { insights?: { data?: InsightData[] } }).insights?.data || [];
+                        const todayData = days[days.length - 1] || {};
+                        const spend = parseFloat(todayData.spend || "0");
+                        const clicks = parseInt(todayData.clicks || "0");
+                        const impressions = parseInt(todayData.impressions || "0");
+                        const leads = parseInt(todayData.actions?.find(x => x.action_type === "lead")?.value || "0");
+                        const ctr = todayData.ctr ? parseFloat(todayData.ctr).toFixed(2) + "%" : "0%";
+                        const cpaValue = leads > 0 ? Math.round(spend / leads) : 0;
+
+                        return (
+                          <AnimatePresence mode="wait">
+                            <motion.div
+                              key={c.id}
+                              initial={{ opacity: 0, x: 20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -20 }}
+                              transition={{ duration: 0.2 }}
+                              className="mkt-campaign-feed-row"
+                              style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid var(--border)", background: "rgba(100, 116, 139, 0.02)" }}
+                            >
+                              <div style={{ flex: 1, minWidth: 200 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                  {c.platform === "facebook" ? <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 16 }} /> :
+                                    c.platform === "instagram" ? <i className="bi bi-instagram" style={{ color: "#E4405F", fontSize: 16 }} /> :
+                                      c.platform === "tiktok" ? <i className="bi bi-tiktok" style={{ color: "var(--foreground)", fontSize: 16 }} /> :
+                                        c.platform === "youtube" ? <i className="bi bi-youtube" style={{ color: "#FF0000", fontSize: 16 }} /> :
+                                          <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 16 }} />}
+                                  <span style={{ fontSize: 14, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 300 }} title={c.name}>{c.name}</span>
                                 </div>
-                              </td>
-                              <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
-                                <span style={{ 
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 6,
-                                  padding: "4px 8px", 
-                                  borderRadius: 12, 
-                                  fontSize: 10, 
-                                  fontWeight: 700, 
-                                  background: `${statusColor}18`, 
-                                  color: statusColor 
-                                }}>
-                                  {c.status === "ACTIVE" ? (
-                                    <>
-                                      <span style={{
-                                        width: 6,
-                                        height: 6,
-                                        borderRadius: "50%",
-                                        background: "#10b981",
-                                        display: "inline-block",
-                                        animation: "status-pulse-dot 1.5s infinite ease-in-out",
-                                      }} />
-                                      Hoạt động
-                                    </>
-                                  ) : c.status === "PAUSED" ? (
-                                    <>
-                                      <span style={{
-                                        width: 6,
-                                        height: 6,
-                                        borderRadius: "50%",
-                                        background: "#f59e0b",
-                                        display: "inline-block",
-                                      }} />
-                                      Tạm dừng
-                                    </>
-                                  ) : "—"}
-                                </span>
-                              </td>
-                              <td style={{ padding: "12px 14px", fontFamily: "monospace", fontSize: 13, fontWeight: 700, textAlign: "right" }}>
-                                {totalSpend > 0 ? Math.round(totalSpend).toLocaleString("vi-VN") + " đ" : "0 đ"}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )
-                ) : (
-                  leadsLoading ? (
-                    <div style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)" }}>
-                      <div className="spinner-border spinner-border-sm me-2 text-primary" role="status"></div>
-                      <span style={{ fontSize: 12 }}>Đang tải dữ liệu khách hàng...</span>
-                    </div>
-                  ) : leads.length === 0 ? (
-                    <div style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)" }}>
-                      <i className="bi bi-inbox" style={{ fontSize: 32, display: "block", marginBottom: 12, opacity: 0.4 }} />
-                      <p style={{ margin: 0, fontWeight: 600 }}>Chưa có lead nào</p>
-                      <p style={{ margin: "6px 0 0", fontSize: 12 }}>Chưa thu thập được dữ liệu khách hàng từ các chiến dịch</p>
-                    </div>
-                  ) : (
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                      <thead>
-                        <tr style={{ background: "var(--muted)" }}>
-                          {["Khách hàng", "Chiến dịch", "Thời gian"].map(h => (
-                            <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {leads.map((l, i) => {
-                          return (
-                            <tr key={l.id} style={{ borderTop: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(100,116,139,0.03)" }}>
-                              <td style={{ padding: "10px 14px" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                  <div style={{ 
-                                    width: 28, 
-                                    height: 28, 
-                                    borderRadius: "50%", 
-                                    background: "color-mix(in srgb, var(--primary) 12%, transparent)", 
-                                    color: "var(--primary)", 
-                                    display: "flex", 
-                                    alignItems: "center", 
-                                    justifyContent: "center", 
-                                    fontWeight: 800,
-                                    fontSize: 12,
-                                    flexShrink: 0
-                                  }}>
-                                    {(l.fullName || "?").charAt(0).toUpperCase()}
-                                  </div>
-                                  <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontWeight: 600, fontSize: 12, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                      {l.fullName || "Khách ẩn danh"}
-                                    </div>
-                                    <div style={{ display: "flex", gap: 8, fontSize: 10, color: "var(--muted-foreground)", marginTop: 2 }}>
-                                      {l.phone && <span><i className="bi bi-telephone" /> {l.phone}</span>}
-                                      {l.email && <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}><i className="bi bi-envelope" /> {l.email}</span>}
-                                    </div>
-                                  </div>
+                                <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", gap: 16, flexWrap: "wrap" }}>
+                                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-bullseye" style={{ color: "#10b981" }}></i> Mục tiêu: {c.objective || "Lượt tương tác"}</span>
+                                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-eye"></i> {impressions.toLocaleString()} lượt hiển thị</span>
+                                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-cursor"></i> CTR: {ctr}</span>
+                                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-wallet2"></i> CPA: {cpaValue > 0 ? `${cpaValue.toLocaleString('vi-VN')}đ` : "—"}</span>
                                 </div>
-                              </td>
-                              <td style={{ padding: "10px 14px", minWidth: 100 }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                  {l.campaign?.platform === "facebook" ? <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 12 }} /> : 
-                                   l.campaign?.platform === "instagram" ? <i className="bi bi-instagram" style={{ color: "#E4405F", fontSize: 12 }} /> :
-                                   l.campaign?.platform === "tiktok" ? <i className="bi bi-tiktok" style={{ color: "var(--foreground)", fontSize: 12 }} /> :
-                                   l.campaign?.platform === "youtube" ? <i className="bi bi-youtube" style={{ color: "#FF0000", fontSize: 12 }} /> :
-                                   <i className="bi bi-globe" style={{ color: "var(--muted-foreground)", fontSize: 12 }} />}
-                                  <span style={{ fontSize: 11, fontWeight: 500, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 120 }} title={l.campaign?.name}>
-                                    {l.campaign?.name || l.source || "N/A"}
+                              </div>
+
+                              <div className="mkt-campaign-metrics">
+                                <div>
+                                  <span style={{ display: "block", fontSize: 10, color: "var(--muted-foreground)", marginBottom: 2 }}>Hôm nay chi</span>
+                                  <span style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)", fontFamily: "monospace" }}>{Math.round(spend / 1000).toLocaleString()}k</span>
+                                </div>
+                                <div>
+                                  <span style={{ display: "block", fontSize: 10, color: "var(--muted-foreground)", marginBottom: 2 }}>Clicks mới</span>
+                                  <span style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)", fontFamily: "monospace" }}>{clicks.toLocaleString()}</span>
+                                </div>
+                                <div style={{ minWidth: 70 }}>
+                                  <span style={{ display: "block", fontSize: 10, color: "var(--muted-foreground)", marginBottom: 2 }}>Tốc độ Lead</span>
+                                  <span style={{ fontSize: 16, fontWeight: 800, color: "#10b981", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+                                    <i className="bi bi-person-plus-fill" style={{ fontSize: 12 }} /> +{leads}
                                   </span>
                                 </div>
-                              </td>
-                              <td style={{ padding: "10px 14px", color: "var(--muted-foreground)", fontSize: 11, whiteSpace: "nowrap" }}>
-                                {new Date(l.createdAt).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" })}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )
-                )}
-              </div>
+                              </div>
+                            </motion.div>
+                          </AnimatePresence>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── BẢNG CHIẾN DỊCH TỔNG HỢP ── */}
+              {currentStep === 1 && (
+                <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", height: "100%", paddingLeft: 20, borderLeft: "1px solid var(--border)" }}>
+                  <div style={{ padding: "0 0 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #a855f7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(99, 102, 241, 0.25)", transition: "all 0.3s" }}>
+                        <i className="bi bi-megaphone-fill" style={{ fontSize: 16, color: "#fff" }} />
+                      </div>
+                      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--foreground)" }}>Chiến dịch quảng cáo</h3>
+                    </div>
+                    <span style={{ flexShrink: 0, fontSize: 12, background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)", padding: "4px 10px", borderRadius: 20, fontWeight: 700 }}>
+                      {fbCampaigns.length} chiến dịch
+                    </span>
+                  </div>
+
+                  <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
+                    {fbCampaignsLoading ? (
+                      <div style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)" }}>
+                        <i className="bi bi-arrow-repeat" style={{ fontSize: 24, display: "block", marginBottom: 8 }} />
+                        <span style={{ fontSize: 12 }}>Đang tải dữ liệu...</span>
+                      </div>
+                    ) : fbCampaigns.length === 0 ? (
+                      <div style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)" }}>
+                        <i className="bi bi-inbox" style={{ fontSize: 32, display: "block", marginBottom: 12, opacity: 0.4 }} />
+                        <p style={{ margin: 0, fontWeight: 600 }}>Chưa có chiến dịch nào</p>
+                        <p style={{ margin: "6px 0 0", fontSize: 12 }}>Tài khoản quảng cáo chưa có campaign, hoặc thẻ thiếu quyền truy cập</p>
+                      </div>
+                    ) : (
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                        <thead>
+                          <tr style={{ background: "var(--muted)" }}>
+                            {["Tên chiến dịch", "Trạng thái", "Tổng chi phí (đ)"].map(h => (
+                              <th key={h} style={{ padding: "10px 14px", textAlign: h === "Tổng chi phí (đ)" ? "right" : "left", fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fbCampaigns.map((c, i) => {
+                            type DayInsight = { spend?: string; impressions?: string; clicks?: string; ctr?: string; leads?: string; reach?: string; likes?: string; unit?: string };
+                            const days: DayInsight[] = (c as { insights?: { data?: DayInsight[] } }).insights?.data || [];
+                            const totalSpend = days.reduce((a, d) => a + parseFloat(d.spend || "0"), 0);
+                            const statusColor = c.status === "ACTIVE" ? "#10b981" : c.status === "PAUSED" ? "#f59e0b" : "#6b7280";
+
+                            return (
+                              <tr key={c.id} style={{ borderTop: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(100,116,139,0.03)" }}>
+                                <td style={{ padding: "12px 14px", fontWeight: 600, maxWidth: 160 }}>
+                                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                                    <div style={{ marginTop: 2 }}>
+                                      {c.platform === "facebook" ? <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 14 }} /> :
+                                        c.platform === "instagram" ? <i className="bi bi-instagram" style={{ color: "#E4405F", fontSize: 14 }} /> :
+                                          c.platform === "tiktok" ? <i className="bi bi-tiktok" style={{ color: "var(--foreground)", fontSize: 14 }} /> :
+                                            c.platform === "youtube" ? <i className="bi bi-youtube" style={{ color: "#FF0000", fontSize: 14 }} /> :
+                                              <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 14 }} />}
+                                    </div>
+                                    <span style={{ display: "block", whiteSpace: "wrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 12, lineHeight: 1.4 }}>{c.name}</span>
+                                  </div>
+                                </td>
+                                <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
+                                  <span style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    padding: "4px 8px",
+                                    borderRadius: 12,
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    background: `${statusColor}18`,
+                                    color: statusColor
+                                  }}>
+                                    {c.status === "ACTIVE" ? (
+                                      <>
+                                        <span style={{
+                                          width: 6,
+                                          height: 6,
+                                          borderRadius: "50%",
+                                          background: "#10b981",
+                                          display: "inline-block",
+                                          animation: "status-pulse-dot 1.5s infinite ease-in-out",
+                                        }} />
+                                        Hoạt động
+                                      </>
+                                    ) : c.status === "PAUSED" ? (
+                                      <>
+                                        <span style={{
+                                          width: 6,
+                                          height: 6,
+                                          borderRadius: "50%",
+                                          background: "#f59e0b",
+                                          display: "inline-block",
+                                        }} />
+                                        Tạm dừng
+                                      </>
+                                    ) : "—"}
+                                  </span>
+                                </td>
+                                <td style={{ padding: "12px 14px", fontFamily: "monospace", fontSize: 13, fontWeight: 700, textAlign: "right" }}>
+                                  {totalSpend > 0 ? Math.round(totalSpend).toLocaleString("vi-VN") + " đ" : "0 đ"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )
+                    }
+                  </div>
+                </div>
+              )}
+
+              {/* BƯỚC 2: DANH SÁCH KHÁCH HÀNG */}
+              {currentStep === 2 && (
+                <div className="bg-white" style={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                  <CustomerListTable
+                    data={leads.slice((customerPage - 1) * CUSTOMER_PAGE_SIZE, customerPage * CUSTOMER_PAGE_SIZE).map(l => {
+                      let fv: any = {};
+                      if (l.formValues) {
+                        try { fv = JSON.parse(l.formValues); } catch (e) { }
+                      }
+
+                      const contactStr = fv.contact || "";
+                      const contactName = contactStr.includes(" - ") ? contactStr.split(" - ")[0] : (l.fullName || "Khách hàng");
+
+                      let hasBeenCaredFor = false;
+                      if (l.careHistories && l.careHistories.length > 0) hasBeenCaredFor = true;
+                      if (fv.careHistories && Array.isArray(fv.careHistories) && fv.careHistories.length > 0) hasBeenCaredFor = true;
+
+                      return {
+                        id: l.id,
+                        name: l.fullName || "Khách ẩn danh",
+                        address: fv.detailBusinessAddress || fv.area || l.address || "Hà Nội",
+                        receivedDate: l.createdAt,
+                        contactName: contactName,
+                        contactPhone: l.phone,
+                        contactEmail: l.email,
+                        assigneeName: fv.careStaff || "Vũ Hoàng Long",
+                        assigneePhone: crmEmployees.find(emp => emp.fullName === (fv.careStaff || "Vũ Hoàng Long"))?.phone || undefined,
+                        source: l.campaign?.platform || l.source || "Khác",
+                        hasBeenCaredFor
+                      };
+                    }) as CustomerData[]}
+                    loading={leadsLoading}
+                    onRowClick={(row) => setSelectedLead(leads.find((l: any) => l.id === row.id))}
+                  />
+                </div>
+              )}
             </div>
           </div>
-        </div>
+        </WorkflowCard>
       </div>
+
+      <MarketingLeadOffcanvas lead={selectedLead} onClose={() => setSelectedLead(null)} />
 
       {/* OFFCANVAS TẠO CHIẾN DỊCH */}
       <CreateCampaignOffcanvas open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
-      
+
       {/* OFFCANVAS KẾT NỐI API */}
-      <ConnectAdsOffcanvas 
-        open={isConnectOpen} 
-        onClose={() => setIsConnectOpen(false)} 
-        onShowDoc={() => setShowFullDoc(true)} 
+      <ConnectAdsOffcanvas
+        open={isConnectOpen}
+        onClose={() => setIsConnectOpen(false)}
+        onShowDoc={() => setShowFullDoc(true)}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         redirectUri={redirectUri}
@@ -1485,29 +1467,29 @@ export default function MarketingPage() {
       {/* ── FULLSCREEN DOCUMENTATION MODAL (TRUE FULLSCREEN) ── */}
       <AnimatePresence>
         {showFullDoc && (
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }}
-              style={{ position: "fixed", inset: 0, zIndex: 3000, background: "var(--card)", display: "flex", flexDirection: "column" }}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position: "fixed", inset: 0, zIndex: 3000, background: "var(--card)", display: "flex", flexDirection: "column" }}
+          >
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}
             >
-              <motion.div 
-                initial={{ y: 50, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 50, opacity: 0 }}
-                style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}
-              >
               {/* Modal Header */}
               <div style={{ padding: "28px 40px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--muted)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  <div style={{ 
-                    width: 48, 
-                    height: 48, 
-                    borderRadius: 14, 
-                    background: activeTab === 'yt' ? "#FF0000" : activeTab === 'tt' ? "var(--foreground)" : "#1877F2", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center" 
+                  <div style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 14,
+                    background: activeTab === 'yt' ? "#FF0000" : activeTab === 'tt' ? "var(--foreground)" : "#1877F2",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
                   }}>
                     <i className={`bi ${activeTab === 'yt' ? "bi-youtube" : activeTab === 'tt' ? "bi-tiktok" : "bi-facebook"}`} style={{ fontSize: 24, color: activeTab === 'tt' ? "var(--background)" : "#fff" }} />
                   </div>
@@ -1516,13 +1498,13 @@ export default function MarketingPage() {
                       Tài liệu kết nối {activeTab === 'yt' ? "YouTube Analytics" : activeTab === 'tt' ? "TikTok Marketing API" : "Facebook Lead Ads"}
                     </h2>
                     <p style={{ margin: 0, fontSize: 13, color: "var(--muted-foreground)" }}>
-                      {activeTab === 'yt' ? "Hướng dẫn cấu hình Native OAuth2 qua Google Cloud" : 
-                       activeTab === 'tt' ? "Hướng dẫn cấu hình TikTok Marketing API cho Dashboard" :
-                       "Hướng dẫn chi tiết quy trình tự động hóa qua Make.com"}
+                      {activeTab === 'yt' ? "Hướng dẫn cấu hình Native OAuth2 qua Google Cloud" :
+                        activeTab === 'tt' ? "Hướng dẫn cấu hình TikTok Marketing API cho Dashboard" :
+                          "Hướng dẫn chi tiết quy trình tự động hóa qua Make.com"}
                     </p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowFullDoc(false)}
                   style={{ width: 44, height: 44, borderRadius: "50%", border: "none", background: "var(--foreground)", color: "var(--background)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.2s" }}
                   onMouseEnter={e => e.currentTarget.style.transform = "rotate(90deg)"}
@@ -1544,7 +1526,7 @@ export default function MarketingPage() {
 
                       <section style={{ marginBottom: 48 }}>
                         <h3 style={{ fontSize: 18, fontWeight: 800, color: "#FF0000", textTransform: "uppercase", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
-                           <i className="bi bi-shield-lock" /> 📋 Điều kiện cần có
+                          <i className="bi bi-shield-lock" /> 📋 Điều kiện cần có
                         </h3>
                         <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 20 }}>
                           <li style={{ display: "flex", gap: 12 }}>
@@ -1570,13 +1552,13 @@ export default function MarketingPage() {
 
                       <section style={{ marginBottom: 48 }}>
                         <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", marginBottom: 32, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 10 }}>
-                           🚀 Quy trình thiết lập chi tiết (10 - 15 phút)
+                          🚀 Quy trình thiết lập chi tiết (10 - 15 phút)
                         </h3>
-                        
+
                         {[
-                          { 
-                            step: "Bước 1", 
-                            title: "Tạo Dự án (Project) mới trên Google Cloud", 
+                          {
+                            step: "Bước 1",
+                            title: "Tạo Dự án (Project) mới trên Google Cloud",
                             content: "Dự án là 'vùng không gian' riêng để bạn quản lý việc kết nối dữ liệu. Bạn không nên dùng chung dự án với các dịch vụ khác.",
                             subSteps: [
                               "Truy cập: https://console.cloud.google.com/",
@@ -1585,9 +1567,9 @@ export default function MarketingPage() {
                               "Đặt tên dự án dễ nhớ (Ví dụ: 'He thong Marketing CRM') và nhấn **CREATE**."
                             ]
                           },
-                          { 
-                            step: "Bước 2", 
-                            title: "Kích hoạt các API cần thiết", 
+                          {
+                            step: "Bước 2",
+                            title: "Kích hoạt các API cần thiết",
                             content: "Mặc định Google Cloud không bật sẵn tính năng đọc dữ liệu Youtube, bạn cần phải 'xin phép' thủ công.",
                             subSteps: [
                               "Tại thanh menu bên trái, chọn **APIs & Services** > **Library**.",
@@ -1595,9 +1577,9 @@ export default function MarketingPage() {
                               "Tiếp tục tìm kiếm: **'YouTube Data API v3'** và cũng nhấn **ENABLE** (API này giúp lấy tên kênh và avatar)."
                             ]
                           },
-                          { 
-                            step: "Bước 3", 
-                            title: "Cấu hình Màn hình Ủy quyền (OAuth Consent Screen)", 
+                          {
+                            step: "Bước 3",
+                            title: "Cấu hình Màn hình Ủy quyền (OAuth Consent Screen)",
                             content: "Đây là màn hình sẽ hiện ra khi bạn đăng nhập tài khoản Google. Nó xác nhận bạn cho phép hệ thống đọc dữ liệu của bạn.",
                             subSteps: [
                               "Vào **APIs & Services** > **OAuth consent screen**.",
@@ -1607,9 +1589,9 @@ export default function MarketingPage() {
                               "**Test Users**: RẤT QUAN TRỌNG. Nhấn **ADD USERS** và điền chính xác địa chỉ Gmail quản lý kênh Youtube của bạn vào đây. Nếu không điền, bạn sẽ bị lỗi 'Access Denied'."
                             ]
                           },
-                          { 
-                            step: "Bước 4", 
-                            title: "Tạo mã Client ID và Client Secret", 
+                          {
+                            step: "Bước 4",
+                            title: "Tạo mã Client ID và Client Secret",
                             content: "Đây giống như là Tên đăng nhập và Mật khẩu bí mật để hệ thống CRM có thể 'nói chuyện' với Google.",
                             subSteps: [
                               "Vào **APIs & Services** > **Credentials**.",
@@ -1623,9 +1605,9 @@ export default function MarketingPage() {
                             ],
                             warning: "Lưu ý: Không được thừa hay thiếu bất kỳ ký tự nào trong Redirect URI, kể cả dấu '/' ở cuối."
                           },
-                          { 
-                            step: "Bước 5", 
-                            title: "Kết nối trên CRM và hoàn tất", 
+                          {
+                            step: "Bước 5",
+                            title: "Kết nối trên CRM và hoàn tất",
                             content: "Quay lại Dashboard của bạn để thực hiện bước cuối cùng.",
                             subSteps: [
                               "Dán **Client ID** và **Client Secret** vào Form cấu hình.",
@@ -1637,20 +1619,20 @@ export default function MarketingPage() {
                         ].map((item, idx) => (
                           <div key={idx} style={{ marginBottom: 60, paddingLeft: 20, borderLeft: "2px solid rgba(255,0,0,0.1)" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, marginLeft: -32 }}>
-                               <span style={{ fontSize: 10, fontWeight: 900, background: "#FF0000", color: "#fff", padding: "4px 12px", borderRadius: 100, textTransform: "uppercase", boxShadow: "0 4px 12px rgba(255,0,0,0.2)" }}>{item.step}</span>
-                               <h4 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--foreground)" }}>{item.title}</h4>
+                              <span style={{ fontSize: 10, fontWeight: 900, background: "#FF0000", color: "#fff", padding: "4px 12px", borderRadius: 100, textTransform: "uppercase", boxShadow: "0 4px 12px rgba(255,0,0,0.2)" }}>{item.step}</span>
+                              <h4 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--foreground)" }}>{item.title}</h4>
                             </div>
                             <p style={{ margin: "0 0 20px", fontSize: 15, color: "var(--muted-foreground)", fontWeight: 500 }}>{item.content}</p>
-                            
+
                             <div style={{ background: "var(--muted)", borderRadius: 20, padding: 24, border: "1px solid var(--border)" }}>
-                               <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
-                                 {item.subSteps.map((ss, ssi) => (
-                                   <li key={ssi} style={{ display: "flex", gap: 12, fontSize: 14, color: "var(--foreground)", lineHeight: 1.6 }}>
-                                      <i className="bi bi-arrow-right-circle-fill" style={{ color: "#FF0000", fontSize: 16, marginTop: 2 }} />
-                                      <span dangerouslySetInnerHTML={{ __html: ss.replace(/\*\*(.*?)\*\*/g, '<b style="color:#FF0000">$1</b>') }} />
-                                   </li>
-                                 ))}
-                               </ul>
+                              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
+                                {item.subSteps.map((ss, ssi) => (
+                                  <li key={ssi} style={{ display: "flex", gap: 12, fontSize: 14, color: "var(--foreground)", lineHeight: 1.6 }}>
+                                    <i className="bi bi-arrow-right-circle-fill" style={{ color: "#FF0000", fontSize: 16, marginTop: 2 }} />
+                                    <span dangerouslySetInnerHTML={{ __html: ss.replace(/\*\*(.*?)\*\*/g, '<b style="color:#FF0000">$1</b>') }} />
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
 
                             {item.details && (
@@ -1683,7 +1665,7 @@ export default function MarketingPage() {
 
                       <section style={{ marginBottom: 48 }}>
                         <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", textTransform: "uppercase", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
-                           <i className="bi bi-shield-lock" /> 📋 Điều kiện cần có
+                          <i className="bi bi-shield-lock" /> 📋 Điều kiện cần có
                         </h3>
                         <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 20 }}>
                           <li style={{ display: "flex", gap: 12 }}>
@@ -1700,7 +1682,7 @@ export default function MarketingPage() {
 
                       <section style={{ marginBottom: 48 }}>
                         <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", marginBottom: 32, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 10 }}>
-                           🚀 Quy trình thiết lập chi tiết (10 - 15 phút)
+                          🚀 Quy trình thiết lập chi tiết (10 - 15 phút)
                         </h3>
 
                         {[
@@ -1751,20 +1733,20 @@ export default function MarketingPage() {
                         ].map((item, idx) => (
                           <div key={idx} style={{ marginBottom: 60, paddingLeft: 20, borderLeft: "2px solid rgba(0,0,0,0.1)" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, marginLeft: -32 }}>
-                               <span style={{ fontSize: 10, fontWeight: 900, background: "var(--foreground)", color: "var(--background)", padding: "4px 12px", borderRadius: 100, textTransform: "uppercase" }}>{item.step}</span>
-                               <h4 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--foreground)" }}>{item.title}</h4>
+                              <span style={{ fontSize: 10, fontWeight: 900, background: "var(--foreground)", color: "var(--background)", padding: "4px 12px", borderRadius: 100, textTransform: "uppercase" }}>{item.step}</span>
+                              <h4 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--foreground)" }}>{item.title}</h4>
                             </div>
                             <p style={{ margin: "0 0 20px", fontSize: 15, color: "var(--muted-foreground)", fontWeight: 500 }}>{item.content}</p>
-                            
+
                             <div style={{ background: "var(--muted)", borderRadius: 20, padding: 24, border: "1px solid var(--border)" }}>
-                               <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
-                                 {item.subSteps.map((ss, ssi) => (
-                                   <li key={ssi} style={{ display: "flex", gap: 12, fontSize: 14, color: "var(--foreground)", lineHeight: 1.6 }}>
-                                      <i className="bi bi-arrow-right-circle-fill" style={{ color: "var(--foreground)", fontSize: 16, marginTop: 2 }} />
-                                      <span dangerouslySetInnerHTML={{ __html: ss.replace(/\*\*(.*?)\*\*/g, '<b style="color:var(--foreground)">$1</b>') }} />
-                                   </li>
-                                 ))}
-                               </ul>
+                              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
+                                {item.subSteps.map((ss, ssi) => (
+                                  <li key={ssi} style={{ display: "flex", gap: 12, fontSize: 14, color: "var(--foreground)", lineHeight: 1.6 }}>
+                                    <i className="bi bi-arrow-right-circle-fill" style={{ color: "var(--foreground)", fontSize: 16, marginTop: 2 }} />
+                                    <span dangerouslySetInnerHTML={{ __html: ss.replace(/\*\*(.*?)\*\*/g, '<b style="color:var(--foreground)">$1</b>') }} />
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
 
                             {item.details && (
@@ -1790,7 +1772,7 @@ export default function MarketingPage() {
 
                       <section style={{ marginBottom: 48 }}>
                         <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1877F2", textTransform: "uppercase", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
-                           <i className="bi bi-shield-check" /> 📋 Điều kiện cần có
+                          <i className="bi bi-shield-check" /> 📋 Điều kiện cần có
                         </h3>
                         <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 20 }}>
                           <li style={{ display: "flex", gap: 12 }}>
@@ -1816,13 +1798,13 @@ export default function MarketingPage() {
 
                       <section style={{ marginBottom: 48 }}>
                         <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", marginBottom: 32, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 10 }}>
-                           🚀 Quy trình thiết lập chi tiết (10 - 15 phút)
+                          🚀 Quy trình thiết lập chi tiết (10 - 15 phút)
                         </h3>
 
                         {[
-                          { 
-                            step: "Bước 1", 
-                            title: "Lấy Link Webhook từ CRM", 
+                          {
+                            step: "Bước 1",
+                            title: "Lấy Link Webhook từ CRM",
                             content: "Đây là 'địa chỉ nhà' của CRM để Make.com biết nơi gửi dữ liệu đến.",
                             subSteps: [
                               "Mở mục **Kết nối nguồn Lead** tại tab Facebook trong Dashboard CRM.",
@@ -1830,9 +1812,9 @@ export default function MarketingPage() {
                               "Lưu link này ra Notepad để dùng cho Bước 4."
                             ]
                           },
-                          { 
-                            step: "Bước 2", 
-                            title: "Thiết lập Scenario trên Make.com", 
+                          {
+                            step: "Bước 2",
+                            title: "Thiết lập Scenario trên Make.com",
                             content: "Scenario giống như một robot tự động làm việc cho bạn 24/7.",
                             subSteps: [
                               "Đăng nhập vào Make.com, nhấn **Create a new scenario**.",
@@ -1840,9 +1822,9 @@ export default function MarketingPage() {
                               "Chọn Trigger: **Watch Leads** (Tự động chạy khi có khách hàng đăng ký mới)."
                             ]
                           },
-                          { 
-                            step: "Bước 3", 
-                            title: "Kết nối Fanpage và chọn Form", 
+                          {
+                            step: "Bước 3",
+                            title: "Kết nối Fanpage và chọn Form",
                             content: "Robot cần biết nó phải canh chừng ở Trang nào và Mẫu (Form) quảng cáo nào.",
                             subSteps: [
                               "Nhấn **Add** để kết nối tài khoản Facebook cá nhân của bạn.",
@@ -1850,9 +1832,9 @@ export default function MarketingPage() {
                               "**Form**: Chọn 'All' nếu muốn lấy từ tất cả quảng cáo, hoặc chọn đích danh mẫu bạn cần."
                             ]
                           },
-                          { 
-                            step: "Bước 4", 
-                            title: "Cấu hình Module HTTP (Đẩy dữ liệu)", 
+                          {
+                            step: "Bước 4",
+                            title: "Cấu hình Module HTTP (Đẩy dữ liệu)",
                             content: "Đây là bước quan trọng nhất để 'bắc cầu' dữ liệu về CRM.",
                             subSteps: [
                               "Nhấn vào nút **Add another module**, tìm từ khóa **'HTTP'**.",
@@ -1865,9 +1847,9 @@ export default function MarketingPage() {
                             code: '{\n  "fullName": "{{1.full_name}}",\n  "phone": "{{1.phone_number}}",\n  "email": "{{1.email}}",\n  "campaignExternalId": "{{1.campaign_id}}",\n  "externalId": "{{1.ad_id}}",\n  "source": "facebook_make"\n}',
                             warning: "Trong đoạn mã trên, hãy xóa phần trong ngoặc {{...}} và click chọn các trường tương ứng từ danh sách gợi ý của Make.com."
                           },
-                          { 
-                            step: "Bước 5", 
-                            title: "Kiểm tra và Kích hoạt", 
+                          {
+                            step: "Bước 5",
+                            title: "Kiểm tra và Kích hoạt",
                             content: "Đảm bảo mọi thứ hoạt động hoàn hảo trước khi để robot tự chạy.",
                             subSteps: [
                               "Nhấn **Run once** ở góc dưới bên trái Make.com.",
@@ -1879,20 +1861,20 @@ export default function MarketingPage() {
                         ].map((item, idx) => (
                           <div key={idx} style={{ marginBottom: 60, paddingLeft: 20, borderLeft: "2px solid rgba(24,119,242,0.1)" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, marginLeft: -32 }}>
-                               <span style={{ fontSize: 10, fontWeight: 900, background: "#1877F2", color: "#fff", padding: "4px 12px", borderRadius: 100, textTransform: "uppercase" }}>{item.step}</span>
-                               <h4 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--foreground)" }}>{item.title}</h4>
+                              <span style={{ fontSize: 10, fontWeight: 900, background: "#1877F2", color: "#fff", padding: "4px 12px", borderRadius: 100, textTransform: "uppercase" }}>{item.step}</span>
+                              <h4 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "var(--foreground)" }}>{item.title}</h4>
                             </div>
                             <p style={{ margin: "0 0 20px", fontSize: 15, color: "var(--muted-foreground)", fontWeight: 500 }}>{item.content}</p>
-                            
+
                             <div style={{ background: "var(--muted)", borderRadius: 20, padding: 24, border: "1px solid var(--border)" }}>
-                               <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
-                                 {item.subSteps.map((ss, ssi) => (
-                                   <li key={ssi} style={{ display: "flex", gap: 12, fontSize: 14, color: "var(--foreground)", lineHeight: 1.6 }}>
-                                      <i className="bi bi-check-circle-fill" style={{ color: "#1877F2", fontSize: 16, marginTop: 2 }} />
-                                      <span dangerouslySetInnerHTML={{ __html: ss.replace(/\*\*(.*?)\*\*/g, '<b style="color:#1877F2">$1</b>') }} />
-                                   </li>
-                                 ))}
-                               </ul>
+                              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 14 }}>
+                                {item.subSteps.map((ss, ssi) => (
+                                  <li key={ssi} style={{ display: "flex", gap: 12, fontSize: 14, color: "var(--foreground)", lineHeight: 1.6 }}>
+                                    <i className="bi bi-check-circle-fill" style={{ color: "#1877F2", fontSize: 16, marginTop: 2 }} />
+                                    <span dangerouslySetInnerHTML={{ __html: ss.replace(/\*\*(.*?)\*\*/g, '<b style="color:#1877F2">$1</b>') }} />
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
 
                             {item.code && (
@@ -1904,11 +1886,11 @@ export default function MarketingPage() {
                                   {item.code}
                                 </pre>
                                 <div style={{ marginTop: 14, padding: "12px 16px", background: "rgba(245, 158, 11, 0.05)", borderRadius: 12, border: "1px solid rgba(245, 158, 11, 0.2)", display: "flex", gap: 10 }}>
-                                   <i className="bi bi-info-circle" style={{ color: "#f59e0b", fontSize: 16 }} />
-                                   <p style={{ margin: 0, fontSize: 13, color: "#92400e", lineHeight: 1.5 }}>
-                                      <b>Mẹo:</b> {item.warning}
-                                   </p>
-                                 </div>
+                                  <i className="bi bi-info-circle" style={{ color: "#f59e0b", fontSize: 16 }} />
+                                  <p style={{ margin: 0, fontSize: 13, color: "#92400e", lineHeight: 1.5 }}>
+                                    <b>Mẹo:</b> {item.warning}
+                                  </p>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -1919,7 +1901,7 @@ export default function MarketingPage() {
 
                   <section style={{ marginBottom: 48, padding: 32, borderRadius: 24, background: "rgba(239, 68, 68, 0.03)", border: "1px solid rgba(239, 68, 68, 0.15)" }}>
                     <h3 style={{ fontSize: 18, fontWeight: 800, color: "#ef4444", textTransform: "uppercase", marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
-                       <i className="bi bi-exclamation-triangle" /> 💡 Các lỗi thường gặp
+                      <i className="bi bi-exclamation-triangle" /> 💡 Các lỗi thường gặp
                     </h3>
                     <ul style={{ listStyle: "none", padding: 0, display: "flex", flexDirection: "column", gap: 16 }}>
                       {activeTab === 'yt' ? (
@@ -1954,8 +1936,8 @@ export default function MarketingPage() {
 
                   <div style={{ marginTop: 64, textAlign: "center", borderTop: "1px solid var(--border)", paddingTop: 48 }}>
                     <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 24 }}>Chúc bạn thành công! Nếu gặp khó khăn, hãy liên hệ bộ phận kỹ thuật.</p>
-                    <button 
-                      onClick={() => setShowFullDoc(false)} 
+                    <button
+                      onClick={() => setShowFullDoc(false)}
                       style={{ padding: "16px 60px", borderRadius: 100, border: "none", background: activeTab === 'yt' ? "#FF0000" : "#10b981", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer", boxShadow: activeTab === 'yt' ? "0 15px 30px rgba(255,0,0,0.3)" : "0 15px 30px rgba(16,185,129,0.3)", transition: "transform 0.2s" }}
                       onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
                       onMouseLeave={e => e.currentTarget.style.transform = "none"}

@@ -14,7 +14,10 @@ export async function GET(req: NextRequest) {
         status: status || undefined,
       },
       include: {
-        campaign: true
+        campaign: true,
+        careHistories: {
+          orderBy: { executionDate: "desc" }
+        }
       },
       orderBy: {
         createdAt: "desc"

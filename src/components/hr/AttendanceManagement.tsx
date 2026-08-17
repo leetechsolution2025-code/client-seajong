@@ -393,7 +393,7 @@ export function AttendanceManagement() {
 
         {/* ── LEGEND ── */}
         {activeTab === "monthly" && (
-          <div className="px-3 px-md-4 pb-3 d-none d-md-flex flex-wrap gap-2 gap-md-4 align-items-center" style={{ fontSize: "12px", color: "#475569" }}>
+          <div className="px-3 px-md-4 pb-3 d-none d-md-flex flex-nowrap gap-2 gap-md-3 align-items-center overflow-x-auto text-nowrap" style={{ fontSize: "11px", color: "#475569", scrollbarWidth: "none", msOverflowStyle: "none" }}>
             {Object.entries(STATUS_MAP).map(([key, info]) => (
               <div key={key} className="d-flex align-items-center gap-2">
                 <div 
