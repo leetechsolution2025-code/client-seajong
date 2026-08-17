@@ -51,7 +51,7 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
         )}
 
         {/* Dynamic Content (Table, etc.) */}
-        <div className="flex-grow-1 custom-scrollbar" style={{ overflowY: "auto", minHeight: 0, minWidth: 0, width: "100%" }}>
+        <div className="flex-grow-1 custom-scrollbar d-flex flex-column" style={{ overflowY: "auto", minHeight: 0, minWidth: 0, width: "100%" }}>
           {children}
         </div>
 

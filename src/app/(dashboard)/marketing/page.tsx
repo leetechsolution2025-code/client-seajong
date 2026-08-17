@@ -555,7 +555,7 @@ export default function MarketingPage() {
   const [leadSeries, setLeadSeries] = useState<Array<{ name: string; data: number[] }>>([]);
   const [recentLeads, setRecentLeads] = useState<Array<{ id: number; name: string; phone: string; campaign: string; time: string; avatar: string }>>([]);
   const [chartDates, setChartDates] = useState<string[]>([]);
-  const [activeFeedIndex, setActiveFeedIndex] = useState(0);
+  const [activeFeedIndex, setActiveFeedIndex] = useState(-1);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // === THÊM STATE CHO IMPORT MODAL VÀ LỌC BIỂU ĐỒ ===
@@ -569,6 +569,9 @@ export default function MarketingPage() {
   const [activeTab, setActiveTab] = useState('fb');
   const [redirectUri, setRedirectUri] = useState("");
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
+
+  // === CUSTOMER DATA/LEADS TABS AND STATE ===
+  const [activeListTab, setActiveListTab] = useState<"campaigns" | "leads">("campaigns");
 
   // === FACEBOOK CAMPAIGNS LISTING ===
   const [fbCampaigns, setFbCampaigns] = useState<any[]>([]);
@@ -740,31 +743,54 @@ export default function MarketingPage() {
     if (fbCampaigns.length === 0) return;
     const activeCamps = fbCampaigns.filter(c => c.status?.toUpperCase() === "ACTIVE");
     if (activeCamps.length === 0) return;
-    const c = activeCamps[Math.min(activeFeedIndex, activeCamps.length - 1)];
-    if (!c) return;
+    let targetCamps: any[] = [];
+    if (activeFeedIndex === -1) {
+      targetCamps = activeCamps;
+    } else {
+      const c = activeCamps[Math.min(activeFeedIndex, activeCamps.length - 1)];
+      if (!c) return;
+      targetCamps = [c];
+    }
 
-    const days = c.insights?.data || [];
-    const sorted = [...days].sort((a, b) => a.date_start.localeCompare(b.date_start));
+    const aggregatedDays: Record<string, any> = {};
+    
+    targetCamps.forEach(camp => {
+      const days = camp.insights?.data || [];
+      days.forEach((d: any) => {
+        const dateStr = d.date_start;
+        if (!aggregatedDays[dateStr]) {
+          aggregatedDays[dateStr] = {
+            date_start: dateStr,
+            reach: 0,
+            clicks: 0,
+            likes: 0,
+            leads: 0,
+          };
+        }
+        aggregatedDays[dateStr].reach += parseInt(d.reach || "0");
+        aggregatedDays[dateStr].clicks += parseInt(d.clicks || "0");
+        aggregatedDays[dateStr].likes += parseInt(d.likes || "0");
+        
+        const lAct = d.actions?.find((a: any) => a.action_type === "lead");
+        aggregatedDays[dateStr].leads += parseInt(lAct?.value || d.leads || "0");
+      });
+    });
+
+    const sorted = Object.values(aggregatedDays).sort((a: any, b: any) => a.date_start.localeCompare(b.date_start));
 
     let rangeLimit = 30;
     if (chartRange === "7") rangeLimit = 7;
     else if (chartRange === "14") rangeLimit = 14;
     else if (chartRange === "30") rangeLimit = 30;
 
-    // Nếu rangeLimit lớn hơn số data có sẵn hoặc chế độ Custom -> Lấy tất cả
     const dataSlice = (chartRange === "custom" || sorted.length <= rangeLimit) ? sorted : sorted.slice(-rangeLimit);
 
     setChartDates(dataSlice.map(d => d.date_start));
     setLeadSeries([
-      { name: "Lượt tiếp cận", data: dataSlice.map(d => parseInt(d.reach || "0")) },
-      { name: "Lượt tương tác (Clicks)", data: dataSlice.map(d => parseInt(d.clicks || "0")) },
-      { name: "Lượt thích (Likes)", data: dataSlice.map(d => parseInt(d.likes || "0")) },
-      {
-        name: "Khách hàng tiềm năng (Leads)", data: dataSlice.map(d => {
-          const lAct = d.actions?.find((a: any) => a.action_type === "lead");
-          return parseInt(lAct?.value || d.leads || "0");
-        })
-      }
+      { name: "Lượt tiếp cận", data: dataSlice.map(d => d.reach) },
+      { name: "Lượt tương tác (Clicks)", data: dataSlice.map(d => d.clicks) },
+      { name: "Lượt thích (Likes)", data: dataSlice.map(d => d.likes) },
+      { name: "Khách hàng tiềm năng (Leads)", data: dataSlice.map(d => d.leads) }
     ]);
   }, [fbCampaigns, activeFeedIndex, chartRange]);
 
@@ -793,6 +819,11 @@ export default function MarketingPage() {
     },
     dataLabels: { enabled: false },
     stroke: { curve: "smooth", width: 2 },
+    markers: {
+      size: 4,
+      strokeWidth: 2,
+      hover: { size: 6 }
+    },
     xaxis: {
       categories: chartDates.length > 0 ? chartDates : ["-8d", "-7d", "-6d", "-5d", "-4d", "-3d", "-2d", "-1d", "Hôm nay"],
       labels: {
@@ -815,6 +846,8 @@ export default function MarketingPage() {
       axisTicks: { show: false },
     },
     yaxis: {
+      forceNiceScale: true,
+      decimalsInFloat: 0,
       labels: { style: { colors: "#64748b" } },
     },
     legend: {
@@ -1076,7 +1109,7 @@ export default function MarketingPage() {
           }
         >
           {/* LIVE METRICS & FEED */}
-          <div className="mkt-metrics-wrapper" style={{ display: "flex", flexDirection: "column", gap: 24, flex: 1, minHeight: 0 }}>
+          <div className="mkt-metrics-wrapper" style={{ display: "flex", flexDirection: "column", gap: 24, flex: 1, minHeight: "100%" }}>
             {/* Tùy kích thước màn hình mà chia 2 hoặc 3 cột, dùng CSS Grid để responsive */}
             <div className="mkt-live-charts" style={{ gridTemplateColumns: currentStep === 2 ? "1fr" : undefined }}>
               {/* LIVE CHART SECTION */}
@@ -1172,23 +1205,27 @@ export default function MarketingPage() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                       <span style={{ fontSize: 13, fontWeight: 800, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.02em" }}>Cập nhật Mới nhất</span>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        {fbCampaigns.filter(c => c.status === "ACTIVE").length > 1 && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginRight: 6 }}>
-                            <button
-                              onClick={() => setActiveFeedIndex(prev => Math.max(0, prev - 1))}
-                              disabled={activeFeedIndex === 0}
-                              style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid var(--border)", background: "var(--background)", color: activeFeedIndex === 0 ? "var(--muted-foreground)" : "var(--foreground)", cursor: activeFeedIndex === 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-                            ><i className="bi bi-chevron-left" style={{ fontSize: 10 }} /></button>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>
-                              {Math.min(activeFeedIndex + 1, fbCampaigns.filter(c => c.status === "ACTIVE").length)} / {fbCampaigns.filter(c => c.status === "ACTIVE").length}
-                            </span>
-                            <button
-                              onClick={() => setActiveFeedIndex(prev => Math.min(fbCampaigns.filter(c => c.status === "ACTIVE").length - 1, prev + 1))}
-                              disabled={activeFeedIndex >= fbCampaigns.filter(c => c.status === "ACTIVE").length - 1}
-                              style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid var(--border)", background: "var(--background)", color: activeFeedIndex >= fbCampaigns.filter(c => c.status === "ACTIVE").length - 1 ? "var(--muted-foreground)" : "var(--foreground)", cursor: activeFeedIndex >= fbCampaigns.filter(c => c.status === "ACTIVE").length - 1 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-                            ><i className="bi bi-chevron-right" style={{ fontSize: 10 }} /></button>
-                          </div>
-                        )}
+                        {(() => {
+                           const activeCamps = fbCampaigns.filter(c => c.status?.toUpperCase() === "ACTIVE");
+                           if (activeCamps.length <= 1) return null;
+                           return (
+                             <div style={{ display: "flex", alignItems: "center", gap: 6, marginRight: 6 }}>
+                               <button
+                                 onClick={() => setActiveFeedIndex(prev => Math.max(-1, prev - 1))}
+                                 disabled={activeFeedIndex === -1}
+                                 style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid var(--border)", background: "var(--background)", color: activeFeedIndex === -1 ? "var(--muted-foreground)" : "var(--foreground)", cursor: activeFeedIndex === -1 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                               ><i className="bi bi-chevron-left" style={{ fontSize: 10 }} /></button>
+                               <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", width: 45, textAlign: "center" }}>
+                                 {activeFeedIndex === -1 ? "Tất cả" : `${activeFeedIndex + 1}/${activeCamps.length}`}
+                               </span>
+                               <button
+                                 onClick={() => setActiveFeedIndex(prev => Math.min(activeCamps.length - 1, prev + 1))}
+                                 disabled={activeFeedIndex >= activeCamps.length - 1}
+                                 style={{ width: 22, height: 22, borderRadius: 6, border: "1px solid var(--border)", background: "var(--background)", color: activeFeedIndex >= activeCamps.length - 1 ? "var(--muted-foreground)" : "var(--foreground)", cursor: activeFeedIndex >= activeCamps.length - 1 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                               ><i className="bi bi-chevron-right" style={{ fontSize: 10 }} /></button>
+                             </div>
+                           );
+                        })()}
                         <span style={{
                           fontSize: 11,
                           background: "rgba(16,185,129,0.12)",
@@ -1227,9 +1264,69 @@ export default function MarketingPage() {
                       {fbCampaignsLoading ? (
                         <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Đang đồng bộ trạng thái trực tiếp...</div>
                       ) : (() => {
-                        const activeCamps = fbCampaigns.filter(c => c.status === "ACTIVE");
+                        const activeCamps = fbCampaigns.filter(c => c.status?.toUpperCase() === "ACTIVE");
                         if (activeCamps.length === 0) {
                           return <div style={{ fontSize: 12, color: "var(--muted-foreground)", fontStyle: "italic" }}>Không có chiến dịch nào đang chạy lúc này.</div>;
+                        }
+
+                        if (activeFeedIndex === -1) {
+                          // Aggregate all active campaigns
+                          let totalSpend = 0;
+                          let totalClicks = 0;
+                          let totalImpressions = 0;
+                          let totalLeads = 0;
+                          activeCamps.forEach(c => {
+                            const days: InsightData[] = (c as { insights?: { data?: InsightData[] } }).insights?.data || [];
+                            const todayData = days[days.length - 1] || {};
+                            totalSpend += parseFloat(todayData.spend || "0");
+                            totalClicks += parseInt(todayData.clicks || "0");
+                            totalImpressions += parseInt(todayData.impressions || "0");
+                            totalLeads += parseInt(todayData.actions?.find((x: any) => x.action_type === "lead")?.value || "0");
+                          });
+                          const cpaValue = totalLeads > 0 ? Math.round(totalSpend / totalLeads) : 0;
+                          const ctrValue = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) + "%" : "0%";
+                          
+                          return (
+                            <AnimatePresence mode="wait">
+                              <motion.div
+                                key="all-campaigns"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                transition={{ duration: 0.2 }}
+                                className="mkt-campaign-feed-row"
+                                style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid var(--border)", background: "rgba(100, 116, 139, 0.02)" }}
+                              >
+                                <div style={{ flex: 1, minWidth: 200 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                                    <i className="bi bi-megaphone-fill" style={{ color: "#10b981", fontSize: 16 }} />
+                                    <span style={{ fontSize: 14, fontWeight: 800 }}>Tất cả {activeCamps.length} chiến dịch đang chạy</span>
+                                  </div>
+                                  <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", gap: 16, flexWrap: "wrap" }}>
+                                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-eye"></i> {totalImpressions.toLocaleString()} hiển thị</span>
+                                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-cursor"></i> CTR: {ctrValue}</span>
+                                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-wallet2"></i> CPA trung bình: {cpaValue > 0 ? `${cpaValue.toLocaleString('vi-VN')}đ` : "—"}</span>
+                                  </div>
+                                </div>
+                                <div className="mkt-campaign-metrics">
+                                  <div>
+                                    <span style={{ display: "block", fontSize: 10, color: "var(--muted-foreground)", marginBottom: 2 }}>Hôm nay chi</span>
+                                    <span style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)", fontFamily: "monospace" }}>{Math.round(totalSpend / 1000).toLocaleString()}k</span>
+                                  </div>
+                                  <div>
+                                    <span style={{ display: "block", fontSize: 10, color: "var(--muted-foreground)", marginBottom: 2 }}>Clicks mới</span>
+                                    <span style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)", fontFamily: "monospace" }}>{totalClicks.toLocaleString()}</span>
+                                  </div>
+                                  <div style={{ minWidth: 70 }}>
+                                    <span style={{ display: "block", fontSize: 10, color: "var(--muted-foreground)", marginBottom: 2 }}>Tốc độ Lead</span>
+                                    <span style={{ fontSize: 16, fontWeight: 800, color: "#10b981", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+                                      <i className="bi bi-person-plus-fill" style={{ fontSize: 12 }} /> +{totalLeads}
+                                    </span>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            </AnimatePresence>
+                          );
                         }
 
                         const safeIndex = Math.min(activeFeedIndex, activeCamps.length - 1);
@@ -1268,7 +1365,7 @@ export default function MarketingPage() {
                                 </div>
                                 <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", gap: 16, flexWrap: "wrap" }}>
                                   <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-bullseye" style={{ color: "#10b981" }}></i> Mục tiêu: {c.objective || "Lượt tương tác"}</span>
-                                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-eye"></i> {impressions.toLocaleString()} lượt hiển thị</span>
+                                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-eye"></i> {impressions.toLocaleString()} hiển thị</span>
                                   <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-cursor"></i> CTR: {ctr}</span>
                                   <span style={{ display: "flex", alignItems: "center", gap: 4 }}><i className="bi bi-wallet2"></i> CPA: {cpaValue > 0 ? `${cpaValue.toLocaleString('vi-VN')}đ` : "—"}</span>
                                 </div>
@@ -1304,106 +1401,182 @@ export default function MarketingPage() {
                 <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", height: "100%", paddingLeft: 20, borderLeft: "1px solid var(--border)" }}>
                   <div style={{ padding: "0 0 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #a855f7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(99, 102, 241, 0.25)", transition: "all 0.3s" }}>
-                        <i className="bi bi-megaphone-fill" style={{ fontSize: 16, color: "#fff" }} />
+                      <div style={{ width: 34, height: 34, borderRadius: 10, background: activeListTab === "campaigns" ? "linear-gradient(135deg, #6366f1, #a855f7)" : "linear-gradient(135deg, #10b981, #059669)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: activeListTab === "campaigns" ? "0 4px 12px rgba(99, 102, 241, 0.25)" : "0 4px 12px rgba(16, 185, 129, 0.25)", transition: "all 0.3s" }}>
+                        <i className={activeListTab === "campaigns" ? "bi bi-megaphone-fill" : "bi bi-people-fill"} style={{ fontSize: 16, color: "#fff" }} />
                       </div>
-                      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--foreground)" }}>Chiến dịch quảng cáo</h3>
+                      <div style={{ display: "flex", background: "var(--muted)", padding: 3, borderRadius: 10, gap: 4 }}>
+                        <button 
+                          onClick={() => setActiveListTab("campaigns")}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: 8,
+                            border: "none",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            background: activeListTab === "campaigns" ? "var(--card)" : "transparent",
+                            color: activeListTab === "campaigns" ? "var(--foreground)" : "var(--muted-foreground)",
+                            boxShadow: activeListTab === "campaigns" ? "0 2px 6px rgba(0,0,0,0.08)" : "none",
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          Chiến dịch quảng cáo
+                        </button>
+                        <button 
+                          onClick={() => setActiveListTab("leads")}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: 8,
+                            border: "none",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            background: activeListTab === "leads" ? "var(--card)" : "transparent",
+                            color: activeListTab === "leads" ? "var(--foreground)" : "var(--muted-foreground)",
+                            boxShadow: activeListTab === "leads" ? "0 2px 6px rgba(0,0,0,0.08)" : "none",
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          Dữ liệu khách hàng
+                        </button>
+                      </div>
                     </div>
-                    <span style={{ flexShrink: 0, fontSize: 12, background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)", padding: "4px 10px", borderRadius: 20, fontWeight: 700 }}>
-                      {fbCampaigns.length} chiến dịch
-                    </span>
+                    {activeListTab === "campaigns" ? (
+                      <span style={{ flexShrink: 0, fontSize: 12, background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)", padding: "4px 10px", borderRadius: 20, fontWeight: 700 }}>
+                        {fbCampaigns.length} chiến dịch
+                      </span>
+                    ) : (
+                      <span style={{ flexShrink: 0, fontSize: 12, background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)", padding: "4px 10px", borderRadius: 20, fontWeight: 700 }}>
+                        {leads.length} lead
+                      </span>
+                    )}
                   </div>
 
                   <div style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
-                    {fbCampaignsLoading ? (
-                      <div style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)" }}>
-                        <i className="bi bi-arrow-repeat" style={{ fontSize: 24, display: "block", marginBottom: 8 }} />
-                        <span style={{ fontSize: 12 }}>Đang tải dữ liệu...</span>
-                      </div>
-                    ) : fbCampaigns.length === 0 ? (
+                    {activeListTab === "campaigns" ? (
+                      fbCampaignsLoading ? (
+                        <div style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)" }}>
+                          <i className="bi bi-arrow-repeat" style={{ fontSize: 24, display: "block", marginBottom: 8 }} />
+                          <span style={{ fontSize: 12 }}>Đang tải dữ liệu...</span>
+                        </div>
+                      ) : fbCampaigns.length === 0 ? (
+                        <div style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)" }}>
+                          <i className="bi bi-inbox" style={{ fontSize: 32, display: "block", marginBottom: 12, opacity: 0.4 }} />
+                          <p style={{ margin: 0, fontWeight: 600 }}>Chưa có chiến dịch nào</p>
+                          <p style={{ margin: "6px 0 0", fontSize: 12 }}>Tài khoản quảng cáo chưa có campaign, hoặc thẻ thiếu quyền truy cập</p>
+                        </div>
+                      ) : (
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                          <thead>
+                            <tr style={{ background: "var(--muted)" }}>
+                              {["Tên chiến dịch", "Trạng thái", "Tổng chi phí (đ)"].map(h => (
+                                <th key={h} style={{ padding: "10px 14px", textAlign: h === "Tổng chi phí (đ)" ? "right" : "left", fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {fbCampaigns.map((c, i) => {
+                              type DayInsight = { spend?: string; impressions?: string; clicks?: string; ctr?: string; leads?: string; reach?: string; likes?: string; unit?: string };
+                              const days: DayInsight[] = (c as { insights?: { data?: DayInsight[] } }).insights?.data || [];
+                              const totalSpend = days.reduce((a, d) => a + parseFloat(d.spend || "0"), 0);
+                              const statusColor = c.status === "ACTIVE" ? "#10b981" : c.status === "PAUSED" ? "#f59e0b" : "#6b7280";
+                              
+                              return (
+                                <tr key={c.id} style={{ borderTop: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(100,116,139,0.03)" }}>
+                                  <td style={{ padding: "12px 14px", fontWeight: 600, maxWidth: 160 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                      {c.platform === "facebook" ? <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 14 }} /> : 
+                                      c.platform === "instagram" ? <i className="bi bi-instagram" style={{ color: "#E4405F", fontSize: 14 }} /> :
+                                      c.platform === "tiktok" ? <i className="bi bi-tiktok" style={{ color: "var(--foreground)", fontSize: 14 }} /> :
+                                      c.platform === "youtube" ? <i className="bi bi-youtube" style={{ color: "#FF0000", fontSize: 14 }} /> :
+                                      <i className="bi bi-globe" style={{ color: "var(--muted-foreground)", fontSize: 14 }} />}
+                                      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "inline-block" }} title={c.name}>{c.name}</span>
+                                    </div>
+                                    <div style={{ fontSize: 10, color: "var(--muted-foreground)", marginTop: 4, fontWeight: 500 }}>{days.length} ngày báo cáo</div>
+                                  </td>
+                                  <td style={{ padding: "12px 14px" }}>
+                                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--background)", border: `1px solid ${statusColor}30`, color: statusColor, padding: "2px 8px", borderRadius: 12, fontSize: 10, fontWeight: 800 }}>
+                                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: statusColor, animation: c.status === "ACTIVE" ? "status-pulse-dot 2s infinite" : "none" }} />
+                                      {c.status}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: "12px 14px", textAlign: "right", fontWeight: 700, fontFamily: "monospace", fontSize: 14 }}>
+                                    {Math.round(totalSpend).toLocaleString()} đ
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )
+                    ) : leads.length === 0 ? (
                       <div style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)" }}>
                         <i className="bi bi-inbox" style={{ fontSize: 32, display: "block", marginBottom: 12, opacity: 0.4 }} />
-                        <p style={{ margin: 0, fontWeight: 600 }}>Chưa có chiến dịch nào</p>
-                        <p style={{ margin: "6px 0 0", fontSize: 12 }}>Tài khoản quảng cáo chưa có campaign, hoặc thẻ thiếu quyền truy cập</p>
+                        <p style={{ margin: 0, fontWeight: 600 }}>Chưa có lead nào</p>
+                        <p style={{ margin: "6px 0 0", fontSize: 12 }}>Chưa thu thập được dữ liệu khách hàng từ các chiến dịch</p>
                       </div>
                     ) : (
                       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                         <thead>
                           <tr style={{ background: "var(--muted)" }}>
-                            {["Tên chiến dịch", "Trạng thái", "Tổng chi phí (đ)"].map(h => (
-                              <th key={h} style={{ padding: "10px 14px", textAlign: h === "Tổng chi phí (đ)" ? "right" : "left", fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
+                            {["Khách hàng", "Chiến dịch", "Thời gian"].map(h => (
+                              <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {fbCampaigns.map((c, i) => {
-                            type DayInsight = { spend?: string; impressions?: string; clicks?: string; ctr?: string; leads?: string; reach?: string; likes?: string; unit?: string };
-                            const days: DayInsight[] = (c as { insights?: { data?: DayInsight[] } }).insights?.data || [];
-                            const totalSpend = days.reduce((a, d) => a + parseFloat(d.spend || "0"), 0);
-                            const statusColor = c.status === "ACTIVE" ? "#10b981" : c.status === "PAUSED" ? "#f59e0b" : "#6b7280";
-
+                          {leads.map((l, i) => {
                             return (
-                              <tr key={c.id} style={{ borderTop: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(100,116,139,0.03)" }}>
-                                <td style={{ padding: "12px 14px", fontWeight: 600, maxWidth: 160 }}>
-                                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                                    <div style={{ marginTop: 2 }}>
-                                      {c.platform === "facebook" ? <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 14 }} /> :
-                                        c.platform === "instagram" ? <i className="bi bi-instagram" style={{ color: "#E4405F", fontSize: 14 }} /> :
-                                          c.platform === "tiktok" ? <i className="bi bi-tiktok" style={{ color: "var(--foreground)", fontSize: 14 }} /> :
-                                            c.platform === "youtube" ? <i className="bi bi-youtube" style={{ color: "#FF0000", fontSize: 14 }} /> :
-                                              <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 14 }} />}
+                              <tr key={l.id} style={{ borderTop: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(100,116,139,0.03)" }}>
+                                <td style={{ padding: "10px 14px" }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                    <div style={{ 
+                                      width: 28, 
+                                      height: 28, 
+                                      borderRadius: "50%", 
+                                      background: "color-mix(in srgb, var(--primary) 12%, transparent)", 
+                                      color: "var(--primary)", 
+                                      display: "flex", 
+                                      alignItems: "center", 
+                                      justifyContent: "center", 
+                                      fontWeight: 800,
+                                      fontSize: 12,
+                                      flexShrink: 0
+                                    }}>
+                                      {(l.fullName || "?").charAt(0).toUpperCase()}
                                     </div>
-                                    <span style={{ display: "block", whiteSpace: "wrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: 12, lineHeight: 1.4 }}>{c.name}</span>
+                                    <div style={{ minWidth: 0 }}>
+                                      <div style={{ fontWeight: 600, fontSize: 12, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                        {l.fullName || "Khách ẩn danh"}
+                                      </div>
+                                      <div style={{ display: "flex", gap: 8, fontSize: 10, color: "var(--muted-foreground)", marginTop: 2 }}>
+                                        {l.phone && <span><i className="bi bi-telephone" /> {l.phone}</span>}
+                                        {l.email && <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}><i className="bi bi-envelope" /> {l.email}</span>}
+                                      </div>
+                                    </div>
                                   </div>
                                 </td>
-                                <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
-                                  <span style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 6,
-                                    padding: "4px 8px",
-                                    borderRadius: 12,
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                    background: `${statusColor}18`,
-                                    color: statusColor
-                                  }}>
-                                    {c.status === "ACTIVE" ? (
-                                      <>
-                                        <span style={{
-                                          width: 6,
-                                          height: 6,
-                                          borderRadius: "50%",
-                                          background: "#10b981",
-                                          display: "inline-block",
-                                          animation: "status-pulse-dot 1.5s infinite ease-in-out",
-                                        }} />
-                                        Hoạt động
-                                      </>
-                                    ) : c.status === "PAUSED" ? (
-                                      <>
-                                        <span style={{
-                                          width: 6,
-                                          height: 6,
-                                          borderRadius: "50%",
-                                          background: "#f59e0b",
-                                          display: "inline-block",
-                                        }} />
-                                        Tạm dừng
-                                      </>
-                                    ) : "—"}
-                                  </span>
+                                <td style={{ padding: "10px 14px", minWidth: 100 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    {l.campaign?.platform === "facebook" ? <i className="bi bi-facebook" style={{ color: "#1877F2", fontSize: 12 }} /> : 
+                                     l.campaign?.platform === "instagram" ? <i className="bi bi-instagram" style={{ color: "#E4405F", fontSize: 12 }} /> :
+                                     l.campaign?.platform === "tiktok" ? <i className="bi bi-tiktok" style={{ color: "var(--foreground)", fontSize: 12 }} /> :
+                                     l.campaign?.platform === "youtube" ? <i className="bi bi-youtube" style={{ color: "#FF0000", fontSize: 12 }} /> :
+                                     <i className="bi bi-globe" style={{ color: "var(--muted-foreground)", fontSize: 12 }} />}
+                                    <span style={{ fontSize: 11, fontWeight: 500, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 120 }} title={l.campaign?.name}>
+                                      {l.campaign?.name || l.source || "N/A"}
+                                    </span>
+                                  </div>
                                 </td>
-                                <td style={{ padding: "12px 14px", fontFamily: "monospace", fontSize: 13, fontWeight: 700, textAlign: "right" }}>
-                                  {totalSpend > 0 ? Math.round(totalSpend).toLocaleString("vi-VN") + " đ" : "0 đ"}
+                                <td style={{ padding: "10px 14px", color: "var(--muted-foreground)", fontSize: 11, whiteSpace: "nowrap" }}>
+                                  {new Date(l.createdAt).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" })}
                                 </td>
                               </tr>
                             );
                           })}
                         </tbody>
                       </table>
-                    )
-                    }
+                    )}
                   </div>
                 </div>
               )}
