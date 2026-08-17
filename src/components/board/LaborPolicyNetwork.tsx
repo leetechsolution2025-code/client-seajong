@@ -193,15 +193,15 @@ export function LaborPolicyNetwork({ branches, onRefresh }: { branches: any[]; o
 
   return (
     <div className="pb-5">
-      {/* ── CHỌN NƠI LÀM VIỆC ── */}
-      <div className="d-flex align-items-center gap-3 mb-4 p-3 bg-white rounded-4 shadow-sm border border-primary-subtle">
-        <div className="rounded-circle bg-primary-subtle d-flex align-items-center justify-content-center" style={{ width: 40, height: 40 }}>
+      {/* ── CHỌN NƠI LÀM VIỆC & LƯU CẤU HÌNH ── */}
+      <div className="d-flex align-items-center gap-3 p-3 mb-4 bg-white rounded-4 shadow-sm border border-primary-subtle">
+        <div className="rounded-circle bg-primary-subtle d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 40, height: 40 }}>
           <i className="bi bi-geo-alt text-primary"></i>
         </div>
         <div className="flex-grow-1">
           <label className="small text-muted fw-bold text-uppercase d-block mb-1" style={{ fontSize: '10px' }}>Đang cấu hình cho nơi làm việc:</label>
           <select 
-            className="form-select border-0 fw-bold p-0 text-primary" 
+            className="form-select border-0 fw-bold p-0 text-primary shadow-none" 
             style={{ fontSize: '15px', background: 'none', cursor: 'pointer' }}
             value={selectedBranchId || ""}
             onChange={(e) => setSelectedBranchId(e.target.value)}
@@ -212,16 +212,19 @@ export function LaborPolicyNetwork({ branches, onRefresh }: { branches: any[]; o
             {branches.length === 0 && <option value="">Chưa có nơi làm việc nào</option>}
           </select>
         </div>
-        {branches.length > 0 && (
-          <div className="d-flex gap-2">
-            <div className="badge bg-primary text-white rounded-pill px-3 py-2 small fw-bold shadow-sm">
-              Mã: {branch.code}
-            </div>
-            <div className="badge bg-primary-subtle text-primary rounded-pill px-3 py-2 small" style={{ letterSpacing: '0.5px', opacity: 0.8 }}>
-              ID: {branch.id}
-            </div>
-          </div>
-        )}
+        
+        <div className="border-start ps-3 ms-1 flex-shrink-0">
+          <BrandButton 
+            variant="primary" 
+            className="px-4 py-2 fw-bold shadow-sm rounded-3 d-flex align-items-center gap-2" 
+            style={{ background: '#10b981', border: 'none', fontSize: '13px' }} 
+            icon="bi-save"
+            onClick={saveSystemConfig}
+            loading={loading === 'save-system'}
+          >
+            Lưu cấu hình
+          </BrandButton>
+        </div>
       </div>
 
       <div className="row g-4">
@@ -452,7 +455,7 @@ export function LaborPolicyNetwork({ branches, onRefresh }: { branches: any[]; o
                   className="btn btn-link text-primary p-0 d-flex align-items-center gap-1 text-decoration-none fw-semibold" 
                   style={{ fontSize: '12px' }}
                 >
-                  <i className="bi bi-map"></i> Xem trên Google Maps
+                  <i className="bi bi-map"></i> Xem mở rộng Google Maps
                 </a>
               ) : <span className="text-muted" style={{ fontSize: '11px' }}>Chưa thiết lập tọa độ</span>}
 
@@ -470,20 +473,20 @@ export function LaborPolicyNetwork({ branches, onRefresh }: { branches: any[]; o
                 <span>Lấy toạ độ hiện tại</span>
               </button>
             </div>
-          </div>
 
-          {/* Nút lưu cấu hình hệ thống */}
-          <div className="d-flex justify-content-end mt-2">
-            <BrandButton 
-              variant="primary" 
-              className="px-5 py-2 fw-bold shadow-sm rounded-3 d-flex align-items-center gap-2" 
-              style={{ background: '#10b981', border: 'none', fontSize: '13px' }} 
-              icon="bi-save"
-              onClick={saveSystemConfig}
-              loading={loading === 'save-system'}
-            >
-              Lưu cấu hình hệ thống
-            </BrandButton>
+            {gpsLat && gpsLng && (
+              <div className="mt-4 pt-3 border-top">
+                <label className="small text-muted fw-bold text-uppercase mb-2 d-block" style={{ fontSize: '10px', letterSpacing: '0.5px' }}>Bản đồ vị trí</label>
+                <iframe
+                  width="100%"
+                  height="250"
+                  frameBorder="0"
+                  style={{ border: 0, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+                  src={`https://maps.google.com/maps?q=${gpsLat},${gpsLng}&z=16&output=embed`}
+                  allowFullScreen
+                ></iframe>
+              </div>
+            )}
           </div>
         </div>
       </div>

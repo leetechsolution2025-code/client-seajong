@@ -191,6 +191,57 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    if (item.trangThai === "pending") {
+      const directors = await prisma.employee.findMany({
+        where: {
+          status: "active",
+          OR: [
+            { position: "Giám đốc" },
+            { position: "vtr-20260401-8730-eauc" }
+          ]
+        },
+        select: { userId: true }
+      });
+      const directorIds = Array.from(new Set(directors.map((d: any) => d.userId))).filter(Boolean) as string[];
+
+      if (directorIds.length > 0) {
+        await prisma.approvalRequest.create({
+          data: {
+            entityType: "expense",
+            entityId: item.id,
+            entityTitle: `Yêu cầu phê duyệt khoản chi: ${item.tenChiPhi}`,
+            status: "pending",
+            priority: "normal",
+            requestedById: session.user.id as string,
+            requestedByName: session.user.name || session.user.email || "Người dùng",
+            metadata: JSON.stringify({ soTien: item.soTien, loai: item.loai }),
+          }
+        });
+
+        const notification = await prisma.notification.create({
+          data: {
+            title: `💰 Yêu cầu phê duyệt lệnh chi tiền mới`,
+            content: `Kính gửi Ban giám đốc,\n\nNhân viên **${session.user.name || session.user.email || "Người dùng"}** vừa tạo một lệnh chi tiền mới cần phê duyệt.\n\n- **Khoản chi**: ${item.tenChiPhi}\n- **Số tiền**: ${item.soTien.toLocaleString("vi-VN")} đồng\n- **Người phụ trách**: ${item.nguoiChiTra || "Không có"}\n\nVui lòng kiểm tra và phê duyệt.`,
+            type: "document",
+            priority: "high",
+            audienceType: "group",
+            audienceValue: JSON.stringify(directorIds),
+            createdById: session.user.id as string
+          }
+        });
+
+        await Promise.allSettled(
+          directorIds.map(uid => 
+            prisma.notificationRecipient.upsert({
+              where: { notificationId_userId: { notificationId: notification.id, userId: uid } },
+              update: {},
+              create: { notificationId: notification.id, userId: uid }
+            })
+          )
+        );
+      }
+    }
+
     return NextResponse.json(item, { status: 201 });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

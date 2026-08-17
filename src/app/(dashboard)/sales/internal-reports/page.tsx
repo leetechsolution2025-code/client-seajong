@@ -204,13 +204,40 @@ export default function PartnerActivitiesPage() {
   }, [currentStep, selectedEmployeeId, salesEmployees, employee, positions]);
 
   const calculatedIncome = React.useMemo(() => {
-    const baseSalary = displayedEmployee?.baseSalary || 0;
+    const contractBaseSalary = displayedEmployee?.baseSalary || 0;
+    
+    // Tính số ngày làm việc tiêu chuẩn trong tháng (không tính Chủ Nhật)
+    const month = reportMonth.getMonth();
+    const year = reportMonth.getFullYear();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    let standardWorkingDays = 0;
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(year, month, i);
+      if (d.getDay() !== 0) standardWorkingDays++;
+    }
+    
+    // Tính lương cơ bản thực tế dựa trên số ngày công
+    const actualWorkingDays = incomeData.actualWorkingDays || 0;
+    const baseSalary = standardWorkingDays > 0 ? Math.round((contractBaseSalary / standardWorkingDays) * actualWorkingDays) : 0;
+
     const allowance = (displayedEmployee?.mealAllowance || 0) + 
                       (displayedEmployee?.fuelAllowance || 0) + 
                       (displayedEmployee?.phoneAllowance || 0) + 
                       (displayedEmployee?.seniorityAllowance || 0);
     const performanceBonus = incomeData.performanceBonus || 0;
-    const salesCommission = incomeData.salesCommission || 0;
+    
+    // Tự động tính hoa hồng bán hàng = 4% * doanh thu thực tế
+    const activeConfig = currentStep === 1 ? step1KpiConfig : step2KpiConfig;
+    const revenueCriteria = activeConfig.find(c => c.name?.toLowerCase().includes("doanh thu") || c.name?.toLowerCase().includes("doanh số"));
+    
+    let calculatedSalesCommission = 0;
+    if (revenueCriteria) {
+      const actualRevenue = Number(String(revenueCriteria.actual || "0").replace(/,/g, ""));
+      calculatedSalesCommission = actualRevenue * 0.04;
+    }
+    
+    // Ưu tiên giá trị tự tính, nếu không có thì lấy từ DB
+    const salesCommission = calculatedSalesCommission > 0 ? calculatedSalesCommission : (incomeData.salesCommission || 0);
     
     const totalIncome = baseSalary + allowance + performanceBonus + salesCommission;
     
@@ -221,7 +248,7 @@ export default function PartnerActivitiesPage() {
       salesCommission,
       totalIncome
     };
-  }, [displayedEmployee, incomeData]);
+  }, [displayedEmployee, incomeData, currentStep, step1KpiConfig, step2KpiConfig, reportMonth]);
 
   const getLocationName = (code: string | undefined | null) => {
     if (!code) return "Chưa cập nhật";
@@ -269,7 +296,12 @@ export default function PartnerActivitiesPage() {
     
     // Điểm = (Thực tế / Chỉ tiêu) * Trọng số
     const completion = actual / target;
-    const score = completion * weight;
+    let score = completion * weight;
+    
+    // Giới hạn điểm số tối đa bằng trọng số (giá trị trần)
+    if (score > weight) {
+      score = weight;
+    }
     
     return Math.round(score * 10) / 10;
   };
@@ -1103,7 +1135,13 @@ export default function PartnerActivitiesPage() {
                 </div>
               </div>
               <div className="mb-4">
-                <h6 className="fw-bold text-dark" style={{ fontSize: 14 }}>4. Nguyên tắc minh chứng và loại trừ</h6>
+                <h6 className="fw-bold text-dark" style={{ fontSize: 14 }}>4. Công thức tính hoa hồng bán hàng</h6>
+                <div className="text-muted mt-2" style={{ fontSize: 13, background: "var(--light)", padding: "10px", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                  <strong>Hoa hồng bán hàng</strong> = 4% &times; Doanh thu trong tháng
+                </div>
+              </div>
+              <div className="mb-4">
+                <h6 className="fw-bold text-dark" style={{ fontSize: 14 }}>5. Nguyên tắc minh chứng và loại trừ</h6>
                 <ul className="text-muted mt-2 ps-3" style={{ fontSize: 13, margin: 0 }}>
                   <li className="mb-1">Chỉ tiêu không có minh chứng/đối soát số liệu, không tính điểm.</li>
                   <li className="mb-1">Nếu có vi phạm nghiêm trọng (báo cáo sai/gian dối số liệu, vi phạm chính sách giá, công nợ, gây thiệt hại...). CEO có quyền loại KPI tháng và/hoặc xử lý theo quy định.</li>

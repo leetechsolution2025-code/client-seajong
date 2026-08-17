@@ -130,6 +130,11 @@ export async function GET(req: Request) {
         where: { id: workplace.id },
         include: { subnets: true }
       });
+      if (branch) {
+        branch.name = workplace.name;
+      } else {
+        branch = { name: workplace.name };
+      }
     }
 
     // IP Detection & Normalization

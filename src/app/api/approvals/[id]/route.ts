@@ -134,6 +134,12 @@ export async function PATCH(
           if (!isApprove && rejectedReason) {
             notifContent += `\nLý do: _"${rejectedReason}"_`;
           }
+        } else if (existing.entityType === "expense") {
+          notifTitle = isApprove ? "Lệnh chi tiền đã được phê duyệt" : "Lệnh chi tiền bị từ chối";
+          notifContent = `**${existing.entityTitle}** của bạn ${statusText} bởi **${userName}** lúc ${timeStr} ngày ${dateStr}.`;
+          if (!isApprove && rejectedReason) {
+            notifContent += `\nLý do: _"${rejectedReason}"_`;
+          }
         } else {
           notifContent = `Kế hoạch **"${existing.entityTitle}"** của bạn ${statusText} bởi **${userName}** lúc ${timeStr} ngày ${dateStr}.`;
           if (isApprove && existing.entityType === "RECRUITMENT_REPORT" && candidateDecisions) {
@@ -973,6 +979,24 @@ async function syncEntityStatus(
           } catch (jsonErr) {
             console.error("[syncEntityStatus] Error parsing metadata or updating master plan:", jsonErr);
           }
+        }
+        break;
+      }
+      case "expense": {
+        const statusMap: Record<string, string> = {
+          approve: "approved",
+          reject: "rejected",
+          recall: "draft",
+          on_hold: "pending",
+        };
+        const nextStatus = statusMap[action] || "pending";
+        try {
+          await prisma.expense.update({
+            where: { id: entityId },
+            data: { trangThai: nextStatus }
+          });
+        } catch (err) {
+          console.error("[syncEntityStatus] Error updating expense status:", err);
         }
         break;
       }

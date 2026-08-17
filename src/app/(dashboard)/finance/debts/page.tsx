@@ -786,6 +786,11 @@ export default function DebtsPage() {
                   });
 
                   groupsArray.sort((a, b) => {
+                    const aHasMany = a.items.length > 1;
+                    const bHasMany = b.items.length > 1;
+                    if (aHasMany && !bHasMany) return -1;
+                    if (!aHasMany && bHasMany) return 1;
+                    
                     const dateA = a.items[0]?.createdAt ? new Date(a.items[0].createdAt).getTime() : 0;
                     const dateB = b.items[0]?.createdAt ? new Date(b.items[0].createdAt).getTime() : 0;
                     return dateB - dateA;
@@ -855,8 +860,8 @@ export default function DebtsPage() {
                         address,
                         items: expandedItems,
                         originalItems: items,
-                        amount: expandedItems.reduce((s: number, i: any) => s + (i.isPaymentLog ? 0 : i.amount), 0),
-                        paidAmount: expandedItems.reduce((s: number, i: any) => s + (i.isPaymentLog ? 0 : i.paidAmount), 0),
+                        amount: items.reduce((s: number, i: any) => s + (i.amount || 0), 0),
+                        paidAmount: items.reduce((s: number, i: any) => s + (i.paidAmount || 0), 0),
                         isCollapsed,
                       });
                       if (!isCollapsed) {

@@ -20,6 +20,21 @@ export async function GET(req: NextRequest) {
       where: whereClause
     });
 
+    let actualWorkingDays = 0;
+    if (employeeId) {
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 1);
+      actualWorkingDays = await prisma.attendance.count({
+        where: {
+          employeeId,
+          date: {
+            gte: startDate,
+            lt: endDate
+          }
+        }
+      });
+    }
+
     if (!income) {
       // Return 0 values if no income report exists for the month
       return NextResponse.json({
@@ -29,7 +44,8 @@ export async function GET(req: NextRequest) {
           performanceBonus: 0,
           allowance: 0,
           salesCommission: 0,
-          totalIncome: 0
+          totalIncome: 0,
+          actualWorkingDays
         }
       });
     }
@@ -41,7 +57,8 @@ export async function GET(req: NextRequest) {
         performanceBonus: income.performanceBonus,
         allowance: income.allowance,
         salesCommission: income.salesCommission,
-        totalIncome: income.totalIncome
+        totalIncome: income.totalIncome,
+        actualWorkingDays
       }
     });
 

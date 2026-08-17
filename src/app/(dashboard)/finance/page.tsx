@@ -15,6 +15,7 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { BrandButton } from "@/components/ui/BrandButton";
+import { ExpenseFormOffcanvas } from "./debts/ExpenseFormOffcanvas";
 
 interface KPIData {
   pendingOrders: number;
@@ -69,6 +70,7 @@ export default function FinancePage() {
   const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
   const [showExpenseDeleteConfirm, setShowExpenseDeleteConfirm] = useState(false);
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
 
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -1386,15 +1388,25 @@ export default function FinancePage() {
                         </button>
                       )}
                     </div>
-                    {expensesTotalPages > 1 && (
-                      <div className="d-flex justify-content-end">
-                        <Pagination
-                          page={expensePage}
-                          totalPages={expensesTotalPages}
-                          onChange={setExpensePage}
-                        />
-                      </div>
-                    )}
+                    <div className="d-flex align-items-center gap-3">
+                      {expensesTotalPages > 1 && (
+                        <div className="d-flex justify-content-end">
+                          <Pagination
+                            page={expensePage}
+                            totalPages={expensesTotalPages}
+                            onChange={setExpensePage}
+                          />
+                        </div>
+                      )}
+                      <BrandButton
+                        onClick={() => {
+                          setShowExpenseForm(true);
+                        }}
+                        style={{ height: "36px", padding: "0 16px", fontSize: "14px" }}
+                      >
+                        <i className="bi bi-plus-lg me-1" /> Thêm mới
+                      </BrandButton>
+                    </div>
                   </div>
                 } table={ <Table
                 columns={expenseColumns}
@@ -2759,6 +2771,12 @@ export default function FinancePage() {
           }
         }}
         onCancel={() => setShowPaymentNotificationDeleteConfirm(false)}
+      />
+
+      <ExpenseFormOffcanvas
+        open={showExpenseForm}
+        onClose={() => setShowExpenseForm(false)}
+        onSuccess={() => fetchExpenses(true)}
       />
     </StandardPage>
   );

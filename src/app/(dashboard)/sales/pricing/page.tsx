@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
@@ -9,14 +9,19 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
+import { Pagination } from "@/components/ui/Pagination";
 import { PolicyOffcanvas } from "./PolicyOffcanvas";
+import { ProductDetailOffcanvas } from "./ProductDetailOffcanvas";
+import { QuotationPrintPreview } from "./QuotationPrintPreview";
 import { PromotionOffcanvas } from "./PromotionOffcanvas";
 import { QAAddModal } from "./QAAddModal";
+import { HoverImage } from "@/components/ui/HoverImage";
 
 const STEPS: ModernStepItem[] = [
   { num: 1, id: "policy", title: "Chính sách bán hàng", desc: "Thiết lập chính sách", icon: "bi-file-earmark-text" },
   { num: 2, id: "promotion", title: "Chương trình khuyến mãi", desc: "Quản lý khuyến mãi", icon: "bi-gift" },
-  { num: 3, id: "soft_skills", title: "Kỹ năng mềm", desc: "Đào tạo và tài liệu", icon: "bi-person-workspace" }
+  { num: 3, id: "quotation", title: "Bảng báo giá", desc: "Quản lý bảng báo giá", icon: "bi-cash-stack" },
+  { num: 4, id: "soft_skills", title: "Kỹ năng mềm", desc: "Đào tạo và tài liệu", icon: "bi-person-workspace" }
 ];
 
 interface PolicyItem {
@@ -115,6 +120,22 @@ const getPromotionColumns = (
 ];
 
 // mockPromotions removed as data is now fetched from the database
+
+interface QuotationItem {
+  id: string;
+  isFullWidth?: boolean;
+  fullWidthContent?: string;
+  categoryName?: string;
+  stt?: number;
+  productName: string;
+  productCode: string;
+  specification: string;
+  listedPrice: number;
+  note: string;
+  originalData?: any;
+  imageUrl?: string;
+}
+
 
 interface QAItem {
   id: number;
@@ -222,11 +243,218 @@ export default function PricingPage() {
   
   const [qaSearch, setQaSearch] = useState("");
 
+  const [quotationSearch, setQuotationSearch] = useState("");
+  const [quotationCategory, setQuotationCategory] = useState("all");
+  const [quotationCategories, setQuotationCategories] = useState<string[]>([]);
+  const [quotations, setQuotations] = useState<QuotationItem[]>([]);
+  const [loadingQuotations, setLoadingQuotations] = useState(false);
+  const [quotationPage, setQuotationPage] = useState(1);
+  const QUOTATIONS_PER_PAGE = 20;
+
+  const [isProductDetailOpen, setIsProductDetailOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+
+  const filteredQuotations = useMemo(() => {
+    let filtered = quotations;
+    if (quotationCategory !== "all") {
+      filtered = filtered.filter(q => q.categoryName === quotationCategory);
+    }
+    if (quotationSearch) {
+      const lowerSearch = quotationSearch.toLowerCase();
+      filtered = filtered.filter(q => 
+         q.isFullWidth || 
+         q.productName.toLowerCase().includes(lowerSearch) || 
+         q.productCode.toLowerCase().includes(lowerSearch)
+      );
+      const nonEmptyCategories = new Set(filtered.filter(q => !q.isFullWidth).map(q => q.categoryName));
+      filtered = filtered.filter(q => !q.isFullWidth || nonEmptyCategories.has(q.categoryName));
+    }
+
+    const finalFiltered: any[] = [];
+    const categoryCounts: Record<string, number> = {};
+    for (const q of filtered) {
+      if (!q.isFullWidth && q.categoryName) {
+        categoryCounts[q.categoryName] = (categoryCounts[q.categoryName] || 0) + 1;
+      }
+    }
+
+    for (const q of filtered) {
+       if (q.isFullWidth) {
+         const currentCategory = q.categoryName || "";
+         const count = categoryCounts[currentCategory] || 0;
+         const isCollapsed = collapsedCategories.has(currentCategory);
+         
+         finalFiltered.push({
+           ...q,
+           fullWidthContent: (
+             <div 
+               className="d-flex align-items-center gap-2 cursor-pointer w-100" 
+               style={{ userSelect: "none" }}
+               onClick={(e) => {
+                 e.stopPropagation();
+                 setCollapsedCategories(prev => {
+                   const next = new Set(prev);
+                   if (next.has(currentCategory)) next.delete(currentCategory);
+                   else next.add(currentCategory);
+                   return next;
+                 });
+               }}
+             >
+               <i className={`bi bi-chevron-${isCollapsed ? 'right' : 'down'} text-muted`}></i>
+               <span className="fw-bold text-uppercase" style={{ color: "#003087" }}>{currentCategory}</span>
+               <span className="badge bg-secondary rounded-pill">{count}</span>
+             </div>
+           )
+         });
+       } else {
+         const currentCategory = q.categoryName || "";
+         if (!collapsedCategories.has(currentCategory)) {
+           finalFiltered.push(q);
+         }
+       }
+    }
+
+    return finalFiltered;
+  }, [quotations, quotationCategory, quotationSearch, collapsedCategories]);
+
+  const printQuotations = useMemo(() => {
+    if (selectedProductIds.size === 0) return filteredQuotations;
+    let selected = filteredQuotations.filter(q => q.isFullWidth || selectedProductIds.has(q.id));
+    // Filter out empty categories again
+    const nonEmptyCategories = new Set(selected.filter(q => !q.isFullWidth).map(q => q.categoryName));
+    selected = selected.filter(q => !q.isFullWidth || nonEmptyCategories.has(q.categoryName));
+    return selected;
+  }, [filteredQuotations, selectedProductIds]);
+
+  const quotationColumns: TableColumn<QuotationItem>[] = useMemo(() => {
+    const selectableProducts = filteredQuotations.filter(q => !q.isFullWidth);
+    const allSelected = selectableProducts.length > 0 && selectedProductIds.size === selectableProducts.length;
+
+    return [
+      { 
+        header: (
+          <div className="d-flex justify-content-center align-items-center w-100">
+            <input 
+              type="checkbox" 
+              className="form-check-input m-0 cursor-pointer"
+              checked={allSelected}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setSelectedProductIds(new Set(selectableProducts.map(q => q.id)));
+                } else {
+                  setSelectedProductIds(new Set());
+                }
+              }}
+            />
+          </div>
+        ),
+        width: "60px", 
+        align: "center", 
+        render: (row: QuotationItem) => (
+          <div className="d-flex justify-content-center align-items-center w-100">
+            <input 
+              type="checkbox" 
+              className="form-check-input m-0 cursor-pointer"
+              checked={selectedProductIds.has(row.id)}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                const newSet = new Set(selectedProductIds);
+                if (e.target.checked) {
+                  newSet.add(row.id);
+                } else {
+                  newSet.delete(row.id);
+                }
+                setSelectedProductIds(newSet);
+              }}
+            />
+          </div>
+        )
+      },
+      { header: "Thông tin sản phẩm", width: "35%", render: (row: QuotationItem) => (
+        <div>
+          <div className="fw-semibold text-dark">{row.productName}</div>
+          <div className="text-muted" style={{ fontSize: "12px" }}>{row.productCode}</div>
+        </div>
+      ) },
+      { header: "Quy cách", width: "25%", render: (row: QuotationItem) => row.specification },
+      { header: "Giá niêm yết", width: "15%", render: (row: QuotationItem) => <div className="text-danger fw-bold">{row.listedPrice.toLocaleString("vi-VN")} đ</div> },
+      { header: "Ghi chú", render: (row: QuotationItem) => <div className="text-muted" style={{ fontSize: "13px" }}>{row.note}</div> }
+    ];
+  }, [filteredQuotations, selectedProductIds]);
+
   useEffect(() => {
     fetchQA();
     fetchPolicies();
     fetchPromotions();
+    fetchQuotations();
   }, []);
+
+  const fetchQuotations = async () => {
+    setLoadingQuotations(true);
+    try {
+      const res = await fetch("/api/seajong/products?per_page=1000");
+      const data = await res.json();
+      if (data.products && Array.isArray(data.products)) {
+        const groups: Record<string, any[]> = {};
+        data.products.forEach((p: any) => {
+           let catName = "Khác";
+           if (p.categoryNames && p.categoryNames.length > 0) {
+              const specificCats = p.categoryNames.filter((c: string) => c !== "Thiết bị vệ sinh" && c !== "Phụ kiện nhà tắm" && c !== "Phụ kiện phòng tắm");
+              if (specificCats.length > 0) catName = specificCats[specificCats.length - 1];
+              else catName = p.categoryNames[p.categoryNames.length - 1];
+           }
+           if (!groups[catName]) groups[catName] = [];
+           groups[catName].push(p);
+        });
+
+        const list: QuotationItem[] = [];
+        const cats = Object.keys(groups).sort();
+        setQuotationCategories(cats);
+
+        cats.forEach(cat => {
+           list.push({ 
+             id: `cat_${cat}`, 
+             isFullWidth: true, 
+             fullWidthContent: cat, 
+             categoryName: cat,
+             productName: "", 
+             productCode: "", 
+             specification: "", 
+             listedPrice: 0, 
+             note: "" 
+           } as QuotationItem);
+           
+           let stt = 1;
+           groups[cat].forEach(p => {
+             let pCode = "";
+             if (p.specs) {
+                const key = Object.keys(p.specs).find(k => k.toLowerCase().includes("mã sản phẩm"));
+                if (key) pCode = p.specs[key];
+             }
+             list.push({
+               id: p.id.toString(),
+               stt: stt++,
+               categoryName: cat,
+               productName: p.name,
+               productCode: pCode,
+               specification: "BỘ",
+               listedPrice: p.price,
+               note: "",
+               originalData: p,
+               imageUrl: p.images && p.images.length > 0 ? p.images[0] : undefined
+             });
+           });
+        });
+        setQuotations(list);
+      }
+    } catch (e) {
+       console.error("Error fetching quotations", e);
+    }
+    setLoadingQuotations(false);
+  };
 
   const fetchQA = (focusId?: number) => {
     setLoadingQA(true);
@@ -538,7 +766,107 @@ export default function PricingPage() {
             />
           )}
           
-          {currentStep === 3 && (
+          {currentStep === 3 && (() => {
+            const totalQuotationPages = Math.ceil(filteredQuotations.length / QUOTATIONS_PER_PAGE);
+            const startIdx = (quotationPage - 1) * QUOTATIONS_PER_PAGE;
+            const endIdx = startIdx + QUOTATIONS_PER_PAGE;
+            const paginatedQuotations = filteredQuotations.slice(startIdx, endIdx);
+
+            if (paginatedQuotations.length > 0 && !paginatedQuotations[0].isFullWidth) {
+              for (let i = startIdx - 1; i >= 0; i--) {
+                if (filteredQuotations[i].isFullWidth) {
+                  paginatedQuotations.unshift(filteredQuotations[i]);
+                  break;
+                }
+              }
+            }
+
+            return (
+              <FullWidthTableLayout
+                tableWrapperClassName="flex-grow-1"
+                header={
+                  <div className="d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-white">
+                    <div className="d-flex align-items-center gap-3">
+                      <div style={{ width: "240px" }}>
+                        <FilterSelect
+                          value={quotationCategory}
+                          onChange={setQuotationCategory}
+                          options={[
+                            { value: "all", label: "Tất cả nhóm hàng" },
+                            ...quotationCategories.map(c => ({ value: c, label: c }))
+                          ]}
+                        />
+                      </div>
+                      <div style={{ width: "300px" }}>
+                        <SearchInput
+                          placeholder="Tìm kiếm sản phẩm..."
+                          value={quotationSearch}
+                          onChange={setQuotationSearch}
+                        />
+                      </div>
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                      <button 
+                        className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                        style={{ height: 34, fontSize: "12.5px", backgroundColor: "#003087", borderColor: "#003087", borderRadius: 8, fontWeight: 700, whiteSpace: "nowrap" }}
+                      >
+                        <i className="bi bi-plus-lg"></i>
+                        <span>Thêm sản phẩm</span>
+                      </button>
+                      <button 
+                        className="btn btn-outline-secondary px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm bg-white"
+                        style={{ height: 34, fontSize: "12.5px", borderRadius: 8, fontWeight: 600, whiteSpace: "nowrap" }}
+                        onClick={() => setIsPrintPreviewOpen(true)}
+                      >
+                        <i className="bi bi-printer"></i>
+                        <span>In báo giá</span>
+                      </button>
+                    </div>
+                  </div>
+                }
+                table={
+                  <div className="h-100 bg-white overflow-auto d-flex flex-column" style={{ minHeight: 0 }}>
+                    {loadingQuotations ? (
+                      <div className="text-center p-4 text-muted">
+                        <div className="spinner-border spinner-border-sm me-2 text-primary"></div>
+                        Đang tải bảng báo giá...
+                      </div>
+                    ) : (
+                      <Table 
+                        columns={quotationColumns} 
+                        rows={paginatedQuotations} 
+                        emptyText="Chưa có dữ liệu bảng báo giá" 
+                        compact 
+                        onRowClick={(row) => {
+                          if (!row.isFullWidth && row.originalData) {
+                            setSelectedProduct(row.originalData);
+                            setIsProductDetailOpen(true);
+                          }
+                        }}
+                      />
+                    )}
+                  </div>
+                }
+                footerClassName="justify-content-between"
+                footer={
+                  !loadingQuotations && quotations.length > 0 ? (
+                    <>
+                      <div className="text-muted" style={{ fontSize: "13px" }}>
+                        Hiển thị {startIdx + 1}-{Math.min(endIdx, quotations.length)} trong {quotations.length} sản phẩm
+                      </div>
+                      <Pagination
+                        page={quotationPage}
+                        totalPages={totalQuotationPages}
+                        onChange={setQuotationPage}
+                      />
+                    </>
+                  ) : null
+                }
+              />
+            );
+          })()}
+
+          {currentStep === 4 && (
             <div className="row h-100 m-0 w-100">
               <div className="col-5 border-end pe-4 h-100 d-flex flex-column">
                 <SectionTitle title="Cẩm nang Kỹ năng mềm" className="mb-3 mt-3" />
@@ -654,6 +982,18 @@ export default function PricingPage() {
         open={isPromotionOffcanvasOpen} 
         onClose={() => setIsPromotionOffcanvasOpen(false)} 
         onSuccess={fetchPromotions}
+      />
+
+      <ProductDetailOffcanvas 
+        show={isProductDetailOpen} 
+        onHide={() => setIsProductDetailOpen(false)} 
+        product={selectedProduct}
+      />
+
+      <QuotationPrintPreview 
+        open={isPrintPreviewOpen}
+        onClose={() => setIsPrintPreviewOpen(false)}
+        quotations={printQuotations}
       />
 
       <QAAddModal 
