@@ -770,14 +770,14 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
              </div>
  
              {/* Title */}
-             <div style={{ textAlign: "center", margin: "25px 0" }}>
-               <h3 style={{ fontWeight: "bold", margin: 0, fontSize: "24px", color: "#003087", letterSpacing: "1px" }}>
+             <div style={{ textAlign: "center", margin: "25px 0", position: "relative" }}>
+               <h3 style={{ fontWeight: "bold", margin: 0, fontSize: "24px", color: "#003087", letterSpacing: "1px", position: "relative", zIndex: 11 }}>
                  {activePrintItem.isReceivable ? "PHIẾU THU" : "PHIẾU CHI"}
                </h3>
-               <div style={{ fontSize: "12px", fontStyle: "italic", marginTop: "3px", color: "#333" }}>
+               <div style={{ fontSize: "12px", fontStyle: "italic", marginTop: "3px", color: "#333", position: "relative", zIndex: 11 }}>
                  {formattedDate(activePrintItem.date)}
                </div>
-               <div style={{ fontSize: "12px", marginTop: "4px" }}>
+               <div style={{ fontSize: "12px", marginTop: "4px", position: "relative", zIndex: 11 }}>
                  Số: <span style={{ fontWeight: "bold" }}>{activePrintItem.ref}</span>
                </div>
              </div>
@@ -866,11 +866,67 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
                   {activePrintItem.partnerName}
                 </div>
               </div>
-              <div style={{ width: "20%" }}>
+              <div style={{ width: "20%", position: "relative" }}>
                 <div style={{ fontWeight: "bold" }}>Người lập phiếu</div>
                 <div style={{ fontStyle: "italic", fontSize: "10px", color: "#555" }}>(Ký, ghi họ tên)</div>
                 <div style={{ height: "65px" }}></div>
                 <div style={{ fontWeight: "bold" }}>Trần Thị Linh</div>
+                {activePrintItem.isReceivable && (
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: "10px" }}>
+                    <div style={{ position: "relative", width: "58mm", height: "22mm", transform: "rotate(-5deg)" }}>
+                      <img 
+                        src="/dathutien.png" 
+                        alt="Đã thu tiền" 
+                        style={{ 
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain",
+                          opacity: 0.85,
+                          pointerEvents: "none"
+                        }} 
+                      />
+                      {/* Ngày */}
+                      <div style={{
+                        position: "absolute",
+                        bottom: "18%",
+                        left: "26%",
+                        fontSize: "9px",
+                        fontWeight: "bold",
+                        color: "blue",
+                        opacity: 0.85,
+                        fontFamily: "'Courier New', Courier, monospace"
+                      }}>
+                        {new Date().getDate().toString().padStart(2, "0")}
+                      </div>
+                      {/* Tháng */}
+                      <div style={{
+                        position: "absolute",
+                        bottom: "18%",
+                        left: "55%",
+                        fontSize: "9px",
+                        fontWeight: "bold",
+                        color: "blue",
+                        opacity: 0.85,
+                        fontFamily: "'Courier New', Courier, monospace"
+                      }}>
+                        {(new Date().getMonth() + 1).toString().padStart(2, "0")}
+                      </div>
+                      {/* Năm */}
+                      <div style={{
+                        position: "absolute",
+                        bottom: "18%",
+                        left: "87%",
+                        fontSize: "9px",
+                        fontWeight: "bold",
+                        color: "blue",
+                        opacity: 0.85,
+                        fontFamily: "'Courier New', Courier, monospace"
+                      }}>
+                        {new Date().getFullYear().toString().slice(-2)}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

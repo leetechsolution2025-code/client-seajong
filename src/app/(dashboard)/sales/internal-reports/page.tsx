@@ -32,7 +32,8 @@ export default function PartnerActivitiesPage() {
     performanceBonus: 0,
     allowance: 0,
     salesCommission: 0,
-    totalIncome: 0
+    totalIncome: 0,
+    actualWorkingDays: 0
   });
   const [yearlyKpi, setYearlyKpi] = useState<any[]>(Array(12).fill(null));
   const [showRules, setShowRules] = useState(false);

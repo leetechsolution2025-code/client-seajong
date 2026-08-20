@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { PrintLabelModal } from "@/components/ui/PrintLabelModal";
 import { HoverImage } from "@/components/ui/HoverImage";
 import { useSession } from "next-auth/react";
 
@@ -60,6 +61,7 @@ export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Pr
   const [activeTab, setActiveTab] = useState<"desc" | "specs" | "policy">("desc");
   const [isPaused, setIsPaused]   = useState(false);
   const [showAdModal, setShowAdModal] = useState(false);
+  const [showPrintLabel, setShowPrintLabel] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const { data: session } = useSession();
   const isMarketing = (session?.user as any)?.department === "marketing";
@@ -1316,23 +1318,21 @@ export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Pr
       <div style={{
         padding: "12px 24px", flexShrink: 0,
         borderTop: "1px solid var(--border)", background: "var(--card)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
+        display: "flex", alignItems: "center", justifyContent: "flex-end",
       }}>
-        <span style={{ fontSize: 12, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 6 }}>
-          <i className="bi bi-clock" style={{ fontSize: 12 }} />
-          Cập nhật {new Date(p.updatedAt).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}
-        </span>
         <div className="d-flex align-items-center gap-3">
-          <a
-            href={p.url} target="_blank" rel="noreferrer"
+          <button
+            onClick={() => setShowPrintLabel(true)}
             style={{
-              display: "flex", alignItems: "center", gap: 6,
-              color: "var(--primary)", fontWeight: 600, textDecoration: "none", fontSize: 12,
+              height: 32, borderRadius: 8, padding: "0 12px",
+              border: "1px solid var(--border)", background: "var(--card)",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              color: "var(--foreground)", fontSize: 12, fontWeight: 600, gap: 6
             }}
           >
-            <i className="bi bi-link-45deg" style={{ fontSize: 14 }} />
-            seajong.com
-          </a>
+            <i className="bi bi-printer" style={{ fontSize: 13 }} />
+            In tem nhãn
+          </button>
           {onEdit && (
             <button
               onClick={onEdit}
@@ -1350,6 +1350,18 @@ export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Pr
         </div>
       </div>
       </div>
+
+      <PrintLabelModal
+        open={showPrintLabel}
+        onClose={() => setShowPrintLabel(false)}
+        items={[{
+          name: p.name,
+          code: p.slug,
+          color: "",
+          giaBan: p.price,
+          imageUrl: p.images?.[0] || null
+        }]}
+      />
     </>
   );
 }
