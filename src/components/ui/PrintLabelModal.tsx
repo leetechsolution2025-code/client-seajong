@@ -19,14 +19,14 @@ export interface PrintLabelModalProps {
 export function PrintLabelModal({ open, onClose, items }: PrintLabelModalProps) {
   const [hidePrice, setHidePrice] = useState(true);
   const [selectedItemIndexesForPrint, setSelectedItemIndexesForPrint] = useState<number[]>([]);
-  const [printQuantities, setPrintQuantities] = useState<Record<number, number>>({});
+  const [printQuantities, setPrintQuantities] = useState<Record<number, number | "">>({});
   const [companyInfo, setCompanyInfo] = useState<any>(null);
 
   useEffect(() => {
     if (open) {
       // Mặc định chọn tất cả
       setSelectedItemIndexesForPrint(items.map((_, idx) => idx));
-      const initialQty: Record<number, number> = {};
+      const initialQty: Record<number, number | ""> = {};
       items.forEach((_, idx) => { initialQty[idx] = items.length === 1 ? 9 : 3; });
       setPrintQuantities(initialQty);
 
