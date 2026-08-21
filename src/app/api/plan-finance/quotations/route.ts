@@ -337,6 +337,30 @@ export async function POST(req: NextRequest) {
         const resolvedNgayGiao = body.ngayGiaoHang ? new Date(body.ngayGiaoHang) : null;
         const initialDaThanhToan = parseFloat(String(body.daThanhToan || 0));
 
+        // Pre-process items to inject inventoryItemId
+        const resolvedItems = [];
+        if (Array.isArray(items)) {
+          for (const it of items) {
+            let invId = it.inventoryItemId || null;
+            if (!invId) {
+              const invItem = await tx.inventoryItem.findFirst({
+                where: { tenHang: it.tenHang }
+              });
+              invId = invItem?.id || null;
+            }
+            const ghiChuObj = (() => { try { return JSON.parse(it.ghiChu || "{}"); } catch(e) { return {}; } })();
+            resolvedItems.push({
+              inventoryItemId: invId,
+              tenHang: it.tenHang ?? "",
+              soLuong: parseFloat(String(it.soLuong ?? 1)),
+              donGia: parseFloat(String(it.donGia ?? 0)),
+              thanhTien: parseFloat(String(it.thanhTien ?? 0)),
+              dinhMucId: ghiChuObj.dinhMucId || null,
+              ghiChu: it.ghiChu ?? null,
+            });
+          }
+        }
+
         const order = await tx.saleOrder.create({
           data: {
             code: orderCode,
@@ -353,17 +377,7 @@ export async function POST(req: NextRequest) {
             ghiChu: q.ghiChu,
             nguoiPhuTrach: q.nguoiPhuTrachId ? String(q.nguoiPhuTrachId) : undefined,
             saleOrderItems: {
-              create: (Array.isArray(items) ? items : []).map((it: any) => {
-                const ghiChuObj = (() => { try { return JSON.parse(it.ghiChu || "{}"); } catch(e) { return {}; } })();
-                return {
-                  tenHang: it.tenHang ?? "",
-                  soLuong: parseFloat(String(it.soLuong ?? 1)),
-                  donGia: parseFloat(String(it.donGia ?? 0)),
-                  thanhTien: parseFloat(String(it.thanhTien ?? 0)),
-                  dinhMucId: ghiChuObj.dinhMucId || null,
-                  ghiChu: it.ghiChu ?? null,
-                };
-              })
+              create: resolvedItems
             }
           }
         });

@@ -86,10 +86,48 @@ export async function DELETE(
       return NextResponse.json({ error: "Bạn không có quyền xoá báo giá này" }, { status: 403 });
     }
 
-    await prisma.$transaction([
-      prisma.quotationItem.deleteMany({ where: { quotationId: id } }),
-      prisma.quotation.delete({ where: { id } }),
-    ]);
+    const quotationWithItems = await prisma.quotation.findUnique({
+      where: { id },
+      include: { items: true }
+    });
+
+    if (!quotationWithItems) {
+      return NextResponse.json({ error: "Không tìm thấy báo giá" }, { status: 404 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Hoàn trả lượng hàng đã giữ (soLuongGiu) cho báo giá
+      if (quotationWithItems.items) {
+        for (const item of quotationWithItems.items) {
+          if (!item.tenHang) continue;
+
+          const invItem = await tx.inventoryItem.findFirst({
+            where: { tenHang: item.tenHang }
+          });
+          if (!invItem) continue;
+
+          let qtyToRelease = item.soLuong;
+
+          const stocks = await tx.inventoryStock.findMany({
+            where: { inventoryItemId: invItem.id, soLuongGiu: { gt: 0 } },
+            orderBy: { soLuongGiu: 'desc' }
+          });
+
+          for (const stock of stocks) {
+            if (qtyToRelease <= 0) break;
+            const toRelease = Math.min(stock.soLuongGiu, qtyToRelease);
+            await tx.inventoryStock.update({
+              where: { id: stock.id },
+              data: { soLuongGiu: { decrement: toRelease } }
+            });
+            qtyToRelease -= toRelease;
+          }
+        }
+      }
+
+      await tx.quotationItem.deleteMany({ where: { quotationId: id } });
+      await tx.quotation.delete({ where: { id } });
+    });
 
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
@@ -199,6 +237,24 @@ export async function PATCH(
         const resolvedNgayGiao = body.ngayGiaoHang ? new Date(body.ngayGiaoHang) : null;
         const initialDaThanhToan = parseFloat(String(body.daThanhToan || 0));
 
+        // Pre-process items for the SaleOrder
+        const resolvedItems = [];
+        for (const item of qResult.items) {
+          const invItem = await tx.inventoryItem.findFirst({
+            where: { tenHang: item.tenHang }
+          });
+          const ghiChuObj = (() => { try { return JSON.parse(item.ghiChu || "{}"); } catch(e) { return {}; } })();
+          resolvedItems.push({
+            inventoryItemId: invItem?.id || null,
+            tenHang: item.tenHang ?? "",
+            soLuong: parseFloat(String(item.soLuong ?? 1)),
+            donGia: parseFloat(String(item.donGia ?? 0)),
+            thanhTien: parseFloat(String(item.thanhTien ?? 0)),
+            dinhMucId: ghiChuObj.dinhMucId || null,
+            ghiChu: item.ghiChu ?? null,
+          });
+        }
+
         const order = await tx.saleOrder.create({
           data: {
             code: orderCode,
@@ -214,6 +270,9 @@ export async function PATCH(
             trangThaiKho: insufficientItems.length > 0 ? "out_of_stock" : "in_stock",
             ghiChu: qResult.ghiChu,
             nguoiPhuTrach: qResult.nguoiPhuTrachId ? String(qResult.nguoiPhuTrachId) : undefined,
+            saleOrderItems: {
+              create: resolvedItems
+            }
           }
         });
 
