@@ -68,6 +68,13 @@ rsync -avz --delete \
     --exclude="scripts/config.sh" \
     --exclude="public/client-logo*" \
     --exclude="public/logo*" \
+    --exclude="public/uploads*" \
+    --exclude="backup_data*" \
+    --exclude="check_*.ts" \
+    --exclude="debug_*.ts" \
+    --exclude="fix_*.ts" \
+    --exclude="test_*.ts" \
+    --exclude="force_*.ts" \
     --exclude="prisma/*.db" \
     --exclude="prisma/*.sqlite" \
     --exclude="prisma/*.db-journal" \
@@ -82,6 +89,10 @@ ssh ${SSH_OPTS} -t "${SSH_USER}@${SSH_HOST}" "
   [ -s \"\$NVM_DIR/nvm.sh\" ] && source \"\$NVM_DIR/nvm.sh\"
   cd ${SSH_DIR}
   
+  echo -e \"\033[0;34m[→]\033[0m Tự động sao lưu CSDL trước khi cập nhật...\"
+  mkdir -p backup_data
+  [ -f \"scripts/auto_backup.sh\" ] && bash scripts/auto_backup.sh || cp prisma/prod.db backup_data/auto_backup_\$(date +%Y-%m-%d_%H-%M-%S).db 2>/dev/null || true
+
   echo -e \"\033[0;34m[→]\033[0m Cài đặt thư viện mới nhất (nếu có)...\"
   npm install --prefer-offline
 

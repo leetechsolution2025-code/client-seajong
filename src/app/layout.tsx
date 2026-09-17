@@ -6,6 +6,7 @@ import { BootstrapInit } from "@/components/bootstrap-init";
 import { AuthProvider } from "@/components/auth-provider";
 import { ToastProvider } from "@/components/ui/Toast";
 import { PWAUpdateBanner } from "@/components/ui/PWAUpdateBanner";
+import { MaintenanceWatcher } from "@/components/maintenance/MaintenanceWatcher";
 
 const robotoCondensed = Roboto_Condensed({
   variable: "--font-roboto-condensed",
@@ -37,6 +38,7 @@ export default function RootLayout({
             <ToastProvider>
               <BootstrapInit />
               <PWAUpdateBanner />
+              <MaintenanceWatcher />
               {children}
             </ToastProvider>
           </AuthProvider>

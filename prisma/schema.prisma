@@ -18,9 +18,13 @@ model CompanyInfo {
   email     String?
   website   String?
   taxCode   String?
-  legalRep  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  legalRep          String?
+  maintenanceActive Boolean   @default(false)
+  maintenanceAt     DateTime?
+  maintenanceUntil  DateTime?
+  maintenanceReason String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model SeajongCategory {

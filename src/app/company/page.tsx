@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { CompanyMaintenanceSection } from "@/components/company/CompanyMaintenanceSection";
 
 type Stats = {
   employees: number;
@@ -141,6 +142,9 @@ export default function CompanyDashboard() {
               </div>
             ))}
           </div>
+
+          {/* Công tắc Dừng hoạt động & cấu hình bảo trì */}
+          <CompanyMaintenanceSection />
         </div>
       </div>
     </motion.div>

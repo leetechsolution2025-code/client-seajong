@@ -11,6 +11,23 @@ interface CompanyInfo {
   logoUrl?: string | null;
 }
 
+function getMaintenanceErrorMessage(until: string | null): string {
+  if (!until) {
+    return "Hệ thống đang trong thời gian dừng hoạt động. Vui lòng quay lại sau.";
+  }
+  const d = new Date(until);
+  if (isNaN(d.getTime())) {
+    return "Hệ thống đang trong thời gian dừng hoạt động. Vui lòng quay lại sau.";
+  }
+  const formattedUntil = d.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  return `Hệ thống đang trong thời gian dừng hoạt động. Vui lòng quay lại sau ${formattedUntil}`;
+}
 
 export default function LoginForm() {
   const router = useRouter();
@@ -29,7 +46,33 @@ export default function LoginForm() {
   // Lấy callbackUrl từ URL params (do middleware tạo ra khi chặn /admin, /dashboard...)
   const callbackUrl = searchParams.get("callbackUrl");
 
+  const [maintenance, setMaintenance] = useState<{ active: boolean; at: string | null; until: string | null; reason: string }>({
+    active: false,
+    at: null,
+    until: null,
+    reason: "",
+  });
+  const [now, setNow] = useState<number>(Date.now());
 
+  // Timer 1 giây để cập nhật trạng thái theo thời gian thực
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const isMaintenanceLocked = React.useMemo(() => {
+    if (!maintenance.active || !maintenance.at) return false;
+    const startTime = new Date(maintenance.at).getTime();
+    if (isNaN(startTime) || now < startTime) return false;
+    if (maintenance.until) {
+      const untilTime = new Date(maintenance.until).getTime();
+      if (!isNaN(untilTime) && now >= untilTime) return false;
+    }
+    return true;
+  }, [maintenance, now]);
+
+  const isEmailAdmin = email.trim().toLowerCase() === "admin@seajong.com";
+  const isGrayed = isMaintenanceLocked && !isEmailAdmin;
 
   // Fetch thông tin công ty để hiển thị logo & tên động (không hardcode)
   useEffect(() => {
@@ -37,6 +80,30 @@ export default function LoginForm() {
       .then(r => r.ok ? r.json() : {})
       .then(d => setCompany(d))
       .catch(() => {});
+
+    let isMounted = true;
+    const fetchMaintenance = () => {
+      fetch("/api/company/maintenance", { cache: "no-store" })
+        .then(r => r.ok ? r.json() : {})
+        .then((d: any) => {
+          if (isMounted) {
+            setMaintenance({
+              active: Boolean(d?.maintenanceActive),
+              at: d?.maintenanceAt || null,
+              until: d?.maintenanceUntil || null,
+              reason: d?.maintenanceReason || "",
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchMaintenance();
+    const pollInterval = setInterval(fetchMaintenance, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(pollInterval);
+    };
   }, []);
 
   // Fetch danh sách ngành nghề phục vụ dev/test
@@ -65,7 +132,24 @@ export default function LoginForm() {
     if (err === "unauthorized") {
       setError("Bạn không có quyền truy cập vào khu vực này.");
     } else if (err === "CredentialsSignin") {
-      setError("Email hoặc mật khẩu không đúng.");
+      // Kiểm tra trạng thái dừng hoạt động khi đăng nhập thất bại
+      fetch("/api/company/maintenance", { cache: "no-store" })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d?.maintenanceActive) {
+            const mNow = new Date();
+            const mStarted = d.maintenanceAt ? mNow >= new Date(d.maintenanceAt) : false;
+            const mEnded = d.maintenanceUntil ? mNow >= new Date(d.maintenanceUntil) : false;
+            if (mStarted && !mEnded) {
+              setError(getMaintenanceErrorMessage(d.maintenanceUntil || null));
+              return;
+            }
+          }
+          setError("Email hoặc mật khẩu không đúng.");
+        })
+        .catch(() => {
+          setError("Email hoặc mật khẩu không đúng.");
+        });
     }
   }, [searchParams]);
 
@@ -80,6 +164,32 @@ export default function LoginForm() {
       document.cookie = `active_industry_code=${selectedIndustry}; path=/; max-age=31536000`;
     }
 
+    // Luôn fetch trạng thái mới nhất từ server trước khi xử lý
+    let curMaintenance = maintenance;
+    try {
+      const checkRes = await fetch("/api/company/maintenance", { cache: "no-store" });
+      if (checkRes.ok) {
+        const d = await checkRes.json();
+        curMaintenance = {
+          active: Boolean(d?.maintenanceActive),
+          at: d?.maintenanceAt || null,
+          until: d?.maintenanceUntil || null,
+          reason: d?.maintenanceReason || "",
+        };
+        setMaintenance(curMaintenance);
+      }
+    } catch {}
+
+    const now = new Date();
+    const isStarted = curMaintenance.at ? now >= new Date(curMaintenance.at) : false;
+    const isEnded = curMaintenance.until ? now >= new Date(curMaintenance.until) : false;
+    const isMaintenanceLocked = curMaintenance.active && isStarted && !isEnded;
+
+    if (isMaintenanceLocked && email.trim().toLowerCase() !== "admin@seajong.com") {
+      setError(getMaintenanceErrorMessage(curMaintenance.until));
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -92,6 +202,10 @@ export default function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
+      if (isMaintenanceLocked && email.trim().toLowerCase() !== "admin@seajong.com") {
+        setError(getMaintenanceErrorMessage(curMaintenance.until));
+        return;
+      }
       setError("Email hoặc mật khẩu không đúng. Vui lòng thử lại.");
       return;
     }
@@ -148,7 +262,7 @@ export default function LoginForm() {
           {/* Error */}
           {error && (
             <div className="login-error">
-              <i className="bi bi-exclamation-circle-fill" />
+              <i className={isMaintenanceLocked ? "bi bi-tools" : "bi bi-exclamation-circle-fill"} />
               <span>{error}</span>
             </div>
           )}
@@ -230,7 +344,14 @@ export default function LoginForm() {
                 <input type="checkbox" className="login-checkbox" />
                 <span>Ghi nhớ thông tin đăng nhập</span>
               </label>
-              <button type="button" className="login-forgot">Quên mật khẩu?</button>
+              <button
+                type="button"
+                className="login-forgot"
+                style={isMaintenanceLocked ? { color: "#94a3b8", cursor: "default", textDecoration: "none" } : undefined}
+                disabled={isMaintenanceLocked}
+              >
+                Quên mật khẩu?
+              </button>
             </div>
 
             {/* Submit */}
@@ -239,6 +360,16 @@ export default function LoginForm() {
               type="submit"
               disabled={loading}
               className="login-btn"
+              style={
+                isGrayed
+                  ? {
+                      background: "#94a3b8",
+                      backgroundImage: "none",
+                      color: "#ffffff",
+                      boxShadow: "none",
+                    }
+                  : undefined
+              }
             >
               {loading ? (
                 <>

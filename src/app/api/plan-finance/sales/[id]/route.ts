@@ -1040,6 +1040,7 @@ export async function DELETE(
 
     const order = await prisma.saleOrder.findUnique({
       where: { id },
+      include: { saleOrderItems: true }
     });
 
     if (!order) {
@@ -1047,6 +1048,14 @@ export async function DELETE(
     }
 
     await prisma.$transaction(async (tx) => {
+      // Lấy danh sách phiếu LogisticsTicket liên quan sẽ bị xoá
+      const ticketsToDelete = await tx.logisticsTicket.findMany({
+        where: { saleOrderId: id },
+        select: { id: true, status: true }
+      });
+      const ticketIdsToDelete = ticketsToDelete.map(t => t.id);
+      const hasCompletedLogistics = ticketsToDelete.some(t => t.status === "COMPLETED");
+
       // Xoá bút toán kế toán
       if (order.code) {
         await deleteAutoJournalByReference(order.code, "Huỷ/xoá đơn hàng bán");
@@ -1062,12 +1071,7 @@ export async function DELETE(
           where: { lyDo: { contains: order.code } }
         });
 
-        // Lấy danh sách phiếu LogisticsTicket liên quan sẽ bị xoá
-        const ticketsToDelete = await tx.logisticsTicket.findMany({
-          where: { saleOrderId: id },
-          select: { id: true }
-        });
-        const ticketIdsToDelete = ticketsToDelete.map(t => t.id);
+
 
         // Xử lý lệnh sản xuất / xuất kho KVP (Task) liên quan
         const relatedTasks = await tx.task.findMany({
@@ -1107,6 +1111,29 @@ export async function DELETE(
       await tx.debt.deleteMany({
         where: { referenceId: order.id },
       });
+
+      if (!hasCompletedLogistics && order.saleOrderItems) {
+        // Hoàn trả lượng hàng đã giữ (soLuongGiu) cho đơn hàng chưa xuất kho
+        for (const item of order.saleOrderItems) {
+          if (!item.inventoryItemId) continue;
+          let qtyToRelease = item.soLuong;
+
+          const stocks = await tx.inventoryStock.findMany({
+            where: { inventoryItemId: item.inventoryItemId, soLuongGiu: { gt: 0 } },
+            orderBy: { soLuongGiu: 'desc' }
+          });
+
+          for (const stock of stocks) {
+            if (qtyToRelease <= 0) break;
+            const toRelease = Math.min(stock.soLuongGiu, qtyToRelease);
+            await tx.inventoryStock.update({
+              where: { id: stock.id },
+              data: { soLuongGiu: { decrement: toRelease } }
+            });
+            qtyToRelease -= toRelease;
+          }
+        }
+      }
 
       // Xoá đơn hàng và các phiếu logistics liên đới
       await tx.logisticsTicket.deleteMany({

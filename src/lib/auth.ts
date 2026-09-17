@@ -44,6 +44,25 @@ export const authOptions: NextAuthOptions = {
         const isValid = await bcrypt.compare(credentials.password, user.password);
         if (!isValid) return null;
 
+        // Kiểm tra trạng thái Dừng hoạt động hệ thống
+        // Đến thời điểm trên, khoá màn hình đăng nhập lại, trừ tài khoản admin@seajong.com
+        const companyRecord = await prisma.companyInfo.findFirst({
+          select: { maintenanceActive: true, maintenanceAt: true, maintenanceUntil: true, maintenanceReason: true },
+        });
+
+        if (companyRecord?.maintenanceActive && companyRecord.maintenanceAt) {
+          const now = new Date();
+          const isStarted = now >= new Date(companyRecord.maintenanceAt);
+          const isEnded = companyRecord.maintenanceUntil ? now >= new Date(companyRecord.maintenanceUntil) : false;
+
+          if (isStarted && !isEnded) {
+            const isExemptAdmin = credentials.email.trim().toLowerCase() === "admin@seajong.com";
+            if (!isExemptAdmin) {
+              throw new Error("MAINTENANCE_LOCKED");
+            }
+          }
+        }
+
         // SUPERADMIN không có clientId → tìm master client (CompanyInfo) để lấy thông tin hiển thị
         let clientInfo = user.client;
         if (!user.clientId && user.role === "SUPERADMIN") {
