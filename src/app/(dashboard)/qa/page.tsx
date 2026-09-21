@@ -324,7 +324,13 @@ export default function QaPage() {
     if (filterStatus === "COMPLETED" && ins.result === "Pending") return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      if (!ins.id.toLowerCase().includes(q) && !ins.inspector.toLowerCase().includes(q)) return false;
+      const matchId = ins.id?.toLowerCase().includes(q);
+      const matchInspector = ins.inspector?.toLowerCase().includes(q);
+      const matchProduct = ins.product?.toLowerCase().includes(q);
+      const matchPo = ins.poNumber?.toLowerCase().includes(q);
+      const matchProdOrder = ins.metadata?.productionOrder?.toLowerCase().includes(q);
+      const matchSupplier = ins.metadata?.supplierName?.toLowerCase().includes(q);
+      if (!matchId && !matchInspector && !matchProduct && !matchPo && !matchProdOrder && !matchSupplier) return false;
     }
     return true;
   });
@@ -413,40 +419,60 @@ export default function QaPage() {
   const columns: TableColumn<typeof inspections[0]>[] = [
     {
       header: <input type="checkbox" className="form-check-input m-0" checked={selectedRows.length > 0 && selectedRows.length === filteredInspections.length} onChange={handleSelectAll} />,
-      width: 40,
+      width: 44,
       align: "center",
       render: (row) => <input type="checkbox" className="form-check-input m-0" checked={selectedRows.includes(row.id)} onChange={(e) => handleSelectRow(row.id, e)} onClick={e => e.stopPropagation()} />
     },
     {
       header: "Mã phiếu",
+      width: 250,
       render: (row) => (
-        <div className="d-flex flex-column">
-          <div className="d-flex align-items-center">
-            <span className="fw-bold text-dark small">{row.id}</span>
+        <div className="d-flex flex-column" style={{ whiteSpace: "nowrap" }}>
+          <div className="d-flex align-items-center text-nowrap">
+            <span className="fw-bold text-dark small text-nowrap">{row.id}</span>
             <span className="text-muted mx-1">|</span>
-            <span className={`fw-medium ${getStatusColor(row.result)}`} style={{ fontSize: 11 }}>{getStatusText(row.result)}</span>
+            <span className={`fw-medium text-nowrap ${getStatusColor(row.result)}`} style={{ fontSize: 11 }}>{getStatusText(row.result)}</span>
           </div>
-          <span className="text-muted mt-1" style={{ fontSize: 11 }}>
+          <span className="text-muted mt-1 text-nowrap" style={{ fontSize: 11 }}>
             {row.date} <span className="mx-1">|</span> {getTypeLabel(row.type)}
           </span>
         </div>
       )
     },
     {
-      header: "Sản phẩm / Vật tư",
-      render: (row) => <span className="fw-medium text-dark small">{row.product}</span>
+      header: "Tài liệu tham chiếu",
+      render: (row) => {
+        const isIQC = row.type === "IQC";
+        const poCode = row.poNumber || row.metadata?.purchaseOrderCode || row.metadata?.poNumber || "";
+        const prodCode = row.metadata?.productionOrder || row.metadata?.productionOrderCode || row.metadata?.customerOrderCode || "";
+
+        let docTitle = "";
+        if (isIQC) {
+          docTitle = poCode ? `Đơn hàng ${poCode}` : (row.product.startsWith("Đơn hàng") ? row.product : `Đơn hàng ${row.product}`);
+        } else {
+          docTitle = prodCode ? `Lệnh sản xuất ${prodCode}` : (row.metadata?.bomCode ? `Lệnh sản xuất ${row.metadata.bomCode}` : (row.notes && row.notes.includes("đơn hàng") ? row.notes.replace("Yêu cầu kiểm soát chất lượng cho ", "") : "Lệnh sản xuất"));
+        }
+
+        return (
+          <span className="text-dark small text-truncate d-inline-block" style={{ maxWidth: "100%", fontWeight: "normal" }} title={docTitle}>
+            {docTitle}
+          </span>
+        );
+      }
     },
     {
       header: "Người yêu cầu",
+      width: 210,
       render: (row) => (
         <div className="d-flex flex-column">
           <span className="fw-medium text-dark small">{row.inspector}</span>
-          <span className="text-muted" style={{ fontSize: 12 }}>Bộ phận: {row.department}</span>
+          <span className="text-muted" style={{ fontSize: 11.5 }}>Bộ phận: {row.department}</span>
         </div>
       )
     },
     {
       header: "Thời gian thực hiện",
+      width: 170,
       render: (row) => <span className="text-muted small">{row.date}</span>
     }
   ];

@@ -24,7 +24,11 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
     const pathMatch = pathname === path || pathname.startsWith(path + "/");
     if (!query) return pathMatch && Array.from(searchParams.entries()).length === 0;
     const params = new URLSearchParams(query);
-    const paramsMatch = Array.from(params.entries()).every(([k, v]) => searchParams.get(k) === v);
+    const paramsMatch = Array.from(params.entries()).every(([k, v]) => {
+      const currentVal = searchParams.get(k);
+      if (k === "tab" && v === "balance" && !currentVal) return true;
+      return currentVal === v;
+    });
     return pathMatch && paramsMatch;
   };
 
@@ -53,10 +57,18 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
       for (const group of groups) {
         let active = false;
         for (const i of group.items) {
-          if (i.href && (pathname === i.href || pathname.startsWith(i.href + "/"))) {
-            active = true; break;
+          const itemPath = (i.href || "").split("?")[0];
+          if (itemPath && (pathname === itemPath || pathname.startsWith(itemPath + "/"))) {
+            active = true;
+            if (i.subItems) {
+              setOpenSubGroup(i.name);
+            }
+            break;
           }
-          if (i.subItems && i.subItems.some(sub => sub.href && (pathname === sub.href || pathname.startsWith(sub.href + "/")))) {
+          if (i.subItems && i.subItems.some(sub => {
+            const subPath = (sub.href || "").split("?")[0];
+            return subPath && (pathname === subPath || pathname.startsWith(subPath + "/"));
+          })) {
             active = true;
             setOpenSubGroup(i.name);
             break;
@@ -78,10 +90,15 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
   const otherGroups = groups?.filter(g => g.key !== "admin") || [];
 
   const renderGroup = (group: NavGroup) => {
-    const isGroupActive = group.items.some(i => 
-      (i.href && (pathname === i.href || pathname.startsWith(i.href + "/"))) ||
-      (i.subItems && i.subItems.some(sub => sub.href && (pathname === sub.href || pathname.startsWith(sub.href + "/"))))
-    );
+    const isGroupActive = group.items.some(i => {
+      const itemPath = (i.href || "").split("?")[0];
+      if (itemPath && (pathname === itemPath || pathname.startsWith(itemPath + "/"))) return true;
+      if (i.subItems && i.subItems.some(sub => {
+        const subPath = (sub.href || "").split("?")[0];
+        return subPath && (pathname === subPath || pathname.startsWith(subPath + "/"));
+      })) return true;
+      return false;
+    });
     const isOpen = openGroup === group.key;
 
     // Flat item — render link trực tiếp, không accordion
@@ -129,9 +146,11 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
     const renderNavItem = (item: NavItem, isSubItem = false) => {
       const active = isLinkActive(item.href);
       const isAdmin = userRole === "SUPERADMIN" || userRole === "admin" || isFromAdmin;
-      const isLocked = isAdmin ? false : (item.isLocked !== undefined ? item.isLocked : (item.requiredOrder != null && (
-        userLevelOrder == null || userLevelOrder > item.requiredOrder
-      )));
+      const isLocked = item.isLocked !== undefined 
+        ? item.isLocked 
+        : (!isAdmin && item.requiredOrder != null && (
+            userLevelOrder == null || userLevelOrder > item.requiredOrder
+          ));
       
       return (
         <Link
@@ -220,27 +239,48 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
                 {group.items.map((item) => {
                   if (item.subItems) {
                     const isSubOpen = openSubGroup === item.name;
-                    const isSubActive = item.subItems.some(sub => sub.href && (pathname === sub.href || pathname.startsWith(sub.href + "/")));
+                    const isSubActive = item.subItems.some(sub => isLinkActive(sub.href)) || isLinkActive(item.href);
                     return (
                       <div key={item.name} className="mb-1">
-                        <button
-                          onClick={() => setOpenSubGroup(isSubOpen ? null : item.name)}
-                          className="w-100 d-flex align-items-center gap-2 px-3 py-2 border-0 bg-transparent text-muted"
-                          style={{ cursor: "pointer" }}
-                        >
-                          <span className="d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 16 }}>
-                            <i className={`bi ${item.icon || "bi-folder"} flex-shrink-0`} style={{ fontSize: 14, color: isSubActive ? "var(--bs-primary)" : "inherit" }} />
-                          </span>
-                          <span style={{ fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", flexGrow: 1, textAlign: "left", fontWeight: isSubActive ? 600 : 500, color: isSubActive ? "var(--bs-primary)" : "inherit" }}>
-                            {item.name}
-                          </span>
-                          <motion.i
-                            className="bi bi-chevron-down flex-shrink-0"
-                            style={{ fontSize: 10, opacity: 0.45 }}
-                            animate={{ rotate: isSubOpen ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
-                          />
-                        </button>
+                        <div className="d-flex align-items-center justify-content-between pe-2">
+                          <Link
+                            href={item.href || "#"}
+                            onClick={(e) => {
+                              if (!item.href || item.href === "#") {
+                                e.preventDefault();
+                                setOpenSubGroup(isSubOpen ? null : item.name);
+                              } else {
+                                setOpenSubGroup(item.name);
+                                if (onMenuSelect) onMenuSelect();
+                              }
+                            }}
+                            className={`si-item d-flex align-items-center gap-2 px-3 py-2 text-decoration-none flex-grow-1${isSubActive ? " active" : ""}`}
+                          >
+                            <span className="d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: 16 }}>
+                              <i className={`bi ${item.icon || "bi-folder"} flex-shrink-0`} style={{ fontSize: 14, color: isSubActive ? "var(--bs-primary)" : "inherit" }} />
+                            </span>
+                            <span style={{ fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexGrow: 1, textAlign: "left", fontWeight: isSubActive ? 600 : 500, color: isSubActive ? "var(--bs-primary)" : "inherit" }}>
+                              {item.name}
+                            </span>
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenSubGroup(isSubOpen ? null : item.name);
+                            }}
+                            className="btn btn-sm border-0 p-1 text-muted d-flex align-items-center justify-content-center"
+                            style={{ width: 24, height: 24, cursor: "pointer" }}
+                            title="Mở rộng / Thu gọn"
+                          >
+                            <motion.i
+                              className="bi bi-chevron-down flex-shrink-0"
+                              style={{ fontSize: 10, opacity: 0.45 }}
+                              animate={{ rotate: isSubOpen ? 180 : 0 }}
+                              transition={{ duration: 0.2 }}
+                            />
+                          </button>
+                        </div>
                         <AnimatePresence>
                           {isSubOpen && (
                             <motion.div

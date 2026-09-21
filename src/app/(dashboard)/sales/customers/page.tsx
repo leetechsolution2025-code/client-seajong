@@ -1106,18 +1106,21 @@ export default function SalesCustomersPage() {
                   />
                 </div>
               }
-              footer={
-                totalPages > 1 ? (
-                  <div className="d-flex justify-content-end p-3 flex-shrink-0 border-top bg-white">
-                    <Pagination
-                      page={page}
-                      totalPages={totalPages}
-                      onChange={setPage}
-                    />
-                  </div>
-                ) : null
-              }
             />
+            {total > 0 && (
+              <div className="d-flex align-items-center justify-content-between px-4 py-2 border-top bg-white flex-shrink-0 w-100">
+                <span className="text-muted small">
+                  Hiển thị <strong>{customers.length > 0 ? ((page - 1) * 15) + 1 : 0} - {Math.min(page * 15, total)}</strong> trong tổng số <strong>{total}</strong> đại lý
+                </span>
+                {totalPages > 1 && (
+                  <Pagination
+                    page={page}
+                    totalPages={totalPages}
+                    onChange={setPage}
+                  />
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

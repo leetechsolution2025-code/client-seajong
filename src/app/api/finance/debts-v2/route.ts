@@ -29,10 +29,12 @@ export async function GET(request: Request) {
     let query = `
       SELECT d.*, 
              c.address as "customerAddress", 
-             s.address as "supplierAddress"
+             s.address as "supplierAddress",
+             cr.address as "carrierAddress"
       FROM "Debt" d
       LEFT JOIN "Customer" c ON d."customerId" = c.id
       LEFT JOIN "Supplier" s ON d."supplierId" = s.id
+      LEFT JOIN "Carrier" cr ON d."carrierId" = cr.id
       WHERE d."type" IN (${dbTypes.map((_, i) => `$${i + 1}`).join(", ")})
     `;
     let params: any[] = [...dbTypes];
@@ -68,7 +70,11 @@ export async function GET(request: Request) {
 
     query += ` ORDER BY "dueDate" ASC`;
 
-    const debts = await prisma.$queryRawUnsafe(query, ...params) as any[];
+    const rawDebts = await prisma.$queryRawUnsafe(query, ...params) as any[];
+    const debts = rawDebts.map(d => ({
+      ...d,
+      address: d.customerAddress || d.supplierAddress || d.carrierAddress || null
+    }));
 
     // Tính toán stats (cũng dùng Raw Query để đồng bộ)
     const statsQuery = `SELECT * FROM "Debt" WHERE "type" IN (${dbTypes.map((_, i) => `$${i + 1}`).join(", ")})`;

@@ -618,6 +618,31 @@ model SupplierCategory {
   @@index([categoryId])
 }
 
+model Carrier {
+  id          String   @id @default(cuid())
+  code        String?  @unique // Mã VCH-YYYYMMDD-STT
+  name               String   // Tên đơn vị vận chuyển
+  transactionAddress String?  // Địa chỉ giao dịch / Trụ sở văn phòng
+  serviceType        String?  // Loại hình dịch vụ (Chuyển phát nhanh, Chành xe Bắc Nam, Xe tải nội bộ...)
+  contactName        String?  // Họ tên người điều phối / liên hệ
+  contactRole        String?  // Chức vụ / Vị trí
+  phone              String?  // Số điện thoại / Hotline
+  email              String?  // Email liên hệ
+  website            String?  // Website / Cổng tra mã vận đơn
+  address            String?  // Địa chỉ kho bãi / Bưu cục tiếp nhận hàng
+  routes      String?  // Tuyến đường vận chuyển
+  hanMucNo    Float    @default(0) // Hạn mức công nợ cước
+  danhGia     Int      @default(5) // Đánh giá sao (1-5)
+  trangThai   String   @default("active") // "active" | "paused" | "inactive"
+  ghiChu             String?  // Ghi chú thêm
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  purchaseOrders     PurchaseOrder[]
+  debts              Debt[]
+
+  @@index([trangThai])
+}
+
 model SaleOrder {
   logisticsTickets     LogisticsTicket[]
   id                   String               @id @default(cuid())
@@ -725,6 +750,10 @@ model PurchaseOrder {
   code              String?                 @unique
   supplierId        String?
   purchaseRequestId String?
+  carrierId         String?
+  shippingFee       Float?                  @default(0)
+  shippingDepot     String?
+  carrierDebt       Float?                  @default(0)
   ngayDat           DateTime?
   ngayNhan          DateTime?
   trangThai         String                  @default("draft")
@@ -735,12 +764,14 @@ model PurchaseOrder {
   updatedAt         DateTime                @updatedAt
   purchaseRequest   PurchaseRequest?        @relation(fields: [purchaseRequestId], references: [id])
   supplier          Supplier?               @relation(fields: [supplierId], references: [id])
+  carrier           Carrier?                @relation(fields: [carrierId], references: [id])
   items             PurchaseOrderItem[]
   stockMovements    StockMovement[]
   activities        PurchaseOrderActivity[]
 
   @@index([trangThai])
   @@index([supplierId])
+  @@index([carrierId])
   @@index([purchaseRequestId])
 }
 
@@ -803,6 +834,8 @@ model Debt {
   customer     Customer? @relation(fields: [customerId], references: [id])
   supplierId   String?
   supplier     Supplier? @relation(fields: [supplierId], references: [id])
+  carrierId    String?
+  carrier      Carrier?  @relation(fields: [carrierId], references: [id])
 
   id           String    @id @default(cuid())
   type         String
@@ -819,6 +852,7 @@ model Debt {
 
   @@index([type])
   @@index([status])
+  @@index([carrierId])
 }
 
 model Asset {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession }          from "next-auth";
 import { authOptions }               from "@/lib/auth";
 import { prisma }                    from "@/lib/prisma";
+import { carrierDb }                 from "@/lib/carrierDb";
+import { getNextQcCode }             from "@/lib/genDocCode";
 
 // GET /api/plan-finance/purchasing/[id]  — trả về PO kèm items + supplier
 export async function GET(
@@ -29,7 +31,35 @@ export async function GET(
     });
 
     if (!po) return NextResponse.json({ error: "Không tìm thấy PO" }, { status: 404 });
-    return NextResponse.json(po);
+
+    // Đảm bảo thông tin vận chuyển luôn đầy đủ kể cả khi Turbopack client cache schema cũ
+    let carrierIdVal = (po as any).carrierId;
+    let shippingFeeVal = (po as any).shippingFee;
+    let shippingDepotVal = (po as any).shippingDepot;
+    let carrierDebtVal = (po as any).carrierDebt;
+
+    if (carrierDebtVal === undefined || shippingFeeVal === undefined || shippingDepotVal === undefined || carrierIdVal === undefined) {
+      const rows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT carrierId, shippingFee, shippingDepot, carrierDebt FROM PurchaseOrder WHERE id = ? LIMIT 1`,
+        id
+      );
+      if (rows && rows.length > 0) {
+        carrierIdVal = rows[0].carrierId ?? null;
+        shippingFeeVal = Number(rows[0].shippingFee ?? 0);
+        shippingDepotVal = rows[0].shippingDepot ?? null;
+        carrierDebtVal = Number(rows[0].carrierDebt ?? 0);
+      }
+    }
+
+    const carrier = (po as any).carrier ?? (carrierIdVal ? await carrierDb.findUnique(carrierIdVal) : null);
+    return NextResponse.json({
+      ...po,
+      carrierId: carrierIdVal,
+      shippingFee: shippingFeeVal,
+      shippingDepot: shippingDepotVal,
+      carrierDebt: carrierDebtVal,
+      carrier,
+    });
   } catch (e) {
     console.error("[GET /purchasing/[id]]", e);
     return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
@@ -47,7 +77,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { trangThai, ghiChu } = body;
+    const { trangThai, ghiChu, carrierId, carrierName, shippingFee, shippingDepot, carrierDebt } = body;
 
     // Lấy PO hiện tại để kiểm tra thay đổi trạng thái
     const oldPo = await prisma.purchaseOrder.findUnique({
@@ -56,15 +86,126 @@ export async function PATCH(
     });
     if (!oldPo) return NextResponse.json({ error: "Không tìm thấy PO" }, { status: 404 });
 
-    const updateData: any = {};
-    if (trangThai !== undefined) updateData.trangThai = trangThai;
-    if (ghiChu !== undefined) updateData.ghiChu = ghiChu;
+    // 1. Cập nhật các thông tin vận chuyển trực tiếp vào SQLite (đảm bảo tương thích tuyệt đối ngay cả khi Turbopack in-memory client chưa reload schema)
+    const rawUpdates: string[] = [];
+    const rawValues: any[] = [];
 
-    // Cập nhật PO kèm theo tạo hoạt động nếu trạng thái thay đổi
-    const po = await prisma.$transaction(async (tx) => {
-      const updated = await tx.purchaseOrder.update({
+    if (carrierId !== undefined || carrierName !== undefined) {
+      let resolvedCarrierId: string | null = null;
+
+      // Nếu có carrierId, kiểm tra ID thực tế có trong bảng Carrier không
+      if (carrierId) {
+        const exists = await carrierDb.findUnique(carrierId).catch(() => null);
+        if (exists) {
+          resolvedCarrierId = exists.id;
+        }
+      }
+
+      // Nếu chưa có ID hợp lệ, thử tìm theo tên hoặc tạo mới
+      const nameToSearch = (carrierName?.trim() || (typeof carrierId === "string" ? carrierId.trim() : ""));
+      if (!resolvedCarrierId && nameToSearch) {
+        const candidates = await carrierDb.findMany({ where: { search: nameToSearch } }).catch(() => []);
+        const found = candidates.find(
+          (c) => c.name.toLowerCase() === nameToSearch.toLowerCase() || (c.code && c.code.toLowerCase() === nameToSearch.toLowerCase())
+        );
+
+        if (found) {
+          resolvedCarrierId = found.id;
+        } else {
+          try {
+            const newCarrier = await carrierDb.create({
+              name: nameToSearch,
+              address: shippingDepot?.trim() || null,
+              hanMucNo: typeof carrierDebt === "number" ? carrierDebt : 0,
+            });
+            resolvedCarrierId = newCarrier.id;
+          } catch (createErr) {
+            console.warn("[PATCH /purchasing/[id]] Không thể tạo carrier mới:", createErr);
+          }
+        }
+      }
+
+      rawUpdates.push("carrierId = ?");
+      rawValues.push(resolvedCarrierId);
+    }
+
+    if (shippingFee !== undefined) {
+      const num = typeof shippingFee === "number" ? shippingFee : parseFloat(shippingFee);
+      rawUpdates.push("shippingFee = ?");
+      rawValues.push(isNaN(num) ? 0 : Math.max(0, num));
+    }
+    if (shippingDepot !== undefined) {
+      rawUpdates.push("shippingDepot = ?");
+      rawValues.push(typeof shippingDepot === "string" ? shippingDepot.trim() : null);
+    }
+    if (carrierDebt !== undefined) {
+      const num = typeof carrierDebt === "number" ? carrierDebt : parseFloat(carrierDebt);
+      rawUpdates.push("carrierDebt = ?");
+      rawValues.push(isNaN(num) ? 0 : num);
+    }
+
+    if (rawUpdates.length > 0) {
+      rawUpdates.push("updatedAt = datetime('now')");
+      await prisma.$executeRawUnsafe(
+        `UPDATE PurchaseOrder SET ${rawUpdates.join(", ")} WHERE id = ?`,
+        ...rawValues,
+        id
+      );
+    }
+
+    // 2. Cập nhật trạng thái / ghi chú (nếu có) và tạo log hoạt động hệ thống
+    const stdUpdates: any = {};
+    if (trangThai !== undefined) stdUpdates.trangThai = trangThai;
+    if (ghiChu !== undefined) stdUpdates.ghiChu = ghiChu;
+
+    let po: any = null;
+    if (Object.keys(stdUpdates).length > 0) {
+      po = await prisma.$transaction(async (tx) => {
+        const updated = await tx.purchaseOrder.update({
+          where: { id },
+          data: stdUpdates,
+          include: {
+            supplier: { select: { id: true, name: true, address: true, phone: true, email: true } },
+            items: {
+              include: {
+                inventoryItem: { select: { id: true, code: true, tenHang: true, donVi: true, giaNhap: true, imageUrl: true } },
+                dinhMuc: { select: { code: true } }
+              },
+              orderBy: { sortOrder: "asc" }
+            }
+          }
+        });
+
+        // Nếu trạng thái thay đổi, tự động thêm một log hệ thống
+        if (trangThai !== undefined && trangThai !== oldPo.trangThai) {
+          const statusLabels: Record<string, string> = {
+            "draft": "Đang tạo đơn",
+            "ordered": "Đã đặt hàng",
+            "received": "Đã nhận hàng",
+            "disputed": "Đang khiếu nại",
+            "completed": "Hoàn thành",
+            "paused": "Tạm dừng",
+            "cancelled": "Huỷ bỏ",
+          };
+          const oldLabel = statusLabels[oldPo.trangThai] ?? oldPo.trangThai;
+          const newLabel = statusLabels[trangThai] ?? trangThai;
+          
+          await (tx as any).purchaseOrderActivity.create({
+            data: {
+              purchaseOrderId: id,
+              loai: "system",
+              ngay: new Date(),
+              nguoiThucHien: session.user?.name ?? "Hệ thống",
+              ketQua: `Trạng thái đơn hàng thay đổi từ [${oldLabel}] sang [${newLabel}].`,
+            }
+          });
+        }
+
+        return updated;
+      });
+    } else {
+      po = await prisma.purchaseOrder.findUnique({
         where: { id },
-        data: updateData,
         include: {
           supplier: { select: { id: true, name: true, address: true, phone: true, email: true } },
           items: {
@@ -76,34 +217,7 @@ export async function PATCH(
           }
         }
       });
-
-      // Nếu trạng thái thay đổi, tự động thêm một log hệ thống
-      if (trangThai !== undefined && trangThai !== oldPo.trangThai) {
-        const statusLabels: Record<string, string> = {
-          "draft": "Đang tạo đơn",
-          "ordered": "Đã đặt hàng",
-          "received": "Đã nhận hàng",
-          "disputed": "Đang khiếu nại",
-          "completed": "Hoàn thành",
-          "paused": "Tạm dừng",
-          "cancelled": "Huỷ bỏ",
-        };
-        const oldLabel = statusLabels[oldPo.trangThai] ?? oldPo.trangThai;
-        const newLabel = statusLabels[trangThai] ?? trangThai;
-        
-        await (tx as any).purchaseOrderActivity.create({
-          data: {
-            purchaseOrderId: id,
-            loai: "system",
-            ngay: new Date(),
-            nguoiThucHien: session.user?.name ?? "Hệ thống",
-            ketQua: `Trạng thái đơn hàng thay đổi từ [${oldLabel}] sang [${newLabel}].`,
-          }
-        });
-      }
-
-      return updated;
-    });
+    }
 
     // Gửi thông báo khi đơn hàng được chuyển sang trạng thái Đặt hàng (ordered)
     if (trangThai === "ordered" && oldPo.trangThai !== "ordered") {
@@ -233,12 +347,12 @@ export async function PATCH(
 
     // Gửi thông báo và yêu cầu kiểm tra chất lượng (QC) khi nhận hàng (received)
     if (trangThai === "received" && oldPo.trangThai !== "received") {
+      const poCode = po.code ?? id;
+      const supplierName = po.supplier?.name ?? "Nhà cung cấp";
+
+      // 1. Tạo 1 yêu cầu QualityInspection gộp cho toàn bộ đơn hàng
       try {
-        const poCode = po.code ?? id;
-        const supplierName = po.supplier?.name ?? "Nhà cung cấp";
-        
-        // 1. Tạo 1 yêu cầu QualityInspection gộp cho toàn bộ đơn hàng
-        const poItemsMeta = po.items.map((item: any) => ({
+        const poItemsMeta = (po.items || []).map((item: any) => ({
           id: item.id,
           productName: item.tenHang,
           inventoryItemId: item.inventoryItem?.id || null,
@@ -248,9 +362,10 @@ export async function PATCH(
           bomCode: item.dinhMuc?.code || null
         }));
 
+        const qcCode = await getNextQcCode(new Date(), prisma);
         await prisma.qualityInspection.create({
           data: {
-            code: `QC-IQC-${poCode}-${Date.now().toString().slice(-4)}`,
+            code: qcCode,
             type: "IQC",
             status: "Chưa thực hiện",
             productName: `Đơn hàng ${poCode}`,
@@ -266,8 +381,18 @@ export async function PATCH(
             executionTime: new Date()
           }
         });
+      } catch (qcErr) {
+        console.error("[PATCH /purchasing/[id]] Failed to create IQC inspection:", qcErr);
+      }
 
-        // 2. Gửi thông báo cho bộ phận QA/QC
+      // 2. Gửi thông báo cho bộ phận QA/QC
+      try {
+        let notifSenderId = session.user?.id;
+        if (!notifSenderId || !(await prisma.user.findUnique({ where: { id: notifSenderId }, select: { id: true } }))) {
+          const defaultUser = await prisma.user.findFirst({ select: { id: true } });
+          notifSenderId = defaultUser?.id ?? "system";
+        }
+
         const qaEmployees = await prisma.employee.findMany({
           where: { departmentCode: "qa" },
           select: { userId: true }
@@ -283,7 +408,7 @@ export async function PATCH(
             priority: "high",
             audienceType: "department",
             audienceValue: "qa",
-            createdById: session.user?.id ?? "system",
+            createdById: notifSenderId,
           }
         });
 
@@ -297,15 +422,140 @@ export async function PATCH(
             )
           );
         }
-      } catch (err) {
-        console.error("[PATCH /purchasing/[id]] Failed to create QC inspection and notification:", err);
+      } catch (notifErr) {
+        console.error("[PATCH /purchasing/[id]] Failed to send QA notification:", notifErr);
+      }
+
+      // 3. Phát sinh công nợ cho đơn vị vận chuyển (chi phí vận chuyển)
+      try {
+        let shippingFee = Number((po as any).shippingFee) || 0;
+        let carrierId = (po as any).carrierId;
+
+        if (!carrierId || !shippingFee) {
+          const poRows = await prisma.$queryRawUnsafe<any[]>(
+            `SELECT carrierId, shippingFee FROM PurchaseOrder WHERE id = ? LIMIT 1`,
+            id
+          );
+          if (poRows && poRows.length > 0) {
+            carrierId = carrierId || poRows[0].carrierId;
+            shippingFee = shippingFee || Number(poRows[0].shippingFee || 0);
+          }
+        }
+
+        if (shippingFee > 0 && carrierId) {
+          const carrier = await carrierDb.findUnique(carrierId);
+          const carrierName = carrier?.name ?? "Đơn vị vận chuyển";
+          const carrierRefId = `${poCode}-VC`;
+
+          let debtId: string | null = null;
+          const existingCarrierDebt = await (prisma as any).debt.findFirst({
+            where: {
+              referenceId: carrierRefId,
+              type: "phai-tra",
+            },
+          });
+
+          if (existingCarrierDebt) {
+            debtId = existingCarrierDebt.id;
+            await (prisma as any).debt.update({
+              where: { id: existingCarrierDebt.id },
+              data: {
+                partnerName: carrierName,
+                amount: shippingFee,
+                dueDate: po.ngayNhan || new Date(),
+                description: `Chi phí vận chuyển đơn mua hàng ${poCode}`,
+              },
+            });
+          } else {
+            const newDebt = await (prisma as any).debt.create({
+              data: {
+                type: "phai-tra",
+                partnerName: carrierName,
+                amount: shippingFee,
+                paidAmount: 0,
+                dueDate: po.ngayNhan || new Date(),
+                status: "UNPAID",
+                description: `Chi phí vận chuyển đơn mua hàng ${poCode}`,
+                referenceId: carrierRefId,
+              },
+            });
+            debtId = newDebt.id;
+          }
+
+          // Cập nhật carrierId vào Debt bằng SQLite trực tiếp để tránh lỗi Prisma cache
+          if (debtId && carrierId) {
+            await prisma.$executeRawUnsafe(
+              `UPDATE Debt SET carrierId = ? WHERE id = ?`,
+              carrierId,
+              debtId
+            );
+          }
+
+          // Ghi nhận nhật ký hệ thống
+          await (prisma as any).purchaseOrderActivity.create({
+            data: {
+              purchaseOrderId: id,
+              loai: "system",
+              ngay: new Date(),
+              nguoiThucHien: session.user?.name ?? "Hệ thống",
+              ketQua: `Phát sinh công nợ cước vận chuyển: ${shippingFee.toLocaleString("vi-VN")} đ cho [${carrierName}] (Mã chứng từ: ${carrierRefId}).`,
+            },
+          });
+
+          // Cập nhật công nợ luỹ kế hiện tại của ĐVVC
+          const allUnpaidDebts = await prisma.$queryRawUnsafe<any[]>(
+            `SELECT amount, paidAmount FROM Debt WHERE carrierId = ? AND type = 'phai-tra' AND status != 'PAID'`,
+            carrierId
+          );
+          const totalCarrierDebt = (allUnpaidDebts || []).reduce(
+            (sum: number, d: any) => sum + (Number(d.amount || 0) - Number(d.paidAmount || 0)),
+            0
+          );
+
+          await prisma.$executeRawUnsafe(
+            `UPDATE PurchaseOrder SET carrierDebt = ?, updatedAt = datetime('now') WHERE id = ?`,
+            totalCarrierDebt,
+            id
+          );
+
+          await carrierDb.update(carrierId, { hanMucNo: totalCarrierDebt }).catch(() => {});
+        }
+      } catch (debtErr: any) {
+        console.error("[PATCH /purchasing/[id]] Failed to create carrier debt:", debtErr);
       }
     }
 
-    return NextResponse.json(po);
-  } catch (e) {
+    // Đảm bảo thông tin vận chuyển luôn đầy đủ kể cả khi Turbopack client cache schema cũ
+    let carrierIdVal = (po as any)?.carrierId;
+    let shippingFeeVal = (po as any)?.shippingFee;
+    let shippingDepotVal = (po as any)?.shippingDepot;
+    let carrierDebtVal = (po as any)?.carrierDebt;
+
+    if (carrierDebtVal === undefined || shippingFeeVal === undefined || shippingDepotVal === undefined || carrierIdVal === undefined) {
+      const rows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT carrierId, shippingFee, shippingDepot, carrierDebt FROM PurchaseOrder WHERE id = ? LIMIT 1`,
+        id
+      );
+      if (rows && rows.length > 0) {
+        carrierIdVal = rows[0].carrierId ?? null;
+        shippingFeeVal = Number(rows[0].shippingFee ?? 0);
+        shippingDepotVal = rows[0].shippingDepot ?? null;
+        carrierDebtVal = Number(rows[0].carrierDebt ?? 0);
+      }
+    }
+
+    const carrier = (po as any)?.carrier ?? (carrierIdVal ? await carrierDb.findUnique(carrierIdVal) : null);
+    return NextResponse.json({
+      ...po,
+      carrierId: carrierIdVal,
+      shippingFee: shippingFeeVal,
+      shippingDepot: shippingDepotVal,
+      carrierDebt: carrierDebtVal,
+      carrier,
+    });
+  } catch (e: any) {
     console.error("[PATCH /purchasing/[id]]", e);
-    return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
+    return NextResponse.json({ error: e?.message || "Lỗi server", details: String(e) }, { status: 500 });
   }
 }
 

@@ -2,16 +2,22 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { SectionTitle } from "@/components/ui/SectionTitle";
+import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
+import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { MultiFilterSelect } from "@/components/ui/MultiFilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { Pagination } from "@/components/ui/Pagination";
 import { AddSupplierModal } from "@/components/plan-finance/mua_hang/AddSupplierModal";
+import { AddCarrierModal, CARRIER_SERVICE_TYPES } from "@/components/plan-finance/mua_hang/AddCarrierModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { motion, AnimatePresence } from "framer-motion";
-import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
+
+const STEP_ITEMS: ModernStepItem[] = [
+  { num: 1, id: "suppliers", title: "Nhà cung cấp", desc: "Nguồn hàng & vật tư linh kiện", icon: "bi-building" },
+  { num: 2, id: "carriers", title: "Đơn vị vận chuyển", desc: "Đối tác giao nhận & dịch vụ vận tải", icon: "bi-truck" },
+];
 
 const SUPPLIER_STATUS_OPTIONS = [
   { label: "Tất cả trạng thái", value: "" },
@@ -20,38 +26,85 @@ const SUPPLIER_STATUS_OPTIONS = [
   { label: "Dừng hợp tác", value: "inactive" }
 ];
 
-const SUPPLIER_STATUS: Record<string, { label: string; color: string; bg: string }> = {
+const CARRIER_STATUS_OPTIONS = [
+  { label: "Tất cả trạng thái", value: "" },
+  { label: "Đang hợp tác", value: "active" },
+  { label: "Tạm ngừng", value: "paused" },
+  { label: "Dừng hợp tác", value: "inactive" }
+];
+
+const CARRIER_SERVICE_OPTIONS = [
+  { label: "Tất cả loại dịch vụ", value: "" },
+  ...CARRIER_SERVICE_TYPES.map(s => ({ label: s.label, value: s.value }))
+];
+
+const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
   "active": { label: "Đang hoạt động", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
   "paused": { label: "Tạm ngưng", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
   "inactive": { label: "Dừng hợp tác", color: "#ef4444", bg: "rgba(239,68,68,0.1)" }
 };
 
+const CARRIER_STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
+  "active": { label: "Đang hợp tác", color: "#10b981", bg: "rgba(16,185,129,0.1)" },
+  "paused": { label: "Tạm ngưng", color: "#f59e0b", bg: "rgba(245,158,11,0.1)" },
+  "inactive": { label: "Dừng hợp tác", color: "#ef4444", bg: "rgba(239,68,68,0.1)" }
+};
+
+/** Tách họ tên và chức vụ từ dạng "Họ Tên (Chức vụ)" hoặc "Họ Tên [Chức vụ]" */
+function parseContactNameAndRole(raw?: string | null): { name: string; role: string } {
+  if (!raw) return { name: "", role: "" };
+  const trimmed = raw.trim();
+  const match = trimmed.match(/^(.*?)\s*[\(\（\[]([^\)\）\]]+)[\)\）\]]\s*$/);
+  if (match && match[1]) {
+    return { name: match[1].trim(), role: match[2].trim() };
+  }
+  return { name: trimmed, role: "" };
+}
+
 export default function SuppliersPage() {
+  const [currentStep, setCurrentStep] = useState<number>(1);
+
+  // ── Step 1: Suppliers State ────────────────────────────────────────────────
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [total, setTotal] = useState<number>(0);
   const [page, setPage] = useState<number>(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
-  // Selection / Edit States
+  // Selection / Edit States for Supplier
   const [selectedSupplier, setSelectedSupplier] = useState<any | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
 
-  // Confirm Delete States
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [confirmDeleteName, setConfirmDeleteName] = useState<string>("");
-  const [deleting, setDeleting] = useState<boolean>(false);
-
-  // Filters
+  // Supplier Filters
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [status, setStatus] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
 
-  // Modal Open State
-  const [isAddOpen, setIsAddOpen] = useState<boolean>(false);
+  // ── Step 2: Carriers State ─────────────────────────────────────────────────
+  const [carriers, setCarriers] = useState<any[]>([]);
+  const [carrierLoading, setCarrierLoading] = useState<boolean>(true);
+  const [carrierTotal, setCarrierTotal] = useState<number>(0);
+  const [carrierPage, setCarrierPage] = useState<number>(1);
+  const [selectedCarrierIds, setSelectedCarrierIds] = useState<string[]>([]);
 
-  // Fetch product categories
+  // Selection / Edit States for Carrier
+  const [editingCarrierId, setEditingCarrierId] = useState<string | null>(null);
+  const [isAddCarrierOpen, setIsAddCarrierOpen] = useState<boolean>(false);
+
+  // Carrier Filters
+  const [carrierStatus, setCarrierStatus] = useState<string>("");
+  const [carrierSearch, setCarrierSearch] = useState<string>("");
+  const [carrierServiceType, setCarrierServiceType] = useState<string>("");
+
+  // ── Confirm Delete States (Unified) ────────────────────────────────────────
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteName, setConfirmDeleteName] = useState<string>("");
+  const [confirmDeleteType, setConfirmDeleteType] = useState<"supplier" | "carrier">("supplier");
+  const [deleting, setDeleting] = useState<boolean>(false);
+
+  // Fetch product categories for supplier filter
   useEffect(() => {
     fetch("/api/plan-finance/inventory/categories")
       .then((r) => (r.ok ? r.json() : []))
@@ -82,10 +135,11 @@ export default function SuppliersPage() {
       .catch(() => {});
   }, []);
 
-  // Fetch Suppliers
+  // Fetch Suppliers (Step 1)
   const fetchSuppliers = useCallback(() => {
     setLoading(true);
     const p = new URLSearchParams();
+    p.set("partnerType", "SUPPLIER");
     if (status) p.set("trangThai", status);
     if (selectedCategoryIds.length > 0) p.set("categoryIds", selectedCategoryIds.join(","));
     if (search) p.set("search", search);
@@ -111,18 +165,56 @@ export default function SuppliersPage() {
   }, [status, selectedCategoryIds, search, page]);
 
   useEffect(() => {
-    fetchSuppliers();
-  }, [fetchSuppliers]);
+    if (currentStep === 1) {
+      fetchSuppliers();
+    }
+  }, [fetchSuppliers, currentStep]);
 
-  // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
   }, [status, selectedCategoryIds, search]);
 
-  // Handle delete confirmation
-  const updateRating = async (id: string, newRating: number) => {
+  // Fetch Carriers (Step 2) - Dữ liệu thực tế từ bảng Carrier trong DB
+  const fetchCarriers = useCallback(() => {
+    setCarrierLoading(true);
+    const p = new URLSearchParams();
+    if (carrierStatus) p.set("trangThai", carrierStatus);
+    if (carrierSearch) p.set("search", carrierSearch);
+    if (carrierServiceType) p.set("serviceType", carrierServiceType);
+    p.set("page", String(carrierPage));
+    p.set("limit", "15");
+
+    fetch(`/api/plan-finance/carriers?${p}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          setCarriers(data.items ?? []);
+          setCarrierTotal(data.total ?? 0);
+        } else {
+          setCarriers([]);
+          setCarrierTotal(0);
+        }
+      })
+      .catch(() => {
+        setCarriers([]);
+        setCarrierTotal(0);
+      })
+      .finally(() => setCarrierLoading(false));
+  }, [carrierStatus, carrierSearch, carrierPage, carrierServiceType]);
+
+  useEffect(() => {
+    if (currentStep === 2) {
+      fetchCarriers();
+    }
+  }, [fetchCarriers, currentStep]);
+
+  useEffect(() => {
+    setCarrierPage(1);
+  }, [carrierStatus, carrierSearch, carrierServiceType]);
+
+  // Rating updates
+  const updateSupplierRating = async (id: string, newRating: number) => {
     try {
-      // Optimistic update
       setSuppliers(prev => prev.map(s => s.id === id ? { ...s, danhGia: newRating } : s));
       await fetch(`/api/plan-finance/suppliers/${id}`, {
         method: "PATCH",
@@ -133,18 +225,40 @@ export default function SuppliersPage() {
       console.error("Failed to update rating", error);
     }
   };
+
+  const updateCarrierRating = async (id: string, newRating: number) => {
+    try {
+      setCarriers(prev => prev.map(c => c.id === id ? { ...c, danhGia: newRating } : c));
+      await fetch(`/api/plan-finance/carriers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ danhGia: newRating })
+      });
+    } catch (error) {
+      console.error("Failed to update carrier rating", error);
+    }
+  };
+
+  // Delete confirmation
   const handleDeleteConfirm = async () => {
     if (!confirmDeleteId || deleting) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/plan-finance/suppliers/${confirmDeleteId}`, { method: "DELETE" });
+      const url = confirmDeleteType === "carrier"
+        ? `/api/plan-finance/carriers/${confirmDeleteId}`
+        : `/api/plan-finance/suppliers/${confirmDeleteId}`;
+      const res = await fetch(url, { method: "DELETE" });
       if (res.ok) {
         setConfirmDeleteId(null);
         setConfirmDeleteName("");
-        fetchSuppliers();
+        if (confirmDeleteType === "carrier") {
+          fetchCarriers();
+        } else {
+          fetchSuppliers();
+        }
       } else {
         const err = await res.json();
-        alert(err.error || "Lỗi khi xoá nhà cung cấp");
+        alert(err.error || "Lỗi khi xoá");
       }
     } catch {
       alert("Lỗi kết nối");
@@ -153,8 +267,8 @@ export default function SuppliersPage() {
     }
   };
 
-  // Table columns definition
-  const columns: TableColumn<any>[] = [
+  // ── Step 1 Table Columns: Nhà cung cấp ─────────────────────────────────────
+  const supplierColumns: TableColumn<any>[] = [
     {
       header: (
         <input
@@ -185,7 +299,7 @@ export default function SuppliersPage() {
           onClick={(e) => e.stopPropagation()}
         />
       ),
-      width: "50px",
+      width: "45px",
       align: "center"
     },
     {
@@ -202,7 +316,7 @@ export default function SuppliersPage() {
                   style={{ cursor: "pointer", fontSize: "12px", transition: "all 0.2s" }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    updateRating(s.id, star);
+                    updateSupplierRating(s.id, star);
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = "scale(1.2)";
@@ -262,32 +376,248 @@ export default function SuppliersPage() {
     {
       header: "Trạng thái",
       align: "center",
+      noWrap: true,
+      width: "140px",
       render: (s) => {
-        const statusInfo = SUPPLIER_STATUS[s.trangThai] ?? { label: s.trangThai, color: "var(--muted-foreground)", bg: "var(--muted)" };
+        const statusInfo = STATUS_MAP[s.trangThai] ?? { label: s.trangThai, color: "var(--muted-foreground)", bg: "var(--muted)" };
         return (
           <span
             style={{
               display: "inline-flex",
               alignItems: "center",
-              padding: "4px 12px",
+              justifyContent: "center",
+              padding: "4px 14px",
               borderRadius: "20px",
               fontSize: "11px",
               fontWeight: 700,
               color: statusInfo.color,
-              background: statusInfo.bg
+              background: statusInfo.bg,
+              whiteSpace: "nowrap"
             }}
           >
             {statusInfo.label}
           </span>
         );
-      },
-      width: "140px"
+      }
     }
   ];
 
-  const toolbar = (
-    <div className="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2 mb-3">
-      <div className="d-flex align-items-center gap-2 flex-grow-1">
+  // ── Step 2 Table Columns: Đơn vị vận chuyển ────────────────────────────────
+  const carrierColumns: TableColumn<any>[] = [
+    {
+      header: (
+        <input
+          type="checkbox"
+          className="form-check-input"
+          checked={carriers.length > 0 && selectedCarrierIds.length === carriers.length}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedCarrierIds(carriers.map((c) => c.id));
+            } else {
+              setSelectedCarrierIds([]);
+            }
+          }}
+        />
+      ),
+      render: (c) => (
+        <input
+          type="checkbox"
+          className="form-check-input shadow-none"
+          checked={selectedCarrierIds.includes(c.id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedCarrierIds((prev) => [...prev, c.id]);
+            } else {
+              setSelectedCarrierIds((prev) => prev.filter((id) => id !== c.id));
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      width: "48px",
+      align: "center"
+    },
+    {
+      header: "Đơn vị vận chuyển",
+      width: "30%",
+      render: (c) => {
+        return (
+          <div className="d-flex flex-column py-1" style={{ minWidth: 0 }}>
+            {/* Tên đơn vị vận chuyển */}
+            <div
+              className="fw-bold text-truncate"
+              style={{
+                fontSize: "13.5px",
+                color: "var(--foreground)",
+                lineHeight: 1.35
+              }}
+              title={c.name}
+            >
+              {c.name}
+            </div>
+
+            {/* Địa chỉ giao dịch dưới tên đơn vị */}
+            {c.transactionAddress ? (
+              <div
+                className="text-muted text-truncate mt-1 d-flex align-items-center"
+                style={{ fontSize: "11.5px", lineHeight: 1.35, gap: "6px" }}
+                title={c.transactionAddress}
+              >
+                <i className="bi bi-geo-alt text-muted flex-shrink-0" style={{ fontSize: "11.5px" }} />
+                <span className="text-truncate">{c.transactionAddress}</span>
+              </div>
+            ) : (
+              <div className="text-muted small fst-italic mt-0.5" style={{ fontSize: "11px" }}>
+                Chưa có địa chỉ giao dịch
+              </div>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      header: "Điều phối & Liên hệ",
+      width: "28%",
+      render: (c) => {
+        const { name: contactName, role: contactRole } = parseContactNameAndRole(c.contactName);
+        return (
+          <div className="d-flex flex-column py-1" style={{ gap: "4px", minWidth: 0 }}>
+            {contactName ? (
+              /* Họ tên và Chức vụ trên CÙNG 1 DÒNG (đã bỏ icon person) */
+              <div className="d-flex align-items-center flex-wrap" style={{ fontSize: "12.5px", color: "var(--foreground)", gap: "8px" }}>
+                <span className="fw-semibold">{contactName}</span>
+                {contactRole && (
+                  <span
+                    className="badge rounded-pill fw-medium"
+                    style={{
+                      fontSize: "10.5px",
+                      color: "#4b5563",
+                      background: "rgba(107, 114, 128, 0.1)",
+                      border: "1px solid rgba(107, 114, 128, 0.2)",
+                      padding: "1px 7px"
+                    }}
+                  >
+                    {contactRole}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <span className="text-muted small fst-italic">Chưa có người liên hệ</span>
+            )}
+
+            {(c.phone || c.email) && (
+              <div className="d-flex align-items-center flex-wrap mt-0.5" style={{ fontSize: "11.5px", columnGap: "16px", rowGap: "4px" }}>
+                {c.phone && (
+                  <a
+                    href={`tel:${c.phone}`}
+                    className="text-decoration-none text-body d-inline-flex align-items-center"
+                    style={{ gap: "6px" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <i className="bi bi-telephone text-primary flex-shrink-0" style={{ fontSize: "11.5px" }} />
+                    <span className="fw-normal">{c.phone}</span>
+                  </a>
+                )}
+                {c.email && (
+                  <a
+                    href={`mailto:${c.email}`}
+                    className="text-decoration-none text-muted d-inline-flex align-items-center"
+                    style={{ gap: "6px" }}
+                    onClick={(e) => e.stopPropagation()}
+                    title={c.email}
+                  >
+                    <i className="bi bi-envelope text-muted flex-shrink-0" style={{ fontSize: "11.5px" }} />
+                    <span style={{ maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {c.email}
+                    </span>
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      header: "Bến bãi & Tuyến đường",
+      width: "32%",
+      render: (c) => {
+        let rawNote = c.ghiChu || "";
+        rawNote = rawNote.replace(/\[CARRIER\]\s*/g, "").trim();
+        const routeText = c.routes?.trim() || rawNote;
+        const hasExtraNote = !!rawNote && rawNote !== c.routes?.trim();
+
+        return (
+          <div className="d-flex flex-column py-1" style={{ gap: "4px", minWidth: 0 }}>
+            {c.address ? (
+              <div className="d-flex align-items-start" style={{ fontSize: "11.5px", color: "var(--foreground)", lineHeight: 1.35, gap: "7px" }}>
+                <i className="bi bi-geo-alt-fill text-danger flex-shrink-0 mt-0.5" style={{ fontSize: "12px" }} />
+                <span title={c.address} style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                  {c.address}
+                </span>
+              </div>
+            ) : (
+              <span className="text-muted small fst-italic">Chưa có địa chỉ bến bãi</span>
+            )}
+
+            {routeText ? (
+              <div className="d-flex align-items-start" style={{ fontSize: "11px", color: "var(--muted-foreground)", lineHeight: 1.35, gap: "7px" }}>
+                <i className="bi bi-signpost-2 text-primary flex-shrink-0 mt-0.5" style={{ fontSize: "11.5px" }} />
+                <span title={routeText} style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                  {routeText}
+                </span>
+              </div>
+            ) : (
+              <span className="text-muted small fst-italic" style={{ fontSize: "10.5px" }}>
+                Chưa có tuyến đường phục vụ
+              </span>
+            )}
+
+            {hasExtraNote && c.routes?.trim() && (
+              <div className="d-flex align-items-start" style={{ fontSize: "10.5px", color: "var(--muted-foreground)", lineHeight: 1.3, gap: "7px" }}>
+                <i className="bi bi-info-circle text-muted flex-shrink-0 mt-0.5" style={{ fontSize: "11px" }} />
+                <span title={rawNote} style={{ display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                  {rawNote}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      header: "Trạng thái",
+      align: "center",
+      noWrap: true,
+      width: "135px",
+      render: (c) => {
+        const statusInfo = CARRIER_STATUS_MAP[c.trangThai] ?? { label: c.trangThai, color: "var(--muted-foreground)", bg: "var(--muted)" };
+        return (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "4px 14px",
+              borderRadius: "20px",
+              fontSize: "11px",
+              fontWeight: 700,
+              color: statusInfo.color,
+              background: statusInfo.bg,
+              whiteSpace: "nowrap"
+            }}
+          >
+            {statusInfo.label}
+          </span>
+        );
+      }
+    }
+  ];
+
+  // ── Toolbars for Step 1 & Step 2 ───────────────────────────────────────────
+  const supplierToolbar = (
+    <div className="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+      <div className="d-flex align-items-center gap-2 flex-grow-1 flex-wrap">
         <MultiFilterSelect
           placeholder="Danh mục hàng hóa"
           options={categoryOptions}
@@ -304,7 +634,7 @@ export default function SuppliersPage() {
           width={150}
         />
 
-        <div className="flex-grow-1">
+        <div className="flex-grow-1" style={{ minWidth: 220 }}>
           <SearchInput
             placeholder="Tìm kiếm nhà cung cấp..."
             value={search}
@@ -315,11 +645,50 @@ export default function SuppliersPage() {
 
       <button
         onClick={() => setIsAddOpen(true)}
-        className="btn btn-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-2"
-        style={{ height: 32, fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap" }}
+        className="btn btn-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-2 flex-shrink-0"
+        style={{ height: 32, fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap", background: "#003087", borderColor: "#003087" }}
       >
         <i className="bi bi-plus-lg" />
-        Thêm mới
+        Thêm nhà cung cấp
+      </button>
+    </div>
+  );
+
+  const carrierToolbar = (
+    <div className="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+      <div className="d-flex align-items-center gap-2 flex-grow-1 flex-wrap">
+        <FilterSelect
+          placeholder="Loại hình dịch vụ"
+          options={CARRIER_SERVICE_OPTIONS}
+          value={carrierServiceType}
+          onChange={setCarrierServiceType}
+          width={180}
+        />
+        
+        <FilterSelect
+          placeholder="Trạng thái hoạt động"
+          options={CARRIER_STATUS_OPTIONS}
+          value={carrierStatus}
+          onChange={setCarrierStatus}
+          width={160}
+        />
+
+        <div className="flex-grow-1" style={{ minWidth: 220 }}>
+          <SearchInput
+            placeholder="Tìm đơn vị vận chuyển, lái xe, bến bãi..."
+            value={carrierSearch}
+            onChange={setCarrierSearch}
+          />
+        </div>
+      </div>
+
+      <button
+        onClick={() => setIsAddCarrierOpen(true)}
+        className="btn btn-primary btn-sm rounded-pill px-3 d-flex align-items-center gap-2 flex-shrink-0"
+        style={{ height: 32, fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap", background: "#003087", borderColor: "#003087" }}
+      >
+        <i className="bi bi-plus-lg" />
+        Thêm đơn vị vận chuyển
       </button>
     </div>
   );
@@ -365,57 +734,91 @@ export default function SuppliersPage() {
           background: rgba(0, 48, 135, 0.04) !important;
         }
         .app-responsive-table-wrapper table td {
-          padding-top: 4px !important;
-          padding-bottom: 4px !important;
-        }
-        .app-responsive-table-wrapper table th {
           padding-top: 5px !important;
           padding-bottom: 5px !important;
+        }
+        .app-responsive-table-wrapper table th {
+          padding-top: 6px !important;
+          padding-bottom: 6px !important;
         }
       `}</style>
 
       <PageHeader
-        title="Nhà cung cấp"
-        description="Supplier Management · Quản lý danh mục nhà cung cấp & thông tin liên lạc"
+        title="Nhà cung cấp và vận chuyển"
+        description="Supplier & Transporter Management · Quản lý danh mục nhà cung cấp, đơn vị vận tải & thông tin liên lạc"
         color="blue"
         icon="bi-truck"
       />
 
-      <div style={{ padding: "1.5rem", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <FullWidthTableLayout
-          className="bg-white rounded-4 shadow-sm border flex-grow-1 overflow-hidden"
-          header={
-            <>
-              <SectionTitle title="Danh sách nhà cung cấp" icon="bi-list-ul" className="mb-3" />
-              {toolbar}
-            </>
-          }
-          table={
-            <Table<any>
-              rows={suppliers}
-              columns={columns}
-              loading={loading}
-              rowKey={(r) => r.id}
-              onRowClick={setSelectedSupplier}
-              emptyIcon="bi-truck"
-              emptyText="Không có nhà cung cấp nào được tìm thấy"
-              compact
+      <div style={{ padding: "8px", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <WorkflowCard
+          stepper={
+            <ModernStepper
+              steps={STEP_ITEMS}
+              currentStep={currentStep}
+              onStepChange={setCurrentStep}
+              paddingX={0}
+              paddingY={8}
             />
           }
-          footer={
-            total > 15 && (
-              <div className="pt-3 pb-3 flex-shrink-0 d-flex justify-content-center">
-                <Pagination
-                  page={page}
-                  totalPages={Math.ceil(total / 15)}
-                  onChange={setPage}
+          toolbar={currentStep === 1 ? supplierToolbar : carrierToolbar}
+          contentPadding="px-4 pb-3 pt-2"
+        >
+          {currentStep === 1 ? (
+            <div className="d-flex flex-column h-100 justify-content-between" style={{ minHeight: 0 }}>
+              <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                <Table<any>
+                  rows={suppliers}
+                  columns={supplierColumns}
+                  loading={loading}
+                  rowKey={(r) => r.id}
+                  onRowClick={setSelectedSupplier}
+                  emptyIcon="bi-building"
+                  emptyText="Không có nhà cung cấp nào được tìm thấy"
+                  compact
                 />
               </div>
-            )
-          }
-        />
+
+              {total > 15 && (
+                <div className="pt-2 border-top mt-auto flex-shrink-0 d-flex justify-content-center">
+                  <Pagination
+                    page={page}
+                    totalPages={Math.ceil(total / 15)}
+                    onChange={setPage}
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="d-flex flex-column h-100 justify-content-between" style={{ minHeight: 0 }}>
+              <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                <Table<any>
+                  rows={carriers}
+                  columns={carrierColumns}
+                  loading={carrierLoading}
+                  rowKey={(r) => r.id}
+                  onRowClick={(r) => setEditingCarrierId(r.id)}
+                  emptyIcon="bi-truck"
+                  emptyText="Không có đơn vị vận chuyển nào được tìm thấy"
+                  compact
+                />
+              </div>
+
+              {carrierTotal > 15 && (
+                <div className="pt-2 border-top mt-auto flex-shrink-0 d-flex justify-content-center">
+                  <Pagination
+                    page={carrierPage}
+                    totalPages={Math.ceil(carrierTotal / 15)}
+                    onChange={setCarrierPage}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </WorkflowCard>
       </div>
 
+      {/* Supplier Modals & Offcanvas */}
       {isAddOpen && (
         <AddSupplierModal
           onClose={() => setIsAddOpen(false)}
@@ -432,13 +835,12 @@ export default function SuppliersPage() {
           onClose={() => setEditingId(null)}
           onSaved={() => {
             setEditingId(null);
-            setSelectedSupplier(null); // Close the detail offcanvas
+            setSelectedSupplier(null);
             fetchSuppliers();
           }}
         />
       )}
 
-      {/* Offcanvas chi tiết nhà cung cấp */}
       <AnimatePresence>
         {selectedSupplier && (
           <SupplierDetailOffcanvas
@@ -452,16 +854,48 @@ export default function SuppliersPage() {
               setSelectedSupplier(null);
               setConfirmDeleteId(id);
               setConfirmDeleteName(name);
+              setConfirmDeleteType("supplier");
             }}
             onChanged={fetchSuppliers}
           />
         )}
       </AnimatePresence>
 
+      {/* Carrier Modals & Offcanvas (Drawer 400px) */}
+      <AnimatePresence>
+        {isAddCarrierOpen && (
+          <AddCarrierModal
+            onClose={() => setIsAddCarrierOpen(false)}
+            onSaved={() => {
+              setIsAddCarrierOpen(false);
+              fetchCarriers();
+            }}
+          />
+        )}
+
+        {editingCarrierId && (
+          <AddCarrierModal
+            carrierId={editingCarrierId}
+            onClose={() => setEditingCarrierId(null)}
+            onSaved={() => {
+              setEditingCarrierId(null);
+              fetchCarriers();
+            }}
+            onDelete={(id, name) => {
+              setEditingCarrierId(null);
+              setConfirmDeleteId(id);
+              setConfirmDeleteName(name);
+              setConfirmDeleteType("carrier");
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Unified Delete Confirmation */}
       <ConfirmDialog
         open={!!confirmDeleteId}
-        title="Xoá nhà cung cấp"
-        message={`Bạn có chắc chắn muốn xoá nhà cung cấp "${confirmDeleteName}" không? Hành động này không thể hoàn tác.`}
+        title={confirmDeleteType === "carrier" ? "Xoá đơn vị vận chuyển" : "Xoá nhà cung cấp"}
+        message={`Bạn có chắc chắn muốn xoá ${confirmDeleteType === "carrier" ? "đơn vị vận chuyển" : "nhà cung cấp"} "${confirmDeleteName}" không? Hành động này không thể hoàn tác.`}
         confirmLabel="Xoá"
         cancelLabel="Huỷ"
         variant="danger"
@@ -570,9 +1004,7 @@ function SupplierDetailOffcanvas({ supplier, onClose, onEdit, onDelete, onChange
     } catch {}
   };
 
-  const fmtVnd = (n: number) => n > 0 ? n.toLocaleString("vi-VN") + " ₫" : "0đ";
-  
-  const statusInfo = SUPPLIER_STATUS[detail?.supplier.trangThai || supplier.trangThai] ?? { label: supplier.trangThai, color: "var(--muted-foreground)", bg: "var(--muted)" };
+  const statusInfo = STATUS_MAP[detail?.supplier.trangThai || supplier.trangThai] ?? { label: supplier.trangThai, color: "var(--muted-foreground)", bg: "var(--muted)" };
 
   return (
     <>
@@ -599,23 +1031,19 @@ function SupplierDetailOffcanvas({ supplier, onClose, onEdit, onDelete, onChange
       >
         {/* Header */}
         <div style={{ padding: "8px 20px 6px", borderBottom: "1px solid var(--border)", display: "flex", flexDirection: "column", position: "relative" }}>
-          {/* Close button top right */}
           <button onClick={onClose} style={{ position: "absolute", top: 6, right: 20, width: 32, height: 32, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--muted-foreground)" }}>
             <i className="bi bi-x-lg" style={{ fontSize: 18 }} />
           </button>
           
-          {/* Supplier Name */}
           <h3 style={{ margin: "0 40px 0 0", fontWeight: 800, fontSize: "18px", color: "var(--foreground)", wordBreak: "break-word", lineHeight: 1.2 }}>
             {detail?.supplier.name || supplier.name}
           </h3>
 
-          {/* Address */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, color: "var(--muted-foreground)", fontSize: "12px" }}>
             <i className="bi bi-geo-alt" style={{ fontSize: 13 }} />
             <span>{detail?.supplier.address || supplier.address || "—"}</span>
           </div>
 
-          {/* Status & Stars */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
             <span
               style={{
@@ -634,7 +1062,6 @@ function SupplierDetailOffcanvas({ supplier, onClose, onEdit, onDelete, onChange
               {statusInfo.label}
             </span>
 
-            {/* Stars rating */}
             <div style={{ display: "flex", cursor: "pointer" }}>
               {[1, 2, 3, 4, 5].map((star) => {
                 const isFilled = star <= (detail?.supplier.danhGia ?? supplier.danhGia ?? 0);
@@ -651,163 +1078,91 @@ function SupplierDetailOffcanvas({ supplier, onClose, onEdit, onDelete, onChange
           </div>
         </div>
 
-        {/* Body — scrollable */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
-          {/* Metrics Boxes */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-            {/* Box 1: Hạn mức nợ */}
-            <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "10px 14px", background: "var(--card)" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em", marginBottom: 4 }}>HẠN MỨC NỢ</div>
-              <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--foreground)" }}>
-                {supplier.hanMucNo > 0 ? fmtVnd(supplier.hanMucNo) : "Chưa đặt"}
-              </div>
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "40px 0", color: "var(--muted-foreground)" }}>
+              Đang tải thông tin...
             </div>
-
-            {/* Box 2: Công nợ */}
-            <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "10px 14px", background: "var(--card)" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.05em", marginBottom: 4 }}>CÔNG NỢ</div>
-              <div style={{ fontSize: "14px", fontWeight: 800, color: (detail?.congNoHienTai ?? 0) > 0 ? "#ef4444" : "#10b981" }}>
-                {fmtVnd(detail?.congNoHienTai ?? 0)}
-              </div>
-            </div>
-          </div>
-
-          {/* Status Buttons */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-            {[
-              { key: "active", label: "Đang hoạt động", color: "#10b981", bg: "rgba(16,185,129,0.06)" },
-              { key: "paused", label: "Tạm ngưng", color: "#f59e0b", bg: "rgba(245,158,11,0.06)" },
-              { key: "inactive", label: "Dừng hợp tác", color: "#ef4444", bg: "rgba(239,68,68,0.06)" },
-            ].map((st) => {
-              const isActive = (detail?.supplier.trangThai ?? supplier.trangThai) === st.key;
-              return (
-                <button
-                  key={st.key}
-                  onClick={() => handleStatusChange(st.key)}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "6px 12px",
-                    borderRadius: "20px",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    border: isActive ? `1.5px solid ${st.color}` : "1px solid var(--border)",
-                    background: isActive ? st.bg : "transparent",
-                    color: isActive ? st.color : "var(--muted-foreground)",
-                  }}
-                >
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: isActive ? st.color : "var(--muted-foreground)" }} />
-                  {st.label}
-                </button>
-              );
-            })}
-          </div>
-
-
-          {/* Categories */}
-          {detail?.supplier.categories && detail.supplier.categories.length > 0 && (
-            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, marginBottom: 14 }}>
-              <h6 style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 8, margin: "0 0 12px 0" }}>
-                DANH MỤC CUNG CẤP
-              </h6>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                {detail.supplier.categories.map((cObj: any, idx: number) => (
-                  <span key={idx} style={{ fontSize: 11, color: "#003087", background: "rgba(0, 48, 135, 0.08)", padding: "4px 10px", borderRadius: "6px", fontWeight: 600 }}>
-                    {cObj.category?.name}
+          ) : (
+            <>
+              {/* Info grid */}
+              <div style={{ background: "var(--muted)", borderRadius: 10, padding: "10px 12px", display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--muted-foreground)" }}>Mã số thuế:</span>
+                  <span style={{ fontWeight: 600 }}>{detail?.supplier.taxCode || "—"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--muted-foreground)" }}>Người liên hệ:</span>
+                  <span style={{ fontWeight: 600 }}>
+                    {detail?.supplier.contactName ? `${detail.supplier.contactName} ${detail.supplier.xungHo ? `(${detail.supplier.xungHo})` : ""}` : "—"}
                   </span>
-                ))}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--muted-foreground)" }}>Điện thoại:</span>
+                  <span style={{ fontWeight: 600 }}>{detail?.supplier.phone || "—"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--muted-foreground)" }}>Email:</span>
+                  <span style={{ fontWeight: 600 }}>{detail?.supplier.email || "—"}</span>
+                </div>
+                {detail?.supplier.website && (
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--muted-foreground)" }}>Website:</span>
+                    <a href={detail.supplier.website} target="_blank" rel="noreferrer" style={{ color: "#003087", fontWeight: 600 }}>
+                      Truy cập
+                    </a>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
 
-          {/* LỊCH SỬ GIAO DỊCH Section */}
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
-            <h6 style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 8, margin: "0 0 12px 0" }}>
-              LỊCH SỬ GIAO DỊCH
-              <span style={{ 
-                display: "inline-flex", 
-                alignItems: "center", 
-                justifyContent: "center", 
-                width: 18, 
-                height: 18, 
-                borderRadius: "50%", 
-                background: "rgba(99,102,241,0.15)", 
-                color: "#6366f1", 
-                fontSize: "10px", 
-                fontWeight: 700 
-              }}>
-                {detail?.orders.length || 0}
-              </span>
-            </h6>
-
-            <div>
-              {loading ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {[1, 2].map(i => (
-                    <div key={i} style={{ height: 48, borderRadius: 8, background: "var(--muted)", animation: "pulse 1.5s ease-in-out infinite" }} />
+              {/* Status quick switch */}
+              <div>
+                <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Đổi trạng thái
+                </label>
+                <div style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
+                  {["active", "paused", "inactive"].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => handleStatusChange(st)}
+                      style={{
+                        flex: 1, padding: "6px", borderRadius: 8, fontSize: "11px", fontWeight: 600,
+                        border: "1px solid var(--border)",
+                        background: (detail?.supplier.trangThai || supplier.trangThai) === st ? "var(--foreground)" : "transparent",
+                        color: (detail?.supplier.trangThai || supplier.trangThai) === st ? "var(--background)" : "var(--foreground)",
+                        cursor: "pointer", transition: "all 0.15s"
+                      }}
+                    >
+                      {STATUS_MAP[st]?.label}
+                    </button>
                   ))}
                 </div>
-              ) : !detail?.orders.length ? (
-                <div style={{ 
-                  display: "flex", 
-                  flexDirection: "column", 
-                  alignItems: "center", 
-                  justifyContent: "center", 
-                  padding: "32px 16px", 
-                  background: "color-mix(in srgb, var(--muted) 35%, transparent)", 
-                  borderRadius: "12px", 
-                  color: "var(--muted-foreground)",
-                  border: "1px solid var(--border)",
-                  textAlign: "center"
-                }}>
-                  <i className="bi bi-bag-x" style={{ fontSize: 24, marginBottom: 8, opacity: 0.5 }} />
-                  <span style={{ fontSize: "12.5px" }}>Chưa có giao dịch nào</span>
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {detail.orders.map((o) => {
-                    const isUnpaid = o.tongTien > o.daThanhToan;
-                    return (
-                      <div key={o.id} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", display: "flex", flexDirection: "column", gap: 4 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "#003087", fontFamily: "monospace" }}>{o.code || "ĐƠN-CHƯA-MÃ"}</span>
-                          <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{o.ngayDat ? new Date(o.ngayDat).toLocaleDateString("vi-VN") : "—"}</span>
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11.5 }}>
-                          <span style={{ color: "var(--muted-foreground)" }}>Tổng: <strong style={{ color: "var(--foreground)" }}>{fmtVnd(o.tongTien)}</strong></span>
-                          {isUnpaid && (
-                            <span style={{ color: "#ef4444", fontWeight: 600 }}>
-                              Nợ: {fmtVnd(o.tongTien - o.daThanhToan)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Footer */}
-        <div style={{ padding: "14px 20px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, flexShrink: 0 }}>
-          <button
-            onClick={() => onEdit(supplier.id)}
-            style={{ flex: 1, padding: "8px", border: "1px solid var(--border)", background: "var(--muted)", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", color: "var(--foreground)", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
-          >
-            <i className="bi bi-pencil" />
-            Sửa
-          </button>
+        {/* Footer Actions */}
+        <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", display: "flex", gap: "10px" }}>
           <button
             onClick={() => onDelete(supplier.id, supplier.name)}
-            style={{ flex: 1, padding: "8px", border: "none", background: "#ef4444", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+            style={{
+              flex: 1, padding: "8px", borderRadius: 8, fontSize: "12px", fontWeight: 600,
+              border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)",
+              color: "#ef4444", cursor: "pointer"
+            }}
           >
-            <i className="bi bi-trash" />
-            Xoá
+            <i className="bi bi-trash me-1" /> Xoá
+          </button>
+          <button
+            onClick={() => onEdit(supplier.id)}
+            style={{
+              flex: 2, padding: "8px", borderRadius: 8, fontSize: "12px", fontWeight: 700,
+              border: "none", background: "#003087", color: "white", cursor: "pointer"
+            }}
+          >
+            <i className="bi bi-pencil me-1" /> Chỉnh sửa
           </button>
         </div>
       </motion.div>

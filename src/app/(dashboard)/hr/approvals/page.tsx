@@ -523,6 +523,36 @@ export default function ApprovalsPage() {
     </div>
   );
 
+  // Khoá chức năng duyệt yêu cầu
+  const isFeatureLocked = true;
+  if (isFeatureLocked) {
+    return (
+      <StandardPage
+        title="Duyệt yêu cầu"
+        description="Quản lý và phê duyệt các yêu cầu từ nhân viên"
+        icon="bi-check2-square"
+        color="rose"
+        useCard={true}
+      >
+        <div className="d-flex flex-column align-items-center justify-content-center py-5 text-center my-auto">
+          <div className="bg-light rounded-circle p-4 mb-3 d-flex align-items-center justify-content-center" style={{ width: 80, height: 80 }}>
+            <i className="bi bi-lock-fill text-muted" style={{ fontSize: 36 }} />
+          </div>
+          <h5 className="fw-bold mb-2">Chức năng duyệt yêu cầu đang bị khoá</h5>
+          <p className="text-muted small mb-3" style={{ maxWidth: 420 }}>
+            Chức năng phê duyệt yêu cầu hiện đang được khoá trên toàn hệ thống. Vui lòng liên hệ quản trị viên để biết thêm chi tiết.
+          </p>
+          <button 
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => router.back()}
+          >
+            <i className="bi bi-arrow-left me-1" /> Quay lại
+          </button>
+        </div>
+      </StandardPage>
+    );
+  }
+
   return (
     <StandardPage
       title="Đề xuất và duyệt đề xuất"

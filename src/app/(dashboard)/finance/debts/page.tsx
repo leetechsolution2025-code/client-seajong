@@ -264,11 +264,15 @@ export default function DebtsPage() {
         header: isLoan ? "Ngân hàng / Gói vay" : (isExpense ? "Khoản chi phí" : "Đối tác / Nội dung"),
         render: (row) => {
           if (row.isGroupHeader) {
+            const isCarrier = Boolean(row.items?.[0]?.carrierId);
             const isAgency = row.partnerName?.toLowerCase().startsWith("đại lý");
             
             let textColorClass = "text-dark";
             let textColorStyle = {};
-            if (isSupplier) {
+            if (isCarrier) {
+              textColorClass = "text-uppercase";
+              textColorStyle = { color: "#0284c7" }; // Cyan for Carrier
+            } else if (isSupplier) {
               textColorClass = "text-uppercase";
               textColorStyle = { color: "#8b0000" }; // Dark red
             } else if (isAgency) {
@@ -281,7 +285,7 @@ export default function DebtsPage() {
                 className="d-flex align-items-center gap-2 cursor-pointer py-1"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const groupKey = row.groupKey || row.items[0]?.customerId || row.items[0]?.supplierId || row.partnerName;
+                  const groupKey = row.groupKey || row.items[0]?.customerId || row.items[0]?.supplierId || row.items[0]?.carrierId || row.partnerName;
                   setExpandedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
                 }}
               >
@@ -292,6 +296,12 @@ export default function DebtsPage() {
                       {row.partnerName}
                     </span>
                     <span className="badge bg-secondary-subtle text-secondary rounded-pill" style={{ fontSize: 10 }}>{row.items.filter((i: any) => !i.isPaymentLog).length} khoản nợ</span>
+                    {isCarrier && (
+                      <span className="badge bg-info-subtle text-info rounded-pill px-2 py-0.5" style={{ fontSize: 10, fontWeight: 600 }}>
+                        <i className="bi bi-truck me-1" />
+                        Vận chuyển
+                      </span>
+                    )}
                   </div>
                   {row.address && (
                     <div className="text-muted" style={{ fontSize: '0.85rem' }}>
@@ -787,7 +797,7 @@ export default function DebtsPage() {
                 if (currentStepId === "RECEIVABLE" || currentStepId === "PAYABLE") {
                   const groupedByPartner = debts.reduce((acc, curr) => {
                     // Ưu tiên nhóm theo ID, nếu không có thì nhóm theo Tên
-                    const groupKey = curr.customerId || curr.supplierId || curr.partnerName;
+                    const groupKey = curr.customerId || curr.supplierId || curr.carrierId || curr.partnerName;
                     if (!acc[groupKey]) acc[groupKey] = [];
                     acc[groupKey].push(curr);
                     return acc;

@@ -31,3 +31,21 @@ Lines: [{"id":"cmslz6lvy001qgooiu19iunsd","journalEntryId":"cmslz6lvy001ogooiyc1
 [2026-07-15T07:35:10.964Z] DELETED: DBH-20260809-01 - Ghi nhận doanh thu từ HĐ - Đại lý Hồng Liên – 09343343434 - Reason: Huỷ/xoá đơn hàng bán
 Lines: [{"id":"cmslz6lw7001wgooi4zd9pdzu","journalEntryId":"cmslz6lw7001ugooicspmhc7e","accountId":"cmrln1vse005a8ovfj9xbdl8s","type":"DEBIT","amount":73000,"description":"Ghi nhận doanh thu từ HĐ - Đại lý Hồng Liên – 09343343434"},{"id":"cmslz6lw7001xgooibil328ja","journalEntryId":"cmslz6lw7001ugooicspmhc7e","accountId":"cmrlmib2m000v8o5mqxsjn8lb","type":"CREDIT","amount":73000,"description":"Ghi nhận doanh thu từ HĐ - Đại lý Hồng Liên – 09343343434"}]
 
+[2026-07-15T07:35:10.964Z] DELETED: DBH-20260812-02 - Thu tiền khách hàng - Hải Hằng - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmsr5nnwa0022yg87kog4g6zp","journalEntryId":"cmsr5nnwa0020yg87dh5gzkyx","accountId":"cmrlmib2e00078o5mu1q6ffjo","type":"DEBIT","amount":17160000,"description":"Thu tiền khách hàng - Hải Hằng"},{"id":"cmsr5nnwa0023yg879smiec0n","journalEntryId":"cmsr5nnwa0020yg87dh5gzkyx","accountId":"cmrlmib2f000a8o5mbfh4csxq","type":"CREDIT","amount":17160000,"description":"Thu tiền khách hàng - Hải Hằng"}]
+
+[2026-07-15T07:35:10.964Z] DELETED: DBH-20260809-06 - Thu tiền khách hàng - Anh Thạo – 0969875581 - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmsm0yzqo067tygwvo9htreru","journalEntryId":"cmsm0yzqo067rygwvw0ewcsop","accountId":"cmrlmib2e00078o5mu1q6ffjo","type":"DEBIT","amount":10000000,"description":"Thu tiền khách hàng - Anh Thạo – 0969875581"},{"id":"cmsm0yzqp067uygwv7b8oaqmp","journalEntryId":"cmsm0yzqo067rygwvw0ewcsop","accountId":"cmrlmib2f000a8o5mbfh4csxq","type":"CREDIT","amount":10000000,"description":"Thu tiền khách hàng - Anh Thạo – 0969875581"}]
+
+[2026-07-15T07:35:10.964Z] DELETED: DBH-20260812-02 - Thu tiền khách hàng - Hải Hằng - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmsr5nnwa0022yg87kog4g6zp","journalEntryId":"cmsr5nnwa0020yg87dh5gzkyx","accountId":"cmrlmib2e00078o5mu1q6ffjo","type":"DEBIT","amount":17160000,"description":"Thu tiền khách hàng - Hải Hằng"},{"id":"cmsr5nnwa0023yg879smiec0n","journalEntryId":"cmsr5nnwa0020yg87dh5gzkyx","accountId":"cmrlmib2f000a8o5mbfh4csxq","type":"CREDIT","amount":17160000,"description":"Thu tiền khách hàng - Hải Hằng"}]
+
+[2026-07-15T07:35:10.964Z] DELETED: DBH-20260812-02 - Ghi nhận doanh thu từ HĐ - Hải Hằng - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmsr5nnwx0028yg879qc4uz5f","journalEntryId":"cmsr5nnww0026yg87s6biuqhq","accountId":"cmrln1vse005a8ovfj9xbdl8s","type":"DEBIT","amount":17160000,"description":"Ghi nhận doanh thu từ HĐ - Hải Hằng"},{"id":"cmsr5nnwx0029yg87o31akduw","journalEntryId":"cmsr5nnww0026yg87s6biuqhq","accountId":"cmrlmib2m000v8o5mqxsjn8lb","type":"CREDIT","amount":17160000,"description":"Ghi nhận doanh thu từ HĐ - Hải Hằng"}]
+
+[2026-07-15T07:35:10.964Z] DELETED: DBH-20260809-06 - Thu tiền khách hàng - Anh Thạo – 0969875581 - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmsm0yzqo067tygwvo9htreru","journalEntryId":"cmsm0yzqo067rygwvw0ewcsop","accountId":"cmrlmib2e00078o5mu1q6ffjo","type":"DEBIT","amount":10000000,"description":"Thu tiền khách hàng - Anh Thạo – 0969875581"},{"id":"cmsm0yzqp067uygwv7b8oaqmp","journalEntryId":"cmsm0yzqo067rygwvw0ewcsop","accountId":"cmrlmib2f000a8o5mbfh4csxq","type":"CREDIT","amount":10000000,"description":"Thu tiền khách hàng - Anh Thạo – 0969875581"}]
+
+[2026-07-15T07:35:10.964Z] DELETED: DBH-20260809-06 - Ghi nhận doanh thu từ HĐ - Anh Thạo – 0969875581 - Reason: Huỷ/xoá đơn hàng bán
+Lines: [{"id":"cmsm0yzra067zygwvb01jzlxe","journalEntryId":"cmsm0yzra067xygwvjzscjuai","accountId":"cmrln1vse005a8ovfj9xbdl8s","type":"DEBIT","amount":10000000,"description":"Ghi nhận doanh thu từ HĐ - Anh Thạo – 0969875581"},{"id":"cmsm0yzra0680ygwvtrle2hxd","journalEntryId":"cmsm0yzra067xygwvjzscjuai","accountId":"cmrlmib2m000v8o5mqxsjn8lb","type":"CREDIT","amount":10000000,"description":"Ghi nhận doanh thu từ HĐ - Anh Thạo – 0969875581"}]
+

@@ -5,10 +5,12 @@ import { createPortal } from "react-dom";
 interface HoverImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   previewSize?: number;
   images?: string[];
+  fallback?: React.ReactNode;
 }
 
-export function HoverImage({ previewSize = 300, images, ...props }: HoverImageProps) {
+export function HoverImage({ previewSize = 300, images, fallback, ...props }: HoverImageProps) {
   const [hover, setHover] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const [mounted, setMounted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -22,13 +24,15 @@ export function HoverImage({ previewSize = 300, images, ...props }: HoverImagePr
 
   useEffect(() => {
     setDisplaySrc(null); // Reset when props.src changes
+    setHasError(false);
   }, [props.src]);
 
-  const imageList = images && images.length > 0 ? images : [props.src || ""];
+  const rawImages = images && images.length > 0 ? images : (props.src ? [props.src] : []);
+  const imageList = rawImages.filter((s): s is string => typeof s === "string" && s.trim().length > 0);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (hover && imageList.length > 1) {
+    if (hover && !hasError && imageList.length > 1) {
       interval = setInterval(() => {
         setCurrentIndex((prev) => (prev + 1) % imageList.length);
       }, 1500);
@@ -38,9 +42,10 @@ export function HoverImage({ previewSize = 300, images, ...props }: HoverImagePr
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [hover, imageList.length]);
+  }, [hover, hasError, imageList.length]);
 
   const handleMouseEnter = () => {
+    if (hasError || imageList.length === 0) return;
     if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
     if (!hover) {
       const rect = imgRef.current?.getBoundingClientRect();
@@ -67,29 +72,55 @@ export function HoverImage({ previewSize = 300, images, ...props }: HoverImagePr
   };
 
   const handleMouseLeave = () => {
+    if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
     hoverTimeout.current = setTimeout(() => {
       setHover(false);
     }, 150);
+  };
+
+  const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    setHasError(true);
+    setHover(false);
+    if (props.onError) {
+      props.onError(e);
+    }
   };
 
   const handleImageClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const selectedSrc = imageList[currentIndex];
-    setDisplaySrc(typeof selectedSrc === 'string' ? selectedSrc : String(selectedSrc));
+    if (selectedSrc) {
+      setDisplaySrc(typeof selectedSrc === 'string' ? selectedSrc : String(selectedSrc));
+    }
     setHover(false);
   };
+
+  if (hasError || imageList.length === 0) {
+    if (fallback) return <>{fallback}</>;
+    return (
+      <div 
+        className="w-100 h-100 d-flex align-items-center justify-content-center bg-light"
+        style={{ width: "100%", height: "100%", ...(props.style?.borderRadius ? { borderRadius: props.style.borderRadius } : {}) }}
+      >
+        <i className="bi bi-box-seam text-muted opacity-50" style={{ fontSize: 16 }} />
+      </div>
+    );
+  }
+
+  const currentSrc = displaySrc || props.src;
 
   return (
     <>
       <img
         {...props}
-        src={displaySrc || props.src}
+        src={currentSrc}
         ref={imgRef}
+        onError={handleError}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       />
-      {hover && mounted && typeof document !== "undefined" && createPortal(
+      {hover && !hasError && mounted && typeof document !== "undefined" && createPortal(
         <div 
           style={{
             position: "fixed",
@@ -116,6 +147,9 @@ export function HoverImage({ previewSize = 300, images, ...props }: HoverImagePr
               key={idx}
               src={imgSrc} 
               alt={props.alt || "Preview"} 
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
               style={{ 
                 width: "100%", 
                 height: "100%", 

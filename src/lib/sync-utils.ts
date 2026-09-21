@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { prisma } from "./prisma";
 
 export async function syncCategoryToInventory(categoryId: string | null): Promise<string | null> {
@@ -29,6 +31,23 @@ export async function syncCategoryToInventory(categoryId: string | null): Promis
   return newCat.id;
 }
 
+function filterValidImagePath(url: string | null | undefined): string | null {
+  if (!url || typeof url !== "string") return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("/uploads/")) {
+    try {
+      const localPath = path.join(process.cwd(), "public", trimmed);
+      if (!fs.existsSync(localPath)) {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return trimmed;
+}
+
 export async function attachWebImages(items: any[]): Promise<any[]> {
   if (!items || items.length === 0) return items;
 
@@ -42,15 +61,15 @@ export async function attachWebImages(items: any[]): Promise<any[]> {
     }
   });
 
-  if (webProductIds.size === 0) return items;
-
-  // Fetch images from SeajongProduct
-  const webProducts = await prisma.seajongProduct.findMany({
-    where: { id: { in: Array.from(webProductIds) } },
-    select: { id: true, images: true }
-  });
-  
-  const webProductMap = new Map(webProducts.map(wp => [wp.id, wp.images]));
+  // Fetch images from SeajongProduct if any
+  let webProductMap = new Map<number, string | null>();
+  if (webProductIds.size > 0) {
+    const webProducts = await prisma.seajongProduct.findMany({
+      where: { id: { in: Array.from(webProductIds) } },
+      select: { id: true, images: true }
+    });
+    webProductMap = new Map(webProducts.map(wp => [wp.id, wp.images]));
+  }
 
   // Attach images to items
   return items.map(item => {
@@ -63,16 +82,21 @@ export async function attachWebImages(items: any[]): Promise<any[]> {
       } catch (e) {}
     }
     
-    // Fallback logic: if it already has imageUrl but no images, put imageUrl as first element
-    if (images.length === 0 && item.imageUrl) {
-      images = [item.imageUrl];
+    // Filter out any broken local paths in web images
+    images = images.map(filterValidImagePath).filter(Boolean) as string[];
+
+    // Fallback logic: check item's own imageUrl
+    const validItemImageUrl = filterValidImagePath(item.imageUrl);
+    if (images.length === 0 && validItemImageUrl) {
+      images = [validItemImageUrl];
     }
     
+    const finalImageUrl = validItemImageUrl || (images.length > 0 ? images[0] : null);
+
     return {
       ...item,
       images,
-      // If we don't have an imageUrl, maybe we can set it from the first image
-      imageUrl: item.imageUrl || (images.length > 0 ? images[0] : null)
+      imageUrl: finalImageUrl
     };
   });
 }

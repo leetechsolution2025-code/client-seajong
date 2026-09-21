@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getNextQcCode } from "@/lib/genDocCode";
 
 export async function GET(
   req: Request,
@@ -361,11 +361,7 @@ export async function PATCH(
           ? finalItems.join(", ") 
           : `Thành phẩm lệnh sản xuất ${order.code || order.id}`;
 
-        const qcCode =
-          "QC-" +
-          new Date().toISOString().slice(0, 10).replace(/-/g, "") +
-          "-" +
-          Math.floor(100 + Math.random() * 900);
+        const qcCode = await getNextQcCode(new Date(), tx);
         const qcRequest = await tx.qualityInspection.create({
           data: {
             code: qcCode,

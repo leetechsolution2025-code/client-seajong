@@ -1,8 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 
-// Force refresh: 2026-08-04
+// Force refresh: 2026-09-21 v9
 const globalForPrisma = globalThis as unknown as {
-  prisma_sales_v7: PrismaClient | undefined; 
+  prisma_sales_v9: PrismaClient | undefined; 
 }; 
 
 const prismaClientSingleton = () => {
@@ -10,13 +10,13 @@ const prismaClientSingleton = () => {
   return new PrismaClient();
 }; 
 
-const prisma = globalForPrisma.prisma_sales_v7 ?? prismaClientSingleton();
+const prisma = globalForPrisma.prisma_sales_v9 ?? prismaClientSingleton();
 
 export { prisma };
 export const db = prisma;
 
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma_sales_v7 = prisma;
+  globalForPrisma.prisma_sales_v9 = prisma;
 }
 
 export default prisma;

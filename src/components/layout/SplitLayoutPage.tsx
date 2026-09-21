@@ -16,6 +16,8 @@ interface SplitLayoutPageProps {
   mobileActiveTab?: "left" | "right";
   leftTabLabel?: string;
   rightTabLabel?: string;
+  padding?: string | number;
+  gap?: string | number;
 }
 
 export function SplitLayoutPage({
@@ -31,6 +33,8 @@ export function SplitLayoutPage({
   mobileActiveTab,
   leftTabLabel = "Thông tin chi tiết",
   rightTabLabel = "Biểu đồ & Phân tích",
+  padding = "8px",
+  gap = "8px",
 }: SplitLayoutPageProps) {
   const rightCols = 12 - leftCols;
   const [internalTab, setInternalTab] = useState<"left" | "right">("left");
@@ -46,6 +50,8 @@ export function SplitLayoutPage({
   }, []);
 
   const activeTab = mobileActiveTab !== undefined ? mobileActiveTab : internalTab;
+  const gapValue = typeof gap === "number" ? `${gap}px` : (gap ?? "8px");
+  const paddingValue = typeof padding === "number" ? `${padding}px` : (padding ?? "8px");
 
   return (
     <div className="d-flex flex-column" style={{ background: "var(--background)", height: "calc(100vh - 62px)", overflow: "hidden" }}>
@@ -56,11 +62,11 @@ export function SplitLayoutPage({
         color={color}
       />
 
-      <div style={{ flex: 1, padding: "1rem", overflowY: "hidden", minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, padding: paddingValue, overflowY: "hidden", minHeight: 0, display: "flex", flexDirection: "column" }}>
         
         {mobileActiveTab === undefined && isMobile && (
           <div 
-            className="d-flex p-1 mb-3 mx-0" 
+            className="d-flex p-1 mb-2 mx-0" 
             style={{ 
               background: "var(--card)", 
               borderRadius: 12, 
@@ -110,10 +116,29 @@ export function SplitLayoutPage({
           </div>
         )}
 
-        <div className="row g-4" style={{ flex: 1, alignContent: "stretch", overflow: "hidden", margin: 0 }}>
+        <div 
+          className="d-flex flex-column flex-xl-row" 
+          style={{ 
+            flex: 1, 
+            gap: gapValue, 
+            alignContent: "stretch", 
+            overflow: "hidden", 
+            margin: 0,
+            minHeight: 0
+          }}
+        >
 
           {/* Cột Trái */}
-          <div className={`col-12 col-xl-${leftCols} ${activeTab === "right" ? "d-none d-xl-flex" : "d-flex"} flex-column gap-3 p-0 pe-xl-2`} style={{ height: "100%", overflow: "hidden", marginTop: 0 }}>
+          <div 
+            className={`col-12 col-xl-${leftCols} ${activeTab === "right" ? "d-none d-xl-flex" : "d-flex"} flex-column gap-3 p-0`} 
+            style={{ 
+              height: "100%", 
+              overflow: "hidden", 
+              marginTop: 0,
+              flex: isMobile ? "1 1 auto" : `0 0 calc((100% - ${gapValue}) * ${leftCols} / 12)`,
+              maxWidth: isMobile ? "100%" : `calc((100% - ${gapValue}) * ${leftCols} / 12)`
+            }}
+          >
             {leftTopContent && <div style={{ flexShrink: 0 }}>{leftTopContent}</div>}
             <div className="app-card flex-1 w-100 border p-4" style={{ boxShadow: "0 2px 12px rgba(0, 0, 0, 0.06)", overflowY: "auto", minHeight: 0, display: "flex", flexDirection: "column" }}>
               {leftContent}
@@ -121,7 +146,16 @@ export function SplitLayoutPage({
           </div>
 
           {/* Cột Phải */}
-          <div className={`col-12 col-xl-${rightCols} ${activeTab === "left" ? "d-none d-xl-flex" : "d-flex"} flex-column gap-3 p-0 ps-xl-2`} style={{ height: "100%", overflow: "hidden", marginTop: 0 }}>
+          <div 
+            className={`col-12 col-xl-${rightCols} ${activeTab === "left" ? "d-none d-xl-flex" : "d-flex"} flex-column gap-3 p-0`} 
+            style={{ 
+              height: "100%", 
+              overflow: "hidden", 
+              marginTop: 0,
+              flex: isMobile ? "1 1 auto" : 1,
+              minWidth: 0
+            }}
+          >
             {rightTopContent && <div style={{ flexShrink: 0 }}>{rightTopContent}</div>}
             <div className="app-card flex-1 w-100 border p-0" style={{ boxShadow: "0 2px 12px rgba(0, 0, 0, 0.06)", overflowY: "hidden", minHeight: 0, display: "flex", flexDirection: "column" }}>
               {rightContent}

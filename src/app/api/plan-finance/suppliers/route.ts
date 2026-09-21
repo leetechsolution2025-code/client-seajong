@@ -16,14 +16,26 @@ export async function GET(req: NextRequest) {
     const trangThai   = searchParams.get("trangThai")   ?? "";
     const categoryId  = searchParams.get("categoryId")  ?? "";
     const categoryIds = searchParams.get("categoryIds") ?? "";
+    const partnerType = searchParams.get("partnerType") ?? ""; // "SUPPLIER" | "CARRIER"
 
     const categoryIdList = categoryIds ? categoryIds.split(",") : (categoryId ? [categoryId] : []);
 
-    const where = {
-      ...(search     && { name: { contains: search } }),
-      ...(trangThai  && { trangThai }),
-      ...(categoryIdList.length > 0 && { categories: { some: { categoryId: { in: categoryIdList } } } }),
+    let where: any = {
+      ...(search && {
+        OR: [
+          { name: { contains: search } },
+          { contactName: { contains: search } },
+          { phone: { contains: search } },
+          { code: { contains: search } },
+          { address: { contains: search } },
+        ]
+      }),
+      ...(trangThai && { trangThai }),
     };
+
+    if (categoryIdList.length > 0) {
+      where.categories = { some: { categoryId: { in: categoryIdList } } };
+    }
 
     const [total, items] = await Promise.all([
       prisma.supplier.count({ where }),
@@ -66,25 +78,28 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { name, taxCode, address, phone, email, website, contactName, xungHo, hanMucNo, ghiChu, categoryIds, trangThai } = body;
-    if (!name?.trim()) return NextResponse.json({ error: "Tên NCC không được để trống" }, { status: 400 });
+    const { name, taxCode, address, phone, email, website, contactName, xungHo, hanMucNo, categoryIds, trangThai } = body;
+    const ghiChu = body.ghiChu || "";
+    if (!name?.trim()) return NextResponse.json({ error: "Tên nhà cung cấp không được để trống" }, { status: 400 });
 
-    // Auto-generate code: NCC-YYYYmmdd-STT (STT resets to 001 every day)
+    // Auto-generate code: NCC-YYYYmmdd-STT
+    const prefix = "NCC";
     const d = new Date();
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
     const dateStr = `${yyyy}${mm}${dd}`;
 
-    const countToday = await prisma.supplier.count({
-      where: {
-        createdAt: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0))
+    let generatedCode = body.code?.trim();
+    if (!generatedCode) {
+      const countToday = await prisma.supplier.count({
+        where: {
+          code: { startsWith: `${prefix}-${dateStr}` }
         }
-      }
-    });
-    const stt = String(countToday + 1).padStart(3, "0");
-    const generatedCode = `NCC-${dateStr}-${stt}`;
+      });
+      const stt = String(countToday + 1).padStart(3, "0");
+      generatedCode = `${prefix}-${dateStr}-${stt}`;
+    }
 
     const item = await prisma.supplier.create({
       data: {

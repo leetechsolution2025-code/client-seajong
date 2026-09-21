@@ -53,6 +53,34 @@ interface InventoryManagementProps {
   onTickerUpdate?: (news: any[]) => void;
 }
 
+function InventoryItemThumbnail({ row }: { row: any }) {
+  const [imgError, setImgError] = useState(false);
+  const src = row.imageUrl || (row.images && row.images.length > 0 ? row.images[0] : null);
+
+  if (!src || imgError) {
+    return (
+      <div 
+        className="rounded-3 border bg-light d-flex align-items-center justify-content-center" 
+        style={{ width: 42, height: 42, flexShrink: 0 }}
+      >
+        <i className="bi bi-box-seam text-muted opacity-50" style={{ fontSize: 16 }} />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ width: 42, height: 42, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)", background: "#fff", flexShrink: 0 }}>
+      <HoverImage 
+        src={src} 
+        images={row.images} 
+        alt={row.tenHang || row.name || ""} 
+        onError={() => setImgError(true)}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+      />
+    </div>
+  );
+}
+
 export function InventoryManagement({ allowAdd = true, mode = "finance", onTickerUpdate }: InventoryManagementProps) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [stats, setStats] = useState<Stats>({
@@ -413,17 +441,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
       header: isMaterial ? "Vật tư / Nhóm" : (isProduct ? "Thành phẩm / Loại" : (isDefect ? "Hàng lỗi" : "Hàng hoá / Loại")),
       render: (row) => (
         <div className="d-flex align-items-center gap-3" style={{ minWidth: 0, width: "100%", maxWidth: "350px" }}>
-          <div className="flex-shrink-0">
-            {row.imageUrl || (row.images && row.images.length > 0) ? (
-              <div style={{ width: 42, height: 42, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)", background: "#fff", flexShrink: 0 }}>
-                <HoverImage src={row.imageUrl || (row.images && row.images[0])} images={row.images} alt={row.tenHang} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              </div>
-            ) : (
-              <div className="rounded-3 border bg-light d-flex align-items-center justify-content-center" style={{ width: 42, height: 42 }}>
-                <i className="bi bi-box-seam text-muted opacity-50" style={{ fontSize: 16 }} />
-              </div>
-            )}
-          </div>
+          <InventoryItemThumbnail row={row} />
           <div className="d-flex flex-column overflow-hidden flex-grow-1" style={{ minWidth: 0 }}>
             <span className="fw-semibold text-dark lh-1 mb-1 text-truncate d-block w-100" style={{ fontSize: 12.5 }} title={row.tenHang || row.name}>{row.tenHang || row.name}</span>
             <div className="d-flex align-items-center gap-2 overflow-hidden w-100">

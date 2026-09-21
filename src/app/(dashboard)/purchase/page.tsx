@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
@@ -8,6 +8,7 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { Pagination } from "@/components/ui/Pagination";
+import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { TaoYeuCauMuaHangModal } from "@/components/plan-finance/mua_hang/TaoYeuCauMuaHangModal";
 import TaoDonMuaHangModal from "@/components/plan-finance/mua_hang/TaoDonMuaHangModal";
 import { TaoDonMuaHangTrucTiepModal } from "@/components/plan-finance/mua_hang/TaoDonMuaHangTrucTiepModal";
@@ -832,7 +833,7 @@ export default function PurchasePage() {
         icon="bi-cart3"
       />
 
-      <div style={{ padding: "1.5rem", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+      <div style={{ padding: "8px", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <WorkflowCard
           stepper={
             <ModernStepper
@@ -1487,6 +1488,11 @@ interface OrderDetail {
   code: string | null;
   supplierId: string | null;
   purchaseRequestId: string | null;
+  carrierId?: string | null;
+  shippingFee?: number | null;
+  shippingDepot?: string | null;
+  carrierDebt?: number | null;
+  carrier?: { id: string; code: string | null; name: string; phone: string | null; address: string | null; transactionAddress: string | null; hanMucNo?: number | null } | null;
   ngayDat: string | null;
   ngayNhan: string | null;
   trangThai: string;
@@ -1495,7 +1501,7 @@ interface OrderDetail {
   ghiChu: string | null;
   createdAt: string;
   updatedAt: string;
-  supplier: { id: string; name: string } | null;
+  supplier: { id: string; name: string; address?: string; phone?: string; email?: string } | null;
   items: Array<{
     id: string;
     purchaseOrderId: string;
@@ -1558,6 +1564,116 @@ function OrderDetailOffcanvas({ order, onClose, onChanged, onEditOrder, onPrintO
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // ── Thông tin Đơn vị vận chuyển ──────────────────────────────────────────
+  const [carrierList, setCarrierList] = useState<any[]>([]);
+  const [carrierId, setCarrierId] = useState<string | null>(() => detail?.carrierId ?? order.carrierId ?? null);
+  const [carrierSearch, setCarrierSearch] = useState<string>(() => detail?.carrier?.name ?? order.carrier?.name ?? "");
+  const [shippingFee, setShippingFee] = useState<number>(() => detail?.shippingFee ?? order.shippingFee ?? 0);
+  const [shippingDepot, setShippingDepot] = useState<string>(() => detail?.shippingDepot ?? order.shippingDepot ?? "");
+  const [carrierDebt, setCarrierDebt] = useState<number>(() => detail?.carrierDebt ?? order.carrierDebt ?? (detail?.carrier?.hanMucNo ?? order.carrier?.hanMucNo ?? 0));
+  const [showCarrierDropdown, setShowCarrierDropdown] = useState(false);
+  const [savingShipping, setSavingShipping] = useState(false);
+  const carrierDropdownRef = useRef<HTMLDivElement>(null);
+  const loadedOrderIdRef = useRef<string | null>(null);
+
+  // Chỉ nạp dữ liệu ban đầu từ DB một lần duy nhất khi mở đơn hoặc đổi đơn khác
+  useEffect(() => {
+    if (detail && loadedOrderIdRef.current !== detail.id) {
+      loadedOrderIdRef.current = detail.id;
+      setCarrierId(detail.carrierId ?? null);
+      setCarrierSearch(detail.carrier?.name ?? "");
+      setShippingFee(detail.shippingFee ?? 0);
+      setShippingDepot(detail.shippingDepot ?? "");
+      setCarrierDebt(detail.carrierDebt ?? detail.carrier?.hanMucNo ?? 0);
+    }
+  }, [detail]);
+
+  // Tải danh sách đơn vị vận chuyển từ DB
+  useEffect(() => {
+    fetch("/api/plan-finance/carriers?limit=100")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && Array.isArray(data.items)) {
+          setCarrierList(data.items);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Đóng dropdown khi click ra ngoài
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (carrierDropdownRef.current && !carrierDropdownRef.current.contains(e.target as Node)) {
+        setShowCarrierDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Chỉ mở khoá khi trạng thái đơn hàng là "Đã đặt hàng"
+  const currentStatus = detail?.trangThai ?? order.trangThai;
+  const isOrdered = currentStatus === "ordered";
+
+  // Hàm lưu thông tin vận chuyển vào DB
+  const saveShippingInfo = async (
+    newCarrierId: string | null,
+    newShippingFee: number,
+    newShippingDepot: string,
+    newCarrierDebt?: number,
+    newCarrierName?: string
+  ) => {
+    const targetId = order?.id || detail?.id;
+    if (!targetId || !isOrdered) return;
+    setSavingShipping(true);
+    setCarrierId(newCarrierId);
+    setShippingFee(newShippingFee);
+    setShippingDepot(newShippingDepot);
+    if (newCarrierDebt !== undefined) setCarrierDebt(newCarrierDebt);
+    if (newCarrierName !== undefined) setCarrierSearch(newCarrierName);
+
+    try {
+      const res = await fetch(`/api/plan-finance/purchasing/${targetId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          carrierId: newCarrierId,
+          carrierName: newCarrierName !== undefined ? newCarrierName : carrierSearch,
+          shippingFee: newShippingFee,
+          shippingDepot: newShippingDepot,
+          carrierDebt: newCarrierDebt !== undefined ? newCarrierDebt : carrierDebt,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setDetail((prev) => (prev ? { ...prev, ...updated } : updated));
+        if (updated.carrier) {
+          setCarrierId(updated.carrier.id);
+          setCarrierSearch(updated.carrier.name);
+          if (updated.carrier.address && !newShippingDepot) {
+            setShippingDepot(updated.carrier.address);
+          }
+          setCarrierList((prev) => {
+            if (!prev.some((c) => c.id === updated.carrier.id)) {
+              return [updated.carrier, ...prev];
+            }
+            return prev;
+          });
+        }
+        onChanged?.();
+      } else {
+        const errText = await res.text().catch(() => "");
+        let errJson: any = {};
+        try { errJson = JSON.parse(errText); } catch { errJson = { raw: errText }; }
+        console.error(`Lỗi lưu thông tin vận chuyển [HTTP ${res.status}]:`, errJson?.error || errJson);
+      }
+    } catch (err) {
+      console.error("Lỗi lưu thông tin vận chuyển:", err);
+    } finally {
+      setSavingShipping(false);
+    }
+  };
+
   useEffect(() => {
     if (session?.user?.name && !actPerson) {
       setActPerson(session.user.name);
@@ -1590,20 +1706,16 @@ function OrderDetailOffcanvas({ order, onClose, onChanged, onEditOrder, onPrintO
     refreshDetailAndActivities(false);
   }, [refreshDetailAndActivities]);
 
+  // Polling chạy ngầm chỉ làm mới hoạt động đơn hàng, KHÔNG làm mới detail để không ghi đè form nhập liệu
   useEffect(() => {
     const interval = setInterval(() => {
-      refreshDetailAndActivities(true);
-    }, 10000); // 10s silent poll
+      fetch(`/api/plan-finance/purchasing/${order.id}/activities`)
+        .then((r) => r.json())
+        .then((d) => setActivities(Array.isArray(d) ? d : []))
+        .catch(() => {});
+    }, 10000);
     return () => clearInterval(interval);
-  }, [refreshDetailAndActivities]);
-
-  useEffect(() => {
-    const handleFocus = () => {
-      refreshDetailAndActivities(true);
-    };
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [refreshDetailAndActivities]);
+  }, [order.id]);
 
   // Nút chức năng & Thay đổi trạng thái/Xóa/Sửa
   const [isEditingGhiChu, setIsEditingGhiChu] = useState(false);
@@ -2170,18 +2282,66 @@ function OrderDetailOffcanvas({ order, onClose, onChanged, onEditOrder, onPrintO
                   );
                 })()}
 
-                <button
-                  onClick={() => handleUpdateStatus("received")}
-                  style={{
-                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                    height: "64px", borderRadius: "10px", border: "1px solid var(--border)",
-                    background: "rgba(2, 132, 199, 0.02)", cursor: "pointer", gap: "6px",
-                    transition: "all 0.15s ease", color: "var(--foreground)"
-                  }}
-                >
-                  <i className="bi bi-box-seam" style={{ fontSize: "16px", color: "#0284c7" }} />
-                  <span style={{ fontSize: "11px", fontWeight: "700" }}>Nhận hàng</span>
-                </button>
+                {(() => {
+                  const currentStatus = detail?.trangThai ?? order.trangThai;
+                  const isOrderPlaced = currentStatus === "ordered";
+                  const hasCarrier = Boolean(carrierId || carrierSearch?.trim());
+                  const hasDepot = Boolean(shippingDepot?.trim());
+                  const hasShippingFee = shippingFee !== null && shippingFee !== undefined && !isNaN(Number(shippingFee)) && Number(shippingFee) >= 0;
+
+                  const canReceive = isOrderPlaced && hasCarrier && hasDepot && hasShippingFee;
+
+                  let disabledReason = "";
+                  if (!isOrderPlaced) {
+                    if (["received", "completed"].includes(currentStatus || "")) {
+                      disabledReason = "Đơn hàng đã được nhận";
+                    } else if (currentStatus === "draft") {
+                      disabledReason = "Đơn hàng chưa được đặt hàng";
+                    } else if (currentStatus === "cancelled") {
+                      disabledReason = "Đơn hàng đã bị huỷ";
+                    } else {
+                      disabledReason = "Đơn hàng chưa thể nhận hàng";
+                    }
+                  } else if (!hasCarrier || !hasDepot || !hasShippingFee) {
+                    const missing: string[] = [];
+                    if (!hasCarrier) missing.push("Tên đơn vị vận chuyển");
+                    if (!hasDepot) missing.push("Bến bãi");
+                    if (!hasShippingFee) missing.push("Chi phí vận chuyển");
+                    disabledReason = `Chỉ mở khoá khi điền: ${missing.join(", ")}`;
+                  }
+
+                  return (
+                    <button
+                      disabled={!canReceive}
+                      onClick={() => handleUpdateStatus("received")}
+                      title={!canReceive ? disabledReason : "Nhận hàng"}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        height: "64px",
+                        borderRadius: "10px",
+                        border: "1px solid var(--border)",
+                        background: canReceive ? "rgba(2, 132, 199, 0.04)" : "var(--muted)",
+                        cursor: canReceive ? "pointer" : "not-allowed",
+                        gap: "6px",
+                        transition: "all 0.15s ease",
+                        color: canReceive ? "var(--foreground)" : "var(--muted-foreground)",
+                        opacity: canReceive ? 1 : 0.45,
+                      }}
+                    >
+                      <i
+                        className="bi bi-box-seam"
+                        style={{
+                          fontSize: "16px",
+                          color: canReceive ? "#0284c7" : "var(--muted-foreground)",
+                        }}
+                      />
+                      <span style={{ fontSize: "11px", fontWeight: "700" }}>Nhận hàng</span>
+                    </button>
+                  );
+                })()}
               </div>
 
               {/* Row 2: Khiếu nại, Tạm dừng, Huỷ bỏ, In đơn */}
@@ -2243,57 +2403,455 @@ function OrderDetailOffcanvas({ order, onClose, onChanged, onEditOrder, onPrintO
                 </button>
               </div>
             </div>
-            {/* Supplier/General Information */}
+            {/* Supplier Information (Không bọc card con) */}
             {(() => {
               const supplier = detail?.supplier ?? order.supplier;
               return (
-                <div style={{
-                  background: "var(--muted)",
-                  borderRadius: "12px",
-                  padding: "14px",
-                  marginBottom: "14px",
-                  border: "1px solid var(--border)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10
-                }}>
-                  <div>
-                    <span style={{ fontSize: 10.5, color: "var(--muted-foreground)", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.03em" }}>Nhà cung cấp</span>
-                    <p style={{ margin: "3px 0 2px", fontSize: 13.5, fontWeight: 800, color: "var(--foreground)" }}>{supplier?.name ?? "—"}</p>
-                    
-                    {supplier?.address && (
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 4, fontSize: 12, color: "var(--muted-foreground)", marginTop: 4 }}>
-                        <i className="bi bi-geo-alt" style={{ fontSize: 11.5, marginTop: 2 }} />
-                        <span style={{ lineHeight: "1.3" }}>{supplier.address}</span>
-                      </div>
-                    )}
+                <div style={{ marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid var(--border)" }}>
+                  <div className="d-flex align-items-center justify-content-between mb-1">
+                    <div className="d-flex align-items-center" style={{ gap: 8 }}>
+                      <i className="bi bi-building text-primary" style={{ fontSize: 13 }} />
+                      <span
+                        style={{
+                          fontSize: 10.5,
+                          color: "var(--muted-foreground)",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.03em",
+                        }}
+                      >
+                        Nhà cung cấp
+                      </span>
+                    </div>
+                  </div>
+                  <p style={{ margin: "2px 0 4px", fontSize: 14, fontWeight: 700, color: "var(--foreground)" }}>
+                    {supplier?.name ?? "—"}
+                  </p>
+                  
+                  {supplier?.address && (
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 5, fontSize: 12, color: "var(--muted-foreground)", marginTop: 4 }}>
+                      <i className="bi bi-geo-alt text-danger" style={{ fontSize: 11.5, marginTop: 2 }} />
+                      <span style={{ lineHeight: "1.35" }}>{supplier.address}</span>
+                    </div>
+                  )}
 
-                    {/* Inline contact info */}
-                    {(supplier?.phone || supplier?.email) && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 12, color: "var(--muted-foreground)", marginTop: 4 }}>
-                        {supplier?.phone && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <i className="bi bi-telephone" style={{ fontSize: 11.5 }} />
-                            <span>{supplier.phone}</span>
+                  {/* Inline contact info */}
+                  {(supplier?.phone || supplier?.email) && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 12, color: "var(--muted-foreground)", marginTop: 4 }}>
+                      {supplier?.phone && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <i className="bi bi-telephone text-primary" style={{ fontSize: 11.5 }} />
+                          <span>{supplier.phone}</span>
+                        </div>
+                      )}
+                      {supplier?.phone && supplier?.email && <span style={{ color: "var(--border)" }}>|</span>}
+                      {supplier?.email && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <i className="bi bi-envelope text-primary" style={{ fontSize: 11.5 }} />
+                          <span>{supplier.email}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {order.ghiChu && (
+                    <div style={{ borderTop: "1px dashed var(--border)", paddingTop: "8px", marginTop: "8px" }}>
+                      <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 600 }}>Ghi chú nội bộ</span>
+                      <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--foreground)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{order.ghiChu}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Đơn vị vận chuyển Section (Không bọc card con) */}
+            {(() => {
+              const filteredCarriers = carrierList.filter((c) => {
+                if (!carrierSearch.trim()) return true;
+                const s = carrierSearch.toLowerCase();
+                return (
+                  (c.name && c.name.toLowerCase().includes(s)) ||
+                  (c.code && c.code.toLowerCase().includes(s)) ||
+                  (c.phone && c.phone.includes(s)) ||
+                  (c.address && c.address.toLowerCase().includes(s))
+                );
+              });
+
+              return (
+                <div
+                  style={{
+                    marginBottom: "16px",
+                    paddingBottom: "16px",
+                    borderBottom: "1px solid var(--border)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                  }}
+                >
+                  {/* Header: Label + Status badge */}
+                  <div className="d-flex align-items-center justify-content-between">
+                    <div className="d-flex align-items-center" style={{ gap: 8 }}>
+                      <i className="bi bi-truck text-primary" style={{ fontSize: 13 }} />
+                      <span
+                        style={{
+                          fontSize: 10.5,
+                          color: "var(--muted-foreground)",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.03em",
+                        }}
+                      >
+                        Đơn vị vận chuyển
+                      </span>
+                    </div>
+                    {isOrdered ? (
+                      <span
+                        className="badge rounded-pill"
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 600,
+                          background: "rgba(16, 185, 129, 0.12)",
+                          color: "#10b981",
+                          border: "1px solid rgba(16, 185, 129, 0.25)",
+                          padding: "2px 8px",
+                        }}
+                      >
+                        <i className="bi bi-unlock me-1" />
+                        Mở khoá
+                      </span>
+                    ) : (
+                      <span
+                        className="badge rounded-pill"
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 600,
+                          background: "rgba(107, 114, 128, 0.12)",
+                          color: "#6b7280",
+                          border: "1px solid rgba(107, 114, 128, 0.25)",
+                          padding: "2px 8px",
+                        }}
+                        title="Chỉ mở khóa chỉnh sửa khi đơn hàng ở trạng thái 'Đã đặt hàng'"
+                      >
+                        <i className="bi bi-lock-fill me-1" />
+                        Đã khoá
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 1. Dòng Tên đơn vị vận chuyển với autocomplete từ DB */}
+                  <div ref={carrierDropdownRef} style={{ position: "relative" }}>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "var(--foreground)",
+                        display: "block",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Tên đơn vị vận chuyển
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        type="text"
+                        disabled={!isOrdered}
+                        placeholder={isOrdered ? "Chọn hoặc tìm đơn vị vận chuyển..." : "Chưa chọn đơn vị vận chuyển"}
+                        value={carrierSearch}
+                        onChange={(e) => {
+                          setCarrierSearch(e.target.value);
+                          if (!showCarrierDropdown) setShowCarrierDropdown(true);
+                        }}
+                        onFocus={() => {
+                          if (isOrdered) setShowCarrierDropdown(true);
+                        }}
+                        onBlur={() => {
+                          if (carrierSearch.trim()) {
+                            const matched = carrierList.find(
+                              (c) => c.name.toLowerCase() === carrierSearch.trim().toLowerCase()
+                            );
+                            if (matched) {
+                              setCarrierId(matched.id);
+                              const autoDepot = shippingDepot || matched.address || "";
+                              setShippingDepot(autoDepot);
+                              const autoDebt = carrierDebt || matched.hanMucNo || 0;
+                              setCarrierDebt(autoDebt);
+                              saveShippingInfo(matched.id, shippingFee, autoDepot, autoDebt, matched.name);
+                              return;
+                            } else {
+                              saveShippingInfo(carrierId, shippingFee, shippingDepot, carrierDebt, carrierSearch.trim());
+                              return;
+                            }
+                          }
+                          saveShippingInfo(null, shippingFee, shippingDepot, carrierDebt, "");
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "7px 32px 7px 10px",
+                          borderRadius: 8,
+                          border: "1px solid var(--border)",
+                          background: isOrdered ? "var(--background)" : "var(--muted)",
+                          color: "var(--foreground)",
+                          fontSize: 12.5,
+                          fontWeight: 500,
+                          outline: "none",
+                          boxSizing: "border-box",
+                          cursor: isOrdered ? "text" : "not-allowed",
+                        }}
+                      />
+                      {isOrdered && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            right: 8,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          {carrierId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCarrierId(null);
+                                setCarrierSearch("");
+                                setCarrierDebt(0);
+                                saveShippingInfo(null, shippingFee, shippingDepot, 0, "");
+                              }}
+                              style={{
+                                border: "none",
+                                background: "transparent",
+                                color: "var(--muted-foreground)",
+                                padding: 0,
+                                cursor: "pointer",
+                                fontSize: 13,
+                              }}
+                              title="Bỏ chọn đơn vị"
+                            >
+                              <i className="bi bi-x-circle-fill" />
+                            </button>
+                          )}
+                          <i className="bi bi-chevron-down text-muted" style={{ fontSize: 10, pointerEvents: "none" }} />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Danh sách gợi ý Dropdown */}
+                    {showCarrierDropdown && isOrdered && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          right: 0,
+                          marginTop: 4,
+                          maxHeight: 220,
+                          overflowY: "auto",
+                          background: "var(--card)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+                          zIndex: 1050,
+                        }}
+                      >
+                        {filteredCarriers.length === 0 ? (
+                          <div className="p-3 text-muted text-center small" style={{ fontSize: 12 }}>
+                            Không tìm thấy đơn vị vận chuyển phù hợp
                           </div>
-                        )}
-                        {supplier?.phone && supplier?.email && <span style={{ color: "var(--border)" }}>|</span>}
-                        {supplier?.email && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <i className="bi bi-envelope" style={{ fontSize: 11.5 }} />
-                            <span>{supplier.email}</span>
-                          </div>
+                        ) : (
+                          filteredCarriers.map((c) => {
+                            const isSelected = c.id === carrierId;
+                            return (
+                              <div
+                                key={c.id}
+                                onClick={() => {
+                                  setCarrierId(c.id);
+                                  setCarrierSearch(c.name);
+                                  const autoDepot = c.address || "";
+                                  setShippingDepot(autoDepot);
+                                  const autoDebt = c.hanMucNo ?? 0;
+                                  setCarrierDebt(autoDebt);
+                                  setShowCarrierDropdown(false);
+                                  saveShippingInfo(c.id, shippingFee, autoDepot, autoDebt, c.name);
+                                }}
+                                style={{
+                                  padding: "8px 12px",
+                                  cursor: "pointer",
+                                  background: isSelected ? "rgba(0, 48, 135, 0.08)" : "transparent",
+                                  borderBottom: "1px solid var(--border)",
+                                  fontSize: 12,
+                                  transition: "background 0.15s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!isSelected) e.currentTarget.style.background = "var(--muted)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isSelected) e.currentTarget.style.background = "transparent";
+                                }}
+                              >
+                                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                  <span
+                                    className="fw-semibold text-truncate"
+                                    style={{ color: isSelected ? "#003087" : "var(--foreground)", fontSize: 12.5 }}
+                                  >
+                                    {c.name}
+                                  </span>
+                                  {c.address && (
+                                    <div
+                                      className="text-muted text-truncate"
+                                      style={{ fontSize: 11 }}
+                                    >
+                                      <i className="bi bi-geo-alt me-1 text-danger" style={{ fontSize: 10 }} />
+                                      {c.address}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     )}
                   </div>
 
-                  {order.ghiChu && (
-                    <div style={{ borderTop: "1px solid var(--border)", paddingTop: "8px", marginTop: "4px" }}>
-                      <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 500 }}>Ghi chú nội bộ</span>
-                      <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--foreground)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{order.ghiChu}</p>
+                  {/* 2. Dòng Bến bãi: Dòng riêng dưới tên đơn vị vận chuyển */}
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "var(--foreground)",
+                        display: "block",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Bến bãi
+                    </label>
+                    <input
+                      type="text"
+                      disabled={!isOrdered}
+                      placeholder={isOrdered ? "Tự động lấy theo ĐVVC hoặc nhập..." : "Chưa có bến bãi"}
+                      value={shippingDepot}
+                      onChange={(e) => setShippingDepot(e.target.value)}
+                      onBlur={() => saveShippingInfo(carrierId, shippingFee, shippingDepot, carrierDebt, carrierSearch)}
+                      style={{
+                        width: "100%",
+                        padding: "7px 10px",
+                        borderRadius: 8,
+                        border: "1px solid var(--border)",
+                        background: isOrdered ? "var(--background)" : "var(--muted)",
+                        color: "var(--foreground)",
+                        fontSize: 12.5,
+                        fontWeight: 500,
+                        outline: "none",
+                        boxSizing: "border-box",
+                        cursor: isOrdered ? "text" : "not-allowed",
+                      }}
+                    />
+                  </div>
+
+                  {/* 3. Dòng Chi phí vận chuyển & Công nợ hiện tại cùng 1 dòng */}
+                  <div className="row g-2">
+                    <div className="col-6">
+                      <label
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: "var(--foreground)",
+                          display: "block",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Chi phí vận chuyển
+                      </label>
+                      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                        <CurrencyInput
+                          value={shippingFee}
+                          onChange={setShippingFee}
+                          onBlur={() => saveShippingInfo(carrierId, shippingFee, shippingDepot, carrierDebt, carrierSearch)}
+                          disabled={!isOrdered}
+                          placeholder="0"
+                          style={{
+                            width: "100%",
+                            padding: "7px 46px 7px 10px",
+                            borderRadius: 8,
+                            border: "1px solid var(--border)",
+                            background: isOrdered ? "var(--background)" : "var(--muted)",
+                            color: "var(--foreground)",
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            textAlign: "right",
+                            outline: "none",
+                            boxSizing: "border-box",
+                            cursor: isOrdered ? "text" : "not-allowed",
+                          }}
+                        />
+                        <span
+                          style={{
+                            position: "absolute",
+                            right: 10,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: "var(--muted-foreground)",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          đồng
+                        </span>
+                      </div>
                     </div>
-                  )}
+
+                    <div className="col-6">
+                      <label
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: "var(--foreground)",
+                          display: "block",
+                          marginBottom: 4,
+                        }}
+                      >
+                        Công nợ hiện tại
+                      </label>
+                      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                        <CurrencyInput
+                          value={carrierDebt}
+                          onChange={setCarrierDebt}
+                          onBlur={() => saveShippingInfo(carrierId, shippingFee, shippingDepot, carrierDebt, carrierSearch)}
+                          disabled={!isOrdered}
+                          placeholder="0"
+                          style={{
+                            width: "100%",
+                            padding: "7px 46px 7px 10px",
+                            borderRadius: 8,
+                            border: "1px solid var(--border)",
+                            background: isOrdered ? "var(--background)" : "var(--muted)",
+                            color: carrierDebt > 0 ? "#dc2626" : "var(--foreground)",
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            textAlign: "right",
+                            outline: "none",
+                            boxSizing: "border-box",
+                            cursor: isOrdered ? "text" : "not-allowed",
+                          }}
+                        />
+                        <span
+                          style={{
+                            position: "absolute",
+                            right: 10,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: "var(--muted-foreground)",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          đồng
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               );
             })()}

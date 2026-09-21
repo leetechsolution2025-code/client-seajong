@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { carrierDb } from "@/lib/carrierDb";
 
 const PAGE_SIZE = 10;
 
@@ -13,8 +14,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const page      = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
     const limit     = Math.max(1, parseInt(searchParams.get("limit") ?? "10"));
-    const search    = searchParams.get("search")    ?? "";
-    const trangThai = searchParams.get("trangThai") ?? "";
+    const search    = searchParams.get("search")?.trim() ?? "";
+    const trangThai = searchParams.get("trangThai")?.trim() ?? "";
 
     const where = {
       ...(search    && { OR: [{ code: { contains: search } }, { supplier: { name: { contains: search } } }] }),
@@ -30,11 +31,21 @@ export async function GET(req: NextRequest) {
       prisma.purchaseOrder.findMany({
         where, skip: (page - 1) * limit, take: limit,
         orderBy: { createdAt: "desc" },
-        include: { supplier: { select: { id: true, name: true, address: true, phone: true, email: true } } },
+        include: {
+          supplier: { select: { id: true, name: true, address: true, phone: true, email: true } },
+        },
       }),
     ]);
 
-    return NextResponse.json({ items, total, page, totalPages: Math.max(1, Math.ceil(total / limit)) });
+    const carrierIds = [...new Set(items.map((i: any) => i.carrierId).filter(Boolean))] as string[];
+    const carrierList = carrierIds.length > 0 ? await Promise.all(carrierIds.map(cid => carrierDb.findUnique(cid))) : [];
+    const carrierMap = new Map(carrierList.filter(Boolean).map((c: any) => [c.id, c]));
+    const itemsWithCarrier = items.map((it: any) => ({
+      ...it,
+      carrier: (it as any).carrierId ? carrierMap.get((it as any).carrierId) ?? null : null,
+    }));
+
+    return NextResponse.json({ items: itemsWithCarrier, total, page, totalPages: Math.max(1, Math.ceil(total / limit)) });
   } catch (e: unknown) {
     console.error("[GET /purchasing]", e);
     return NextResponse.json({ items: [], total: 0, page: 1, totalPages: 1 });

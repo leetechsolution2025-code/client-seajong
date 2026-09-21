@@ -14,7 +14,7 @@ import { CreateTrainingRequestModal } from "@/components/features/training/Creat
 import { GlobalAIAssistant } from "@/components/features/ai/GlobalAIAssistant";
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type SidebarItem = { name: string; href: string; icon?: string; requiredOrder?: number };
+type SidebarItem = { name: string; href?: string; icon?: string; requiredOrder?: number; isLocked?: boolean; subItems?: SidebarItem[] };
 type SidebarSection = { group: string; icon?: string; items: SidebarItem[]; flat?: boolean };
 type DeptSidebar = { label: string; icon: string; sections: SidebarSection[] };
 
@@ -116,7 +116,7 @@ const DEPT_NAV_GROUPS: Record<string, { key: string; label: string; icon: string
     {
       key: "debt_expense", label: "Công nợ và chi phí", icon: "bi-receipt",
       items: [
-        { name: "Nhà cung cấp", href: "/plan_finance/suppliers" },
+        { name: "Nhà cung cấp và vận chuyển", href: "/plan_finance/suppliers" },
         { name: "Quản lý công nợ và chi phí", href: "/plan_finance/debts" },
       ],
     },
@@ -199,36 +199,36 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
     label: "Tài chính – Kế toán", icon: "bi-cash-stack",
     sections: [
       {
-        group: "Quản lý tài chính", items: [
+        group: "Quản lý tài chính", icon: "bi-wallet2", items: [
           { name: "Quản lý tài sản", href: "/finance/assets", icon: "bi-building" },
           { name: "Quản lý công nợ và chi phí", href: "/finance/debts", icon: "bi-receipt" },
           { name: "Hàng hoá trong kho", href: "/finance/inventory", icon: "bi-box-seam" },
         ]
       },
-      // {
-      //   group: "Khởi tạo dữ liệu", items: [
-      //     { name: "Danh mục tài khoản", href: "/finance/accounts", icon: "bi-journal-bookmark" },
-      //     { name: "Khai báo số dư đầu kỳ", href: "/finance/opening-balances", icon: "bi-wallet2" },
-      //   ]
-      // },
       {
-        group: "Kế toán nội bộ", items: [
+        group: "Khởi tạo dữ liệu", icon: "bi-database-gear", items: [
+          { name: "Danh mục tài khoản", href: "/finance/accounts", icon: "bi-journal-bookmark" },
+          { name: "Khai báo số dư đầu kỳ", href: "/finance/opening-balances", icon: "bi-wallet2" },
+        ]
+      },
+      {
+        group: "Kế toán nội bộ", icon: "bi-journal-text", items: [
           { name: "Sổ nhật ký chung", href: "/finance/journal-entries", icon: "bi-journal-text" },
           { name: "Kết xuất dữ liệu", href: "/finance/export", icon: "bi-file-earmark-excel" },
           { name: "Tạm ứng và chi phí", href: "/finance/advances", icon: "bi-cash" },
         ]
       },
       // {
-      //   group: "Kế toán thuế", items: [
+      //   group: "Kế toán thuế", icon: "bi-file-earmark-text", items: [
       //     { name: "Lập tờ khai và báo cáo thuế", href: "/finance/tax/declarations-reports", icon: "bi-file-earmark-text" },
       //     { name: "Kiểm tra hoá đơn", href: "/finance/tax/invoices-check", icon: "bi-receipt-cutoff" },
       //     { name: "Tính toán và tối ưu", href: "/finance/tax/optimization", icon: "bi-calculator" },
       //   ]
       // },
       {
-        group: "Báo cáo và phân tích", items: [
-          { name: "Báo cáo tài chính", href: "/finance/reports", icon: "bi-file-earmark-bar-graph", requiredOrder: 2 },
-          // { name: "Phân tích doanh thu và chi phí", href: "/finance/revenue-expense-analysis", icon: "bi-pie-chart", requiredOrder: 3 },
+        group: "Báo cáo và phân tích", icon: "bi-file-earmark-bar-graph", items: [
+          { name: "Báo cáo tài chính", href: "/finance/reports", icon: "bi-file-earmark-bar-graph" },
+          // { name: "Phân tích doanh thu và chi phí", href: "/finance/revenue-expense-analysis", icon: "bi-pie-chart" },
         ]
       },
     ],
@@ -472,9 +472,9 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
     label: "Mua hàng", icon: "bi-cart3",
     sections: [
       {
-        group: "Nhà cung cấp", icon: "bi-building", flat: true,
+        group: "Nhà cung cấp và vận chuyển", icon: "bi-truck", flat: true,
         items: [
-          { name: "Nhà cung cấp", href: "/purchase/suppliers" }
+          { name: "Nhà cung cấp và vận chuyển", href: "/purchase/suppliers", icon: "bi-truck" }
         ]
       },
     ],
@@ -592,7 +592,7 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
       },
       {
         group: "Công nợ và chi phí", items: [
-          { name: "Nhà cung cấp", href: "/plan_finance/suppliers", icon: "bi-building-check" },
+          { name: "Nhà cung cấp và vận chuyển", href: "/plan_finance/suppliers", icon: "bi-truck" },
           { name: "Quản lý công nợ và chi phí", href: "/plan_finance/debts", icon: "bi-receipt" },
         ]
       },
@@ -805,12 +805,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       baseGroups = baseGroups.filter(g => g.key !== "hr_requests_approvals" && g.label !== "Yêu cầu và duyệt yêu cầu");
                     }
 
-                    // Apply dynamic isLocked for "Duyệt yêu cầu"
-                    const isHRManager = session?.user?.role === "SUPERADMIN" || session?.user?.role === "admin" || (
-                      session?.user?.departmentCode?.toLowerCase() === "hr" &&
-                      (session?.user?.positionName?.includes("Trưởng phòng") || session?.user?.position === "vtr-20260401-1964-sbmg")
-                    );
-                    const isApprovalsLocked = !isHRManager;
+                    // Apply dynamic isLocked for "Duyệt yêu cầu" (Khoá chức năng duyệt yêu cầu)
+                    const isApprovalsLocked = true;
 
                     // Apply dynamic isLocked for "Lập kế hoạch sale"
                     const isSalesManager = session?.user?.role === "SUPERADMIN" || session?.user?.role === "ADMIN" || session?.user?.role === "MANAGER" || session?.user?.role === "admin" || (
@@ -822,7 +818,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     return baseGroups.map(g => ({
                       ...g,
                       items: g.items.map(item => {
-                        if (item.href === "/hr/approvals") {
+                        if (item.href === "/hr/approvals" || item.name === "Duyệt yêu cầu") {
                           return { ...item, isLocked: isApprovalsLocked };
                         }
                         if (item.href === "/sales/plan") {

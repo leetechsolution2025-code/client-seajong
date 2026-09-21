@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Table } from "@/components/ui/Table";
@@ -14,8 +15,37 @@ const REPORT_STEPS: ModernStepItem[] = [
   { num: 4, id: "trial", title: "Cân đối tài khoản", desc: "Số dư các tài khoản", icon: "bi-table" },
 ];
 
-export default function FinancialReportsPage() {
-  const [currentStep, setCurrentStep] = useState(1);
+function FinancialReportsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+
+  const [currentStep, setCurrentStep] = useState(() => {
+    if (tabParam) {
+      const step = REPORT_STEPS.find(s => s.id === tabParam);
+      if (step) return step.num;
+    }
+    return 1;
+  });
+
+  useEffect(() => {
+    if (tabParam) {
+      const step = REPORT_STEPS.find(s => s.id === tabParam);
+      if (step && step.num !== currentStep) {
+        setCurrentStep(step.num);
+      }
+    } else {
+      setCurrentStep(1);
+    }
+  }, [tabParam]);
+
+  const handleStepChange = (stepNum: number) => {
+    setCurrentStep(stepNum);
+    const step = REPORT_STEPS.find(s => s.num === stepNum);
+    if (step) {
+      router.replace(`/finance/reports?tab=${step.id}`, { scroll: false });
+    }
+  };
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   
@@ -231,7 +261,7 @@ export default function FinancialReportsPage() {
             <ModernStepper 
               steps={REPORT_STEPS}
               currentStep={currentStep}
-              onStepChange={setCurrentStep}
+              onStepChange={handleStepChange}
               paddingY={4}
             />
           </div>
@@ -347,5 +377,13 @@ export default function FinancialReportsPage() {
         </div>
       </div>
     </StandardPage>
+  );
+}
+
+export default function FinancialReportsPage() {
+  return (
+    <Suspense fallback={<div className="p-4 text-center text-muted">Đang tải báo cáo tài chính...</div>}>
+      <FinancialReportsContent />
+    </Suspense>
   );
 }

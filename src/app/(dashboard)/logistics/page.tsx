@@ -1095,18 +1095,40 @@ export default function LogisticsOverviewPage() {
         open={!!orderToDelete}
         variant="danger"
         title="Xoá lệnh / đơn hàng?"
-        message={`Bạn có chắc chắn muốn xoá đơn hàng/lệnh "${orderToDelete}"? Lệnh này sẽ được chuyển vào mục Dữ liệu đã xoá.`}
+        message={`Bạn có chắc chắn muốn xoá đơn hàng/lệnh "${orderToDelete}"? Thao tác này sẽ xoá lệnh khỏi hệ thống.`}
         confirmLabel="Xoá"
-        loading={false}
-        onConfirm={() => {
+        loading={isDeleting}
+        onConfirm={async () => {
           if (orderToDelete) {
-            setDeletedOrders(prev => {
-              const newSet = new Set(prev);
-              newSet.add(orderToDelete);
-              return newSet;
-            });
-            setOrderToDelete(null);
-            toast.success("Thành công", "Đã chuyển lệnh vào mục Dữ liệu đã xoá");
+            setIsDeleting(true);
+            try {
+              const itemsToDelete = rawOrders.filter((o: any) => (o.saleOrderCode || o.code) === orderToDelete);
+              for (const it of itemsToDelete) {
+                if (it.type === "logistics-ticket") {
+                  await fetch(`/api/logistics/tickets/${it.id}`, { method: "DELETE" });
+                } else if (it.type === "material-import" || it.type === "material-export") {
+                  await fetch(`/api/board/tasks/${it.id}`, { method: "DELETE" });
+                } else if (it.type === "contract") {
+                  await fetch(`/api/plan-finance/contracts/${it.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ trangThai: "cancelled" })
+                  });
+                }
+              }
+              const res = await fetch("/api/logistics/overview-orders");
+              if (res.ok) {
+                const data = await res.json();
+                setRawOrders(data);
+              }
+              toast.success("Thành công", "Đã xoá lệnh khỏi hệ thống");
+            } catch (err) {
+              console.error("Lỗi khi xoá lệnh:", err);
+              toast.error("Lỗi", "Không thể xoá lệnh");
+            } finally {
+              setIsDeleting(false);
+              setOrderToDelete(null);
+            }
           }
         }}
         onCancel={() => setOrderToDelete(null)}
