@@ -74,8 +74,8 @@ export async function GET(request: Request) {
     const statsQuery = `SELECT * FROM "Debt" WHERE "type" IN (${dbTypes.map((_, i) => `$${i + 1}`).join(", ")})`;
     const allDebtsOfType = await prisma.$queryRawUnsafe(statsQuery, ...dbTypes) as any[];
 
-    const totalAmount = allDebtsOfType.reduce((s: number, d: any) => s + (d.amount || 0), 0);
-    const totalPaid = allDebtsOfType.reduce((s: number, d: any) => s + (d.paidAmount || 0), 0);
+    const totalAmount = allDebtsOfType.reduce((s: number, d: any) => s + (d.amount > 0 ? d.amount : 0), 0);
+    const totalPaid = allDebtsOfType.reduce((s: number, d: any) => s + (d.amount < 0 ? Math.abs(d.amount) : (d.paidAmount || 0)), 0);
     const recoveryRate = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0;
 
     const upcomingCount = allDebtsOfType.filter((d: any) => 

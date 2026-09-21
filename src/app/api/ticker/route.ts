@@ -111,12 +111,15 @@ export async function GET(req: Request) {
 
       debts.forEach((d: any) => {
         const amt = d.amount || 0;
+        const positiveAmt = amt > 0 ? amt : 0;
         const remaining = amt - (d.paidAmount || 0);
         if (d.type === "phai-thu" || d.type === "RECEIVABLE") {
-          phaiThuTotal += amt; phaiThuCon += remaining;
+          phaiThuTotal += positiveAmt; 
+          phaiThuCon += remaining;
         }
         else if (d.type === "phai-tra" || d.type === "PAYABLE") {
-          phaiTraTotal += amt; phaiTraCon += remaining;
+          phaiTraTotal += positiveAmt; 
+          phaiTraCon += remaining;
         }
         else if (d.type === "vay" || d.type === "LOAN") {
           noVayTotal += amt; noVayCon += remaining;

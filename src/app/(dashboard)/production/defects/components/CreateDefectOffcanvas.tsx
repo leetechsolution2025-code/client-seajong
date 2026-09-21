@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { BrandButton } from '@/components/ui/BrandButton';
 import { Offcanvas } from '@/components/ui/Offcanvas';
+import { CurrencyInput } from '@/components/ui/CurrencyInput';
 
 interface CreateDefectOffcanvasProps {
   show: boolean;
@@ -18,6 +19,8 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
     productName: '',
     productCode: '',
     quantity: 1,
+    refundAmount: 0,
+    unitPrice: 0,
     description: '',
     customerId: '',
     customerName: '',
@@ -125,7 +128,7 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
     try {
       const payload = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
-        if (value) payload.append(key, String(value));
+        if (value !== undefined && value !== null && value !== '') payload.append(key, String(value));
       });
       files.forEach(file => {
         payload.append('files', file);
@@ -144,6 +147,8 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
           productName: '',
           productCode: '',
           quantity: 1,
+          refundAmount: 0,
+          unitPrice: 0,
           description: '',
           customerId: '',
           customerName: '',
@@ -277,7 +282,14 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
                     className="form-select shadow-none" 
                     style={{ fontSize: 13 }}
                     value={formData.orderNumber}
-                    onChange={e => setFormData({ ...formData, orderNumber: e.target.value, productCode: '', productName: '' })}
+                    onChange={e => setFormData(prev => ({ 
+                      ...prev, 
+                      orderNumber: e.target.value, 
+                      productCode: '', 
+                      productName: '', 
+                      unitPrice: 0, 
+                      refundAmount: 0 
+                    }))}
                   >
                     <option value="">Chọn đơn hàng...</option>
                     {orders.map(o => (
@@ -293,7 +305,14 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
                     style={{ fontSize: 13 }}
                     min={1}
                     value={formData.quantity}
-                    onChange={e => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                    onChange={e => {
+                      const qty = parseInt(e.target.value) || 1;
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        quantity: qty,
+                        refundAmount: prev.unitPrice > 0 ? prev.unitPrice * qty : prev.refundAmount
+                      }));
+                    }}
                     required 
                   />
                 </div>
@@ -325,18 +344,21 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
                         const val = e.target.value;
                         const selectedOrder = orders.find(o => (o.code || o.id) === formData.orderNumber);
                         const item = selectedOrder?.saleOrderItems?.find((i: any) => i.inventoryItem?.code === val);
-                        setFormData({ 
-                          ...formData, 
+                        const unitPrice = item?.donGia || 0;
+                        setFormData(prev => ({ 
+                          ...prev, 
                           productCode: val, 
-                          productName: item?.inventoryItem?.tenHang || '' 
-                        });
+                          productName: item?.inventoryItem?.tenHang || item?.tenHang || '',
+                          unitPrice: unitPrice,
+                          refundAmount: unitPrice > 0 ? unitPrice * prev.quantity : prev.refundAmount
+                        }));
                       }}
                       required
                     >
                       <option value="">Chọn sản phẩm...</option>
                       {orders.find(o => (o.code || o.id) === formData.orderNumber)?.saleOrderItems?.map((item: any) => (
                         <option key={item.id} value={item.inventoryItem?.code}>
-                          {item.inventoryItem?.code}
+                          {item.inventoryItem?.code} {item.donGia ? `(${item.donGia.toLocaleString('vi-VN')} đ)` : ''}
                         </option>
                       ))}
                     </select>
@@ -366,6 +388,35 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
                   onChange={e => setFormData({ ...formData, productName: e.target.value })}
                   required 
                 />
+              </div>
+
+              <div className="mb-3">
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <label className="form-label fw-semibold text-muted mb-0" style={{ fontSize: 12 }}>
+                    Giá trị hoàn trả / Giảm công nợ (VNĐ) {formData.source === 'RETURN' && <span className="text-danger">*</span>}
+                  </label>
+                  {formData.unitPrice > 0 && (
+                    <span className="badge bg-light text-secondary border" style={{ fontSize: 11 }}>
+                      Đơn giá: {formData.unitPrice.toLocaleString('vi-VN')} đ
+                    </span>
+                  )}
+                </div>
+                <div className="input-group">
+                  <CurrencyInput 
+                    className="form-control shadow-none fw-bold text-primary" 
+                    style={{ fontSize: 13 }}
+                    placeholder="0"
+                    min={0}
+                    value={formData.refundAmount || 0}
+                    onChange={(val: number) => setFormData(prev => ({ ...prev, refundAmount: val }))}
+                  />
+                  <span className="input-group-text small bg-light text-muted">đ</span>
+                </div>
+                <div className="form-text text-muted" style={{ fontSize: 11 }}>
+                  {formData.source === 'RETURN' 
+                    ? "Số tiền này sẽ được tự động cấn trừ vào công nợ của khách hàng trên hệ thống."
+                    : "Giá trị hàng hóa hoặc hoàn tiền liên quan (nếu có)."}
+                </div>
               </div>
 
               <div className="mb-3">

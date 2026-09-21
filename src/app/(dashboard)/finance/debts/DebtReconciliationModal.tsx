@@ -117,14 +117,16 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
       // Fetch partner info based on type
       const isRec = debt.type?.toUpperCase() === "RECEIVABLE" || debt.type === "phai-thu";
       const partnerSearchUrl = isRec
-        ? `/api/plan-finance/customers?search=${encodeURIComponent(debt.partnerName)}`
-        : `/api/plan-finance/suppliers?search=${encodeURIComponent(debt.partnerName)}`;
+        ? (debt.customerId ? `/api/plan-finance/customers?id=${debt.customerId}` : `/api/plan-finance/customers?search=${encodeURIComponent(debt.partnerName)}`)
+        : (debt.supplierId ? `/api/plan-finance/suppliers?id=${debt.supplierId}` : `/api/plan-finance/suppliers?search=${encodeURIComponent(debt.partnerName)}`);
 
       fetch(partnerSearchUrl)
         .then((res) => res.json())
         .then((data) => {
           if (isRec) {
-            const found = data.customers?.find((c: any) => c.name === debt.partnerName) || data.customers?.[0];
+            const found = debt.customerId 
+              ? (data.customers?.find((c: any) => c.id === debt.customerId) || data.customer || data.customers?.[0])
+              : (data.customers?.find((c: any) => c.name === debt.partnerName) || data.customers?.[0]);
             if (found) {
               setPartnerInfo({
                 name: found.name,
@@ -139,7 +141,9 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
               setPartnerInfo(null);
             }
           } else {
-            const found = data.items?.find((s: any) => s.name === debt.partnerName) || data.items?.[0];
+            const found = debt.supplierId
+              ? (data.items?.find((s: any) => s.id === debt.supplierId) || data.supplier || data.items?.[0])
+              : (data.items?.find((s: any) => s.name === debt.partnerName) || data.items?.[0]);
             if (found) {
               setPartnerInfo({
                 name: found.name,
@@ -206,8 +210,38 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
            openingBalanceDate = createdAt.toISOString();
         }
       } else {
-        if (item.amount > 0) {
-          const pDesc = parseDebtDescription(item.description);
+        const isReturnItem = item.amount < 0 || 
+                             item.referenceId?.startsWith("ERR-") || 
+                             item.referenceId?.startsWith("WR-") || 
+                             item.description?.includes("Trả lại hàng") || 
+                             item.description?.includes("hàng trả về");
+        
+        const isReceiptRecord = (item.amount === 0 && item.paidAmount > 0);
+        const pDesc = parseDebtDescription(item.description);
+
+        if (isReturnItem) {
+          const returnAmount = item.amount < 0 ? Math.abs(item.amount) : (item.paidAmount || item.amount || 0);
+          list.push({
+            id: `RETURN_${item.id}`,
+            date: createdAt.toISOString(),
+            ref: item.referenceId || "---",
+            type: "Hàng trả về",
+            isReturn: true,
+            increase: 0,
+            decrease: returnAmount,
+            note: pDesc.originalDesc || item.description || "Khách trả lại hàng"
+          });
+        } else if (isReceiptRecord) {
+          list.push({
+            id: `RECEIPT_${item.id}`,
+            date: createdAt.toISOString(),
+            ref: item.referenceId || "---",
+            type: isReceivable ? "Phiếu thu (Thu nợ)" : "Phiếu chi (Trả nợ)",
+            increase: 0,
+            decrease: item.paidAmount,
+            note: pDesc.originalDesc || item.description || (isReceivable ? "Thu tiền khách hàng" : "Thanh toán công nợ")
+          });
+        } else if (item.amount > 0) {
           list.push({
             id: `MAIN_DEBT_${item.id}`,
             date: createdAt.toISOString(),
@@ -216,6 +250,16 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
             increase: item.amount,
             decrease: 0,
             note: pDesc.originalDesc || (isReceivable ? "Phát sinh công nợ phải thu" : "Phát sinh công nợ phải trả")
+          });
+        } else if (item.amount < 0) {
+          list.push({
+            id: `ADJUST_${item.id}`,
+            date: createdAt.toISOString(),
+            ref: item.referenceId || "---",
+            type: "Giảm trừ công nợ",
+            increase: 0,
+            decrease: Math.abs(item.amount),
+            note: pDesc.originalDesc || item.description || "Điều chỉnh giảm công nợ"
           });
         }
       }
@@ -291,7 +335,9 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
     
     // If there is a start date, calculate the accumulated balance before that date
     if (startDate) {
-      const startDateTime = new Date(startDate).getTime();
+      const startDayTime = new Date(startDate);
+      startDayTime.setHours(0, 0, 0, 0);
+      const startDateTime = startDayTime.getTime();
       transactions.finalTransactions.forEach((tx: any) => {
         if (tx.id !== "OPENING_BALANCE" && tx.date) {
           const txTime = new Date(tx.date).getTime();
@@ -660,6 +706,7 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                               <div className="d-flex flex-column align-items-start gap-0.5">
                                 <span className={`badge px-2 py-0.5 rounded-pill ${
                                   isOpening ? "bg-secondary-subtle text-secondary" :
+                                  (tx.isReturn || tx.type === "Hàng trả về") ? "bg-danger-subtle text-danger" :
                                   isMain ? "bg-primary-subtle text-primary" : "bg-success-subtle text-success"
                                 }`} style={{ fontSize: 9.5, whiteSpace: "nowrap" }}>
                                   {tx.type}
@@ -938,6 +985,11 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                     bg = "#fef3c7";
                     color = "#b45309";
                     border = "#fde68a";
+                  } else if (tx.type === "Hàng trả về" || tx.isReturn) {
+                    typeText = "Hàng trả về";
+                    bg = "#fee2e2";
+                    color = "#b91c1c";
+                    border = "#fca5a5";
                   }
 
                   return (

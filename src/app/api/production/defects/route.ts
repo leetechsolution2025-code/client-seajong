@@ -141,10 +141,25 @@ export async function POST(req: Request) {
       code = `${prefix}-${timestamp}-${nextNumber.toString().padStart(2, '0')}`;
     }
 
+    const source = formData.get('source') as string || 'INTERNAL';
+    const refundAmount = parseFloat(formData.get('refundAmount') as string) || 0;
+    let customerId = (formData.get('customerId') as string) || null;
+    const customerName = (formData.get('customerName') as string) || null;
+
+    if (!customerId && customerName) {
+      const foundCustomer = await prisma.customer.findFirst({
+        where: { name: customerName },
+        select: { id: true }
+      });
+      if (foundCustomer) {
+        customerId = foundCustomer.id;
+      }
+    }
+
     const defect = await (prisma as any).defectRecord.create({
       data: {
         code,
-        source: formData.get('source') as string || 'INTERNAL',
+        source,
         status: formData.get('status') as string || 'NEW',
         productName: formData.get('productName') as string || 'Sản phẩm',
         productCode: formData.get('productCode') as string || 'SP-001',
@@ -153,14 +168,126 @@ export async function POST(req: Request) {
         mediaUrls: JSON.stringify(mediaUrls),
         reporterName: formData.get('reporterName') as string || 'Unknown',
         reporterDepartment: formData.get('reporterDepartment') as string || 'Unknown',
-        customerName: formData.get('customerName') as string || null,
-        customerId: formData.get('customerId') as string || null,
+        customerName,
+        customerId,
         customerAddress: formData.get('customerAddress') as string || null,
         orderNumber: formData.get('orderNumber') as string || null,
         assignedTo: formData.get('assignedTo') as string || null,
         completionDate: formData.get('completionDate') ? new Date(formData.get('completionDate') as string) : null,
       }
     });
+
+    // Nếu là luồng hàng trả về (source === 'RETURN' hoặc có refundAmount > 0)
+    if (source === 'RETURN' || refundAmount > 0) {
+      // 1. Điều chỉnh giảm công nợ khách hàng
+      if (refundAmount > 0 && customerId) {
+        await (prisma.debt as any).create({
+          data: {
+            type: 'RECEIVABLE',
+            customerId: customerId,
+            partnerName: customerName || 'Khách hàng',
+            amount: 0,
+            paidAmount: Math.abs(refundAmount),
+            dueDate: new Date(),
+            status: 'PAID',
+            description: `Trả lại hàng theo ${code}`,
+            referenceId: code,
+          }
+        });
+
+        // Ghi log hoạt động cho hồ sơ lỗi
+        await (prisma as any).defectActivity.create({
+          data: {
+            defectId: defect.id,
+            action: 'ĐIỀU CHỈNH CÔNG NỢ',
+            description: `Đã tự động cấn trừ công nợ: -${refundAmount.toLocaleString('vi-VN')} đ (Trả lại hàng theo ${code})`,
+            oldStatus: 'NEW',
+            newStatus: defect.status,
+            performedBy: defect.reporterName || 'Hệ thống'
+          }
+        });
+      }
+
+      // 2. Gửi thông báo tự động cho: Giám đốc, Trưởng phòng tài chính, Kế toán, và Người xử lý kỹ thuật
+      try {
+        const assignedEmployeeName = formData.get('assignedTo') as string;
+
+        const [directors, financeAndAccountants, assignedEmp] = await Promise.all([
+          // Giám đốc: Users role DIRECTOR, ADMIN, SUPERADMIN hoặc Employee position chứa Giám đốc
+          prisma.user.findMany({
+            where: {
+              OR: [
+                { role: { in: ['DIRECTOR', 'ADMIN', 'SUPERADMIN'] } },
+                { employee: { position: { contains: 'Giám đốc' } } }
+              ]
+            },
+            select: { id: true }
+          }),
+          // Trưởng phòng tài chính & Kế toán viên: Employees thuộc phòng Tài chính / Kế toán có userId
+          prisma.employee.findMany({
+            where: {
+              OR: [
+                { departmentCode: 'finance' },
+                { departmentCode: 'accounting' },
+                { departmentName: { contains: 'Tài chính' } },
+                { departmentName: { contains: 'Kế toán' } }
+              ],
+              userId: { not: null }
+            },
+            select: { userId: true }
+          }),
+          // Người xử lý kỹ thuật được chỉ định
+          assignedEmployeeName ? prisma.employee.findFirst({
+            where: { fullName: assignedEmployeeName, userId: { not: null } },
+            select: { userId: true }
+          }) : Promise.resolve(null)
+        ]);
+
+        const recipientIds = Array.from(new Set([
+          ...directors.map(u => u.id),
+          ...financeAndAccountants.map(e => e.userId).filter(Boolean),
+          ...(assignedEmp?.userId ? [assignedEmp.userId] : [])
+        ])) as string[];
+
+        if (recipientIds.length > 0) {
+          const adminUser = await prisma.user.findFirst({ select: { id: true } });
+          const creatorId = adminUser?.id || recipientIds[0];
+
+          const notifTitle = `📦 Tiếp nhận hàng trả về & Điều chỉnh công nợ: ${code}`;
+          const notifContent = `Khách hàng: **${customerName || "Chưa xác định"}**\n` +
+            `Đơn hàng gốc: **${formData.get('orderNumber') || "Không gắn đơn"}**\n` +
+            `Sản phẩm trả lại: **${formData.get('productCode')} - ${formData.get('productName')}** (Số lượng: **${formData.get('quantity') || 1}**)\n` +
+            (refundAmount > 0 ? `Giá trị giảm trừ công nợ: **${refundAmount.toLocaleString('vi-VN')} đ**\n` : '') +
+            `Lý do / Hiện trạng: _"${formData.get('description') || 'Không có mô tả'}"_\n` +
+            `Người xử lý kỹ thuật: **${formData.get('assignedTo') || 'Chưa phân công'}** | Người tiếp nhận: **${formData.get('reporterName') || 'Kinh doanh'}**`;
+
+          const notification = await prisma.notification.create({
+            data: {
+              title: notifTitle,
+              content: notifContent,
+              type: 'info',
+              priority: 'high',
+              audienceType: 'group',
+              audienceValue: JSON.stringify(recipientIds),
+              createdById: creatorId
+            }
+          });
+
+          await Promise.allSettled(
+            recipientIds.map(uid =>
+              prisma.notificationRecipient.create({
+                data: {
+                  notificationId: notification.id,
+                  userId: uid
+                }
+              })
+            )
+          );
+        }
+      } catch (notifErr) {
+        console.error('Lỗi khi gửi thông báo tiếp nhận hàng trả về:', notifErr);
+      }
+    }
 
     return NextResponse.json(defect, { status: 201 });
   } catch (error: any) {

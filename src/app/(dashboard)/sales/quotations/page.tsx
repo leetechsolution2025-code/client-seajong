@@ -329,10 +329,14 @@ export function QuotationsContent() {
       const res = await fetch(`/api/production/defects`);
       if (res.ok) {
         const data = await res.json();
-        // Lọc các hồ sơ lỗi do phòng Kinh doanh (Sales) khởi tạo
+        // Lọc các hồ sơ hàng trả về (source = RETURN), bảo hành từ khách hoặc do Kinh doanh/Giám đốc tạo
         let items = data.filter((d: any) => 
+          d.source === 'RETURN' ||
+          Boolean(d.customerId) ||
+          Boolean(d.orderNumber) ||
           (d.reporterDepartment || '').toLowerCase().includes('kinh doanh') ||
-          (d.reporterDepartment || '').toLowerCase().includes('sales')
+          (d.reporterDepartment || '').toLowerCase().includes('sales') ||
+          (d.reporterDepartment || '').toLowerCase().includes('giám đốc')
         );
         
         if (returnStatusFilter) {

@@ -308,6 +308,8 @@ export default function DebtsPage() {
           cleanedPartnerName = cleanedPartnerName.split(/[-–]/)[0].trim();
           const isAgencyChild = cleanedPartnerName.toLowerCase().startsWith("đại lý");
 
+          const isReturnItem = row.isReturn || row.amount < 0 || row.displayDescription?.includes("Trả lại hàng") || row.referenceId?.startsWith("ERR-") || row.referenceId?.startsWith("WR-");
+
           return (
           <div className={row.isChild ? "ms-4 position-relative" : ""}>
             {row.isChild && (
@@ -316,23 +318,35 @@ export default function DebtsPage() {
             
             {row.isChild ? (
               <div className={row.referenceId?.startsWith("DBH-") ? "cursor-pointer" : ""}>
-                <div className="fw-bold text-dark">
-                  {row.referenceId || (row.isPaymentLog ? "Phiếu thu/chi" : "Không có số ĐH")}
+                <div className="d-flex align-items-center gap-2">
+                  <span className={`fw-bold ${isReturnItem ? "text-danger" : "text-dark"}`}>
+                    {row.referenceId || (row.isPaymentLog ? "Phiếu thu/chi" : "Không có số ĐH")}
+                  </span>
+                  {isReturnItem && (
+                    <span className="badge bg-danger-subtle text-danger rounded-pill px-2 py-0.5" style={{ fontSize: 10, fontWeight: 600 }}>
+                      Hàng trả về
+                    </span>
+                  )}
                 </div>
                 <div className="text-muted small">
                   {row.createdAt ? format(new Date(row.createdAt), "HH:mm:ss dd/MM/yyyy") : "---"} 
                   <span className="mx-1">|</span> 
-                  {row.isPaymentLog ? row.displayDescription : "Hệ thống"}
+                  <span className={isReturnItem ? "text-danger fw-medium" : ""}>{row.isPaymentLog ? row.displayDescription : row.displayDescription || "Hệ thống"}</span>
                 </div>
               </div>
             ) : (
               <>
                 <div className={`fw-bold ${isAgencyChild ? 'text-uppercase' : 'text-dark'}`} style={isAgencyChild ? { color: '#0d6efd' } : {}}>
                   {cleanedPartnerName}
+                  {isReturnItem && (
+                    <span className="badge bg-danger-subtle text-danger rounded-pill px-2 py-0.5 ms-2" style={{ fontSize: 10, fontWeight: 600 }}>
+                      Hàng trả về
+                    </span>
+                  )}
                 </div>
                 {!row.isTotalRow && (
                   <div className="text-muted" style={{ fontSize: 13 }}>
-                    REF: {row.referenceId || "N/A"} <span className="mx-1">|</span> {row.displayDescription || "Không có nội dung"}
+                    REF: {row.referenceId || "N/A"} <span className="mx-1">|</span> <span className={isReturnItem ? "text-danger fw-medium" : ""}>{row.displayDescription || "Không có nội dung"}</span>
                   </div>
                 )}
               </>
@@ -344,11 +358,15 @@ export default function DebtsPage() {
       {
         header: isLoan ? "Số tiền vay" : (isExpense ? "Số tiền chi" : "Số tiền gốc"),
         align: "right",
-        render: (row) => (
-          <span className={row.isGroupHeader ? "fw-bold text-dark" : "fw-medium"}>
-            {row.isPaymentLog ? null : formatCurrency(row.amount)}
-          </span>
-        ),
+        render: (row) => {
+          if (row.isPaymentLog) return null;
+          const isNegative = row.amount < 0;
+          return (
+            <span className={row.isGroupHeader ? "fw-bold text-dark" : isNegative ? "fw-bold text-danger" : "fw-medium"}>
+              {isNegative ? `- ${formatCurrency(Math.abs(row.amount))}` : formatCurrency(row.amount)}
+            </span>
+          );
+        },
       },
       {
         header: "Đã thanh toán",
@@ -806,14 +824,23 @@ export default function DebtsPage() {
                     const expandedItems: any[] = [];
                     items.forEach((item: any) => {
                       const parsed = parseDebtDescription(item.description || "");
-                      const isReceiptRecord = item.amount === 0 && item.paidAmount > 0;
+                      const isReturnItem = item.amount < 0 || 
+                                           item.referenceId?.startsWith("ERR-") || 
+                                           item.referenceId?.startsWith("WR-") || 
+                                           item.description?.includes("Trả lại hàng") || 
+                                           item.description?.includes("hàng trả về");
+                      const isReceiptRecord = (item.amount === 0 && item.paidAmount > 0) || item.amount < 0 || isReturnItem;
                       
                       if (isReceiptRecord) {
+                        const paidVal = item.amount < 0 ? Math.abs(item.amount) : (item.paidAmount || item.amount || 0);
                         expandedItems.push({
                           ...item,
-                          displayDescription: parsed.originalDesc,
+                          displayDescription: parsed.originalDesc || item.description,
+                          amount: 0,
+                          paidAmount: paidVal,
                           isOriginalDebt: true,
-                          isPaymentLog: true
+                          isPaymentLog: true,
+                          isReturn: isReturnItem
                         });
                       } else {
                         expandedItems.push({
@@ -852,6 +879,12 @@ export default function DebtsPage() {
                     
                     if (expandedItems.length > 1) {
                       const isCollapsed = !expandedGroups[groupKey];
+                      const groupAmount = items.reduce((s: number, i: any) => s + (i.amount > 0 ? i.amount : 0), 0);
+                      const groupPaid = items.reduce((s: number, i: any) => {
+                        if (i.amount < 0) return s + Math.abs(i.amount);
+                        return s + (i.paidAmount || 0);
+                      }, 0);
+
                       groupedDebts.push({
                         id: `group_${groupKey}`,
                         groupKey,
@@ -860,8 +893,8 @@ export default function DebtsPage() {
                         address,
                         items: expandedItems,
                         originalItems: items,
-                        amount: items.reduce((s: number, i: any) => s + (i.amount || 0), 0),
-                        paidAmount: items.reduce((s: number, i: any) => s + (i.paidAmount || 0), 0),
+                        amount: groupAmount,
+                        paidAmount: groupPaid,
                         isCollapsed,
                       });
                       if (!isCollapsed) {
@@ -872,9 +905,15 @@ export default function DebtsPage() {
                         }));
                       }
                     } else {
+                      const firstItem = expandedItems[0];
+                      const isReturn = firstItem?.isReturn || firstItem?.amount < 0;
+                      const singleAmount = isReturn ? 0 : (firstItem?.amount || 0);
+                      const singlePaid = isReturn ? (firstItem?.amount < 0 ? Math.abs(firstItem.amount) : (firstItem?.paidAmount || 0)) : (firstItem?.paidAmount || 0);
                       groupedDebts.push({ 
-                        ...expandedItems[0], 
+                        ...firstItem, 
                         partnerName: displayName, 
+                        amount: singleAmount,
+                        paidAmount: singlePaid,
                         groupItems: items 
                       });
                     }
@@ -911,8 +950,8 @@ export default function DebtsPage() {
                   groupedDebts.push(...debts.map(d => ({ ...d, groupItems: [d] })));
                 }
 
-                const totalAmount = debts.reduce((sum, d) => sum + (currentStepId === "LOAN" ? d.creditLimit : d.amount), 0);
-                const totalPaid = debts.reduce((sum, d) => sum + (currentStepId === "LOAN" ? d.totalDisbursed : d.paidAmount), 0);
+                const totalAmount = debts.reduce((sum, d) => sum + (currentStepId === "LOAN" ? d.creditLimit : (d.amount > 0 ? d.amount : 0)), 0);
+                const totalPaid = debts.reduce((sum, d) => sum + (currentStepId === "LOAN" ? d.totalDisbursed : (d.amount < 0 ? Math.abs(d.amount) : (d.paidAmount || 0))), 0);
                 const totalRows = [{
                   id: "TOTAL_ROW",
                   partnerName: "TỔNG CỘNG",
