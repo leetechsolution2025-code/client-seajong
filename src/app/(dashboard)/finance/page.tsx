@@ -740,6 +740,16 @@ export default function FinancePage() {
     { label: "Từ chối", value: "rejected" },
   ];
 
+  const [expandedPayrollIds, setExpandedPayrollIds] = useState<Set<string>>(new Set());
+  const toggleExpandPayroll = (id: string) => {
+    setExpandedPayrollIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const expenseColumns: TableColumn<any>[] = [
     {
       header: (
@@ -783,12 +793,55 @@ export default function FinancePage() {
     },
     {
       header: "Tên chi phí",
-      render: (row: any) => (
-        <div className="d-flex flex-column">
-          <span className="fw-medium text-dark">{row.tenChiPhi}</span>
-          <span className="text-muted" style={{ fontSize: "11px" }}>{row.nguoiChiTra}</span>
-        </div>
-      ),
+      render: (row: any) => {
+        const hasDetails = Array.isArray(row.payrollDetails) && row.payrollDetails.length > 0;
+        const isExpanded = expandedPayrollIds.has(row.id);
+
+        return (
+          <div className="d-flex flex-column">
+            <div className="d-flex align-items-center gap-2">
+              {hasDetails && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-link p-0 text-decoration-none d-inline-flex align-items-center justify-content-center"
+                  style={{ width: "22px", height: "22px", color: isExpanded ? "var(--primary)" : "#64748b" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpandPayroll(row.id);
+                  }}
+                  title={isExpanded ? "Ẩn danh sách chi tiết" : "Hiện danh sách chi tiết nhân viên"}
+                >
+                  <i className={`bi ${isExpanded ? "bi-chevron-down fw-bold" : "bi-chevron-right"}`} style={{ fontSize: "12px" }}></i>
+                </button>
+              )}
+              <span className="fw-medium text-dark">{row.tenChiPhi}</span>
+              {hasDetails && (
+                <button
+                  type="button"
+                  className="badge rounded-pill border ms-1 py-1 px-2 border-0"
+                  style={{
+                    fontSize: "10.5px",
+                    cursor: "pointer",
+                    backgroundColor: isExpanded ? "rgba(99, 102, 241, 0.12)" : "#f1f5f9",
+                    color: isExpanded ? "#4f46e5" : "#64748b"
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpandPayroll(row.id);
+                  }}
+                  title="Nhấn để ẩn/hiện danh sách nhân viên"
+                >
+                  <i className={`bi ${isExpanded ? "bi-eye-slash-fill me-1" : "bi-eye-fill me-1"}`} style={{ fontSize: "10px" }}></i>
+                  {row.payrollDetails.length} nhân sự
+                </button>
+              )}
+            </div>
+            <span className="text-muted" style={{ fontSize: "11px", marginLeft: hasDetails ? "24px" : "0" }}>
+              {row.nguoiChiTra}{row.ghiChu ? ` • ${row.ghiChu}` : ""}
+            </span>
+          </div>
+        );
+      },
     },
     {
       header: "Số tiền",
@@ -1416,6 +1469,84 @@ export default function FinancePage() {
                 emptyText="Không tìm thấy khoản chi nào"
                 compact
                 onRowClick={setSelectedExpense}
+                renderExpandedRow={(row) => {
+                  if (!expandedPayrollIds.has(row.id) || !row.payrollDetails || row.payrollDetails.length === 0) return null;
+                  return (
+                    <tr key={`${row.id}-expanded`} className="bg-light bg-opacity-50">
+                      <td colSpan={expenseColumns.length} className="p-0 border-bottom">
+                        <div className="p-3 bg-white mx-3 my-2 rounded-3 border shadow-sm" style={{ borderLeft: "4px solid var(--primary)" }}>
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <div className="d-flex align-items-center gap-2">
+                              <i className="bi bi-people-fill text-primary" style={{ fontSize: "16px" }}></i>
+                              <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>
+                                DANH SÁCH CHI TIẾT LƯƠNG NHÂN VIÊN
+                              </span>
+                              <span className="badge rounded-pill bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style={{ fontSize: "11px" }}>
+                                {row.payrollDetails.length} nhân sự
+                              </span>
+                            </div>
+                            <button 
+                              type="button" 
+                              className="btn btn-sm btn-light border py-0 px-2"
+                              style={{ fontSize: "11.5px" }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpandPayroll(row.id);
+                              }}
+                            >
+                              <i className="bi bi-chevron-up me-1"></i> Thu gọn
+                            </button>
+                          </div>
+                          <div className="table-responsive rounded border" style={{ maxHeight: "360px", overflowY: "auto" }}>
+                            <table className="table table-sm table-hover mb-0" style={{ fontSize: "12px", tableLayout: "auto" }}>
+                              <thead className="table-light sticky-top bg-light">
+                                <tr>
+                                  <th className="py-2 px-2 text-center" style={{ width: "40px" }}>#</th>
+                                  <th className="py-2 px-2" style={{ minWidth: "150px" }}>Nhân viên</th>
+                                  <th className="py-2 px-2" style={{ minWidth: "140px" }}>Chức vụ / Phòng ban</th>
+                                  <th className="py-2 px-2 text-center" style={{ width: "70px" }}>Ngày công</th>
+                                  <th className="py-2 px-2 text-end" style={{ minWidth: "100px" }}>Lương CB</th>
+                                  <th className="py-2 px-2 text-end" style={{ minWidth: "90px" }}>Phụ cấp</th>
+                                  <th className="py-2 px-2 text-end" style={{ minWidth: "90px" }}>Khấu trừ</th>
+                                  <th className="py-2 px-2 text-end fw-bold text-success" style={{ minWidth: "100px" }}>Thực lĩnh</th>
+                                  <th className="py-2 px-2 text-center" style={{ width: "100px" }}>Trạng thái</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {row.payrollDetails.map((emp: any, idx: number) => (
+                                  <tr key={emp.id || idx}>
+                                    <td className="py-1.5 px-2 text-center text-muted">{idx + 1}</td>
+                                    <td className="py-1.5 px-2 fw-medium text-dark">{emp.fullName}</td>
+                                    <td className="py-1.5 px-2 text-muted">{emp.position || emp.departmentName || "—"}</td>
+                                    <td className="py-1.5 px-2 text-center fw-medium">{emp.ngayCong ? Number(emp.ngayCong).toFixed(1) : "0.0"}</td>
+                                    <td className="py-1.5 px-2 text-end">{formatCurrency(emp.luongCoBan || 0)}</td>
+                                    <td className="py-1.5 px-2 text-end">{formatCurrency(emp.phuCap || 0)}</td>
+                                    <td className="py-1.5 px-2 text-end text-danger">{formatCurrency(emp.khauTruBH || 0)}</td>
+                                    <td className="py-1.5 px-2 text-end fw-bold text-success">{formatCurrency(emp.luongThucNhan || 0)}</td>
+                                    <td className="py-1.5 px-2 text-center">
+                                      <span 
+                                        className="badge rounded-pill border"
+                                        style={{
+                                          fontSize: "9.5px",
+                                          padding: "2px 6px",
+                                          backgroundColor: emp.trangThai === "Đã duyệt" || emp.trangThai === "Giám đốc đã duyệt" ? "rgba(16, 185, 129, 0.12)" : "rgba(99, 102, 241, 0.12)",
+                                          color: emp.trangThai === "Đã duyệt" || emp.trangThai === "Giám đốc đã duyệt" ? "#059669" : "#4f46e5",
+                                          borderColor: emp.trangThai === "Đã duyệt" || emp.trangThai === "Giám đốc đã duyệt" ? "rgba(16, 185, 129, 0.25)" : "rgba(99, 102, 241, 0.25)"
+                                        }}
+                                      >
+                                        {emp.trangThai || "Đã duyệt"}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }}
               /> } />
             )}
           </WorkflowCard>
@@ -1521,11 +1652,40 @@ export default function FinancePage() {
                                 header: "Sản phẩm",
                                 render: (item: any) => {
                                   const hasEnoughStock = (item.missingQty || 0) <= 0;
-                                  const warehouseLabel = item.warehouseCode === "KHO-CHINH" ? "Kho Hàng Hoá (KHO-CHINH)" : "Kho Vật Tư Phụ Kiện (KVP)";
+                                  const parsedNote = (() => {
+                                    if (!item.ghiChu) return null;
+                                    try { return JSON.parse(item.ghiChu); } catch { return null; }
+                                  })();
+                                  const dmCode = item.dinhMucCode || parsedNote?.bomCode || (parsedNote?.code && typeof parsedNote.code === "string" && parsedNote.code.startsWith("DM-") ? parsedNote.code : null);
+                                  const dmTen = item.dinhMucTen || parsedNote?.dinhMucTen || (typeof item.ghiChu === "string" && !item.ghiChu.startsWith("{") ? item.ghiChu : null);
+
                                   return (
                                     <div className="d-flex flex-column">
                                       <span className="fw-bold text-dark" style={{ fontSize: "13px" }}>{item.tenHang || item.name}</span>
-                                      <span className="text-muted" style={{ fontSize: "11px" }}><i className="bi bi-box-seam me-1"></i>{warehouseLabel}</span>
+                                      {(dmCode || dmTen) && (
+                                        <div className="d-flex align-items-center flex-wrap gap-1 mt-1 mb-1">
+                                          {dmCode && (
+                                            <span 
+                                              className="badge rounded-pill border" 
+                                              style={{ 
+                                                fontSize: "10px", 
+                                                fontWeight: 600, 
+                                                backgroundColor: "rgba(99, 102, 241, 0.08)", 
+                                                color: "#4f46e5", 
+                                                borderColor: "rgba(99, 102, 241, 0.25)",
+                                                padding: "2px 7px"
+                                              }}
+                                            >
+                                              <i className="bi bi-diagram-3 me-1" />{dmCode}
+                                            </span>
+                                          )}
+                                          {dmTen && (
+                                            <span className="text-secondary fw-medium" style={{ fontSize: "11.5px" }}>
+                                              {dmTen}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
                                       {!hasEnoughStock ? (
                                         <div className="d-flex flex-column mt-1">
                                           <span className="text-danger fw-semibold" style={{ fontSize: "11px" }}>
@@ -2502,6 +2662,39 @@ export default function FinancePage() {
                         </tbody>
                       </table>
                     </div>
+
+                    {selectedExpense.payrollDetails && selectedExpense.payrollDetails.length > 0 && (
+                      <div className="mb-4">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <p className="small text-muted fw-bold mb-0 text-uppercase tracking-wider">
+                            Danh sách chi tiết ({selectedExpense.payrollDetails.length} nhân sự)
+                          </p>
+                        </div>
+                        <div className="table-responsive border rounded bg-white" style={{ maxHeight: "360px", overflowY: "auto" }}>
+                          <table className="table table-sm table-striped mb-0" style={{ fontSize: "11.5px" }}>
+                            <thead className="table-light sticky-top">
+                              <tr>
+                                <th className="py-1 px-2">Nhân viên</th>
+                                <th className="py-1 px-2 text-center">Công</th>
+                                <th className="py-1 px-2 text-end">Thực lĩnh</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedExpense.payrollDetails.map((emp: any, idx: number) => (
+                                <tr key={emp.id || idx}>
+                                  <td className="py-1.5 px-2">
+                                    <div className="fw-medium text-dark">{emp.fullName}</div>
+                                    <div className="text-muted" style={{ fontSize: "10px" }}>{emp.position || emp.departmentName || "Nhân viên"}</div>
+                                  </td>
+                                  <td className="py-1.5 px-2 text-center align-middle">{emp.ngayCong ? Number(emp.ngayCong).toFixed(1) : "0.0"}</td>
+                                  <td className="py-1.5 px-2 text-end fw-bold text-success align-middle">{formatCurrency(emp.luongThucNhan || 0)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )

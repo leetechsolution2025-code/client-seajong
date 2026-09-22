@@ -206,8 +206,15 @@ export async function GET(
       item.missingQty = missingQty;
       item.canProduce = false;
       
+      let parsedGhiChu: any = null;
+      if (item.ghiChu) {
+        try {
+          parsedGhiChu = JSON.parse(item.ghiChu);
+        } catch (e) {}
+      }
+
       // Tìm BOM để biết có thể sản xuất hay không
-      let resolvedDinhMucId = item.dinhMucId || item.inventoryItem?.dinhMucId || null;
+      let resolvedDinhMucId = item.dinhMucId || parsedGhiChu?.dinhMucId || item.inventoryItem?.dinhMucId || null;
       let warehouseCode = "KHO-CHINH";
       if (!resolvedDinhMucId && item.inventoryItem) {
         const dm = await prisma.dinhMuc.findFirst({
@@ -218,32 +225,35 @@ export async function GET(
       
       item.warehouseCode = warehouseCode;
       item.isManufactured = !!resolvedDinhMucId;
+
+      let bom: any = null;
+      if (resolvedDinhMucId) {
+        bom = await prisma.dinhMuc.findUnique({
+          where: { id: resolvedDinhMucId },
+          include: { vatTu: true }
+        });
+      }
+
+      item.dinhMucId = resolvedDinhMucId;
+      item.dinhMucCode = bom?.code || parsedGhiChu?.bomCode || (parsedGhiChu?.code && typeof parsedGhiChu.code === "string" && parsedGhiChu.code.startsWith("DM-") ? parsedGhiChu.code : null) || null;
+      item.dinhMucTen = bom?.tenDinhMuc || parsedGhiChu?.dinhMucTen || (typeof item.ghiChu === "string" && !item.ghiChu.startsWith("{") ? item.ghiChu : null) || null;
       
       if (missingQty > 0) {
-        if (resolvedDinhMucId) {
-          // Fetch BOM materials
-          const bom = await prisma.dinhMuc.findUnique({
-            where: { id: resolvedDinhMucId },
-            include: { vatTu: true }
-          });
-          
-          if (bom && bom.vatTu && bom.vatTu.length > 0) {
-            let hasEnoughMaterials = true;
-            for (const vt of bom.vatTu) {
-              const neededMat = (vt.soLuong || 1) * missingQty;
-              const matStock = await prisma.inventoryStock.aggregate({
-                where: { inventoryItemId: vt.inventoryItemId || "" },
-                _sum: { soLuong: true }
-              });
-              const stockMat = matStock._sum.soLuong || 0;
-              if (stockMat < neededMat) {
-                hasEnoughMaterials = false;
-                break;
-              }
+        if (bom && bom.vatTu && bom.vatTu.length > 0) {
+          let hasEnoughMaterials = true;
+          for (const vt of bom.vatTu) {
+            const neededMat = (vt.soLuong || 1) * missingQty;
+            const matStock = await prisma.inventoryStock.aggregate({
+              where: { inventoryItemId: vt.inventoryItemId || "" },
+              _sum: { soLuong: true }
+            });
+            const stockMat = matStock._sum.soLuong || 0;
+            if (stockMat < neededMat) {
+              hasEnoughMaterials = false;
+              break;
             }
-            item.canProduce = hasEnoughMaterials;
-            item.dinhMucId = resolvedDinhMucId;
           }
+          item.canProduce = hasEnoughMaterials;
         }
       }
     }
@@ -628,7 +638,11 @@ export async function PATCH(
             }
 
             const invItem = matchedInvItemId ? await tx.inventoryItem.findFirst({ where: { id: matchedInvItemId } }) : null;
-            let resolvedDinhMucId = (item as any).dinhMucId || (invItem as any)?.dinhMucId || null;
+            let parsedItemGhiChu: any = null;
+            if (item.ghiChu) {
+              try { parsedItemGhiChu = JSON.parse(item.ghiChu); } catch (e) {}
+            }
+            let resolvedDinhMucId = (item as any).dinhMucId || parsedItemGhiChu?.dinhMucId || (invItem as any)?.dinhMucId || null;
             
             if (!resolvedDinhMucId && invItem) {
               const dm = await tx.dinhMuc.findFirst({

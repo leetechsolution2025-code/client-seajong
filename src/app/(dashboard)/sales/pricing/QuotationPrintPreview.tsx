@@ -262,7 +262,26 @@ export function QuotationPrintPreview({ open, onClose, quotations }: Props) {
                     <tr key={`prod-${item.id}`}>
                       <td style={{ border: "1px solid #000", padding: "6px 4px", textAlign: "center" }}>{currentStt}</td>
                       <td style={{ border: "1px solid #000", padding: "6px 4px", textAlign: "left" }}>{item.productCode}</td>
-                      <td style={{ border: "1px solid #000", padding: "6px 4px", textAlign: "left" }}>{item.productName}</td>
+                      <td style={{ border: "1px solid #000", padding: "6px 4px", textAlign: "left" }}>
+                        <div>{item.productName}</div>
+                        {(() => {
+                          let dmDesc = (item as any).dinhMucTen || item.originalData?.dinhMucTen || "";
+                          let dmCode = (item as any).bomCode || item.originalData?.bomCode || "";
+                          if (!dmDesc && item.originalData?.ghiChu) {
+                            try {
+                              const parsed = JSON.parse(item.originalData.ghiChu);
+                              dmDesc = parsed.dinhMucTen || "";
+                              dmCode = parsed.bomCode || "";
+                            } catch (e) {}
+                          }
+                          if (!dmDesc) return null;
+                          return (
+                            <div style={{ fontSize: 10, color: "#64748b", fontStyle: "italic", marginTop: 2 }}>
+                              {dmCode ? `[${dmCode}] ${dmDesc}` : dmDesc}
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td style={{ border: "1px solid #000", padding: "6px 4px", textAlign: "center" }}>{item.specification || "BỘ"}</td>
                       <td style={{ border: "1px solid #000", padding: "6px 4px", textAlign: "right", fontWeight: 600 }}>
                         {item.listedPrice ? item.listedPrice.toLocaleString("vi-VN") : ""}

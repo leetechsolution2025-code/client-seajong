@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ui/Toast";
@@ -910,8 +910,29 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
     }
   }, [onUnreadChange]);
 
+  const preserveDetailRef = useRef(false);
+
   useEffect(() => {
-    if (open) { load(); setView("list"); setSearch(""); }
+    const handleOpenItem = (e: any) => {
+      if (e.detail) {
+        preserveDetailRef.current = true;
+        setSelected(e.detail);
+        setView("detail");
+      }
+    };
+    window.addEventListener("open-notification-item", handleOpenItem);
+    return () => window.removeEventListener("open-notification-item", handleOpenItem);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      load();
+      if (!preserveDetailRef.current) {
+        setView("list");
+        setSearch("");
+      }
+      preserveDetailRef.current = false;
+    }
   }, [open, load]);
 
   useEffect(() => {

@@ -46,7 +46,147 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    return NextResponse.json(list);
+    const enrichedList = await Promise.all(list.map(async (ins) => {
+      let meta: any = null;
+      if (ins.metadata) {
+        try {
+          meta = typeof ins.metadata === "string" ? JSON.parse(ins.metadata) : ins.metadata;
+        } catch (e) {}
+      }
+
+      let items: any[] = meta?.items || [];
+
+      // If items is empty and it has a productionOrder, attempt to resolve items from production task or saleOrder
+      if (items.length === 0 && meta?.productionOrder) {
+        try {
+          const prodTask = await prisma.task.findFirst({
+            where: {
+              deptCode: "production",
+              title: { contains: meta.productionOrder }
+            }
+          });
+
+          if (prodTask && prodTask.actualResult) {
+            const parsed = JSON.parse(prodTask.actualResult);
+            for (const pt of parsed) {
+              let bom: any = null;
+              if (pt.dinhMucId) {
+                bom = await prisma.dinhMuc.findUnique({ where: { id: pt.dinhMucId } });
+              }
+              items.push({
+                saleOrderItemId: pt.saleOrderItemId,
+                tenHang: pt.tenHang,
+                soLuong: pt.missingQty || pt.soLuong || 1,
+                donVi: pt.donVi || "bộ",
+                dinhMucId: pt.dinhMucId,
+                dinhMucCode: bom?.code || null,
+                dinhMucTen: bom?.tenDinhMuc || null
+              });
+            }
+          }
+
+          if (items.length === 0) {
+            const so = await prisma.saleOrder.findFirst({
+              where: {
+                OR: [{ code: meta.productionOrder }, { id: meta.productionOrder }]
+              },
+              include: { saleOrderItems: true }
+            });
+            if (so && so.saleOrderItems) {
+              for (const it of so.saleOrderItems) {
+                let parsedGhiChu: any = null;
+                if (it.ghiChu) {
+                  try { parsedGhiChu = JSON.parse(it.ghiChu); } catch (e) {}
+                }
+                const resolvedDinhMucId = it.dinhMucId || parsedGhiChu?.dinhMucId || null;
+                let bom: any = null;
+                if (resolvedDinhMucId) {
+                  bom = await prisma.dinhMuc.findUnique({ where: { id: resolvedDinhMucId } });
+                }
+                items.push({
+                  saleOrderItemId: it.id,
+                  tenHang: it.tenHang,
+                  soLuong: it.soLuong,
+                  donVi: "cái",
+                  dinhMucId: resolvedDinhMucId,
+                  dinhMucCode: bom?.code || parsedGhiChu?.bomCode || null,
+                  dinhMucTen: bom?.tenDinhMuc || parsedGhiChu?.dinhMucTen || null
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error resolving items for QC:", err);
+        }
+      }
+
+      // Remove mock bomCode starting with BOM- if present
+      if (meta && meta.bomCode && meta.bomCode.startsWith("BOM-")) {
+        delete meta.bomCode;
+      }
+
+      // Ensure every item has its real product code (Model/SKU) and NOT dinhMucCode
+      items = await Promise.all(items.map(async (it: any) => {
+        let model = it.model || it.productCode || it.code || "";
+        if (model && (model.startsWith("DM-") || model.startsWith("BOM-") || model === it.dinhMucCode)) {
+          model = "";
+        }
+
+        if (!model && it.dinhMucId) {
+          try {
+            const bom = await prisma.dinhMuc.findUnique({
+              where: { id: it.dinhMucId },
+              include: { inventoryItem: true }
+            });
+            if (bom?.inventoryItem?.code) model = bom.inventoryItem.code;
+            else if (bom?.inventoryItem?.model) model = bom.inventoryItem.model;
+          } catch (e) {}
+        }
+
+        if (!model && it.saleOrderItemId) {
+          try {
+            const soItem = await prisma.saleOrderItem.findUnique({
+              where: { id: it.saleOrderItemId },
+              include: { inventoryItem: true }
+            });
+            if (soItem?.inventoryItem?.code) model = soItem.inventoryItem.code;
+            else if (soItem?.inventoryItem?.model) model = soItem.inventoryItem.model;
+          } catch (e) {}
+        }
+
+        if (!model && ins.inventoryItemId) {
+          try {
+            const inv = await prisma.inventoryItem.findUnique({ where: { id: ins.inventoryItemId } });
+            if (inv?.code) model = inv.code;
+            else if (inv?.model) model = inv.model;
+          } catch (e) {}
+        }
+
+        if (!model && (it.tenHang || it.productName)) {
+          try {
+            const inv = await prisma.inventoryItem.findFirst({
+              where: { tenHang: it.tenHang || it.productName }
+            });
+            if (inv?.code) model = inv.code;
+            else if (inv?.model) model = inv.model;
+          } catch (e) {}
+        }
+
+        return {
+          ...it,
+          model: model || "",
+          productCode: model || ""
+        };
+      }));
+
+      return {
+        ...ins,
+        metadata: meta ? JSON.stringify({ ...meta, items }) : JSON.stringify({ items }),
+        items
+      };
+    }));
+
+    return NextResponse.json(enrichedList);
   } catch (error: any) {
     console.error("QA Inspection GET Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

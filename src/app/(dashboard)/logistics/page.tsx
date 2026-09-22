@@ -245,6 +245,7 @@ export default function LogisticsOverviewPage() {
             type: it.type, 
             isShortage: isLacking,
             bomCode: it.bomCode,
+            dinhMucTen: it.dinhMucTen,
             code: it.code || it.inventoryItem?.code,
             color: it.color || it.inventoryItem?.color,
             giaBan: it.giaBan || it.inventoryItem?.giaBan,
@@ -316,7 +317,11 @@ export default function LogisticsOverviewPage() {
       if (typeFilter === "IMPORT" && !isImport) return acc;
       if (typeFilter === "EXPORT" && isImport) return acc;
 
-      const code = curr.saleOrderCode || curr.code || "Khác";
+      // Tách riêng các lệnh kiểm định QC thành nhóm độc lập theo số hiệu biên bản QC:
+      const isQc = (curr.code && curr.code.startsWith("QC-")) || (curr.title && curr.title.includes("QC-"));
+      const code = isQc 
+        ? curr.code 
+        : (curr.saleOrderCode || curr.code || "Khác");
       if (!acc[code]) acc[code] = [];
       acc[code].push(curr);
       return acc;
@@ -486,7 +491,10 @@ export default function LogisticsOverviewPage() {
             <div className="d-flex align-items-center justify-content-between mb-1">
               <div className="d-flex align-items-center gap-2">
                 <i className={`bi ${isCollapsed ? 'bi-caret-right-fill' : 'bi-caret-down-fill'} text-muted`}></i> 
-                <span className="fw-bold" style={{ fontSize: 12 }}>SỐ HIỆU ĐƠN HÀNG: <span className="text-primary">{orderCode}</span></span>
+                <span className="fw-bold" style={{ fontSize: 12 }}>
+                  {orderCode.startsWith("QC-") ? "SỐ HIỆU BIÊN BẢN QC: " : "SỐ HIỆU ĐƠN HÀNG: "}
+                  <span className="text-primary">{orderCode}</span>
+                </span>
                 <span className={`badge ${groupStatusColor} rounded-pill fw-normal`} style={{ fontSize: 10 }}>{groupStatusText}</span>
                 {latestDate > 0 && (
                   <span className="text-muted" style={{ fontSize: 11 }}>
@@ -535,7 +543,13 @@ export default function LogisticsOverviewPage() {
                 <i className="bi bi-file-earmark-text me-1"></i>
                 {orderCode.includes("-DH-") 
                   ? `Theo đơn mua hàng số: ${orderCode.match(/(DH-\d+(-\d+)?)/)?.[0] || orderCode}` 
-                  : `Theo lệnh sản xuất số: ${orderCode.replace('QC-', 'LSX-')}`}
+                  : (() => {
+                      const prodOrders = Array.from(new Set(items.map(it => it.productionOrder).filter(Boolean)));
+                      if (prodOrders.length > 0) {
+                        return `Theo lệnh sản xuất: ${prodOrders.join(", ")}`;
+                      }
+                      return `Theo lệnh sản xuất: ${orderCode.replace('QC-', 'LSX-')}`;
+                    })()}
               </div>
             )}
             
@@ -666,8 +680,8 @@ export default function LogisticsOverviewPage() {
                             )}
                             {!readOrderIds.has(row.id) && <span className="badge bg-danger rounded-pill" style={{ fontSize: 9, padding: "2px 6px" }}>Mới</span>}
                           </div>
-                          <div className="text-muted text-truncate" style={{ fontSize: 12, maxWidth: 200 }}>
-                            {row.typeLabel} {row.saleOrderCode || row.code} {row.customer ? `- ${row.customer}` : ""}
+                          <div className="text-muted text-truncate" style={{ fontSize: 12, maxWidth: 240 }}>
+                            {row.typeLabel} {row.code?.startsWith("QC-") ? row.code : (row.saleOrderCode || row.code)} {row.customer ? `- ${row.customer}` : ""}
                           </div>
                         </div>
                       ),
@@ -933,9 +947,16 @@ export default function LogisticsOverviewPage() {
                             {row.isShortage && <i className="bi bi-exclamation-circle text-danger ms-2" title="Thiếu hàng trong kho" />}
                           </span>
                           {row.bomCode && (
-                            <span className="badge mt-1 mb-1 me-2 align-self-start" style={{ backgroundColor: "rgba(59, 130, 246, 0.1)", color: "#3b82f6", fontSize: 10 }}>
-                              <i className="bi bi-diagram-3 me-1"></i> {row.bomCode}
-                            </span>
+                            <div className="d-flex align-items-center flex-wrap gap-1 mt-1 mb-1">
+                              <span className="badge" style={{ backgroundColor: "rgba(59, 130, 246, 0.1)", color: "#3b82f6", fontSize: 10 }}>
+                                <i className="bi bi-diagram-3 me-1"></i> {row.bomCode}
+                              </span>
+                              {row.dinhMucTen && (
+                                <span className="text-muted fst-italic" style={{ fontSize: 10.5 }}>
+                                  {row.dinhMucTen}
+                                </span>
+                              )}
+                            </div>
                           )}
                           {row.type && <span className="text-muted" style={{ fontSize: 11 }}><i className="bi bi-box-seam me-1"></i>{row.type}</span>}
                         </div>

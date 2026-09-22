@@ -326,12 +326,49 @@ export async function PATCH(
           }
         });
 
+        let detailedItems: any[] = [];
         if (prodTask && prodTask.actualResult) {
           try {
             const parsed = JSON.parse(prodTask.actualResult);
             for (const pt of parsed) {
               if (pt.tenHang) producedItems.push(pt.tenHang);
-              if (pt.missingQty) totalQty += pt.missingQty;
+              const qty = pt.missingQty || pt.soLuong || 1;
+              totalQty += qty;
+
+              const matchingItem = order.saleOrderItems?.find((it: any) => it.id === pt.saleOrderItemId);
+              let parsedGhiChu: any = null;
+              if (matchingItem?.ghiChu) {
+                try { parsedGhiChu = JSON.parse(matchingItem.ghiChu); } catch (e) {}
+              }
+
+              const resolvedDinhMucId = pt.dinhMucId || matchingItem?.dinhMucId || parsedGhiChu?.dinhMucId || null;
+              let bom: any = null;
+              if (resolvedDinhMucId) {
+                bom = await tx.dinhMuc.findUnique({ where: { id: resolvedDinhMucId } });
+              }
+
+              const dinhMucCode = bom?.code || parsedGhiChu?.bomCode || (parsedGhiChu?.code && typeof parsedGhiChu.code === "string" && parsedGhiChu.code.startsWith("DM-") ? parsedGhiChu.code : null) || null;
+              const dinhMucTen = bom?.tenDinhMuc || parsedGhiChu?.dinhMucTen || (typeof matchingItem?.ghiChu === "string" && !matchingItem.ghiChu.startsWith("{") ? matchingItem.ghiChu : null) || null;
+
+              let prodInvItem: any = null;
+              if (matchingItem?.inventoryItemId) {
+                prodInvItem = await tx.inventoryItem.findUnique({ where: { id: matchingItem.inventoryItemId } });
+              } else if (bom?.inventoryItemId) {
+                prodInvItem = await tx.inventoryItem.findUnique({ where: { id: bom.inventoryItemId } });
+              }
+              const productModel = prodInvItem?.code || prodInvItem?.model || "";
+
+              detailedItems.push({
+                saleOrderItemId: pt.saleOrderItemId,
+                tenHang: pt.tenHang,
+                model: productModel,
+                productCode: productModel,
+                soLuong: qty,
+                donVi: pt.donVi || "bộ",
+                dinhMucId: resolvedDinhMucId,
+                dinhMucCode,
+                dinhMucTen
+              });
             }
           } catch (e) {}
         } else if (prodTask && prodTask.description) {
@@ -357,6 +394,42 @@ export async function PATCH(
         const fallbackQty = (order.saleOrderItems || []).reduce((acc: number, i: any) => acc + i.soLuong, 0);
         const finalQty = totalQty > 0 ? totalQty : fallbackQty;
 
+        if (detailedItems.length === 0 && order.saleOrderItems && order.saleOrderItems.length > 0) {
+          for (const it of order.saleOrderItems) {
+            let parsedGhiChu: any = null;
+            if (it.ghiChu) {
+              try { parsedGhiChu = JSON.parse(it.ghiChu); } catch (e) {}
+            }
+            const resolvedDinhMucId = it.dinhMucId || parsedGhiChu?.dinhMucId || null;
+            let bom: any = null;
+            if (resolvedDinhMucId) {
+              bom = await tx.dinhMuc.findUnique({ where: { id: resolvedDinhMucId } });
+            }
+            const dinhMucCode = bom?.code || parsedGhiChu?.bomCode || (parsedGhiChu?.code && typeof parsedGhiChu.code === "string" && parsedGhiChu.code.startsWith("DM-") ? parsedGhiChu.code : null) || null;
+            const dinhMucTen = bom?.tenDinhMuc || parsedGhiChu?.dinhMucTen || (typeof it.ghiChu === "string" && !it.ghiChu.startsWith("{") ? it.ghiChu : null) || null;
+
+            let prodInvItem: any = null;
+            if (it.inventoryItemId) {
+              prodInvItem = await tx.inventoryItem.findUnique({ where: { id: it.inventoryItemId } });
+            } else if (bom?.inventoryItemId) {
+              prodInvItem = await tx.inventoryItem.findUnique({ where: { id: bom.inventoryItemId } });
+            }
+            const productModel = prodInvItem?.code || prodInvItem?.model || "";
+
+            detailedItems.push({
+              saleOrderItemId: it.id,
+              tenHang: it.tenHang,
+              model: productModel,
+              productCode: productModel,
+              soLuong: it.soLuong,
+              donVi: "cái",
+              dinhMucId: resolvedDinhMucId,
+              dinhMucCode,
+              dinhMucTen
+            });
+          }
+        }
+
         const productNameDesc = finalItems.length > 0 
           ? finalItems.join(", ") 
           : `Thành phẩm lệnh sản xuất ${order.code || order.id}`;
@@ -375,8 +448,8 @@ export async function PATCH(
             notes: `Yêu cầu kiểm soát chất lượng cho đơn hàng ${order.code || order.id}`,
             metadata: JSON.stringify({
               productionOrder: order.code,
-              bomCode: "BOM-" + (order.code || "").replace("DBH-", ""),
-              model: finalItems[0] || productNameDesc,
+              items: detailedItems,
+              model: detailedItems[0]?.model || "",
               totalQuantity: finalQty,
               batch: "LOT-" + new Date().toISOString().slice(0, 10).replace(/-/g, ""),
               assemblyTeam: "Tổ lắp ráp - Ca ngày"

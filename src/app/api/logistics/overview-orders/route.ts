@@ -161,6 +161,26 @@ export async function GET(_req: NextRequest) {
       } catch (e) {}
     });
 
+    const qcCodes = inboundTasks.map(t => {
+      const match = t.title.match(/\(([^)]+)\)/);
+      return match ? match[1] : null;
+    }).filter(Boolean) as string[];
+
+    const qcInspections = await prisma.qualityInspection.findMany({
+      where: { code: { in: qcCodes } },
+      select: { code: true, metadata: true }
+    });
+    const qcProdOrderMap = new Map<string, string>();
+    qcInspections.forEach(qc => {
+      let meta: any = null;
+      try {
+        meta = typeof qc.metadata === "string" ? JSON.parse(qc.metadata) : qc.metadata;
+      } catch (e) {}
+      if (meta?.productionOrder) {
+        qcProdOrderMap.set(qc.code, meta.productionOrder);
+      }
+    });
+
     const result = [
       ...logisticsTickets.map((t: any) => ({
         id:        t.id,
@@ -280,6 +300,7 @@ export async function GET(_req: NextRequest) {
         // Match whatever code is inside the parentheses (e.g. QC-20260811-686)
         const qcCodeMatch = t.title.match(/\(([^)]+)\)/);
         const code = qcCodeMatch ? qcCodeMatch[1] : "Nhập kho";
+        const prodOrder = qcProdOrderMap.get(code) || null;
 
         const titleLower = t.title.toLowerCase();
         const typeLabel = titleLower.includes("thành phẩm") 
@@ -289,6 +310,8 @@ export async function GET(_req: NextRequest) {
         return {
           id:        t.id,
           code:      code,
+          productionOrder: prodOrder,
+          saleOrderCode: null,
           type:      "material-import" as const,
           typeLabel: typeLabel,
           customer:  null,

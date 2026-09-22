@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { getAttendanceData, getCompanyInfo } from "./attendance-actions";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
@@ -21,10 +22,12 @@ interface Employee {
   avatarUrl?: string;
   attendance: ({ code: string, label?: string, registeredLunch?: boolean, registeredDinner?: boolean, workday?: number, otHours?: number, violationMinutes?: number } | null)[];
   baseSalary?: number;
+  insuranceDeduction?: number;
   mealAllowance?: number;
   fuelAllowance?: number;
   phoneAllowance?: number;
   seniorityAllowance?: number;
+  payrollStatus?: string | null;
   isConfirmed?: boolean;
   isPayrollConfirmed?: boolean;
 }
@@ -74,7 +77,7 @@ export function AttendanceManagement() {
   const [data, setData] = useState<Department[]>([]);
   const [stats, setStats] = useState({ totalEmployees: 0, presentToday: 0, absentToday: 0, leaveToday: 0, workDays: 0, totalViolationMinutes: 0 });
   const [loading, setLoading] = useState(true);
-  const [viewDate, setViewDate] = useState(new Date(2026, 4, 1)); // May 2026
+  const [viewDate, setViewDate] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDept, setSelectedDept] = useState("all");
   const [showLunchModal, setShowLunchModal] = useState(false);
@@ -85,8 +88,18 @@ export function AttendanceManagement() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showConfirmPayroll, setShowConfirmPayroll] = useState(false);
   const [showConfirmAccounting, setShowConfirmAccounting] = useState(false);
+  const [showConfirmDirector, setShowConfirmDirector] = useState(false);
+  const [showConfirmApproveDirector, setShowConfirmApproveDirector] = useState(false);
   const [isAccountingApproved, setIsAccountingApproved] = useState(false);
+  const [isDirectorSubmitted, setIsDirectorSubmitted] = useState(false);
+  const [isDirectorApproved, setIsDirectorApproved] = useState(false);
   const toast = useToast();
+
+  const { data: session } = useSession();
+  const isDirectorUser = session?.user?.role === "admin" || 
+    ((session?.user as any)?.position && (session?.user as any)?.position.includes("Giám đốc")) || 
+    session?.user?.name?.includes("Lê Công Vụ") ||
+    (session?.user as any)?.departmentName === "Ban Giám đốc";
 
   const month = viewDate.getMonth() + 1;
   const year = viewDate.getFullYear();
@@ -103,6 +116,8 @@ export function AttendanceManagement() {
         setData(result.departments);
         setStats(result.stats);
         setIsAccountingApproved(result.isAccountingApproved || false);
+        setIsDirectorSubmitted((result as any).isDirectorSubmitted || false);
+        setIsDirectorApproved((result as any).isDirectorApproved || false);
       } catch (error) {
         console.error("Error fetching attendance:", error);
       } finally {
@@ -131,6 +146,94 @@ export function AttendanceManagement() {
     if (!code) return "—";
     const pos = positions.find(p => p.code === code);
     return pos ? pos.name : code;
+  };
+
+  const handleOpenAttendanceSlip = (emp: any, deptName?: string) => {
+    const công = (emp.attendance || []).reduce((acc: number, a: any) => acc + (a?.workday || 0), 0);
+    const phép = (emp.attendance || []).filter((a: any) => a?.code === "P").length;
+    const otHours = (emp.attendance || []).reduce((acc: number, a: any) => acc + (a?.otHours || 0), 0);
+    const vắng = (emp.attendance || []).filter((a: any) => a?.code === "-").length;
+    const cơmTrưa = (emp.attendance || []).filter((a: any) => a?.registeredLunch).length;
+    const cơmTối = (emp.attendance || []).filter((a: any) => a?.registeredDinner).length;
+
+    const notifItem = {
+      id: `attendance-slip-${emp.id}-${month}-${year}`,
+      title: `Phiếu xác nhận công tháng ${month}/${year}`,
+      type: "info",
+      priority: "normal",
+      audienceType: "personal",
+      createdById: emp.id,
+      createdByName: emp.fullName,
+      createdByPos: getPositionName(emp.position),
+      createdByDept: deptName || emp.departmentName || "Phòng ban",
+      createdAt: new Date().toISOString(),
+      content:
+        `## TỔNG HỢP CÔNG THÁNG ${month}/${year}\n` +
+        `Chào **${emp.fullName}**,\n\n` +
+        `Phòng Nhân sự gửi bạn bảng tổng hợp công chi tiết. Vui lòng kiểm tra các số liệu sau:\n\n` +
+        `◦ **Tổng công thực tế**: ${công.toFixed(2)} ngày (bao gồm ngày lễ & phép)\n` +
+        `◦ **Nghỉ phép (có lương)**: ${phép} ngày\n` +
+        `◦ **Tăng ca (OT)**: ${otHours.toFixed(1)} giờ (đã nhân hệ số)\n` +
+        `◦ **Vắng/Chưa chấm**: ${vắng} ngày\n` +
+        `◦ **Số suất cơm trưa**: ${cơmTrưa} suất\n` +
+        `◦ **Số suất cơm tối**: ${cơmTối} suất\n\n` +
+        `--- \n` +
+        `**Lưu ý**: Nhấn nút "Chi tiết" bên dưới để xem bảng chấm công từng ngày. Nếu có sai sót, vui lòng phản hồi trước ngày 05 tháng sau.\n` +
+        `[ATTENDANCE_DETAILS]:${JSON.stringify({ month, year, employeeId: emp.id })}\n\n` +
+        `Trân trọng!`,
+    };
+
+    window.dispatchEvent(
+      new CustomEvent("open-notification-item", {
+        detail: notifItem,
+      })
+    );
+  };
+
+  const handleOpenPayrollSlip = (emp: any, deptName?: string) => {
+    const cong = (emp.attendance || []).reduce((acc: number, a: any) => acc + (a?.workday || 0), 0);
+    const ot = (emp.attendance || []).reduce((acc: number, a: any) => acc + (a?.otHours || 0), 0);
+    const salary = emp.baseSalary || 0;
+    const mealTotal = (emp.mealAllowance || 0) * cong;
+    const allowances = mealTotal + (emp.fuelAllowance || 0) + (emp.phoneAllowance || 0) + (emp.seniorityAllowance || 0);
+    const standardWorkDays = stats.workDays || 1;
+    const salaryTheoCong = (salary / standardWorkDays) * cong;
+    const otSalary = ot * (salary / standardWorkDays / 8);
+    const khauTruBH = emp.insuranceDeduction ?? 0;
+    const net = salaryTheoCong + allowances + otSalary - khauTruBH;
+
+    const notifItem = {
+      id: `payroll-slip-${emp.id}-${month}-${year}`,
+      title: `Phiếu lương tháng ${month}/${year}`,
+      type: "info",
+      priority: "normal",
+      audienceType: "personal",
+      createdById: emp.id,
+      createdByName: emp.fullName,
+      createdByPos: getPositionName(emp.position),
+      createdByDept: deptName || emp.departmentName || "Phòng ban",
+      createdAt: new Date().toISOString(),
+      content:
+        `## THÔNG BÁO CHI TRẢ THU NHẬP THÁNG ${month}/${year}\n` +
+        `Chào **${emp.fullName}**,\n\n` +
+        `Phòng Nhân sự & Kế toán gửi bạn thông tin bảng lương chi tiết. Vui lòng kiểm tra các khoản thu nhập bên dưới:\n\n` +
+        `◦ **Lương cơ bản**: ${Math.round(salary).toLocaleString('vi-VN')} đ\n` +
+        `◦ **Ngày công thực tế**: ${cong.toFixed(2)} ngày\n` +
+        `◦ **Phụ cấp & Thưởng**: ${Math.round(allowances).toLocaleString('vi-VN')} đ\n` +
+        `◦ **Tăng ca (OT)**: ${ot.toFixed(1)} giờ (${Math.round(otSalary).toLocaleString('vi-VN')} đ)\n` +
+        `◦ **Khấu trừ bảo hiểm**: ${Math.round(khauTruBH).toLocaleString('vi-VN')} đ\n\n` +
+        `---\n` +
+        `### **THỰC LĨNH: ${Math.round(net).toLocaleString('vi-VN')} đ**\n\n` +
+        `**Lưu ý**: Nhấn nút "Chi tiết" bên dưới để xem bảng kê khai phụ cấp và chi tiết công thức tính. Nếu có thắc mắc, vui lòng liên hệ phòng Kế toán nội bộ trước ngày 10 tháng sau.\n` +
+        `[PAYROLL_DETAILS]:${JSON.stringify({ month, year, employeeId: emp.id })}\n\n` +
+        `Trân trọng!`,
+    };
+
+    window.dispatchEvent(
+      new CustomEvent("open-notification-item", {
+        detail: notifItem,
+      })
+    );
   };
 
   const handlePrevMonth = () => {
@@ -233,17 +336,86 @@ export function AttendanceManagement() {
     }
   };
 
+  const handleSendToDirector = () => {
+    if (isDirectorApproved) return;
+    if (isDirectorSubmitted && isDirectorUser) {
+      setShowConfirmApproveDirector(true);
+    } else {
+      setShowConfirmDirector(true);
+    }
+  };
+
+  const confirmApproveDirector = async () => {
+    setLoading(true);
+    setShowConfirmApproveDirector(false);
+    try {
+      const res = await fetch("/api/hr/payroll/approve-director", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ month, year }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        toast.success("Thành công", result.message || "Đã phê duyệt bảng lương thành công!");
+        setIsDirectorApproved(true);
+        const updated = await getAttendanceData(month, year);
+        setData(updated.departments);
+        setIsDirectorApproved(updated.isDirectorApproved || false);
+        setIsDirectorSubmitted((updated as any).isDirectorSubmitted || false);
+        setIsAccountingApproved(updated.isAccountingApproved || false);
+      } else {
+        toast.error("Lỗi", result.error || "Có lỗi xảy ra khi phê duyệt.");
+      }
+    } catch (error) {
+      console.error("Approve Director Error:", error);
+      toast.error("Lỗi", "Không thể kết nối với máy chủ.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmSendToDirector = async () => {
+    setLoading(true);
+    setShowConfirmDirector(false);
+    try {
+      const res = await fetch("/api/hr/payroll/send-director", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ month, year }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        toast.success("Thành công", result.message || "Đã trình Ban Giám đốc phê duyệt bảng lương!");
+        setIsDirectorSubmitted(true);
+        const updated = await getAttendanceData(month, year);
+        setData(updated.departments);
+        setIsDirectorApproved(updated.isDirectorApproved || false);
+        setIsDirectorSubmitted((updated as any).isDirectorSubmitted || false);
+        setIsAccountingApproved(updated.isAccountingApproved || false);
+      } else {
+        toast.error("Lỗi", result.error || "Có lỗi xảy ra khi trình duyệt.");
+      }
+    } catch (error) {
+      console.error("Send to Director Error:", error);
+      toast.error("Lỗi", "Không thể kết nối với máy chủ.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Calculate payroll totals for the top summary row if approved by accounting
   const totalEmployeesCount = filteredData.flatMap(dept => dept.employees).length;
   const totalNetSum = filteredData.flatMap(dept => dept.employees).reduce((acc, emp) => {
     const công = emp.attendance.reduce((c, a) => c + (a?.workday || 0), 0);
     const ot = emp.attendance.reduce((c, a) => c + (a?.otHours || 0), 0);
     const salary = emp.baseSalary || 0;
-    const allowances = (emp.mealAllowance || 0) + (emp.fuelAllowance || 0) + (emp.phoneAllowance || 0) + (emp.seniorityAllowance || 0);
+    const mealTotal = (emp.mealAllowance || 0) * công;
+    const otherAllowances = (emp.fuelAllowance || 0) + (emp.phoneAllowance || 0) + (emp.seniorityAllowance || 0);
+    const allowances = mealTotal + otherAllowances;
     const standardWorkDays = stats.workDays || 1;
     const salaryTheoCông = (salary / standardWorkDays) * công;
     const otSalary = ot * (salary / standardWorkDays / 8);
-    const khauTruBH = salary * 0.105;
+    const khauTruBH = emp.insuranceDeduction ?? 0;
     return acc + Math.round(salaryTheoCông + allowances + otSalary - khauTruBH);
   }, 0);
 
@@ -338,12 +510,37 @@ export function AttendanceManagement() {
                 <span className="d-none d-md-inline ms-2">Chuyển kế toán</span>
               </button>
               <button 
-                className="btn btn-primary btn-sm rounded-pill shadow-sm btn-action-responsive" 
+                className={`btn btn-sm rounded-pill shadow-sm btn-action-responsive ${
+                  isDirectorApproved
+                    ? "btn-success text-white"
+                    : isDirectorSubmitted && isDirectorUser
+                    ? "btn-success text-white"
+                    : "btn-primary"
+                }`} 
                 style={{ height: "34px" }}
-                disabled={!isAccountingApproved}
+                disabled={loading || !isAccountingApproved || (isDirectorApproved && !isDirectorUser) || (isDirectorSubmitted && !isDirectorUser)}
+                onClick={handleSendToDirector}
               >
-                <i className="bi bi-send"></i>
-                <span className="d-none d-md-inline ms-2">Trình duyệt</span>
+                <i className={`bi ${
+                  isDirectorApproved
+                    ? "bi-check-circle-fill"
+                    : isDirectorSubmitted && isDirectorUser
+                    ? "bi-check2-circle"
+                    : isDirectorSubmitted
+                    ? "bi-clock-history"
+                    : "bi-send"
+                }`}></i>
+                <span className="d-none d-md-inline ms-2">
+                  {loading
+                    ? "Đang xử lý..."
+                    : isDirectorApproved
+                    ? "Đã duyệt"
+                    : isDirectorSubmitted && isDirectorUser
+                    ? "Duyệt bảng lương"
+                    : isDirectorSubmitted
+                    ? "Đã trình BGĐ"
+                    : "Trình duyệt"}
+                </span>
               </button>
               <button 
                 className="btn btn-success btn-sm rounded-pill shadow-sm hover-opacity-90 transition-all btn-action-responsive d-flex align-items-center justify-content-center" 
@@ -451,12 +648,17 @@ export function AttendanceManagement() {
                 </tr>
               </thead>
               <tbody>
-                {filteredData.flatMap(dept => dept.employees).map(emp => (
+                {filteredData.flatMap(dept => dept.employees.map(emp => ({ ...emp, deptName: dept.name }))).map(emp => (
                   <tr key={emp.id} className="hover-row border-bottom">
                     <td className="bg-white px-3 py-1 fs-emp-col" style={{ position: "sticky", left: 0, zIndex: 5 }}>
                       <div className="d-flex flex-column min-w-0 gap-1">
-                        <div className="d-flex align-items-center gap-1">
-                          <span className="fw-bold text-dark truncate" style={{ fontSize: "12px", lineHeight: "1.1" }}>{emp.fullName}</span>
+                        <div 
+                          className="d-flex align-items-center gap-1"
+                          style={{ cursor: "pointer" }}
+                          onClick={() => handleOpenAttendanceSlip(emp, emp.deptName)}
+                          title="Nhấn để xem phiếu chấm công"
+                        >
+                          <span className="fw-bold text-dark truncate hover-emp-name" style={{ fontSize: "12px", lineHeight: "1.1", transition: "color 0.15s" }}>{emp.fullName}</span>
                           {emp.isConfirmed && (
                             <i className="bi bi-patch-check-fill text-success" style={{ fontSize: "12px" }} title="Đã xác nhận bảng công" />
                           )}
@@ -480,7 +682,7 @@ export function AttendanceManagement() {
                           }}
                           title={label || ""}
                         >
-                          <div className="d-flex align-items-center justify-content-center position-relative" style={{ height: "34px" }}>
+                          <div className="d-flex align-items-center justify-content-center position-relative" style={{ height: "30px" }}>
                             {status ? (
                               <div 
                                 className="d-flex align-items-center justify-content-center rounded fw-bold shadow-xs transition-all"
@@ -548,37 +750,43 @@ export function AttendanceManagement() {
             <table className="table mb-0 payroll-table" style={{ tableLayout: "fixed", width: "max-content", minWidth: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
               <thead className="sticky-top bg-white z-10">
                 <tr style={{ backgroundColor: "#f8fafc" }}>
-                  <th className="bg-white border-bottom p-3 align-middle fs-emp-col payroll-col-emp" style={{ position: "sticky", left: 0, zIndex: 20 }}>
+                  <th className="bg-white border-bottom py-2 px-3 align-middle fs-emp-col payroll-col-emp" style={{ position: "sticky", left: 0, zIndex: 20 }}>
                     <div className="text-muted fw-bold" style={{ fontSize: "11px", textTransform: "uppercase" }}>NHÂN VIÊN</div>
                   </th>
-                  <th className="bg-white border-bottom p-3 align-middle text-center payroll-col-base">
+                  <th className="bg-white border-bottom py-2 px-2 align-middle text-center payroll-col-base">
                     <div className="text-muted fw-bold" style={{ fontSize: "11px", textTransform: "uppercase" }}>LƯƠNG CB</div>
                   </th>
-                  <th className="bg-white border-bottom p-3 align-middle text-center payroll-col-days">
+                  <th className="bg-white border-bottom py-2 px-2 align-middle text-center payroll-col-days">
                     <div className="text-muted fw-bold" style={{ fontSize: "11px", textTransform: "uppercase" }}>NGÀY CÔNG</div>
                   </th>
-                  <th className="bg-white border-bottom p-3 align-middle text-center payroll-col-allow">
+                  <th className="bg-white border-bottom py-2 px-2 align-middle text-center payroll-col-allow">
                     <div className="text-muted fw-bold" style={{ fontSize: "11px", textTransform: "uppercase" }}>PHỤ CẤP</div>
                   </th>
-                  <th className="bg-white border-bottom p-3 align-middle text-center payroll-col-deduct">
+                  <th className="bg-white border-bottom py-2 px-2 align-middle text-center payroll-col-deduct">
                     <div className="text-danger fw-bold" style={{ fontSize: "11px", textTransform: "uppercase" }}>KHẤU TRỪ</div>
                   </th>
-                  <th className="bg-white border-bottom p-3 align-middle text-center payroll-col-ot">
+                  <th className="bg-white border-bottom py-2 px-2 align-middle text-center payroll-col-ot">
                     <div className="text-warning fw-bold" style={{ fontSize: "11px", textTransform: "uppercase" }}>OT</div>
                   </th>
-                  <th className="bg-white border-bottom p-3 align-middle text-center payroll-col-net">
+                  <th className="bg-white border-bottom py-2 px-2 align-middle text-center payroll-col-net">
                     <div className="text-success fw-bold" style={{ fontSize: "11px", textTransform: "uppercase" }}>THỰC LĨNH</div>
                   </th>
-                  <th className="bg-white border-bottom p-3 align-middle text-center payroll-col-status">
+                  <th className="bg-white border-bottom py-2 px-2 align-middle text-center payroll-col-status">
                     <div className="text-muted fw-bold" style={{ fontSize: "11px", textTransform: "uppercase" }}>TRẠNG THÁI</div>
                   </th>
                 </tr>
                 {isAccountingApproved && (
-                  <tr className="bg-success bg-opacity-10">
+                  <tr className={isDirectorApproved ? "bg-success bg-opacity-10" : isDirectorSubmitted ? "bg-warning bg-opacity-10" : "bg-primary bg-opacity-10"}>
                     <td colSpan={8} className="px-3 py-2">
-                      <div className="d-flex align-items-center gap-2 text-success fw-bold" style={{ fontSize: "12px" }}>
-                        <i className="bi bi-check-circle-fill"></i>
-                        <span>ĐÃ ĐƯỢC DUYỆT LƯƠNG</span>
+                      <div className={`d-flex align-items-center gap-2 fw-bold ${isDirectorApproved ? "text-success" : isDirectorSubmitted ? "text-warning" : "text-primary"}`} style={{ fontSize: "12px" }}>
+                        <i className={`bi ${isDirectorApproved ? "bi-check-circle-fill text-success" : isDirectorSubmitted ? "bi-clock-history text-warning" : "bi-check-circle-fill text-primary"}`}></i>
+                        <span>
+                          {isDirectorApproved 
+                            ? "ĐÃ DUYỆT BẢNG LƯƠNG" 
+                            : isDirectorSubmitted 
+                            ? "BẢNG LƯƠNG ĐANG CHỜ GIÁM ĐỐC DUYỆT" 
+                            : "KẾ TOÁN ĐÃ DUYỆT BẢNG LƯƠNG"}
+                        </span>
                         <span className="text-muted fw-normal ms-2">
                           ({totalEmployeesCount} NV - Tổng: {totalNetSum.toLocaleString("vi-VN")} đ)
                         </span>
@@ -588,44 +796,78 @@ export function AttendanceManagement() {
                 )}
               </thead>
               <tbody>
-                {filteredData.flatMap(dept => dept.employees).map(emp => {
+                {filteredData.flatMap(dept => dept.employees.map(emp => ({ ...emp, deptName: dept.name }))).map(emp => {
                   const công = emp.attendance.reduce((acc, a) => acc + (a?.workday || 0), 0);
                   const ot = emp.attendance.reduce((acc, a) => acc + (a?.otHours || 0), 0);
                   const salary = emp.baseSalary || 0;
-                  const allowances = (emp.mealAllowance || 0) + (emp.fuelAllowance || 0) + (emp.phoneAllowance || 0) + (emp.seniorityAllowance || 0);
+                  const mealTotal = (emp.mealAllowance || 0) * công;
+                  const otherAllowances = (emp.fuelAllowance || 0) + (emp.phoneAllowance || 0) + (emp.seniorityAllowance || 0);
+                  const allowances = mealTotal + otherAllowances;
                   
-                  // Logic: Lương thực nhận = (Lương CB / Ngày công chuẩn) * Ngày công thực tế + Phụ cấp + Lương OT - Khấu trừ BH (10.5%)
+                  // Logic: Lương thực nhận = (Lương CB / Ngày công chuẩn) * Ngày công thực tế + Phụ cấp + Lương OT - Khấu trừ BH (đồng bộ từ BH)
                   const standardWorkDays = stats.workDays || 1; 
                   const salaryTheoCông = (salary / standardWorkDays) * công;
                   const otSalary = ot * (salary / standardWorkDays / 8);
-                  const khauTruBH = salary * 0.105;
+                  const khauTruBH = emp.insuranceDeduction ?? 0;
                   const net = salaryTheoCông + allowances + otSalary - khauTruBH;
                   
                   return (
                     <tr key={emp.id} className="hover-row border-bottom">
-                      <td className="bg-white px-3 py-1 fs-emp-col payroll-col-emp" style={{ position: "sticky", left: 0, zIndex: 5 }}>
-                        <div className="d-flex flex-column min-w-0 gap-1">
-                          <div className="d-flex align-items-center gap-1">
-                            <span className="fw-bold text-dark truncate" style={{ fontSize: "12px" }}>{emp.fullName}</span>
+                      <td className="bg-white px-2 py-0.5 fs-emp-col payroll-col-emp" style={{ position: "sticky", left: 0, zIndex: 5 }}>
+                        <div className="d-flex flex-column min-w-0" style={{ gap: "1px" }}>
+                          <div 
+                            className="d-flex align-items-center gap-1"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => handleOpenPayrollSlip(emp, emp.deptName)}
+                            title="Nhấn để xem phiếu lương"
+                          >
+                            <span className="fw-bold text-dark truncate hover-emp-name" style={{ fontSize: "12px", lineHeight: "1.15", transition: "color 0.15s" }}>{emp.fullName}</span>
                             {emp.isPayrollConfirmed && (
-                              <i className="bi bi-check-circle-fill text-success" style={{ fontSize: "12px" }} title="Đã xác nhận phiếu lương" />
+                              <i className="bi bi-check-circle-fill text-success" style={{ fontSize: "11px" }} title="Đã xác nhận phiếu lương" />
                             )}
                           </div>
-                          <span className="text-muted truncate" style={{ fontSize: "10px" }}>{getPositionName(emp.position)}</span>
+                          <span className="text-muted truncate" style={{ fontSize: "10px", lineHeight: "1.1" }}>{getPositionName(emp.position)}</span>
                         </div>
                       </td>
-                      <td className="text-center align-middle fw-medium" style={{ fontSize: "13px" }}>{salary.toLocaleString()}</td>
-                      <td className="text-center align-middle fw-medium" style={{ fontSize: "13px" }}>{công.toFixed(1)}</td>
-                      <td className="text-center align-middle fw-medium" style={{ fontSize: "13px" }}>{allowances.toLocaleString()}</td>
-                      <td className="text-center align-middle fw-medium text-danger" style={{ fontSize: "13px" }}>{Math.round(khauTruBH).toLocaleString()}</td>
-                      <td className="text-center align-middle fw-medium text-warning" style={{ fontSize: "13px" }}>{ot > 0 ? `${ot.toFixed(1)}h (${Math.round(otSalary).toLocaleString()})` : "—"}</td>
-                      <td className="text-center align-middle fw-bold text-success" style={{ fontSize: "13px" }}>{Math.round(net).toLocaleString()}</td>
-                      <td className="text-center align-middle">
-                        {isAccountingApproved ? (
+                      <td className="text-center align-middle fw-medium py-1" style={{ fontSize: "12.5px" }}>{salary.toLocaleString()}</td>
+                      <td className="text-center align-middle fw-medium py-1" style={{ fontSize: "12.5px" }}>{công.toFixed(1)}</td>
+                      <td className="text-center align-middle fw-medium py-1" style={{ fontSize: "12.5px" }}>{allowances.toLocaleString()}</td>
+                      <td className="text-center align-middle fw-medium text-danger py-1" style={{ fontSize: "12.5px" }}>{Math.round(khauTruBH).toLocaleString()}</td>
+                      <td className="text-center align-middle fw-medium text-warning py-1" style={{ fontSize: "12.5px" }}>{ot > 0 ? `${ot.toFixed(1)}h (${Math.round(otSalary).toLocaleString()})` : "—"}</td>
+                      <td className="text-center align-middle fw-bold text-success py-1" style={{ fontSize: "12.5px" }}>{Math.round(net).toLocaleString()}</td>
+                      <td className="text-center align-middle py-1">
+                        {isDirectorApproved || emp.payrollStatus === "Đã duyệt" || emp.payrollStatus === "Giám đốc đã duyệt" ? (
                           <span 
-                            className="badge px-2.5 py-0.5 rounded-pill border"
+                            className="badge rounded-pill border"
                             style={{ 
-                              fontSize: "10px",
+                              fontSize: "9.5px",
+                              padding: "2px 8px",
+                              backgroundColor: "rgba(16, 185, 129, 0.12)",
+                              color: "#059669",
+                              borderColor: "rgba(16, 185, 129, 0.25)"
+                            }}
+                          >
+                            Đã duyệt
+                          </span>
+                        ) : isDirectorSubmitted || emp.payrollStatus === "Chờ Giám đốc duyệt" ? (
+                          <span 
+                            className="badge rounded-pill border"
+                            style={{ 
+                              fontSize: "9.5px",
+                              padding: "2px 8px",
+                              backgroundColor: "rgba(245, 158, 11, 0.12)",
+                              color: "#d97706",
+                              borderColor: "rgba(245, 158, 11, 0.25)"
+                            }}
+                          >
+                            Chờ Giám đốc duyệt
+                          </span>
+                        ) : isAccountingApproved || emp.payrollStatus === "Kế toán đã duyệt" ? (
+                          <span 
+                            className="badge rounded-pill border"
+                            style={{ 
+                              fontSize: "9.5px",
+                              padding: "2px 8px",
                               backgroundColor: "rgba(99, 102, 241, 0.12)",
                               color: "#4f46e5",
                               borderColor: "rgba(99, 102, 241, 0.25)"
@@ -634,7 +876,7 @@ export function AttendanceManagement() {
                             Kế toán đã duyệt
                           </span>
                         ) : (
-                          <span className="badge bg-light text-muted border px-2 py-1" style={{ fontSize: "10px" }}>Bản nháp</span>
+                          <span className="badge bg-light text-muted border" style={{ fontSize: "9.5px", padding: "2px 8px" }}>Bản nháp</span>
                         )}
                       </td>
                     </tr>
@@ -973,6 +1215,32 @@ export function AttendanceManagement() {
         />
       )}
 
+      {showConfirmDirector && (
+        <ConfirmDialog
+          open={showConfirmDirector}
+          title="Xác nhận trình Ban Giám đốc phê duyệt bảng lương"
+          message={`Bạn có chắc chắn muốn trình bảng lương tháng ${month}/${year} lên Ban Giám đốc phê duyệt? Hệ thống sẽ gửi thông báo và hồ sơ trình duyệt đến Ban Giám đốc.`}
+          confirmLabel="Trình duyệt ngay"
+          cancelLabel="Hủy"
+          variant="info"
+          onConfirm={confirmSendToDirector}
+          onCancel={() => setShowConfirmDirector(false)}
+        />
+      )}
+
+      {showConfirmApproveDirector && (
+        <ConfirmDialog
+          open={showConfirmApproveDirector}
+          title="Xác nhận phê duyệt bảng lương"
+          message={`Bạn có chắc chắn muốn phê duyệt bảng lương tháng ${month}/${year} với vai trò Giám đốc? Sau khi duyệt, trạng thái bảng lương sẽ chuyển thành "Đã duyệt" và tự động kết chuyển sang tab Lệnh chi tiền.`}
+          confirmLabel="Phê duyệt ngay"
+          cancelLabel="Hủy"
+          variant="info"
+          onConfirm={confirmApproveDirector}
+          onCancel={() => setShowConfirmApproveDirector(false)}
+        />
+      )}
+
       {/* Bottom Action Bar for Mobile - Step 2 (Payroll) */}
       {activeTab === "payroll" && (
         <div className="d-md-none sticky-bottom-bar">
@@ -995,10 +1263,27 @@ export function AttendanceManagement() {
             </button>
             <button 
               className={`btn-action-mobile ${(isAccountingApproved && !loading) ? "btn-action-mobile-approve-active" : ""}`}
-              disabled={!isAccountingApproved}
+              disabled={loading || !isAccountingApproved || (isDirectorApproved && !isDirectorUser) || (isDirectorSubmitted && !isDirectorUser)}
+              onClick={handleSendToDirector}
             >
-              <i className="bi bi-send"></i>
-              <span className="action-label">Trình duyệt</span>
+              <i className={`bi ${
+                isDirectorApproved 
+                  ? "bi-check-circle-fill text-success" 
+                  : isDirectorSubmitted && isDirectorUser 
+                  ? "bi-check2-circle text-success" 
+                  : isDirectorSubmitted 
+                  ? "bi-clock-history" 
+                  : "bi-send"
+              }`}></i>
+              <span className="action-label">
+                {isDirectorApproved 
+                  ? "Đã duyệt" 
+                  : isDirectorSubmitted && isDirectorUser 
+                  ? "Duyệt lương" 
+                  : isDirectorSubmitted 
+                  ? "Đã trình" 
+                  : "Trình duyệt"}
+              </span>
             </button>
             <button 
               className={`btn-action-mobile ${(isAccountingApproved && !loading) ? "btn-action-mobile-publish-active" : ""}`}
@@ -1012,9 +1297,14 @@ export function AttendanceManagement() {
         </div>
       )}
 
+
       <style jsx>{`
         .hover-row:hover td {
           background-color: #fbfcfd !important;
+        }
+        .hover-emp-name:hover {
+          color: var(--bs-primary) !important;
+          text-decoration: underline;
         }
         .shadow-xs {
           box-shadow: 0 1px 2px rgba(0,0,0,0.05);

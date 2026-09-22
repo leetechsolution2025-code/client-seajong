@@ -290,6 +290,24 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
                       )}
                       <div>
                         <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: "#1e293b" }}>{line.name}</div>
+                        {(() => {
+                          let dmDesc = line.dinhMucTen || "";
+                          let dmCode = line.bomCode || "";
+                          if (!dmDesc && line.ghiChu) {
+                            try {
+                              const parsed = JSON.parse(line.ghiChu);
+                              dmDesc = parsed.dinhMucTen || "";
+                              dmCode = parsed.bomCode || "";
+                            } catch (e) {}
+                          }
+                          if (!dmDesc) return null;
+                          return (
+                            <div style={{ fontSize: 11, color: "#64748b", display: "flex", alignItems: "center", gap: 4, fontStyle: "italic" }}>
+                              {dmCode && <span style={{ fontWeight: 600, fontFamily: "monospace" }}>[{dmCode}]</span>}
+                              <span>{dmDesc}</span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </td>

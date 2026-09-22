@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     const cong = targetEmp.attendance.reduce((acc: number, a: any) => acc + (a?.workday || 0), 0);
     const ot = targetEmp.attendance.reduce((acc: number, a: any) => acc + (a?.otHours || 0), 0);
     const salary = targetEmp.baseSalary || 0;
-    const meal = targetEmp.mealAllowance || 0;
+    const meal = (targetEmp.mealAllowance || 0) * cong;
     const fuel = targetEmp.fuelAllowance || 0;
     const phone = targetEmp.phoneAllowance || 0;
     const seniority = targetEmp.seniorityAllowance || 0;
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
 
     const salaryTheoCong = (salary / standardWorkDays) * cong;
     const otSalary = ot * (salary / standardWorkDays / 8);
-    const khauTruBH = salary * 0.105;
+    const khauTruBH = targetEmp.insuranceDeduction ?? 0;
     const net = salaryTheoCong + totalAllowances + otSalary - khauTruBH;
 
     // Lấy trạng thái đã xác nhận

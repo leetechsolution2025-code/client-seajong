@@ -176,6 +176,19 @@ export async function PATCH(
           if (!isApprove && rejectedReason) {
             notifContent += `\nLý do: _"${rejectedReason}"_`;
           }
+        } else if (existing.entityType === "PAYROLL") {
+          notifTitle = isApprove ? "Bảng lương đã được Ban Giám đốc phê duyệt" : "Bảng lương bị Ban Giám đốc từ chối";
+          notifContent = `Bảng lương **${existing.entityTitle || existing.entityCode}** đã ${statusText} bởi **${userName}** (Giám đốc) lúc ${timeStr} ngày ${dateStr}.${note ? `\nGhi chú: _"${note}"_` : ""}`;
+          if (!isApprove && rejectedReason) {
+            notifContent += `\nLý do: _"${rejectedReason}"_`;
+          }
+          notifAttachments = [
+            {
+              name: "Xem bảng lương",
+              type: "link",
+              url: "/hr/attendance-payroll",
+            },
+          ];
         } else {
           notifContent = `Kế hoạch **"${existing.entityTitle}"** của bạn ${statusText} bởi **${userName}** lúc ${timeStr} ngày ${dateStr}.`;
           if (isApprove && existing.entityType === "RECRUITMENT_REPORT" && candidateDecisions) {
@@ -359,6 +372,60 @@ async function syncEntityStatus(
 ) {
   try {
     switch (entityType) {
+      case "PAYROLL": {
+        let month: number | null = null;
+        let year: number | null = null;
+
+        if (entityId && entityId.startsWith("payroll-")) {
+          const parts = entityId.split("-");
+          if (parts.length >= 3) {
+            month = parseInt(parts[1], 10);
+            year = parseInt(parts[2], 10);
+          }
+        }
+
+        if (!month || !year) {
+          const appReq = await prisma.approvalRequest.findUnique({
+            where: { id: approvalRequestId || entityId }
+          });
+          if (appReq?.metadata) {
+            try {
+              const meta = JSON.parse(appReq.metadata);
+              month = meta.month;
+              year = meta.year;
+            } catch (e) {}
+          }
+        }
+
+        if (month && year) {
+          if (action === "approve") {
+            await prisma.payroll.updateMany({
+              where: { thang: month, nam: year },
+              data: {
+                trangThai: "Đã duyệt",
+                ghiChu: `Giám đốc đã phê duyệt ngày ${new Date().toLocaleDateString("vi-VN")}${note ? `: ${note}` : ""}`,
+              },
+            });
+          } else if (action === "reject") {
+            await prisma.payroll.updateMany({
+              where: { thang: month, nam: year },
+              data: {
+                trangThai: "Bị từ chối",
+                ghiChu: `Giám đốc từ chối ngày ${new Date().toLocaleDateString("vi-VN")}${rejectedReason ? `: ${rejectedReason}` : ""}`,
+              },
+            });
+          } else if (action === "recall") {
+            await prisma.payroll.updateMany({
+              where: { thang: month, nam: year },
+              data: {
+                trangThai: "Kế toán đã duyệt",
+              },
+            });
+          }
+        }
+        break;
+      }
+
       case "PRODUCTION_REQUEST": {
         if (action === "approve") {
           await prisma.saleOrder.update({

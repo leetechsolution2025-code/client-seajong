@@ -32,6 +32,7 @@ export type QuoteItem = {
   dinhMucs?: any[];
   dinhMucId?: string | null;
   dinhMucTen?: string | null;
+  bomCode?: string | null;
   khoTen?: string | null;
   source?: string | null;
   loiNhuanKyVong?: number;
@@ -1554,6 +1555,9 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
           let viTri = "Khu vực 1";
           let viTriChiTiet = "";
           let code = "";
+          let dinhMucId: string | null = null;
+          let dinhMucTen: string | null = null;
+          let bomCode: string | null = null;
           try {
             if (it.ghiChu) {
               const parsed = JSON.parse(it.ghiChu);
@@ -1561,6 +1565,9 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                 viTri = parsed.khuVuc || "Khu vực 1";
                 viTriChiTiet = parsed.viTriChiTiet || parsed.viTri || "";
                 code = parsed.code || "";
+                dinhMucId = parsed.dinhMucId || null;
+                dinhMucTen = parsed.dinhMucTen || null;
+                bomCode = parsed.bomCode || null;
                 if (viTriChiTiet.startsWith("Khu vực") && !parsed.khuVuc) {
                   viTri = viTriChiTiet;
                   viTriChiTiet = "";
@@ -1588,6 +1595,9 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
             viTri: isCoQuayKeEdit ? viTri : undefined,
             viTriChiTiet: isCoQuayKeEdit ? viTriChiTiet : undefined,
             code: code || null,
+            dinhMucId: dinhMucId || null,
+            dinhMucTen: dinhMucTen || null,
+            bomCode: bomCode || null,
             ckPct: 0,
             soLuongTon: null, trangThaiKho: null, inventoryId: null,
             imageUrl: (it as any).imageUrl || null,
@@ -1937,25 +1947,45 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
   const truocThue = tamTinh - ckTien;
   const thueTien = truocThue * info.thue / 100;
   const tongCong = truocThue + thueTien + (isCoQuayKe ? info.chiPhiThiCong : 0);
+  const checkMaterialShortage = (it: any) => {
+    const activeDinhMuc = (it.dinhMucs || []).find((dm: any) => dm.id === it.dinhMucId) || (it.dinhMucs && it.dinhMucs.length > 0 ? it.dinhMucs[0] : null);
+    if (!activeDinhMuc || !activeDinhMuc.vatTu || activeDinhMuc.vatTu.length === 0) {
+      return { hasBOM: false, hasShortage: false, missingCount: 0 };
+    }
+    let missingCount = 0;
+    activeDinhMuc.vatTu.forEach((vt: any) => {
+      const vtStocks = vt.inventoryItem?.stocks || vt.material?.stocks || [];
+      const vtRelevantStocks = vtStocks.filter((s: any) => s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP");
+      const vtSoLuong = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
+      const vtSoLuongGiu = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);
+      const vtThucTon = Math.max(0, vtSoLuong - vtSoLuongGiu);
+      const needed = (vt.soLuong || 0) * (it.soLuong || 0);
+      if (vtThucTon < needed) {
+        missingCount++;
+      }
+    });
+    return {
+      hasBOM: true,
+      hasShortage: missingCount > 0,
+      missingCount
+    };
+  };
+
+  const itemsWithMaterialShortage = items.filter((it: any) => {
+    const isMainShort = it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number);
+    if (!isMainShort) return false;
+    const matCheck = checkMaterialShortage(it);
+    return matCheck.hasBOM && matCheck.hasShortage;
+  });
+  const hasAnyMaterialShortage = itemsWithMaterialShortage.length > 0;
+
   const isOutOfStock = items.some((it: any) => {
     const mainOutOfStock = it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number);
     if (!mainOutOfStock) return false;
     
-    const activeDinhMuc = (it.dinhMucs || []).find((dm: any) => dm.id === it.dinhMucId) || (it.dinhMucs && it.dinhMucs.length > 0 ? it.dinhMucs[0] : null);
-    
-    if (activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0) {
-      const allMaterialsSufficient = activeDinhMuc.vatTu.every((vt: any) => {
-        const vtStocks = vt.inventoryItem?.stocks || vt.material?.stocks || [];
-        const vtRelevantStocks = vtStocks.filter((s: any) => s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP");
-        const vtSoLuong = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
-        const vtSoLuongGiu = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);
-        const vtThucTon = Math.max(0, vtSoLuong - vtSoLuongGiu);
-        const needed = (vt.soLuong || 0) * (it.soLuong || 0);
-        return vtThucTon >= needed;
-      });
-      if (allMaterialsSufficient) {
-        return false;
-      }
+    const matCheck = checkMaterialShortage(it);
+    if (matCheck.hasBOM && !matCheck.hasShortage) {
+      return false;
     }
     
     return true;
@@ -2019,12 +2049,16 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
         fileKhuVuc4: info.fileKhuVuc4,
         fileKhuVuc5: info.fileKhuVuc5,
         items: items.filter(it => it.ten.trim()).map((it, idx) => {
+          const activeDinhMuc = (it.dinhMucs || []).find((dm: any) => dm.id === it.dinhMucId) || (it.dinhMucs && it.dinhMucs.length > 0 ? it.dinhMucs[0] : null);
           const itemThanhTien = isCoQuayKe ? (it.giaDaiLy ?? 0) : thanhTien(it);
           const itemGhiChu = JSON.stringify({
             viTri: isCoQuayKe ? (it.viTriChiTiet || "") : "",
             khuVuc: isCoQuayKe ? (it.viTri || "Khu vực 1") : "",
             viTriChiTiet: isCoQuayKe ? (it.viTriChiTiet || "") : "",
-            code: it.code || ""
+            code: it.code || "",
+            dinhMucId: it.dinhMucId || "",
+            bomCode: activeDinhMuc?.code || it.bomCode || "",
+            dinhMucTen: it.dinhMucTen || activeDinhMuc?.tenDinhMuc || ""
           });
           return {
             tenHang: it.ten.trim(),
@@ -2243,7 +2277,13 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
               Xuất PDF
             </button>
           )}
-          {isOutOfStock && <span style={{ fontSize: 12, color: "#fca5a5", alignSelf: "center" }}><i className="bi bi-exclamation-triangle" /> {isDirectOrder ? "Đơn có hàng hóa thiếu" : "Báo giá có hàng hóa thiếu"}</span>}
+          {hasAnyMaterialShortage ? (
+            <span style={{ fontSize: 12, color: "#fca5a5", alignSelf: "center", display: "flex", alignItems: "center", gap: 5 }}>
+              <i className="bi bi-exclamation-octagon-fill" /> Không đủ vật tư
+            </span>
+          ) : (isOutOfStock && (
+            <span style={{ fontSize: 12, color: "#fca5a5", alignSelf: "center" }}><i className="bi bi-exclamation-triangle" /> {isDirectOrder ? "Đơn có hàng hóa thiếu" : "Báo giá có hàng hóa thiếu"}</span>
+          ))}
           <button className="sanitary-modal-header-btn" onClick={() => handleSave("submit")} disabled={saving || isOutOfStock} style={{ padding: "6px 20px", background: (saving || isOutOfStock) ? "#cbd5e1" : "#fff", color: (saving || isOutOfStock) ? "#64748b" : "var(--primary)", border: "none", borderRadius: 8, cursor: (saving || isOutOfStock) ? "not-allowed" : "pointer", fontWeight: 800, fontSize: 13, opacity: saving ? 0.7 : 1 }}>
             {saving ? "Đang lưu..." : (
               isDirectOrder ? (
@@ -2701,6 +2741,29 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                 items={items.map(it => ({ ten: it.ten, soLuong: it.soLuong, soLuongTon: it.soLuongTon }))}
                 showPurchaseRequest={false}
               />
+              {hasAnyMaterialShortage && (
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    color: "#dc2626",
+                    background: "rgba(220,38,38,0.08)",
+                    borderRadius: 20,
+                    padding: "3px 10px",
+                    border: "1px solid rgba(220,38,38,0.25)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <i className="bi bi-exclamation-octagon-fill" style={{ fontSize: 11 }} />
+                  Không đủ vật tư
+                  <span style={{ fontWeight: 400, fontSize: 10.5, marginLeft: 2 }}>
+                    ({itemsWithMaterialShortage.length} mặt hàng)
+                  </span>
+                </span>
+              )}
             </div>
             {/* Phê duyệt switch */}
             {type !== "retail" && (
@@ -2948,37 +3011,114 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                         <tr style={{ borderBottom: "1px solid var(--border)", verticalAlign: "top" }}>
                           <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
                           <td style={{ padding: "6px 10px" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              {activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0 && (
-                                <button
-                                  type="button"
-                                  disabled={!isMainShortOfStock}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setExpandedBOMRows(prev => ({ ...prev, [it.id]: !prev[it.id] }));
-                                  }}
-                                  style={{ background: "none", border: "none", cursor: isMainShortOfStock ? "pointer" : "not-allowed", padding: 0, color: isMainShortOfStock ? "var(--primary)" : "var(--muted-foreground)", display: "flex", opacity: isMainShortOfStock ? 1 : 0.3 }}
-                                  title={!isMainShortOfStock ? "Đủ hàng, không cần kiểm tra vật tư" : (isExpanded ? "Ẩn vật tư" : "Hiện vật tư")}
-                                >
-                                  <i className={`bi bi-chevron-${isExpanded && isMainShortOfStock ? 'up' : 'down'}`} style={{ fontSize: 12, strokeWidth: 2 }}></i>
-                                </button>
-                              )}
-                              <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{it.ten}</span>
-                              {it.ten.trim() && it.soLuongTon !== null && it.soLuongTon !== undefined && (() => {
-                                const ton = it.soLuongTon as number;
-                                if (ton === 0) return (
-                                  <span title="Hết hàng" style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: 4 }}>
-                                    <i className="bi bi-x-circle-fill" style={{ fontSize: 13 }} />
-                                    <span style={{ fontSize: 11, fontWeight: 600 }}>Hết hàng</span>
-                                  </span>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                {activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0 && (
+                                  <button
+                                    type="button"
+                                    disabled={!isMainShortOfStock}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setExpandedBOMRows(prev => ({ ...prev, [it.id]: !prev[it.id] }));
+                                    }}
+                                    style={{ background: "none", border: "none", cursor: isMainShortOfStock ? "pointer" : "not-allowed", padding: 0, color: isMainShortOfStock ? "var(--primary)" : "var(--muted-foreground)", display: "flex", opacity: isMainShortOfStock ? 1 : 0.3 }}
+                                    title={!isMainShortOfStock ? "Đủ hàng, không cần kiểm tra vật tư" : (isExpanded ? "Ẩn vật tư" : "Hiện vật tư")}
+                                  >
+                                    <i className={`bi bi-chevron-${isExpanded && isMainShortOfStock ? 'up' : 'down'}`} style={{ fontSize: 12, strokeWidth: 2 }}></i>
+                                  </button>
+                                )}
+                                <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{it.ten}</span>
+                                {it.ten.trim() && it.soLuongTon !== null && it.soLuongTon !== undefined && (() => {
+                                  const ton = it.soLuongTon as number;
+                                  const isOutOfFinishedGood = ton === 0 || it.soLuong > ton;
+                                  if (!isOutOfFinishedGood) return null;
+
+                                  const matCheck = checkMaterialShortage(it);
+
+                                  return (
+                                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                      {ton === 0 ? (
+                                        <span title="Hết hàng" style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: 4 }}>
+                                          <i className="bi bi-x-circle-fill" style={{ fontSize: 13 }} />
+                                          <span style={{ fontSize: 11, fontWeight: 600 }}>Hết hàng</span>
+                                        </span>
+                                      ) : (
+                                        <span title={`Thiếu hàng (thực tồn: ${ton})`} style={{ color: "#f97316", display: "flex", alignItems: "center", gap: 4 }}>
+                                          <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 13 }} />
+                                          <span style={{ fontSize: 11, fontWeight: 600 }}>Thiếu hàng (tồn: {ton})</span>
+                                        </span>
+                                      )}
+
+                                      {matCheck.hasBOM && (
+                                        matCheck.hasShortage ? (
+                                          <span 
+                                            title={`Không đủ vật tư sản xuất (${matCheck.missingCount} loại vật tư thiếu)`} 
+                                            style={{ 
+                                              color: "#dc2626", 
+                                              background: "rgba(220, 38, 38, 0.08)", 
+                                              padding: "1px 7px", 
+                                              borderRadius: 12, 
+                                              border: "1px solid rgba(220, 38, 38, 0.25)", 
+                                              display: "flex", 
+                                              alignItems: "center", 
+                                              gap: 4 
+                                            }}
+                                          >
+                                            <i className="bi bi-exclamation-octagon-fill" style={{ fontSize: 11 }} />
+                                            <span style={{ fontSize: 11, fontWeight: 700 }}>Không đủ vật tư</span>
+                                          </span>
+                                        ) : (
+                                          <span 
+                                            title="Đủ vật tư để sản xuất" 
+                                            style={{ 
+                                              color: "#059669", 
+                                              background: "rgba(5, 150, 105, 0.08)", 
+                                              padding: "1px 7px", 
+                                              borderRadius: 12, 
+                                              border: "1px solid rgba(5, 150, 105, 0.25)", 
+                                              display: "flex", 
+                                              alignItems: "center", 
+                                              gap: 4 
+                                            }}
+                                          >
+                                            <i className="bi bi-check-circle-fill" style={{ fontSize: 11 }} />
+                                            <span style={{ fontSize: 11, fontWeight: 600 }}>Đủ vật tư SX</span>
+                                          </span>
+                                        )
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                              {(() => {
+                                const moTaDinhMuc = it.dinhMucTen || activeDinhMuc?.tenDinhMuc;
+                                if (!moTaDinhMuc) return null;
+                                return (
+                                  <div style={{ 
+                                    fontSize: 11.5, 
+                                    color: "var(--muted-foreground)", 
+                                    paddingLeft: (activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0) ? 18 : 0,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    lineHeight: 1.3
+                                  }}>
+                                    {(activeDinhMuc?.code || it.bomCode) && (
+                                      <span style={{
+                                        fontFamily: "monospace",
+                                        fontSize: 10,
+                                        fontWeight: 600,
+                                        color: "#2563eb",
+                                        background: "rgba(37, 99, 235, 0.08)",
+                                        padding: "0.5px 5px",
+                                        borderRadius: 4
+                                      }}>
+                                        {activeDinhMuc?.code || it.bomCode}
+                                      </span>
+                                    )}
+                                    <span style={{ fontStyle: "italic" }}>{moTaDinhMuc}</span>
+                                  </div>
                                 );
-                                if (it.soLuong > ton) return (
-                                  <span title={`Thiếu hàng (thực tồn: ${ton})`} style={{ color: "#f97316", display: "flex", alignItems: "center", gap: 4 }}>
-                                    <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 13 }} />
-                                    <span style={{ fontSize: 11, fontWeight: 600 }}>Thiếu hàng (tồn: {ton})</span>
-                                  </span>
-                                );
-                                return null;
                               })()}
                             </div>
                           </td>
@@ -2996,7 +3136,48 @@ export function BaoGiaSanitaryModal({ open, onClose, customer, editData, onSaved
                         {hasBOM && isExpanded && (
                           <tr style={{ background: "rgba(59,130,246,0.03)", borderBottom: "1px solid var(--border)" }}>
                             <td colSpan={8} style={{ padding: "10px 10px 10px 40px" }}>
-                              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 6, fontWeight: 600 }}>Định mức vật tư ({activeDinhMuc.tenDinhMuc})</div>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                                <div style={{ fontSize: 12, color: "var(--muted-foreground)", fontWeight: 600 }}>Định mức vật tư ({activeDinhMuc.tenDinhMuc})</div>
+                                {(() => {
+                                  const matCheck = checkMaterialShortage(it);
+                                  if (matCheck.hasShortage) {
+                                    return (
+                                      <span style={{
+                                        color: "#dc2626",
+                                        background: "rgba(220, 38, 38, 0.08)",
+                                        padding: "2px 8px",
+                                        borderRadius: 12,
+                                        border: "1px solid rgba(220, 38, 38, 0.25)",
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 4
+                                      }}>
+                                        <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 11 }} />
+                                        Không đủ vật tư ({matCheck.missingCount} loại thiếu)
+                                      </span>
+                                    );
+                                  }
+                                  return (
+                                    <span style={{
+                                      color: "#059669",
+                                      background: "rgba(5, 150, 105, 0.08)",
+                                      padding: "2px 8px",
+                                      borderRadius: 12,
+                                      border: "1px solid rgba(5, 150, 105, 0.25)",
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 4
+                                    }}>
+                                      <i className="bi bi-check-circle-fill" style={{ fontSize: 11 }} />
+                                      Đủ vật tư sản xuất
+                                    </span>
+                                  );
+                                })()}
+                              </div>
                               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                                 <thead>
                                   <tr style={{ background: "var(--muted)", textAlign: "left", color: "var(--muted-foreground)" }}>

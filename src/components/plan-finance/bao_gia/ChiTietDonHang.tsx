@@ -775,6 +775,36 @@ export function ChiTietDonHang({ orderId, onClose, onSaved }: Props) {
                             )}
                             <div>
                               <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: "#1e293b" }}>{line.tenHang}</div>
+                              {(() => {
+                                let dmDesc = "";
+                                let dmCode = "";
+                                if (line.ghiChu) {
+                                  try {
+                                    const parsed = JSON.parse(line.ghiChu);
+                                    dmDesc = parsed.dinhMucTen || "";
+                                    dmCode = parsed.bomCode || "";
+                                  } catch (e) {}
+                                }
+                                if (!dmDesc) return null;
+                                return (
+                                  <div style={{ fontSize: 11.5, color: "#64748b", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.3 }}>
+                                    {dmCode && (
+                                      <span style={{
+                                        fontFamily: "monospace",
+                                        fontSize: 10,
+                                        fontWeight: 600,
+                                        color: "#2563eb",
+                                        background: "rgba(37, 99, 235, 0.08)",
+                                        padding: "0.5px 5px",
+                                        borderRadius: 4
+                                      }}>
+                                        {dmCode}
+                                      </span>
+                                    )}
+                                    <span style={{ fontStyle: "italic" }}>{dmDesc}</span>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                         </td>

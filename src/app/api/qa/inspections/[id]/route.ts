@@ -13,8 +13,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     const body = await req.json();
     const { result, notes, passedQuantity, failedQuantity, items, checks } = body;
 
-    const inspection = await prisma.qualityInspection.findUnique({
-      where: { code: id } // Note: The frontend passes 'code' as 'id' in selectedInspection
+    const inspection = await prisma.qualityInspection.findFirst({
+      where: {
+        OR: [{ id }, { code: id }]
+      }
     });
 
     if (!inspection) {
@@ -160,42 +162,76 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
       // 4. Tạo các lệnh nhập kho (Task) cho Kho vận
       if (inspection.type === "OQC") {
-        const finalPassedQty = passedQuantity !== undefined ? parseInt(passedQuantity.toString(), 10) : 0;
-        const finalFailedQty = failedQuantity !== undefined ? parseInt(failedQuantity.toString(), 10) : 0;
-        const itemName = oldMeta.model ? oldMeta.model.split(',')[0].trim() : inspection.productName;
+        const passedItems = Array.isArray(items) && items.length > 0 
+          ? items.filter((it: any) => parseInt(it.passQuantity?.toString() || "0", 10) > 0)
+          : [];
+        const failedItems = Array.isArray(items) && items.length > 0 
+          ? items.filter((it: any) => parseInt(it.failQuantity?.toString() || "0", 10) > 0)
+          : [];
+
+        const finalPassedQty = passedQuantity !== undefined 
+          ? parseInt(passedQuantity.toString(), 10) 
+          : passedItems.reduce((s: number, it: any) => s + parseInt(it.passQuantity?.toString() || "0", 10), 0);
+        const finalFailedQty = failedQuantity !== undefined 
+          ? parseInt(failedQuantity.toString(), 10) 
+          : failedItems.reduce((s: number, it: any) => s + parseInt(it.failQuantity?.toString() || "0", 10), 0);
+        const defaultItemName = oldMeta.model ? oldMeta.model.split(',')[0].trim() : inspection.productName;
 
         // A. Nhập kho thành phẩm đạt
         if (finalPassedQty > 0) {
+          const taskItems = passedItems.length > 0
+            ? passedItems.map((it: any) => ({
+                tenHang: it.productName || it.tenHang || defaultItemName,
+                soLuong: parseInt(it.passQuantity?.toString() || "0", 10),
+                donVi: it.donVi || "bộ",
+                type: "Kho Thành Phẩm",
+                isShortage: false,
+                inventoryItemId: it.inventoryItemId || oldMeta.inventoryItemId || null,
+                bomCode: it.dinhMucCode || it.bomCode || null,
+                dinhMucTen: it.dinhMucTen || null
+              }))
+            : [{ tenHang: defaultItemName, soLuong: finalPassedQty, donVi: "bộ", type: "Kho Thành Phẩm", isShortage: false, inventoryItemId: oldMeta.inventoryItemId || null, bomCode: null, dinhMucTen: null }];
+
           await tx.task.create({
             data: {
               title: `Yêu cầu nhập kho thành phẩm đạt (${inspection.code})`,
-              description: `Kiểm tra OQC đạt yêu cầu. Đề nghị bộ phận Kho vận tiến hành nhập kho thành phẩm.\nSản phẩm: ${itemName}`,
+              description: `Kiểm tra OQC đạt yêu cầu theo lệnh sản xuất ${oldMeta.productionOrder || ""}. Đề nghị bộ phận Kho vận tiến hành nhập kho thành phẩm.`,
               assigneeId,
               creatorId: session.user.id,
               deptCode: "logistics",
               priority: "high",
               status: "pending",
-              actualResult: JSON.stringify([
-                { tenHang: itemName, soLuong: finalPassedQty, donVi: "Bộ", type: "Kho Thành Phẩm", isShortage: false, inventoryItemId: oldMeta.inventoryItemId || null }
-              ])
+              actualResult: JSON.stringify(taskItems)
             }
           });
         }
 
         // B. Nhập kho thành phẩm lỗi (KHO-LOI)
         if (finalFailedQty > 0) {
+          const taskFailedItems = failedItems.length > 0
+            ? failedItems.map((it: any) => ({
+                tenHang: `${it.productName || it.tenHang || defaultItemName} (Hàng lỗi)`,
+                soLuong: parseInt(it.failQuantity?.toString() || "0", 10),
+                donVi: it.donVi || "bộ",
+                type: "Kho Hàng Lỗi",
+                isShortage: false,
+                inventoryItemId: it.inventoryItemId || oldMeta.inventoryItemId || null,
+                warehouseCode: "KHO-LOI",
+                bomCode: it.dinhMucCode || it.bomCode || null,
+                dinhMucTen: it.dinhMucTen || null
+              }))
+            : [{ tenHang: `${defaultItemName} (Hàng lỗi)`, soLuong: finalFailedQty, donVi: "bộ", type: "Kho Hàng Lỗi", isShortage: false, inventoryItemId: oldMeta.inventoryItemId || null, warehouseCode: "KHO-LOI", bomCode: null, dinhMucTen: null }];
+
           await tx.task.create({
             data: {
               title: `Yêu cầu nhập kho hàng lỗi (${inspection.code})`,
-              description: `Kiểm tra OQC phát hiện sản phẩm lỗi. Đề nghị bộ phận Kho vận tiến hành nhập kho hàng lỗi.\nSản phẩm: ${itemName}`,
+              description: `Kiểm tra OQC phát hiện sản phẩm lỗi theo lệnh sản xuất ${oldMeta.productionOrder || ""}. Đề nghị bộ phận Kho vận tiến hành nhập kho hàng lỗi.`,
               assigneeId,
               creatorId: session.user.id,
               deptCode: "logistics",
               priority: "high",
               status: "pending",
-              actualResult: JSON.stringify([
-                { tenHang: `${itemName} (Hàng lỗi)`, soLuong: finalFailedQty, donVi: "Bộ", type: "Kho Hàng Lỗi", isShortage: false, inventoryItemId: oldMeta.inventoryItemId || null, warehouseCode: "KHO-LOI" }
-              ])
+              actualResult: JSON.stringify(taskFailedItems)
             }
           });
         }
@@ -257,8 +293,41 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
 
       // 4.5. Tạo hồ sơ mã lỗi (DefectRecord) cho bộ phận Sản xuất
       if (inspection.type === "OQC") {
+        const failedItems = Array.isArray(items) && items.length > 0 
+          ? items.filter((it: any) => parseInt(it.failQuantity?.toString() || "0", 10) > 0)
+          : [];
         const finalFailedQty = failedQuantity !== undefined ? parseInt(failedQuantity.toString(), 10) : 0;
-        if (finalFailedQty > 0) {
+
+        if (failedItems.length > 0) {
+          for (const it of failedItems) {
+            const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            const lastDefect = await (tx as any).defectRecord.findFirst({
+              where: { code: { startsWith: `ERR-${timestamp}` } },
+              orderBy: { code: 'desc' }
+            });
+            let nextNumber = 1;
+            if (lastDefect && lastDefect.code) {
+              const parts = lastDefect.code.split('-');
+              if (parts.length === 3) nextNumber = parseInt(parts[2], 10) + 1;
+            }
+            const code = `ERR-${timestamp}-${nextNumber.toString().padStart(2, '0')}`;
+            
+            await (tx as any).defectRecord.create({
+              data: {
+                code,
+                source: 'INTERNAL',
+                status: 'NEW',
+                productName: it.productName || it.tenHang || inspection.productName,
+                productCode: it.model || it.dinhMucCode || oldMeta.model || 'SP-001',
+                quantity: parseInt(it.failQuantity?.toString() || "0", 10),
+                description: `Phát hiện lỗi trong quá trình đánh giá OQC.\nSố biên bản: ${inspection.code}\nMô tả lỗi: ${it.defectDesc || ""}`,
+                reporterName: session.user?.name || "Bộ phận QA",
+                reporterDepartment: "qa",
+                orderNumber: inspection.code
+              }
+            });
+          }
+        } else if (finalFailedQty > 0) {
           const itemName = oldMeta.model ? oldMeta.model.split(',')[0].trim() : inspection.productName;
           const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
           const lastDefect = await (tx as any).defectRecord.findFirst({

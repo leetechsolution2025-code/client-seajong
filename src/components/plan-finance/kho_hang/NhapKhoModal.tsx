@@ -35,12 +35,25 @@ interface StockLine {
   viTriCot: string;
   viTriTang: string;
   ghiChu: string;
+  bomCode?: string | null;
+  dinhMucTen?: string | null;
 }
 
 interface NhapKhoModalProps { 
   onClose: () => void; 
   onSaved: () => void; 
-  initialItems?: { name?: string, tenHang?: string, qty?: number, soLuong?: number, unit?: string, inventoryItemId?: string | null, code?: string | null }[];
+  initialItems?: { 
+    name?: string; 
+    tenHang?: string; 
+    qty?: number; 
+    soLuong?: number; 
+    unit?: string; 
+    inventoryItemId?: string | null; 
+    code?: string | null;
+    bomCode?: string | null;
+    dinhMucTen?: string | null;
+    [key: string]: any;
+  }[];
   initialTaskId?: string;
   initialSoBienBanQC?: string;
   initialMode?: "manual" | "po" | "production";
@@ -52,6 +65,7 @@ const fmtVnd = (n: number) => n > 0 ? n.toLocaleString("vi-VN") + " ₫" : "—"
 const emptyLine = (): StockLine => ({
   id: uid(), item: null, itemSearch: "", suggestions: [], showSugg: false,
   soLuong: 1, soLuongThucTe: 1, donGia: 0, viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
+  bomCode: null, dinhMucTen: null,
 });
 
 const CSS: Record<string, React.CSSProperties> = {
@@ -163,11 +177,15 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
             soLuongThucTe: it.qty || it.soLuong || 1,
             donGia: found ? found.giaNhap : 0,
             viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
+            bomCode: it.bomCode || (it as any).dinhMucCode || null,
+            dinhMucTen: it.dinhMucTen || null,
           } as StockLine;
         } catch (e) {
           return {
             id: uid(), item: null, itemSearch: cleanName, suggestions: [], showSugg: false,
             soLuong: it.qty, soLuongThucTe: it.qty, donGia: 0, viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
+            bomCode: it.bomCode || (it as any).dinhMucCode || null,
+            dinhMucTen: it.dinhMucTen || null,
           } as StockLine;
         }
       })).then(resolved => {
@@ -345,11 +363,15 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
                 soLuongThucTe: it.qty || it.soLuong || 1,
                 donGia: found ? found.giaNhap : 0,
                 viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
+                bomCode: it.bomCode || it.dinhMucCode || null,
+                dinhMucTen: it.dinhMucTen || null,
               } as StockLine;
             } catch (e) {
               return {
                 id: uid(), item: null, itemSearch: cleanName, suggestions: [], showSugg: false,
                 soLuong: it.qty || it.soLuong || 1, soLuongThucTe: it.qty || it.soLuong || 1, donGia: 0, viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
+                bomCode: it.bomCode || it.dinhMucCode || null,
+                dinhMucTen: it.dinhMucTen || null,
               } as StockLine;
             }
           }));
@@ -1076,6 +1098,8 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
             viTriCot: l.viTriCot || undefined,
             viTriTang: l.viTriTang || undefined,
             ghiChu: l.ghiChu || undefined,
+            bomCode: l.bomCode || undefined,
+            dinhMucTen: l.dinhMucTen || undefined,
           }))}
           onClose={() => setShowPreview(false)}
         />
@@ -1124,24 +1148,47 @@ function LineRow({ line, idx, onItemSearch, onSelectItem, onUpdate, onRemove, ca
       <div style={{ textAlign: "center", fontSize: 11.5, color: "var(--muted-foreground)", fontWeight: 600 }}>{idx + 1}</div>
 
       {/* Item search */}
-      <div style={{ position: "relative" }}>
-        <input value={line.itemSearch}
-          onChange={e => !locked && onItemSearch(e.target.value)}
-          onFocus={() => { if (line.itemSearch && !locked) onUpdate("showSugg", true); }}
-          readOnly={locked}
-          placeholder="Tìm hoặc nhập tên hàng..." style={{ ...cellInput, paddingRight: line.item ? 26 : 8, borderColor: line.item ? "rgba(16,185,129,0.4)" : "var(--border)" }} />
-        {line.item && <i className="bi bi-check-circle-fill" style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#10b981", pointerEvents: "none" }} />}
-        {line.showSugg && line.suggestions.length > 0 && (
-          <div style={{ position: "absolute", top: "calc(100% + 3px)", left: 0, right: 0, zIndex: 200, background: "var(--card)", borderWidth: 1, borderStyle: "solid", borderColor: "var(--border)", borderRadius: 7, boxShadow: "0 4px 14px rgba(0,0,0,0.12)", maxHeight: 180, overflowY: "auto" }}>
-            {line.suggestions.map(s => (
-              <div key={s.id} onClick={() => onSelectItem(s)}
-                style={{ padding: "7px 11px", cursor: "pointer", borderBottom: "1px solid var(--border)", transition: "background 0.1s" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "var(--muted)")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                <div style={{ fontWeight: 600, fontSize: 12.5 }}>{s.tenHang}</div>
-                <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{s.code ?? ""} · {s.donVi ?? ""} · {s.giaNhap > 0 ? s.giaNhap.toLocaleString("vi-VN") + " ₫" : "—"}</div>
-              </div>
-            ))}
+      <div style={{ minWidth: 0 }}>
+        <div style={{ position: "relative" }}>
+          <input value={line.itemSearch}
+            onChange={e => !locked && onItemSearch(e.target.value)}
+            onFocus={() => { if (line.itemSearch && !locked) onUpdate("showSugg", true); }}
+            readOnly={locked}
+            placeholder="Tìm hoặc nhập tên hàng..." style={{ ...cellInput, paddingRight: line.item ? 26 : 8, borderColor: line.item ? "rgba(16,185,129,0.4)" : "var(--border)" }} />
+          {line.item && <i className="bi bi-check-circle-fill" style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#10b981", pointerEvents: "none" }} />}
+          {line.showSugg && line.suggestions.length > 0 && (
+            <div style={{ position: "absolute", top: "calc(100% + 3px)", left: 0, right: 0, zIndex: 200, background: "var(--card)", borderWidth: 1, borderStyle: "solid", borderColor: "var(--border)", borderRadius: 7, boxShadow: "0 4px 14px rgba(0,0,0,0.12)", maxHeight: 180, overflowY: "auto" }}>
+              {line.suggestions.map(s => (
+                <div key={s.id} onClick={() => onSelectItem(s)}
+                  style={{ padding: "7px 11px", cursor: "pointer", borderBottom: "1px solid var(--border)", transition: "background 0.1s" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--muted)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+                  <div style={{ fontWeight: 600, fontSize: 12.5 }}>{s.tenHang}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{s.code ?? ""} · {s.donVi ?? ""} · {s.giaNhap > 0 ? s.giaNhap.toLocaleString("vi-VN") + " ₫" : "—"}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {(line.bomCode || line.dinhMucTen) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 4, paddingLeft: 2 }}>
+            {line.bomCode && (
+              <span style={{ 
+                display: "inline-flex", alignItems: "center", gap: 3,
+                fontSize: 10.5, fontWeight: 700, 
+                color: "#2563eb", background: "rgba(37,99,235,0.08)", 
+                border: "1px solid rgba(37,99,235,0.2)",
+                padding: "1px 6px", borderRadius: 4 
+              }}>
+                <i className="bi bi-diagram-3" style={{ fontSize: 10 }} />
+                {line.bomCode}
+              </span>
+            )}
+            {line.dinhMucTen && (
+              <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic", lineHeight: 1.2 }}>
+                {line.dinhMucTen}
+              </span>
+            )}
           </div>
         )}
       </div>

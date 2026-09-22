@@ -115,22 +115,78 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // C. Payroll
+    // C. Payroll (Tự động kết chuyển chi lương nhân viên)
     const payrolls = await prisma.payroll.findMany({
-      include: { employee: true }
+      include: {
+        employee: {
+          select: {
+            id: true,
+            fullName: true,
+            position: true,
+            departmentName: true,
+          },
+        },
+      },
+      orderBy: [
+        { employee: { departmentName: "asc" } },
+        { employee: { fullName: "asc" } },
+      ],
     });
 
+    // Gom nhóm theo (nam, thang)
+    const payrollByMonth = new Map<string, typeof payrolls>();
     payrolls.forEach(p => {
+      const key = `${p.nam}_${p.thang}`;
+      if (!payrollByMonth.has(key)) {
+        payrollByMonth.set(key, []);
+      }
+      payrollByMonth.get(key)!.push(p);
+    });
+
+    payrollByMonth.forEach((monthPayrolls, key) => {
+      const [yStr, mStr] = key.split("_");
+      const nam = parseInt(yStr, 10);
+      const thang = parseInt(mStr, 10);
+
+      const isAllPaid = monthPayrolls.every(p => p.trangThai === "da-tra" || p.trangThai === "paid");
+      const isApproved = monthPayrolls.some(p => ["Đã duyệt", "Giám đốc đã duyệt"].includes(p.trangThai));
+
+      // Tổng lương thực lĩnh
+      const totalNetSalary = monthPayrolls.reduce((sum, p) => sum + (p.luongThucNhan || 0), 0);
+      const totalCost = monthPayrolls.reduce((sum, p) => sum + (p.tongChiPhiCty || 0), 0);
+      const soTien = Math.max(0, totalNetSalary > 0 ? totalNetSalary : totalCost);
+
+      const padThang = String(thang).padStart(2, "0");
+      const expenseId = `AUTO_PAYROLL_${nam}_${padThang}_BL${padThang}${nam}`;
+
       automatedItems.push({
-        id: `AUTO_PAYROLL_${p.id}`,
-        tenChiPhi: `Lương nhân sự: ${p.employee.fullName}`,
-        loai: "exp-20260401-1372-fdyu", // Category for salaries
-        soTien: p.tongChiPhiCty,
-        ngayChiTra: new Date(p.nam, p.thang - 1, 25), // Assume 25th of month
+        id: expenseId,
+        tenChiPhi: "Chi lương nhân viên",
+        loai: "exp-20260401-1372-fdyu", // Phân loại chi phí lương
+        soTien: soTien,
+        ngayChiTra: new Date(nam, thang - 1, 25), // Ngày chi lương hàng tháng
         nguoiChiTra: "Hệ thống tự động",
-        trangThai: p.trangThai === "da-tra" ? "paid" : "pending",
-        ghiChu: `Tháng ${p.thang}/${p.nam} (Ngày công: ${p.ngayCong})`,
-        isAutomated: true
+        trangThai: isAllPaid ? "paid" : "pending",
+        ghiChu: `Bảng lương tháng ${thang}/${nam} (${monthPayrolls.length} nhân sự)${isApproved ? " • Đã duyệt" : " • Chờ duyệt"}`,
+        isAutomated: true,
+        isPayrollSummary: true,
+        payrollMonth: thang,
+        payrollYear: nam,
+        payrollDetails: monthPayrolls.map(p => ({
+          id: p.id,
+          employeeId: p.employeeId,
+          fullName: p.employee?.fullName || "Nhân sự",
+          position: p.employee?.position || "",
+          departmentName: p.employee?.departmentName || "",
+          ngayCong: p.ngayCong,
+          luongCoBan: p.luongCoBan,
+          phuCap: p.phuCap,
+          khauTruBH: p.khauTruBH,
+          luongLamThem: p.luongLamThem,
+          luongThucNhan: p.luongThucNhan,
+          tongChiPhiCty: p.tongChiPhiCty,
+          trangThai: p.trangThai
+        }))
       });
     });
 

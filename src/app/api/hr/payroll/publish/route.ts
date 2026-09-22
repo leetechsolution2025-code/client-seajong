@@ -47,12 +47,13 @@ export async function POST(req: Request) {
         
         // Base Salary and Allowances
         const salary = emp.baseSalary || 0;
-        const allowances = (emp.mealAllowance || 0) + (emp.fuelAllowance || 0) + (emp.phoneAllowance || 0) + (emp.seniorityAllowance || 0);
+        const mealTotal = (emp.mealAllowance || 0) * cong;
+        const allowances = mealTotal + (emp.fuelAllowance || 0) + (emp.phoneAllowance || 0) + (emp.seniorityAllowance || 0);
         
         // Calculate Net
         const salaryTheoCong = (salary / standardWorkDays) * cong;
         const otSalary = ot * (salary / standardWorkDays / 8);
-        const khauTruBH = salary * 0.105;
+        const khauTruBH = emp.insuranceDeduction ?? 0;
         const net = salaryTheoCong + allowances + otSalary - khauTruBH;
 
         const title = `Phiếu lương tháng ${month}/${year}`;
@@ -63,7 +64,7 @@ export async function POST(req: Request) {
           `◦ **Ngày công thực tế**: ${cong.toFixed(2)} ngày\n` +
           `◦ **Phụ cấp & Thưởng**: ${Math.round(allowances).toLocaleString('vi-VN')} đ\n` +
           `◦ **Tăng ca (OT)**: ${ot.toFixed(1)} giờ (${Math.round(otSalary).toLocaleString('vi-VN')} đ)\n` +
-          `◦ **Khấu trừ (Bảo hiểm 10.5%)**: ${Math.round(khauTruBH).toLocaleString('vi-VN')} đ\n\n` +
+          `◦ **Khấu trừ bảo hiểm**: ${Math.round(khauTruBH).toLocaleString('vi-VN')} đ\n\n` +
           `---\n` +
           `### **THỰC LĨNH: ${Math.round(net).toLocaleString('vi-VN')} đ**\n\n` +
           `**Lưu ý**: Nhấn nút "Chi tiết" bên dưới để xem bảng kê khai phụ cấp và chi tiết công thức tính. Nếu có thắc mắc, vui lòng liên hệ phòng Kế toán nội bộ trước ngày 10 tháng sau.\n` +

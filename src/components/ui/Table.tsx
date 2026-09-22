@@ -73,6 +73,8 @@ export interface TableProps<T> {
   cellStyle?: (row: T, column: TableColumn<T>, index: number) => React.CSSProperties | undefined;
   /** Thuộc tính table-layout: fixed (mặc định là auto) */
   fixedLayout?: boolean;
+  /** Custom render expanded sub-row */
+  renderExpandedRow?: (row: T, index: number) => React.ReactNode;
 }
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -124,6 +126,7 @@ export function Table<T>({
   cellClassName,
   cellStyle,
   fixedLayout = false,
+  renderExpandedRow,
 }: TableProps<T>) {
   const safeRows = Array.isArray(rows) ? rows : [];
   return (
@@ -343,60 +346,62 @@ export function Table<T>({
                 }
 
                 return (
-                  <tr
-                    key={key}
-                    className={cn(
-                      onRowClick ? "app-tbl-row" : undefined,
-                      rowClassName ? rowClassName(row, idx) : undefined
-                    )}
-                    onClick={onRowClick ? () => onRowClick(row) : undefined}
-                    style={{
-                      borderBottom: borderless ? "none" : "1px solid var(--border)",
-                      cursor: onRowClick ? "pointer" : undefined,
-                      background: isOdd
-                        ? "color-mix(in srgb, var(--muted) 25%, transparent)"
-                        : "transparent",
-                      ...((rowStyle && rowStyle(row, idx)) || {}),
-                    }}
-                  >
-                    {(() => {
-                      const cells: React.ReactNode[] = [];
-                      let skipCount = 0;
-                      for (let ci = 0; ci < columns.length; ci++) {
-                        if (skipCount > 0) {
-                          skipCount--;
-                          continue;
+                  <React.Fragment key={key}>
+                    <tr
+                      className={cn(
+                        onRowClick ? "app-tbl-row" : undefined,
+                        rowClassName ? rowClassName(row, idx) : undefined
+                      )}
+                      onClick={onRowClick ? () => onRowClick(row) : undefined}
+                      style={{
+                        borderBottom: borderless ? "none" : "1px solid var(--border)",
+                        cursor: onRowClick ? "pointer" : undefined,
+                        background: isOdd
+                          ? "color-mix(in srgb, var(--muted) 25%, transparent)"
+                          : "transparent",
+                        ...((rowStyle && rowStyle(row, idx)) || {}),
+                      }}
+                    >
+                      {(() => {
+                        const cells: React.ReactNode[] = [];
+                        let skipCount = 0;
+                        for (let ci = 0; ci < columns.length; ci++) {
+                          if (skipCount > 0) {
+                            skipCount--;
+                            continue;
+                          }
+                          const col = columns[ci];
+                          const span = col.colSpan ? col.colSpan(row, idx) : 1;
+                          if (span === 0) {
+                            continue;
+                          }
+                          if (span && span > 1) {
+                            skipCount = span - 1;
+                          }
+                          cells.push(
+                            <td
+                              key={ci}
+                              colSpan={span}
+                              className={cn(
+                                cellClassName ? cellClassName(row, col, idx) : undefined
+                              )}
+                              style={{
+                                padding: compact ? "8px 12px" : "11px 14px",
+                                verticalAlign: "middle",
+                                textAlign: col.align ?? "left",
+                                borderBottom: borderless ? "none" : "1px solid var(--border)",
+                                ...((cellStyle && cellStyle(row, col, idx)) || {}),
+                              }}
+                            >
+                              {col.render(row, idx)}
+                            </td>
+                          );
                         }
-                        const col = columns[ci];
-                        const span = col.colSpan ? col.colSpan(row, idx) : 1;
-                        if (span === 0) {
-                          continue;
-                        }
-                        if (span && span > 1) {
-                          skipCount = span - 1;
-                        }
-                        cells.push(
-                          <td
-                            key={ci}
-                            colSpan={span}
-                            className={cn(
-                              cellClassName ? cellClassName(row, col, idx) : undefined
-                            )}
-                            style={{
-                              padding: compact ? "8px 12px" : "11px 14px",
-                              verticalAlign: "middle",
-                              textAlign: col.align ?? "left",
-                              borderBottom: borderless ? "none" : "1px solid var(--border)",
-                              ...((cellStyle && cellStyle(row, col, idx)) || {}),
-                            }}
-                          >
-                            {col.render(row, idx)}
-                          </td>
-                        );
-                      }
-                      return cells;
-                    })()}
-                  </tr>
+                        return cells;
+                      })()}
+                    </tr>
+                    {renderExpandedRow && renderExpandedRow(row, idx)}
+                  </React.Fragment>
                 );
               })
             )}

@@ -79,6 +79,15 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  /* ── Lắng nghe sự kiện mở thông báo từ các trang (vd: phiếu chấm công) ── */
+  useEffect(() => {
+    const handleOpenNotif = () => {
+      setNotifOpen(true);
+    };
+    window.addEventListener("open-notification-item", handleOpenNotif);
+    return () => window.removeEventListener("open-notification-item", handleOpenNotif);
+  }, []);
+
   /* ── Fetch thông tin công ty từ DB (không dùng session, không cache) ── */
   useEffect(() => {
     fetch("/api/company", { cache: "no-store" })

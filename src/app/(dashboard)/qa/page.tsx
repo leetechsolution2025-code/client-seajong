@@ -76,7 +76,8 @@ export default function QaPage() {
     failQuantity: "",
     result: "pass",
     rejectReason: "",
-    rejectCategories: ["Loại khác"]
+    rejectCategories: ["Loại khác"],
+    items: [] as any[]
   });
 
   const handleOqcChange = (e: any) => {
@@ -97,19 +98,71 @@ export default function QaPage() {
 
   useEffect(() => {
     if (showOqcModal && selectedInspection && selectedInspection.metadata) {
+      let items: any[] = [];
+      const rawItems = selectedInspection.items || selectedInspection.metadata.items;
+      if (rawItems && Array.isArray(rawItems) && rawItems.length > 0) {
+        items = rawItems.map((it: any) => {
+          const rawModel = it.model || it.productCode || it.code || "";
+          const isBomCode = rawModel && (rawModel.startsWith("DM-") || rawModel.startsWith("BOM-") || rawModel === (it.dinhMucCode || it.bomCode));
+          const cleanModel = !isBomCode ? rawModel : "";
+          const resolvedModel = cleanModel 
+            || (selectedInspection.inventoryItem?.code) 
+            || (selectedInspection.metadata.model && !selectedInspection.metadata.model.startsWith("DM-") && !selectedInspection.metadata.model.startsWith("BOM-") && selectedInspection.metadata.model !== selectedInspection.product ? selectedInspection.metadata.model : "");
+
+          return {
+            ...it,
+            productName: it.productName || it.tenHang || selectedInspection.product,
+            model: resolvedModel || "",
+            batch: it.batch || selectedInspection.metadata.batch || "",
+            bomCode: it.bomCode || it.dinhMucCode || "",
+            dinhMucCode: it.dinhMucCode || it.bomCode || "",
+            dinhMucTen: it.dinhMucTen || "",
+            quantity: it.quantity !== undefined ? it.quantity : (it.soLuong !== undefined ? it.soLuong : (it.missingQty || 1)),
+            sampleQuantity: it.sampleQuantity !== undefined ? it.sampleQuantity : (it.quantity || it.soLuong || 1),
+            passQuantity: it.passQuantity !== undefined ? it.passQuantity : "",
+            failQuantity: it.failQuantity !== undefined ? it.failQuantity : "",
+            comment: it.comment || "",
+            defectDesc: it.defectDesc || "",
+            result: it.result || "pass"
+          };
+        });
+      } else {
+        const singleModel = (selectedInspection.inventoryItem?.code) 
+          || (selectedInspection.metadata.model && !selectedInspection.metadata.model.startsWith("DM-") && !selectedInspection.metadata.model.startsWith("BOM-") && selectedInspection.metadata.model !== selectedInspection.product ? selectedInspection.metadata.model : "");
+        items = [{
+          productName: selectedInspection.product,
+          model: singleModel || "",
+          batch: selectedInspection.metadata.batch || "",
+          bomCode: selectedInspection.metadata.bomCode || "",
+          dinhMucCode: "",
+          dinhMucTen: "",
+          quantity: selectedInspection.metadata.totalQuantity || 1,
+          sampleQuantity: selectedInspection.metadata.sampleQuantity || selectedInspection.metadata.totalQuantity || 1,
+          passQuantity: selectedInspection.metadata.passedQuantity || selectedInspection.metadata.passQuantity || "",
+          failQuantity: selectedInspection.metadata.failedQuantity || selectedInspection.metadata.failQuantity || "",
+          comment: "",
+          defectDesc: "",
+          result: "pass"
+        }];
+      }
+
+      const cleanOqcModel = (selectedInspection.inventoryItem?.code) 
+        || (selectedInspection.metadata.model && !selectedInspection.metadata.model.startsWith("DM-") && !selectedInspection.metadata.model.startsWith("BOM-") && selectedInspection.metadata.model !== selectedInspection.product ? selectedInspection.metadata.model : (items[0]?.model || ""));
+
       setOqcFormData(prev => ({
         ...prev,
         assemblyTeam: selectedInspection.metadata.assemblyTeam || "",
         productionOrder: selectedInspection.metadata.productionOrder || "",
         bomCode: selectedInspection.metadata.bomCode || "",
-        model: selectedInspection.model || selectedInspection.metadata.model || "",
+        model: cleanOqcModel || "",
         batch: selectedInspection.metadata.batch || "",
         totalQuantity: selectedInspection.metadata.totalQuantity?.toString() || "",
         sampleQuantity: selectedInspection.metadata.sampleQuantity?.toString() || "",
         passQuantity: selectedInspection.metadata.passedQuantity || selectedInspection.metadata.passQuantity || "",
         failQuantity: selectedInspection.metadata.failedQuantity || selectedInspection.metadata.failQuantity || "",
         result: selectedInspection.result === "Fail" ? "fail" : "pass",
-        rejectReason: selectedInspection.notes || ""
+        rejectReason: selectedInspection.notes || "",
+        items
       }));
     }
   }, [showOqcModal, selectedInspection]);
@@ -195,22 +248,37 @@ export default function QaPage() {
       toast.error("Yêu cầu này đã hoàn thành, không thể lưu lại!");
       return;
     }
-    const oqcPass = parseInt(oqcFormData.passQuantity?.toString() || "0", 10);
-    const oqcFail = parseInt(oqcFormData.failQuantity?.toString() || "0", 10);
-    const oqcTotal = parseInt(oqcFormData.totalQuantity?.toString() || "0", 10);
-    if (oqcPass + oqcFail !== oqcTotal) {
-      toast.error("Tổng số lượng đạt và lỗi phải bằng tổng sản lượng!");
+    const hasMismatch = oqcFormData.items.some(item => {
+      const qty = parseInt(item.quantity?.toString() || "0", 10);
+      const pass = parseInt(item.passQuantity?.toString() || "0", 10);
+      const fail = parseInt(item.failQuantity?.toString() || "0", 10);
+      return pass + fail !== qty;
+    });
+    if (hasMismatch) {
+      toast.error("Tổng số lượng đạt và lỗi của các mặt hàng phải bằng số lượng sản xuất!");
       return;
     }
     try {
+      let totalPassed = 0;
+      let totalFailed = 0;
+      oqcFormData.items.forEach(item => {
+        totalPassed += parseInt(item.passQuantity?.toString() || "0", 10);
+        totalFailed += parseInt(item.failQuantity?.toString() || "0", 10);
+      });
+      
+      let overallResult = "Đạt";
+      if (totalPassed === 0 && totalFailed > 0) overallResult = "Không đạt";
+      else if (totalFailed > 0) overallResult = "Lỗi một phần";
+
       const res = await fetch(`/api/qa/inspections/${selectedInspection.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          result: oqcFormData.result === "pass" ? "Đạt" : "Không đạt",
+          result: overallResult,
           notes: oqcFormData.rejectReason || "",
-          passedQuantity: parseInt(oqcFormData.passQuantity.toString()) || 0,
-          failedQuantity: parseInt(oqcFormData.failQuantity.toString()) || 0
+          passedQuantity: totalPassed,
+          failedQuantity: totalFailed,
+          items: oqcFormData.items
         })
       });
       if (res.ok) {
@@ -220,7 +288,7 @@ export default function QaPage() {
         // refresh list
         loadInspections();
       } else {
-        toast.error("Lỗi khi lưu kết quả");
+        toast.error("Lỗi khi lưu kết quả OQC");
       }
     } catch (e) {
       console.error(e);
@@ -302,7 +370,8 @@ export default function QaPage() {
               notes: d.notes,
               poNumber: meta?.poNumber || meta?.purchaseOrderCode || "",
               deliveryNote: meta?.deliveryNote || "",
-              metadata: meta
+              metadata: meta,
+              items: d.items || meta?.items || []
             };
           });
           setInspections(formatted);
@@ -625,11 +694,69 @@ export default function QaPage() {
                   <div className="text-muted ms-4" style={{ fontSize: "13px" }}>{selectedInspection.department}</div>
                 </div>
                 <div className="list-group-item px-3 py-2">
-                  <div className="text-muted small mb-1 d-flex align-items-center">
-                    <i className="bi bi-box-seam me-2"></i>Sản phẩm / Vật tư
+                  <div className="text-muted small mb-2 d-flex align-items-center justify-content-between">
+                    <span><i className="bi bi-box-seam me-2"></i>Sản phẩm / Thành phẩm</span>
+                    {selectedInspection.items && selectedInspection.items.length > 0 && (
+                      <span className="badge bg-light text-secondary border fw-normal" style={{ fontSize: "11px" }}>
+                        {selectedInspection.items.length} mặt hàng
+                      </span>
+                    )}
                   </div>
-                  <div className="fw-medium text-dark ms-4" style={{ fontSize: "14px" }}>{selectedInspection.product}</div>
-                  {selectedInspection.model && <div className="text-muted ms-4" style={{ fontSize: "13px" }}>Mã SP: {selectedInspection.model}</div>}
+                  {selectedInspection.items && selectedInspection.items.length > 0 ? (
+                    <div className="d-flex flex-column gap-2 ms-4">
+                      {selectedInspection.items.map((it: any, idx: number) => {
+                        const dmCode = it.dinhMucCode || it.bomCode;
+                        const dmTen = it.dinhMucTen || it.ghiChuDinhMuc;
+                        const qty = it.soLuong || it.quantity || it.missingQty;
+                        return (
+                          <div 
+                            key={idx} 
+                            className={`d-flex flex-column ${idx > 0 ? "pt-2 border-top border-light" : ""}`}
+                          >
+                            <div className="d-flex align-items-center justify-content-between">
+                              <span className="fw-semibold text-dark" style={{ fontSize: "13.5px" }}>
+                                {it.tenHang || it.productName || it.name}
+                              </span>
+                              {qty && (
+                                <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-0.5" style={{ fontSize: "11px" }}>
+                                  SL: {qty} {it.donVi || it.unit || "bộ"}
+                                </span>
+                              )}
+                            </div>
+                            {(dmCode || dmTen) && (
+                              <div className="d-flex align-items-center flex-wrap gap-1 mt-1">
+                                {dmCode && (
+                                  <span 
+                                    className="badge rounded-pill border" 
+                                    style={{ 
+                                      fontSize: "10px", 
+                                      fontWeight: 600, 
+                                      backgroundColor: "rgba(99, 102, 241, 0.08)", 
+                                      color: "#4f46e5", 
+                                      borderColor: "rgba(99, 102, 241, 0.25)",
+                                      padding: "2px 7px"
+                                    }}
+                                  >
+                                    <i className="bi bi-diagram-3 me-1" />{dmCode}
+                                  </span>
+                                )}
+                                {dmTen && (
+                                  <span className="text-secondary fw-medium" style={{ fontSize: "11.5px" }}>
+                                    {dmTen}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="fw-medium text-dark ms-4" style={{ fontSize: "14px" }}>{selectedInspection.product}</div>
+                      {selectedInspection.model && <div className="text-muted ms-4" style={{ fontSize: "13px" }}>Mã SP: {selectedInspection.model}</div>}
+                    </>
+                  )}
                 </div>
                 <div className="list-group-item px-3 py-2">
                   <div className="text-muted small mb-1 d-flex align-items-center">
@@ -661,15 +788,9 @@ export default function QaPage() {
 
                 {selectedInspection.type === "OQC" && (
                   <>
-                    <div className="list-group-item px-3 py-2 d-flex justify-content-between">
-                      <div>
-                        <div className="text-muted small mb-1">Lệnh sản xuất</div>
-                        <div className="fw-medium text-dark" style={{ fontSize: "14px" }}>{selectedInspection.metadata?.productionOrder || "---"}</div>
-                      </div>
-                      <div className="text-end">
-                        <div className="text-muted small mb-1">Mã định mức</div>
-                        <div className="fw-medium text-dark" style={{ fontSize: "14px" }}>{selectedInspection.metadata?.bomCode || "---"}</div>
-                      </div>
+                    <div className="list-group-item px-3 py-2">
+                      <div className="text-muted small mb-1">Lệnh sản xuất</div>
+                      <div className="fw-medium text-dark" style={{ fontSize: "14px" }}>{selectedInspection.metadata?.productionOrder || "---"}</div>
                     </div>
                     <div className="list-group-item px-3 py-2">
                       <div className="text-muted small mb-1 d-flex align-items-center">
@@ -775,8 +896,19 @@ export default function QaPage() {
                                 style={{ cursor: "pointer" }}
                                 title="Nhấp để nhận xét/đánh giá QC"
                               >
-                                <div className="fw-bold text-primary mb-1" style={{ fontSize: "11px", lineHeight: "1.2" }}>
-                                  {idx + 1}. {item.productName}
+                                <div className="d-flex align-items-center justify-content-between mb-1">
+                                  <div className="fw-bold text-primary" style={{ fontSize: "11px", lineHeight: "1.2" }}>
+                                    {idx + 1}. {item.productName}
+                                  </div>
+                                  {(item.comment || item.defectDesc) ? (
+                                    <span className="badge bg-warning text-dark py-0 px-1" style={{ fontSize: "8.5px" }} title="Đã có nhận xét / lỗi">
+                                      <i className="bi bi-chat-left-text me-1"></i>Đã ghi chú
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted" style={{ fontSize: "10px" }} title="Nhấp để đánh giá/nhận xét">
+                                      <i className="bi bi-pencil-square"></i>
+                                    </span>
+                                  )}
                                 </div>
                                 <input 
                                   type="text" 
@@ -1126,62 +1258,153 @@ export default function QaPage() {
                       <label className="form-label small fw-medium">Lệnh sản xuất</label>
                       <input type="text" className="form-control form-control-sm" name="productionOrder" value={oqcFormData.productionOrder} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
                     </div>
-                    <div className="mb-3">
-                      <label className="form-label small fw-medium">Mã định mức (nếu có)</label>
-                      <input type="text" className="form-control form-control-sm" name="bomCode" value={oqcFormData.bomCode} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label small fw-medium">Mã sản phẩm (Model/SKU)</label>
-                      <input type="text" className="form-control form-control-sm" name="model" value={oqcFormData.model} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label small fw-medium">Mã số lô sản xuất (Lot No)</label>
-                      <input type="text" className="form-control form-control-sm" name="batch" value={oqcFormData.batch} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
-                    </div>
-                    <div className="row g-2 mb-3">
-                      <div className="col-6">
-                        <label className="form-label small fw-medium">Tổng sản lượng</label>
-                        <input type="number" className="form-control form-control-sm" name="totalQuantity" value={oqcFormData.totalQuantity} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
-                      </div>
-                      <div className="col-6">
-                        <label className="form-label small fw-medium">Số lượng mẫu</label>
-                        <input type="number" className="form-control form-control-sm" name="sampleQuantity" value={oqcFormData.sampleQuantity} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
-                      </div>
-                      <div className="col-6">
-                        <label className="form-label small fw-medium">SL Đạt</label>
-                        <input type="number" className="form-control form-control-sm text-success fw-bold" name="passQuantity" value={oqcFormData.passQuantity} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
-                      </div>
-                      <div className="col-6">
-                        <label className="form-label small fw-medium">SL Không đạt</label>
-                        <input type="number" className="form-control form-control-sm text-danger fw-bold" name="failQuantity" value={oqcFormData.failQuantity} onChange={handleOqcChange} disabled={selectedInspection?.result !== "Pending"} />
-                      </div>
-                    </div>
                     
-                    <hr className="my-3 text-muted" />
-                    <h6 className="fw-bold mb-3">NHẬN XÉT & ĐÁNH GIÁ QC</h6>
-                    <div className="mb-3">
-                      <label className="form-label small fw-medium">Nhận xét, đánh giá của QC</label>
-                      <textarea
-                        className="form-control form-control-sm" 
-                        placeholder="Nhập nhận xét..." 
-                        name="rejectReason" 
-                        value={oqcFormData.rejectReason} 
-                        onChange={handleOqcChange} 
-                        disabled={selectedInspection?.result !== "Pending"}
-                      ></textarea>
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label small fw-medium">Kết quả</label>
-                      <select 
-                        className={`form-select form-select-sm fw-medium ${oqcFormData.result === "fail" ? "text-danger" : "text-success"}`}
-                        name="result" 
-                        value={oqcFormData.result} 
-                        onChange={handleOqcChange} 
-                        disabled={selectedInspection?.result !== "Pending"}
-                      >
-                        <option value="pass" className="text-success">Đạt (Chấp nhận)</option>
-                        <option value="fail" className="text-danger">Lỗi (Từ chối)</option>
-                      </select>
+                    <hr className="my-4 text-muted" />
+                    <h6 className="fw-bold mb-3">CHI TIẾT THÀNH PHẨM</h6>
+                    
+                    <div className="table-responsive">
+                      <table className="table table-sm table-bordered table-hover align-middle" style={{ fontSize: "12px" }}>
+                        <thead className="table-light text-center">
+                          <tr>
+                            <th>Tên sản phẩm / Định mức / Lô</th>
+                            <th style={{ width: "70px" }}>SL / Mẫu</th>
+                            <th style={{ width: "70px" }}>Đạt / Lỗi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {oqcFormData.items.map((item: any, idx: number) => (
+                            <tr key={idx}>
+                              <td 
+                                onClick={() => {
+                                  setActiveEvalItemIdx(idx);
+                                  setTempEvalComment(item.comment || "");
+                                  setTempDefectDesc(item.defectDesc || "");
+                                  setTempEvalResult(item.result || "pass");
+                                }}
+                                style={{ cursor: "pointer" }}
+                                title="Nhấp để nhận xét/đánh giá QC"
+                              >
+                                <div className="d-flex align-items-center justify-content-between mb-1">
+                                  <div className="fw-bold text-primary" style={{ fontSize: "11px", lineHeight: "1.2" }}>
+                                    {idx + 1}. {item.productName || item.tenHang}
+                                  </div>
+                                  {(item.comment || item.defectDesc) ? (
+                                    <span className="badge bg-warning text-dark py-0 px-1" style={{ fontSize: "8.5px" }} title="Đã có nhận xét / lỗi">
+                                      <i className="bi bi-chat-left-text me-1"></i>Đã ghi chú
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted" style={{ fontSize: "10px" }} title="Nhấp để đánh giá/nhận xét">
+                                      <i className="bi bi-pencil-square"></i>
+                                    </span>
+                                  )}
+                                </div>
+                                {(item.dinhMucCode || item.dinhMucTen) && (
+                                  <div className="mb-1" style={{ fontSize: "10px" }}>
+                                    {item.dinhMucCode && (
+                                      <span className="badge rounded-pill border me-1" style={{ fontSize: "9px", backgroundColor: "rgba(99, 102, 241, 0.08)", color: "#4f46e5", borderColor: "rgba(99, 102, 241, 0.25)" }}>
+                                        {item.dinhMucCode}
+                                      </span>
+                                    )}
+                                    {item.dinhMucTen && (
+                                      <span className="text-secondary fw-medium">
+                                        {item.dinhMucTen}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                <input 
+                                  type="text" 
+                                  className="form-control form-control-sm mb-1" 
+                                  placeholder="Mã SP (Model/SKU)" 
+                                  value={item.model || ""} 
+                                  onChange={(e) => {
+                                    const newItems = [...oqcFormData.items];
+                                    newItems[idx].model = e.target.value;
+                                    setOqcFormData(prev => ({ ...prev, items: newItems }));
+                                  }} 
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{ fontSize: "11px", padding: "2px 4px", height: "24px" }} 
+                                  disabled={selectedInspection?.result !== "Pending"}
+                                />
+                                <input 
+                                  type="text" 
+                                  className="form-control form-control-sm" 
+                                  placeholder="Mã số lô (Batch)" 
+                                  value={item.batch || ""} 
+                                  onChange={(e) => {
+                                    const newItems = [...oqcFormData.items];
+                                    newItems[idx].batch = e.target.value;
+                                    setOqcFormData(prev => ({ ...prev, items: newItems }));
+                                  }} 
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{ fontSize: "11px", padding: "2px 4px", height: "24px" }} 
+                                  disabled={selectedInspection?.result !== "Pending"}
+                                />
+                              </td>
+                              <td>
+                                <input 
+                                  type="number" 
+                                  className="form-control form-control-sm mb-1 text-center" 
+                                  placeholder="SL (N)" 
+                                  value={item.quantity || ""} 
+                                  onChange={(e) => {
+                                    const newItems = [...oqcFormData.items];
+                                    newItems[idx].quantity = e.target.value;
+                                    setOqcFormData(prev => ({ ...prev, items: newItems }));
+                                  }} 
+                                  title="SL sản xuất (N)"
+                                  style={{ fontSize: "11px", padding: "2px 4px", height: "24px" }} 
+                                  disabled={selectedInspection?.result !== "Pending"}
+                                />
+                                <input 
+                                  type="number" 
+                                  className="form-control form-control-sm text-center" 
+                                  placeholder="Mẫu(n)" 
+                                  value={item.sampleQuantity || ""} 
+                                  onChange={(e) => {
+                                    const newItems = [...oqcFormData.items];
+                                    newItems[idx].sampleQuantity = e.target.value;
+                                    setOqcFormData(prev => ({ ...prev, items: newItems }));
+                                  }} 
+                                  title="Mẫu rút (n)"
+                                  style={{ fontSize: "11px", padding: "2px 4px", height: "24px" }} 
+                                  disabled={selectedInspection?.result !== "Pending"}
+                                />
+                              </td>
+                              <td>
+                                <input 
+                                  type="number" 
+                                  className="form-control form-control-sm mb-1 text-center text-success fw-bold" 
+                                  placeholder="Đạt" 
+                                  value={item.passQuantity !== undefined ? item.passQuantity : ""} 
+                                  onChange={(e) => {
+                                    const newItems = [...oqcFormData.items];
+                                    newItems[idx].passQuantity = e.target.value;
+                                    setOqcFormData(prev => ({ ...prev, items: newItems }));
+                                  }} 
+                                  title="SL Đạt"
+                                  style={{ fontSize: "11px", padding: "2px 4px", height: "24px" }} 
+                                  disabled={selectedInspection?.result !== "Pending"}
+                                />
+                                <input 
+                                  type="number" 
+                                  className="form-control form-control-sm text-center text-danger fw-bold" 
+                                  placeholder="Lỗi" 
+                                  value={item.failQuantity !== undefined ? item.failQuantity : ""} 
+                                  onChange={(e) => {
+                                    const newItems = [...oqcFormData.items];
+                                    newItems[idx].failQuantity = e.target.value;
+                                    setOqcFormData(prev => ({ ...prev, items: newItems }));
+                                  }} 
+                                  title="SL Không đạt"
+                                  style={{ fontSize: "11px", padding: "2px 4px", height: "24px" }} 
+                                  disabled={selectedInspection?.result !== "Pending"}
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                     </div>
                     <div className="p-2 border-top bg-light d-flex justify-content-between gap-2">
@@ -1192,7 +1415,12 @@ export default function QaPage() {
                           onClick={handleSaveOqcResult} 
                           disabled={
                             selectedInspection?.result !== "Pending" ||
-                            (parseInt(oqcFormData.passQuantity?.toString() || "0", 10) + parseInt(oqcFormData.failQuantity?.toString() || "0", 10) !== parseInt(oqcFormData.totalQuantity?.toString() || "0", 10))
+                            oqcFormData.items.some((item: any) => {
+                              const qty = parseInt(item.quantity?.toString() || "0", 10);
+                              const pass = parseInt(item.passQuantity?.toString() || "0", 10);
+                              const fail = parseInt(item.failQuantity?.toString() || "0", 10);
+                              return pass + fail !== qty;
+                            })
                           }
                         >
                           <i className="bi bi-floppy me-1"></i>Lưu
@@ -1253,13 +1481,9 @@ export default function QaPage() {
                           <span className="me-2 text-nowrap">Tổ lắp ráp / Ca sản xuất:</span>
                           <span className="fw-bold flex-grow-1 border-bottom border-dark ps-2 text-uppercase" style={{ borderStyle: 'dotted !important', minHeight: '1.2em' }}>{oqcFormData.assemblyTeam}</span>
                         </div>
-                        <div className="col-6 d-flex align-items-end mt-2">
+                        <div className="col-12 d-flex align-items-end mt-2">
                           <span className="me-2 text-nowrap">Lệnh sản xuất:</span>
                           <span className="fw-bold flex-grow-1 border-bottom border-dark text-center" style={{ borderStyle: 'dotted !important', minHeight: '1.2em' }}>{oqcFormData.productionOrder}</span>
-                        </div>
-                        <div className="col-6 d-flex align-items-end mt-2">
-                          <span className="me-2 text-nowrap">Mã định mức:</span>
-                          <span className="fw-bold flex-grow-1 border-bottom border-dark text-center" style={{ borderStyle: 'dotted !important', minHeight: '1.2em' }}>{oqcFormData.bomCode}</span>
                         </div>
                         <div className="col-12 mt-4">
                           <div className="fw-bold text-uppercase mb-2">II. DANH SÁCH ĐỐI TƯỢNG KIỂM TRA</div>
@@ -1275,14 +1499,42 @@ export default function QaPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              <tr>
-                                <td className="border-dark">1</td>
-                                <td className="border-dark text-start fw-bold">{selectedInspection.product}</td>
-                                <td className="border-dark fw-bold">{oqcFormData.model}</td>
-                                <td className="border-dark fw-bold">{oqcFormData.batch}</td>
-                                <td className="border-dark fw-bold">{oqcFormData.totalQuantity}</td>
-                                <td className="border-dark fw-bold">{oqcFormData.sampleQuantity}</td>
-                              </tr>
+                              {oqcFormData.items && oqcFormData.items.length > 0 ? (
+                                oqcFormData.items.map((it: any, idx: number) => (
+                                  <tr key={idx}>
+                                    <td className="border-dark">{idx + 1}</td>
+                                    <td className="border-dark text-start fw-bold">
+                                      {it.productName || it.tenHang || it.name}
+                                      {(it.dinhMucCode || it.dinhMucTen) && (
+                                        <div className="fw-normal text-muted" style={{ fontSize: "8.5pt" }}>
+                                          {it.dinhMucCode && `[${it.dinhMucCode}] `}{it.dinhMucTen || ""}
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="border-dark fw-bold">
+                                      {it.model && !it.model.startsWith("DM-") && !it.model.startsWith("BOM-") 
+                                        ? it.model 
+                                        : (it.productCode && !it.productCode.startsWith("DM-") && !it.productCode.startsWith("BOM-")
+                                          ? it.productCode
+                                          : (oqcFormData.model && !oqcFormData.model.startsWith("DM-") && !oqcFormData.model.startsWith("BOM-")
+                                            ? oqcFormData.model
+                                            : ""))}
+                                    </td>
+                                    <td className="border-dark fw-bold">{it.batch || oqcFormData.batch}</td>
+                                    <td className="border-dark fw-bold">{it.quantity || it.soLuong || oqcFormData.totalQuantity}</td>
+                                    <td className="border-dark fw-bold">{it.sampleQuantity || it.quantity || it.soLuong || oqcFormData.sampleQuantity}</td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td className="border-dark">1</td>
+                                  <td className="border-dark text-start fw-bold">{selectedInspection.product}</td>
+                                   <td className="border-dark fw-bold">{oqcFormData.model && !oqcFormData.model.startsWith("DM-") && !oqcFormData.model.startsWith("BOM-") ? oqcFormData.model : ""}</td>
+                                  <td className="border-dark fw-bold">{oqcFormData.batch}</td>
+                                  <td className="border-dark fw-bold">{oqcFormData.totalQuantity}</td>
+                                  <td className="border-dark fw-bold">{oqcFormData.sampleQuantity}</td>
+                                </tr>
+                              )}
                             </tbody>
                           </table>
                         </div>
@@ -1301,26 +1553,77 @@ export default function QaPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          <tr>
-                            <td className="text-center border-dark">1</td>
-                            <td className="border-dark text-start">
-                              <div className="fw-bold">{selectedInspection.product}</div>
-                              <div className="text-muted small mb-1">Mã SP: {oqcFormData.model} {oqcFormData.batch ? `| Lô: ${oqcFormData.batch}` : ""}</div>
-                              <div className="text-muted small mb-1">Mã định mức: <span className="fw-medium text-dark">{oqcFormData.bomCode || "Không có dữ liệu"}</span></div>
-                              {oqcFormData.rejectReason && (
-                                <div className="mt-1 p-2 bg-light border-start border-3 border-secondary rounded" style={{ fontSize: "9pt" }}>
-                                  <div className="fw-bold text-muted mb-1" style={{ fontSize: "8.5pt" }}>QC nhận xét:</div>
-                                  <ul className="list-unstyled mb-0 ps-1" style={{ lineHeight: "1.4" }}>
-                                    {oqcFormData.rejectReason.split('\n').filter((line: string) => line.trim() !== "").map((line: string, lineIdx: number) => (
-                                      <li key={lineIdx} className="fst-italic">
-                                        • {line.trim()}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
+                          {oqcFormData.items && oqcFormData.items.length > 0 ? (
+                            oqcFormData.items.map((it: any, idx: number) => (
+                              <tr key={idx}>
+                                <td className="text-center border-dark">{idx + 1}</td>
+                                <td className="border-dark text-start">
+                                  <div className="fw-bold">{it.productName || it.tenHang || it.name}</div>
+                                  {(it.dinhMucCode || it.dinhMucTen) && (
+                                    <div className="text-muted small mb-1">
+                                      Định mức: <span className="fw-medium text-dark">{it.dinhMucCode ? `[${it.dinhMucCode}] ` : ""}{it.dinhMucTen || ""}</span>
+                                    </div>
+                                  )}
+                                  {it.comment && (
+                                    <div className="mt-1 p-2 bg-light border-start border-3 border-secondary rounded" style={{ fontSize: "9pt" }}>
+                                      <div className="fw-bold text-muted mb-1" style={{ fontSize: "8.5pt" }}>QC nhận xét:</div>
+                                      <ul className="list-unstyled mb-0 ps-1" style={{ lineHeight: "1.4" }}>
+                                        {it.comment.split('\n').filter((line: string) => line.trim() !== "").map((line: string, lineIdx: number) => (
+                                          <li key={lineIdx} className="fst-italic">
+                                            • {line.trim()}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  {it.defectDesc && (
+                                    <div className="mt-1 p-2 bg-light border-start border-3 border-danger rounded" style={{ fontSize: "9pt" }}>
+                                      <div className="fw-bold mb-1" style={{ fontSize: "8.5pt", color: "darkred" }}>Mô tả các lỗi:</div>
+                                      <ul className="list-unstyled mb-0 ps-1" style={{ lineHeight: "1.4", color: "darkred" }}>
+                                        {it.defectDesc.split('\n').filter((line: string) => line.trim() !== "").map((line: string, lineIdx: number) => (
+                                          <li key={lineIdx} className="fst-italic">
+                                            • {line.trim()}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  {!it.comment && !it.defectDesc && oqcFormData.rejectReason && idx === 0 && (
+                                    <div className="mt-1 p-2 bg-light border-start border-3 border-secondary rounded" style={{ fontSize: "9pt" }}>
+                                      <div className="fw-bold text-muted mb-1" style={{ fontSize: "8.5pt" }}>QC nhận xét:</div>
+                                      <ul className="list-unstyled mb-0 ps-1" style={{ lineHeight: "1.4" }}>
+                                        {oqcFormData.rejectReason.split('\n').filter((line: string) => line.trim() !== "").map((line: string, lineIdx: number) => (
+                                          <li key={lineIdx} className="fst-italic">
+                                            • {line.trim()}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td className="text-center border-dark">1</td>
+                              <td className="border-dark text-start">
+                                <div className="fw-bold">{selectedInspection.product}</div>
+                                <div className="text-muted small mb-1">Mã SP: {oqcFormData.model} {oqcFormData.batch ? `| Lô: ${oqcFormData.batch}` : ""}</div>
+                                {oqcFormData.rejectReason && (
+                                  <div className="mt-1 p-2 bg-light border-start border-3 border-secondary rounded" style={{ fontSize: "9pt" }}>
+                                    <div className="fw-bold text-muted mb-1" style={{ fontSize: "8.5pt" }}>QC nhận xét:</div>
+                                    <ul className="list-unstyled mb-0 ps-1" style={{ lineHeight: "1.4" }}>
+                                      {oqcFormData.rejectReason.split('\n').filter((line: string) => line.trim() !== "").map((line: string, lineIdx: number) => (
+                                        <li key={lineIdx} className="fst-italic">
+                                          • {line.trim()}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -1340,27 +1643,63 @@ export default function QaPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          <tr>
-                            <td className="border-dark">1</td>
-                            <td className="border-dark text-start">
-                              <div className="fw-bold">{selectedInspection.product}</div>
-                              {oqcFormData.result === "fail" && (
-                                <div className="text-danger small mt-1 fst-italic">
-                                  Lý do: [{oqcFormData.rejectCategories.join(", ")}] {oqcFormData.rejectReason}
-                                </div>
-                              )}
-                            </td>
-                            <td className="border-dark fw-bold text-success fs-6">
-                              {oqcFormData.passQuantity}
-                            </td>
-                            <td className="border-dark fw-bold text-danger fs-6">
-                              {oqcFormData.failQuantity}
-                            </td>
-                            <td className="border-dark fw-bold">
-                              {oqcFormData.result === "pass" ? "CHẤP NHẬN" : ""}
-                              {oqcFormData.result === "fail" ? "TỪ CHỐI" : ""}
-                            </td>
-                          </tr>
+                          {oqcFormData.items && oqcFormData.items.length > 0 ? (
+                            oqcFormData.items.map((item: any, idx: number) => {
+                              const hasPass = item.passQuantity !== "" && item.passQuantity !== undefined;
+                              const hasFail = item.failQuantity !== "" && item.failQuantity !== undefined;
+                              const isEvaluated = hasPass || hasFail;
+                              const failQty = parseInt(item.failQuantity?.toString() || "0", 10);
+                              return (
+                                <tr key={idx}>
+                                  <td className="border-dark">{idx + 1}</td>
+                                  <td className="border-dark text-start">
+                                    <div className="fw-bold">{item.productName || item.tenHang}</div>
+                                    {(item.dinhMucCode || item.dinhMucTen) && (
+                                      <div className="text-muted small" style={{ fontSize: "8.5pt" }}>
+                                        {item.dinhMucCode ? `[${item.dinhMucCode}] ` : ""}{item.dinhMucTen || ""}
+                                      </div>
+                                    )}
+                                    {item.result === "fail" && item.defectDesc && (
+                                      <div className="text-danger small mt-1 fst-italic">
+                                        Lỗi: {item.defectDesc}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="border-dark fw-bold text-success fs-6">
+                                    {item.passQuantity}
+                                  </td>
+                                  <td className="border-dark fw-bold text-danger fs-6">
+                                    {item.failQuantity}
+                                  </td>
+                                  <td className="border-dark fw-bold">
+                                    {isEvaluated ? (failQty === 0 ? "CHẤP NHẬN" : "TỪ CHỐI") : ""}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td className="border-dark">1</td>
+                              <td className="border-dark text-start">
+                                <div className="fw-bold">{selectedInspection.product}</div>
+                                {oqcFormData.result === "fail" && (
+                                  <div className="text-danger small mt-1 fst-italic">
+                                    Lý do: [{oqcFormData.rejectCategories.join(", ")}] {oqcFormData.rejectReason}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="border-dark fw-bold text-success fs-6">
+                                {oqcFormData.passQuantity}
+                              </td>
+                              <td className="border-dark fw-bold text-danger fs-6">
+                                {oqcFormData.failQuantity}
+                              </td>
+                              <td className="border-dark fw-bold">
+                                {oqcFormData.result === "pass" ? "CHẤP NHẬN" : ""}
+                                {oqcFormData.result === "fail" ? "TỪ CHỐI" : ""}
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
 
@@ -1393,30 +1732,44 @@ export default function QaPage() {
         <div className="offcanvas-backdrop fade show" style={{ zIndex: 1060 }} onClick={() => setActiveEvalItemIdx(null)}></div>
         <div className="offcanvas offcanvas-end show border-start shadow d-flex flex-column" tabIndex={-1} style={{ zIndex: 1065, width: "400px", visibility: "visible" }}>
           <div className="offcanvas-header border-bottom py-3 px-4 bg-white d-flex align-items-center justify-content-between">
-            <h6 className="offcanvas-title fw-bold text-dark mb-0">Đánh giá chất lượng vật tư</h6>
+            <h6 className="offcanvas-title fw-bold text-dark mb-0">
+              {showOqcModal ? "Đánh giá chất lượng thành phẩm" : "Đánh giá chất lượng vật tư"}
+            </h6>
             <button type="button" className="btn-close" onClick={() => setActiveEvalItemIdx(null)}></button>
           </div>
           
           <div className="offcanvas-body p-4 custom-scrollbar d-flex flex-column gap-3 flex-grow-1 min-h-0" style={{ overflowY: "auto" }}>
             <div>
-              <label className="form-label small text-muted mb-1">Tên vật tư / Linh kiện</label>
+              <label className="form-label small text-muted mb-1">
+                {showOqcModal ? "Tên sản phẩm / Thành phẩm" : "Tên vật tư / Linh kiện"}
+              </label>
               <div className="fw-bold text-primary" style={{ fontSize: "14px" }}>
-                {iqcFormData.items[activeEvalItemIdx]?.productName}
+                {showOqcModal 
+                  ? (oqcFormData.items[activeEvalItemIdx]?.productName || oqcFormData.items[activeEvalItemIdx]?.tenHang)
+                  : iqcFormData.items[activeEvalItemIdx]?.productName}
               </div>
             </div>
 
             <div>
               <label className="form-label small text-muted mb-1">Mã sản phẩm (Model/SKU)</label>
               <div className="fw-semibold text-dark">
-                {iqcFormData.items[activeEvalItemIdx]?.model || "--"}
+                {(showOqcModal 
+                  ? (oqcFormData.items[activeEvalItemIdx]?.model && !oqcFormData.items[activeEvalItemIdx]?.model.startsWith("DM-") && !oqcFormData.items[activeEvalItemIdx]?.model.startsWith("BOM-") ? oqcFormData.items[activeEvalItemIdx]?.model : "")
+                  : iqcFormData.items[activeEvalItemIdx]?.model) || "--"}
               </div>
+              {showOqcModal && (oqcFormData.items[activeEvalItemIdx]?.dinhMucCode || oqcFormData.items[activeEvalItemIdx]?.dinhMucTen) && (
+                <div className="text-secondary small mt-1">
+                  Định mức: {oqcFormData.items[activeEvalItemIdx]?.dinhMucCode ? `[${oqcFormData.items[activeEvalItemIdx]?.dinhMucCode}] ` : ""}
+                  {oqcFormData.items[activeEvalItemIdx]?.dinhMucTen || ""}
+                </div>
+              )}
             </div>
 
-            {iqcFormData.items[activeEvalItemIdx]?.batch && (
+            {((showOqcModal ? oqcFormData.items[activeEvalItemIdx]?.batch : iqcFormData.items[activeEvalItemIdx]?.batch)) && (
               <div>
                 <label className="form-label small text-muted mb-1">Số lô (Batch)</label>
                 <div className="fw-semibold text-dark">
-                  {iqcFormData.items[activeEvalItemIdx]?.batch}
+                  {showOqcModal ? oqcFormData.items[activeEvalItemIdx]?.batch : iqcFormData.items[activeEvalItemIdx]?.batch}
                 </div>
               </div>
             )}
@@ -1460,15 +1813,27 @@ export default function QaPage() {
               type="button" 
               className="btn btn-primary btn-sm flex-grow-1" 
               onClick={() => {
-                const newItems = [...iqcFormData.items];
-                const isFailed = parseInt(newItems[activeEvalItemIdx]?.failQuantity?.toString() || "0", 10) > 0;
-                newItems[activeEvalItemIdx] = {
-                  ...newItems[activeEvalItemIdx],
-                  comment: tempEvalComment,
-                  defectDesc: tempDefectDesc,
-                  result: isFailed ? "fail" : "pass"
-                };
-                setIqcFormData(prev => ({ ...prev, items: newItems }));
+                if (showOqcModal) {
+                  const newItems = [...oqcFormData.items];
+                  const isFailed = parseInt(newItems[activeEvalItemIdx]?.failQuantity?.toString() || "0", 10) > 0;
+                  newItems[activeEvalItemIdx] = {
+                    ...newItems[activeEvalItemIdx],
+                    comment: tempEvalComment,
+                    defectDesc: tempDefectDesc,
+                    result: isFailed ? "fail" : "pass"
+                  };
+                  setOqcFormData(prev => ({ ...prev, items: newItems }));
+                } else {
+                  const newItems = [...iqcFormData.items];
+                  const isFailed = parseInt(newItems[activeEvalItemIdx]?.failQuantity?.toString() || "0", 10) > 0;
+                  newItems[activeEvalItemIdx] = {
+                    ...newItems[activeEvalItemIdx],
+                    comment: tempEvalComment,
+                    defectDesc: tempDefectDesc,
+                    result: isFailed ? "fail" : "pass"
+                  };
+                  setIqcFormData(prev => ({ ...prev, items: newItems }));
+                }
                 setActiveEvalItemIdx(null);
               }}
               disabled={selectedInspection?.result !== "Pending"}

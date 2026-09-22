@@ -42,13 +42,14 @@ export async function POST(req: Request) {
           const cong = emp.attendance.reduce((acc: number, a: any) => acc + (a?.workday || 0), 0);
           const ot = emp.attendance.reduce((acc: number, a: any) => acc + (a?.otHours || 0), 0);
           const salary = emp.baseSalary || 0;
-          const allowances = (emp.mealAllowance || 0) + (emp.fuelAllowance || 0) + (emp.phoneAllowance || 0) + (emp.seniorityAllowance || 0);
+          const mealTotal = (emp.mealAllowance || 0) * cong;
+          const allowances = mealTotal + (emp.fuelAllowance || 0) + (emp.phoneAllowance || 0) + (emp.seniorityAllowance || 0);
           
           const salaryTheoCong = (salary / standardWorkDays) * cong;
           const otSalary = ot * (salary / standardWorkDays / 8);
-          const khauTruBH = salary * 0.105;
+          const khauTruBH = emp.insuranceDeduction ?? 0;
           const net = salaryTheoCong + allowances + otSalary - khauTruBH;
-          const chiPhiCtyDong = salary * 0.235;
+          const chiPhiCtyDong = khauTruBH;
           const tongChiPhiCty = net + chiPhiCtyDong;
 
           await tx.payroll.upsert({

@@ -3253,10 +3253,14 @@ select.app-input {
 }
 
 /* Payroll Table styling */
-.payroll-table th,
-.payroll-table td {
+.payroll-table th {
   padding: 6px 8px !important;
   vertical-align: middle;
+}
+.payroll-table td {
+  padding: 2px 8px !important;
+  vertical-align: middle;
+  height: 35px;
 }
 
 /* Desktop widths for payroll columns */

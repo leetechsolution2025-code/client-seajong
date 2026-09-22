@@ -42,6 +42,9 @@ export async function getAttendanceData(month: number, year: number) {
         departmentName: true,
         avatarUrl: true,
         baseSalary: true,
+        insuranceSalary: true,
+        isInsuranceEnrolled: true,
+        socialInsuranceNumber: true,
         mealAllowance: true,
         fuelAllowance: true,
         phoneAllowance: true,
@@ -59,6 +62,23 @@ export async function getAttendanceData(month: number, year: number) {
         { fullName: "asc" }
       ]
     });
+
+    // Fetch insurance history & config for syncing deduction
+    const insuranceHistories = await (prisma as any).insuranceHistory.findMany({
+      where: { month, year }
+    });
+    const insuranceMap = new Map();
+    insuranceHistories.forEach((ih: any) => {
+      insuranceMap.set(ih.employeeId, ih);
+    });
+
+    const insuranceConfig = await (prisma as any).insuranceConfig.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: "desc" },
+    });
+    const employerRate = insuranceConfig
+      ? insuranceConfig.employerBhxh + insuranceConfig.employerBhyt + insuranceConfig.employerBhtn
+      : 21.5;
 
     const attendances = await (db as any).attendance.findMany({
       where: {
@@ -127,6 +147,12 @@ export async function getAttendanceData(month: number, year: number) {
         rules = { ...defaultRules, ...parsed };
       } catch (e) {}
     }
+
+    // Payroll records for current month
+    const payrollRecords = await prisma.payroll.findMany({
+      where: { thang: month, nam: year }
+    });
+    const payrollMap = new Map(payrollRecords.map(p => [p.employeeId, p]));
 
     // Group by department
     const departments: Record<string, any[]> = {};
@@ -268,9 +294,23 @@ export async function getAttendanceData(month: number, year: number) {
         };
       });
 
+      const isEnrolled = emp.isInsuranceEnrolled || (emp.socialInsuranceNumber && emp.socialInsuranceNumber.trim() !== "");
+      let insuranceDeduction = 0;
+      if (isEnrolled) {
+        if (insuranceMap.has(emp.id)) {
+          const hist = insuranceMap.get(emp.id);
+          insuranceDeduction = hist.employerAmount;
+        } else {
+          const insSalary = emp.insuranceSalary || 0;
+          insuranceDeduction = Math.round((insSalary * employerRate) / 100);
+        }
+      }
+
       departments[deptName].push({ 
         ...emp, 
+        insuranceDeduction,
         attendance: days,
+        payrollStatus: payrollMap.get(emp.id)?.trangThai || null,
         isConfirmed: !!(emp.attendanceConfirmations && emp.attendanceConfirmations.length > 0),
         isPayrollConfirmed: !!((emp as any).payrollConfirmations && (emp as any).payrollConfirmations.length > 0)
       });
@@ -309,15 +349,25 @@ export async function getAttendanceData(month: number, year: number) {
       };
     });
 
+    const isAccountingApproved = payrollRecords.length > 0
+      ? payrollRecords.some(p => ["Kế toán đã duyệt", "Chờ Giám đốc duyệt", "Giám đốc đã duyệt", "Đã duyệt"].includes(p.trangThai))
+      : false;
+    const isDirectorSubmitted = payrollRecords.length > 0
+      ? payrollRecords.some(p => ["Chờ Giám đốc duyệt", "Giám đốc đã duyệt", "Đã duyệt"].includes(p.trangThai))
+      : false;
+    const isDirectorApproved = payrollRecords.length > 0
+      ? payrollRecords.some(p => ["Giám đốc đã duyệt", "Đã duyệt"].includes(p.trangThai))
+      : false;
 
-    const payrollRecord = await prisma.payroll.findFirst({
-      where: { thang: month, nam: year }
-    });
-    const isAccountingApproved = payrollRecord ? payrollRecord.trangThai === "Kế toán đã duyệt" : false;
+    const firstApproved = payrollRecords.find(p => ["Đã duyệt", "Giám đốc đã duyệt"].includes(p.trangThai));
+    const firstStatus = firstApproved?.trangThai || payrollRecords[0]?.trangThai || null;
 
     return {
       departments: departmentList,
       isAccountingApproved,
+      isDirectorSubmitted,
+      isDirectorApproved,
+      payrollStatus: firstStatus,
       stats: {
         totalEmployees,
         presentToday,

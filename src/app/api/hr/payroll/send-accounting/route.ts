@@ -104,12 +104,13 @@ export async function POST(req: Request) {
         
         // Base Salary and Allowances
         const salary = emp.baseSalary || 0;
-        const allowances = (emp.mealAllowance || 0) + (emp.fuelAllowance || 0) + (emp.phoneAllowance || 0) + (emp.seniorityAllowance || 0);
+        const mealTotal = (emp.mealAllowance || 0) * cong;
+        const allowances = mealTotal + (emp.fuelAllowance || 0) + (emp.phoneAllowance || 0) + (emp.seniorityAllowance || 0);
         
         // Calculate Net
         const salaryTheoCong = (salary / standardWorkDays) * cong;
         const otSalary = ot * (salary / standardWorkDays / 8);
-        const khauTruBH = salary * 0.105;
+        const khauTruBH = emp.insuranceDeduction ?? 0;
         const net = salaryTheoCong + allowances + otSalary - khauTruBH;
 
         // Add to totals

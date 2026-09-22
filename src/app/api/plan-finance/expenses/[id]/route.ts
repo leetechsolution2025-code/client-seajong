@@ -28,6 +28,24 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     const body = await req.json();
     const { tenChiPhi, loai, soTien, ngayChiTra, nguoiChiTra, trangThai, ghiChu } = body;
 
+    if (params.id.startsWith("AUTO_PAYROLL_")) {
+      const match = params.id.match(/AUTO_PAYROLL_(\d+)_(\d+)/);
+      if (match) {
+        const nam = parseInt(match[1], 10);
+        const thang = parseInt(match[2], 10);
+        if (trangThai === "paid") {
+          await prisma.payroll.updateMany({
+            where: { nam, thang },
+            data: {
+              trangThai: "da-tra",
+              ngayTra: new Date(),
+            },
+          });
+        }
+      }
+      return NextResponse.json({ id: params.id, ...body });
+    }
+
     const item = await prisma.expense.update({
       where: { id: params.id },
       data: {

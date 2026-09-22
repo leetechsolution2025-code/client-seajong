@@ -42,6 +42,7 @@ export type OrderItem = {
   dinhMucs?: any[];
   dinhMucId?: string | null;
   dinhMucTen?: string | null;
+  bomCode?: string | null;
   khoTen?: string | null;
   source?: string;
   loiNhuanKyVong?: number;
@@ -257,6 +258,15 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           code: null,
           khoTen: (() => {
             try { return JSON.parse(it.ghiChu || "{}").khoTen || ""; } catch { return ""; }
+          })(),
+          dinhMucId: (() => {
+            try { return JSON.parse(it.ghiChu || "{}").dinhMucId || it.dinhMucId || null; } catch { return it.dinhMucId || null; }
+          })(),
+          dinhMucTen: (() => {
+            try { return JSON.parse(it.ghiChu || "{}").dinhMucTen || null; } catch { return null; }
+          })(),
+          bomCode: (() => {
+            try { return JSON.parse(it.ghiChu || "{}").bomCode || null; } catch { return null; }
           })()
         })));
       }
@@ -678,12 +688,38 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
     };
 
     if (rowId === -1) {
-      setFormItem(x => ({ ...x, ...updatePayload }));
+      setFormItem(x => {
+        const next = { ...x, ...updatePayload };
+        if (next.id !== -1) {
+          setItems(r => r.map(itemRow => itemRow.id === next.id ? { ...itemRow, ...updatePayload } : itemRow));
+        }
+        return next;
+      });
     } else {
       setItems(r => r.map(x => x.id === rowId ? { ...x, ...updatePayload } : x));
     }
     setSuggest([]);
     setActiveRowIdSync(null);
+  };
+
+  const updateFormField = <K extends keyof OrderItem>(key: K, value: OrderItem[K]) => {
+    setFormItem(p => {
+      const next = { ...p, [key]: value };
+      if (next.id !== -1) {
+        setItems(r => r.map(x => x.id === next.id ? { ...x, [key]: value } : x));
+      }
+      return next;
+    });
+  };
+
+  const updateFormFields = (updates: Partial<OrderItem>) => {
+    setFormItem(p => {
+      const next = { ...p, ...updates };
+      if (next.id !== -1) {
+        setItems(r => r.map(x => x.id === next.id ? { ...x, ...updates } : x));
+      }
+      return next;
+    });
   };
 
   const setInfoField = (k: string) => (e: any) => {
@@ -705,6 +741,9 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
   const removeRow = (id: number) => {
     setItems(r => r.filter(x => x.id !== id));
+    if (formItem.id === id) {
+      setFormItem({ id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: "", loiNhuanKyVong: 0, phuongPhapTinhLoiNhuan: "revenue", baseGiaBan: 0 });
+    }
   };
 
   const updateRow = (id: number, k: keyof OrderItem, val: any) => {
@@ -719,30 +758,52 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
   const truocThue = tamTinh - ckTien;
   const thueTien = truocThue * info.thue / 100;
   const tongCong = truocThue + thueTien + (info.chiPhiKhac || 0);
+  const checkMaterialShortage = (it: OrderItem) => {
+    const activeDinhMuc = (it.dinhMucs || []).find((dm: any) => dm.id == it.dinhMucId || String(dm.id) === String(it.dinhMucId)) || (it.dinhMucs && it.dinhMucs.length > 0 ? it.dinhMucs[0] : null);
+    if (!activeDinhMuc || !activeDinhMuc.vatTu || activeDinhMuc.vatTu.length === 0) {
+      return { hasBOM: false, hasShortage: false, missingCount: 0 };
+    }
+    let missingCount = 0;
+    activeDinhMuc.vatTu.forEach((vt: any) => {
+      const vtStocks = vt.stocks || vt.inventoryItem?.stocks || vt.material?.stocks || [];
+      const vtRelevantStocks = vtStocks.filter((s: any) => {
+        const c = s.warehouse?.code?.toUpperCase()?.trim();
+        return c === "KHO-CHINH" || c === "KVP" || c === "KHO_CHINH";
+      });
+      const vtSoLuong = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
+      const vtSoLuongGiu = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);
+      const vtThucTon = Math.max(0, vtSoLuong - vtSoLuongGiu);
+      const needed = (vt.soLuong || 0) * (it.soLuong || 0);
+      if (vtThucTon < needed) {
+        missingCount++;
+      }
+    });
+    return {
+      hasBOM: true,
+      hasShortage: missingCount > 0,
+      missingCount
+    };
+  };
+
+  const itemsWithMaterialShortage = items.filter(it => {
+    const isMainShort = it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number);
+    if (!isMainShort) return false;
+    const matCheck = checkMaterialShortage(it);
+    return matCheck.hasBOM && matCheck.hasShortage;
+  });
+  const hasAnyMaterialShortage = itemsWithMaterialShortage.length > 0;
+
   const isOutOfStock = items.some(it => {
     const mainOutOfStock = it.soLuongTon !== null && it.soLuongTon !== undefined && it.soLuong > (it.soLuongTon as number);
     if (!mainOutOfStock) return false;
     
-    // Main item is out of stock. Check if materials are sufficient.
-    const activeDinhMuc = (it.dinhMucs || []).find((dm: any) => dm.id === it.dinhMucId) || (it.dinhMucs && it.dinhMucs.length > 0 ? it.dinhMucs[0] : null);
-    
-    if (activeDinhMuc && activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0) {
-      // Check if ALL materials are sufficient
-      const allMaterialsSufficient = activeDinhMuc.vatTu.every((vt: any) => {
-        const vtStocks = vt.inventoryItem?.stocks || vt.material?.stocks || [];
-        const vtRelevantStocks = vtStocks.filter((s: any) => s.warehouse?.code === "KHO-CHINH" || s.warehouse?.code === "KVP");
-        const vtSoLuong = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
-        const vtSoLuongGiu = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);
-        const vtThucTon = Math.max(0, vtSoLuong - vtSoLuongGiu);
-        const needed = (vt.soLuong || 0) * (it.soLuong || 0);
-        return vtThucTon >= needed;
-      });
-      if (allMaterialsSufficient) {
-        return false; // NOT out of stock, materials are sufficient!
-      }
+    // Main item is out of stock. Check if materials are sufficient to produce.
+    const matCheck = checkMaterialShortage(it);
+    if (matCheck.hasBOM && !matCheck.hasShortage) {
+      return false; // NOT out of stock, materials are sufficient!
     }
     
-    return true; // Out of stock and no sufficient materials
+    return true; // Out of stock and insufficient materials
   });
 
 
@@ -833,7 +894,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               code: it.code || "", 
               khoTen: it.khoTen || "", 
               dinhMucId: it.dinhMucId || "",
-              bomCode: (it.dinhMucs && Array.isArray(it.dinhMucs) ? it.dinhMucs.find((d: any) => d.id === it.dinhMucId)?.code : "") || "" 
+              bomCode: (it.dinhMucs && Array.isArray(it.dinhMucs) ? it.dinhMucs.find((d: any) => d.id === it.dinhMucId)?.code : "") || "",
+              dinhMucTen: it.dinhMucTen || (it.dinhMucs && Array.isArray(it.dinhMucs) ? it.dinhMucs.find((d: any) => d.id === it.dinhMucId)?.tenDinhMuc : "") || ""
             })
           }))
         };
@@ -870,7 +932,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               code: it.code || "", 
               khoTen: it.khoTen || "", 
               dinhMucId: it.dinhMucId || "", 
-              bomCode: (it.dinhMucs && Array.isArray(it.dinhMucs) ? it.dinhMucs.find((d: any) => d.id === it.dinhMucId)?.code : "") || "" 
+              bomCode: (it.dinhMucs && Array.isArray(it.dinhMucs) ? it.dinhMucs.find((d: any) => d.id === it.dinhMucId)?.code : "") || "",
+              dinhMucTen: it.dinhMucTen || (it.dinhMucs && Array.isArray(it.dinhMucs) ? it.dinhMucs.find((d: any) => d.id === it.dinhMucId)?.tenDinhMuc : "") || ""
             }),
             sortOrder: idx
           })),
@@ -968,7 +1031,15 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {saveError && <span style={{ fontSize: 12, color: "#fca5a5", alignSelf: "center" }}><i className="bi bi-exclamation-circle" /> {saveError}</span>}
-          {isOutOfStock && <span style={{ fontSize: 12, color: "#fca5a5", alignSelf: "center" }}><i className="bi bi-exclamation-triangle" /> Đơn có hàng hóa thiếu</span>}
+          {hasAnyMaterialShortage ? (
+            <span style={{ fontSize: 12, color: "#fca5a5", alignSelf: "center", display: "flex", alignItems: "center", gap: 5 }}>
+              <i className="bi bi-exclamation-octagon-fill" /> Không đủ vật tư
+            </span>
+          ) : (isOutOfStock && (
+            <span style={{ fontSize: 12, color: "#fca5a5", alignSelf: "center", display: "flex", alignItems: "center", gap: 5 }}>
+              <i className="bi bi-exclamation-triangle" /> Đơn có hàng hóa thiếu
+            </span>
+          ))}
           <button className="order-modal-header-btn" onClick={handleSave} disabled={saving || isOutOfStock} style={{ padding: "6px 20px", background: (saving || isOutOfStock) ? "#6b7280" : "#10b981", color: "#fff", border: "none", borderRadius: 8, cursor: (saving || isOutOfStock) ? "not-allowed" : "pointer", fontWeight: 800, fontSize: 13, opacity: saving ? 0.7 : 1 }}>
             {saving ? "Đang lưu..." : (
               <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -1238,6 +1309,29 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 items={items.map(it => ({ ten: it.ten, soLuong: it.soLuong, soLuongTon: it.soLuongTon }))}
                 showPurchaseRequest={false}
               />
+              {hasAnyMaterialShortage && (
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    color: "#dc2626",
+                    background: "rgba(220,38,38,0.08)",
+                    borderRadius: 20,
+                    padding: "3px 10px",
+                    border: "1px solid rgba(220,38,38,0.25)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <i className="bi bi-exclamation-octagon-fill" style={{ fontSize: 11 }} />
+                  Không đủ vật tư
+                  <span style={{ fontWeight: 400, fontSize: 10.5, marginLeft: 2 }}>
+                    ({itemsWithMaterialShortage.length} mặt hàng)
+                  </span>
+                </span>
+              )}
             </div>
           </div>
 
@@ -1250,7 +1344,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                   <SearchInput
                     value={formItem.ten}
                     onChange={v => {
-                      setFormItem(prev => ({ ...prev, ten: v }));
+                      updateFormField("ten", v);
                       if (!v) {
                         setSuggest([]);
                       } else {
@@ -1286,13 +1380,13 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                     value={formItem.dinhMucId || ""}
                     onChange={e => {
                       const dmId = e.target.value;
-                      const dm = formItem.dinhMucs?.find(x => x.id === dmId);
-                      setFormItem(p => ({
-                        ...p,
+                      const dm = formItem.dinhMucs?.find(x => x.id === dmId || String(x.id) === String(dmId));
+                      const newDonGia = calculateBomPrice(dm, (formItem as any).baseGiaBan || formItem.donGia, (formItem as any).loiNhuanKyVong || 0, (formItem as any).phuongPhapTinhLoiNhuan || 'revenue');
+                      updateFormFields({
                         dinhMucId: dmId,
                         dinhMucTen: dm ? dm.tenDinhMuc : null,
-                        donGia: calculateBomPrice(dm, (p as any).baseGiaBan || p.donGia, (p as any).loiNhuanKyVong || 0, (p as any).phuongPhapTinhLoiNhuan || 'revenue')
-                      }));
+                        donGia: newDonGia
+                      });
                     }}
                     disabled={formItem.source === "inventory"}
                     style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: formItem.source === "inventory" ? "var(--muted)" : "#fff", outline: "none", fontFamily: "inherit", fontSize: 13, color: formItem.source === "inventory" ? "var(--muted-foreground)" : "var(--foreground)", cursor: formItem.source === "inventory" ? "not-allowed" : "default" }}
@@ -1354,29 +1448,39 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               </div>
               <div style={{ flex: "1 1 80px" }}>
                 <FLabel text="Đơn vị tính" />
-                <input value={formItem.dvt} onChange={e => setFormItem(p => ({ ...p, dvt: e.target.value }))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "center", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                <input value={formItem.dvt} onChange={e => updateFormField("dvt", e.target.value)} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "center", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
               </div>
               <div style={{ flex: "1 1 90px" }}>
                 <FLabel text="Số lượng" required />
-                <input type="number" min={1} value={formItem.soLuong} onChange={e => setFormItem(p => ({ ...p, soLuong: Math.max(1, Number(e.target.value)) }))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                <input type="number" min={1} value={formItem.soLuong} onChange={e => updateFormField("soLuong", Math.max(1, Number(e.target.value)))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
               </div>
               <div style={{ flex: "1 1 90px" }}>
                 <FLabel text="Chiết khấu (%)" />
-                <input type="number" min={0} max={100} value={formItem.ckPct} onChange={e => setFormItem(p => ({ ...p, ckPct: Math.max(0, Math.min(100, Number(e.target.value))) }))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                <input type="number" min={0} max={100} value={formItem.ckPct} onChange={e => updateFormField("ckPct", Math.max(0, Math.min(100, Number(e.target.value))))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
               </div>
               <div style={{ flex: "1 1 120px" }}>
                 <FLabel text="Đơn giá (đ)" />
                 <CurrencyInput
                   value={formItem.donGia}
-                  onChange={v => !(!isAdmin) && setFormItem(p => ({ ...p, donGia: v }))}
+                  onChange={v => !(!isAdmin) && updateFormField("donGia", v)}
                   readOnly={!isAdmin}
                   style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: !isAdmin ? "var(--muted)" : "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: !isAdmin ? "var(--muted-foreground)" : "var(--foreground)", cursor: !isAdmin ? "not-allowed" : "text" }}
                 />
               </div>
-              <div>
+              <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={addRow} style={{ padding: "0 14px", border: "none", background: "var(--primary)", color: "#fff", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, height: 34, boxSizing: "border-box" }}>
                   <i className={formItem.id === -1 ? "bi bi-plus-lg" : "bi bi-check2"} /> {formItem.id === -1 ? "Thêm" : "Cập nhật"}
                 </button>
+                {formItem.id !== -1 && (
+                  <button 
+                    type="button" 
+                    onClick={() => setFormItem({ id: -1, ten: "", khoTen: "", dvt: "cái", soLuong: 1, donGia: 0, ckPct: 0, soLuongTon: null, trangThaiKho: null, inventoryId: null, imageUrl: null, code: null, dinhMucs: [], dinhMucId: null, dinhMucTen: null, source: "", loiNhuanKyVong: 0, phuongPhapTinhLoiNhuan: "revenue", baseGiaBan: 0 })}
+                    style={{ padding: "0 10px", border: "1px solid var(--border)", background: "var(--muted)", color: "var(--foreground)", borderRadius: 6, cursor: "pointer", fontSize: 12, height: 34, boxSizing: "border-box" }}
+                    title="Bỏ chọn / thêm mới"
+                  >
+                    Bỏ chọn
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1410,36 +1514,113 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                       >
                         <td style={{ padding: 10, color: "var(--muted-foreground)" }}>{idx + 1}</td>
                         <td style={{ padding: "6px 10px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            {activeDinhMuc && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedBOMRows(prev => ({ ...prev, [it.id]: !prev[it.id] }));
-                                }}
-                                style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--primary)", display: "flex" }}
-                                title={isExpanded ? "Ẩn vật tư" : "Hiện vật tư"}
-                              >
-                                <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: 12, strokeWidth: 2 }}></i>
-                              </button>
-                            )}
-                            <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{it.ten}</span>
-                            {it.ten.trim() && it.soLuongTon !== null && it.soLuongTon !== undefined && (() => {
-                              const ton = it.soLuongTon as number;
-                              if (ton === 0) return (
-                                <span title="Hết hàng" style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: 4 }}>
-                                  <i className="bi bi-x-circle-fill" style={{ fontSize: 13 }} />
-                                  <span style={{ fontSize: 11, fontWeight: 600 }}>Hết hàng</span>
-                                </span>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              {activeDinhMuc && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedBOMRows(prev => ({ ...prev, [it.id]: !prev[it.id] }));
+                                  }}
+                                  style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--primary)", display: "flex" }}
+                                  title={isExpanded ? "Ẩn vật tư" : "Hiện vật tư"}
+                                >
+                                  <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: 12, strokeWidth: 2 }}></i>
+                                </button>
+                              )}
+                              <span style={{ fontWeight: 500, color: "var(--foreground)" }}>{it.ten}</span>
+                              {it.ten.trim() && it.soLuongTon !== null && it.soLuongTon !== undefined && (() => {
+                                const ton = it.soLuongTon as number;
+                                const isOutOfFinishedGood = ton === 0 || it.soLuong > ton;
+                                if (!isOutOfFinishedGood) return null;
+
+                                const matCheck = checkMaterialShortage(it);
+
+                                return (
+                                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                    {ton === 0 ? (
+                                      <span title="Hết hàng thành phẩm" style={{ color: "#ef4444", display: "flex", alignItems: "center", gap: 4 }}>
+                                        <i className="bi bi-x-circle-fill" style={{ fontSize: 13 }} />
+                                        <span style={{ fontSize: 11, fontWeight: 600 }}>Hết hàng</span>
+                                      </span>
+                                    ) : (
+                                      <span title={`Thiếu hàng (thực tồn: ${ton})`} style={{ color: "#f97316", display: "flex", alignItems: "center", gap: 4 }}>
+                                        <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 13 }} />
+                                        <span style={{ fontSize: 11, fontWeight: 600 }}>Thiếu hàng (tồn: {ton})</span>
+                                      </span>
+                                    )}
+
+                                    {matCheck.hasBOM && (
+                                      matCheck.hasShortage ? (
+                                        <span 
+                                          title={`Không đủ vật tư sản xuất (${matCheck.missingCount} loại vật tư thiếu)`} 
+                                          style={{ 
+                                            color: "#dc2626", 
+                                            background: "rgba(220, 38, 38, 0.08)", 
+                                            padding: "1px 7px", 
+                                            borderRadius: 12, 
+                                            border: "1px solid rgba(220, 38, 38, 0.25)", 
+                                            display: "flex", 
+                                            alignItems: "center", 
+                                            gap: 4 
+                                          }}
+                                        >
+                                          <i className="bi bi-exclamation-octagon-fill" style={{ fontSize: 11 }} />
+                                          <span style={{ fontSize: 11, fontWeight: 700 }}>Không đủ vật tư</span>
+                                        </span>
+                                      ) : (
+                                        <span 
+                                          title="Đủ vật tư để sản xuất" 
+                                          style={{ 
+                                            color: "#059669", 
+                                            background: "rgba(5, 150, 105, 0.08)", 
+                                            padding: "1px 7px", 
+                                            borderRadius: 12, 
+                                            border: "1px solid rgba(5, 150, 105, 0.25)", 
+                                            display: "flex", 
+                                            alignItems: "center", 
+                                            gap: 4 
+                                          }}
+                                        >
+                                          <i className="bi bi-check-circle-fill" style={{ fontSize: 11 }} />
+                                          <span style={{ fontSize: 11, fontWeight: 600 }}>Đủ vật tư SX</span>
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                            {(() => {
+                              const moTaDinhMuc = it.dinhMucTen || activeDinhMuc?.tenDinhMuc;
+                              if (!moTaDinhMuc) return null;
+                              return (
+                                <div style={{ 
+                                  fontSize: 11.5, 
+                                  color: "var(--muted-foreground)", 
+                                  paddingLeft: activeDinhMuc ? 18 : 0,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  lineHeight: 1.3
+                                }}>
+                                  {(activeDinhMuc?.code || it.bomCode) && (
+                                    <span style={{
+                                      fontFamily: "monospace",
+                                      fontSize: 10,
+                                      fontWeight: 600,
+                                      color: "#2563eb",
+                                      background: "rgba(37, 99, 235, 0.08)",
+                                      padding: "0.5px 5px",
+                                      borderRadius: 4
+                                    }}>
+                                      {activeDinhMuc?.code || it.bomCode}
+                                    </span>
+                                  )}
+                                  <span style={{ fontStyle: "italic" }}>{moTaDinhMuc}</span>
+                                </div>
                               );
-                              if (it.soLuong > ton) return (
-                                <span title={`Thiếu hàng (thực tồn: ${ton})`} style={{ color: "#f97316", display: "flex", alignItems: "center", gap: 4 }}>
-                                  <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 13 }} />
-                                  <span style={{ fontSize: 11, fontWeight: 600 }}>Thiếu hàng (tồn: {ton})</span>
-                                </span>
-                              );
-                              return null;
                             })()}
                           </div>
                         </td>
@@ -1457,7 +1638,48 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                       {hasBOM && isExpanded && (
                         <tr style={{ background: "rgba(59,130,246,0.03)", borderBottom: "1px solid var(--border)" }}>
                           <td colSpan={8} style={{ padding: "10px 10px 10px 40px" }}>
-                            <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 6, fontWeight: 600 }}>Định mức vật tư ({activeDinhMuc.tenDinhMuc})</div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                              <div style={{ fontSize: 12, color: "var(--muted-foreground)", fontWeight: 600 }}>Định mức vật tư ({activeDinhMuc.tenDinhMuc})</div>
+                              {(() => {
+                                const matCheck = checkMaterialShortage(it);
+                                if (matCheck.hasShortage) {
+                                  return (
+                                    <span style={{
+                                      color: "#dc2626",
+                                      background: "rgba(220, 38, 38, 0.08)",
+                                      padding: "2px 8px",
+                                      borderRadius: 12,
+                                      border: "1px solid rgba(220, 38, 38, 0.25)",
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 4
+                                    }}>
+                                      <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 11 }} />
+                                      Không đủ vật tư ({matCheck.missingCount} loại thiếu)
+                                    </span>
+                                  );
+                                }
+                                return (
+                                  <span style={{
+                                    color: "#059669",
+                                    background: "rgba(5, 150, 105, 0.08)",
+                                    padding: "2px 8px",
+                                    borderRadius: 12,
+                                    border: "1px solid rgba(5, 150, 105, 0.25)",
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4
+                                  }}>
+                                    <i className="bi bi-check-circle-fill" style={{ fontSize: 11 }} />
+                                    Đủ vật tư sản xuất
+                                  </span>
+                                );
+                              })()}
+                            </div>
                             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                               <thead>
                                 <tr style={{ background: "var(--muted)", textAlign: "left", color: "var(--muted-foreground)" }}>

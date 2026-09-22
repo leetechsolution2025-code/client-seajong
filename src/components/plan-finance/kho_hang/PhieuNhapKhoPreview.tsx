@@ -15,6 +15,8 @@ export interface PhieuNhapLine {
   viTriCot?:     string;
   viTriTang?:    string;
   ghiChu?:       string;
+  bomCode?:      string | null;
+  dinhMucTen?:   string | null;
 }
 
 interface CompanyInfo {
@@ -278,6 +280,16 @@ export function PhieuNhapKhoPreview({
                 <td style={{ border: B1, padding: "5px 6px" }}>
                   {/* Tên hàng + thông số kỹ thuật — KHÔNG hiện mã SKU ở đây */}
                   <span style={{ fontWeight: 600 }}>{l.tenHang}</span>
+                  {(l.bomCode || l.dinhMucTen) && (
+                    <div style={{ margin: "2px 0 0", fontSize: 10.5, display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                      {l.bomCode && (
+                        <span style={{ fontWeight: 700, color: "#1d4ed8", background: "#eff6ff", border: "1px solid #bfdbfe", padding: "0 4px", borderRadius: 3 }}>
+                          {l.bomCode}
+                        </span>
+                      )}
+                      {l.dinhMucTen && <span style={{ color: "#4b5563", fontStyle: "italic" }}>{l.dinhMucTen}</span>}
+                    </div>
+                  )}
                   {l.thongSoKT && (
                     <p style={{ margin: "2px 0 0", fontSize: 10.5, color: "#444", fontStyle: "italic" }}>
                       {l.thongSoKT}

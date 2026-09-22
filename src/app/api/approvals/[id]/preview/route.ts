@@ -27,7 +27,47 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const meta = request.metadata ? JSON.parse(request.metadata) : {};
     let previewData: any = { type: request.entityType, title: request.entityTitle, summary: [] };
 
-    if (request.entityType === "PRODUCTION_REQUEST") {
+    if (request.entityType === "PAYROLL") {
+      const month = meta.month || 0;
+      const year = meta.year || 0;
+      const totalEmployees = meta.totalEmployees || 0;
+      const totalNet = meta.totalNet || 0;
+      const standardWorkDays = meta.standardWorkDays || 26;
+
+      const payrollList = await prisma.payroll.findMany({
+        where: { thang: month, nam: year },
+        include: {
+          employee: {
+            select: { fullName: true, position: true, departmentName: true }
+          }
+        },
+        orderBy: [
+          { employee: { departmentName: "asc" } },
+          { employee: { fullName: "asc" } }
+        ]
+      });
+
+      const listStr = payrollList
+        .map((p, idx) => `${idx + 1}. ${p.employee?.fullName || "NV"} (${p.employee?.position || p.employee?.departmentName || "NV"}): ${p.ngayCong} công, Lương CB: ${(p.luongCoBan || 0).toLocaleString("vi-VN")} đ, Thực lĩnh: ${(p.luongThucNhan || 0).toLocaleString("vi-VN")} đ`)
+        .join("\n");
+
+      previewData = {
+        type: "Bảng lương",
+        title: request.entityTitle,
+        summary: [
+          { label: "Mã hồ sơ", value: request.entityCode || `BL-${String(month).padStart(2, "0")}/${year}` },
+          { label: "Kỳ lương", value: `Tháng ${month}/${year}` },
+          { label: "Tổng nhân viên", value: `${totalEmployees || payrollList.length} nhân sự` },
+          { label: "Tổng quỹ lương thực lĩnh", value: `${Math.round(totalNet).toLocaleString("vi-VN")} đ` },
+          { label: "Ngày công chuẩn", value: `${standardWorkDays} ngày` },
+          { label: "Người trình duyệt", value: request.requestedByName || "Phòng Kế toán - Nhân sự" },
+          { label: "Trạng thái", value: request.status === "approved" ? "Đã duyệt" : request.status === "rejected" ? "Đã từ chối" : "Chờ duyệt" },
+        ],
+        details: payrollList.length > 0 
+          ? `DANH SÁCH CHI TIẾT LƯƠNG NHÂN SỰ (THÁNG ${month}/${year}):\n${listStr}`
+          : undefined,
+      };
+    } else if (request.entityType === "PRODUCTION_REQUEST") {
       const items = meta.items || (meta.productName ? [{ productName: meta.productName, productCode: meta.productCode, quantity: meta.quantity, unit: meta.unit }] : []);
       const totalQty = meta.totalQuantity || meta.quantity || items.reduce((s: number, i: any) => s + Number(i.quantity || 0), 0);
       const itemsDetailStr = items.map((i: any, idx: number) => `${idx + 1}. ${i.productName}${i.productCode ? ` [${i.productCode}]` : ""} - SL: ${i.quantity} ${i.unit || "cái"}`).join("\n");
