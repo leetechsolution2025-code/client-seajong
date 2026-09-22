@@ -6,6 +6,7 @@ import { StandardPage } from "@/components/layout/StandardPage";
 import { KPICard } from "@/components/ui/KPICard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { ProductionOrderDetailOffcanvas } from "@/components/production/ProductionOrderDetailOffcanvas";
+import { CreateProductionRequestOffcanvas } from "@/components/production/CreateProductionRequestOffcanvas";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ export default function ProductionDashboardPage() {
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [showCreateRequest, setShowCreateRequest] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState("");
   const [filterDate, setFilterDate] = useState("");
@@ -163,7 +165,7 @@ export default function ProductionDashboardPage() {
                   className="btn btn-primary btn-sm d-flex align-items-center justify-content-center shadow-sm hover-shadow-sm transition-all" 
                   style={{ width: 31, height: 31, padding: 0, borderRadius: 6 }}
                   title="Tạo yêu cầu sản xuất"
-                  onClick={() => alert("Chức năng tạo yêu cầu sản xuất đang được phát triển.")}
+                  onClick={() => setShowCreateRequest(true)}
                 >
                   <i className="bi bi-plus-lg"></i>
                 </button>
@@ -192,7 +194,7 @@ export default function ProductionDashboardPage() {
                       <td>
                         <div className="d-flex align-items-center gap-2">
                           <div className="fw-bold text-primary">{order.id}</div>
-                          {order.saleOrderCode && (
+                          {order.saleOrderCode && !order.saleOrderCode.startsWith("LSX") && (
                             <>
                               <span className="text-muted" style={{ fontSize: 12 }}>|</span>
                               <div className="text-muted" style={{ fontSize: 11 }}>
@@ -202,11 +204,13 @@ export default function ProductionDashboardPage() {
                           )}
                           {order.status === "pending" && <span className="badge bg-danger rounded-pill ms-2" style={{ fontSize: 9, padding: "2px 6px" }}>Mới</span>}
                         </div>
-                        {order.name && (
-                          <div className="text-muted text-truncate mt-1" style={{ fontSize: 11, maxWidth: 450 }} title={order.name}>
-                            {order.name}
-                          </div>
-                        )}
+                        <div
+                          className="text-muted text-truncate mt-1"
+                          style={{ fontSize: 11, maxWidth: 450 }}
+                          title={order.itemsDetail || order.name || "Sản xuất dự trữ hàng hoá"}
+                        >
+                          {order.name || "Sản xuất dự trữ hàng hoá"}
+                        </div>
                       </td>
                       <td>
                         <div style={{ fontSize: 11, marginBottom: 2 }}>
@@ -253,6 +257,12 @@ export default function ProductionDashboardPage() {
         show={showDetail} 
         onHide={() => setShowDetail(false)} 
         onUpdate={fetchData}
+      />
+
+      <CreateProductionRequestOffcanvas
+        show={showCreateRequest}
+        onHide={() => setShowCreateRequest(false)}
+        onSuccess={fetchData}
       />
 
       <style jsx>{`

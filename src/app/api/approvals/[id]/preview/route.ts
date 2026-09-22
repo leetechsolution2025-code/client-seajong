@@ -27,7 +27,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const meta = request.metadata ? JSON.parse(request.metadata) : {};
     let previewData: any = { type: request.entityType, title: request.entityTitle, summary: [] };
 
-    if (request.entityType === "marketing_monthly_execution") {
+    if (request.entityType === "PRODUCTION_REQUEST") {
+      const items = meta.items || (meta.productName ? [{ productName: meta.productName, productCode: meta.productCode, quantity: meta.quantity, unit: meta.unit }] : []);
+      const totalQty = meta.totalQuantity || meta.quantity || items.reduce((s: number, i: any) => s + Number(i.quantity || 0), 0);
+      const itemsDetailStr = items.map((i: any, idx: number) => `${idx + 1}. ${i.productName}${i.productCode ? ` [${i.productCode}]` : ""} - SL: ${i.quantity} ${i.unit || "cái"}`).join("\n");
+
+      previewData = {
+        type: "Yêu cầu sản xuất",
+        title: request.entityTitle,
+        summary: [
+          { label: "Mã lệnh sản xuất", value: request.entityCode || meta.orderCode || "N/A" },
+          { label: "Số mặt hàng", value: `${items.length} sản phẩm` },
+          { label: "Tổng sản lượng", value: `${totalQty} sản phẩm` },
+          { label: "Ngày bắt đầu", value: meta.startDate ? new Date(meta.startDate).toLocaleDateString("vi-VN") : "—" },
+          { label: "Hạn hoàn thành", value: meta.dueDate ? new Date(meta.dueDate).toLocaleDateString("vi-VN") : "—" },
+          { label: "Mức độ ưu tiên", value: meta.priority === "urgent" ? "Khẩn cấp" : meta.priority === "high" ? "Cao" : "Bình thường" },
+          { label: "Người trình duyệt", value: request.requestedByName || "N/A" },
+          { label: "Người duyệt dự kiến", value: meta.directorName || "Ban Giám Đốc" },
+        ],
+        details: items.length > 0 
+          ? `DANH SÁCH MẶT HÀNG SẢN XUẤT:\n${itemsDetailStr}${meta.notes ? `\n\nGHI CHÚ & YÊU CẦU KỸ THUẬT:\n${meta.notes}` : ""}`
+          : (meta.notes || undefined),
+      };
+    } else if (request.entityType === "marketing_monthly_execution") {
       const temp = request.entityId;
       const monthMatch = temp.match(/_m(\d+)_/);
       const month = monthMatch ? parseInt(monthMatch[1]) : meta.month;

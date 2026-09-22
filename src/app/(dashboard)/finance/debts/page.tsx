@@ -704,7 +704,7 @@ export default function DebtsPage() {
                         options={[
                           { label: "Tất cả loại chi phí", value: "" },
                           ...categories
-                            .filter(c => !c.parentId)
+                            .filter(c => !c.parentId && c.code !== "tra-no-ngan-hang" && !c.name.toLowerCase().includes("trả nợ") && !c.name.toLowerCase().includes("nợ vay"))
                             .map(c => ({ label: c.name, value: c.code }))
                         ]}
                         value={status}
@@ -978,65 +978,102 @@ export default function DebtsPage() {
 
                 let finalRows = totalRows;
 
-                if (currentStepId === "EXPENSE" && debts.length > 0) {
-                  const sorted = [...debts].sort((a, b) => {
-                    const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
-                    const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
-                    return dateB - dateA;
-                  });
+                if (currentStepId === "EXPENSE") {
+                  const now = new Date();
+                  const currentYear = now.getFullYear();
+                  const currentMonth = now.getMonth() + 1;
 
-                  // Pre-calculate totals per month
+                  // Group items by month key
+                  const itemsByMonth: Record<string, any[]> = {};
                   const monthlyTotals: Record<string, number> = {};
-                  sorted.forEach(d => {
+                  const itemsWithoutDate: any[] = [];
+
+                  debts.forEach(d => {
                     if (d.dueDate) {
                       const date = new Date(d.dueDate);
                       const mKey = `THÁNG ${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+                      if (!itemsByMonth[mKey]) itemsByMonth[mKey] = [];
+                      itemsByMonth[mKey].push(d);
                       monthlyTotals[mKey] = (monthlyTotals[mKey] || 0) + d.amount;
+                    } else {
+                      itemsWithoutDate.push(d);
                     }
                   });
 
+                  // Ensure all months from month 1 to currentMonth of currentYear are included
+                  const monthSet = new Set<string>();
+                  for (let m = currentMonth; m >= 1; m--) {
+                    monthSet.add(`THÁNG ${String(m).padStart(2, "0")}/${currentYear}`);
+                  }
+                  // Also include any other months with existing expenses
+                  Object.keys(itemsByMonth).forEach(mKey => monthSet.add(mKey));
+
+                  // Sort month keys descending (e.g. 09/2026, 08/2026, ..., 01/2026)
+                  const sortedMonthKeys = Array.from(monthSet).sort((a, b) => {
+                    const parseMY = (str: string) => {
+                      const parts = str.replace("THÁNG ", "").split("/");
+                      return parseInt(parts[1], 10) * 100 + parseInt(parts[0], 10);
+                    };
+                    return parseMY(b) - parseMY(a);
+                  });
+
                   const grouped: any[] = [];
-                  let lastMonth = "";
-                  sorted.forEach(d => {
-                    if (d.dueDate) {
-                      const date = new Date(d.dueDate);
-                      const monthStr = `THÁNG ${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
-                      const isCollapsed = !expandedMonths.includes(monthStr);
-                      
-                      if (monthStr !== lastMonth) {
+
+                  sortedMonthKeys.forEach(monthStr => {
+                    const isCollapsed = !expandedMonths.includes(monthStr);
+                    const monthTotal = monthlyTotals[monthStr] || 0;
+                    const monthItems = itemsByMonth[monthStr] || [];
+
+                    grouped.push({
+                      id: `HEADER_${monthStr}`,
+                      isFullWidth: true,
+                      fullWidthContent: (
+                        <div 
+                          className="d-flex align-items-center justify-content-between w-100 cursor-pointer"
+                          onClick={() => setExpandedMonths(prev => 
+                            prev.includes(monthStr) ? prev.filter(m => m !== monthStr) : [...prev, monthStr]
+                          )}
+                        >
+                          <div className="d-flex align-items-center gap-3">
+                            <div className="d-flex align-items-center gap-2">
+                              <i className="bi bi-calendar-check text-primary" />
+                              <span>{monthStr}</span>
+                            </div>
+                            <div className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1" style={{ fontSize: 10.5, fontWeight: 700 }}>
+                              Tổng: {monthTotal.toLocaleString("vi-VN")} đồng
+                            </div>
+                          </div>
+                          <i className={cn("bi text-muted ms-auto", isCollapsed ? "bi-chevron-down" : "bi-chevron-up")} />
+                        </div>
+                      )
+                    });
+
+                    if (!isCollapsed) {
+                      if (monthItems.length > 0) {
+                        const sortedItems = [...monthItems].sort((a, b) => {
+                          const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+                          const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+                          return dateB - dateA;
+                        });
+                        grouped.push(...sortedItems);
+                      } else {
                         grouped.push({
-                          id: `HEADER_${monthStr}`,
+                          id: `EMPTY_${monthStr}`,
                           isFullWidth: true,
                           fullWidthContent: (
-                            <div 
-                              className="d-flex align-items-center justify-content-between w-100 cursor-pointer"
-                              onClick={() => setExpandedMonths(prev => 
-                                prev.includes(monthStr) ? prev.filter(m => m !== monthStr) : [...prev, monthStr]
-                              )}
-                            >
-                              <div className="d-flex align-items-center gap-3">
-                                <div className="d-flex align-items-center gap-2">
-                                  <i className="bi bi-calendar-check text-primary" />
-                                  <span>{monthStr}</span>
-                                </div>
-                                <div className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1" style={{ fontSize: 10.5, fontWeight: 700 }}>
-                                  Tổng: {monthlyTotals[monthStr]?.toLocaleString("vi-VN")} đồng
-                                </div>
-                              </div>
-                              <i className={cn("bi text-muted ms-auto", isCollapsed ? "bi-chevron-down" : "bi-chevron-up")} />
+                            <div className="text-center py-3 text-muted" style={{ fontSize: 13, fontStyle: "italic", textTransform: "none", letterSpacing: "normal", fontWeight: 400 }}>
+                              Không có khoản chi phí nào trong {monthStr.toLowerCase()}
                             </div>
                           )
                         });
-                        lastMonth = monthStr;
                       }
-                      
-                      if (!isCollapsed) {
-                        grouped.push(d);
-                      }
-                    } else {
-                       grouped.push(d);
                     }
                   });
+
+                  if (itemsWithoutDate.length > 0) {
+                    grouped.push(...itemsWithoutDate);
+                  }
+
                   finalRows = [totalRows[0], ...grouped];
                 }
 

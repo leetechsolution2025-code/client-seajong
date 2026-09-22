@@ -27,6 +27,7 @@ export async function GET(req: Request) {
             keToanDuyet: "approved",
             OR: [
               { trangThai: "in_production" },
+              { trangThai: "pending" },
               { ngayHoanThanhSanXuat: { not: null } }
             ]
           },
@@ -37,6 +38,7 @@ export async function GET(req: Request) {
         keToanDuyet: "approved",
         OR: [
           { trangThai: "in_production" },
+          { trangThai: "pending" },
           { ngayHoanThanhSanXuat: { not: null } }
         ]
       },
@@ -87,9 +89,14 @@ export async function GET(req: Request) {
         return dmCode ? `${i.tenHang} | ${dmCode} | ${qtyStr} ${unitStr}` : `${i.tenHang} | ${qtyStr} ${unitStr}`;
       }));
 
-      const name = targetItemsWithDetails.length > 0 
+      const itemsDetail = targetItemsWithDetails.length > 0 
         ? targetItemsWithDetails.join(", ")
         : order.saleOrderItems.map((i: any) => `${i.tenHang} | ${i.soLuong || 0} ${i.inventoryItem?.donVi || "cái"}`).join(", ");
+
+      const isInternal = !order.code || order.code.startsWith("LSX");
+      const displayName = isInternal
+        ? "Sản xuất dự trữ hàng hoá"
+        : (order.customerId ? "Sản xuất theo đơn hàng" : "Sản xuất dự trữ hàng hoá");
 
       const orderCode = order.code ? order.code.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX') : order.id;
 
@@ -97,18 +104,24 @@ export async function GET(req: Request) {
 
       return {
         id: orderCode,
-        saleOrderCode: order.code || "N/A",
+        saleOrderCode: order.code?.startsWith("LSX") ? null : (order.code || null),
         ngayDat: order.ngayDat,
         ngayHoanThanh: order.ngayHoanThanhSanXuat || deadline || null,
         progress: isCompleted ? 100 : 0,
         status: isCompleted ? "completed" : (isRunning ? "running" : "pending"),
         updatedAt: order.updatedAt,
-        name: name
+        name: displayName,
+        itemsDetail: itemsDetail,
       };
     }));
 
     if (q) {
-      result = result.filter(r => r.id.toLowerCase().includes(q.toLowerCase()) || r.name.toLowerCase().includes(q.toLowerCase()));
+      result = result.filter(
+        r =>
+          r.id.toLowerCase().includes(q.toLowerCase()) ||
+          r.name.toLowerCase().includes(q.toLowerCase()) ||
+          (r.itemsDetail && r.itemsDetail.toLowerCase().includes(q.toLowerCase()))
+      );
     }
     if (status) {
       result = result.filter(r => r.status === status);

@@ -143,22 +143,25 @@ export function ExpenseFormOffcanvas({ open, onClose, onSuccess, initialData }: 
             <div className="mb-4">
               <label className="form-label fw-bold text-primary small text-uppercase mb-3" style={{ letterSpacing: 0.5 }}>Thông tin chi phí</label>
               
-              {/* Badge Filters for Main Categories */}
-              <div className="mb-2 d-flex flex-wrap gap-1">
-                {categories.filter(c => !c.parentId).map(cat => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => {
-                      setParentCategory(cat.code);
-                      setFormData(f => ({ ...f, loai: "" }));
-                    }}
-                    className={`btn btn-sm rounded-pill px-3 py-1 fw-bold ${parentCategory === cat.code ? "btn-primary" : "btn-light border text-muted"}`}
-                    style={{ fontSize: 10.5 }}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
+              <div className="mb-3">
+                <label className="form-label" style={labelStyle}>Nhóm chi phí <span className="text-danger">*</span></label>
+                <select
+                  className="form-select"
+                  required
+                  value={parentCategory}
+                  onChange={e => {
+                    setParentCategory(e.target.value);
+                    setFormData(f => ({ ...f, loai: "" }));
+                  }}
+                  style={inputStyle}
+                >
+                  <option value="">-- Chọn nhóm chi phí --</option>
+                  {categories
+                    .filter(c => !c.parentId && c.code !== "tra-no-ngan-hang" && !c.name.toLowerCase().includes("trả nợ") && !c.name.toLowerCase().includes("nợ vay"))
+                    .map(cat => (
+                      <option key={cat.id} value={cat.code}>{cat.name}</option>
+                    ))}
+                </select>
               </div>
 
               <div className="mb-3">
@@ -171,11 +174,11 @@ export function ExpenseFormOffcanvas({ open, onClose, onSuccess, initialData }: 
                   onChange={e => setFormData({ ...formData, loai: e.target.value })}
                   style={inputStyle}
                 >
-                  <option value="">{parentCategory ? "Chọn loại chi phí cụ thể" : "Chọn nhóm chi phí ở trên trước"}</option>
+                  <option value="">{parentCategory ? "-- Chọn loại chi phí cụ thể --" : "Chọn nhóm chi phí ở trên trước"}</option>
                   {categories
                     .filter(c => {
                       const parent = categories.find(p => p.code === parentCategory);
-                      return c.parentId === parent?.id;
+                      return c.parentId === parent?.id && c.code !== "tra-no-ngan-hang" && !c.name.toLowerCase().includes("trả nợ") && !c.name.toLowerCase().includes("nợ vay");
                     })
                     .map(cat => (
                       <option key={cat.code} value={cat.code}>{cat.name}</option>

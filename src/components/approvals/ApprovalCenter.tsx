@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -74,6 +75,7 @@ const ENTITY_TYPE_LABELS: Record<string, { label: string; icon: string; color: s
   marketing_proposal: { label: "Đề xuất CP Marketing", icon: "bi-file-earmark-bar-graph", color: "#8b5cf6" },
   marketing_monthly_plan: { label: "Kế hoạch MKT tháng", icon: "bi-calendar3", color: "#3b82f6" },
   master_yearly_plan: { label: "KH Marketing Tổng thể", icon: "bi-calendar2-range", color: "#dc2626" },
+  PRODUCTION_REQUEST: { label: "Yêu cầu sản xuất", icon: "bi-tools", color: "#2563eb" },
 };
 
 const STATUS_CONFIG: Record<ApprovalStatus, { label: string; color: string; bg: string; icon: string }> = {
@@ -703,12 +705,13 @@ function ApprovalDetail({
   const meta = item.metadata ? (() => { try { return JSON.parse(item.metadata!); } catch { return {}; } })() : {};
   const entityCfg = ENTITY_TYPE_LABELS[item.entityType] || { label: item.entityType, icon: "bi-file-earmark", color: "#64748b" };
   const isMyRequest = item.requestedById === currentUserId;
+  const isApprover = item.approverId === currentUserId || !item.approverId;
   const isRecruitmentReport = item.entityType === "RECRUITMENT_REPORT";
   const allCandidatesProcessed = isRecruitmentReport 
     ? (previewData?.candidates || []).length > 0 && (previewData?.candidates || []).every((c: any) => candidateDecisions[c.id] || c.status === "Đã tiếp nhận" || c.status === "Từ chối tiếp nhận")
     : true;
 
-  const canApprove = !isMyRequest && (item.status === "pending" || item.status === "on_hold");
+  const canApprove = (isApprover || !isMyRequest) && (item.status === "pending" || item.status === "on_hold");
   const canRecall = isMyRequest && (item.status === "pending" || item.status === "on_hold");
   const isAlreadyApproved = (item.status as string) === "approved" || (item.status as string) === "approved_by_director";
 
@@ -1690,6 +1693,8 @@ export function ApprovalCenter({
   onReject,
 }: ApprovalCenterProps) {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const queryId = searchParams?.get("id") || defaultEntityId;
   const toast = useToast();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -1738,16 +1743,41 @@ export function ApprovalCenter({
           if (fresh) setSelectedItem(fresh);
         }
 
-        // Auto-select nếu có entityId filter
-        if (defaultEntityId) {
-          const found = data.data.find((i: ApprovalRequest) => i.entityId === defaultEntityId);
-          if (found) { setSelectedId(found.id); setSelectedItem(found); }
+        // Auto-select nếu có queryId hoặc defaultEntityId
+        const targetId = queryId || selectedId;
+        if (targetId) {
+          const found = data.data.find(
+            (i: ApprovalRequest) =>
+              i.id === targetId || i.entityId === targetId || i.entityCode === targetId
+          );
+          if (found) {
+            setSelectedId(found.id);
+            setSelectedItem(found);
+            if (isMobileOrTablet) setShowMobileDetail(true);
+          }
+        } else if (data.data.length > 0 && !selectedId) {
+          setSelectedId(data.data[0].id);
+          setSelectedItem(data.data[0]);
         }
       }
     } catch { /* noop */ } finally {
       setLoading(false);
     }
-  }, [view, statusFilter, deptFilter, entityFilter, defaultEntityId]);
+  }, [view, statusFilter, deptFilter, entityFilter, defaultEntityId, queryId, selectedId, isMobileOrTablet]);
+
+  useEffect(() => {
+    if (queryId && items.length > 0) {
+      const found = items.find(
+        (i: ApprovalRequest) =>
+          i.id === queryId || i.entityId === queryId || i.entityCode === queryId
+      );
+      if (found) {
+        setSelectedId(found.id);
+        setSelectedItem(found);
+        if (isMobileOrTablet) setShowMobileDetail(true);
+      }
+    }
+  }, [queryId, items, isMobileOrTablet]);
 
   useEffect(() => {
     if (isOpen || mode === "page") {

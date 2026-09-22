@@ -128,7 +128,43 @@ export async function PATCH(
         const statusText = isApprove ? "đã được phê duyệt" : "đã bị từ chối";
 
         let notifContent = "";
-        if (existing.entityType === "purchase_order") {
+        let notifAttachments: any[] | undefined = undefined;
+
+        if (existing.entityType === "PRODUCTION_REQUEST") {
+          const order = await prisma.saleOrder.findUnique({
+            where: { id: existing.entityId },
+            include: {
+              saleOrderItems: {
+                include: {
+                  inventoryItem: true
+                }
+              }
+            }
+          });
+          const orderCode = existing.entityCode || order?.code || "Lệnh sản xuất";
+
+          if (isApprove) {
+            notifTitle = `🏭 Yêu cầu sản xuất [${orderCode}] đã được phê duyệt`;
+            notifContent = `## YÊU CẦU SẢN XUẤT ĐÃ ĐƯỢC PHÊ DUYỆT\n---\n**${userName}** (Giám đốc) đã **PHÊ DUYỆT** yêu cầu sản xuất cho lệnh **${orderCode}** lúc ${timeStr} ngày ${dateStr}.\n\n` +
+              (order?.saleOrderItems && order.saleOrderItems.length > 0 
+                ? `- **Mặt hàng sản xuất:** ${order.saleOrderItems.map(i => `${i.tenHang} (${i.soLuong} ${i.inventoryItem?.donVi || "cái"})`).join(", ")}\n` 
+                : "") +
+              (order?.ngayGiao ? `- **Hạn hoàn thành:** ${new Date(order.ngayGiao).toLocaleDateString("vi-VN")}\n` : "") +
+              (note ? `- **Ghi chú của Giám đốc:** _"${note}"_\n` : "") +
+              `- **Lệnh xuất kho:** Hệ thống đã tự động lập Lệnh xuất kho sản xuất gửi bộ phận Kho vận để chuẩn bị vật tư, phụ kiện theo định mức.`;
+          } else {
+            notifTitle = `❌ Yêu cầu sản xuất [${orderCode}] bị từ chối`;
+            notifContent = `Yêu cầu sản xuất **${orderCode}** của bạn đã bị từ chối bởi **${userName}** lúc ${timeStr} ngày ${dateStr}.${rejectedReason ? `\nLý do: _"${rejectedReason}"_` : ""}`;
+          }
+
+          notifAttachments = [
+            {
+              name: "Xem lệnh sản xuất",
+              type: "link",
+              url: "/production",
+            },
+          ];
+        } else if (existing.entityType === "purchase_order") {
           notifTitle = isApprove ? "Đơn mua hàng đã được phê duyệt" : "Đơn mua hàng bị từ chối";
           notifContent = `Yêu cầu phê duyệt đơn mua hàng **${existing.entityCode || existing.entityTitle}** của bạn ${statusText} bởi **${userName}** lúc ${timeStr} ngày ${dateStr}.`;
           if (!isApprove && rejectedReason) {
@@ -161,6 +197,7 @@ export async function PATCH(
             audienceType: "individual",
             audienceValue: existing.requestedById,
             createdById: userId,
+            ...(notifAttachments && { attachments: JSON.stringify(notifAttachments) }),
             recipients: {
               create: {
                 userId: existing.requestedById
@@ -322,6 +359,249 @@ async function syncEntityStatus(
 ) {
   try {
     switch (entityType) {
+      case "PRODUCTION_REQUEST": {
+        if (action === "approve") {
+          await prisma.saleOrder.update({
+            where: { id: entityId },
+            data: {
+              trangThai: "in_production",
+              keToanDuyet: "approved"
+            }
+          });
+
+          const order = await prisma.saleOrder.findUnique({
+            where: { id: entityId },
+            include: {
+              saleOrderItems: {
+                include: {
+                  inventoryItem: true
+                }
+              }
+            }
+          });
+
+          if (order) {
+            // 1. Tạo task sản xuất cho Trưởng bộ phận sản xuất
+            const prodHead = await prisma.employee.findFirst({
+              where: {
+                status: "active",
+                OR: [
+                  { departmentName: { contains: "Sản xuất" }, position: { contains: "Trưởng" } },
+                  { departmentCode: { contains: "production" }, position: { contains: "Trưởng" } }
+                ]
+              },
+              select: { userId: true }
+            });
+
+            await prisma.task.create({
+              data: {
+                title: `Lệnh sản xuất: ${order.code} - ${order.saleOrderItems.map(i => `${i.tenHang} (${i.soLuong})`).join(", ")}`,
+                description: `Đã được Giám đốc phê duyệt ngày ${new Date().toLocaleDateString("vi-VN")}.\n${order.ghiChu || ""}`,
+                assigneeId: prodHead?.userId || userId,
+                creatorId: userId,
+                deptCode: "production",
+                priority: "high",
+                status: "pending",
+                actualResult: JSON.stringify(order.saleOrderItems),
+                ...(order.ngayGiao && { dueDate: order.ngayGiao })
+              }
+            });
+
+            // 2. BÓC TÁCH VẬT TƯ PHỤ KIỆN THEO ĐỊNH MỨC (BOM)
+            const materialMap = new Map<string, any>();
+
+            for (const orderItem of order.saleOrderItems) {
+              let bom = null;
+              if (orderItem.dinhMucId) {
+                bom = await prisma.dinhMuc.findUnique({
+                  where: { id: orderItem.dinhMucId },
+                  include: {
+                    vatTu: {
+                      include: {
+                        inventoryItem: true,
+                        category: true,
+                      },
+                    },
+                  },
+                });
+              }
+
+              if (!bom) {
+                const invItem = await prisma.inventoryItem.findFirst({
+                  where: {
+                    OR: [
+                      { id: orderItem.inventoryItemId || "" },
+                      { code: orderItem.inventoryItem?.code || "" },
+                      { tenHang: orderItem.tenHang }
+                    ]
+                  },
+                  include: {
+                    dinhMucs: {
+                      include: {
+                        vatTu: {
+                          include: {
+                            inventoryItem: true,
+                            category: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                });
+                bom = invItem?.dinhMucs?.[0] || null;
+              }
+
+              if (bom && bom.vatTu) {
+                for (const vt of bom.vatTu) {
+                  const matId = vt.inventoryItem?.id || vt.id;
+                  const totalQty = vt.soLuong * orderItem.soLuong;
+
+                  if (materialMap.has(matId)) {
+                    const existing = materialMap.get(matId);
+                    existing.soLuong += totalQty;
+                  } else {
+                    materialMap.set(matId, {
+                      inventoryItemId: vt.inventoryItem?.id || null,
+                      tenVatTu: vt.inventoryItem?.tenHang || vt.tenVatTu,
+                      code: vt.inventoryItem?.code || vt.maVatTu || "-",
+                      soLuong: totalQty,
+                      donVi: vt.inventoryItem?.donVi || vt.donViTinh || "cái",
+                      donGia: vt.inventoryItem?.giaNhap || 0,
+                      ghiChu: vt.ghiChu,
+                      bomCode: bom.code,
+                      type: "Kho Vật Tư Phụ Kiện (KVP)",
+                      isShortage: false
+                    });
+                  }
+                }
+              }
+            }
+
+            const extractedMaterials = Array.from(materialMap.values());
+
+            // 3. TẠO LỆNH XUẤT KHO SẢN XUẤT (LogisticsTicket)
+            const ticketCode = `LXK-SX-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+            const existingTicket = await (prisma as any).logisticsTicket.findFirst({
+              where: {
+                saleOrderId: order.id,
+                type: "MATERIAL_PICKING"
+              }
+            });
+
+            if (!existingTicket && extractedMaterials.length > 0) {
+              await (prisma as any).logisticsTicket.create({
+                data: {
+                  code: ticketCode,
+                  type: "MATERIAL_PICKING",
+                  saleOrderId: order.id,
+                  status: "PENDING",
+                  assignedToId: null,
+                  items: {
+                    create: extractedMaterials
+                      .filter(m => m.inventoryItemId)
+                      .map(m => ({
+                        inventoryItemId: m.inventoryItemId,
+                        requestedQty: m.soLuong,
+                        pickedQty: 0
+                      }))
+                  }
+                }
+              });
+            }
+
+            // 4. TÌM NHÂN VIÊN BỘ PHẬN KHO VẬN
+            const storekeepers = await prisma.employee.findMany({
+              where: {
+                status: "active",
+                OR: [
+                  { departmentName: { contains: "Kho" } },
+                  { departmentCode: { contains: "logistics" } },
+                  { position: { contains: "Kho" } },
+                  { position: { contains: "Thủ kho" } }
+                ]
+              },
+              select: { userId: true, fullName: true }
+            });
+            const storekeeperUserIds = storekeepers.map(s => s.userId).filter(Boolean) as string[];
+
+            // 5. TẠO TASK LỆNH XUẤT KHO CHO BỘ PHẬN KHO VẬN
+            const materialListDesc = extractedMaterials
+              .map(m => `- ${m.tenVatTu} (Mã: ${m.code}): ${m.soLuong} ${m.donVi}`)
+              .join("\n");
+
+            const taskTitle = `Lệnh xuất kho sản xuất cho lệnh ${order.code}`;
+            const taskDescription = 
+              `**LỆNH XUẤT KHO SẢN XUẤT CHO LỆNH:** ${order.code}\n` +
+              `- **Mặt hàng sản xuất:** ${order.saleOrderItems.map(i => `${i.tenHang} (${i.soLuong} ${i.inventoryItem?.donVi || "cái"})`).join(", ")}\n` +
+              `- **Số lượng vật tư phụ kiện:** ${extractedMaterials.length} loại\n` +
+              `- **Hạn hoàn thành:** ${order.ngayGiao ? new Date(order.ngayGiao).toLocaleDateString("vi-VN") : "—"}\n\n` +
+              `**Chi tiết vật tư phụ kiện cần xuất theo định mức (BOM):**\n` +
+              `${materialListDesc}\n\n` +
+              `---\nĐã được Giám đốc phê duyệt ngày ${new Date().toLocaleDateString("vi-VN")}.`;
+
+            await prisma.task.create({
+              data: {
+                title: taskTitle,
+                description: taskDescription,
+                assigneeId: storekeeperUserIds[0] || userId,
+                creatorId: userId,
+                deptCode: "logistics",
+                priority: "high",
+                status: "pending",
+                actualResult: JSON.stringify(extractedMaterials),
+                ...(order.ngayGiao && { dueDate: order.ngayGiao })
+              }
+            });
+
+            // 6. GỬI THÔNG BÁO CHO BỘ PHẬN KHO VẬN
+            if (storekeeperUserIds.length > 0) {
+              const topMaterialsText = extractedMaterials
+                .slice(0, 8)
+                .map(m => `- **${m.tenVatTu}** (${m.code}): ${m.soLuong} ${m.donVi}`)
+                .join("\n");
+              const moreText = extractedMaterials.length > 8 ? `\n- ...và ${extractedMaterials.length - 8} loại vật tư khác` : "";
+
+              const khoNotif = await prisma.notification.create({
+                data: {
+                  title: `📦 Lệnh xuất kho sản xuất mới [${order.code}]`,
+                  content: `## LỆNH XUẤT KHO SẢN XUẤT (${order.code})\n---\nGiám đốc đã phê duyệt lệnh sản xuất **${order.code}**.\nVui lòng chuẩn bị và xuất kho **${extractedMaterials.length} loại vật tư, phụ kiện** cho xưởng sản xuất theo định mức:\n\n${topMaterialsText}${moreText}`,
+                  type: "info",
+                  priority: "high",
+                  audienceType: "group",
+                  audienceValue: JSON.stringify(storekeeperUserIds),
+                  createdById: userId,
+                  attachments: JSON.stringify([
+                    {
+                      name: "Xem danh sách lệnh kho vận",
+                      type: "link",
+                      url: "/logistics"
+                    }
+                  ])
+                }
+              });
+
+              await Promise.all(
+                storekeeperUserIds.map(uid =>
+                  prisma.notificationRecipient.upsert({
+                    where: { notificationId_userId: { notificationId: khoNotif.id, userId: uid } },
+                    update: {},
+                    create: { notificationId: khoNotif.id, userId: uid }
+                  })
+                )
+              );
+            }
+          }
+        } else if (action === "reject") {
+          await prisma.saleOrder.update({
+            where: { id: entityId },
+            data: {
+              trangThai: "cancelled"
+            }
+          });
+        }
+        break;
+      }
       case "DEFECT_MATERIAL_EXPORT":
       case "DEFECT_PRODUCT_EXPORT": {
         if (action === "approve" && approvalRequestId) {

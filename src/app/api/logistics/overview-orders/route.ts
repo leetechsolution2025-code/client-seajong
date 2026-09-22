@@ -166,7 +166,7 @@ export async function GET(_req: NextRequest) {
         id:        t.id,
         code:      t.code,
         type:      "logistics-ticket" as const,
-        typeLabel: t.type === "BATCH_PACKING" ? "Gom hàng & đóng gói" : (t.type === "WARRANTY_MATERIAL" ? "Vật tư bảo hành" : "Cấp phát vật tư"),
+        typeLabel: t.type === "BATCH_PACKING" ? "Gom hàng & đóng gói" : (t.type === "WARRANTY_MATERIAL" ? "Vật tư bảo hành" : "Xuất kho sản xuất"),
         customer:  t.saleOrder?.customer?.name ?? (t.defectRecord ? `Từ hồ sơ: ${t.defectRecord.code}` : null),
         customerAddress: t.saleOrder?.customer?.address ?? null,
         ghiChu:    t.saleOrder?.ghiChu ?? (t.defectRecord ? `Yêu cầu vật tư cho lỗi ${t.defectRecord.code}` : null),
@@ -240,28 +240,37 @@ export async function GET(_req: NextRequest) {
         isAssigned: assignedOrderIds.has(inv.id),
         assigneeName: assignedOrderAssignees.get(inv.id) || null
       })),
-      ...materialTasks.map(t => {
-        let parsedItems = [];
-        try {
-          if (t.actualResult) parsedItems = JSON.parse(t.actualResult);
-        } catch(e) {}
-        
-        // Cố gắng trích xuất mã đơn từ title "Lệnh xuất kho KVP cho đơn hàng SO-..."
-        const orderCodeMatch = t.title.match(/cho đơn hàng (SO-\S+)/);
-        const orderCode = orderCodeMatch ? orderCodeMatch[1] : "KVP";
+      ...materialTasks
+        .filter(t => {
+          const match = t.title.match(/cho (?:đơn hàng|lệnh)\s+(\S+)/i);
+          const orderCode = match ? match[1] : null;
+          if (orderCode && logisticsTickets.some((lt: any) => lt.saleOrder?.code === orderCode || lt.code?.includes(orderCode))) {
+            return false;
+          }
+          return true;
+        })
+        .map(t => {
+          let parsedItems = [];
+          try {
+            if (t.actualResult) parsedItems = JSON.parse(t.actualResult);
+          } catch(e) {}
+          
+          // Trích xuất mã đơn/mã lệnh từ title "Lệnh xuất kho ... cho đơn hàng/lệnh LSX-..."
+          const orderCodeMatch = t.title.match(/cho (?:đơn hàng|lệnh)\s+(\S+)/i);
+          const orderCode = orderCodeMatch ? orderCodeMatch[1] : "KVP";
 
-        return {
-          id:        t.id,
-          code:      orderCode,
-          type:      "material-export" as const,
-          typeLabel: "Lệnh xuất kho KVP",
-          customer:  null,
-          tongTien:  null,
-          trangThai: t.status,
-          assigneeName: (t.assigneeId && userMap.get(t.assigneeId)) || null,
-          items:     parsedItems,
-        };
-      }),
+          return {
+            id:        t.id,
+            code:      orderCode,
+            type:      "material-export" as const,
+            typeLabel: "Xuất kho sản xuất",
+            customer:  null,
+            tongTien:  null,
+            trangThai: t.status,
+            assigneeName: (t.assigneeId && userMap.get(t.assigneeId)) || null,
+            items:     parsedItems,
+          };
+        }),
       ...inboundTasks.map(t => {
         let parsedItems = [];
         try {

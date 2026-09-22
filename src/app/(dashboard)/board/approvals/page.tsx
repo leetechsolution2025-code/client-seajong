@@ -1,4 +1,6 @@
 "use client";
+
+import React, { Suspense } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ApprovalCenter } from "@/components/approvals/ApprovalCenter";
 
@@ -12,10 +14,12 @@ export default function BoardApprovalsPage() {
         icon="bi-check2-square"
       />
       <div style={{ flex: 1, overflow: "hidden" }}>
-        <ApprovalCenter
-          mode="page"
-          defaultView="inbox"
-        />
+        <Suspense fallback={<div className="p-4 text-muted">Đang tải trung tâm phê duyệt...</div>}>
+          <ApprovalCenter
+            mode="page"
+            defaultView="inbox"
+          />
+        </Suspense>
       </div>
     </div>
   );
