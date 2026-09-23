@@ -890,14 +890,17 @@ export function ProductDrawer({ p, cats, onClose, onEdit, isSalesMode }: { p: Pr
         </div>
       )}
 
-      {/* Panel — chiều rộng chuẩn 400px */}
-      <div style={{
-        position: "fixed", top: 0, right: 0, bottom: 0, width: 400,
-        background: "var(--card)", zIndex: 1041,
-        display: "flex", flexDirection: "column",
-        boxShadow: "-12px 0 48px rgba(0,0,0,0.18)",
-        animation: "slideInRight 0.22s cubic-bezier(0.25,0.46,0.45,0.94)",
-      }}>
+      {/* Panel — chiều rộng chuẩn 400px (100% trên mobile) */}
+      <div 
+        className="app-custom-drawer"
+        style={{
+          position: "fixed", top: 0, right: 0, bottom: 0, width: 400, maxWidth: "100vw",
+          background: "var(--card)", zIndex: 1041,
+          display: "flex", flexDirection: "column",
+          boxShadow: "-12px 0 48px rgba(0,0,0,0.18)",
+          animation: "slideInRight 0.22s cubic-bezier(0.25,0.46,0.45,0.94)",
+        }}
+      >
 
         {/* ── HEADER CỐ ĐỊNH ── */}
         <div style={{

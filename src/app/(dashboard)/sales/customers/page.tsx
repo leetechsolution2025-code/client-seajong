@@ -55,6 +55,14 @@ export default function SalesCustomersPage() {
   const { success, error } = useToast();
   const [importing, setImporting] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     fetch("/api/hr/employees")
@@ -691,6 +699,86 @@ export default function SalesCustomersPage() {
     }
   ];
 
+  const mobileColumns: TableColumn<CustomerRow>[] = [
+    {
+      header: "Đại lý & Liên hệ",
+      render: (row) => {
+        let actualAddress = row.address;
+        if (!actualAddress && row.formValues) {
+          try {
+            const parsed = JSON.parse(row.formValues);
+            actualAddress = parsed.detailBusinessAddress || parsed.address || "";
+          } catch (e) { }
+        }
+
+        const committed = (row as any).committedSales ?? 0;
+        const actual = (row as any).yearlySales ?? 0;
+        const hasCommitment = committed > 0;
+        const percent = hasCommitment ? Math.round((actual / committed) * 100) : 0;
+        const rankLabel = hangOptions.find(o => o.value === row.loai)?.label || (row.loai ? row.loai.replace("-", " ") : null);
+
+        return (
+          <div className="d-flex flex-column py-1" style={{ minWidth: 0 }}>
+            <div className="d-flex align-items-center justify-content-between gap-1 mb-1">
+              <div className="d-flex align-items-center gap-1.5 text-truncate" style={{ minWidth: 0 }}>
+                <span className="badge bg-secondary flex-shrink-0" style={{ fontSize: "10px" }}>{row.code || "N/A"}</span>
+                <span className="fw-bold text-dark text-truncate" style={{ fontSize: "13px" }}>{row.name}</span>
+              </div>
+              {rankLabel && (
+                <span className="badge bg-primary-subtle text-primary text-uppercase flex-shrink-0" style={{ fontSize: "9.5px" }}>
+                  {rankLabel}
+                </span>
+              )}
+            </div>
+
+            <div className="text-muted text-truncate d-flex align-items-center gap-2 mb-1" style={{ fontSize: "11.5px" }}>
+              {actualAddress && (
+                <span className="text-truncate"><i className="bi bi-geo-alt me-1 text-secondary" />{actualAddress}</span>
+              )}
+              {row.dienThoai && (
+                <a
+                  href={`tel:${row.dienThoai}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-decoration-none text-primary fw-medium d-inline-flex align-items-center flex-shrink-0"
+                >
+                  <i className="bi bi-telephone me-1" />{row.dienThoai}
+                </a>
+              )}
+            </div>
+
+            <div className="d-flex align-items-center justify-content-between text-muted flex-wrap gap-1" style={{ fontSize: "11px" }}>
+              <span>
+                Thực tế: <strong className="text-success">{actual.toLocaleString("vi-VN")} ₫</strong>
+                {hasCommitment && (
+                  <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-10 ms-1" style={{ fontSize: "9.5px", padding: "1px 4px" }}>
+                    {percent}%
+                  </span>
+                )}
+              </span>
+              {row.nguoiChamSoc?.fullName && (
+                <span className="text-secondary" style={{ fontSize: "10.5px" }}>
+                  <i className="bi bi-person me-1" />{row.nguoiChamSoc.fullName}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      header: "",
+      width: "36px",
+      align: "center",
+      render: (row) => (
+        <div className="d-flex align-items-center justify-content-center" onClick={(e) => { e.stopPropagation(); handleOpenEdit(row); }}>
+          <button className="btn btn-sm btn-light border rounded-circle shadow-none p-0 d-flex align-items-center justify-content-center" style={{ width: 28, height: 28 }}>
+            <i className="bi bi-chevron-right text-muted" style={{ fontSize: 12 }} />
+          </button>
+        </div>
+      )
+    }
+  ];
+
   // Ticker stats
   const totalAgents = customers.filter(c => c.nhom === "dai-ly").length;
   const currentMonth = new Date().getMonth();
@@ -979,44 +1067,74 @@ export default function SalesCustomersPage() {
             <FullWidthTableLayout
               className="flex-grow-1 overflow-hidden full-width-table-wrapper"
               header={
-                <div className="d-flex flex-column gap-3 mb-2 mt-2">
+                <div className="d-flex flex-column gap-2 mb-2 mt-2">
                   {/* Thanh công cụ Toolbar */}
-                  <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 w-100">
-                    <div className="d-flex align-items-center gap-2 flex-grow-1">
-                      <FilterSelect
-                        options={nguonOptions}
-                        value={nguonFilter}
-                        onChange={setNguonFilter}
-                        placeholder="Nguồn"
-                        width={120}
-                      />
-                      <FilterSelect
-                        options={hangOptions}
-                        value={hangFilter}
-                        onChange={setHangFilter}
-                        placeholder="Hạng"
-                        width={120}
-                      />
-                      {showEmployeeFilter && (
-                        <FilterSelect
-                          options={employeeOptions}
-                          value={employeeFilter}
-                          onChange={setEmployeeFilter}
-                          placeholder="Người phụ trách"
-                          width={150}
-                        />
-                      )}
-                      <div className="flex-grow-1">
+                  <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2 w-100">
+                    {/* Hàng 1 trên Mobile: Search Input + Nút Thêm mới */}
+                    <div className="d-flex align-items-center gap-2 flex-grow-1 order-1 order-md-2" style={{ maxWidth: isMobile ? "none" : 320 }}>
+                      <div className="flex-grow-1" style={{ minWidth: 0 }}>
                         <SearchInput
                           value={searchQuery}
                           onChange={setSearchQuery}
                           placeholder="Tìm kiếm đại lý..."
                         />
                       </div>
+                      {isMobile && (
+                        <button
+                          onClick={handleOpenCreate}
+                          className="btn text-white px-2.5 d-flex align-items-center justify-content-center gap-1 shadow-sm flex-shrink-0"
+                          style={{
+                            height: 34,
+                            fontSize: "12.5px",
+                            backgroundColor: "#003087",
+                            borderColor: "#003087",
+                            borderRadius: 8,
+                            fontWeight: 700,
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          <i className="bi bi-plus-lg" />
+                          <span>Thêm</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Bộ lọc Nguồn, Hạng, Phụ trách */}
+                    <div className="d-flex align-items-center gap-2 order-2 order-md-1 flex-wrap flex-md-nowrap">
+                      <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 120 }}>
+                        <FilterSelect
+                          options={nguonOptions}
+                          value={nguonFilter}
+                          onChange={setNguonFilter}
+                          placeholder="Nguồn"
+                          width={isMobile ? "100%" : 120}
+                        />
+                      </div>
+                      <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 120 }}>
+                        <FilterSelect
+                          options={hangOptions}
+                          value={hangFilter}
+                          onChange={setHangFilter}
+                          placeholder="Hạng"
+                          width={isMobile ? "100%" : 120}
+                        />
+                      </div>
+                      {showEmployeeFilter && (
+                        <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 150 }}>
+                          <FilterSelect
+                            options={employeeOptions}
+                            value={employeeFilter}
+                            onChange={setEmployeeFilter}
+                            placeholder="Người phụ trách"
+                            width={isMobile ? "100%" : 150}
+                          />
+                        </div>
+                      )}
                     </div>
                     
-                    <div className="d-flex align-items-center gap-2">
-                      <div className="form-check form-switch mb-0 d-flex align-items-center gap-2 me-2">
+                    {/* Hàng nút Desktop / Thao tác mở rộng */}
+                    <div className="d-flex align-items-center gap-2 order-3">
+                      <div className="form-check form-switch mb-0 d-flex align-items-center gap-2 me-1">
                         <input
                           className="form-check-input"
                           type="checkbox"
@@ -1048,7 +1166,7 @@ export default function SalesCustomersPage() {
                       </button>
                       <button
                         type="button"
-                        className="btn btn-outline-primary d-flex align-items-center justify-content-center shadow-sm ms-1"
+                        className="btn btn-outline-primary d-flex align-items-center justify-content-center shadow-sm"
                         style={{ width: 34, height: 34, borderRadius: 8, padding: 0 }}
                         title="Xuất dữ liệu ra Excel"
                         onClick={handleExportExcel}
@@ -1070,22 +1188,24 @@ export default function SalesCustomersPage() {
                           <i className="bi bi-file-earmark-excel"></i>
                         )}
                       </button>
-                      <button
-                        onClick={handleOpenCreate}
-                        className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm ms-2"
-                        style={{
-                          height: 34,
-                          fontSize: "12.5px",
-                          backgroundColor: "#003087",
-                          borderColor: "#003087",
-                          borderRadius: 8,
-                          fontWeight: 700,
-                          whiteSpace: "nowrap"
-                        }}
-                      >
-                        <i className="bi bi-plus-lg" />
-                        <span>Thêm mới</span>
-                      </button>
+                      {!isMobile && (
+                        <button
+                          onClick={handleOpenCreate}
+                          className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm ms-1"
+                          style={{
+                            height: 34,
+                            fontSize: "12.5px",
+                            backgroundColor: "#003087",
+                            borderColor: "#003087",
+                            borderRadius: 8,
+                            fontWeight: 700,
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          <i className="bi bi-plus-lg" />
+                          <span>Thêm mới</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1093,7 +1213,7 @@ export default function SalesCustomersPage() {
               table={
                 <div className="h-100 border-top bg-white overflow-auto d-flex flex-column" style={{ minHeight: 0 }}>
                   <Table
-                    columns={columns}
+                    columns={isMobile ? mobileColumns : columns}
                     rows={customers}
                     loading={loading}
                     rowKey={(row) => row.id}
@@ -1102,7 +1222,8 @@ export default function SalesCustomersPage() {
                     onRowClick={(row) => {
                       handleOpenEdit(row);
                     }}
-                    wrapperStyle={{ height: "100%", overflowY: "auto" }}
+                    wrapperClassName={isMobile ? "mkt-plan-table-no-min" : undefined}
+                    wrapperStyle={{ height: "100%", overflowY: "auto", overflowX: isMobile ? "hidden" : "auto" }}
                   />
                 </div>
               }
@@ -1389,9 +1510,9 @@ export default function SalesCustomersPage() {
             onClick={() => setEditModalOpen(false)}
           ></div>
           <div
-            className="offcanvas offcanvas-end show border-start-0 shadow-lg"
+            className="offcanvas offcanvas-end show border-start-0 shadow-lg app-custom-drawer"
             tabIndex={-1}
-            style={{ width: "400px", zIndex: 1060 }}
+            style={{ width: "400px", maxWidth: "100vw", zIndex: 1060 }}
           >
             <div className="offcanvas-header border-bottom py-3 bg-light d-flex justify-content-between align-items-center">
               <div className="d-flex align-items-center gap-2">
@@ -1807,9 +1928,9 @@ export default function SalesCustomersPage() {
             onClick={() => setShowMonthDetailOffcanvas(false)}
           ></div>
           <div
-            className="offcanvas offcanvas-end show border-start-0 shadow-lg"
+            className="offcanvas offcanvas-end show border-start-0 shadow-lg app-custom-drawer"
             tabIndex={-1}
-            style={{ width: "400px", zIndex: 1060 }}
+            style={{ width: "400px", maxWidth: "100vw", zIndex: 1060 }}
           >
             <div className="offcanvas-header border-bottom bg-light py-3">
               <h5 className="offcanvas-title fw-bold text-dark fs-6 d-flex align-items-center">

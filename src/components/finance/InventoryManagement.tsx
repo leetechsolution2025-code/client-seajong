@@ -53,23 +53,25 @@ interface InventoryManagementProps {
   onTickerUpdate?: (news: any[]) => void;
 }
 
-function InventoryItemThumbnail({ row }: { row: any }) {
+function InventoryItemThumbnail({ row, size = 42 }: { row: any; size?: number }) {
   const [imgError, setImgError] = useState(false);
   const src = row.imageUrl || (row.images && row.images.length > 0 ? row.images[0] : null);
+  const iconSize = Math.max(13, Math.round(size * 0.38));
+  const radius = size <= 36 ? 6 : 8;
 
   if (!src || imgError) {
     return (
       <div 
-        className="rounded-3 border bg-light d-flex align-items-center justify-content-center" 
-        style={{ width: 42, height: 42, flexShrink: 0 }}
+        className="border bg-light d-flex align-items-center justify-content-center" 
+        style={{ width: size, height: size, minWidth: size, borderRadius: radius, flexShrink: 0 }}
       >
-        <i className="bi bi-box-seam text-muted opacity-50" style={{ fontSize: 16 }} />
+        <i className="bi bi-box-seam text-muted opacity-50" style={{ fontSize: iconSize }} />
       </div>
     );
   }
 
   return (
-    <div style={{ width: 42, height: 42, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)", background: "#fff", flexShrink: 0 }}>
+    <div style={{ width: size, height: size, minWidth: size, borderRadius: radius, overflow: "hidden", border: "1px solid var(--border)", background: "#fff", flexShrink: 0 }}>
       <HoverImage 
         src={src} 
         images={row.images} 
@@ -564,6 +566,123 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
 
   const selectedWHCode = warehouses.find(w => w.value === warehouseId)?.code;
 
+  const mobileColumns: TableColumn<InventoryItem | any>[] = [
+    {
+      header: isMaterial ? "Vật tư" : (isProduct ? "Thành phẩm" : (isDefect ? "Hàng lỗi" : "Hàng hoá")),
+      render: (row) => {
+        const name = row.tenHang || row.name || "---";
+        const subInfo = isMaterial 
+          ? (row.material || row.thongSoKyThuat || row.donVi || row.unit || "cái")
+          : [row.donVi || row.unit || "cái", row.brand].filter(Boolean).join(" • ");
+
+        return (
+          <div className="d-flex align-items-center gap-2 py-0.5" style={{ minWidth: 0 }}>
+            <InventoryItemThumbnail row={row} size={34} />
+            <div className="d-flex flex-column min-w-0" style={{ minWidth: 0, overflow: "hidden" }}>
+              <span
+                className="fw-bold text-dark d-block lh-sm"
+                style={{
+                  fontSize: 12,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  wordBreak: "break-word"
+                }}
+                title={name}
+              >
+                {name}
+              </span>
+              <div className="d-flex align-items-center gap-1 overflow-hidden mt-0.5" style={{ fontSize: 10 }}>
+                <span
+                  className="fw-semibold text-primary flex-shrink-0"
+                  style={{ fontFamily: "monospace", letterSpacing: "0.2px" }}
+                >
+                  {row.code || "SKU-AUTO"}
+                </span>
+                {subInfo && (
+                  <>
+                    <span className="text-muted flex-shrink-0">•</span>
+                    <span className="text-muted text-truncate flex-grow-1" style={{ maxWidth: 85 }}>
+                      {subInfo}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      header: "Tồn kho",
+      width: 68,
+      align: "right",
+      render: (row) => {
+        const thucTon = row.thucTon ?? row.soLuong ?? 0;
+        const soLuongGiu = row.soLuongGiu || 0;
+        const soLuong = row.soLuong || 0;
+        return (
+          <div className="d-flex flex-column align-items-end justify-content-center py-0.5">
+            <span
+              className={cn("fw-bold lh-1", thucTon <= 0 ? "text-danger" : "text-dark")}
+              style={{ fontSize: 12.5 }}
+            >
+              {thucTon.toLocaleString("vi-VN")}
+            </span>
+            <span className="text-muted lh-1 mt-1 text-nowrap" style={{ fontSize: 9.5 }}>
+              {soLuongGiu > 0 ? (
+                <span className="text-warning fw-medium">Giữ: {soLuongGiu}</span>
+              ) : (
+                <span>Tổng: {soLuong}</span>
+              )}
+            </span>
+          </div>
+        );
+      }
+    },
+    ...(!hidePrice ? [{
+      header: "Giá bán",
+      width: 78,
+      align: "right" as const,
+      render: (row: any) => (
+        <div className="d-flex flex-column align-items-end justify-content-center py-0.5">
+          <span className="fw-bold text-primary lh-1" style={{ fontSize: 12 }}>
+            {canViewPrice ? (row.giaBan || 0).toLocaleString("vi-VN") : "*****"}
+            <span style={{ fontSize: 9.5, fontWeight: 500, marginLeft: 1 }}>₫</span>
+          </span>
+          {canViewPrice && row.giaNhap ? (
+            <span className="text-muted lh-1 mt-1 text-nowrap" style={{ fontSize: 9, opacity: 0.75 }}>
+              Vốn: {(row.giaNhap || 0).toLocaleString("vi-VN")}
+            </span>
+          ) : null}
+        </div>
+      )
+    }] : []),
+    {
+      header: "Trạng thái",
+      width: 70,
+      align: "center",
+      render: (row) => {
+        const soLuong = row.soLuong || 0;
+        const isOut = soLuong <= 0;
+        const isLow = row.trangThai === "sap-het";
+        return (
+          <span
+            className={cn(
+              "badge rounded-pill fw-medium border px-1.5 py-1",
+              isOut ? "bg-danger-subtle text-danger border-danger-subtle" : 
+              isLow ? "bg-warning-subtle text-warning border-warning-subtle" : "bg-success-subtle text-success border-success-subtle"
+            )}
+            style={{ fontSize: 9.5, whiteSpace: "nowrap" }}
+          >
+            {isOut ? "Hết hàng" : isLow ? "Sắp hết" : "Còn hàng"}
+          </span>
+        );
+      }
+    }
+  ];
+
   return (
     <div className="d-flex flex-column flex-grow-1 overflow-hidden" style={{ minHeight: 0, gap: "1rem" }}>
       {/* KPI Cards */}
@@ -639,8 +758,8 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                     }
                   />
 
-                  {/* Filters */}
-                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                  {/* Desktop / Tablet Filters (>= 769px) */}
+                  <div className="d-none d-md-flex align-items-center gap-2 flex-wrap">
                     <FilterSelect 
                         options={warehouses}
                         value={warehouseId}
@@ -687,29 +806,115 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                     )}
                     {allowAdd && <BrandButton icon="bi-plus-lg" className="flex-shrink-0" onClick={() => setShowAddModal(true)}>Thêm hàng hoá</BrandButton>}
                   </div>
+
+                  {/* Mobile Filters (< 769px) */}
+                  <div className="d-flex d-md-none flex-column gap-2 mt-1">
+                    <SearchInput 
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        onKeyDown={handleSearchKeyDown}
+                        placeholder="Tìm theo tên, SKU..."
+                        className="w-100"
+                    />
+                    <div className="d-flex gap-2">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <FilterSelect 
+                            options={warehouses}
+                            value={warehouseId}
+                            onChange={setWarehouseId}
+                            placeholder="Tất cả kho"
+                            width="100%"
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <FilterSelect 
+                            options={[
+                                { label: "Còn hàng", value: "con-hang" },
+                                { label: "Sắp hết", value: "sap-het" },
+                                { label: "Hết hàng", value: "het-hang" },
+                            ]}
+                            value={trangThai}
+                            onChange={setTrangThai}
+                            placeholder="Trạng thái"
+                            width="100%"
+                            disabled={!warehouseId}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <TreeFilterSelect 
+                          options={categories}
+                          value={categoryId}
+                          onChange={setCategoryId}
+                          placeholder="Tất cả các loại hàng hoá"
+                          width="100%"
+                          disabled={!warehouseId}
+                      />
+                    </div>
+                    {selectedWHCode === "KVP" && (
+                      <button 
+                        className="btn btn-outline-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-2"
+                        style={{ height: '34px', fontWeight: 600, borderRadius: '8px' }}
+                        onClick={() => setShowPriceOffcanvas(true)}
+                      >
+                        <i className="bi bi-tag"></i> Giá bán linh kiện
+                      </button>
+                    )}
+                    {allowAdd && (
+                      <BrandButton icon="bi-plus-lg" className="w-100" onClick={() => setShowAddModal(true)}>
+                        Thêm hàng hoá
+                      </BrandButton>
+                    )}
+                  </div>
                 </div>
               }
               table={
-                <Table 
-                  rows={items}
-                  columns={columns}
-                  loading={loading}
-                  onRowClick={handleRowClick}
-                  minWidth={1000}
-                  compact={true}
-                  stickyHeader={true}
-                  emptyText="Không có hàng hoá nào trong kho"
-                  wrapperStyle={{ overflowY: "auto", flex: 1, minHeight: 0 }}
-                />
+                <>
+                  {/* Desktop Table (>= 769px) */}
+                  <div className="d-none d-md-flex flex-column flex-grow-1 h-100" style={{ minHeight: 0 }}>
+                    <Table 
+                      rows={items}
+                      columns={columns}
+                      loading={loading}
+                      onRowClick={handleRowClick}
+                      minWidth={1000}
+                      compact={true}
+                      stickyHeader={true}
+                      emptyText="Không có hàng hoá nào trong kho"
+                      wrapperStyle={{ overflowY: "auto", flex: 1, minHeight: 0 }}
+                    />
+                  </div>
+
+                  {/* Mobile Table View (< 769px) */}
+                  <div className="d-flex d-md-none flex-column flex-grow-1 h-100" style={{ minHeight: 0 }}>
+                    <Table 
+                      rows={items}
+                      columns={mobileColumns}
+                      loading={loading}
+                      onRowClick={handleRowClick}
+                      minWidth={0}
+                      fixedLayout={false}
+                      compact={true}
+                      stickyHeader={true}
+                      wrapperClassName="mkt-plan-table-no-min mobile-inventory-table"
+                      emptyText="Không có hàng hoá nào trong kho"
+                      wrapperStyle={{ overflowX: "hidden", overflowY: "auto", flex: 1, minHeight: 0 }}
+                    />
+                  </div>
+                </>
               }
+              footerStyle={{ padding: "10px 14px", backgroundColor: "#f8f9fa" }}
               footer={
-                <div className="d-flex align-items-center justify-content-between w-100 m-0 p-0">
-                  <small className="text-muted m-0 p-0">Hiển thị <b>{(items || []).length}/{stats.tongMatHang}</b> mặt hàng</small>
-                  <Pagination 
-                      page={page}
-                      totalPages={totalPages}
-                      onChange={setPage}
-                  />
+                <div className="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2 m-0 p-0">
+                  <small className="text-muted m-0 p-0 text-nowrap" style={{ fontSize: 11.5 }}>Hiển thị <b>{(items || []).length}/{stats.tongMatHang}</b> mặt hàng</small>
+                  <div className="ms-auto">
+                    <Pagination 
+                        page={page}
+                        totalPages={totalPages}
+                        onChange={setPage}
+                        siblingCount={0}
+                    />
+                  </div>
                 </div>
               }
             />

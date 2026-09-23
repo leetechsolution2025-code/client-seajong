@@ -2790,6 +2790,34 @@ select.app-input {
   .app-responsive-table-wrapper.mkt-plan-table-no-min table {
     min-width: 0 !important;
   }
+
+  /* Mobile Inventory Table Optimization */
+  .app-responsive-table-wrapper.mobile-inventory-table table {
+    min-width: 0 !important;
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+  .app-responsive-table-wrapper.mobile-inventory-table th,
+  .app-responsive-table-wrapper.mobile-inventory-table td {
+    padding: 8px 6px !important;
+    vertical-align: middle !important;
+  }
+  .app-responsive-table-wrapper.mobile-inventory-table thead th {
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.03em !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    background-color: var(--background) !important;
+    white-space: nowrap !important;
+  }
+  .app-responsive-table-wrapper.mobile-inventory-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  .app-responsive-table-wrapper.mobile-inventory-table tbody tr:active {
+    background-color: rgba(14, 165, 233, 0.08) !important;
+  }
 }
 
 /* Fullscreen offcanvases and custom drawers on mobile screens (<= 768px) */
@@ -3554,3 +3582,345 @@ select.app-input {
     justify-content: flex-start !important;
   }
 }
+
+/* ==========================================================================
+   Order & Quotation Fullscreen Modals Phone Responsive (<= 768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Mobile Full-Screen Sidebar Panel for Order / Quotation Info */
+  .order-modal-left,
+  .sanitary-modal-left {
+    position: fixed !important;
+    inset: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    width: 100vw !important;
+    max-width: 100% !important;
+    max-width: 100vw !important;
+    height: 100% !important;
+    height: 100dvh !important;
+    z-index: 3100 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.25s ease-in-out !important;
+    box-shadow: none !important;
+    border-right: none !important;
+    border-radius: 0 !important;
+    background: var(--card) !important;
+  }
+  .order-modal-left.show,
+  .sanitary-modal-left.show {
+    transform: translateX(0) !important;
+  }
+  .order-modal-sidebar-header,
+  .sanitary-modal-sidebar-header {
+    display: flex !important;
+    padding-top: max(8px, env(safe-area-inset-top, 8px)) !important;
+  }
+  .order-modal-left > div,
+  .sanitary-modal-left > div {
+    padding: 14px 16px max(14px, env(safe-area-inset-bottom, 14px)) 16px !important;
+  }
+
+  .order-modal-header,
+  .sanitary-modal-header {
+    height: 50px !important;
+    padding: 0 10px !important;
+  }
+  .order-modal-header-icon,
+  .sanitary-modal-header-icon {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 7px !important;
+  }
+  .order-modal-header-title,
+  .sanitary-modal-header-title {
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    max-width: 175px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  .order-modal-header-btn,
+  .sanitary-modal-header-btn {
+    padding: 5px 10px !important;
+    font-size: 12px !important;
+    height: 34px !important;
+  }
+  .order-modal-right,
+  .sanitary-modal-right {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+  .order-modal-subheader,
+  .sanitary-modal-subheader {
+    padding: 8px 10px !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  .order-modal-subheader-title,
+  .sanitary-modal-subheader-title {
+    font-size: 11.5px !important;
+  }
+  .order-modal-table-container,
+  .sanitary-modal-table-container {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 8px !important;
+    gap: 10px !important;
+    box-sizing: border-box !important;
+  }
+  .order-modal-add-form,
+  .sanitary-modal-add-form {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    align-items: stretch !important;
+    padding: 10px !important;
+    gap: 8px !important;
+  }
+  .order-modal-form-top,
+  .sanitary-modal-form-top,
+  .order-modal-row-pricing,
+  .sanitary-modal-row-pricing,
+  .order-modal-form-actions,
+  .sanitary-modal-form-actions {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+  }
+  .order-modal-form-top,
+  .sanitary-modal-form-top {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .order-modal-field-product,
+  .sanitary-modal-field-product {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .order-modal-bom-group,
+  .sanitary-modal-bom-group {
+    display: grid !important;
+    grid-template-columns: 105px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .order-modal-field-bom-code,
+  .sanitary-modal-field-bom-code,
+  .order-modal-field-bom-desc,
+  .sanitary-modal-field-bom-desc {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .order-modal-field-bom-desc input,
+  .sanitary-modal-field-bom-desc input {
+    min-width: 0 !important;
+  }
+  /* Hide warehouse name & unit row on mobile screens as requested */
+  .order-modal-row-warehouse,
+  .sanitary-modal-row-warehouse {
+    display: none !important;
+  }
+  .order-modal-row-pricing,
+  .sanitary-modal-row-pricing {
+    display: grid !important;
+    grid-template-columns: 75px 80px minmax(0, 1fr) !important;
+    gap: 6px !important;
+  }
+  .order-modal-field-qty,
+  .sanitary-modal-field-qty,
+  .order-modal-field-ck,
+  .sanitary-modal-field-ck,
+  .order-modal-field-price,
+  .sanitary-modal-field-price {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .order-modal-field-price input,
+  .sanitary-modal-field-price input {
+    min-width: 0 !important;
+  }
+  .order-modal-form-actions,
+  .sanitary-modal-form-actions {
+    display: flex !important;
+    gap: 8px !important;
+    margin-top: 2px !important;
+  }
+  .order-modal-form-actions button,
+  .sanitary-modal-form-actions button {
+    flex: 1 !important;
+    height: 38px !important;
+    justify-content: center !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+  }
+  .order-modal-desktop-table,
+  .sanitary-modal-desktop-table {
+    display: none !important;
+  }
+  .order-modal-mobile-list,
+  .sanitary-modal-mobile-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .order-modal-footer,
+  .sanitary-modal-footer {
+    padding: 8px 10px max(14px, env(safe-area-inset-bottom, 14px)) 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    align-items: stretch !important;
+    background: var(--card) !important;
+    border-top: 1px solid var(--border) !important;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.06) !important;
+    box-sizing: border-box !important;
+  }
+  .order-modal-footer-totals,
+  .sanitary-modal-footer-totals {
+    order: 1 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+    padding-bottom: 6px !important;
+    border-bottom: 1px dashed var(--border) !important;
+    box-sizing: border-box !important;
+  }
+  .order-modal-footer-totals > div,
+  .sanitary-modal-footer-totals > div {
+    flex: 1 !important;
+    text-align: center !important;
+  }
+  .order-modal-footer-totals p:first-child,
+  .sanitary-modal-footer-totals p:first-child {
+    font-size: 10px !important;
+    margin: 0 !important;
+    color: var(--muted-foreground) !important;
+  }
+  .order-modal-footer-totals p:last-child,
+  .sanitary-modal-footer-totals p:last-child {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    margin: 0 !important;
+  }
+  .order-modal-footer-grandtotal,
+  .sanitary-modal-footer-grandtotal {
+    display: none !important;
+  }
+  .order-modal-footer-bottom,
+  .sanitary-modal-footer-bottom {
+    order: 2 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 8px !important;
+    box-sizing: border-box !important;
+  }
+  .order-modal-footer-payment,
+  .sanitary-modal-footer-payment {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex: 1 !important;
+    margin-left: 0 !important;
+    min-width: 0 !important;
+  }
+  .order-modal-footer-payment label,
+  .sanitary-modal-footer-payment label {
+    font-size: 11.5px !important;
+    margin: 0 !important;
+  }
+  .order-modal-footer-payment input[type="text"],
+  .sanitary-modal-footer-payment input[type="text"] {
+    width: 82px !important;
+    padding: 4px 18px 4px 6px !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    height: 30px !important;
+    box-sizing: border-box !important;
+  }
+  .order-modal-footer-mobile-grandtotal,
+  .sanitary-modal-footer-mobile-grandtotal {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
+  }
+  .order-modal-footer-mobile-grandtotal span:first-child,
+  .sanitary-modal-footer-mobile-grandtotal span:first-child {
+    font-size: 9.5px !important;
+    font-weight: 700 !important;
+    color: var(--primary) !important;
+    text-transform: uppercase !important;
+    line-height: 1 !important;
+  }
+  .order-modal-footer-mobile-grandtotal span:last-child,
+  .sanitary-modal-footer-mobile-grandtotal span:last-child {
+    font-size: 16px !important;
+    font-weight: 900 !important;
+    color: var(--primary) !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Suppress Next.js DevTools issue indicator on mobile screen to prevent covering bottom controls */
+  nextjs-portal {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .order-modal-footer-bottom,
+  .sanitary-modal-footer-bottom {
+    display: contents !important;
+  }
+  .order-modal-footer-mobile-grandtotal,
+  .sanitary-modal-footer-mobile-grandtotal {
+    display: none !important;
+  }
+  .order-modal-mobile-list,
+  .sanitary-modal-mobile-list {
+    display: none !important;
+  }
+  .order-modal-row-warehouse,
+  .sanitary-modal-row-warehouse {
+    display: flex !important;
+  }
+  .order-modal-desktop-table,
+  .sanitary-modal-desktop-table {
+    display: table !important;
+    min-width: 650px !important;
+  }
+}
+

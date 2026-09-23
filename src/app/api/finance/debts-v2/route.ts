@@ -158,6 +158,38 @@ export async function POST(request: Request) {
       }
     });
 
+    if (Number(paidAmount) > 0 && body.newPayment) {
+      try {
+        const typeUpper = (type || debt.type || "").toUpperCase();
+        const isReceivable = typeUpper === "RECEIVABLE" || typeUpper === "PHAI-THU";
+        const methodCode = body.newPayment.method === "Chuyển khoản" ? "1121" : "1111";
+        const { createAutoJournal } = require("@/lib/accounting-engine");
+
+        if (isReceivable) {
+          await createAutoJournal({
+            event: "SALES_RECEIPT",
+            overrideDebitCode: methodCode,
+            overrideCreditCode: "131",
+            amount: Number(paidAmount),
+            referenceCode: referenceId || debt.id,
+            description: `Thu tiền khách hàng - ${partnerName}`
+          });
+        } else {
+          const isLoan = typeUpper === "LOAN" || typeUpper === "VAY";
+          await createAutoJournal({
+            event: isLoan ? "CASH_PAYMENT_OTHER" : "VENDOR_PAYMENT", 
+            overrideDebitCode: isLoan ? "341" : "331",
+            overrideCreditCode: methodCode,
+            amount: Number(paidAmount),
+            referenceCode: referenceId || debt.id,
+            description: isLoan ? `Trả nợ vay - ${partnerName}` : `Thanh toán NCC - ${partnerName}`
+          });
+        }
+      } catch (journalErr) {
+        console.error("Auto journal error on create debt payment:", journalErr);
+      }
+    }
+
     return NextResponse.json(debt);
   } catch (error: any) {
     console.error("Create debt error:", error);

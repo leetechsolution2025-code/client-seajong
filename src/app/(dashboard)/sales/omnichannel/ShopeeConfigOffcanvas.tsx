@@ -74,7 +74,7 @@ export function ShopeeConfigOffcanvas({ open, onClose, onSuccess }: ShopeeConfig
       />
 
       <div
-        className={`offcanvas offcanvas-end border-0 shadow-lg ${open ? "show" : ""}`}
+        className={`offcanvas offcanvas-end app-custom-drawer border-0 shadow-lg ${open ? "show" : ""}`}
         style={{
           width: showGuide ? 820 : 420,
           maxWidth: "100%",
@@ -89,14 +89,14 @@ export function ShopeeConfigOffcanvas({ open, onClose, onSuccess }: ShopeeConfig
               <i className="bi bi-gear-fill fs-5" />
             </div>
             <h5 className="offcanvas-title fw-bold mb-0" style={{ fontSize: 15 }}>
-              Cấu hình Shopee API
+              Cấu hình Shopee Open Platform
             </h5>
           </div>
           <div className="d-flex align-items-center gap-2">
             <button
               type="button"
               onClick={() => setShowGuide(!showGuide)}
-              className={`btn btn-sm d-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill border ${
+              className={`btn btn-sm d-flex align-items-center gap-1.5 ${
                 showGuide 
                   ? "btn-primary text-white border-primary" 
                   : "btn-outline-secondary border-secondary-subtle"
@@ -110,14 +110,15 @@ export function ShopeeConfigOffcanvas({ open, onClose, onSuccess }: ShopeeConfig
           </div>
         </div>
 
-        <div className="offcanvas-body p-0 d-flex overflow-hidden flex-grow-1">
+        <div className="offcanvas-body p-0 d-flex flex-column flex-md-row overflow-hidden flex-grow-1">
           {/* Left panel: Detailed Connection Guide */}
           {showGuide && (
             <div 
               className="border-end bg-light p-4 overflow-auto flex-grow-1" 
               style={{ 
-                width: "50%", 
-                minWidth: 400,
+                width: "100%",
+                maxWidth: "100%",
+                minWidth: 0,
                 animation: "fadeIn 0.2s ease-in-out"
               }}
             >

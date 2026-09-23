@@ -36,6 +36,14 @@ export default function DemandForecast() {
   const [filterCategory, setFilterCategory] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -86,24 +94,28 @@ export default function DemandForecast() {
       
       <SectionTitle title="Danh sách hàng hoá" icon="bi-table" className="mb-3 px-1" />
 
-      <div className="d-flex align-items-center justify-content-between mb-3 gap-3">
-        <div className="d-flex gap-3 align-items-center flex-grow-1">
-          <div className="d-flex gap-2 align-items-center" style={{ maxWidth: 600 }}>
-            <FilterSelect 
-              options={categoryOptions}
-              value={filterCategory}
-              onChange={setFilterCategory}
-              placeholder="Tất cả loại hàng"
-              width={200}
-            />
-            <SearchInput 
-              value={searchTerm}
-              onChange={setSearchTerm}
-              placeholder="Tìm SKU, tên sản phẩm..."
-            />
+      <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between mb-3 gap-2">
+        <div className="d-flex flex-column flex-md-row gap-2 gap-md-3 align-items-stretch align-items-md-center flex-grow-1">
+          <div className="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center flex-grow-1" style={{ maxWidth: isMobile ? "none" : 600 }}>
+            <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 200 }}>
+              <FilterSelect 
+                options={categoryOptions}
+                value={filterCategory}
+                onChange={setFilterCategory}
+                placeholder="Tất cả loại hàng"
+                width={isMobile ? "100%" : 200}
+              />
+            </div>
+            <div className="flex-grow-1" style={{ minWidth: 0 }}>
+              <SearchInput 
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="Tìm SKU, tên sản phẩm..."
+              />
+            </div>
           </div>
 
-          <div className="border-start ps-3">
+          <div className="border-start-0 border-md-start ps-0 ps-md-3 overflow-auto">
             <FilterBadgeGroup 
               value={filterPriority}
               onChange={setFilterPriority}
@@ -122,6 +134,8 @@ export default function DemandForecast() {
           loading={loading}
           stickyHeader={true}
           compact={true}
+          wrapperClassName={isMobile ? "mkt-plan-table-no-min" : undefined}
+          wrapperStyle={{ overflowY: "auto", overflowX: isMobile ? "auto" : "auto", height: "100%" }}
           columns={[
             { header: "Sản phẩm", render: (p) => (
               <div className="d-flex align-items-center gap-3 cursor-pointer" onClick={() => setSelectedItem(p)}>
@@ -223,8 +237,8 @@ export default function DemandForecast() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="position-fixed top-0 end-0 h-100 bg-white shadow-lg border-start overflow-auto"
-              style={{ width: 400, zIndex: 1051 }}
+              className="position-fixed top-0 end-0 h-100 bg-white shadow-lg border-start overflow-auto app-custom-drawer"
+              style={{ width: 400, maxWidth: "100vw", zIndex: 1051 }}
             >
               <div className="p-4" style={{ fontSize: 13 }}>
                 <div className="d-flex justify-content-between align-items-start mb-4">

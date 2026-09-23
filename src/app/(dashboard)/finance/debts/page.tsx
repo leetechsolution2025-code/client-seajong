@@ -843,9 +843,25 @@ export default function DebtsPage() {
                       
                       if (isReceiptRecord) {
                         const paidVal = item.amount < 0 ? Math.abs(item.amount) : (item.paidAmount || item.amount || 0);
+                        let cleanDesc = parsed.originalDesc;
+                        if (!cleanDesc && parsed.history && parsed.history.length > 0 && parsed.history[0]?.note) {
+                          cleanDesc = parsed.history[0].note;
+                          if (parsed.history[0].method) {
+                            cleanDesc += ` - ${parsed.history[0].method}`;
+                          }
+                        }
+                        if (!cleanDesc && item.description) {
+                          cleanDesc = item.description.split("\n")[0]
+                            .replace(/\[PAYMENT_LOGS\]:.*$/, "")
+                            .replace(/\[RECONCILIATION_LOGS\]:.*$/, "")
+                            .trim();
+                        }
+                        if (!cleanDesc) {
+                          cleanDesc = isReturnItem ? "Khách trả lại hàng" : (currentStepId === "RECEIVABLE" ? "Thu nợ khách hàng" : "Thanh toán công nợ");
+                        }
                         expandedItems.push({
                           ...item,
-                          displayDescription: parsed.originalDesc || item.description,
+                          displayDescription: cleanDesc,
                           amount: 0,
                           paidAmount: paidVal,
                           isOriginalDebt: true,
@@ -853,9 +869,16 @@ export default function DebtsPage() {
                           isReturn: isReturnItem
                         });
                       } else {
+                        let cleanDesc = parsed.originalDesc;
+                        if (!cleanDesc && item.description) {
+                          cleanDesc = item.description.split("\n")[0]
+                            .replace(/\[PAYMENT_LOGS\]:.*$/, "")
+                            .replace(/\[RECONCILIATION_LOGS\]:.*$/, "")
+                            .trim();
+                        }
                         expandedItems.push({
                           ...item,
-                          displayDescription: parsed.originalDesc,
+                          displayDescription: cleanDesc || (currentStepId === "RECEIVABLE" ? "Phát sinh công nợ phải thu" : "Phát sinh công nợ phải trả"),
                           isOriginalDebt: true
                         });
                         

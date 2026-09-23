@@ -56,9 +56,9 @@ export function ProductDetailOffcanvas({ show, onHide, product }: ProductDetailO
       />
       
       <div 
-        className={`offcanvas offcanvas-end ${show && !isPrintPreviewOpen ? 'show' : ''} d-flex flex-column`}
+        className={`offcanvas offcanvas-end app-custom-drawer ${show && !isPrintPreviewOpen ? 'show' : ''} d-flex flex-column`}
         tabIndex={-1}
-        style={{ visibility: show && !isPrintPreviewOpen ? 'visible' : 'hidden', width: '400px', zIndex: 1045, borderLeft: 'none' }}
+        style={{ visibility: show && !isPrintPreviewOpen ? 'visible' : 'hidden', width: '400px', maxWidth: '100vw', zIndex: 1045, borderLeft: 'none' }}
       >
         <div className="offcanvas-header border-bottom bg-light">
           <h5 className="offcanvas-title fs-6 fw-semibold">Chi tiết sản phẩm</h5>

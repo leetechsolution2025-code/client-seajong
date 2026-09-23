@@ -762,9 +762,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    style={{ padding: "12px 16px 20px", flexShrink: 0, textAlign: "center" }}
+                    style={{ padding: "12px 16px 18px", flexShrink: 0, textAlign: "center" }}
                   >
-                    <p style={{ fontSize: 11, fontWeight: 400, color: "var(--muted-foreground)", lineHeight: 1.6, margin: 0, opacity: 0.75, whiteSpace: "normal", wordBreak: "break-word", overflow: "visible" }}>
+                    <p 
+                      className="text-uppercase"
+                      style={{ 
+                        fontSize: 13.5, 
+                        fontWeight: 700, 
+                        color: "var(--foreground)", 
+                        lineHeight: 1.5, 
+                        margin: 0, 
+                        opacity: 0.85, 
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                        whiteSpace: "normal", 
+                        wordBreak: "break-word", 
+                        overflow: "visible" 
+                      }}
+                    >
                       {sloganText}
                     </p>
                   </motion.div>

@@ -82,9 +82,10 @@ export function ShopeeOrderDetailOffcanvas({ order, onClose, onUpdateStatus, onD
 
       {/* Panel */}
       <div
-        className={`offcanvas offcanvas-end border-0 shadow-lg ${open ? "show" : ""}`}
+        className={`offcanvas offcanvas-end app-custom-drawer border-0 shadow-lg ${open ? "show" : ""}`}
         style={{
           width: 400,
+          maxWidth: "100vw",
           visibility: open ? "visible" : "hidden",
           transition: "transform 0.4s cubic-bezier(0.05, 0.7, 0.1, 1), visibility 0.4s",
           background: "#fcfcfc",

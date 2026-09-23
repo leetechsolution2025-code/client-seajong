@@ -31,6 +31,6 @@ export const config = {
      * - login: (trang đăng nhập)
      * - Các định dạng file tĩnh (svg, png, jpg, jpeg, gif, webp)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|login|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|login|.*\\.(?:svg|png|jpg|jpeg|gif|webp|json)$).*)',
   ],
 };

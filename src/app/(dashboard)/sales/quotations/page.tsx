@@ -121,6 +121,14 @@ export function QuotationsContent() {
   const [employeeFilter, setEmployeeFilter] = useState("");
   const [employees, setEmployees] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Step 2: Orders state
   const [orderStatusFilter, setOrderStatusFilter] = useState("");
@@ -504,16 +512,70 @@ export function QuotationsContent() {
   };
 
   const returnColumns: TableColumn<any>[] = useMemo(() => {
+    const getSourceLabel = (s: string) => {
+      if (s === 'INTERNAL') return "Nội bộ";
+      if (s === 'WARRANTY') return "Bảo hành";
+      if (s === 'RETURN') return "Trả về";
+      return s || "Trả về";
+    };
+    const getStatusBadge = (status: string) => {
+      switch (status) {
+        case 'NEW': return <span className="badge bg-primary" style={{ fontSize: 10 }}>Chưa xử lý</span>;
+        case 'TECH_EVALUATING': return <span className="badge bg-info" style={{ fontSize: 10 }}>Đang chẩn đoán</span>;
+        case 'WAITING_APPROVAL': return <span className="badge bg-warning text-dark" style={{ fontSize: 10 }}>Chờ duyệt</span>;
+        case 'PROCESSING': return <span className="badge bg-secondary" style={{ fontSize: 10 }}>Đang xử lý</span>;
+        case 'WAITING_INVENTORY': return <span className="badge bg-secondary" style={{ fontSize: 10 }}>Đang thực hiện</span>;
+        case 'COMPLETED': return <span className="badge bg-success" style={{ fontSize: 10 }}>Đã xử lý</span>;
+        default: return <span className="badge bg-light text-dark" style={{ fontSize: 10 }}>{status || 'Chưa xử lý'}</span>;
+      }
+    };
+
+    if (isMobile) {
+      return [
+        {
+          header: "Hồ sơ lỗi & Khách hàng",
+          render: (row) => (
+            <div className="d-flex flex-column py-1" style={{ minWidth: 0 }}>
+              <div className="d-flex align-items-center justify-content-between gap-1 mb-1">
+                <div className="d-flex align-items-center gap-1">
+                  <span className="fw-bold text-primary cursor-pointer hover-underline" style={{ fontSize: "12.5px" }}>
+                    {row.code || "ERR-—"}
+                  </span>
+                  <span className="badge bg-light border text-dark fw-normal" style={{ fontSize: "10px", padding: "2px 5px" }}>
+                    {getSourceLabel(row.source)}
+                  </span>
+                </div>
+                {getStatusBadge(row.status)}
+              </div>
+              <div className="text-dark fw-semibold text-truncate" style={{ fontSize: "12.5px" }}>
+                {row.customerName || "—"}
+              </div>
+              {row.customerAddress && (
+                <div className="text-muted text-truncate" style={{ fontSize: "11px", marginTop: 1 }}>
+                  {row.customerAddress}
+                </div>
+              )}
+              <div className="text-muted d-flex align-items-center flex-wrap gap-2" style={{ fontSize: "10.5px", marginTop: 2 }}>
+                {row.orderNumber && (
+                  <span><i className="bi bi-receipt me-1" />ĐH: {row.orderNumber}</span>
+                )}
+                <span><i className="bi bi-calendar3 me-1" />{row.createdAt ? new Date(row.createdAt).toLocaleDateString("vi-VN") : "—"}</span>
+              </div>
+              {row.description && (
+                <div className="text-secondary text-truncate mt-1 fst-italic" style={{ fontSize: "11px" }}>
+                  {row.description}
+                </div>
+              )}
+            </div>
+          ),
+        },
+      ];
+    }
+
     return [
       {
         header: "Mã lỗi",
         render: (row) => {
-          const getSourceLabel = (s: string) => {
-            if (s === 'INTERNAL') return "Nội bộ";
-            if (s === 'WARRANTY') return "Bảo hành";
-            if (s === 'RETURN') return "Trả về";
-            return s;
-          };
           return (
             <div>
               <div className="fw-bold text-primary cursor-pointer hover-underline">{row.code || "ERR-—"}</div>
@@ -553,27 +615,100 @@ export function QuotationsContent() {
       },
       {
         header: "Trạng thái",
-        render: (row) => {
-          const getStatusBadge = (status: string) => {
-            switch (status) {
-              case 'NEW': return <span className="badge bg-primary">Chưa xử lý</span>;
-              case 'TECH_EVALUATING': return <span className="badge bg-info">Đang chẩn đoán</span>;
-              case 'WAITING_APPROVAL': return <span className="badge bg-warning text-dark">Chờ duyệt</span>;
-              case 'PROCESSING': return <span className="badge bg-secondary">Đang xử lý</span>;
-              case 'WAITING_INVENTORY': return <span className="badge bg-secondary">Đang thực hiện</span>;
-              case 'COMPLETED': return <span className="badge bg-success">Đã xử lý</span>;
-              default: return <span className="badge bg-light text-dark">{status || 'Chưa xử lý'}</span>;
-            }
-          };
-          return getStatusBadge(row.status);
-        },
+        render: (row) => getStatusBadge(row.status),
         align: "center",
         width: "120px",
       },
     ];
-  }, []);
+  }, [isMobile]);
 
   const orderColumns: TableColumn<any>[] = useMemo(() => {
+    if (isMobile) {
+      return [
+        {
+          header: (
+            <div onClick={(e) => e.stopPropagation()} className="d-flex justify-content-center">
+              <input
+                type="checkbox"
+                className="form-check-input cursor-pointer"
+                checked={orders.length > 0 && orders.every(o => selectedOrderIds.has(o.id))}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedOrderIds(new Set(orders.map(o => o.id)));
+                  } else {
+                    setSelectedOrderIds(new Set());
+                  }
+                }}
+              />
+            </div>
+          ),
+          render: (row) => (
+            <div onClick={(e) => e.stopPropagation()} className="d-flex justify-content-center">
+              <input
+                type="checkbox"
+                className="form-check-input cursor-pointer"
+                checked={selectedOrderIds.has(row.id)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setSelectedOrderIds(prev => {
+                    const next = new Set(prev);
+                    if (checked) {
+                      next.add(row.id);
+                    } else {
+                      next.delete(row.id);
+                    }
+                    return next;
+                  });
+                }}
+              />
+            </div>
+          ),
+          width: "32px",
+          align: "center",
+        },
+        {
+          header: "Đơn hàng & Khách hàng",
+          render: (row) => (
+            <div className="d-flex flex-column py-1" style={{ minWidth: 0 }}>
+              <div className="d-flex align-items-center justify-content-between gap-1 mb-1">
+                <span className="fw-bold text-primary cursor-pointer hover-underline" style={{ fontSize: "12.5px" }}>
+                  {row.maDonHang}
+                </span>
+                <StatusBadge status={row.trangThai} />
+              </div>
+              <div className="text-dark fw-semibold text-truncate" style={{ fontSize: "12.5px" }}>
+                {row.khachHang}
+              </div>
+              {row.diaChi && (
+                <div className="text-muted text-truncate" style={{ fontSize: "11px", marginTop: 1 }}>
+                  {row.diaChi}
+                </div>
+              )}
+              <div className="text-muted d-flex align-items-center flex-wrap gap-2" style={{ fontSize: "10.5px", marginTop: 2 }}>
+                <span><i className="bi bi-calendar-plus me-1" />{row.ngayTao}</span>
+                {row.ngayGiao && row.ngayGiao !== "—" && (
+                  <span><i className="bi bi-truck me-1" />{row.ngayGiao}</span>
+                )}
+              </div>
+            </div>
+          ),
+        },
+        {
+          header: "Giá trị",
+          render: (row) => (
+            <div className="d-flex flex-column align-items-end justify-content-center py-1">
+              <span className="fw-bold text-dark" style={{ fontSize: "13px", whiteSpace: "nowrap" }}>
+                {row.giaTri ? row.giaTri.toLocaleString("vi-VN") : "0"}
+              </span>
+              <span className="text-muted" style={{ fontSize: "10px" }}>VNĐ</span>
+            </div>
+          ),
+          align: "right",
+          width: "95px",
+        },
+      ];
+    }
+
     return [
       {
         header: (
@@ -657,9 +792,93 @@ export function QuotationsContent() {
         width: "140px",
       },
     ];
-  }, [orders, selectedOrderIds]);
+  }, [orders, selectedOrderIds, isMobile]);
 
   const columns: TableColumn<Quotation>[] = useMemo(() => {
+    if (isMobile) {
+      return [
+        {
+          header: (
+            <div onClick={(e) => e.stopPropagation()} className="d-flex justify-content-center">
+              <input
+                type="checkbox"
+                className="form-check-input cursor-pointer"
+                checked={quotations.length > 0 && quotations.every(p => selectedIds.has(p.id))}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedIds(new Set(quotations.map(p => p.id)));
+                  } else {
+                    setSelectedIds(new Set());
+                  }
+                }}
+              />
+            </div>
+          ),
+          render: (row) => (
+            <div onClick={(e) => e.stopPropagation()} className="d-flex justify-content-center">
+              <input
+                type="checkbox"
+                className="form-check-input cursor-pointer"
+                checked={selectedIds.has(row.id)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setSelectedIds(prev => {
+                    const next = new Set(prev);
+                    if (checked) {
+                      next.add(row.id);
+                    } else {
+                      next.delete(row.id);
+                    }
+                    return next;
+                  });
+                }}
+              />
+            </div>
+          ),
+          width: "32px",
+          align: "center",
+        },
+        {
+          header: "Báo giá & Khách hàng",
+          render: (row) => (
+            <div className="d-flex flex-column py-1" style={{ minWidth: 0 }}>
+              <div className="d-flex align-items-center justify-content-between gap-1 mb-1">
+                <span className="fw-bold text-primary cursor-pointer hover-underline" style={{ fontSize: "12.5px" }}>
+                  {row.soBaoGia}
+                </span>
+                <StatusBadge status={row.trangThai} />
+              </div>
+              <div className="text-dark fw-semibold text-truncate" style={{ fontSize: "12.5px" }}>
+                {row.khachHang}
+              </div>
+              {row.diaChi && (
+                <div className="text-muted text-truncate" style={{ fontSize: "11px", marginTop: 1 }}>
+                  {row.diaChi}
+                </div>
+              )}
+              <div className="text-muted d-flex align-items-center gap-1" style={{ fontSize: "10.5px", marginTop: 2 }}>
+                <i className="bi bi-calendar3" style={{ fontSize: "10px" }} />
+                <span>{row.ngayTao}</span>
+              </div>
+            </div>
+          ),
+        },
+        {
+          header: "Giá trị",
+          render: (row) => (
+            <div className="d-flex flex-column align-items-end justify-content-center py-1">
+              <span className="fw-bold text-primary" style={{ fontSize: "13px", whiteSpace: "nowrap" }}>
+                {row.giaTri ? row.giaTri.toLocaleString("vi-VN") : "0"}
+              </span>
+              <span className="text-muted" style={{ fontSize: "10px" }}>VNĐ</span>
+            </div>
+          ),
+          align: "right",
+          width: "95px",
+        },
+      ];
+    }
+
     return [
       {
         header: (
@@ -734,7 +953,7 @@ export function QuotationsContent() {
         width: "180px",
       },
     ];
-  }, [quotations, selectedIds]);
+  }, [quotations, selectedIds, isMobile]);
 
   return (
     <>
@@ -756,83 +975,87 @@ export function QuotationsContent() {
               className="flex-grow-1 overflow-hidden"
               style={{ minHeight: 0 }}
               header={
-                <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-                <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
-                  {/* Bộ lọc theo trạng thái */}
-                  <FilterSelect
-                    options={STATUS_OPTIONS}
-                    value={statusFilter}
-                    onChange={setStatusFilter}
-                    placeholder="Tất cả trạng thái"
-                    width={180}
-                  />
+                <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2">
+                  {/* Bộ lọc trạng thái và thời gian */}
+                  <div className="d-flex align-items-center gap-2">
+                    <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 180 }}>
+                      <FilterSelect
+                        options={STATUS_OPTIONS}
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                        placeholder="Tất cả trạng thái"
+                        width={isMobile ? "100%" : 180}
+                      />
+                    </div>
 
-                  {/* Bộ lọc thời gian */}
-                  <FilterSelect 
-                    options={[
-                      { label: "Hôm nay", value: "today" },
-                      { label: "Hôm qua", value: "yesterday" },
-                      { label: "Tuần này", value: "this_week" },
-                      { label: "Tuần trước", value: "last_week" },
-                      { label: "Tháng này", value: "this_month" },
-                      { label: "Tháng trước", value: "last_month" },
-                      { label: "Năm nay", value: "this_year" },
-                    ]}
-                    value={timeFilter}
-                    onChange={setTimeFilter}
-                    placeholder="Thời gian"
-                    width={150}
-                  />
-
-                  {/* Hộp tìm kiếm */}
-                  <div className="flex-grow-1" style={{ maxWidth: 300 }}>
-                    <SearchInput
-                      placeholder="Tìm kiếm..."
-                      value={searchTerm}
-                      onChange={setSearchTerm}
-                    />
+                    <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 150 }}>
+                      <FilterSelect 
+                        options={[
+                          { label: "Hôm nay", value: "today" },
+                          { label: "Hôm qua", value: "yesterday" },
+                          { label: "Tuần này", value: "this_week" },
+                          { label: "Tuần trước", value: "last_week" },
+                          { label: "Tháng này", value: "this_month" },
+                          { label: "Tháng trước", value: "last_month" },
+                          { label: "Năm nay", value: "this_year" },
+                        ]}
+                        value={timeFilter}
+                        onChange={setTimeFilter}
+                        placeholder="Thời gian"
+                        width={isMobile ? "100%" : 150}
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="d-flex align-items-center gap-2">
-                  {selectedIds.size > 0 && (
-                    <button
-                      className="btn btn-danger px-3 d-flex align-items-center justify-content-center gap-2"
-                      style={{
-                        height: 34,
-                        fontSize: "12.5px",
-                        borderRadius: 8,
-                        fontWeight: 700,
-                        whiteSpace: "nowrap"
-                      }}
-                      onClick={() => setConfirmDeleteBaoGia(true)}
-                    >
-                      <i className="bi bi-trash" /> Xoá
-                    </button>
-                  )}
-                  {/* Nút thêm mới */}
-                <button
-                  className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
-                  style={{
-                    height: 34,
-                    fontSize: "12.5px",
-                    backgroundColor: "#003087",
-                    borderColor: "#003087",
-                    borderRadius: 8,
-                    fontWeight: 700,
-                    whiteSpace: "nowrap"
-                  }}
-                  onClick={() => {
-                    setIsDirectOrder(false);
-                    setSelectedCustomer(null);
-                    setQuotationEditData(null);
-                    setShowCustomerSelectModal(true);
-                  }}
-                >
-                  <i className="bi bi-plus-lg" />
-                  Thêm mới
-                </button>
-                </div>
+                  {/* Tìm kiếm và Nút thêm mới (cùng hàng trên Mobile, tách 2 phía trên Desktop) */}
+                  <div className="d-flex align-items-center gap-2 flex-grow-1 justify-content-between justify-content-md-end">
+                    <div className="flex-grow-1" style={{ maxWidth: isMobile ? "none" : 300, minWidth: 0 }}>
+                      <SearchInput
+                        placeholder="Tìm kiếm..."
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                      />
+                    </div>
+
+                    <div className="d-flex align-items-center gap-2 flex-shrink-0 ms-md-auto">
+                      {selectedIds.size > 0 && (
+                        <button
+                          className="btn btn-danger px-2.5 px-md-3 d-flex align-items-center justify-content-center gap-1"
+                          style={{
+                            height: 34,
+                            fontSize: "12.5px",
+                            borderRadius: 8,
+                            fontWeight: 700,
+                            whiteSpace: "nowrap"
+                          }}
+                          onClick={() => setConfirmDeleteBaoGia(true)}
+                        >
+                          <i className="bi bi-trash" /> {isMobile ? `(${selectedIds.size})` : "Xoá"}
+                        </button>
+                      )}
+                      <button
+                        className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
+                        style={{
+                          height: 34,
+                          fontSize: "12.5px",
+                          backgroundColor: "#003087",
+                          borderColor: "#003087",
+                          borderRadius: 8,
+                          fontWeight: 700,
+                          whiteSpace: "nowrap"
+                        }}
+                        onClick={() => {
+                          setIsDirectOrder(false);
+                          setSelectedCustomer(null);
+                          setQuotationEditData(null);
+                          setShowCustomerSelectModal(true);
+                        }}
+                      >
+                        <i className="bi bi-plus-lg" />
+                        Thêm mới
+                      </button>
+                    </div>
+                  </div>
                 </div>
               }
               table={
@@ -845,7 +1068,8 @@ export function QuotationsContent() {
                   compact={true}
                   stickyHeader={true}
                   onRowClick={setSelectedQ}
-                  wrapperStyle={{ overflowY: "auto", flex: 1, minHeight: 0 }}
+                  wrapperClassName="mkt-plan-table-no-min"
+                  wrapperStyle={{ overflowY: "auto", overflowX: isMobile ? "hidden" : "auto", flex: 1, minHeight: 0 }}
                 />
               }
             />
@@ -855,83 +1079,87 @@ export function QuotationsContent() {
               className="flex-grow-1 overflow-hidden"
               style={{ minHeight: 0 }}
               header={
-                <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-                <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
-                  {/* Bộ lọc theo trạng thái */}
-                  <FilterSelect
-                    options={ORDER_STATUS_OPTIONS}
-                    value={orderStatusFilter}
-                    onChange={setOrderStatusFilter}
-                    placeholder="Tất cả trạng thái"
-                    width={180}
-                  />
+                <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2">
+                  {/* Bộ lọc trạng thái và thời gian */}
+                  <div className="d-flex align-items-center gap-2">
+                    <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 180 }}>
+                      <FilterSelect
+                        options={ORDER_STATUS_OPTIONS}
+                        value={orderStatusFilter}
+                        onChange={setOrderStatusFilter}
+                        placeholder="Tất cả trạng thái"
+                        width={isMobile ? "100%" : 180}
+                      />
+                    </div>
 
-                  {/* Bộ lọc thời gian */}
-                  <FilterSelect 
-                    options={[
-                      { label: "Hôm nay", value: "today" },
-                      { label: "Hôm qua", value: "yesterday" },
-                      { label: "Tuần này", value: "this_week" },
-                      { label: "Tuần trước", value: "last_week" },
-                      { label: "Tháng này", value: "this_month" },
-                      { label: "Tháng trước", value: "last_month" },
-                      { label: "Năm nay", value: "this_year" },
-                    ]}
-                    value={orderTimeFilter}
-                    onChange={setOrderTimeFilter}
-                    placeholder="Thời gian"
-                    width={150}
-                  />
-
-                  {/* Hộp tìm kiếm */}
-                  <div className="flex-grow-1" style={{ maxWidth: 300 }}>
-                    <SearchInput 
-                      placeholder="Tìm kiếm..."
-                      value={orderSearchTerm}
-                      onChange={setOrderSearchTerm}
-                    />
+                    <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 150 }}>
+                      <FilterSelect 
+                        options={[
+                          { label: "Hôm nay", value: "today" },
+                          { label: "Hôm qua", value: "yesterday" },
+                          { label: "Tuần này", value: "this_week" },
+                          { label: "Tuần trước", value: "last_week" },
+                          { label: "Tháng này", value: "this_month" },
+                          { label: "Tháng trước", value: "last_month" },
+                          { label: "Năm nay", value: "this_year" },
+                        ]}
+                        value={orderTimeFilter}
+                        onChange={setOrderTimeFilter}
+                        placeholder="Thời gian"
+                        width={isMobile ? "100%" : 150}
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="d-flex align-items-center gap-2">
-                  {selectedOrderIds.size > 0 && (
-                    <button
-                      className="btn btn-danger px-3 d-flex align-items-center justify-content-center gap-2"
-                      style={{
-                        height: 34,
-                        fontSize: "12.5px",
-                        borderRadius: 8,
-                        fontWeight: 700,
-                        whiteSpace: "nowrap"
-                      }}
-                      onClick={() => setConfirmDeleteDonHang(true)}
-                    >
-                      <i className="bi bi-trash" /> Xoá
-                    </button>
-                  )}
-                  {/* Nút thêm mới */}
-                  <button
-                    className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
-                    style={{
-                      height: 34,
-                      fontSize: "12.5px",
-                      backgroundColor: "#003087",
-                      borderColor: "#003087",
-                      borderRadius: 8,
-                      fontWeight: 700,
-                      whiteSpace: "nowrap"
-                    }}
-                    onClick={() => {
-                      setIsDirectOrder(true);
-                      setSelectedCustomer(null);
-                      setQuotationEditData(null);
-                      setShowCustomerSelectModal(true);
-                    }}
-                  >
-                    <i className="bi bi-plus-lg" />
-                    Thêm mới
-                  </button>
-                </div>
+                  {/* Tìm kiếm và Nút thêm mới (cùng hàng trên Mobile, tách 2 phía trên Desktop) */}
+                  <div className="d-flex align-items-center gap-2 flex-grow-1 justify-content-between justify-content-md-end">
+                    <div className="flex-grow-1" style={{ maxWidth: isMobile ? "none" : 300, minWidth: 0 }}>
+                      <SearchInput 
+                        placeholder="Tìm kiếm..."
+                        value={orderSearchTerm}
+                        onChange={setOrderSearchTerm}
+                      />
+                    </div>
+
+                    <div className="d-flex align-items-center gap-2 flex-shrink-0 ms-md-auto">
+                      {selectedOrderIds.size > 0 && (
+                        <button
+                          className="btn btn-danger px-2.5 px-md-3 d-flex align-items-center justify-content-center gap-1"
+                          style={{
+                            height: 34,
+                            fontSize: "12.5px",
+                            borderRadius: 8,
+                            fontWeight: 700,
+                            whiteSpace: "nowrap"
+                          }}
+                          onClick={() => setConfirmDeleteDonHang(true)}
+                        >
+                          <i className="bi bi-trash" /> {isMobile ? `(${selectedOrderIds.size})` : "Xoá"}
+                        </button>
+                      )}
+                      <button
+                        className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
+                        style={{
+                          height: 34,
+                          fontSize: "12.5px",
+                          backgroundColor: "#003087",
+                          borderColor: "#003087",
+                          borderRadius: 8,
+                          fontWeight: 700,
+                          whiteSpace: "nowrap"
+                        }}
+                        onClick={() => {
+                          setIsDirectOrder(true);
+                          setSelectedCustomer(null);
+                          setQuotationEditData(null);
+                          setShowCustomerSelectModal(true);
+                        }}
+                      >
+                        <i className="bi bi-plus-lg" />
+                        Thêm mới
+                      </button>
+                    </div>
+                  </div>
                 </div>
               }
               table={
@@ -944,7 +1172,8 @@ export function QuotationsContent() {
                   compact={true}
                   stickyHeader={true}
                   onRowClick={(row) => setSelectedOrderId(row.id)}
-                  wrapperStyle={{ overflowY: "auto", flex: 1, minHeight: 0 }}
+                  wrapperClassName="mkt-plan-table-no-min"
+                  wrapperStyle={{ overflowY: "auto", overflowX: isMobile ? "hidden" : "auto", flex: 1, minHeight: 0 }}
                 />
               }
             />
@@ -957,8 +1186,8 @@ export function QuotationsContent() {
               className="flex-grow-1 overflow-hidden"
               style={{ minHeight: 0 }}
               header={
-                <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-                  <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
+                <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2">
+                  <div className="w-100 w-md-auto" style={{ minWidth: isMobile ? 0 : 180 }}>
                     <FilterSelect
                       options={[
                         { label: "Chưa xử lý", value: "NEW" },
@@ -967,33 +1196,38 @@ export function QuotationsContent() {
                       value={returnStatusFilter}
                       onChange={setReturnStatusFilter}
                       placeholder="Tất cả trạng thái"
-                      width={180}
+                      width={isMobile ? "100%" : 180}
                     />
-                    <div className="flex-grow-1" style={{ maxWidth: 300 }}>
+                  </div>
+
+                  {/* Tìm kiếm và Nút tạo mới (cùng hàng trên Mobile, tách 2 phía trên Desktop) */}
+                  <div className="d-flex align-items-center gap-2 flex-grow-1 justify-content-between justify-content-md-end">
+                    <div className="flex-grow-1" style={{ maxWidth: isMobile ? "none" : 300, minWidth: 0 }}>
                       <SearchInput
                         placeholder="Tìm kiếm..."
                         value={returnSearchTerm}
                         onChange={setReturnSearchTerm}
                       />
                     </div>
-                  </div>
-                  <div className="d-flex align-items-center gap-2">
-                    <button
-                      className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
-                      style={{
-                        height: 34,
-                        fontSize: "12.5px",
-                        backgroundColor: "#003087",
-                        borderColor: "#003087",
-                        borderRadius: 8,
-                        fontWeight: 700,
-                        whiteSpace: "nowrap"
-                      }}
-                      onClick={() => setIsReturnModalOpen(true)}
-                    >
-                      <i className="bi bi-plus-lg" />
-                      Tạo mới
-                    </button>
+
+                    <div className="d-flex align-items-center gap-2 flex-shrink-0 ms-md-auto">
+                      <button
+                        className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
+                        style={{
+                          height: 34,
+                          fontSize: "12.5px",
+                          backgroundColor: "#003087",
+                          borderColor: "#003087",
+                          borderRadius: 8,
+                          fontWeight: 700,
+                          whiteSpace: "nowrap"
+                        }}
+                        onClick={() => setIsReturnModalOpen(true)}
+                      >
+                        <i className="bi bi-plus-lg" />
+                        Tạo mới
+                      </button>
+                    </div>
                   </div>
                 </div>
               }
@@ -1006,7 +1240,8 @@ export function QuotationsContent() {
                   emptyText="Không tìm thấy hồ sơ lỗi nào"
                   compact={true}
                   stickyHeader={true}
-                  wrapperStyle={{ overflowY: "auto", flex: 1, minHeight: 0 }}
+                  wrapperClassName="mkt-plan-table-no-min"
+                  wrapperStyle={{ overflowY: "auto", overflowX: isMobile ? "hidden" : "auto", flex: 1, minHeight: 0 }}
                 />
               }
             />

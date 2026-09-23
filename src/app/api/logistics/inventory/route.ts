@@ -420,7 +420,7 @@ export async function GET(req: Request) {
       totalPages: Math.ceil(total / limit),
       stats: {
         tongMatHang: total,
-        tongGiaTri,
+        tongGiaTri: Math.round(tongGiaTri),
         hetHang: hetHangCount,
         sapHet: sapHetCount,
       }

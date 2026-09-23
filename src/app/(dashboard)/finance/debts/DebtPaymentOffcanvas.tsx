@@ -336,7 +336,8 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
         // Thu theo khách hàng -> POST phiếu thu độc lập
         url = `/api/finance/debts-v2`;
         method = "POST";
-        const newDesc = serializeDebtDescription("", [newHistoryItem], []);
+        const cleanNote = payNote.trim() || (isReceivable ? "Thu nợ khách hàng" : "Thanh toán nhà cung cấp");
+        const newDesc = serializeDebtDescription(cleanNote, [newHistoryItem], []);
         bodyData = {
           type: debt.type,
           partnerName: debt.partnerName,
@@ -349,6 +350,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
           referenceId: payRef,
           status: "PAID",
           description: newDesc,
+          newPayment: newHistoryItem,
         };
       } else {
         // Thu theo đơn cụ thể -> PUT cập nhật

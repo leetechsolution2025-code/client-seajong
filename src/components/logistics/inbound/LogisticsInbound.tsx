@@ -14,6 +14,8 @@ import { NhapKhoModal } from "@/components/plan-finance/kho_hang/NhapKhoModal";
 import { XuatKhoModal } from "@/components/plan-finance/kho_hang/XuatKhoModal";
 import { KiemKhoModal } from "@/components/plan-finance/kho_hang/KiemKhoModal";
 import { LuanChuyenKhoModal } from "@/components/plan-finance/kho_hang/LuanChuyenKhoModal";
+import { ConfirmDialogModal } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 
 interface Warehouse {
   id: string;
@@ -33,6 +35,9 @@ interface InventoryItem {
   tenHang: string;
   donVi: string | null;
   soLuong: number;
+  soLuongGiu?: number;
+  daGiu?: number;
+  thucTon?: number;
   trangThai: string;
   imageUrl?: string | null;
   images?: string[];
@@ -61,6 +66,43 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
   const [filteredCount, setFilteredCount] = useState(0);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [isClearingHold, setIsClearingHold] = useState(false);
+  const [showClearHoldModal, setShowClearHoldModal] = useState(false);
+  const toast = useToast();
+
+  const handleConfirmClearHold = async () => {
+    if (isClearingHold) return;
+    const hasSelection = selectedIds.length > 0;
+
+    setIsClearingHold(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterWarehouse) params.append("warehouseId", filterWarehouse);
+
+      const res = await fetch(`/api/logistics/inventory/clear-holds?${params}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(hasSelection ? { itemIds: selectedIds } : {})
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setShowClearHoldModal(false);
+        toast.success(
+          "Huỷ đã giữ thành công",
+          `Đã chuyển toàn bộ hàng giữ của ${data.updatedCount || 0} kho/mặt hàng về thực tồn.`
+        );
+        fetchItems();
+      } else {
+        toast.error("Không thể huỷ giữ", data.error || "Không thể huỷ giữ hàng hoá");
+      }
+    } catch (err) {
+      console.error("Error clearing hold:", err);
+      toast.error("Lỗi", "Đã xảy ra lỗi khi huỷ giữ hàng hoá");
+    } finally {
+      setIsClearingHold(false);
+    }
+  };
 
   // Load warehouses once on mount
   useEffect(() => {
@@ -150,8 +192,8 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
         "Giá nhập": item.giaNhap || 0,
         "Giá bán": item.giaBan || 0,
         "Tồn kho": item.soLuong || 0,
-        "Đã giữ": item.daGiu || 0,
-        "Thực tồn": (item.soLuong || 0) - (item.daGiu || 0),
+        "Đã giữ": item.soLuongGiu ?? item.daGiu ?? 0,
+        "Thực tồn": item.thucTon ?? ((item.soLuong || 0) - (item.soLuongGiu ?? item.daGiu ?? 0)),
         "Trạng thái": item.trangThai === "con-hang" ? "Còn hàng" : item.trangThai === "sap-het" ? "Sắp hết" : "Hết hàng"
       }));
 
@@ -277,7 +319,7 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
       width: 120,
       align: "right",
       render: (row) => {
-        const reserved = 0;
+        const reserved = row.soLuongGiu ?? row.daGiu ?? 0;
         return (
           <span style={{ color: "#991b1b", fontWeight: 700 }}>
             {reserved.toLocaleString("vi-VN")}
@@ -290,8 +332,8 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
       width: 120,
       align: "right",
       render: (row) => {
-        const reserved = 0;
-        const actual = row.soLuong - reserved;
+        const reserved = row.soLuongGiu ?? row.daGiu ?? 0;
+        const actual = row.thucTon ?? (row.soLuong - reserved);
         return (
           <span className="text-success fw-bold">
             {actual.toLocaleString("vi-VN")}
@@ -435,6 +477,41 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
                 <i className="bi bi-file-earmark-arrow-up" style={{ fontSize: "14px", color: "#8b5cf6" }} />
               )}
             </button>
+
+            {/* Huỷ đã giữ */}
+            <button 
+              title="Huỷ hàng đang giữ (Chuyển hết về thực tồn)"
+              onClick={() => setShowClearHoldModal(true)}
+              disabled={isClearingHold}
+              style={{
+                height: "32px",
+                padding: "0 10px",
+                borderRadius: "8px",
+                border: "1px solid #fecaca",
+                background: "#fef2f2",
+                color: "#dc2626",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: isClearingHold ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                opacity: isClearingHold ? 0.6 : 1,
+                whiteSpace: "nowrap"
+              }}
+              onMouseEnter={(e) => { if (!isClearingHold) e.currentTarget.style.background = "#fee2e2"; }}
+              onMouseLeave={(e) => { if (!isClearingHold) e.currentTarget.style.background = "#fef2f2"; }}
+            >
+              {isClearingHold ? (
+                <div className="spinner-border spinner-border-sm text-danger" role="status" style={{ width: 14, height: 14 }}>
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              ) : (
+                <i className="bi bi-arrow-counterclockwise" style={{ fontSize: "13px" }} />
+              )}
+              <span>Huỷ đã giữ</span>
+            </button>
           </div>
           </div>
         </div>
@@ -550,6 +627,26 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
           }} 
         />
       )}
+
+      <ConfirmDialogModal
+        open={showClearHoldModal}
+        title="Xác nhận huỷ đã giữ"
+        message={
+          selectedIds.length > 0
+            ? `Bạn có chắc chắn muốn huỷ số lượng đang giữ cho ${selectedIds.length} mặt hàng đã chọn và chuyển về thực tồn không?`
+            : filterWarehouse
+              ? "Bạn có chắc chắn muốn huỷ toàn bộ số lượng hàng hoá đang giữ trong kho đã chọn và chuyển về thực tồn không?"
+              : "Bạn có chắc chắn muốn huỷ toàn bộ số lượng hàng hoá đang giữ của tất cả các kho và chuyển về thực tồn không?"
+        }
+        variant="warning"
+        confirmLabel="Đồng ý"
+        cancelLabel="Huỷ"
+        loading={isClearingHold}
+        onConfirm={handleConfirmClearHold}
+        onCancel={() => {
+          if (!isClearingHold) setShowClearHoldModal(false);
+        }}
+      />
     </>
   );
 }

@@ -436,7 +436,18 @@ export async function POST(req: Request) {
     else if (xRealIp) ip = xRealIp;
 
     const body = await req.json();
-    const { lat, lng, registeredLunch, registeredDinner } = body;
+    const { lat, lng, registeredLunch, registeredDinner, gpsTimestamp } = body;
+
+    // Chặn dùng lại toạ độ GPS cũ trong bộ nhớ (stale coordinates)
+    if (gpsTimestamp && typeof gpsTimestamp === "number") {
+      const ageMs = Math.abs(Date.now() - gpsTimestamp);
+      if (ageMs > 60000) {
+        return NextResponse.json({ 
+          error: "Toạ độ GPS hết hạn", 
+          message: "Tín hiệu định vị GPS đã quá thời gian cho phép (trên 60 giây). Vui lòng thử lại để lấy vị trí thời gian thực." 
+        }, { status: 403 });
+      }
+    }
 
     const employee = await (db as any).employee.findUnique({
       where: { id: session.user.employeeId },

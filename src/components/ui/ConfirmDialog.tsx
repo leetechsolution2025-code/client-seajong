@@ -171,3 +171,5 @@ export function ConfirmDialog({
     </AnimatePresence>
   );
 }
+
+export const ConfirmDialogModal = ConfirmDialog;

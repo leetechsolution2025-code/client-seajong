@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useToast } from "@/components/ui/Toast";
 import { TreeFilterSelect, TreeOption } from "@/components/ui/TreeFilterSelect";
 import { FilterSelect } from "@/components/ui/FilterSelect";
@@ -23,6 +24,10 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
   editItem?: any
 }) {
   const toast = useToast();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [categories, setCategories] = useState<Category[]>([]);
   const [warehouses, setWarehouses] = useState<{ label: string; value: string; type: string }[]>([]);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState(warehouseId || "");
@@ -310,18 +315,25 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
     form.nhaCungCap ? `Nhà cung cấp: ${form.nhaCungCap}` : null,
   ].filter(Boolean).join("\n");
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <>
       <div 
         className="fixed-top vh-100 vw-100" 
         style={{ 
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: "100vw",
+          height: "100dvh",
           zIndex: 6000, 
           background: "var(--background)", 
           display: "flex", 
           flexDirection: "column",
-          animation: "slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)"
+          animation: "slideInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)"
         }}
       >
         <style>{`
@@ -333,26 +345,27 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
 
         {/* Fullscreen Header */}
         <div 
-          className="px-4 d-flex align-items-center justify-content-between border-bottom" 
-          style={{ height: 70, background: "var(--card)", flexShrink: 0 }}
+          className="px-3 px-md-4 d-flex align-items-center justify-content-between border-bottom" 
+          style={{ height: "auto", minHeight: 56, background: "var(--card)", flexShrink: 0, padding: "8px 16px" }}
         >
-          <div className="d-flex align-items-center gap-3">
+          <div className="d-flex align-items-center gap-2 gap-md-3 overflow-hidden me-2" style={{ minWidth: 0 }}>
             <button 
-              className="btn btn-link text-muted p-0" 
+              className="btn btn-link text-muted p-1 d-flex align-items-center justify-content-center flex-shrink-0" 
               onClick={onClose}
-              style={{ fontSize: 24 }}
+              style={{ fontSize: 20, width: 32, height: 32 }}
+              aria-label="Đóng"
             >
               <i className="bi bi-x-lg" />
             </button>
-            <div className="vr h-50 my-auto text-muted opacity-25" />
-            <div>
-              <h6 className="fw-bold mb-0">
+            <div className="vr h-50 my-auto text-muted opacity-25 d-none d-sm-block flex-shrink-0" />
+            <div className="overflow-hidden" style={{ minWidth: 0 }}>
+              <h6 className="fw-bold mb-0 text-truncate" style={{ fontSize: "14px" }}>
                 {isMaterialWarehouse 
                   ? (editItem ? "Chỉnh sửa vật tư, phụ kiện" : "Thêm vật tư, phụ kiện mới")
                   : (editItem ? "Chỉnh sửa thành phẩm" : "Thêm thành phẩm mới")
                 }
               </h6>
-              <p className="text-muted small mb-0" style={{ fontSize: "10px" }}>
+              <p className="text-muted small mb-0 text-truncate d-none d-sm-block" style={{ fontSize: "10px" }}>
                 {isMaterialWarehouse
                   ? (editItem ? "Đang cập nhật thông tin vật tư" : "Đang tạo vật tư mới trong hệ thống Logistics")
                   : (editItem ? "Đang cập nhật thông tin thành phẩm" : "Đang tạo thành phẩm mới trong hệ thống Logistics")
@@ -361,44 +374,55 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
             </div>
           </div>
 
-          <div className="d-flex align-items-center gap-3">
-            <button className="btn btn-light rounded-pill px-4 fw-bold" style={{ fontSize: 13 }} onClick={onClose}>Hủy</button>
+          <div className="d-flex align-items-center gap-2 gap-md-3 flex-shrink-0">
+            <button 
+              className="btn btn-light rounded-pill px-2.5 px-md-4 fw-bold" 
+              style={{ height: 36, fontSize: 12.5 }} 
+              onClick={onClose}
+            >
+              Hủy
+            </button>
             <button 
               type="button" 
-              className="btn rounded-pill px-4 fw-bold text-white" 
+              className="btn rounded-pill px-3 px-md-4 fw-bold text-white d-flex align-items-center gap-1.5" 
               onClick={handleSave}
-              style={{ height: 42, backgroundColor: "#011F58", borderColor: "#011F58", boxShadow: "0 4px 12px rgba(1,31,88,0.2)" }}
+              style={{ height: 36, fontSize: 12.5, backgroundColor: "#011F58", borderColor: "#011F58", boxShadow: "0 4px 12px rgba(1,31,88,0.2)" }}
             >
-              Lưu & Hoàn tất
+              <i className="bi bi-check-lg d-inline d-md-none" />
+              <span className="d-none d-md-inline">Lưu & Hoàn tất</span>
+              <span className="d-inline d-md-none">Lưu</span>
             </button>
           </div>
         </div>
 
         {/* Form Content */}
-        <div className="flex-grow-1 overflow-y-auto px-4 py-4 d-flex flex-column" style={{ background: "#f8f9fa" }}>
+        <div 
+          className="flex-grow-1 overflow-y-auto px-2 px-md-4 py-2 py-md-4 d-flex flex-column" 
+          style={{ background: "#f8f9fa", WebkitOverflowScrolling: "touch" }}
+        >
           <div className="container-fluid p-0 d-flex flex-column flex-grow-1" style={{ maxWidth: 1200 }}>
-            <div className="row g-4 flex-grow-1">
+            <div className="row g-3 g-md-4 flex-grow-1">
               
               {/* Left Column: Form Fields */}
               <div className="col-lg-8 d-flex flex-column">
-                <div className="d-flex flex-column gap-4 p-4 rounded-4 border bg-white shadow-sm flex-grow-1">
+                <div className="d-flex flex-column gap-3 gap-md-4 p-3 p-md-4 rounded-3 rounded-md-4 border bg-white shadow-sm flex-grow-1">
                   
                   {/* Basic Info Header */}
                   <div className="d-flex align-items-center gap-2 pb-2 border-bottom border-light">
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center" }}>
-                      <i className="bi bi-info-circle text-primary" />
+                    <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <i className="bi bi-info-circle text-primary" style={{ fontSize: 14 }} />
                     </div>
-                    <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 13 }}>Thông tin cơ bản</span>
+                    <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 12.5 }}>Thông tin cơ bản</span>
                   </div>
 
                   {/* Fields Grid */}
                   <div className="d-flex flex-column gap-3 flex-grow-1">
 
                     <div className="col-12 flex-shrink-0">
-                      <div className="row g-3">
-                        {/* Left Column for Inputs */}
+                      <div className="row g-2 g-md-3">
+                        {/* Inputs */}
                         <div className="col-md-9 col-12">
-                          <div className="row g-3">
+                          <div className="row g-2 g-md-3">
                             {/* Row 1: Kho lưu trữ & Danh mục */}
                             <div className="col-md-6 col-12">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Kho lưu trữ {!editItem ? "*" : ""}</label>
@@ -423,7 +447,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                             </div>
 
                             {/* Row 2: Tên vật tư */}
-                            <div className="col-md-12 col-12">
+                            <div className="col-12">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Tên {isMaterialWarehouse ? "vật tư, linh kiện" : "thành phẩm"} *</label>
                               <input 
                                 type="text" 
@@ -439,14 +463,13 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                         </div>
 
                         {/* Right Column for QR Code */}
-                        <div className="col-md-3 col-12 d-flex flex-column align-items-center justify-content-center border-start ps-3 border-light">
+                        <div className="col-md-3 col-12 d-flex flex-column align-items-center justify-content-center border-0 border-md-start ps-md-3 pt-2 pt-md-0 border-light">
                           <div 
                             className="border rounded-3 p-2 d-flex align-items-center justify-content-center bg-white"
                             style={{ 
-                              width: "140px", 
-                              height: "140px", 
+                              width: "120px", 
+                              height: "120px", 
                               boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                              marginTop: "8px"
                             }}
                           >
                             {form.code ? (
@@ -490,12 +513,17 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                               </div>
                             )}
                           </div>
+                          {form.code && (
+                            <span className="text-muted text-center mt-1" style={{ fontSize: "10px" }}>
+                              <i className="bi bi-printer me-1" />Nhấn để in QR
+                            </span>
+                          )}
                         </div>
 
                         {/* Full Width Row for Codes & Specs */}
-                        <div className="col-12 mt-4">
-                          <div className="row g-3">
-                            <div className="col-md-3 col-12">
+                        <div className="col-12 mt-2 mt-md-4">
+                          <div className="row g-2 g-md-3">
+                            <div className="col-md-3 col-6">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Mã định danh</label>
                               <input 
                                 type="text" 
@@ -509,7 +537,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                               />
                             </div>
 
-                            <div className="col-md-3 col-12">
+                            <div className="col-md-3 col-6">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Mã thay thế</label>
                               <input 
                                 type="text" 
@@ -537,19 +565,19 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                       </div>
                     </div>
 
-                    {/* Section: Tài chính & Kho vận và Thông số kỹ thuật */}
-                    <div className="row border-top pt-0 mt-0 g-4 mb-0 flex-grow-1">
+                    {/* Section: Tài chính & Kho vận và Đặc tính vật liệu */}
+                    <div className="row border-top pt-3 mt-1 g-3 g-md-4 mb-0 flex-grow-1">
                       {/* Left Column: Tài chính & Kho vận */}
-                      <div className="col-md-6 border-end d-flex flex-column gap-4">
+                      <div className="col-md-6 border-0 border-md-end d-flex flex-column gap-3 gap-md-4">
                         {/* Section: Đặc tính vật liệu */}
                         <div>
-                          <div className="d-flex align-items-center gap-2 mb-3">
-                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <i className="bi bi-layers text-primary" />
+                          <div className="d-flex align-items-center gap-2 mb-2">
+                            <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <i className="bi bi-layers text-primary" style={{ fontSize: 13 }} />
                             </div>
-                            <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 13 }}>Đặc tính vật liệu</span>
+                            <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 12 }}>Đặc tính vật liệu</span>
                           </div>
-                          <div className="row g-3">
+                          <div className="row g-2">
                             <div className="col-12">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Chất liệu</label>
                               <input 
@@ -565,14 +593,14 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                         </div>
 
                         <div>
-                          <div className="d-flex align-items-center gap-2 mb-3">
-                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <i className="bi bi-currency-dollar text-primary" />
+                          <div className="d-flex align-items-center gap-2 mb-2">
+                            <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <i className="bi bi-currency-dollar text-primary" style={{ fontSize: 13 }} />
                             </div>
-                            <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 13 }}>Tài chính & Kho vận</span>
+                            <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 12 }}>Tài chính & Kho vận</span>
                           </div>
 
-                          <div className="row g-3">
+                          <div className="row g-2 g-md-3">
                             <div className="col-6">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Giá nhập dự kiến</label>
                               <div className="input-group">
@@ -583,7 +611,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                                   value={formatCurrency(form.giaNhap)} 
                                   onChange={e => handleCurrencyChange("giaNhap", e.target.value)}
                                 />
-                                <span className="input-group-text bg-light fw-bold text-muted" style={{ fontSize: 11 }}>VNĐ</span>
+                                <span className="input-group-text bg-light fw-bold text-muted px-2" style={{ fontSize: 10 }}>VNĐ</span>
                               </div>
                             </div>
                             <div className="col-6">
@@ -596,7 +624,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                                   value={formatCurrency(form.giaBan)} 
                                   onChange={e => handleCurrencyChange("giaBan", e.target.value)}
                                 />
-                                <span className="input-group-text bg-light fw-bold text-muted" style={{ fontSize: 11 }}>VNĐ</span>
+                                <span className="input-group-text bg-light fw-bold text-muted px-2" style={{ fontSize: 10 }}>VNĐ</span>
                               </div>
                             </div>
                             <div className="col-6">
@@ -612,18 +640,18 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                       </div>
 
                       {/* Right Column: Tên gọi khi kê khai (mapped to ghiChu) */}
-                      <div className="col-md-6 d-flex flex-column">
-                        <div className="d-flex align-items-center gap-2 mb-3">
-                          <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <i className="bi bi-card-text text-primary" />
+                      <div className="col-md-6 d-flex flex-column mt-2 mt-md-0">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(0,48,135,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <i className="bi bi-card-text text-primary" style={{ fontSize: 13 }} />
                           </div>
-                          <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 13 }}>Tên gọi khi kê khai</span>
+                          <span className="fw-bold text-uppercase" style={{ letterSpacing: "0.05em", color: "var(--foreground)", fontSize: 12 }}>Tên gọi khi kê khai</span>
                         </div>
                         <div className="row flex-grow-1">
                           <div className="col-12 d-flex flex-column">
                             <textarea 
                               className="form-control rounded-3 flex-grow-1" 
-                              style={{ fontSize: 12, resize: "none" }} 
+                              style={{ fontSize: 12, resize: "none", minHeight: 90 }} 
                               placeholder="Chi tiết tên gọi khi kê khai, ghi chú vật tư..." 
                               value={form.ghiChu} 
                               onChange={e => setForm({...form, ghiChu: e.target.value})} 
@@ -637,11 +665,11 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
               </div>
 
               {/* Right Column: Sidebar info */}
-              <div className="col-lg-4 d-flex flex-column">
+              <div className="col-lg-4 d-flex flex-column mt-3 mt-lg-0">
                 <div className="d-flex flex-column gap-3 flex-grow-1">
                   
                   {/* Product Image Card */}
-                  <div className="p-3 rounded-4 border shadow-sm" style={{ background: "var(--card)" }}>
+                  <div className="p-3 rounded-3 rounded-md-4 border shadow-sm" style={{ background: "var(--card)" }}>
                     <div className="d-flex align-items-center justify-content-between mb-2">
                       <label className="form-label fw-bold small text-muted mb-0" style={{ fontSize: "11px" }}>Hình ảnh sản phẩm</label>
                       {form.imageUrl && <button className="btn btn-link btn-sm text-danger p-0 fw-bold" style={{ fontSize: "11px" }} onClick={() => setForm({...form, imageUrl: null})}>Xóa ảnh</button>}
@@ -718,7 +746,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                     const isEditable = true;
                     return (
                       <div 
-                        className="p-3 rounded-4 border shadow-sm d-flex flex-column flex-grow-1" 
+                        className="p-3 rounded-3 rounded-md-4 border shadow-sm d-flex flex-column flex-grow-1" 
                         style={{ 
                           background: "var(--card)", 
                           opacity: isEditable ? 1 : 0.6,
@@ -764,7 +792,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                           <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Thông số kỹ thuật</label>
                           <textarea 
                             className="form-control rounded-3 flex-grow-1" 
-                            style={{ fontSize: 12, resize: "none" }} 
+                            style={{ fontSize: 12, resize: "none", minHeight: 80 }} 
                             placeholder={isEditable ? "Chi tiết thông số kỹ thuật..." : "Bị khoá - chỉ dùng cho kho vật tư"} 
                             value={form.thongSoKyThuat} 
                             onChange={e => setForm({...form, thongSoKyThuat: e.target.value})}
@@ -781,6 +809,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ 
       tongMatHang, 
-      tongGiaTri, 
+      tongGiaTri: Math.round(tongGiaTri), 
       hetHang, 
       sapHet, 
       categoryStats 

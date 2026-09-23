@@ -85,7 +85,7 @@ export function PromotionOffcanvas({ open, onClose, onSuccess }: PromotionOffcan
       />
 
       <div
-        className={`offcanvas offcanvas-end border-0 shadow-lg ${open ? "show" : ""}`}
+        className={`offcanvas offcanvas-end app-custom-drawer border-0 shadow-lg ${open ? "show" : ""}`}
         style={{
           width: 400,
           maxWidth: "100%",

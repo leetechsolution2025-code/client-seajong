@@ -200,7 +200,10 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
     const list: any[] = [];
     
     items.forEach((item: any) => {
-      const isOpeningBalance = item.referenceId === "Dư nợ đầu kỳ" || item.description?.includes("Dư nợ đầu kỳ") || item.referenceId === "Nợ cũ" || item.description?.includes("Nợ cũ");
+      const isOpeningBalance = item.referenceId === "Dư nợ đầu kỳ" || 
+                               item.description?.includes("Dư nợ đầu kỳ") || 
+                               item.referenceId === "Nợ cũ" || 
+                               item.description?.includes("Nợ cũ");
       const createdAt = item.createdAt ? new Date(item.createdAt) : new Date();
 
       if (isOpeningBalance) {
@@ -209,29 +212,81 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
         if (!openingBalanceDate || createdAt.toISOString() < openingBalanceDate) {
            openingBalanceDate = createdAt.toISOString();
         }
-      } else {
-        const isReturnItem = item.amount < 0 || 
-                             item.referenceId?.startsWith("ERR-") || 
-                             item.referenceId?.startsWith("WR-") || 
-                             item.description?.includes("Trả lại hàng") || 
-                             item.description?.includes("hàng trả về");
-        
-        const isReceiptRecord = (item.amount === 0 && item.paidAmount > 0);
-        const pDesc = parseDebtDescription(item.description);
+        return;
+      }
 
-        if (isReturnItem) {
-          const returnAmount = item.amount < 0 ? Math.abs(item.amount) : (item.paidAmount || item.amount || 0);
-          list.push({
-            id: `RETURN_${item.id}`,
-            date: createdAt.toISOString(),
-            ref: item.referenceId || "---",
-            type: "Hàng trả về",
-            isReturn: true,
-            increase: 0,
-            decrease: returnAmount,
-            note: pDesc.originalDesc || item.description || "Khách trả lại hàng"
+      const isReturnItem = item.amount < 0 || 
+                           item.referenceId?.startsWith("ERR-") || 
+                           item.referenceId?.startsWith("WR-") || 
+                           item.description?.includes("Trả lại hàng") || 
+                           item.description?.includes("hàng trả về");
+      
+      const isReceiptRecord = (item.amount === 0 && item.paidAmount > 0);
+      const parsed = parseDebtDescription(item.description);
+
+      // Helper to clean note and remove raw JSON markers
+      const cleanNoteText = (rawNote: string | undefined, partnerName?: string, method?: string) => {
+        let note = rawNote || "";
+        if (partnerName) {
+          note = note.replace(new RegExp(`\\s*-\\s*${partnerName}`, "g"), "");
+        }
+        note = note.replace(/\[PAYMENT_LOGS\]:.*$/, "").replace(/\[RECONCILIATION_LOGS\]:.*$/, "").trim();
+        if (method) {
+          return note ? `${note} - ${method}` : `Thanh toán ${method}`;
+        }
+        return note;
+      };
+
+      const parsePaymentDate = (pDateStr?: string, fallbackDate?: Date) => {
+        if (!pDateStr) return fallbackDate || new Date();
+        if (pDateStr.length === 10) {
+          const [y, m, d] = pDateStr.split("-");
+          return new Date(Number(y), Number(m) - 1, Number(d), 23, 59, 59);
+        } else if (pDateStr.length === 16) {
+          const [datePart, timePart] = pDateStr.split("T");
+          const [y, m, d] = datePart.split("-");
+          const [hr, min] = timePart.split(":");
+          return new Date(Number(y), Number(m) - 1, Number(d), Number(hr), Number(min), 0);
+        } else if (pDateStr.endsWith("T00:00:00.000Z")) {
+          const d = new Date(pDateStr);
+          d.setHours(23, 59, 59);
+          return d;
+        }
+        const d = new Date(pDateStr);
+        return isNaN(d.getTime()) ? (fallbackDate || new Date()) : d;
+      };
+
+      if (isReturnItem) {
+        const returnAmount = item.amount < 0 ? Math.abs(item.amount) : (item.paidAmount || item.amount || 0);
+        const note = cleanNoteText(parsed.originalDesc || item.description, item.partnerName) || "Khách trả lại hàng";
+        list.push({
+          id: `RETURN_${item.id}`,
+          date: createdAt.toISOString(),
+          ref: item.referenceId || "---",
+          type: "Hàng trả về",
+          isReturn: true,
+          increase: 0,
+          decrease: returnAmount,
+          note
+        });
+      } else if (isReceiptRecord) {
+        // Khoản thu/chi độc lập: Nếu đã có lịch sử chi tiết thì hiển thị từng phiếu thu trong lịch sử, ngược lại hiển thị bản ghi gốc
+        if (parsed.history && parsed.history.length > 0) {
+          parsed.history.forEach((p) => {
+            const pDate = parsePaymentDate(p.date, createdAt);
+            const note = cleanNoteText(p.note, item.partnerName, p.method) || (isReceivable ? "Thu nợ khách hàng" : "Thanh toán công nợ");
+            list.push({
+              id: p.id,
+              date: pDate.toISOString(),
+              ref: p.ref || item.referenceId || "---",
+              type: isReceivable ? "Phiếu thu (Thu nợ)" : "Phiếu chi (Trả nợ)",
+              increase: 0,
+              decrease: p.amount,
+              note
+            });
           });
-        } else if (isReceiptRecord) {
+        } else {
+          const note = cleanNoteText(parsed.originalDesc || item.description, item.partnerName) || (isReceivable ? "Thu nợ khách hàng" : "Thanh toán công nợ");
           list.push({
             id: `RECEIPT_${item.id}`,
             date: createdAt.toISOString(),
@@ -239,69 +294,60 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
             type: isReceivable ? "Phiếu thu (Thu nợ)" : "Phiếu chi (Trả nợ)",
             increase: 0,
             decrease: item.paidAmount,
-            note: pDesc.originalDesc || item.description || (isReceivable ? "Thu tiền khách hàng" : "Thanh toán công nợ")
-          });
-        } else if (item.amount > 0) {
-          list.push({
-            id: `MAIN_DEBT_${item.id}`,
-            date: createdAt.toISOString(),
-            ref: item.referenceId || "---",
-            type: isReceivable ? "Bán hàng" : "Mua hàng",
-            increase: item.amount,
-            decrease: 0,
-            note: pDesc.originalDesc || (isReceivable ? "Phát sinh công nợ phải thu" : "Phát sinh công nợ phải trả")
-          });
-        } else if (item.amount < 0) {
-          list.push({
-            id: `ADJUST_${item.id}`,
-            date: createdAt.toISOString(),
-            ref: item.referenceId || "---",
-            type: "Giảm trừ công nợ",
-            increase: 0,
-            decrease: Math.abs(item.amount),
-            note: pDesc.originalDesc || item.description || "Điều chỉnh giảm công nợ"
+            note
           });
         }
-      }
-
-      // Payments from this item
-      const parsed = parseDebtDescription(item.description);
-      parsed.history.forEach((p) => {
-        let cleanedNote = p.note || "";
-        if (item.partnerName) {
-          cleanedNote = cleanedNote.replace(new RegExp(`\\s*-\\s*${item.partnerName}`, "g"), "");
-        }
-        let pDate;
-        if (p.date) {
-           if (p.date.length === 10) {
-             const [y, m, d] = p.date.split("-");
-             pDate = new Date(Number(y), Number(m) - 1, Number(d), 23, 59, 59);
-           } else if (p.date.length === 16) {
-             const [datePart, timePart] = p.date.split("T");
-             const [y, m, d] = datePart.split("-");
-             const [hr, min] = timePart.split(":");
-             pDate = new Date(Number(y), Number(m) - 1, Number(d), Number(hr), Number(min), 0);
-           } else if (p.date.endsWith("T00:00:00.000Z")) {
-             // Production old data might be stored as midnight UTC -> force to end of day local
-             pDate = new Date(p.date);
-             pDate.setHours(23, 59, 59);
-           } else {
-             pDate = new Date(p.date);
-           }
-        } else {
-           pDate = new Date();
-        }
-        
+      } else if (item.amount > 0) {
+        // Đơn hàng / Công nợ gốc
+        const note = cleanNoteText(parsed.originalDesc || item.description, item.partnerName) || (isReceivable ? "Phát sinh công nợ phải thu" : "Phát sinh công nợ phải trả");
         list.push({
-          id: p.id,
-          date: pDate.toISOString(),
-          ref: p.ref,
-          type: isReceivable ? "Phiếu thu (Thu nợ)" : "Phiếu chi (Trả nợ)",
-          increase: 0,
-          decrease: p.amount,
-          note: p.method ? `${cleanedNote} - ${p.method}` : cleanedNote
+          id: `MAIN_DEBT_${item.id}`,
+          date: createdAt.toISOString(),
+          ref: item.referenceId || "---",
+          type: isReceivable ? "Bán hàng" : "Mua hàng",
+          increase: item.amount,
+          decrease: 0,
+          note
         });
-      });
+
+        // Lịch sử thanh toán kèm theo đơn hàng này
+        if (parsed.history && parsed.history.length > 0) {
+          parsed.history.forEach((p) => {
+            const pDate = parsePaymentDate(p.date, createdAt);
+            const pNote = cleanNoteText(p.note, item.partnerName, p.method) || (isReceivable ? "Thu nợ khách hàng" : "Thanh toán công nợ");
+            list.push({
+              id: p.id,
+              date: pDate.toISOString(),
+              ref: p.ref || item.referenceId || "---",
+              type: isReceivable ? "Phiếu thu (Thu nợ)" : "Phiếu chi (Trả nợ)",
+              increase: 0,
+              decrease: p.amount,
+              note: pNote
+            });
+          });
+        } else if (item.paidAmount > 0) {
+          list.push({
+            id: `PAID_${item.id}`,
+            date: createdAt.toISOString(),
+            ref: item.referenceId || "---",
+            type: isReceivable ? "Phiếu thu (Thu nợ)" : "Phiếu chi (Trả nợ)",
+            increase: 0,
+            decrease: item.paidAmount,
+            note: isReceivable ? "Thu nợ khách hàng" : "Thanh toán công nợ"
+          });
+        }
+      } else if (item.amount < 0) {
+        const note = cleanNoteText(parsed.originalDesc || item.description, item.partnerName) || "Điều chỉnh giảm công nợ";
+        list.push({
+          id: `ADJUST_${item.id}`,
+          date: createdAt.toISOString(),
+          ref: item.referenceId || "---",
+          type: "Giảm trừ công nợ",
+          increase: 0,
+          decrease: Math.abs(item.amount),
+          note
+        });
+      }
     });
 
     // 1. Initial balance line
@@ -315,8 +361,19 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
       note: "Dư nợ cũ chuyển sang"
     };
 
+    // Deduplicate by transaction id just in case
+    const seenIds = new Set<string>();
+    const uniqueList: any[] = [];
+    list.forEach(tx => {
+      const key = tx.id || `${tx.ref}_${tx.date}_${tx.increase}_${tx.decrease}`;
+      if (!seenIds.has(key)) {
+        seenIds.add(key);
+        uniqueList.push(tx);
+      }
+    });
+
     // Sort all details ASCENDING by date to compute running balance correctly
-    const sortedDetails = list.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sortedDetails = uniqueList.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const finalTransactions = [openingRow, ...sortedDetails];
 
     // Compute cumulative balance
@@ -687,6 +744,20 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                       </tr>
                     </thead>
                     <tbody>
+                      <tr className="table-light fw-bold border-bottom" style={{ background: "#f8fafc" }}>
+                        <td colSpan={3} className="ps-3 py-2 text-uppercase text-dark fw-bold" style={{ fontSize: 11 }}>
+                          Tổng phát sinh trong kỳ
+                        </td>
+                        <td className="text-end text-primary py-2 fw-bold" style={{ fontSize: 13 }}>
+                          {totals.increase > 0 ? formatCurrency(totals.increase) : "-"}
+                        </td>
+                        <td className="text-end text-success py-2 fw-bold" style={{ fontSize: 13 }}>
+                          {totals.decrease > 0 ? formatCurrency(totals.decrease) : "-"}
+                        </td>
+                        <td className="text-end pe-3 text-danger py-2 fw-bold" style={{ fontSize: 13 }}>
+                          {formatCurrency(currentRemaining)}
+                        </td>
+                      </tr>
                       {[...filteredTransactions].reverse().map((tx: any, idx: number) => {
                         const isOpening = tx.id === "OPENING_BALANCE";
                         const isMain = tx.id?.startsWith("MAIN_DEBT");
@@ -729,22 +800,6 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                         );
                       })}
                     </tbody>
-                    <tfoot className="table-light fw-bold border-top">
-                      <tr>
-                        <td colSpan={3} className="ps-3 py-2 text-uppercase text-muted" style={{ fontSize: 11 }}>
-                          Tổng phát sinh trong kỳ
-                        </td>
-                        <td className="text-end text-primary py-2" style={{ fontSize: 13 }}>
-                          {totals.increase > 0 ?formatCurrency( totals.increase) : "-"}
-                        </td>
-                        <td className="text-end text-success py-2" style={{ fontSize: 13 }}>
-                          {totals.decrease > 0 ?formatCurrency( totals.decrease) : "-"}
-                        </td>
-                        <td className="text-end pe-3 text-danger py-2" style={{ fontSize: 13 }}>
-                          {formatCurrency(currentRemaining)}
-                        </td>
-                      </tr>
-                    </tfoot>
                   </table>
                 </div>
 
@@ -899,16 +954,18 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
               <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "15px", fontSize: "12.5px" }}>
                 <tbody>
                   <tr>
+                    <td style={{ width: "15%", padding: "2px 0", verticalAlign: "top" }}>Địa chỉ:</td>
+                    <td colSpan={3} style={{ padding: "2px 0" }}>{activePrintItem.companyInfo?.address || "............................................................"}</td>
+                  </tr>
+                  <tr>
                     <td style={{ width: "15%", padding: "2px 0" }}>Đại diện:</td>
                     <td style={{ width: "35%", fontWeight: "bold" }}>{activePrintItem.log.reconciler || "............................................................"}</td>
                     <td style={{ width: "15%", padding: "2px 0" }}>Chức vụ:</td>
-                    <td>{activePrintItem.reconcilerInfo?.position ? getPositionName(activePrintItem.reconcilerInfo.position) : (activePrintItem.companyInfo?.legalRep === activePrintItem.log.reconciler ? "Người đại diện pháp luật" : "............................................................")}</td>
+                    <td style={{ width: "35%" }}>{activePrintItem.reconcilerInfo?.position ? getPositionName(activePrintItem.reconcilerInfo.position) : (activePrintItem.companyInfo?.legalRep === activePrintItem.log.reconciler ? "Người đại diện pháp luật" : "............................................................")}</td>
                   </tr>
                   <tr>
-                    <td>Điện thoại:</td>
-                    <td>{activePrintItem.reconcilerInfo?.phone || activePrintItem.companyInfo?.phone || "............................................................"}</td>
-                    <td>Địa chỉ:</td>
-                    <td>{activePrintItem.companyInfo?.address || "............................................................"}</td>
+                    <td style={{ width: "15%", padding: "2px 0" }}>Điện thoại:</td>
+                    <td colSpan={3} style={{ padding: "2px 0" }}>{activePrintItem.reconcilerInfo?.phone || activePrintItem.companyInfo?.phone || "............................................................"}</td>
                   </tr>
                 </tbody>
               </table>
@@ -919,23 +976,27 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
               <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "15px", fontSize: "12.5px" }}>
                 <tbody>
                   <tr>
+                    <td style={{ width: "15%", padding: "2px 0", verticalAlign: "top" }}>Địa chỉ:</td>
+                    <td colSpan={3} style={{ padding: "2px 0" }}>{activePrintItem.partnerInfo?.address && activePrintItem.partnerInfo.address !== "Khu vực đối tác giao nhận hàng" ? activePrintItem.partnerInfo.address : (activePrintItem.debt?.address || "............................................................")}</td>
+                  </tr>
+                  <tr>
                     <td style={{ width: "15%", padding: "2px 0" }}>Đại diện:</td>
                     <td style={{ width: "35%", fontWeight: "bold" }}>{activePrintItem.partnerInfo?.daiDien || activePrintItem.debt.partnerName || "............................................................"}</td>
                     <td style={{ width: "15%", padding: "2px 0" }}>Chức vụ:</td>
-                    <td>{activePrintItem.partnerInfo?.chucVu && activePrintItem.partnerInfo.chucVu !== "Khách hàng doanh nghiệp / Đối tác liên kết" && activePrintItem.partnerInfo.chucVu !== "Nhà cung cấp / Đối tác liên kết" ? activePrintItem.partnerInfo.chucVu : "............................................................"}</td>
+                    <td style={{ width: "35%" }}>{activePrintItem.partnerInfo?.chucVu && activePrintItem.partnerInfo.chucVu !== "Khách hàng doanh nghiệp / Đối tác liên kết" && activePrintItem.partnerInfo.chucVu !== "Nhà cung cấp / Đối tác liên kết" ? activePrintItem.partnerInfo.chucVu : "............................................................"}</td>
                   </tr>
                   <tr>
-                    <td>Điện thoại:</td>
-                    <td>{activePrintItem.partnerInfo?.phone && activePrintItem.partnerInfo.phone !== "---" ? activePrintItem.partnerInfo.phone : "............................................................"}</td>
-                    <td>Địa chỉ:</td>
-                    <td>{activePrintItem.partnerInfo?.address && activePrintItem.partnerInfo.address !== "Khu vực đối tác giao nhận hàng" ? activePrintItem.partnerInfo.address : "............................................................"}</td>
+                    <td style={{ width: "15%", padding: "2px 0" }}>Điện thoại:</td>
+                    <td style={{ width: "35%", padding: "2px 0" }}>{activePrintItem.partnerInfo?.phone && activePrintItem.partnerInfo.phone !== "---" ? activePrintItem.partnerInfo.phone : "............................................................"}</td>
+                    {activePrintItem.partnerInfo?.taxCode && activePrintItem.partnerInfo.taxCode !== "---" ? (
+                      <>
+                        <td style={{ width: "15%", padding: "2px 0" }}>Mã số thuế:</td>
+                        <td style={{ width: "35%", padding: "2px 0" }}>{activePrintItem.partnerInfo.taxCode}</td>
+                      </>
+                    ) : (
+                      <td colSpan={2}></td>
+                    )}
                   </tr>
-                  {activePrintItem.partnerInfo?.taxCode && activePrintItem.partnerInfo.taxCode !== "---" && (
-                    <tr>
-                      <td>Mã số thuế:</td>
-                      <td colSpan={3}>{activePrintItem.partnerInfo.taxCode}</td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>

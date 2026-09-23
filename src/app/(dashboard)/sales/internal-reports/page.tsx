@@ -37,6 +37,14 @@ export default function PartnerActivitiesPage() {
   });
   const [yearlyKpi, setYearlyKpi] = useState<any[]>(Array(12).fill(null));
   const [showRules, setShowRules] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const handlePrevMonth = () => setReportMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   const handleNextMonth = () => setReportMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
@@ -379,11 +387,11 @@ export default function PartnerActivitiesPage() {
       >
         <div className="flex-grow-1 d-flex flex-column overflow-hidden h-100" style={{ minHeight: 0 }}>
           {currentStep === 1 && (
-            <div className="flex-grow-1 h-100 d-flex w-100 overflow-hidden" style={{ minHeight: 0 }}>
+            <div className="flex-grow-1 h-100 d-flex flex-column flex-lg-row w-100 overflow-auto" style={{ minHeight: 0 }}>
               {/* Cột trái (tỷ lệ 5/12) */}
-              <div className="flex-shrink-0 h-100 d-flex flex-column custom-scrollbar overflow-auto" style={{ width: "41.666667%", padding: "20px 24px" }}>
+              <div className="flex-shrink-0 d-flex flex-column custom-scrollbar" style={{ width: isMobile ? "100%" : "41.666667%", padding: isMobile ? "16px" : "20px 24px" }}>
                 <div className="row g-3">
-                  <div className="col-5">
+                  <div className="col-12 col-sm-5">
                     <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: 220 }}>
                       <span className="fw-bold text-muted mb-1" style={{ fontSize: 12 }}>ĐIỂM HIỆU SUẤT</span>
                       <div style={{ marginTop: -15, marginBottom: -25 }}>
@@ -425,8 +433,8 @@ export default function PartnerActivitiesPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="col-7">
-                    <div className="d-flex flex-column justify-content-center h-100 ps-2">
+                  <div className="col-12 col-sm-7">
+                    <div className="d-flex flex-column justify-content-center h-100 ps-0 ps-sm-2">
                       <h6 className="fw-bold text-dark mb-3" style={{ fontSize: 13 }}>THÔNG TIN NHÂN VIÊN</h6>
                       <div className="d-flex align-items-center mb-3 pb-3 border-bottom" style={{ borderBottomStyle: "dashed" }}>
                         {displayedEmployee?.avatarUrl ? (
@@ -500,7 +508,7 @@ export default function PartnerActivitiesPage() {
 
               {/* Đường ngăn cách (có khoảng trống 2 đầu, hiệu ứng chìm) */}
               <div 
-                className="my-4 flex-shrink-0" 
+                className="my-4 flex-shrink-0 d-none d-lg-block" 
                 style={{ 
                   width: 2, 
                   backgroundColor: "var(--border)", 
@@ -511,7 +519,7 @@ export default function PartnerActivitiesPage() {
               />
 
               {/* Cột phải (tỷ lệ 7/12) */}
-              <div className="flex-grow-1 h-100 d-flex flex-column custom-scrollbar overflow-auto" style={{ padding: "20px 24px" }}>
+              <div className="flex-grow-1 d-flex flex-column custom-scrollbar" style={{ padding: isMobile ? "16px" : "20px 24px" }}>
                 <h6 className="fw-bold text-dark mb-4 text-uppercase" style={{ fontSize: 13 }}>Hệ thống đánh giá kết quả công việc</h6>
                 <div className="d-flex align-items-center mb-4">
                   <div className="d-flex align-items-center gap-2">
@@ -609,11 +617,11 @@ export default function PartnerActivitiesPage() {
             </div>
           )}
           {currentStep === 2 && (
-            <div className="flex-grow-1 h-100 d-flex w-100 overflow-hidden" style={{ minHeight: 0 }}>
+            <div className="flex-grow-1 h-100 d-flex flex-column flex-lg-row w-100 overflow-auto" style={{ minHeight: 0 }}>
               {/* Cột trái (tỷ lệ 5/12) */}
-              <div className="flex-shrink-0 h-100 d-flex flex-column custom-scrollbar overflow-auto" style={{ width: "41.666667%", padding: "20px 24px" }}>
+              <div className="flex-shrink-0 d-flex flex-column custom-scrollbar" style={{ width: isMobile ? "100%" : "41.666667%", padding: isMobile ? "16px" : "20px 24px" }}>
                 <div className="row g-3">
-                  <div className="col-5">
+                  <div className="col-12 col-sm-5">
                     <div className="d-flex flex-column align-items-center justify-content-center" style={{ height: 220 }}>
                       <span className="fw-bold text-muted mb-1" style={{ fontSize: 12 }}>ĐIỂM HIỆU SUẤT</span>
                       <div style={{ marginTop: -15, marginBottom: -25 }}>
@@ -655,8 +663,8 @@ export default function PartnerActivitiesPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="col-7">
-                    <div className="d-flex flex-column justify-content-center h-100 ps-2">
+                  <div className="col-12 col-sm-7">
+                    <div className="d-flex flex-column justify-content-center h-100 ps-0 ps-sm-2">
                       <h6 className="fw-bold text-dark mb-3" style={{ fontSize: 13 }}>THÔNG TIN NHÂN VIÊN</h6>
                       <div className="d-flex align-items-center mb-3 pb-3 border-bottom" style={{ borderBottomStyle: "dashed" }}>
                         {displayedEmployee?.avatarUrl ? (
@@ -730,7 +738,7 @@ export default function PartnerActivitiesPage() {
 
               {/* Đường ngăn cách */}
               <div 
-                className="my-4 flex-shrink-0" 
+                className="my-4 flex-shrink-0 d-none d-lg-block" 
                 style={{ 
                   width: 2, 
                   backgroundColor: "var(--border)", 
@@ -741,9 +749,9 @@ export default function PartnerActivitiesPage() {
               />
 
               {/* Cột phải (tỷ lệ 7/12) */}
-              <div className="flex-grow-1 h-100 d-flex flex-column custom-scrollbar overflow-auto" style={{ padding: "20px 24px" }}>
+              <div className="flex-grow-1 d-flex flex-column custom-scrollbar" style={{ padding: isMobile ? "16px" : "20px 24px" }}>
                 <h6 className="fw-bold text-dark mb-4 text-uppercase" style={{ fontSize: 13 }}>Hệ thống đánh giá kết quả công việc</h6>
-                <div className="d-flex justify-content-between align-items-center mb-4">
+                <div className="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 mb-4">
                   <div className="d-flex align-items-center gap-2">
                     <button className="btn btn-sm btn-light border shadow-sm" onClick={handlePrevMonth} style={{ width: 32, height: 32, padding: 0 }}>
                       <i className="bi bi-chevron-left"></i>
@@ -759,7 +767,7 @@ export default function PartnerActivitiesPage() {
                     <div>
                       <select 
                         className="form-select form-select-sm shadow-sm" 
-                        style={{ minWidth: 220, cursor: "pointer", borderColor: "var(--border)" }}
+                        style={{ minWidth: isMobile ? "100%" : 220, cursor: "pointer", borderColor: "var(--border)" }}
                         value={selectedEmployeeId}
                         onChange={e => setSelectedEmployeeId(e.target.value)}
                       >
@@ -856,10 +864,10 @@ export default function PartnerActivitiesPage() {
             </div>
           )}
           {currentStep === 3 && (
-            <div className="d-flex flex-column w-100 h-100 p-4">
+            <div className="d-flex flex-column w-100 h-100 p-3 p-md-4 overflow-auto">
               <h6 className="fw-bold text-dark mb-4 text-uppercase" style={{ fontSize: 13 }}>Cấu hình hệ thống đánh giá</h6>
-              <div className="d-flex align-items-center justify-content-between mb-4">
-                <div className="d-flex align-items-center">
+              <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3 mb-4">
+                <div className="d-flex flex-wrap align-items-center gap-3">
                   <div className="d-flex align-items-center gap-2">
                     <button className="btn btn-sm btn-light border shadow-sm" onClick={handlePrevMonth} style={{ width: 32, height: 32, padding: 0 }}>
                       <i className="bi bi-chevron-left"></i>
@@ -871,7 +879,7 @@ export default function PartnerActivitiesPage() {
                       <i className="bi bi-chevron-right"></i>
                     </button>
                   </div>
-                  <div className="form-check form-switch ms-4 mb-0 d-flex align-items-center gap-2">
+                  <div className="form-check form-switch mb-0 d-flex align-items-center gap-2">
                     <input 
                       className="form-check-input mt-0" 
                       type="checkbox" 
@@ -884,8 +892,8 @@ export default function PartnerActivitiesPage() {
                     <label className="form-check-label text-muted fw-medium" htmlFor="applyAllYearSwitch" style={{ fontSize: 13, userSelect: 'none', cursor: 'pointer', paddingTop: 2 }}>Áp dụng cho cả năm</label>
                   </div>
                 </div>
-                <div className="d-flex align-items-center">
-                  <button className="btn btn-light btn-sm px-3 shadow-sm border me-2 d-flex align-items-center" style={{ fontWeight: 500 }} onClick={async () => {
+                <div className="d-flex align-items-center gap-2 justify-content-end">
+                  <button className="btn btn-light btn-sm px-3 shadow-sm border d-flex align-items-center" style={{ fontWeight: 500 }} onClick={async () => {
                     try {
                       const res = await fetch(`/api/sales/internal-reports/criteria/copy?month=${reportMonth.getMonth() + 1}&year=${reportMonth.getFullYear()}`);
                       const data = await res.json();

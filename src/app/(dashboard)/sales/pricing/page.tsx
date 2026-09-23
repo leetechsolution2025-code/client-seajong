@@ -237,6 +237,14 @@ export default function PricingPage() {
   // Filter states
   const [policySearch, setPolicySearch] = useState("");
   const [policyStatus, setPolicyStatus] = useState("all");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
   
   const [promotionSearch, setPromotionSearch] = useState("");
   const [promotionStatus, setPromotionStatus] = useState("all");
@@ -643,20 +651,22 @@ export default function PricingPage() {
               className="flex-grow-1 overflow-hidden full-width-table-wrapper"
               style={{ minHeight: 0 }}
               header={
-                <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 w-100">
-                  <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
-                    <FilterSelect
-                      options={[
-                        { label: "Tất cả trạng thái", value: "all" },
-                        { label: "Hiệu lực", value: "active" },
-                        { label: "Hết hiệu lực", value: "inactive" }
-                      ]}
-                      value={policyStatus}
-                      onChange={setPolicyStatus}
-                      placeholder="Trạng thái"
-                      width={160}
-                    />
-                    <div className="flex-grow-1">
+                <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2 w-100">
+                  <div className="d-flex align-items-center gap-2 flex-grow-1">
+                    <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 160 }}>
+                      <FilterSelect
+                        options={[
+                          { label: "Tất cả trạng thái", value: "all" },
+                          { label: "Hiệu lực", value: "active" },
+                          { label: "Hết hiệu lực", value: "inactive" }
+                        ]}
+                        value={policyStatus}
+                        onChange={setPolicyStatus}
+                        placeholder="Trạng thái"
+                        width={isMobile ? "100%" : 160}
+                      />
+                    </div>
+                    <div className="flex-grow-1" style={{ minWidth: 0 }}>
                       <SearchInput
                         placeholder="Tìm kiếm văn bản..."
                         value={policySearch}
@@ -664,7 +674,7 @@ export default function PricingPage() {
                       />
                     </div>
                   </div>
-                  <div className="d-flex align-items-center gap-2">
+                  <div className="d-flex align-items-center gap-2 justify-content-end">
                     {selectedPolicyIds.length > 0 && (
                       <button 
                         className="btn btn-outline-danger d-flex align-items-center justify-content-center gap-2 shadow-sm"
@@ -695,7 +705,13 @@ export default function PricingPage() {
                       Đang tải danh sách chính sách...
                     </div>
                   ) : (
-                    <Table columns={getPolicyColumns(setPreviewPdfItem, selectedPolicyIds, togglePolicySelection)} rows={filteredPolicies} compact />
+                    <Table
+                      columns={getPolicyColumns(setPreviewPdfItem, selectedPolicyIds, togglePolicySelection)}
+                      rows={filteredPolicies}
+                      compact
+                      wrapperClassName={isMobile ? "mkt-plan-table-no-min" : undefined}
+                      wrapperStyle={{ height: "100%", overflowY: "auto", overflowX: isMobile ? "auto" : "auto" }}
+                    />
                   )}
                 </div>
               }
@@ -707,20 +723,22 @@ export default function PricingPage() {
               className="flex-grow-1 overflow-hidden full-width-table-wrapper"
               style={{ minHeight: 0 }}
               header={
-                <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 w-100">
-                  <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
-                    <FilterSelect
-                      options={[
-                        { label: "Tất cả trạng thái", value: "all" },
-                        { label: "Hiệu lực", value: "active" },
-                        { label: "Hết hiệu lực", value: "inactive" }
-                      ]}
-                      value={promotionStatus}
-                      onChange={setPromotionStatus}
-                      placeholder="Trạng thái"
-                      width={160}
-                    />
-                    <div className="flex-grow-1">
+                <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2 w-100">
+                  <div className="d-flex align-items-center gap-2 flex-grow-1">
+                    <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 160 }}>
+                      <FilterSelect
+                        options={[
+                          { label: "Tất cả trạng thái", value: "all" },
+                          { label: "Hiệu lực", value: "active" },
+                          { label: "Hết hiệu lực", value: "inactive" }
+                        ]}
+                        value={promotionStatus}
+                        onChange={setPromotionStatus}
+                        placeholder="Trạng thái"
+                        width={isMobile ? "100%" : 160}
+                      />
+                    </div>
+                    <div className="flex-grow-1" style={{ minWidth: 0 }}>
                       <SearchInput
                         placeholder="Tìm kiếm chương trình..."
                         value={promotionSearch}
@@ -728,7 +746,7 @@ export default function PricingPage() {
                       />
                     </div>
                   </div>
-                  <div className="d-flex align-items-center gap-2">
+                  <div className="d-flex align-items-center gap-2 justify-content-end">
                     {selectedPromotionIds.length > 0 && (
                       <button 
                         className="btn btn-outline-danger d-flex align-items-center justify-content-center gap-2 shadow-sm"
@@ -756,10 +774,16 @@ export default function PricingPage() {
                   {loadingPromotions ? (
                     <div className="text-center p-4 text-muted">
                       <div className="spinner-border spinner-border-sm me-2 text-primary"></div>
-                      Đang tải danh sách khuyến mãi...
+                      Đang tải danh sách chương trình...
                     </div>
                   ) : (
-                    <Table columns={getPromotionColumns(setPreviewPdfItem, selectedPromotionIds, togglePromotionSelection)} rows={filteredPromotions} compact />
+                    <Table
+                      columns={getPromotionColumns(setPreviewPdfItem, selectedPromotionIds, togglePromotionSelection)}
+                      rows={filteredPromotions}
+                      compact
+                      wrapperClassName={isMobile ? "mkt-plan-table-no-min" : undefined}
+                      wrapperStyle={{ height: "100%", overflowY: "auto", overflowX: isMobile ? "auto" : "auto" }}
+                    />
                   )}
                 </div>
               }
@@ -785,9 +809,9 @@ export default function PricingPage() {
               <FullWidthTableLayout
                 tableWrapperClassName="flex-grow-1"
                 header={
-                  <div className="d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-white">
-                    <div className="d-flex align-items-center gap-3">
-                      <div style={{ width: "240px" }}>
+                  <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2 px-3 py-2 border-bottom bg-white">
+                    <div className="d-flex align-items-center gap-2 flex-grow-1">
+                      <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 200 }}>
                         <FilterSelect
                           value={quotationCategory}
                           onChange={setQuotationCategory}
@@ -795,9 +819,10 @@ export default function PricingPage() {
                             { value: "all", label: "Tất cả nhóm hàng" },
                             ...quotationCategories.map(c => ({ value: c, label: c }))
                           ]}
+                          width={isMobile ? "100%" : 200}
                         />
                       </div>
-                      <div style={{ width: "300px" }}>
+                      <div className="flex-grow-1" style={{ minWidth: 0 }}>
                         <SearchInput
                           placeholder="Tìm kiếm sản phẩm..."
                           value={quotationSearch}
@@ -805,16 +830,16 @@ export default function PricingPage() {
                         />
                       </div>
                     </div>
-                    <div className="d-flex align-items-center gap-2">
+                    <div className="d-flex align-items-center gap-2 justify-content-end">
                       <button 
-                        className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                        className="btn text-white px-2.5 px-md-3 d-flex align-items-center justify-content-center gap-1 shadow-sm"
                         style={{ height: 34, fontSize: "12.5px", backgroundColor: "#003087", borderColor: "#003087", borderRadius: 8, fontWeight: 700, whiteSpace: "nowrap" }}
                       >
                         <i className="bi bi-plus-lg"></i>
                         <span>Thêm sản phẩm</span>
                       </button>
                       <button 
-                        className="btn btn-outline-secondary px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm bg-white"
+                        className="btn btn-outline-secondary px-2.5 px-md-3 d-flex align-items-center justify-content-center gap-1 shadow-sm bg-white"
                         style={{ height: 34, fontSize: "12.5px", borderRadius: 8, fontWeight: 600, whiteSpace: "nowrap" }}
                         onClick={() => setIsPrintPreviewOpen(true)}
                       >
@@ -837,6 +862,8 @@ export default function PricingPage() {
                         rows={paginatedQuotations} 
                         emptyText="Chưa có dữ liệu bảng báo giá" 
                         compact 
+                        wrapperClassName={isMobile ? "mkt-plan-table-no-min" : undefined}
+                        wrapperStyle={{ height: "100%", overflowY: "auto", overflowX: isMobile ? "auto" : "auto" }}
                         onRowClick={(row) => {
                           if (!row.isFullWidth && row.originalData) {
                             setSelectedProduct(row.originalData);
@@ -867,8 +894,8 @@ export default function PricingPage() {
           })()}
 
           {currentStep === 4 && (
-            <div className="row h-100 m-0 w-100">
-              <div className="col-5 border-end pe-4 h-100 d-flex flex-column">
+            <div className="row h-100 m-0 w-100 g-3 overflow-auto">
+              <div className="col-12 col-md-5 border-end-0 border-md-end pe-0 pe-md-4 h-100 d-flex flex-column">
                 <SectionTitle title="Cẩm nang Kỹ năng mềm" className="mb-3 mt-3" />
                 <div className="flex-grow-1 overflow-auto pe-2 custom-scrollbar">
                   <div className="d-flex flex-column gap-3 pb-3">
@@ -894,7 +921,7 @@ export default function PricingPage() {
                 </div>
               </div>
               
-              <div className="col-7 h-100 d-flex flex-column ps-4">
+              <div className="col-12 col-md-7 h-100 d-flex flex-column ps-0 ps-md-4">
                 <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 w-100 mb-3 mt-3">
                   <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
                     <div className="flex-grow-1">

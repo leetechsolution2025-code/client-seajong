@@ -692,6 +692,14 @@ export default function PartnersPage() {
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [expandedPartners, setExpandedPartners] = useState<Record<string, boolean>>({});
   const [createTaskForm, setCreateTaskForm] = useState({ partnerId: "", title: "", description: "", assigneeId: "", startDate: "", dueDate: "", priority: "high" });
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const togglePartner = (id: string) => {
     setExpandedPartners(prev => ({ ...prev, [id]: !prev[id] }));
@@ -6402,6 +6410,154 @@ export default function PartnersPage() {
     return [checkboxColumn, ...baseColumns, actionColumn];
   }, [currentStep, filteredPartners, selectedIds, crmEmployees, activeDropdownRowId, dropdownCoords]);
 
+  const mobileColumns: TableColumn<PartnerProcessItem>[] = useMemo(() => {
+    const checkboxColumn: TableColumn<PartnerProcessItem> = {
+      header: (
+        <div onClick={(e) => e.stopPropagation()} className="d-flex justify-content-center">
+          <input
+            type="checkbox"
+            className="form-check-input cursor-pointer"
+            checked={filteredPartners.length > 0 && filteredPartners.every(p => selectedIds.has(p.id))}
+            onChange={(e) => handleSelectAll(e.target.checked)}
+          />
+        </div>
+      ),
+      render: (row) => (
+        <div onClick={(e) => e.stopPropagation()} className="d-flex justify-content-center">
+          <input
+            type="checkbox"
+            className="form-check-input cursor-pointer"
+            checked={selectedIds.has(row.id)}
+            onChange={(e) => handleSelectRow(row.id, e.target.checked)}
+          />
+        </div>
+      ),
+      width: "36px",
+      align: "center"
+    };
+
+    const mainColumn: TableColumn<PartnerProcessItem> = {
+      header: "Đối tác & Chi tiết",
+      render: (row) => {
+        const parts = (row.contact || "").split(" - ");
+        const contactName = parts[0] || "";
+        const contactPhone = parts[1] || "";
+        const timeInfo = getElapsedTimeInfo(row.date);
+
+        return (
+          <div className="d-flex flex-column py-1" style={{ minWidth: 0 }}>
+            {/* Hàng 1: Tên & Badge trạng thái theo từng bước */}
+            <div className="d-flex align-items-center justify-content-between gap-1 mb-1">
+              <span className="fw-bold text-dark text-truncate" style={{ fontSize: "13px" }}>
+                {row.name}
+              </span>
+              {Number(currentStep) === 1 && (
+                <span className="badge bg-primary-subtle text-primary flex-shrink-0" style={{ fontSize: "10px" }}>
+                  {SOURCE_MAP[row.source] || row.source || "Trực tiếp"}
+                </span>
+              )}
+              {Number(currentStep) === 2 && (
+                <span className="badge bg-info-subtle text-info flex-shrink-0" style={{ fontSize: "10px" }}>
+                  {row.careStaff || "Chưa gán"}
+                </span>
+              )}
+              {Number(currentStep) === 3 && row.quoteType && (
+                <span className={`badge flex-shrink-0 ${row.quoteType === "Có quầy kệ" ? "bg-info text-dark" : "bg-dark text-white"}`} style={{ fontSize: "10px" }}>
+                  {row.quoteType}
+                </span>
+              )}
+              {Number(currentStep) === 4 && (
+                <span className="badge bg-success-subtle text-success flex-shrink-0" style={{ fontSize: "10px" }}>
+                  {row.contractNo || row.hdCode || "Hợp đồng"}
+                </span>
+              )}
+            </div>
+
+            {/* Hàng 2: Địa bàn & Liên hệ */}
+            <div className="text-muted text-truncate d-flex align-items-center gap-2 mb-1" style={{ fontSize: "11.5px" }}>
+              {(row.detailBusinessAddress?.trim() || row.area) && (
+                <span className="text-truncate"><i className="bi bi-geo-alt me-1 text-secondary" />{row.detailBusinessAddress?.trim() || row.area}</span>
+              )}
+              {contactPhone && (
+                <a
+                  href={`tel:${contactPhone}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-decoration-none text-primary fw-medium d-inline-flex align-items-center flex-shrink-0"
+                >
+                  <i className="bi bi-telephone me-1" />{contactPhone}
+                </a>
+              )}
+            </div>
+
+            {/* Hàng 3: Dữ liệu theo bước */}
+            {Number(currentStep) === 1 && (
+              <div className="d-flex align-items-center justify-content-between text-muted flex-wrap gap-1" style={{ fontSize: "10.5px" }}>
+                <span>Phụ trách: <strong className="text-secondary">{row.careStaff || "Chưa phân công"}</strong></span>
+                {timeInfo.label && (
+                  <span className={timeInfo.className} style={{ fontSize: "10px", ...timeInfo.style }}>
+                    <i className="bi bi-clock me-1" />{timeInfo.label}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {Number(currentStep) === 2 && (
+              <div className="d-flex align-items-center justify-content-between text-muted flex-wrap gap-1" style={{ fontSize: "10.5px" }}>
+                <span className="text-truncate" style={{ maxWidth: "70%" }}>
+                  {row.careHistories?.[0]?.otherRequirements || row.careNote || "Chưa có tương tác"}
+                </span>
+                {timeInfo.label && (
+                  <span className="text-secondary" style={{ fontSize: "10px" }}>
+                    <i className="bi bi-clock me-1" />{timeInfo.label}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {Number(currentStep) === 3 && (
+              <div className="d-flex align-items-center justify-content-between flex-wrap gap-1" style={{ fontSize: "11px" }}>
+                <span className="fw-bold text-primary">
+                  {row.quoteValue ? `${row.quoteValue.toLocaleString("vi-VN")} đ` : "Chưa có giá trị"}
+                </span>
+                {row.discountRate ? (
+                  <span className="badge bg-success-subtle text-success" style={{ fontSize: "10px" }}>
+                    CK: {row.discountRate}%
+                  </span>
+                ) : null}
+              </div>
+            )}
+
+            {Number(currentStep) === 4 && (
+              <div className="d-flex align-items-center justify-content-between flex-wrap gap-1" style={{ fontSize: "11px" }}>
+                <span className="fw-bold text-success">
+                  {row.contractValue ? `${row.contractValue.toLocaleString("vi-VN")} đ` : "—"}
+                </span>
+                <span className="text-muted" style={{ fontSize: "10.5px" }}>
+                  {row.signDate || row.hdDate || "Chưa ký"}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      }
+    };
+
+    const mobileActionColumn: TableColumn<PartnerProcessItem> = {
+      header: "",
+      render: (row) => (
+        <div className="d-flex align-items-center justify-content-center" onClick={(e) => { e.stopPropagation(); setSelectedPartner(row); }}>
+          <button className="btn btn-sm btn-light border rounded-circle shadow-none p-0 d-flex align-items-center justify-content-center" style={{ width: 28, height: 28 }}>
+            <i className="bi bi-chevron-right text-muted" style={{ fontSize: 12 }} />
+          </button>
+        </div>
+      ),
+      width: "36px",
+      align: "center"
+    };
+
+    return [checkboxColumn, mainColumn, mobileActionColumn];
+  }, [currentStep, filteredPartners, selectedIds, currentTime]);
+
   const BottomToolbarContent = useMemo(() => {
     if (selectedIds.size === 0) return null;
 
@@ -6531,150 +6687,219 @@ export default function PartnersPage() {
             className="flex-grow-1 overflow-hidden full-width-table-wrapper"
             style={{ minHeight: 0 }}
             header={
-              <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 w-100">
-                <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: 600 }}>
-                  {Number(currentStep) === 5 && (
-                    <button
-                      className="btn btn-primary d-flex align-items-center justify-content-center rounded-circle shadow-sm"
-                      style={{ width: 32, height: 32, flexShrink: 0, padding: 0 }}
-                      onClick={() => setShowCreateTask(true)}
-                    >
-                      <i className="bi bi-plus-lg" style={{ fontSize: 16 }} />
-                    </button>
-                  )}
-                  {/* Area Filter */}
-                  <FilterSelect
-                    options={[
-                      { label: "Tất cả khu vực", value: "" },
-                      ...areas.map(a => ({ label: a, value: a }))
-                    ]}
-                    value={areaFilter}
-                    onChange={setAreaFilter}
-                    placeholder="Tất cả khu vực"
-                    width={180}
-                  />
+              <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2 w-100">
+                <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 flex-grow-1">
+                  {/* Hàng Search & Nút thêm trên Mobile, hoặc căn phải trên Desktop */}
+                  <div className="d-flex align-items-center gap-2 flex-grow-1 order-1 order-md-2" style={{ maxWidth: isMobile ? "none" : 300 }}>
+                    <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                      <SearchInput
+                        placeholder="Tìm tên, mã, số liên hệ..."
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                      />
+                    </div>
+                    {/* Nút thêm mới trên mobile */}
+                    {isMobile && Number(currentStep) === 1 && (
+                      <button
+                        className="btn text-white px-2.5 d-flex align-items-center justify-content-center gap-1 shadow-sm flex-shrink-0"
+                        style={{ height: 34, fontSize: "12.5px", backgroundColor: "#003087", borderColor: "#003087", borderRadius: 8, fontWeight: 700, whiteSpace: "nowrap" }}
+                        onClick={() => {
+                          setEditingPartner(null);
+                          setNewName("");
+                          setNewArea("");
+                          setNewContact("");
+                          setNewRole("Ông chủ");
+                          setNewPhone("");
+                          setNewContactEmail("");
+                          setNewBusinessAddress("");
+                          setNewScale("");
+                          setNewNeeds("");
+                          setNewCareStaff(getDefaultExecutor());
+                          setNewCreationTime(new Date());
+                          setShowCreateModal(true);
+                        }}
+                      >
+                        <i className="bi bi-plus-lg" />
+                        <span>Thêm</span>
+                      </button>
+                    )}
+                  </div>
 
-                  {Number(currentStep) === 2 && (
-                    <FilterSelect
-                      options={[
-                        { label: "Đang thực hiện", value: "Đang thực hiện" },
-                        { label: "Đã thực hiện", value: "Đã thực hiện" },
-                        { label: "Đã huỷ bỏ", value: "Đã huỷ bỏ" }
-                      ]}
-                      value={careStatusFilter}
-                      onChange={setCareStatusFilter}
-                      placeholder="Tất cả trạng thái"
-                      width={180}
-                    />
-                  )}
+                  {/* Bộ lọc chọn khu vực & trạng thái */}
+                  <div className="d-flex align-items-center gap-2 order-2 order-md-1">
+                    {Number(currentStep) === 5 && (
+                      <button
+                        className="btn btn-primary d-flex align-items-center justify-content-center rounded-circle shadow-sm flex-shrink-0"
+                        style={{ width: 32, height: 32, padding: 0 }}
+                        onClick={() => setShowCreateTask(true)}
+                      >
+                        <i className="bi bi-plus-lg" style={{ fontSize: 16 }} />
+                      </button>
+                    )}
+                    {/* Area Filter */}
+                    <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 180 }}>
+                      <FilterSelect
+                        options={[
+                          { label: "Tất cả khu vực", value: "" },
+                          ...areas.map(a => ({ label: a, value: a }))
+                        ]}
+                        value={areaFilter}
+                        onChange={setAreaFilter}
+                        placeholder="Tất cả khu vực"
+                        width={isMobile ? "100%" : 180}
+                      />
+                    </div>
 
-                  {Number(currentStep) === 3 && (
-                    <FilterSelect
-                      options={[
-                        { label: "Đang thực hiện", value: "Đang thực hiện" },
-                        { label: "Đã thực hiện", value: "Đã thực hiện" },
-                        { label: "Đã huỷ bỏ", value: "Đã huỷ bỏ" }
-                      ]}
-                      value={quoteStatusFilter}
-                      onChange={setQuoteStatusFilter}
-                      placeholder="Tất cả trạng thái"
-                      width={180}
-                    />
-                  )}
+                    {Number(currentStep) === 2 && (
+                      <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 180 }}>
+                        <FilterSelect
+                          options={[
+                            { label: "Đang thực hiện", value: "Đang thực hiện" },
+                            { label: "Đã thực hiện", value: "Đã thực hiện" },
+                            { label: "Đã huỷ bỏ", value: "Đã huỷ bỏ" }
+                          ]}
+                          value={careStatusFilter}
+                          onChange={setCareStatusFilter}
+                          placeholder="Tất cả trạng thái"
+                          width={isMobile ? "100%" : 180}
+                        />
+                      </div>
+                    )}
 
-                  {/* Search */}
-                  <div className="flex-grow-1" style={{ maxWidth: 300 }}>
-                    <SearchInput
-                      placeholder="Tìm tên, mã, số liên hệ..."
-                      value={searchTerm}
-                      onChange={setSearchTerm}
-                    />
+                    {Number(currentStep) === 3 && (
+                      <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 180 }}>
+                        <FilterSelect
+                          options={[
+                            { label: "Đang thực hiện", value: "Đang thực hiện" },
+                            { label: "Đã thực hiện", value: "Đã thực hiện" },
+                            { label: "Đã huỷ bỏ", value: "Đã huỷ bỏ" }
+                          ]}
+                          value={quoteStatusFilter}
+                          onChange={setQuoteStatusFilter}
+                          placeholder="Tất cả trạng thái"
+                          width={isMobile ? "100%" : 180}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Add Lead button - Only in Step 1 */}
-                <div className="d-flex align-items-center gap-2">
-                  {Number(currentStep) === 1 && (
-                    <button
-                      className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"
-                      style={{ height: 34, fontSize: "12.5px", backgroundColor: "#003087", borderColor: "#003087", borderRadius: 8, fontWeight: 700, whiteSpace: "nowrap" }}
-                      onClick={() => {
-                        setEditingPartner(null);
-                        setNewName("");
-                        setNewArea("");
-                        setNewContact("");
-                        setNewRole("Ông chủ");
-                        setNewPhone("");
-                        setNewContactEmail("");
-                        setNewBusinessAddress("");
-                        setNewScale("");
-                        setNewNeeds("");
-                        setNewCareStaff(getDefaultExecutor());
-                        setNewCreationTime(new Date());
-                        setShowCreateModal(true);
-                      }}
-                    >
-                      <i className="bi bi-plus-lg" />
-                      <span>Thêm khách hàng</span>
-                    </button>
-                  )}
-                  {Number(currentStep) === 5 && (
-                    <div style={{
-                      display: "flex", alignItems: "center", gap: 8,
-                      flexWrap: "wrap", flexShrink: 0
-                    }}>
+                {/* Desktop Buttons */}
+                {!isMobile && (
+                  <div className="d-flex align-items-center gap-2">
+                    {Number(currentStep) === 1 && (
+                      <button
+                        className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2 shadow-sm"
+                        style={{ height: 34, fontSize: "12.5px", backgroundColor: "#003087", borderColor: "#003087", borderRadius: 8, fontWeight: 700, whiteSpace: "nowrap" }}
+                        onClick={() => {
+                          setEditingPartner(null);
+                          setNewName("");
+                          setNewArea("");
+                          setNewContact("");
+                          setNewRole("Ông chủ");
+                          setNewPhone("");
+                          setNewContactEmail("");
+                          setNewBusinessAddress("");
+                          setNewScale("");
+                          setNewNeeds("");
+                          setNewCareStaff(getDefaultExecutor());
+                          setNewCreationTime(new Date());
+                          setShowCreateModal(true);
+                        }}
+                      >
+                        <i className="bi bi-plus-lg" />
+                        <span>Thêm khách hàng</span>
+                      </button>
+                    )}
+                    {Number(currentStep) === 5 && (
                       <div style={{
-                        background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
-                        borderRadius: 6, padding: "3px 8px", flexShrink: 0,
-                        display: "flex", alignItems: "center", gap: 4,
+                        display: "flex", alignItems: "center", gap: 8,
+                        flexWrap: "wrap", flexShrink: 0
                       }}>
-                        <i className="bi bi-calendar3" style={{ fontSize: 10, color: "#fff" }} />
-                        <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.03em" }}>
-                          {new Date().getFullYear()}
-                        </span>
-                      </div>
-                      
-                      <div style={{ width: 1, height: 16, background: "#e2e8f0", flexShrink: 0 }} />
+                        <div style={{
+                          background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+                          borderRadius: 6, padding: "3px 8px", flexShrink: 0,
+                          display: "flex", alignItems: "center", gap: 4,
+                        }}>
+                          <i className="bi bi-calendar3" style={{ fontSize: 10, color: "#fff" }} />
+                          <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "0.03em" }}>
+                            {new Date().getFullYear()}
+                          </span>
+                        </div>
+                        
+                        <div style={{ width: 1, height: 16, background: "#e2e8f0", flexShrink: 0 }} />
 
-                      <div style={{
-                        display: "flex", gap: 3, overflowX: "auto",
-                        scrollbarWidth: "none"
-                      }}>
-                        {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
-                          const isActive = m === filterMonth;
-                          const isCurrent = m === new Date().getMonth() + 1;
-                          return (
-                            <button
-                              key={m}
-                              onClick={() => setFilterMonth(m)}
-                              style={{
-                                flexShrink: 0,
-                                padding: "2px 8px",
-                                borderRadius: 5,
-                                border: isActive
-                                  ? "1px solid #3b82f6"
-                                  : isCurrent
-                                    ? "1px dashed #93c5fd"
-                                    : "1px solid var(--border, #e2e8f0)",
-                                cursor: "pointer",
-                                background: isActive
-                                  ? "rgba(59, 130, 246, 0.08)"
-                                  : "#fff",
-                                color: isActive ? "#3b82f6" : "var(--muted-foreground, #64748b)",
-                                fontSize: 11,
-                                fontWeight: isActive ? 700 : 500,
-                                outline: "none",
-                                transition: "all 0.15s ease"
-                              }}
-                            >
-                              T{m}
-                            </button>
-                          );
-                        })}
+                        <div style={{
+                          display: "flex", gap: 3, overflowX: "auto",
+                          scrollbarWidth: "none"
+                        }}>
+                          {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
+                            const isActive = m === filterMonth;
+                            const isCurrent = m === new Date().getMonth() + 1;
+                            return (
+                              <button
+                                key={m}
+                                onClick={() => setFilterMonth(m)}
+                                style={{
+                                  flexShrink: 0,
+                                  padding: "2px 8px",
+                                  borderRadius: 5,
+                                  border: isActive
+                                    ? "1px solid #3b82f6"
+                                    : isCurrent
+                                      ? "1px dashed #93c5fd"
+                                      : "1px solid var(--border, #e2e8f0)",
+                                  cursor: "pointer",
+                                  background: isActive
+                                    ? "rgba(59, 130, 246, 0.08)"
+                                    : "#fff",
+                                  color: isActive ? "#3b82f6" : "var(--muted-foreground, #64748b)",
+                                  fontSize: 11,
+                                  fontWeight: isActive ? 700 : 500,
+                                  outline: "none",
+                                  transition: "all 0.15s ease"
+                                }}
+                              >
+                                T{m}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
+                    )}
+                  </div>
+                )}
+                {isMobile && Number(currentStep) === 5 && (
+                  <div className="d-flex align-items-center gap-2 overflow-auto pb-1" style={{ scrollbarWidth: "none" }}>
+                    <div style={{
+                      background: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+                      borderRadius: 6, padding: "3px 8px", flexShrink: 0,
+                      display: "flex", alignItems: "center", gap: 4,
+                    }}>
+                      <i className="bi bi-calendar3" style={{ fontSize: 10, color: "#fff" }} />
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>
+                        {new Date().getFullYear()}
+                      </span>
                     </div>
-                  )}
-                </div>
+                    <div style={{ display: "flex", gap: 3 }}>
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                        <button
+                          key={m}
+                          onClick={() => setFilterMonth(m)}
+                          style={{
+                            flexShrink: 0, padding: "2px 7px", borderRadius: 5,
+                            border: m === filterMonth ? "1px solid #3b82f6" : "1px solid var(--border)",
+                            background: m === filterMonth ? "rgba(59, 130, 246, 0.08)" : "#fff",
+                            color: m === filterMonth ? "#3b82f6" : "var(--muted-foreground)",
+                            fontSize: 11, fontWeight: m === filterMonth ? 700 : 500
+                          }}
+                        >
+                          T{m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             }
             table={
@@ -6719,12 +6944,14 @@ export default function PartnersPage() {
             ) : (
               <Table
                 rows={filteredPartners}
-                columns={columns}
+                columns={isMobile ? mobileColumns : columns}
                 compact={true}
                 loading={loading}
                 rowKey={(r) => r.id}
                 onRowClick={(row) => setSelectedPartner(row)}
                 emptyText={`Không có đại lý nào ở bước ${STEPS.find(s => s.num === Number(currentStep))?.title}`}
+                wrapperClassName={isMobile ? "mkt-plan-table-no-min" : undefined}
+                wrapperStyle={{ overflowY: "auto", overflowX: isMobile ? "hidden" : "auto", flex: 1, minHeight: 0 }}
               />
                 )}
               </div>
@@ -6754,9 +6981,10 @@ export default function PartnersPage() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="app-custom-drawer"
               style={{
                 position: "fixed", top: 0, right: 0, bottom: 0,
-                width: 400, background: "var(--background)",
+                width: 400, maxWidth: "100vw", background: "var(--background)",
                 zIndex: 1051, boxShadow: "-8px 0 32px rgba(0,0,0,0.15)",
                 display: "flex", flexDirection: "column",
                 borderLeft: "1px solid var(--border)"
@@ -6943,9 +7171,10 @@ export default function PartnersPage() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="app-custom-drawer"
               style={{
                 position: "fixed", top: 0, right: 0, bottom: 0,
-                width: 400, background: "var(--background)",
+                width: 400, maxWidth: "100vw", background: "var(--background)",
                 zIndex: 1051, boxShadow: "-8px 0 32px rgba(0,0,0,0.15)",
                 display: "flex", flexDirection: "column",
                 borderLeft: "1px solid var(--border)"
@@ -11894,7 +12123,7 @@ export default function PartnersPage() {
 
       {/* ── Slide-out Create Task Offcanvas ── */}
       {showCreateTask && (
-        <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 400, background: "#fff", zIndex: 1050, boxShadow: "-5px 0 20px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column" }}>
+        <div className="app-custom-drawer" style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 400, maxWidth: "100vw", background: "#fff", zIndex: 1050, boxShadow: "-5px 0 20px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f8fafc" }}>
             <div>
               <div style={{ fontSize: 18, fontWeight: 800, color: "var(--foreground)", letterSpacing: "-0.02em" }}>Thêm công việc mới</div>

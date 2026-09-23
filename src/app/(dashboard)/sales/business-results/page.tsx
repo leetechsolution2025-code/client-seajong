@@ -331,15 +331,13 @@ export default function BusinessResultsPage() {
       />
       <DynamicTicker pageTitle="Kết quả kinh doanh" />
 
-      <div className="flex-grow-1 px-4 pb-4 pt-2 d-flex flex-column custom-scrollbar overflow-auto" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0, gap: 16 }}>
-
-
+      <div className="flex-grow-1 px-2 px-md-4 pb-4 pt-2 d-flex flex-column custom-scrollbar overflow-auto" style={{ background: "color-mix(in srgb, var(--muted) 40%, transparent)", minHeight: 0, gap: 16 }}>
 
         {/* Charts Grid */}
         <div className="row g-3">
           {/* Revenue Trends */}
           <div className="col-12 col-xl-8">
-            <div className="bg-card border rounded-4 p-4 d-flex flex-column h-100 shadow-sm">
+            <div className="bg-card border rounded-4 p-3 p-md-4 d-flex flex-column h-100 shadow-sm">
               <div className="mb-3">
                 <span className="fw-extrabold text-dark d-block" style={{ fontSize: 14 }}>
                   <i className="bi bi-graph-up text-primary me-2" />
@@ -357,7 +355,7 @@ export default function BusinessResultsPage() {
 
           {/* Categories distribution */}
           <div className="col-12 col-xl-4">
-            <div className="bg-card border rounded-4 p-4 d-flex flex-column h-100 shadow-sm">
+            <div className="bg-card border rounded-4 p-3 p-md-4 d-flex flex-column h-100 shadow-sm">
               <div className="mb-3">
                 <span className="fw-extrabold text-dark d-block" style={{ fontSize: 14 }}>
                   <i className="bi bi-pie-chart text-info me-2" />
@@ -377,7 +375,7 @@ export default function BusinessResultsPage() {
         <div className="row g-3">
           {/* Regional Sales */}
           <div className="col-12 col-xl-5">
-            <div className="bg-card border rounded-4 p-4 d-flex flex-column h-100 shadow-sm">
+            <div className="bg-card border rounded-4 p-3 p-md-4 d-flex flex-column h-100 shadow-sm">
               <div className="mb-2">
                 <span className="fw-extrabold text-dark d-block" style={{ fontSize: 14 }}>
                   <i className="bi bi-geo-alt text-success me-2" />
@@ -395,7 +393,7 @@ export default function BusinessResultsPage() {
 
           {/* Details list */}
           <div className="col-12 col-xl-7">
-            <div className="bg-card border rounded-4 p-4 d-flex flex-column h-100 shadow-sm">
+            <div className="bg-card border rounded-4 p-3 p-md-4 d-flex flex-column h-100 shadow-sm">
               <div className="mb-3">
                 <span className="fw-extrabold text-dark d-block" style={{ fontSize: 14 }}>
                   <i className="bi bi-table text-purple me-2" />

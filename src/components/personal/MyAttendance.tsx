@@ -48,6 +48,17 @@ export function MyAttendance() {
   const [distanceToOffice, setDistanceToOffice] = useState<number | null>(null);
   const [isWithinGPSRange, setIsWithinGPSRange] = useState(false);
 
+  const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileOrTablet(window.innerWidth <= 1194);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   useEffect(() => {
     if (location && branch && branch.latitude !== null && branch.longitude !== null) {
       const dist = getDistance(location.lat, location.lng, branch.latitude, branch.longitude);
@@ -67,6 +78,79 @@ export function MyAttendance() {
     return () => clearInterval(timer);
   }, [selectedMonth, selectedYear]);
 
+  // Theo dõi toạ độ liên tục khi di chuyển & cập nhật lại ngay khi mở lại tab/mở khóa màn hình
+  useEffect(() => {
+    let watchId: number | null = null;
+    if ("geolocation" in navigator) {
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          setLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+          setLocError(null);
+        },
+        (error) => {
+          console.warn("Watch position error:", error);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 8000,
+        }
+      );
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        requestLocation();
+        fetchData();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleVisibility);
+
+    return () => {
+      if (watchId !== null && "geolocation" in navigator) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleVisibility);
+    };
+  }, []);
+
+  const getFreshLocation = (): Promise<{ lat: number; lng: number }> => {
+    return new Promise((resolve, reject) => {
+      if (!("geolocation" in navigator)) {
+        return reject(new Error("Trình duyệt của bạn không hỗ trợ định vị GPS."));
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const fresh = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setLocation(fresh);
+          setLocError(null);
+          resolve(fresh);
+        },
+        (error) => {
+          let msg = "Không thể lấy vị trí GPS hiện tại";
+          if (error.code === 1) msg = "Bạn đã từ chối quyền truy cập vị trí GPS.";
+          else if (error.code === 2) msg = "Không nhận được tín hiệu định vị GPS.";
+          else if (error.code === 3) msg = "Quá thời gian lấy tín hiệu vị trí GPS.";
+          setLocError(msg);
+          reject(new Error(msg));
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0, // Bắt buộc lấy toạ độ thực tế tức thì, KHÔNG dùng cache cũ
+          timeout: 8000,
+        }
+      );
+    });
+  };
+
   const requestLocation = () => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -79,7 +163,12 @@ export function MyAttendance() {
         },
         (error) => {
           console.warn("Location error:", error);
-          setLocError(null); // Non-blocking for development
+          setLocError(null);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 8000,
         }
       );
     } else {
@@ -109,23 +198,52 @@ export function MyAttendance() {
   };
 
   const handleAction = async (action: "check-in" | "check-out", registeredLunch?: boolean, registeredDinner?: boolean) => {
-    if (!location && action === "check-in") {
-      alert("Đang lấy vị trí của bạn, vui lòng đợi giây lát...");
-      requestLocation();
-      return;
-    }
-
     setActionLoading(true);
     try {
+      let currentLat: number | undefined = location?.lat;
+      let currentLng: number | undefined = location?.lng;
+
+      // BẢO MẬT GPS THỜI GIAN THỰC: Bắt buộc lấy toạ độ vệ tinh mới nhất tại thời điểm nhấn giữ nút
+      // Nếu là thiết bị di động hoặc đang không kết nối WiFi công ty -> Phải kiểm tra GPS thực tế
+      if (isMobileOrTablet || !isInternal) {
+        try {
+          const freshPos = await getFreshLocation();
+          currentLat = freshPos.lat;
+          currentLng = freshPos.lng;
+
+          // Kiểm tra bán kính ngay lập tức với vị trí thực tế
+          if (branch && branch.latitude !== null && branch.longitude !== null) {
+            const dist = getDistance(freshPos.lat, freshPos.lng, branch.latitude, branch.longitude);
+            const allowedRadius = branch.radius || 200;
+            setDistanceToOffice(dist);
+            setIsWithinGPSRange(dist <= allowedRadius);
+
+            if (dist > allowedRadius) {
+              toast.error(
+                "Ngoài phạm vi chấm công",
+                `Vị trí hiện tại của bạn cách văn phòng ${Math.round(dist)}m (vượt quá bán kính cho phép ≤${allowedRadius}m). Không thể chấm công khi ở ngoài văn phòng!`
+              );
+              setActionLoading(false);
+              return;
+            }
+          }
+        } catch (locErr: any) {
+          toast.error("Lỗi định vị GPS", locErr.message || "Không thể xác định vị trí thực tế của bạn. Vui lòng bật định vị GPS!");
+          setActionLoading(false);
+          return;
+        }
+      }
+
       const res = await fetch("/api/my/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
-          lat: location?.lat,
-          lng: location?.lng,
+          lat: currentLat,
+          lng: currentLng,
           registeredLunch,
           registeredDinner,
+          gpsTimestamp: Date.now(),
         }),
       });
 

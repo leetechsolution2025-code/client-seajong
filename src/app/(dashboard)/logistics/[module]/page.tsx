@@ -158,7 +158,7 @@ export default function LogisticsModulePage() {
                 <div>
                   <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.02em" }}>Tổng giá trị kho</p>
                   <p style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 800, color: "var(--foreground)", lineHeight: 1.2 }}>
-                    {inboundStats.tongGiaTri.toLocaleString("vi-VN")}
+                    {Math.round(inboundStats.tongGiaTri || 0).toLocaleString("vi-VN")}
                   </p>
                 </div>
               </div>

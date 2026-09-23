@@ -25,7 +25,7 @@ export function FullWidthTableLayout({
   return (
     <div className={cn("d-flex flex-column h-100", className)} style={style}>
       {header && (
-        <div className="px-3 pt-2 pb-0 flex-shrink-0">
+        <div className="px-2 px-md-3 pt-2 pb-0 flex-shrink-0">
           {header}
         </div>
       )}
@@ -49,6 +49,21 @@ export function FullWidthTableLayout({
         .full-width-table-wrapper thead tr:first-child th:last-child,
         .full-width-table-wrapper tbody td:last-child {
           padding-right: 1.5rem !important;
+        }
+        @media (max-width: 768px) {
+          .full-width-table-wrapper {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 0.25rem !important;
+          }
+          .full-width-table-wrapper thead tr:first-child th:first-child,
+          .full-width-table-wrapper tbody td:first-child {
+            padding-left: 0.5rem !important;
+          }
+          .full-width-table-wrapper thead tr:first-child th:last-child,
+          .full-width-table-wrapper tbody td:last-child {
+            padding-right: 0.5rem !important;
+          }
         }
       `}</style>
       <div className={cn("full-width-table-wrapper d-flex flex-column", tableWrapperClassName)} style={{ flexGrow: 1, overflow: "auto", minHeight: 0 }}>

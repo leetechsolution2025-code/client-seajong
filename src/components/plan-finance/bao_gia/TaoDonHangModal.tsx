@@ -1016,16 +1016,300 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
             font-size: 14px !important;
           }
         }
+
+        /* Mobile specific styles (<= 768px) */
+        @media (max-width: 768px) {
+          /* Mobile Full-Screen Sidebar Panel for Order Info */
+          .order-modal-left {
+            position: fixed !important;
+            inset: 0 !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            width: 100vw !important;
+            max-width: 100% !important;
+            max-width: 100vw !important;
+            height: 100% !important;
+            height: 100dvh !important;
+            z-index: 3100 !important;
+            transform: translateX(-100%) !important;
+            transition: transform 0.25s ease-in-out !important;
+            box-shadow: none !important;
+            border-right: none !important;
+            border-radius: 0 !important;
+            background: var(--card) !important;
+          }
+          .order-modal-left.show {
+            transform: translateX(0) !important;
+          }
+          .order-modal-sidebar-header {
+            display: flex !important;
+            padding-top: max(8px, env(safe-area-inset-top, 8px)) !important;
+          }
+          .order-modal-left > div {
+            padding: 14px 16px max(14px, env(safe-area-inset-bottom, 14px)) 16px !important;
+          }
+
+          .order-modal-header {
+            height: 50px !important;
+            padding: 0 10px !important;
+          }
+          .order-modal-header-icon {
+            width: 30px !important;
+            height: 30px !important;
+            border-radius: 7px !important;
+          }
+          .order-modal-header-title {
+            font-size: 13.5px !important;
+            font-weight: 700 !important;
+            max-width: 175px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+          }
+          .order-modal-header-btn {
+            padding: 5px 10px !important;
+            font-size: 12px !important;
+            height: 34px !important;
+          }
+          .order-modal-right {
+            min-width: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
+          }
+          .order-modal-subheader {
+            padding: 8px 10px !important;
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+          }
+          .order-modal-subheader-title {
+            font-size: 11.5px !important;
+          }
+          .order-modal-table-container {
+            overflow-x: hidden !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 8px !important;
+            gap: 10px !important;
+            box-sizing: border-box !important;
+          }
+          .order-modal-add-form {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            align-items: stretch !important;
+            padding: 10px !important;
+            gap: 8px !important;
+          }
+          .order-modal-form-top,
+          .order-modal-row-pricing,
+          .order-modal-form-actions {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: none !important;
+            box-sizing: border-box !important;
+            min-width: 0 !important;
+          }
+          .order-modal-form-top {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+          }
+          .order-modal-field-product {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: none !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .order-modal-bom-group {
+            display: grid !important;
+            grid-template-columns: 105px minmax(0, 1fr) !important;
+            gap: 8px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: none !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .order-modal-field-bom-code,
+          .order-modal-field-bom-desc {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: none !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .order-modal-field-bom-desc input {
+            min-width: 0 !important;
+          }
+          /* Hide warehouse name & unit on mobile phones */
+          .order-modal-row-warehouse {
+            display: none !important;
+          }
+          .order-modal-row-pricing {
+            display: grid !important;
+            grid-template-columns: 75px 80px minmax(0, 1fr) !important;
+            gap: 6px !important;
+          }
+          .order-modal-field-qty,
+          .order-modal-field-ck,
+          .order-modal-field-price {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: none !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .order-modal-field-price input {
+            min-width: 0 !important;
+          }
+          .order-modal-form-actions {
+            display: flex !important;
+            gap: 8px !important;
+            margin-top: 2px !important;
+          }
+          .order-modal-form-actions button {
+            flex: 1 !important;
+            height: 38px !important;
+            justify-content: center !important;
+            font-size: 13.5px !important;
+            font-weight: 700 !important;
+          }
+          .order-modal-desktop-table {
+            display: none !important;
+          }
+          .order-modal-mobile-list {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .order-modal-footer {
+            padding: 8px 10px max(14px, env(safe-area-inset-bottom, 14px)) 10px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 6px !important;
+            align-items: stretch !important;
+            background: var(--card) !important;
+            border-top: 1px solid var(--border) !important;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.06) !important;
+            box-sizing: border-box !important;
+          }
+          .order-modal-footer-totals {
+            order: 1 !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            gap: 6px !important;
+            width: 100% !important;
+            padding-bottom: 6px !important;
+            border-bottom: 1px dashed var(--border) !important;
+            box-sizing: border-box !important;
+          }
+          .order-modal-footer-totals > div {
+            flex: 1 !important;
+            text-align: center !important;
+          }
+          .order-modal-footer-totals p:first-child {
+            font-size: 10px !important;
+            margin: 0 !important;
+            color: var(--muted-foreground) !important;
+          }
+          .order-modal-footer-totals p:last-child {
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            margin: 0 !important;
+          }
+          .order-modal-footer-grandtotal {
+            display: none !important;
+          }
+          .order-modal-footer-bottom {
+            order: 2 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            width: 100% !important;
+            gap: 8px !important;
+            box-sizing: border-box !important;
+          }
+          .order-modal-footer-payment {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            flex: 1 !important;
+            margin-left: 0 !important;
+            min-width: 0 !important;
+          }
+          .order-modal-footer-payment label {
+            font-size: 11.5px !important;
+            margin: 0 !important;
+          }
+          .order-modal-footer-payment input[type="text"] {
+            width: 82px !important;
+            padding: 4px 18px 4px 6px !important;
+            font-size: 12.5px !important;
+            font-weight: 700 !important;
+            height: 30px !important;
+            box-sizing: border-box !important;
+          }
+          .order-modal-footer-mobile-grandtotal {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-end !important;
+            flex-shrink: 0 !important;
+            margin-left: auto !important;
+          }
+          .order-modal-footer-mobile-grandtotal span:first-child {
+            font-size: 9.5px !important;
+            font-weight: 700 !important;
+            color: var(--primary) !important;
+            text-transform: uppercase !important;
+            line-height: 1 !important;
+          }
+          .order-modal-footer-mobile-grandtotal span:last-child {
+            font-size: 16px !important;
+            font-weight: 900 !important;
+            color: var(--primary) !important;
+            line-height: 1.2 !important;
+          }
+        }
+        @media (min-width: 769px) {
+          .order-modal-footer-bottom {
+            display: contents !important;
+          }
+          .order-modal-footer-mobile-grandtotal {
+            display: none !important;
+          }
+          .order-modal-mobile-list {
+            display: none !important;
+          }
+          .order-modal-row-warehouse {
+            display: flex !important;
+          }
+          .order-modal-desktop-table {
+            display: table !important;
+            min-width: 650px !important;
+          }
+        }
       `}</style>
       {/* Header */}
       <div className="order-modal-header" style={{ height: 56, borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", background: "#1E293B", boxShadow: "0 2px 12px rgba(0,0,0,0.2)", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div className="order-modal-header-icon" style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <i className="bi bi-cart3" style={{ fontSize: 16, color: "#fff" }} />
           </div>
           <div>
             <p className="order-modal-header-title" style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#fff", letterSpacing: "0.01em" }}>
-              {editOrder ? "Cập nhật đơn bán hàng (SO)" : `Lập đơn bán hàng (SO) - ${type === "retail" ? "Bán lẻ" : "Đại lý"}`}
+              <span className="d-none d-sm-inline">{editOrder ? "Cập nhật đơn bán hàng (SO)" : `Lập đơn bán hàng (SO) - ${type === "retail" ? "Bán lẻ" : "Đại lý"}`}</span>
+              <span className="d-inline d-sm-none">{editOrder ? "Cập nhật đơn" : `Đơn ${type === "retail" ? "bán lẻ" : "đại lý"} (SO)`}</span>
             </p>
           </div>
         </div>
@@ -1044,7 +1328,8 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
             {saving ? "Đang lưu..." : (
               <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <i className="bi bi-check-circle" />
-                {editOrder ? "Cập nhật đơn" : "Tạo đơn hàng"}
+                <span className="d-none d-sm-inline">{editOrder ? "Cập nhật đơn" : "Tạo đơn hàng"}</span>
+                <span className="d-inline d-sm-none">{editOrder ? "Lưu" : "Tạo đơn"}</span>
               </span>
             )}
           </button>
@@ -1072,8 +1357,30 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
           <div style={{ flex: 1, padding: 20, display: "flex", flexDirection: "column", gap: 14, background: "var(--card)", overflowY: "auto" }}>
             {/* Offcanvas Header */}
             <div className="order-modal-sidebar-header" style={{ display: "none", justifyContent: "space-between", alignItems: "center", paddingBottom: 10, borderBottom: "1px solid var(--border)", marginBottom: 4 }}>
-              <span style={{ fontWeight: 800, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--primary)" }}>Thông tin chung</span>
-              <button type="button" onClick={() => setShowInfoSidebar(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--foreground)", padding: 4, display: "flex", alignItems: "center" }}><i className="bi bi-x-lg" /></button>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <i className="bi bi-info-circle-fill" style={{ fontSize: 16, color: "var(--primary)" }} />
+                <span style={{ fontWeight: 800, fontSize: 14, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--primary)" }}>Thông tin chung</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInfoSidebar(false)}
+                style={{
+                  background: "rgba(0,0,0,0.06)",
+                  border: "none",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontSize: 16,
+                  color: "var(--foreground)",
+                  width: 32,
+                  height: 32,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+                title="Đóng"
+              >
+                <i className="bi bi-x-lg" />
+              </button>
             </div>
 
             <div>
@@ -1276,13 +1583,38 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 style={{ ...inputSt, flex: 1, resize: "none", minHeight: 120 }}
               />
             </div>
+
+            {/* Action button at bottom on mobile */}
+            <div className="d-block d-md-none" style={{ marginTop: 8, paddingBottom: "max(14px, env(safe-area-inset-bottom, 14px))" }}>
+              <button
+                type="button"
+                onClick={() => setShowInfoSidebar(false)}
+                style={{
+                  width: "100%",
+                  height: 42,
+                  background: "var(--primary)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6
+                }}
+              >
+                <i className="bi bi-check2" /> Hoàn tất & Quay lại đơn hàng
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Right Side: Items Table */}
         <div className="order-modal-right" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--card)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="order-modal-subheader" style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--card)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
                 className="order-modal-toggle-btn"
@@ -1302,9 +1634,13 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 }}
               >
                 <i className="bi bi-layout-sidebar-inset" />
-                Thông tin chung
+                <span className="d-none d-sm-inline">Thông tin chung</span>
+                <span className="d-inline d-sm-none">TT chung</span>
               </button>
-              <span style={{ fontWeight: 700, fontSize: 13, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Bảng danh sách sản phẩm</span>
+              <span className="order-modal-subheader-title" style={{ fontWeight: 700, fontSize: 13, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <span className="d-none d-sm-inline">Bảng danh sách sản phẩm</span>
+                <span className="d-inline d-sm-none">Sản phẩm ({items.length})</span>
+              </span>
               <TrangThaiTonKhoBadge
                 items={items.map(it => ({ ten: it.ten, soLuong: it.soLuong, soLuongTon: it.soLuongTon }))}
                 showPurchaseRequest={false}
@@ -1337,9 +1673,9 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
           <div className="order-modal-table-container" style={{ flex: 1, overflowY: "auto", overflowX: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Form nhập liệu */}
-            <div style={{ padding: 16, background: "rgba(59,130,246,0.04)", border: "1px dashed rgba(59,130,246,0.3)", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
-              <div style={{ flex: "1 1 100%", display: "flex", gap: 12 }}>
-                <div style={{ flex: "2 1 250px", position: "relative" }}>
+            <div className="order-modal-add-form" style={{ padding: 16, background: "rgba(59,130,246,0.04)", border: "1px dashed rgba(59,130,246,0.3)", borderRadius: 8, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end" }}>
+              <div className="order-modal-form-top" style={{ flex: "1 1 100%", display: "flex", gap: 12 }}>
+                <div className="order-modal-field-product" style={{ flex: "2 1 250px", position: "relative" }}>
                   <FLabel text="Sản phẩm / Dịch vụ" required />
                   <SearchInput
                     value={formItem.ten}
@@ -1374,100 +1710,109 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                     </div>
                   )}
                 </div>
-                <div style={{ flex: "1 1 110px", maxWidth: 180 }}>
-                  <FLabel text="Mã định mức" />
-                  <select
-                    value={formItem.dinhMucId || ""}
-                    onChange={e => {
-                      const dmId = e.target.value;
-                      const dm = formItem.dinhMucs?.find(x => x.id === dmId || String(x.id) === String(dmId));
-                      const newDonGia = calculateBomPrice(dm, (formItem as any).baseGiaBan || formItem.donGia, (formItem as any).loiNhuanKyVong || 0, (formItem as any).phuongPhapTinhLoiNhuan || 'revenue');
-                      updateFormFields({
-                        dinhMucId: dmId,
-                        dinhMucTen: dm ? dm.tenDinhMuc : null,
-                        donGia: newDonGia
-                      });
-                    }}
-                    disabled={formItem.source === "inventory"}
-                    style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: formItem.source === "inventory" ? "var(--muted)" : "#fff", outline: "none", fontFamily: "inherit", fontSize: 13, color: formItem.source === "inventory" ? "var(--muted-foreground)" : "var(--foreground)", cursor: formItem.source === "inventory" ? "not-allowed" : "default" }}
-                  >
-                    {formItem.dinhMucs?.map((dm: any) => (
-                      <option key={dm.id} value={dm.id}>{dm.code}</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ flex: "2 1 240px" }}>
-                  <FLabel text="Mô tả định mức" />
-                  <div className="d-flex gap-2">
-                    <input
-                      value={formItem.dinhMucTen || ""}
-                      readOnly
-                      style={{ flex: 1, padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
-                    />
-                    <div className="dropdown">
-                      <button
-                        type="button"
-                        className="btn btn-light border dropdown-toggle d-flex align-items-center justify-content-center"
-                        data-bs-toggle="dropdown"
-                        disabled={!formItem.dinhMucId || isKinhDoanh}
-                        style={{ height: 34, boxSizing: "border-box", padding: "0 12px", borderRadius: 6 }}
-                        title={isKinhDoanh ? "Không có quyền chỉnh sửa định mức" : "Tuỳ chọn định mức"}
-                      >
-                        <i className="bi bi-three-dots"></i>
-                      </button>
-                      <ul className="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 p-1">
-                        <li>
-                          <button 
-                            className="dropdown-item py-1.5 px-3 rounded-2" 
-                            onClick={() => setShowBomDetail(true)}
-                          >
-                            <i className="bi bi-info-circle me-2 text-info"></i> Xem chi tiết
-                          </button>
-                        </li>
-                        <li>
-                          <button 
-                            className="dropdown-item py-1.5 px-3 rounded-2 text-danger" 
-                            disabled={isStandardBom}
-                            onClick={() => setConfirmDeleteBom(true)}
-                          >
-                            <i className="bi bi-trash me-2"></i> Xoá định mức
-                          </button>
-                        </li>
-                      </ul>
+                <div className="order-modal-bom-group" style={{ display: "flex", gap: 12, flex: "3 1 350px" }}>
+                  <div className="order-modal-field-bom-code" style={{ flex: "1 1 110px", maxWidth: 180 }}>
+                    <FLabel text="Mã định mức" />
+                    <select
+                      value={formItem.dinhMucId || ""}
+                      onChange={e => {
+                        const dmId = e.target.value;
+                        const dm = formItem.dinhMucs?.find(x => x.id === dmId || String(x.id) === String(dmId));
+                        const newDonGia = calculateBomPrice(dm, (formItem as any).baseGiaBan || formItem.donGia, (formItem as any).loiNhuanKyVong || 0, (formItem as any).phuongPhapTinhLoiNhuan || 'revenue');
+                        updateFormFields({
+                          dinhMucId: dmId,
+                          dinhMucTen: dm ? dm.tenDinhMuc : null,
+                          donGia: newDonGia
+                        });
+                      }}
+                      disabled={formItem.source === "inventory"}
+                      style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: formItem.source === "inventory" ? "var(--muted)" : "#fff", outline: "none", fontFamily: "inherit", fontSize: 13, color: formItem.source === "inventory" ? "var(--muted-foreground)" : "var(--foreground)", cursor: formItem.source === "inventory" ? "not-allowed" : "default" }}
+                    >
+                      {formItem.dinhMucs?.map((dm: any) => (
+                        <option key={dm.id} value={dm.id}>{dm.code}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="order-modal-field-bom-desc" style={{ flex: "2 1 240px" }}>
+                    <FLabel text="Mô tả định mức" />
+                    <div className="d-flex gap-2">
+                      <input
+                        value={formItem.dinhMucTen || ""}
+                        readOnly
+                        style={{ flex: 1, padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
+                      />
+                      <div className="dropdown">
+                        <button
+                          type="button"
+                          className="btn btn-light border dropdown-toggle d-flex align-items-center justify-content-center"
+                          data-bs-toggle="dropdown"
+                          disabled={!formItem.dinhMucId || isKinhDoanh}
+                          style={{ height: 34, boxSizing: "border-box", padding: "0 12px", borderRadius: 6 }}
+                          title={isKinhDoanh ? "Không có quyền chỉnh sửa định mức" : "Tuỳ chọn định mức"}
+                        >
+                          <i className="bi bi-three-dots"></i>
+                        </button>
+                        <ul className="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 p-1">
+                          <li>
+                            <button 
+                              className="dropdown-item py-1.5 px-3 rounded-2" 
+                              onClick={() => setShowBomDetail(true)}
+                            >
+                              <i className="bi bi-info-circle me-2 text-info"></i> Xem chi tiết
+                            </button>
+                          </li>
+                          <li>
+                            <button 
+                              className="dropdown-item py-1.5 px-3 rounded-2 text-danger" 
+                              disabled={isStandardBom}
+                              onClick={() => setConfirmDeleteBom(true)}
+                            >
+                              <i className="bi bi-trash me-2"></i> Xoá định mức
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-              <div style={{ flex: "1 1 120px" }}>
-                <FLabel text="Tên kho" />
-                <input
-                  value={formItem.khoTen || ""}
-                  readOnly
-                  style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
-                />
+
+              <div className="order-modal-row-warehouse" style={{ display: "flex", gap: 12, flex: "1 1 200px" }}>
+                <div className="order-modal-field-kho" style={{ flex: "1 1 120px" }}>
+                  <FLabel text="Tên kho" />
+                  <input
+                    value={formItem.khoTen || ""}
+                    readOnly
+                    style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", outline: "none", fontFamily: "inherit", fontSize: 13, color: "var(--muted-foreground)", cursor: "not-allowed" }}
+                  />
+                </div>
+                <div className="order-modal-field-dvt" style={{ flex: "1 1 80px" }}>
+                  <FLabel text="Đơn vị tính" />
+                  <input value={formItem.dvt} onChange={e => updateFormField("dvt", e.target.value)} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "center", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                </div>
               </div>
-              <div style={{ flex: "1 1 80px" }}>
-                <FLabel text="Đơn vị tính" />
-                <input value={formItem.dvt} onChange={e => updateFormField("dvt", e.target.value)} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "center", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+
+              <div className="order-modal-row-pricing" style={{ display: "flex", gap: 12, flex: "2 1 300px" }}>
+                <div className="order-modal-field-qty" style={{ flex: "1 1 90px" }}>
+                  <FLabel text="Số lượng" required />
+                  <input type="number" min={1} value={formItem.soLuong} onChange={e => updateFormField("soLuong", Math.max(1, Number(e.target.value)))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                </div>
+                <div className="order-modal-field-ck" style={{ flex: "1 1 90px" }}>
+                  <FLabel text="Chiết khấu (%)" />
+                  <input type="number" min={0} max={100} value={formItem.ckPct} onChange={e => updateFormField("ckPct", Math.max(0, Math.min(100, Number(e.target.value))))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
+                </div>
+                <div className="order-modal-field-price" style={{ flex: "1 1 120px" }}>
+                  <FLabel text="Đơn giá (đ)" />
+                  <CurrencyInput
+                    value={formItem.donGia}
+                    onChange={v => !(!isAdmin) && updateFormField("donGia", v)}
+                    readOnly={!isAdmin}
+                    style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: !isAdmin ? "var(--muted)" : "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: !isAdmin ? "var(--muted-foreground)" : "var(--foreground)", cursor: !isAdmin ? "not-allowed" : "text" }}
+                  />
+                </div>
               </div>
-              <div style={{ flex: "1 1 90px" }}>
-                <FLabel text="Số lượng" required />
-                <input type="number" min={1} value={formItem.soLuong} onChange={e => updateFormField("soLuong", Math.max(1, Number(e.target.value)))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
-              </div>
-              <div style={{ flex: "1 1 90px" }}>
-                <FLabel text="Chiết khấu (%)" />
-                <input type="number" min={0} max={100} value={formItem.ckPct} onChange={e => updateFormField("ckPct", Math.max(0, Math.min(100, Number(e.target.value))))} style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: "var(--foreground)" }} />
-              </div>
-              <div style={{ flex: "1 1 120px" }}>
-                <FLabel text="Đơn giá (đ)" />
-                <CurrencyInput
-                  value={formItem.donGia}
-                  onChange={v => !(!isAdmin) && updateFormField("donGia", v)}
-                  readOnly={!isAdmin}
-                  style={{ width: "100%", padding: "0 10px", height: 34, boxSizing: "border-box", border: "1px solid var(--border)", borderRadius: 6, background: !isAdmin ? "var(--muted)" : "#fff", outline: "none", textAlign: "right", fontFamily: "inherit", fontSize: 13, color: !isAdmin ? "var(--muted-foreground)" : "var(--foreground)", cursor: !isAdmin ? "not-allowed" : "text" }}
-                />
-              </div>
-              <div style={{ display: "flex", gap: 6 }}>
+
+              <div className="order-modal-form-actions" style={{ display: "flex", gap: 6 }}>
                 <button onClick={addRow} style={{ padding: "0 14px", border: "none", background: "var(--primary)", color: "#fff", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, height: 34, boxSizing: "border-box" }}>
                   <i className={formItem.id === -1 ? "bi bi-plus-lg" : "bi bi-check2"} /> {formItem.id === -1 ? "Thêm" : "Cập nhật"}
                 </button>
@@ -1484,7 +1829,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
               </div>
             </div>
 
-            <table className="order-modal-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <table className="order-modal-table order-modal-desktop-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "var(--muted)", textAlign: "left" }}>
                   <th style={{ padding: 10, width: 40 }}>#</th>
@@ -1737,44 +2082,250 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                 })}
               </tbody>
             </table>
+
+            {/* Mobile Cards List */}
+            <div className="order-modal-mobile-list">
+              {items.length === 0 ? (
+                <div style={{ padding: "20px 16px", textAlign: "center", color: "var(--muted-foreground)", background: "rgba(0,0,0,0.02)", border: "1px dashed var(--border)", borderRadius: 8, fontSize: 13 }}>
+                  <i className="bi bi-bag-plus" style={{ fontSize: 24, display: "block", marginBottom: 4, opacity: 0.45 }} />
+                  <span style={{ fontWeight: 600 }}>Chưa có sản phẩm nào</span>
+                  <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>Tìm và thêm sản phẩm từ biểu mẫu phía trên</div>
+                </div>
+              ) : (
+                items.map((originalIt, idx) => {
+                  const it = formItem.id === originalIt.id ? (formItem as any) : originalIt;
+                  const isSelected = formItem.id === it.id;
+                  const activeDinhMuc = (it.dinhMucs || []).find((dm: any) => dm.id === it.dinhMucId || String(dm.id) === String(it.dinhMucId)) || (it.dinhMucs && it.dinhMucs.length > 0 ? it.dinhMucs[0] : null);
+                  const hasBOM = !!activeDinhMuc;
+                  const isExpanded = !!expandedBOMRows[it.id];
+                  const matCheck = checkMaterialShortage(it);
+                  const moTaDinhMuc = it.dinhMucTen || activeDinhMuc?.tenDinhMuc;
+                  const ton = it.soLuongTon as number;
+                  const isOutOfFinishedGood = it.ten.trim() && it.soLuongTon !== null && it.soLuongTon !== undefined && (ton === 0 || it.soLuong > ton);
+
+                  return (
+                    <div
+                      key={it.id}
+                      onClick={() => setFormItem(it)}
+                      style={{
+                        background: isSelected ? "rgba(59,130,246,0.06)" : "var(--card)",
+                        border: isSelected ? "1.5px solid var(--primary)" : "1px solid var(--border)",
+                        borderRadius: 8,
+                        padding: "10px 12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 6,
+                        cursor: "pointer",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+                      }}
+                    >
+                      {/* Row 1: Index + Title + Delete */}
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 6, flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, background: "var(--muted)", color: "var(--muted-foreground)", borderRadius: 4, padding: "2px 6px", flexShrink: 0 }}>
+                            #{idx + 1}
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <span style={{ fontWeight: 600, fontSize: 13, color: "var(--foreground)", lineHeight: 1.3, display: "block" }}>
+                              {it.ten}
+                            </span>
+                            {isSelected && (
+                              <span style={{ fontSize: 10, color: "var(--primary)", fontWeight: 700, display: "inline-block", marginTop: 2 }}>
+                                <i className="bi bi-pencil-square me-1" /> Đang chỉnh sửa
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeRow(it.id);
+                          }}
+                          style={{
+                            border: "none",
+                            background: "rgba(239,68,68,0.08)",
+                            color: "#ef4444",
+                            borderRadius: 6,
+                            width: 28,
+                            height: 28,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            flexShrink: 0
+                          }}
+                          title="Xoá hàng"
+                        >
+                          <i className="bi bi-trash" style={{ fontSize: 13 }} />
+                        </button>
+                      </div>
+
+                      {/* Row 2: Badges (Hết hàng / Thiếu vật tư / Đủ vật tư) */}
+                      {isOutOfFinishedGood && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {ton === 0 ? (
+                            <span style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)", padding: "1px 6px", borderRadius: 4, fontSize: 10.5, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                              <i className="bi bi-x-circle-fill" style={{ fontSize: 10 }} /> Hết hàng
+                            </span>
+                          ) : (
+                            <span style={{ color: "#f97316", background: "rgba(249,115,22,0.08)", padding: "1px 6px", borderRadius: 4, fontSize: 10.5, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                              <i className="bi bi-exclamation-triangle-fill" style={{ fontSize: 10 }} /> Thiếu hàng (tồn: {ton})
+                            </span>
+                          )}
+                          {matCheck.hasBOM && (
+                            matCheck.hasShortage ? (
+                              <span style={{ color: "#dc2626", background: "rgba(220, 38, 38, 0.08)", padding: "1px 6px", borderRadius: 4, border: "1px solid rgba(220, 38, 38, 0.25)", fontSize: 10.5, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                                <i className="bi bi-exclamation-octagon-fill" style={{ fontSize: 10 }} /> Không đủ vật tư
+                              </span>
+                            ) : (
+                              <span style={{ color: "#059669", background: "rgba(5, 150, 105, 0.08)", padding: "1px 6px", borderRadius: 4, border: "1px solid rgba(5, 150, 105, 0.25)", fontSize: 10.5, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                                <i className="bi bi-check-circle-fill" style={{ fontSize: 10 }} /> Đủ vật tư SX
+                              </span>
+                            )
+                          )}
+                        </div>
+                      )}
+
+                      {/* Row 3: BOM Code & Details Toggle */}
+                      {hasBOM && (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--muted)", padding: "4px 8px", borderRadius: 6, fontSize: 11 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {(activeDinhMuc?.code || it.bomCode) && (
+                              <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#2563eb", background: "rgba(37, 99, 235, 0.08)", padding: "0 4px", borderRadius: 3 }}>
+                                {activeDinhMuc?.code || it.bomCode}
+                              </span>
+                            )}
+                            {moTaDinhMuc && <span style={{ color: "var(--muted-foreground)" }}>{moTaDinhMuc}</span>}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedBOMRows(prev => ({ ...prev, [it.id]: !prev[it.id] }));
+                            }}
+                            style={{ background: "none", border: "none", color: "var(--primary)", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}
+                          >
+                            {isExpanded ? "Ẩn VT" : "Xem VT"}
+                            <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'}`} />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Row 4: Quantity, Unit, Price, Discount, Total */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, borderTop: "1px dashed var(--border)", paddingTop: 6 }}>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", color: "var(--muted-foreground)", fontSize: 11.5 }}>
+                          <span>SL: <b style={{ color: "var(--foreground)" }}>{it.soLuong}</b> {it.dvt}</span>
+                          <span>×</span>
+                          <span>{fmt(it.donGia)} đ</span>
+                          {it.ckPct > 0 && <span style={{ color: "#f59e0b", fontWeight: 600 }}>(-{it.ckPct}%)</span>}
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: "var(--primary)" }}>
+                            {fmt(thanhTien(it))} ₫
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Expanded BOM materials list */}
+                      {hasBOM && isExpanded && (
+                        <div style={{ background: "rgba(59,130,246,0.03)", borderRadius: 6, padding: "8px 10px", marginTop: 4, border: "1px solid var(--border)" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)" }}>
+                            <span>Vật tư cần ({activeDinhMuc.vatTu?.length || 0})</span>
+                            {matCheck.hasShortage ? (
+                              <span style={{ color: "#dc2626" }}>Thiếu {matCheck.missingCount} loại</span>
+                            ) : (
+                              <span style={{ color: "#059669" }}>Đủ vật tư</span>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            {activeDinhMuc.vatTu && activeDinhMuc.vatTu.length > 0 ? (
+                              activeDinhMuc.vatTu.map((vt: any, vtIdx: number) => {
+                                const vtStocks = vt.stocks || vt.inventoryItem?.stocks || vt.material?.stocks || [];
+                                const vtRelevantStocks = vtStocks.filter((s: any) => {
+                                  const c = s.warehouse?.code?.toUpperCase()?.trim();
+                                  return c === "KHO-CHINH" || c === "KVP" || c === "KHO_CHINH";
+                                });
+                                const vtSoLuong = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuong || 0), 0);
+                                const vtSoLuongGiu = vtRelevantStocks.reduce((acc: number, s: any) => acc + (s.soLuongGiu || 0), 0);
+                                const vtThucTon = Math.max(0, vtSoLuong - vtSoLuongGiu);
+                                const needed = (vt.soLuong || 0) * (it.soLuong || 0);
+                                const isVTOOS = vtThucTon < needed;
+                                const vtName = vt.material?.tenVatTu || vt.inventoryItem?.tenHang || vt.tenVatTu || "Vật tư";
+                                const vtCode = vt.material?.code || vt.inventoryItem?.code || vt.maVatTu || "-";
+                                return (
+                                  <div key={vt.id || vtIdx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, padding: "3px 0", borderBottom: "1px dashed rgba(0,0,0,0.06)" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0, flex: 1 }}>
+                                      <span style={{ fontFamily: "monospace", fontSize: 9.5, color: "var(--muted-foreground)" }}>{vtCode}</span>
+                                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--foreground)" }}>{vtName}</span>
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                                      <span style={{ fontWeight: 600, color: "var(--primary)" }}>{needed} {vt.donViTinh || vt.dvt || ""}</span>
+                                      {isVTOOS ? (
+                                        <span style={{ color: "#ef4444", fontSize: 10, fontWeight: 700 }} title={`Tồn ${vtThucTon}`}>Thiếu {needed - vtThucTon}</span>
+                                      ) : (
+                                        <span style={{ color: "#059669", fontSize: 10 }}>Đủ</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <div style={{ fontSize: 11, color: "var(--muted-foreground)", textAlign: "center" }}>Chưa có chi tiết vật tư</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
 
           {/* Bottom summaries */}
-          <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--card)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: "var(--muted-foreground)" }}>Đã trả:</label>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ position: "relative", width: 140 }}>
-                  <input
-                    type="text"
-                    value={info.daThanhToan ? info.daThanhToan.toLocaleString("vi-VN") : ""}
-                    onChange={(e) => {
-                      const val = Number(e.target.value.replace(/\D/g, ""));
-                      setInfo(f => ({ ...f, daThanhToan: val }));
-                    }}
-                    placeholder="0"
-                    style={{ width: "100%", padding: "6px 28px 6px 12px", border: "1px solid var(--border)", borderRadius: 6, outline: "none", fontSize: 14, fontWeight: 600, color: "var(--foreground)", background: "transparent" }}
-                  />
-                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "var(--muted-foreground)", pointerEvents: "none" }}>₫</span>
+          <div className="order-modal-footer" style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--card)" }}>
+            <div className="order-modal-footer-bottom" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div className="order-modal-footer-payment" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "var(--muted-foreground)" }}>Đã trả:</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ position: "relative", width: 140 }}>
+                    <input
+                      type="text"
+                      value={info.daThanhToan ? info.daThanhToan.toLocaleString("vi-VN") : ""}
+                      onChange={(e) => {
+                        const val = Number(e.target.value.replace(/\D/g, ""));
+                        setInfo(f => ({ ...f, daThanhToan: val }));
+                      }}
+                      placeholder="0"
+                      style={{ width: "100%", padding: "6px 28px 6px 12px", border: "1px solid var(--border)", borderRadius: 6, outline: "none", fontSize: 14, fontWeight: 600, color: "var(--foreground)", background: "transparent" }}
+                    />
+                    <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "var(--muted-foreground)", pointerEvents: "none" }}>₫</span>
+                  </div>
+                  
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>
+                    <input 
+                      type="checkbox" 
+                      checked={info.isChuyenKhoan} 
+                      onChange={(e) => setInfo(f => ({ ...f, isChuyenKhoan: e.target.checked }))}
+                      style={{ cursor: "pointer", width: 14, height: 14, accentColor: "var(--primary)" }}
+                    />
+                    Chuyển khoản
+                  </label>
                 </div>
-                
-                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12, color: "var(--muted-foreground)" }}>
-                  <input 
-                    type="checkbox" 
-                    checked={info.isChuyenKhoan} 
-                    onChange={(e) => setInfo(f => ({ ...f, isChuyenKhoan: e.target.checked }))}
-                    style={{ cursor: "pointer", width: 14, height: 14, accentColor: "var(--primary)" }}
-                  />
-                  Chuyển khoản
-                </label>
+              </div>
+              <div className="order-modal-footer-mobile-grandtotal">
+                <span>TỔNG CỘNG</span>
+                <span>{fmt(tongCong)} ₫</span>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
+
+            <div className="order-modal-footer-totals" style={{ display: "flex", gap: 32, alignItems: "center" }}>
               <div><p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>Tạm tính</p><p style={{ margin: 0, fontWeight: 700 }}>{fmt(tamTinh)} ₫</p></div>
               <div><p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>Khấu trừ</p><p style={{ margin: 0, fontWeight: 700 }}>− {fmt(ckTien)} ₫</p></div>
               <div><p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>Thuế</p><p style={{ margin: 0, fontWeight: 700 }}>+ {fmt(thueTien)} ₫</p></div>
               {info.chiPhiKhac > 0 && <div><p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)" }}>CP khác</p><p style={{ margin: 0, fontWeight: 700 }}>+ {fmt(info.chiPhiKhac)} ₫</p></div>}
-              <div><p style={{ margin: 0, fontSize: 11, color: "var(--primary)" }}>TỔNG CỘNG</p><p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "var(--primary)" }}>{fmt(tongCong)} ₫</p></div>
+              <div className="order-modal-footer-grandtotal"><p style={{ margin: 0, fontSize: 11, color: "var(--primary)" }}>TỔNG CỘNG</p><p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "var(--primary)" }}>{fmt(tongCong)} ₫</p></div>
             </div>
           </div>
         </div>
