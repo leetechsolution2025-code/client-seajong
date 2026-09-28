@@ -12,6 +12,7 @@ const getStatusBadge = (status: DefectStatus | string) => {
     case 'WAITING_APPROVAL': return <span className="badge bg-warning text-dark">Chờ duyệt</span>;
     case 'PROCESSING': return <span className="badge bg-secondary">Đang xử lý</span>;
     case 'WAITING_INVENTORY': return <span className="badge bg-secondary">Đang thực hiện</span>;
+    case 'WAITING_QC': return <span className="badge bg-info-subtle text-info-emphasis border border-info">Chờ QC kiểm tra</span>;
     case 'COMPLETED': return <span className="badge bg-success">Đã xử lý</span>;
     default: return <span className="badge bg-light text-dark">{status || 'Chưa xử lý'}</span>;
   }

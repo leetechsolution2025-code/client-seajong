@@ -303,6 +303,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     const repairPlan = defect.repairPlan || decisionActivity?.description || approval?.note || '';
 
+    const qcInspection = await prisma.qualityInspection.findFirst({
+      where: {
+        OR: [
+          { metadata: { contains: defect.code } },
+          { metadata: { contains: defect.id } }
+        ]
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
     return NextResponse.json({
       ...defect,
       customerName,
@@ -315,6 +325,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       repairPlan,
       selectedBomItemIds,
       editedQuantities,
+      qcInspection,
       mediaUrls: defect.mediaUrls ? JSON.parse(defect.mediaUrls) : []
     });
   } catch (error: any) {

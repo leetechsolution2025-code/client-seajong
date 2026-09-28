@@ -63,17 +63,18 @@ export function DefectDetail({ defectId, onBack }: DefectDetailProps) {
                   <>
                     <StepItem active={true} completed={true} title="Tiếp nhận" icon="bi-headset" />
                     <StepItem active={defect.status === 'NEW'} completed={defect.status !== 'NEW'} title="Phân loại" icon="bi-search" />
-                    <StepItem active={defect.status === 'TECH_EVALUATING'} completed={['WAITING_APPROVAL', 'PROCESSING', 'COMPLETED'].includes(defect.status)} title="Nhận hàng & Đánh giá" icon="bi-box-seam" />
-                    <StepItem active={['WAITING_APPROVAL', 'PROCESSING'].includes(defect.status)} completed={defect.status === 'COMPLETED'} title="Xử lý" icon="bi-tools" />
-                    <StepItem active={false} completed={defect.status === 'COMPLETED'} title="Đổi mới/Trả" icon="bi-truck" />
+                    <StepItem active={defect.status === 'TECH_EVALUATING'} completed={['WAITING_APPROVAL', 'WAITING_INVENTORY', 'PROCESSING', 'WAITING_QC', 'COMPLETED'].includes(defect.status)} title="Nhận hàng & Đánh giá" icon="bi-box-seam" />
+                    <StepItem active={['WAITING_APPROVAL', 'WAITING_INVENTORY', 'PROCESSING'].includes(defect.status)} completed={['WAITING_QC', 'COMPLETED'].includes(defect.status)} title="Xử lý" icon="bi-tools" />
+                    <StepItem active={defect.status === 'WAITING_QC'} completed={defect.status === 'COMPLETED'} title="Kiểm tra QC" icon="bi-shield-check" />
                     <StepItem active={false} completed={defect.status === 'COMPLETED'} title="Hoàn thành" icon="bi-check-circle" />
                   </>
                 ) : (
                   <>
                     <StepItem active={true} completed={true} title="Khai báo" icon="bi-file-earmark-text" />
                     <StepItem active={defect.status === 'TECH_EVALUATING'} completed={defect.status !== 'TECH_EVALUATING' && defect.status !== 'NEW'} title="Đánh giá" icon="bi-tools" />
-                    <StepItem active={defect.status === 'WAITING_APPROVAL'} completed={['PROCESSING', 'COMPLETED'].includes(defect.status)} title="Duyệt phương án" icon="bi-person-check" />
-                    <StepItem active={defect.status === 'PROCESSING'} completed={defect.status === 'COMPLETED'} title="Nhập kho" icon="bi-box-arrow-in-down" />
+                    <StepItem active={defect.status === 'WAITING_APPROVAL'} completed={['WAITING_INVENTORY', 'PROCESSING', 'WAITING_QC', 'COMPLETED'].includes(defect.status)} title="Duyệt phương án" icon="bi-person-check" />
+                    <StepItem active={['WAITING_INVENTORY', 'PROCESSING'].includes(defect.status)} completed={['WAITING_QC', 'COMPLETED'].includes(defect.status)} title="Xử lý" icon="bi-tools" />
+                    <StepItem active={defect.status === 'WAITING_QC'} completed={defect.status === 'COMPLETED'} title="Kiểm tra QC" icon="bi-shield-check" />
                     <StepItem active={false} completed={defect.status === 'COMPLETED'} title="Hoàn thành" icon="bi-check-circle" />
                   </>
                 )}

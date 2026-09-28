@@ -169,33 +169,80 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
           ? items.filter((it: any) => parseInt(it.failQuantity?.toString() || "0", 10) > 0)
           : [];
 
+        const isDefectSource = !!oldMeta.defectId || !!oldMeta.defectCode;
+        const defectQty = Number(oldMeta.quantity) || 1;
+
         const finalPassedQty = passedQuantity !== undefined 
           ? parseInt(passedQuantity.toString(), 10) 
-          : passedItems.reduce((s: number, it: any) => s + parseInt(it.passQuantity?.toString() || "0", 10), 0);
+          : (passedItems.length > 0 
+              ? passedItems.reduce((s: number, it: any) => s + parseInt(it.passQuantity?.toString() || "0", 10), 0)
+              : (isDefectSource && (result === 'Đạt' || !result?.toLowerCase().includes('không')) ? defectQty : 0));
         const finalFailedQty = failedQuantity !== undefined 
           ? parseInt(failedQuantity.toString(), 10) 
-          : failedItems.reduce((s: number, it: any) => s + parseInt(it.failQuantity?.toString() || "0", 10), 0);
-        const defaultItemName = oldMeta.model ? oldMeta.model.split(',')[0].trim() : inspection.productName;
+          : (failedItems.length > 0 
+              ? failedItems.reduce((s: number, it: any) => s + parseInt(it.failQuantity?.toString() || "0", 10), 0)
+              : (isDefectSource && (result === 'Không đạt' || result?.toLowerCase().includes('không')) ? defectQty : 0));
+        const defaultItemName = oldMeta.model ? oldMeta.model.split(',')[0].trim() : (inspection.productName || 'Thành phẩm');
+
+        // Tự động cập nhật hồ sơ lỗi nếu phiếu này liên kết hồ sơ hàng lỗi
+        if (oldMeta.defectId) {
+          const isPassed = result === "Đạt" || (result && result.toLowerCase().includes("đạt") && !result.toLowerCase().includes("không"));
+          await (tx as any).defectRecord.update({
+            where: { id: oldMeta.defectId },
+            data: {
+              status: isPassed ? "COMPLETED" : "PROCESSING",
+              ...(isPassed ? { completionDate: new Date() } : {})
+            }
+          });
+
+          await (tx as any).defectActivity.create({
+            data: {
+              defectId: oldMeta.defectId,
+              action: isPassed ? "QC KẾT LUẬN: ĐẠT" : "QC KẾT LUẬN: KHÔNG ĐẠT",
+              description: `QC kết luận ${result}. Phiếu kiểm định ${inspection.code}. ${isPassed ? 'Tự động tạo lệnh nhập kho thành phẩm (KHO-CHINH) để kết thúc quy trình.' : 'Yêu cầu kỹ thuật khắc phục lại.'}`,
+              oldStatus: "WAITING_QC",
+              newStatus: isPassed ? "COMPLETED" : "PROCESSING",
+              performedBy: session.user?.name || session.user?.email || "Bộ phận QC"
+            }
+          });
+        }
 
         // A. Nhập kho thành phẩm đạt
         if (finalPassedQty > 0) {
           const taskItems = passedItems.length > 0
             ? passedItems.map((it: any) => ({
                 tenHang: it.productName || it.tenHang || defaultItemName,
+                code: it.code || oldMeta.productCode || null,
                 soLuong: parseInt(it.passQuantity?.toString() || "0", 10),
-                donVi: it.donVi || "bộ",
-                type: "Kho Thành Phẩm",
+                donVi: it.donVi || "Bộ",
+                type: "Kho Hàng Hoá (KHO-CHINH)",
+                warehouseCode: "KHO-CHINH",
                 isShortage: false,
                 inventoryItemId: it.inventoryItemId || oldMeta.inventoryItemId || null,
                 bomCode: it.dinhMucCode || it.bomCode || null,
                 dinhMucTen: it.dinhMucTen || null
               }))
-            : [{ tenHang: defaultItemName, soLuong: finalPassedQty, donVi: "bộ", type: "Kho Thành Phẩm", isShortage: false, inventoryItemId: oldMeta.inventoryItemId || null, bomCode: null, dinhMucTen: null }];
+            : [{ 
+                tenHang: defaultItemName, 
+                code: oldMeta.productCode || null,
+                soLuong: finalPassedQty, 
+                donVi: "Bộ", 
+                type: "Kho Hàng Hoá (KHO-CHINH)", 
+                warehouseCode: "KHO-CHINH",
+                isShortage: false, 
+                inventoryItemId: oldMeta.inventoryItemId || null, 
+                bomCode: null, 
+                dinhMucTen: null 
+              }];
 
           await tx.task.create({
             data: {
-              title: `Yêu cầu nhập kho thành phẩm đạt (${inspection.code})`,
-              description: `Kiểm tra OQC đạt yêu cầu theo lệnh sản xuất ${oldMeta.productionOrder || ""}. Đề nghị bộ phận Kho vận tiến hành nhập kho thành phẩm.`,
+              title: isDefectSource
+                ? `Yêu cầu nhập kho thành phẩm đạt sau sửa chữa (${oldMeta.defectCode || inspection.code})`
+                : `Yêu cầu nhập kho thành phẩm đạt (${inspection.code})`,
+              description: isDefectSource
+                ? `Kiểm tra OQC đạt yêu cầu cho hồ sơ hàng lỗi ${oldMeta.defectCode || ""}. Đề nghị bộ phận Kho vận tiếp nhận và nhập kho thành phẩm (KHO-CHINH).`
+                : `Kiểm tra OQC đạt yêu cầu theo lệnh sản xuất ${oldMeta.productionOrder || ""}. Đề nghị bộ phận Kho vận tiến hành nhập kho thành phẩm.`,
               assigneeId,
               creatorId: session.user.id,
               deptCode: "logistics",
@@ -211,8 +258,9 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
           const taskFailedItems = failedItems.length > 0
             ? failedItems.map((it: any) => ({
                 tenHang: `${it.productName || it.tenHang || defaultItemName} (Hàng lỗi)`,
+                code: it.code || oldMeta.productCode || null,
                 soLuong: parseInt(it.failQuantity?.toString() || "0", 10),
-                donVi: it.donVi || "bộ",
+                donVi: it.donVi || "Bộ",
                 type: "Kho Hàng Lỗi",
                 isShortage: false,
                 inventoryItemId: it.inventoryItemId || oldMeta.inventoryItemId || null,
@@ -220,12 +268,27 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
                 bomCode: it.dinhMucCode || it.bomCode || null,
                 dinhMucTen: it.dinhMucTen || null
               }))
-            : [{ tenHang: `${defaultItemName} (Hàng lỗi)`, soLuong: finalFailedQty, donVi: "bộ", type: "Kho Hàng Lỗi", isShortage: false, inventoryItemId: oldMeta.inventoryItemId || null, warehouseCode: "KHO-LOI", bomCode: null, dinhMucTen: null }];
+            : [{ 
+                tenHang: `${defaultItemName} (Hàng lỗi)`, 
+                code: oldMeta.productCode || null,
+                soLuong: finalFailedQty, 
+                donVi: "Bộ", 
+                type: "Kho Hàng Lỗi", 
+                isShortage: false, 
+                inventoryItemId: oldMeta.inventoryItemId || null, 
+                warehouseCode: "KHO-LOI", 
+                bomCode: null, 
+                dinhMucTen: null 
+              }];
 
           await tx.task.create({
             data: {
-              title: `Yêu cầu nhập kho hàng lỗi (${inspection.code})`,
-              description: `Kiểm tra OQC phát hiện sản phẩm lỗi theo lệnh sản xuất ${oldMeta.productionOrder || ""}. Đề nghị bộ phận Kho vận tiến hành nhập kho hàng lỗi.`,
+              title: isDefectSource
+                ? `Yêu cầu nhập kho hàng lỗi sau kiểm tra QC (${oldMeta.defectCode || inspection.code})`
+                : `Yêu cầu nhập kho hàng lỗi (${inspection.code})`,
+              description: isDefectSource
+                ? `Kiểm tra OQC không đạt cho hồ sơ hàng lỗi ${oldMeta.defectCode || ""}. Đề nghị bộ phận Kho vận tiến hành nhập kho hàng lỗi (KHO-LOI).`
+                : `Kiểm tra OQC phát hiện sản phẩm lỗi theo lệnh sản xuất ${oldMeta.productionOrder || ""}. Đề nghị bộ phận Kho vận tiến hành nhập kho hàng lỗi.`,
               assigneeId,
               creatorId: session.user.id,
               deptCode: "logistics",

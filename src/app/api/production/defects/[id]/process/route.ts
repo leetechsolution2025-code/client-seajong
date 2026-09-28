@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getNextQcCode } from '@/lib/genDocCode';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -144,6 +145,174 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         });
         
         await sendWarehouseNotification(tx, `Yêu cầu nhập kho hàng lỗi (${defect.code})`, `Kỹ thuật đã yêu cầu nhập lại ${qty} sản phẩm lỗi từ hồ sơ **${defect.code}**.\n\nVui lòng tiếp nhận và xác nhận nhập kho lỗi (KHO-LOI).`);
+      } else if (action === 'YÊU CẦU QC KIỂM TRA' || nextStatus === 'WAITING_QC') {
+        // Tạo phiếu kiểm tra chất lượng đầu ra (OQC)
+        const qcCode = await getNextQcCode(new Date(), tx);
+
+        await tx.qualityInspection.create({
+          data: {
+            code: qcCode,
+            type: "OQC",
+            status: "Chưa thực hiện",
+            productName: defect.productName,
+            requesterName: performedBy || 'Kỹ thuật viên',
+            requesterDept: 'Kỹ thuật / Sản xuất',
+            executionTime: new Date(),
+            notes: `Kiểm tra OQC đầu ra sau sửa chữa cho hồ sơ ${defect.code}. Nội dung sửa chữa: ${note || defect.repairPlan || ''}`,
+            metadata: JSON.stringify({
+              defectId: id,
+              defectCode: defect.code,
+              productCode: defect.productCode,
+              productName: defect.productName,
+              quantity: defect.quantity || 1,
+              orderNumber: defect.orderNumber,
+              customerName: defect.customerName,
+              repairNote: note || defect.repairPlan,
+              source: "DEFECT_REPAIR"
+            })
+          }
+        });
+
+        // Tìm nhân viên bộ phận QC/QA
+        const qaStaff = await tx.employee.findMany({
+          where: {
+            status: "active",
+            OR: [
+              { departmentCode: { in: ["qa", "qc", "BPCL"] } },
+              { departmentCode: { contains: "chất lượng" } },
+              { departmentName: { contains: "Chất lượng" } },
+              { departmentName: { contains: "chất lượng" } },
+              { position: { contains: "QC" } },
+              { position: { contains: "QA" } }
+            ]
+          },
+          select: { userId: true, position: true }
+        });
+        const qaUserIds = [...new Set(qaStaff.map((u: any) => u.userId).filter(Boolean) as string[])];
+        const qaHead = qaStaff.find((s: any) => (s.position || "").toLowerCase().includes("trưởng") || (s.position || "").toLowerCase().includes("lead"));
+        const defaultQaAssignee = qaHead?.userId || qaUserIds[0] || defaultAssignee;
+
+        // Tạo Task giao cho bộ phận QC
+        await tx.task.create({
+          data: {
+            title: `Kiểm tra chất lượng đầu ra (OQC) - Hồ sơ ${defect.code}`,
+            description: `Kỹ thuật đã hoàn tất sửa chữa hồ sơ ${defect.code} (${defect.productName}, SL: ${defect.quantity || 1} bộ).\n` +
+              `Mã phiếu OQC: ${qcCode}\n` +
+              `Nội dung sửa chữa: ${note || defect.repairPlan || ''}\n` +
+              `Đề nghị bộ phận QC kiểm tra theo quy trình OQC và đưa ra kết luận.`,
+            status: 'pending',
+            priority: 'high',
+            creatorId: 'system',
+            assigneeId: defaultQaAssignee,
+            deptCode: 'qa',
+            actualResult: JSON.stringify([{ qcCode, defectCode: defect.code, productName: defect.productName, quantity: defect.quantity }])
+          }
+        });
+
+        // Gửi thông báo đến bộ phận QC
+        await sendQcNotification(
+          tx,
+          qaUserIds,
+          `🔍 Yêu cầu kiểm tra chất lượng (OQC) - ${defect.code}`,
+          `Kỹ thuật đã hoàn tất sửa chữa sản phẩm cho hồ sơ **${defect.code}** (${defect.productName}). Vui lòng tiến hành kiểm tra chất lượng theo phiếu OQC **${qcCode}**.`
+        );
+      } else if (action === 'QC KẾT LUẬN: ĐẠT') {
+        // Cập nhật phiếu QualityInspection
+        const qcInspection = await tx.qualityInspection.findFirst({
+          where: {
+            OR: [
+              { metadata: { contains: defect.code } },
+              { metadata: { contains: id } }
+            ]
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        if (qcInspection) {
+          await tx.qualityInspection.update({
+            where: { id: qcInspection.id },
+            data: {
+              status: "Đã hoàn thành",
+              result: "Đạt",
+              inspectorName: performedBy || "Bộ phận QC",
+              notes: note || "Kiểm tra chất lượng đầu ra đạt tiêu chuẩn xuất xưởng sau sửa chữa."
+            }
+          });
+
+          // Hoàn thành các công việc Task của QC
+          const qcTasks = await tx.task.findMany({
+            where: {
+              deptCode: "qa",
+              status: { in: ["pending", "in_progress", "todo"] },
+              description: { contains: defect.code }
+            }
+          });
+          for (const t of qcTasks) {
+            await tx.task.update({
+              where: { id: t.id },
+              data: {
+                status: "completed",
+                actualResult: JSON.stringify([{ msg: `QC đánh giá Đạt. Hồ sơ: ${defect.code}`, date: new Date().toISOString() }])
+              }
+            });
+          }
+        }
+
+        // TỰ ĐỘNG PHÁT SINH LỆNH NHẬP KHO THÀNH PHẨM (KHO-CHINH)
+        const passedQty = Number(defect.quantity) || 1;
+        const warehouseItems = [{
+          tenHang: defect.productName || "Thành phẩm",
+          code: defect.productCode,
+          soLuong: passedQty,
+          qty: passedQty,
+          donVi: "Bộ",
+          type: "Kho Hàng Hoá (KHO-CHINH)",
+          warehouseCode: "KHO-CHINH",
+          isShortage: false
+        }];
+
+        await tx.task.create({
+          data: {
+            title: `Yêu cầu nhập kho thành phẩm đạt sau sửa chữa (${defect.code})`,
+            description: `Kiểm tra OQC đạt yêu cầu cho hồ sơ hàng lỗi ${defect.code} (${defect.productName}, SL: ${passedQty} bộ).\n` +
+              `Đề nghị bộ phận Kho vận tiếp nhận và nhập kho thành phẩm (KHO-CHINH).\n` +
+              `Ghi chú: ${note || 'Đạt tiêu chuẩn xuất xưởng sau sửa chữa'}`,
+            status: 'pending',
+            priority: 'high',
+            creatorId: 'system',
+            assigneeId: defaultAssignee,
+            deptCode: 'logistics',
+            actualResult: JSON.stringify(warehouseItems)
+          }
+        });
+
+        await sendWarehouseNotification(
+          tx,
+          `Yêu cầu nhập kho thành phẩm đạt sau sửa chữa (${defect.code})`,
+          `QC đã kết luận kiểm tra OQC ĐẠT cho hồ sơ hàng lỗi **${defect.code}** (${defect.productName}, SL: ${passedQty} bộ).\n\nVui lòng tiếp nhận và nhập lại kho thành phẩm (KHO-CHINH).`
+        );
+      } else if (action === 'QC KẾT LUẬN: KHÔNG ĐẠT') {
+        const qcInspection = await tx.qualityInspection.findFirst({
+          where: {
+            OR: [
+              { metadata: { contains: defect.code } },
+              { metadata: { contains: id } }
+            ]
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        if (qcInspection) {
+          await tx.qualityInspection.update({
+            where: { id: qcInspection.id },
+            data: {
+              status: "Đã hoàn thành",
+              result: "Không đạt",
+              inspectorName: performedBy || "Bộ phận QC",
+              notes: note || "Kiểm tra chất lượng đầu ra không đạt. Cần xử lý lại."
+            }
+          });
+        }
       }
     });
 
@@ -195,3 +364,31 @@ async function sendWarehouseNotification(tx: any, title: string, content: string
     );
   }
 }
+
+async function sendQcNotification(tx: any, userIds: string[], title: string, content: string) {
+  if (userIds.length === 0) return;
+  const adminUser = await tx.user.findFirst({ select: { id: true } });
+  const creatorId = adminUser?.id;
+  if (!creatorId) return;
+
+  const notif = await tx.notification.create({
+    data: {
+      title,
+      content,
+      type: "info",
+      priority: "high",
+      audienceType: "group",
+      audienceValue: JSON.stringify(userIds),
+      createdById: creatorId,
+    }
+  });
+
+  await Promise.all(
+    userIds.map(uid =>
+      tx.notificationRecipient.create({
+        data: { notificationId: notif.id, userId: uid }
+      })
+    )
+  );
+}
+

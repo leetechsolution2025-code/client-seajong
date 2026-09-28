@@ -18,6 +18,7 @@ const STATUS_LABELS: Record<string, string> = {
   WAITING_APPROVAL: 'Chờ duyệt',
   WAITING_INVENTORY: 'Chờ kho',
   PROCESSING: 'Đang xử lý',
+  WAITING_QC: 'Chờ QC kiểm tra',
   COMPLETED: 'Hoàn tất'
 };
 
@@ -77,8 +78,8 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
   if (!defectId) return null;
 
   const handleProcess = async (action: string, nextStatus: string, bomUpdates?: any[], customReturnQty?: number) => {
-    const finalNote = note || defect?.repairPlan || (action === 'TIẾP TỤC XỬ LÝ' || action === 'NHẬN LINH KIỆN & XỬ LÝ' ? 'Tiếp tục xử lý sau khi kho xuất vật tư' : '');
-    if (!finalNote && action !== 'ĐÓNG HỒ SƠ' && action !== 'HOÀN THÀNH') {
+    const finalNote = note || defect?.repairPlan || (action === 'TIẾP TỤC XỬ LÝ' || action === 'NHẬN LINH KIỆN & XỬ LÝ' ? 'Tiếp tục xử lý sau khi kho xuất vật tư' : (action === 'QC KẾT LUẬN: ĐẠT' ? 'QC kiểm tra đạt yêu cầu kỹ thuật' : ''));
+    if (!finalNote && action !== 'ĐÓNG HỒ SƠ' && action !== 'HOÀN THÀNH' && action !== 'QC KẾT LUẬN: ĐẠT') {
       toast.warning('Thiếu thông tin', 'Vui lòng nhập báo cáo nội dung xử lý!');
       return;
     }
@@ -502,16 +503,95 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                             {defect.status === 'PROCESSING' && (
                               <div className="d-flex flex-column h-100 justify-content-center gap-3">
                                 <div className="p-3 bg-light rounded-3 border">
-                                  <div className="d-flex align-items-center justify-content-between">
+                                  <div className="d-flex align-items-center justify-content-between mb-2">
                                     <span className="small text-muted">Phương án xử lý:</span>
-                                    <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                                      {resolution || defect.resolution || 'Đang xử lý'}
+                                    <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                      {resolution || defect.resolution || 'Thay linh kiện'}
                                     </span>
                                   </div>
+                                  <div className="d-flex align-items-center justify-content-between small text-muted">
+                                    <span>Bước tiếp theo:</span>
+                                    <span className="fw-semibold text-dark">
+                                      Kiểm tra chất lượng đầu ra (OQC)
+                                    </span>
+                                  </div>
+                                  <div className="mt-2 pt-2 border-top small text-muted d-flex align-items-center gap-2">
+                                    <i className="bi bi-info-circle text-primary fs-6"></i>
+                                    <span>Sau khi sửa chữa/thay thế xong, gửi yêu cầu để bộ phận QC kiểm định chất lượng trước khi nhập kho.</span>
+                                  </div>
                                 </div>
-                                <button className="btn btn-success fw-bold rounded-pill shadow-sm py-2" disabled={isSubmitting} onClick={() => handleProcess('HOÀN THÀNH', 'COMPLETED')}>
-                                  <i className="bi bi-check2-circle me-1"></i> Hoàn thành
+                                <button 
+                                  className="btn btn-primary fw-bold rounded-pill shadow-sm py-2 d-flex align-items-center justify-content-center gap-2" 
+                                  disabled={isSubmitting} 
+                                  onClick={() => handleProcess('YÊU CẦU QC KIỂM TRA', 'WAITING_QC')}
+                                >
+                                  <i className="bi bi-shield-check fs-5"></i>
+                                  <span>Thông báo QC kiểm tra (OQC)</span>
                                 </button>
+                              </div>
+                            )}
+
+                            {defect.status === 'WAITING_QC' && (
+                              <div className="d-flex flex-column h-100 justify-content-center gap-3">
+                                <div className="p-3 bg-light rounded-3 border">
+                                  <div className="d-flex align-items-center justify-content-between mb-2">
+                                    <span className="small text-muted">Trạng thái kiểm định:</span>
+                                    <span className="badge bg-info-subtle text-info-emphasis border border-info px-2 py-1">
+                                      <i className="bi bi-hourglass-split me-1"></i> Chờ QC kiểm tra
+                                    </span>
+                                  </div>
+                                  {defect.qcInspection ? (
+                                    <div className="d-flex align-items-center justify-content-between small text-muted mb-1">
+                                      <span>Phiếu kiểm tra OQC:</span>
+                                      <div className="d-flex align-items-center gap-1">
+                                        <span className="fw-semibold text-dark">
+                                          {defect.qcInspection.code}
+                                        </span>
+                                        <span className={`badge ${defect.qcInspection.status === 'Đã hoàn thành' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning-emphasis'}`}>
+                                          {defect.qcInspection.status}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          className="btn btn-link btn-sm p-0 text-muted ms-1"
+                                          title="Kiểm tra lại trạng thái QC"
+                                          onClick={() => mutate()}
+                                        >
+                                          <i className="bi bi-arrow-clockwise"></i>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="small text-muted mb-1">
+                                      Đã gửi thông báo đến bộ phận QC kiểm tra.
+                                    </div>
+                                  )}
+                                  <div className="mt-2 pt-2 border-top small text-muted d-flex align-items-center gap-2">
+                                    <i className="bi bi-shield-exclamation text-info fs-6"></i>
+                                    <span>QC kết luận ĐẠT sẽ tự động phát sinh lệnh nhập kho thành phẩm (KHO-CHINH) để kết thúc quy trình.</span>
+                                  </div>
+                                </div>
+
+                                <div className="d-flex flex-column gap-2">
+                                  <button 
+                                    className="btn btn-success fw-bold rounded-pill shadow-sm py-2 d-flex align-items-center justify-content-center gap-2" 
+                                    disabled={isSubmitting} 
+                                    onClick={() => handleProcess('QC KẾT LUẬN: ĐẠT', 'COMPLETED')}
+                                    title="QC đánh giá Đạt, tự động tạo lệnh nhập kho thành phẩm và hoàn tất hồ sơ"
+                                  >
+                                    <i className="bi bi-check2-circle fs-5"></i>
+                                    <span>QC Kết luận: ĐẠT (Tự động nhập kho)</span>
+                                  </button>
+                                  
+                                  <button 
+                                    className="btn btn-outline-danger fw-semibold rounded-pill shadow-sm py-2 d-flex align-items-center justify-content-center gap-2" 
+                                    disabled={isSubmitting} 
+                                    onClick={() => handleProcess('QC KẾT LUẬN: KHÔNG ĐẠT', 'PROCESSING')}
+                                    title="QC đánh giá Không đạt, chuyển lại kỹ thuật viên để tiếp tục sửa chữa"
+                                  >
+                                    <i className="bi bi-arrow-counterclockwise fs-5"></i>
+                                    <span>QC Kết luận: KHÔNG ĐẠT (Xử lý lại)</span>
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
