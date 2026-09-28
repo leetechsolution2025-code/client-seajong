@@ -37,7 +37,14 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
   const [showOffcanvas, setShowOffcanvas] = useState(false);
   const [selectedBomItemIds, setSelectedBomItemIds] = useState<Set<string>>(new Set());
   const [editedQuantities, setEditedQuantities] = useState<Record<string, number>>({});
+  const [returnQty, setReturnQty] = useState<number>(1);
   const toast = useToast();
+
+  useEffect(() => {
+    if (defect?.quantity) {
+      setReturnQty(Number(defect.quantity) || 1);
+    }
+  }, [defect?.quantity]);
 
   useEffect(() => {
     if (selectedBomItemIds.size === 0 && (resolution === 'Thay linh kiện' || resolution === 'Phân rã thu hồi vật tư linh kiện')) {
@@ -47,7 +54,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
 
   if (!defectId) return null;
 
-  const handleProcess = async (action: string, nextStatus: string, bomUpdates?: any[]) => {
+  const handleProcess = async (action: string, nextStatus: string, bomUpdates?: any[], customReturnQty?: number) => {
     if (!note && action !== 'ĐÓNG HỒ SƠ') {
       toast.warning('Thiếu thông tin', 'Vui lòng nhập báo cáo nội dung xử lý!');
       return;
@@ -63,7 +70,8 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
           nextStatus,
           note,
           performedBy: session?.user?.name || 'Hệ thống',
-          bomUpdates
+          bomUpdates,
+          returnQty: customReturnQty ?? returnQty
         })
       });
       
@@ -365,6 +373,37 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                     );
                                   })}
                                 </div>
+
+                                {resolution === 'Nhập lại kho' && (
+                                  <div className="p-3 bg-light border border-primary border-opacity-25 rounded-3 mt-2">
+                                    <div className="d-flex align-items-center justify-content-between">
+                                      <div>
+                                        <div className="fw-semibold text-dark" style={{ fontSize: '13px' }}>
+                                          <i className="bi bi-box-arrow-in-down text-primary me-1"></i> Số lượng nhập lại kho:
+                                        </div>
+                                        <div className="text-muted" style={{ fontSize: '11px' }}>
+                                          Khách trả: {defect?.quantity || 1} bộ sản phẩm
+                                        </div>
+                                      </div>
+                                      <div className="d-flex align-items-center gap-1">
+                                        <input 
+                                          type="number" 
+                                          className="form-control form-control-sm text-center fw-bold text-primary" 
+                                          style={{ width: '80px', fontSize: '13px' }}
+                                          min={1} 
+                                          max={defect?.quantity || 1}
+                                          value={returnQty}
+                                          onChange={(e) => {
+                                            const val = parseInt(e.target.value) || 1;
+                                            const max = defect?.quantity ? Number(defect.quantity) : 1;
+                                            setReturnQty(Math.min(max, Math.max(1, val)));
+                                          }}
+                                        />
+                                        <span className="text-muted small">Bộ</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
 
@@ -473,7 +512,14 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
         open={showConfirm}
         title="Xác nhận xử lý lỗi"
         message={
-          <p className="mb-0">Bạn có chắc chắn muốn thực hiện xử lý lỗi với phương án <strong>{resolution}</strong>?</p>
+          <div>
+            <p className="mb-2">Bạn có chắc chắn muốn thực hiện xử lý lỗi với phương án <strong>{resolution}</strong>?</p>
+            {resolution === 'Nhập lại kho' && (
+              <p className="mb-0 text-primary small fw-semibold">
+                <i className="bi bi-box-arrow-in-down me-1"></i> Số lượng nhập kho hàng lỗi: <strong>{returnQty}</strong> bộ
+              </p>
+            )}
+          </div>
         }
         confirmLabel="Xác nhận xử lý"
         cancelLabel="Đóng"
@@ -484,7 +530,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
           const nextStatus = (resolution === 'Thay linh kiện' || resolution === 'Huỷ bỏ thay thế bằng hàng hoá mới' || resolution === 'Nhập lại kho') 
             ? 'WAITING_INVENTORY' 
             : (resolution === 'Sửa chữa tại chỗ' ? 'COMPLETED' : 'PROCESSING');
-          handleProcess(`QUYẾT ĐỊNH: ${resolution.toUpperCase()}`, nextStatus);
+          handleProcess(`QUYẾT ĐỊNH: ${resolution.toUpperCase()}`, nextStatus, undefined, returnQty);
         }}
         onCancel={() => setShowConfirm(false)}
       />

@@ -295,3 +295,50 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const body = await req.json();
+    const ids: string[] = body.ids || (body.id ? [body.id] : []);
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: 'Danh sách ID không hợp lệ' }, { status: 400 });
+    }
+
+    const defects = await (prisma as any).defectRecord.findMany({
+      where: { id: { in: ids } }
+    });
+
+    for (const defect of defects) {
+      if (defect.mediaUrls) {
+        try {
+          const urls: string[] = JSON.parse(defect.mediaUrls);
+          urls.forEach((url: string) => {
+            if (url.startsWith('/uploads/defects/')) {
+              const filePath = path.join(process.cwd(), 'public', url);
+              if (fs.existsSync(filePath)) {
+                try {
+                  fs.unlinkSync(filePath);
+                } catch (err) {}
+              }
+            }
+          });
+        } catch (e) {}
+      }
+    }
+
+    await (prisma as any).defectActivity.deleteMany({
+      where: { defectId: { in: ids } }
+    });
+
+    await (prisma as any).defectRecord.deleteMany({
+      where: { id: { in: ids } }
+    });
+
+    return NextResponse.json({ success: true, count: ids.length });
+  } catch (error: any) {
+    console.error('Error deleting defects:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+

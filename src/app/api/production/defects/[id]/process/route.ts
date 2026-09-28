@@ -109,11 +109,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           }
         });
       } else if (action === 'QUYẾT ĐỊNH: NHẬP LẠI KHO') {
+        const qty = Number(body.returnQty) > 0 
+          ? Number(body.returnQty) 
+          : (Number(defect.quantity) > 0 ? Number(defect.quantity) : 1);
+
         const actualResultItems = [{
           tenHang: defect.productName || "Thành phẩm",
-          soLuong: 1,
+          code: defect.productCode,
+          soLuong: qty,
+          qty: qty,
           donVi: "Bộ",
           type: "Kho Hàng Lỗi (KHO-LOI)",
+          warehouseCode: "KHO-LOI",
           isShortage: false
         }];
 
@@ -123,6 +130,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             description: `Yêu cầu nhập lại thành phẩm lỗi về kho.\n` +
               `Hồ sơ: ${defect.code}\n` +
               `Sản phẩm: ${defect.productName}\n` +
+              `Số lượng: ${qty}\n` +
               `Ghi chú: ${note}`,
             status: 'pending',
             priority: 'high',
@@ -133,7 +141,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           }
         });
         
-        await sendWarehouseNotification(tx, `Yêu cầu nhập kho thành phẩm lỗi (${defect.code})`, `Kỹ thuật đã yêu cầu nhập lại thành phẩm lỗi nguyên chiếc từ hồ sơ **${defect.code}**.\n\nVui lòng tiếp nhận và xác nhận nhập kho lỗi (KHO-LOI).`);
+        await sendWarehouseNotification(tx, `Yêu cầu nhập kho thành phẩm lỗi (${defect.code})`, `Kỹ thuật đã yêu cầu nhập lại ${qty} thành phẩm lỗi nguyên chiếc từ hồ sơ **${defect.code}**.\n\nVui lòng tiếp nhận và xác nhận nhập kho lỗi (KHO-LOI).`);
       }
     });
 

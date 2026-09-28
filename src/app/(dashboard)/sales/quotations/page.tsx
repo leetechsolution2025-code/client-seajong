@@ -17,6 +17,8 @@ import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { OmnichannelContent } from "../omnichannel/page";
 import { CreateDefectOffcanvas } from "../../production/defects/components/CreateDefectOffcanvas";
+import { DefectSummaryOffcanvas } from "../../production/defects/components/DefectSummaryOffcanvas";
+import { TableFooter } from "@/components/ui/TableFooter";
 
 interface Quotation {
   id: string;
@@ -142,10 +144,17 @@ export function QuotationsContent() {
 
   // Step 4: Returns state
   const [returnStatusFilter, setReturnStatusFilter] = useState("");
+  const [returnSourceFilter, setReturnSourceFilter] = useState("");
+  const [returnTimeFilter, setReturnTimeFilter] = useState("");
   const [returnSearchTerm, setReturnSearchTerm] = useState("");
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
-  const [returns, setReturns] = useState<any[]>([]);
+  const [rawReturns, setRawReturns] = useState<any[]>([]);
   const [returnsLoading, setReturnsLoading] = useState(false);
+  const [selectedReturnId, setSelectedReturnId] = useState<string | null>(null);
+  const [selectedReturnIds, setSelectedReturnIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteReturns, setConfirmDeleteReturns] = useState(false);
+  const [isDeletingReturns, setIsDeletingReturns] = useState(false);
+  const [returnPage, setReturnPage] = useState(1);
 
   useEffect(() => {
     if (isManager) {
@@ -338,7 +347,7 @@ export function QuotationsContent() {
       if (res.ok) {
         const data = await res.json();
         // Lọc các hồ sơ hàng trả về (source = RETURN), bảo hành từ khách hoặc do Kinh doanh/Giám đốc tạo
-        let items = data.filter((d: any) => 
+        const items = data.filter((d: any) => 
           d.source === 'RETURN' ||
           Boolean(d.customerId) ||
           Boolean(d.orderNumber) ||
@@ -346,19 +355,7 @@ export function QuotationsContent() {
           (d.reporterDepartment || '').toLowerCase().includes('sales') ||
           (d.reporterDepartment || '').toLowerCase().includes('giám đốc')
         );
-        
-        if (returnStatusFilter) {
-          items = items.filter((d: any) => d.status === returnStatusFilter);
-        }
-        if (returnSearchTerm) {
-          items = items.filter((d: any) => 
-            (d.code || '').toLowerCase().includes(returnSearchTerm.toLowerCase()) ||
-            (d.customerName || '').toLowerCase().includes(returnSearchTerm.toLowerCase()) ||
-            (d.orderNumber || '').toLowerCase().includes(returnSearchTerm.toLowerCase())
-          );
-        }
-
-        setReturns(items);
+        setRawReturns(items);
       }
     } catch (e) {
       console.error("Lỗi tải danh sách hàng trả về", e);
@@ -372,7 +369,127 @@ export function QuotationsContent() {
     if (currentStep === 4) {
       fetchReturns();
     }
-  }, [currentStep, returnStatusFilter, returnSearchTerm]);
+  }, [currentStep]);
+
+  const handleDeleteReturns = async () => {
+    if (selectedReturnIds.size === 0) return;
+    setIsDeletingReturns(true);
+    try {
+      const res = await fetch("/api/production/defects", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedReturnIds) }),
+      });
+      if (res.ok) {
+        toast.success("Thành công", `Đã xoá ${selectedReturnIds.size} hồ sơ thành công`);
+        setSelectedReturnIds(new Set());
+        fetchReturns();
+      } else {
+        toast.error("Lỗi", "Không thể xoá các hồ sơ đã chọn");
+      }
+    } catch (e) {
+      console.error("Lỗi xoá hồ sơ", e);
+      toast.error("Lỗi", "Có lỗi xảy ra khi xoá hồ sơ");
+    } finally {
+      setIsDeletingReturns(false);
+      setConfirmDeleteReturns(false);
+    }
+  };
+
+  const filteredReturns = useMemo(() => {
+    let list = rawReturns;
+    if (returnStatusFilter) {
+      if (returnStatusFilter === "NEW") {
+        list = list.filter((d: any) => d.status === "NEW");
+      } else if (returnStatusFilter === "PROCESSING") {
+        list = list.filter((d: any) =>
+          ["TECH_EVALUATING", "WAITING_APPROVAL", "PROCESSING", "WAITING_INVENTORY", "WAITING_RETURN", "SHIPPING_REPLACEMENT"].includes(d.status)
+        );
+      } else if (returnStatusFilter === "COMPLETED") {
+        list = list.filter((d: any) => d.status === "COMPLETED");
+      } else {
+        list = list.filter((d: any) => d.status === returnStatusFilter);
+      }
+    }
+
+    if (returnSourceFilter) {
+      list = list.filter((d: any) => d.source === returnSourceFilter);
+    }
+
+    if (returnTimeFilter) {
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      list = list.filter((d: any) => {
+        if (!d.createdAt) return false;
+        const itemDate = new Date(d.createdAt);
+        if (returnTimeFilter === "today") {
+          return itemDate >= todayStart;
+        }
+        if (returnTimeFilter === "yesterday") {
+          const yestStart = new Date(todayStart);
+          yestStart.setDate(yestStart.getDate() - 1);
+          return itemDate >= yestStart && itemDate < todayStart;
+        }
+        if (returnTimeFilter === "this_week") {
+          const day = todayStart.getDay();
+          const diff = todayStart.getDate() - (day === 0 ? 6 : day - 1);
+          const weekStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), diff);
+          return itemDate >= weekStart;
+        }
+        if (returnTimeFilter === "last_week") {
+          const day = todayStart.getDay();
+          const diff = todayStart.getDate() - (day === 0 ? 6 : day - 1) - 7;
+          const lastWeekStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), diff);
+          const lastWeekEnd = new Date(todayStart.getFullYear(), todayStart.getMonth(), diff + 7);
+          return itemDate >= lastWeekStart && itemDate < lastWeekEnd;
+        }
+        if (returnTimeFilter === "this_month") {
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          return itemDate >= monthStart;
+        }
+        if (returnTimeFilter === "last_month") {
+          const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+          return itemDate >= lastMonthStart && itemDate < lastMonthEnd;
+        }
+        if (returnTimeFilter === "this_year") {
+          const yearStart = new Date(now.getFullYear(), 0, 1);
+          return itemDate >= yearStart;
+        }
+        return true;
+      });
+    }
+
+    if (returnSearchTerm.trim()) {
+      const term = returnSearchTerm.trim().toLowerCase();
+      list = list.filter((d: any) =>
+        (d.code || "").toLowerCase().includes(term) ||
+        (d.customerName || "").toLowerCase().includes(term) ||
+        (d.customerPhone || "").toLowerCase().includes(term) ||
+        (d.customerAddress || "").toLowerCase().includes(term) ||
+        (d.orderNumber || "").toLowerCase().includes(term) ||
+        (d.productName || "").toLowerCase().includes(term) ||
+        (d.productCode || "").toLowerCase().includes(term) ||
+        (d.description || "").toLowerCase().includes(term)
+      );
+    }
+
+    return list;
+  }, [rawReturns, returnStatusFilter, returnSourceFilter, returnTimeFilter, returnSearchTerm]);
+
+  const RETURN_PAGE_SIZE = 10;
+  const totalReturnPages = Math.max(1, Math.ceil(filteredReturns.length / RETURN_PAGE_SIZE));
+
+  useEffect(() => {
+    if (returnPage > totalReturnPages) {
+      setReturnPage(1);
+    }
+  }, [totalReturnPages, returnPage]);
+
+  const paginatedReturns = useMemo(() => {
+    const start = (returnPage - 1) * RETURN_PAGE_SIZE;
+    return filteredReturns.slice(start, start + RETURN_PAGE_SIZE);
+  }, [filteredReturns, returnPage]);
 
   useEffect(() => {
     if (currentStep === 2) {
@@ -530,15 +647,67 @@ export function QuotationsContent() {
       }
     };
 
+    const isAllSelected = paginatedReturns.length > 0 && paginatedReturns.every(r => selectedReturnIds.has(r.id));
+
     if (isMobile) {
       return [
         {
+          header: (
+            <div onClick={(e) => e.stopPropagation()} className="d-flex justify-content-center">
+              <input
+                type="checkbox"
+                className="form-check-input cursor-pointer"
+                checked={isAllSelected}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setSelectedReturnIds(prev => {
+                    const next = new Set(prev);
+                    if (checked) {
+                      paginatedReturns.forEach(r => next.add(r.id));
+                    } else {
+                      paginatedReturns.forEach(r => next.delete(r.id));
+                    }
+                    return next;
+                  });
+                }}
+              />
+            </div>
+          ),
+          render: (row) => (
+            <div onClick={(e) => e.stopPropagation()} className="d-flex justify-content-center">
+              <input
+                type="checkbox"
+                className="form-check-input cursor-pointer"
+                checked={selectedReturnIds.has(row.id)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setSelectedReturnIds(prev => {
+                    const next = new Set(prev);
+                    if (checked) {
+                      next.add(row.id);
+                    } else {
+                      next.delete(row.id);
+                    }
+                    return next;
+                  });
+                }}
+              />
+            </div>
+          ),
+          width: "36px",
+          align: "center",
+        },
+        {
           header: "Hồ sơ lỗi & Khách hàng",
           render: (row) => (
-            <div className="d-flex flex-column py-1" style={{ minWidth: 0 }}>
+            <div 
+              className="d-flex flex-column py-1 cursor-pointer" 
+              style={{ minWidth: 0 }}
+              onClick={() => setSelectedReturnId(row.id)}
+            >
               <div className="d-flex align-items-center justify-content-between gap-1 mb-1">
                 <div className="d-flex align-items-center gap-1">
-                  <span className="fw-bold text-primary cursor-pointer hover-underline" style={{ fontSize: "12.5px" }}>
+                  <span className="fw-bold text-primary hover-underline" style={{ fontSize: "12.5px" }}>
                     {row.code || "ERR-—"}
                   </span>
                   <span className="badge bg-light border text-dark fw-normal" style={{ fontSize: "10px", padding: "2px 5px" }}>
@@ -574,11 +743,65 @@ export function QuotationsContent() {
 
     return [
       {
+        header: (
+          <div onClick={(e) => e.stopPropagation()} className="d-flex justify-content-center">
+            <input
+              type="checkbox"
+              className="form-check-input cursor-pointer"
+              checked={isAllSelected}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setSelectedReturnIds(prev => {
+                  const next = new Set(prev);
+                  if (checked) {
+                    paginatedReturns.forEach(r => next.add(r.id));
+                  } else {
+                    paginatedReturns.forEach(r => next.delete(r.id));
+                  }
+                  return next;
+                });
+              }}
+            />
+          </div>
+        ),
+        render: (row) => (
+          <div onClick={(e) => e.stopPropagation()} className="d-flex justify-content-center">
+            <input
+              type="checkbox"
+              className="form-check-input cursor-pointer"
+              checked={selectedReturnIds.has(row.id)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setSelectedReturnIds(prev => {
+                  const next = new Set(prev);
+                  if (checked) {
+                    next.add(row.id);
+                  } else {
+                    next.delete(row.id);
+                  }
+                  return next;
+                });
+              }}
+            />
+          </div>
+        ),
+        width: "44px",
+        align: "center",
+      },
+      {
         header: "Mã lỗi",
         render: (row) => {
           return (
             <div>
-              <div className="fw-bold text-primary cursor-pointer hover-underline">{row.code || "ERR-—"}</div>
+              <div 
+                className="fw-bold text-primary cursor-pointer hover-underline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedReturnId(row.id);
+                }}
+              >
+                {row.code || "ERR-—"}
+              </div>
               <div className="mt-1">
                 <span className="badge bg-light border text-dark fw-normal" style={{ fontSize: "0.75rem" }}>
                   {getSourceLabel(row.source)}
@@ -620,7 +843,7 @@ export function QuotationsContent() {
         width: "120px",
       },
     ];
-  }, [isMobile]);
+  }, [isMobile, paginatedReturns, selectedReturnIds]);
 
   const orderColumns: TableColumn<any>[] = useMemo(() => {
     if (isMobile) {
@@ -1187,30 +1410,93 @@ export function QuotationsContent() {
               style={{ minHeight: 0 }}
               header={
                 <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2">
-                  <div className="w-100 w-md-auto" style={{ minWidth: isMobile ? 0 : 180 }}>
-                    <FilterSelect
-                      options={[
-                        { label: "Chưa xử lý", value: "NEW" },
-                        { label: "Đã xử lý", value: "COMPLETED" },
-                      ]}
-                      value={returnStatusFilter}
-                      onChange={setReturnStatusFilter}
-                      placeholder="Tất cả trạng thái"
-                      width={isMobile ? "100%" : 180}
-                    />
-                  </div>
-
-                  {/* Tìm kiếm và Nút tạo mới (cùng hàng trên Mobile, tách 2 phía trên Desktop) */}
-                  <div className="d-flex align-items-center gap-2 flex-grow-1 justify-content-between justify-content-md-end">
-                    <div className="flex-grow-1" style={{ maxWidth: isMobile ? "none" : 300, minWidth: 0 }}>
-                      <SearchInput
-                        placeholder="Tìm kiếm..."
-                        value={returnSearchTerm}
-                        onChange={setReturnSearchTerm}
+                  {/* Bộ lọc bên trái: Trạng thái, Nguồn, Thời gian */}
+                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                    <div style={{ minWidth: isMobile ? 0 : 160, flex: isMobile ? "1 1 calc(50% - 4px)" : "none" }}>
+                      <FilterSelect
+                        options={[
+                          { label: "Chưa xử lý", value: "NEW" },
+                          { label: "Đang thực hiện", value: "PROCESSING" },
+                          { label: "Đã xử lý", value: "COMPLETED" },
+                        ]}
+                        value={returnStatusFilter}
+                        onChange={(val) => {
+                          setReturnStatusFilter(val);
+                          setReturnPage(1);
+                        }}
+                        placeholder="Tất cả trạng thái"
+                        width="100%"
                       />
                     </div>
 
-                    <div className="d-flex align-items-center gap-2 flex-shrink-0 ms-md-auto">
+                    <div style={{ minWidth: isMobile ? 0 : 150, flex: isMobile ? "1 1 calc(50% - 4px)" : "none" }}>
+                      <FilterSelect
+                        options={[
+                          { label: "Hàng trả về", value: "RETURN" },
+                          { label: "Bảo hành", value: "WARRANTY" },
+                          { label: "Nội bộ", value: "INTERNAL" },
+                        ]}
+                        value={returnSourceFilter}
+                        onChange={(val) => {
+                          setReturnSourceFilter(val);
+                          setReturnPage(1);
+                        }}
+                        placeholder="Tất cả nguồn"
+                        width="100%"
+                      />
+                    </div>
+
+                    <div style={{ minWidth: isMobile ? 0 : 140, flex: isMobile ? "1 1 100%" : "none" }}>
+                      <FilterSelect 
+                        options={[
+                          { label: "Hôm nay", value: "today" },
+                          { label: "Hôm qua", value: "yesterday" },
+                          { label: "Tuần này", value: "this_week" },
+                          { label: "Tuần trước", value: "last_week" },
+                          { label: "Tháng này", value: "this_month" },
+                          { label: "Tháng trước", value: "last_month" },
+                          { label: "Năm nay", value: "this_year" },
+                        ]}
+                        value={returnTimeFilter}
+                        onChange={(val) => {
+                          setReturnTimeFilter(val);
+                          setReturnPage(1);
+                        }}
+                        placeholder="Thời gian"
+                        width="100%"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tìm kiếm và Nút tạo mới bên phải */}
+                  <div className="d-flex align-items-center gap-2 justify-content-between justify-content-md-end flex-wrap flex-md-nowrap ms-md-auto">
+                    <div style={{ width: isMobile ? "100%" : 260, flex: isMobile ? "1 1 100%" : "none" }}>
+                      <SearchInput
+                        placeholder="Tìm mã lỗi, khách hàng..."
+                        value={returnSearchTerm}
+                        onChange={(val) => {
+                          setReturnSearchTerm(val);
+                          setReturnPage(1);
+                        }}
+                      />
+                    </div>
+
+                    <div className="d-flex align-items-center gap-2 flex-shrink-0">
+                      {selectedReturnIds.size > 0 && (
+                        <button
+                          className="btn btn-danger px-2.5 px-md-3 d-flex align-items-center justify-content-center gap-1"
+                          style={{
+                            height: 34,
+                            fontSize: "12.5px",
+                            borderRadius: 8,
+                            fontWeight: 700,
+                            whiteSpace: "nowrap"
+                          }}
+                          onClick={() => setConfirmDeleteReturns(true)}
+                        >
+                          <i className="bi bi-trash" /> {isMobile ? `(${selectedReturnIds.size})` : `Xoá (${selectedReturnIds.size})`}
+                        </button>
+                      )}
                       <button
                         className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
                         style={{
@@ -1234,16 +1520,29 @@ export function QuotationsContent() {
               table={
                 <Table
                   columns={returnColumns}
-                  rows={returns}
+                  rows={paginatedReturns}
                   loading={returnsLoading}
                   rowKey={(row) => row.id}
                   emptyText="Không tìm thấy hồ sơ lỗi nào"
                   compact={true}
                   stickyHeader={true}
+                  onRowClick={(row) => setSelectedReturnId(row.id)}
                   wrapperClassName="mkt-plan-table-no-min"
                   wrapperStyle={{ overflowY: "auto", overflowX: isMobile ? "hidden" : "auto", flex: 1, minHeight: 0 }}
                 />
               }
+              footer={
+                <TableFooter
+                  currentCount={paginatedReturns.length}
+                  totalCount={filteredReturns.length}
+                  itemName="hồ sơ"
+                  page={returnPage}
+                  totalPages={totalReturnPages}
+                  onPageChange={setReturnPage}
+                  className="px-3 py-2 bg-transparent"
+                />
+              }
+              footerStyle={{ padding: "8px 16px", backgroundColor: "#fff" }}
             />
           )}
         </div>
@@ -1468,6 +1767,23 @@ export function QuotationsContent() {
         onClose={() => setIsReturnModalOpen(false)}
         onRefresh={fetchReturns}
         defaultSource="RETURN"
+      />
+
+      <DefectSummaryOffcanvas
+        defectId={selectedReturnId}
+        defect={rawReturns.find((d: any) => d.id === selectedReturnId)}
+        onClose={() => setSelectedReturnId(null)}
+        onRefresh={fetchReturns}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteReturns}
+        title="Xác nhận xoá hồ sơ"
+        message={`Bạn có chắc chắn muốn xoá ${selectedReturnIds.size} hồ sơ hàng trả về đã chọn không? Toàn bộ tập tin đính kèm liên quan cũng sẽ bị xoá. Hành động này không thể hoàn tác.`}
+        confirmLabel={isDeletingReturns ? "Đang xoá..." : "Xoá"}
+        loading={isDeletingReturns}
+        onConfirm={handleDeleteReturns}
+        onCancel={() => setConfirmDeleteReturns(false)}
       />
     </>
   );
