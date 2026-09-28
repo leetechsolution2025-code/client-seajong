@@ -638,12 +638,17 @@ export function QuotationsContent() {
     const getStatusBadge = (status: string) => {
       switch (status) {
         case 'NEW': return <span className="badge bg-primary" style={{ fontSize: 10 }}>Chưa xử lý</span>;
-        case 'TECH_EVALUATING': return <span className="badge bg-info" style={{ fontSize: 10 }}>Đang chẩn đoán</span>;
+        case 'TECH_EVALUATING': return <span className="badge bg-info text-white" style={{ fontSize: 10 }}>Đang chẩn đoán</span>;
         case 'WAITING_APPROVAL': return <span className="badge bg-warning text-dark" style={{ fontSize: 10 }}>Chờ duyệt</span>;
         case 'PROCESSING': return <span className="badge bg-secondary" style={{ fontSize: 10 }}>Đang xử lý</span>;
         case 'WAITING_INVENTORY': return <span className="badge bg-secondary" style={{ fontSize: 10 }}>Đang thực hiện</span>;
+        case 'WAITING_QC': return <span className="badge bg-info-subtle text-info-emphasis border border-info" style={{ fontSize: 10 }}>Chờ QC kiểm tra</span>;
+        case 'WAITING_RETURN': return <span className="badge bg-warning-subtle text-warning-emphasis border border-warning" style={{ fontSize: 10 }}>Chờ thu hồi</span>;
+        case 'SHIPPING_REPLACEMENT': return <span className="badge bg-primary-subtle text-primary border border-primary" style={{ fontSize: 10 }}>Đang giao đổi</span>;
+        case 'RESOLVED_REMOTE': return <span className="badge bg-success-subtle text-success border border-success" style={{ fontSize: 10 }}>Đã HD từ xa</span>;
         case 'COMPLETED': return <span className="badge bg-success" style={{ fontSize: 10 }}>Đã xử lý</span>;
-        default: return <span className="badge bg-light text-dark" style={{ fontSize: 10 }}>{status || 'Chưa xử lý'}</span>;
+        case 'CANCELED': return <span className="badge bg-light text-muted border" style={{ fontSize: 10 }}>Đã huỷ</span>;
+        default: return <span className="badge bg-light text-dark border" style={{ fontSize: 10 }}>{status || 'Chưa xử lý'}</span>;
       }
     };
 
@@ -1416,7 +1421,10 @@ export function QuotationsContent() {
                       <FilterSelect
                         options={[
                           { label: "Chưa xử lý", value: "NEW" },
+                          { label: "Đang chẩn đoán", value: "TECH_EVALUATING" },
+                          { label: "Chờ duyệt", value: "WAITING_APPROVAL" },
                           { label: "Đang thực hiện", value: "PROCESSING" },
+                          { label: "Chờ QC kiểm tra", value: "WAITING_QC" },
                           { label: "Đã xử lý", value: "COMPLETED" },
                         ]}
                         value={returnStatusFilter}
