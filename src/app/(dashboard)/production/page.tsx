@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { StandardPage } from "@/components/layout/StandardPage";
-import { KPICard } from "@/components/ui/KPICard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Pagination } from "@/components/ui/Pagination";
+import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { ProductionOrderDetailOffcanvas } from "@/components/production/ProductionOrderDetailOffcanvas";
 import { CreateProductionRequestOffcanvas } from "@/components/production/CreateProductionRequestOffcanvas";
 
@@ -29,10 +29,7 @@ function StatusBadge({ status }: { status: string }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ProductionDashboardPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [incidents, setIncidents] = useState<any[]>([]);
-  const [kpis, setKpis] = useState({ runningOrders: 0, todayProductionQty: 0, oee: 0, defectRate: 0 });
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [showDetail, setShowDetail] = useState(false);
@@ -71,28 +68,10 @@ export default function ProductionDashboardPage() {
 
   const fetchData = () => {
     fetchOrders();
-
-    fetch("/api/production/dashboard/kpis")
-      .then(res => res.json())
-      .then(data => {
-        if (!data.error) setKpis(data);
-      })
-      .catch(err => console.error("Error fetching KPIs:", err));
-
-    fetch("/api/production/dashboard/incidents")
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setIncidents(data);
-      })
-      .catch(err => console.error("Error fetching incidents:", err));
   };
 
   useEffect(() => {
     fetchData();
-
-    // Giả lập loading
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -107,88 +86,90 @@ export default function ProductionDashboardPage() {
       color="blue"
       useCard={false}
     >
-
-      <div className="row g-3 flex-grow-1" style={{ minHeight: 0 }}>
-        {/* ── Left Column: Orders & Progress ── */}
-        <div className="col-12 d-flex flex-column gap-3">
-          
-          {/* Recent Orders */}
-          <div className="bg-white rounded-4 shadow-sm border p-3 flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
-            <SectionTitle 
-              title="Danh sách lệnh sản xuất" 
-              icon="bi-file-earmark-text-fill" 
-            />
-            <div className="d-flex flex-wrap align-items-center gap-3 mb-3 pb-2 border-bottom">
-              <select 
-                className="form-select form-select-sm shadow-none" 
-                style={{ width: 140, fontSize: 12 }}
-                value={filterStatus}
-                onChange={e => setFilterStatus(e.target.value)}
-              >
-                <option value="">Tất cả trạng thái</option>
-                <option value="pending">Chưa thực hiện</option>
-                <option value="running">Đang thực hiện</option>
-                <option value="completed">Đã hoàn thành</option>
-              </select>
-              <div className="input-group input-group-sm" style={{ width: filterDate && !filterToday ? 154 : 130 }}>
-                <input 
-                  type="date" 
-                  className={`form-control text-muted shadow-none ${filterDate && !filterToday ? 'border-end-0' : ''}`}
-                  style={{ fontSize: 12 }} 
-                  title="Lọc theo thời gian" 
-                  value={filterDate}
-                  onChange={e => setFilterDate(e.target.value)}
-                  disabled={filterToday}
+      <div className="d-flex flex-column h-100 flex-grow-1 overflow-hidden">
+        <div className="bg-white rounded-4 shadow-sm border flex-grow-1 d-flex flex-column overflow-hidden">
+          <FullWidthTableLayout
+            header={
+              <div className="d-flex flex-column gap-2 pt-1 pb-2">
+                <SectionTitle 
+                  title="Danh sách lệnh sản xuất" 
+                  icon="bi-file-earmark-text-fill" 
+                  className="mb-0"
                 />
-                {filterDate && !filterToday && (
-                  <button className="btn btn-outline-secondary border text-muted bg-white" type="button" onClick={() => setFilterDate("")} style={{ padding: "0 6px" }}>
-                    <i className="bi bi-x"></i>
-                  </button>
-                )}
-              </div>
-              <div className="form-check form-switch mb-0">
-                <input 
-                  className="form-check-input shadow-none" 
-                  type="checkbox" 
-                  id="todaySwitch" 
-                  checked={filterToday}
-                  onChange={e => {
-                    setFilterToday(e.target.checked);
-                    if (e.target.checked) setFilterDate("");
-                  }}
-                />
-                <label className="form-check-label text-muted" style={{ fontSize: 12 }} htmlFor="todaySwitch">Hoàn thành hôm nay</label>
-              </div>
-              <div className="d-flex align-items-center gap-2 ms-auto">
-                <div className="input-group input-group-sm" style={{ width: 180 }}>
-                  <span className="input-group-text bg-light border-end-0 text-muted" style={{ paddingRight: 4 }}><i className="bi bi-search"></i></span>
-                  <input 
-                    type="text" 
-                    className="form-control border-start-0 ps-1 bg-light shadow-none" 
-                    style={{ fontSize: 12 }}
-                    placeholder="Tìm kiếm lệnh..." 
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                  />
+                <div className="d-flex flex-wrap align-items-center gap-3">
+                  <select 
+                    className="form-select form-select-sm shadow-none" 
+                    style={{ width: 140, fontSize: 12 }}
+                    value={filterStatus}
+                    onChange={e => setFilterStatus(e.target.value)}
+                  >
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="pending">Chưa thực hiện</option>
+                    <option value="running">Đang thực hiện</option>
+                    <option value="completed">Đã hoàn thành</option>
+                  </select>
+                  <div className="input-group input-group-sm" style={{ width: filterDate && !filterToday ? 154 : 130 }}>
+                    <input 
+                      type="date" 
+                      className={`form-control text-muted shadow-none ${filterDate && !filterToday ? 'border-end-0' : ''}`}
+                      style={{ fontSize: 12 }} 
+                      title="Lọc theo thời gian" 
+                      value={filterDate}
+                      onChange={e => setFilterDate(e.target.value)}
+                      disabled={filterToday}
+                    />
+                    {filterDate && !filterToday && (
+                      <button className="btn btn-outline-secondary border text-muted bg-white" type="button" onClick={() => setFilterDate("")} style={{ padding: "0 6px" }}>
+                        <i className="bi bi-x"></i>
+                      </button>
+                    )}
+                  </div>
+                  <div className="form-check form-switch mb-0">
+                    <input 
+                      className="form-check-input shadow-none" 
+                      type="checkbox" 
+                      id="todaySwitch" 
+                      checked={filterToday}
+                      onChange={e => {
+                        setFilterToday(e.target.checked);
+                        if (e.target.checked) setFilterDate("");
+                      }}
+                    />
+                    <label className="form-check-label text-muted" style={{ fontSize: 12 }} htmlFor="todaySwitch">Hoàn thành hôm nay</label>
+                  </div>
+                  <div className="d-flex align-items-center gap-2 ms-auto">
+                    <div className="input-group input-group-sm" style={{ width: 180 }}>
+                      <span className="input-group-text bg-light border-end-0 text-muted" style={{ paddingRight: 4 }}><i className="bi bi-search"></i></span>
+                      <input 
+                        type="text" 
+                        className="form-control border-start-0 ps-1 bg-light shadow-none" 
+                        style={{ fontSize: 12 }}
+                        placeholder="Tìm kiếm lệnh..." 
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                    <button 
+                      className="btn btn-primary btn-sm d-flex align-items-center justify-content-center shadow-sm hover-shadow-sm transition-all" 
+                      style={{ width: 31, height: 31, padding: 0, borderRadius: 6 }}
+                      title="Tạo yêu cầu sản xuất"
+                      onClick={() => setShowCreateRequest(true)}
+                    >
+                      <i className="bi bi-plus-lg"></i>
+                    </button>
+                  </div>
                 </div>
-                <button 
-                  className="btn btn-primary btn-sm d-flex align-items-center justify-content-center shadow-sm hover-shadow-sm transition-all" 
-                  style={{ width: 31, height: 31, padding: 0, borderRadius: 6 }}
-                  title="Tạo yêu cầu sản xuất"
-                  onClick={() => setShowCreateRequest(true)}
-                >
-                  <i className="bi bi-plus-lg"></i>
-                </button>
               </div>
-            </div>
-            <div className="table-responsive flex-grow-1 overflow-auto">
+            }
+            tableWrapperClassName="border-top"
+            table={
               <table className="table table-hover align-middle mb-0" style={{ fontSize: 13 }}>
                 <thead className="table-light">
                   <tr>
                     <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>MÃ LỆNH</th>
-                    <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>THỜI GIAN</th>
-                    <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>TIẾN ĐỘ</th>
-                    <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11 }}>TRẠNG THÁI</th>
+                    <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11, width: 160 }}>THỜI GIAN</th>
+                    <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11, width: 140 }}>TIẾN ĐỘ</th>
+                    <th className="border-0 bg-transparent text-muted fw-600" style={{ fontSize: 11, width: 130 }}>TRẠNG THÁI</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -256,36 +237,36 @@ export default function ProductionDashboardPage() {
                   )}
                 </tbody>
               </table>
-            </div>
-
-            {/* Pagination Footer */}
-            <div className="pt-3 border-top mt-auto d-flex flex-column flex-sm-row align-items-center justify-content-between gap-2">
-              <div className="d-flex align-items-center gap-2 text-muted" style={{ fontSize: 12 }}>
-                <span>Hiển thị <strong>{recentOrders.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</strong> - <strong>{Math.min(currentPage * pageSize, recentOrders.length)}</strong> trên tổng số <strong>{recentOrders.length}</strong> lệnh</span>
-                <select 
-                  className="form-select form-select-sm ms-1 border-secondary-subtle" 
-                  style={{ width: "auto", fontSize: 12, padding: "2px 24px 2px 8px" }}
-                  value={pageSize}
-                  onChange={e => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                >
-                  <option value={10}>10 lệnh / trang</option>
-                  <option value={20}>20 lệnh / trang</option>
-                  <option value={50}>50 lệnh / trang</option>
-                </select>
+            }
+            footer={
+              <div className="d-flex flex-column flex-sm-row align-items-center justify-content-between gap-2 w-100">
+                <div className="d-flex align-items-center gap-2 text-muted" style={{ fontSize: 12 }}>
+                  <span>Hiển thị <strong>{recentOrders.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</strong> - <strong>{Math.min(currentPage * pageSize, recentOrders.length)}</strong> trên tổng số <strong>{recentOrders.length}</strong> lệnh</span>
+                  <select 
+                    className="form-select form-select-sm ms-1 border-secondary-subtle" 
+                    style={{ width: "auto", fontSize: 12, padding: "2px 24px 2px 8px" }}
+                    value={pageSize}
+                    onChange={e => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <option value={10}>10 lệnh / trang</option>
+                    <option value={20}>20 lệnh / trang</option>
+                    <option value={50}>50 lệnh / trang</option>
+                  </select>
+                </div>
+                <div className="d-flex align-items-center gap-2">
+                  <Pagination 
+                    page={currentPage} 
+                    totalPages={Math.max(1, totalPages)} 
+                    onChange={setCurrentPage} 
+                  />
+                </div>
               </div>
-              <div className="d-flex align-items-center gap-2">
-                <Pagination 
-                  page={currentPage} 
-                  totalPages={Math.max(1, totalPages)} 
-                  onChange={setCurrentPage} 
-                />
-              </div>
-            </div>
-          </div>
-
+            }
+            footerStyle={{ padding: "10px 16px", backgroundColor: "#fff" }}
+          />
         </div>
       </div>
 
