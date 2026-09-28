@@ -74,6 +74,8 @@ export async function GET(_req: NextRequest) {
           OR: [
             { title: { contains: "nhập kho thành phẩm" } },
             { title: { contains: "nhập kho vật tư" } },
+            { title: { contains: "nhập kho thu hồi" } },
+            { title: { contains: "thu hồi" } },
             { title: { contains: "nhập kho hàng lỗi" } },
             { title: { contains: "nhập kho hàng trả lại" } },
             { title: { contains: "hàng trả lại" } }
@@ -188,7 +190,7 @@ export async function GET(_req: NextRequest) {
         id:        t.id,
         code:      t.code,
         type:      "logistics-ticket" as const,
-        typeLabel: t.type === "BATCH_PACKING" ? "Gom hàng & đóng gói" : (t.type === "WARRANTY_MATERIAL" ? "Cấp phát vật tư bảo hành" : "Xuất kho sản xuất"),
+        typeLabel: t.type === "BATCH_PACKING" ? "Gom hàng & đóng gói" : (t.type === "WARRANTY_MATERIAL" || t.defectRecord ? "Cấp phát linh kiện thay thế" : "Xuất kho sản xuất"),
         customer:  t.saleOrder?.customer?.name ?? (t.defectRecord ? `Từ hồ sơ: ${t.defectRecord.code}` : null),
         customerAddress: t.saleOrder?.customer?.address ?? null,
         ghiChu:    t.saleOrder?.ghiChu ?? (t.defectRecord ? `Yêu cầu vật tư cho lỗi ${t.defectRecord.code}` : null),
@@ -306,11 +308,16 @@ export async function GET(_req: NextRequest) {
         const prodOrder = qcProdOrderMap.get(code) || null;
 
         const titleLower = t.title.toLowerCase();
-        const typeLabel = (titleLower.includes("hàng trả lại") || titleLower.includes("trả lại"))
-          ? "Nhập kho hàng trả lại"
-          : (titleLower.includes("hàng lỗi") || titleLower.includes("kho-loi") || titleLower.includes("lỗi"))
-          ? "Nhập kho hàng lỗi" 
-          : (titleLower.includes("thành phẩm") ? "Nhập kho thành phẩm" : "Nhập kho vật tư");
+        let typeLabel = "Nhập kho vật tư";
+        if (titleLower.includes("hàng trả lại") || titleLower.includes("trả lại")) {
+          typeLabel = "Nhập kho hàng trả lại";
+        } else if (titleLower.includes("thu hồi")) {
+          typeLabel = "Nhập kho thu hồi";
+        } else if (titleLower.includes("hàng lỗi") || titleLower.includes("kho-loi") || titleLower.includes("lỗi")) {
+          typeLabel = "Nhập kho hàng lỗi";
+        } else if (titleLower.includes("thành phẩm")) {
+          typeLabel = "Nhập kho thành phẩm";
+        }
 
         return {
           id:        t.id,

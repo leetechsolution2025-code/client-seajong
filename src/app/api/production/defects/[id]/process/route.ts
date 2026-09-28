@@ -60,13 +60,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const defaultAssignee = storekeeperUser?.userId || 'system';
 
       if (action === 'QUYẾT ĐỊNH: THAY LINH KIỆN') {
-        // Mức 2: Kế toán duyệt xuất vật tư thay thế
+        // Mức 2: Cấp phát linh kiện thay thế (Kế toán duyệt xuất vật tư thay thế)
         await tx.approvalRequest.create({
           data: {
             entityType: 'DEFECT_MATERIAL_EXPORT',
             entityId: id,
             entityCode: defect.code,
-            entityTitle: `Yêu cầu xuất vật tư xử lý hàng lỗi cho hồ sơ ${defect.code}`,
+            entityTitle: `Yêu cầu cấp phát linh kiện thay thế cho hồ sơ ${defect.code}`,
             department: 'KẾ TOÁN',
             metadata: JSON.stringify(bomUpdates || {}),
             requestedById: 'system',
@@ -75,18 +75,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           }
         });
       } else if (action === 'QUYẾT ĐỊNH: PHÂN RÃ THU HỒI VẬT TƯ LINH KIỆN') {
+        // Mức 3: Nhập kho thu hồi (KVP)
         const actualResultItems = (bomUpdates || []).map((it: any) => ({
           tenHang: it.name || "Vật tư",
           soLuong: parseInt(it.quantity) || 1,
+          qty: parseInt(it.quantity) || 1,
           donVi: it.unit || "cái",
           type: "Kho Vật Tư Phụ Kiện (KVP)",
+          warehouseCode: "KVP",
+          loaiNhapKho: "Nhập kho thu hồi",
+          isRecall: true,
+          defectCode: defect.code,
           isShortage: false
         }));
 
         await tx.task.create({
           data: {
-            title: `Yêu cầu nhập kho vật tư thu hồi (từ lỗi ${defect.code})`,
-            description: `Yêu cầu nhập lại vật tư/linh kiện phân rã từ quá trình xử lý lỗi.\n` +
+            title: `Yêu cầu nhập kho thu hồi (${defect.code})`,
+            description: `Yêu cầu nhập kho thu hồi vật tư/linh kiện phân rã từ quá trình xử lý lỗi (Mức 3: Phân rã thu hồi vật tư linh kiện).\n` +
               `Hồ sơ: ${defect.code}\n` +
               `Ghi chú: ${note}`,
             status: 'pending',
@@ -98,9 +104,44 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           }
         });
         
-        await sendWarehouseNotification(tx, `Yêu cầu nhập kho vật tư thu hồi (từ lỗi ${defect.code})`, `Kỹ thuật đã yêu cầu nhập lại vật tư/linh kiện phân rã từ hồ sơ lỗi **${defect.code}**.\n\nVui lòng tiếp nhận vật tư và xác nhận nhập kho (KVP).`);
+        await sendWarehouseNotification(tx, `Yêu cầu nhập kho thu hồi (${defect.code})`, `Kỹ thuật đã yêu cầu nhập kho thu hồi vật tư/linh kiện phân rã từ hồ sơ lỗi **${defect.code}** (Mức 3: Phân rã thu hồi vật tư linh kiện).\n\nVui lòng tiếp nhận vật tư và xác nhận lập phiếu nhập kho thu hồi (KVP).`);
       } else if (action === 'QUYẾT ĐỊNH: HUỶ BỎ THAY THẾ BẰNG HÀNG HOÁ MỚI') {
-        // Mức 4: Kế toán duyệt xuất thành phẩm thay thế
+        // Mức 4: Nhập kho hàng lỗi (KHO-LOI) & Cấp mới thành phẩm
+        const qty = defect.quantity || 1;
+        const actualResultItems = [{
+          tenHang: `${defect.productName || "Sản phẩm"} (Hàng lỗi)`,
+          code: defect.productCode,
+          soLuong: qty,
+          qty: qty,
+          donVi: "Bộ",
+          type: "Kho Hàng Lỗi (KHO-LOI)",
+          warehouseCode: "KHO-LOI",
+          loaiNhapKho: "Nhập kho hàng lỗi",
+          isDefect: true,
+          defectCode: defect.code,
+          isShortage: false
+        }];
+
+        await tx.task.create({
+          data: {
+            title: `Yêu cầu nhập kho hàng lỗi (${defect.code})`,
+            description: `Yêu cầu nhập kho hàng lỗi (Xử lý hàng lỗi Mức 4: Huỷ bỏ thay thế bằng hàng mới).\n` +
+              `Hồ sơ: ${defect.code}\n` +
+              `Sản phẩm lỗi: ${defect.productName}\n` +
+              `Số lượng: ${qty}\n` +
+              `Ghi chú: ${note}`,
+            status: 'pending',
+            priority: 'high',
+            creatorId: 'system',
+            assigneeId: defaultAssignee,
+            deptCode: 'logistics',
+            actualResult: JSON.stringify(actualResultItems)
+          }
+        });
+
+        await sendWarehouseNotification(tx, `Yêu cầu nhập kho hàng lỗi (${defect.code})`, `Kỹ thuật đã xác định sản phẩm lỗi không khắc phục được từ hồ sơ **${defect.code}** (Mức 4: Huỷ bỏ thay thế bằng hàng mới).\n\nVui lòng tiếp nhận sản phẩm và lập phiếu nhập kho hàng lỗi vào Kho hàng lỗi (KHO-LOI).`);
+
+        // Kế toán duyệt xuất thành phẩm thay thế
         await tx.approvalRequest.create({
           data: {
             entityType: 'DEFECT_PRODUCT_EXPORT',
@@ -108,6 +149,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             entityCode: defect.code,
             entityTitle: `Yêu cầu xuất hàng hoá mới thay thế cho hồ sơ ${defect.code}`,
             department: 'KẾ TOÁN',
+            metadata: JSON.stringify({
+              productCode: defect.productCode,
+              productName: defect.productName,
+              quantity: qty
+            }),
             requestedById: 'system',
             requestedByName: performedBy || 'Hệ thống',
             note: note

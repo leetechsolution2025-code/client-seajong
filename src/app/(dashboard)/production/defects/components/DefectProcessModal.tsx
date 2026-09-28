@@ -374,11 +374,11 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                 
                                 <div className="d-flex flex-column gap-2 h-100">
                                   {[
-                                    { title: 'Sửa chữa tại chỗ', description: 'Nhân viên kỹ thuật xử lý lỗi tại hiện trường' },
-                                    { title: 'Thay linh kiện', description: 'Chọn linh kiện, vật tư trong bảng định mức để thay thế' },
-                                    { title: 'Phân rã thu hồi vật tư linh kiện', description: 'Chọn linh kiện, vật tư trong bảng định mức để thu hồi' },
-                                    { title: 'Huỷ bỏ thay thế bằng hàng hoá mới', description: 'Tạo yêu cầu xuất kho hàng hoá để thay thế' },
-                                    { title: 'Nhập lại kho', description: 'Tạo yêu cầu nhập kho hàng trả lại' }
+                                    { title: 'Sửa chữa tại chỗ', description: 'Không cần thông báo thông tin (Kỹ thuật xử lý tại chỗ)' },
+                                    { title: 'Thay linh kiện', description: 'Cấp phát linh kiện thay thế từ kho KVP' },
+                                    { title: 'Phân rã thu hồi vật tư linh kiện', description: 'Nhập kho thu hồi vật tư linh kiện vào kho KVP' },
+                                    { title: 'Huỷ bỏ thay thế bằng hàng hoá mới', description: 'Nhập kho hàng lỗi (KHO-LOI) & Cấp mới thành phẩm' },
+                                    { title: 'Nhập lại kho', description: 'Nhập kho hàng trả lại vào Kho hàng lỗi (KHO-LOI)' }
                                   ].map((opt, idx) => {
                                     const isDisabled = selectedBomItemIds.size === 0 && (opt.title === 'Thay linh kiện' || opt.title === 'Phân rã thu hồi vật tư linh kiện');
                                     return (
@@ -445,24 +445,33 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                             )}
 
                             {defect.status === 'WAITING_INVENTORY' && (() => {
-                              const isReturnResolution = (resolution === 'Nhập lại kho' || defect.resolution === 'Nhập lại kho');
+                              const currentRes = resolution || defect.resolution;
+                              const isReturnResolution = (currentRes === 'Nhập lại kho');
+                              const isRecallResolution = (currentRes === 'Phân rã thu hồi vật tư linh kiện');
+                              const isScrapResolution = (currentRes === 'Huỷ bỏ thay thế bằng hàng hoá mới');
+                              const isImportResolution = isReturnResolution || isRecallResolution || isScrapResolution;
 
-                              if (isReturnResolution) {
+                              if (isImportResolution) {
                                 const isImportCompleted = defect.warehouseTask?.status === 'done' || defect.warehouseTask?.status === 'completed';
+                                const importTypeName = isReturnResolution 
+                                  ? 'Nhập kho hàng trả lại' 
+                                  : (isRecallResolution ? 'Nhập kho thu hồi' : 'Nhập kho hàng lỗi');
+                                const whName = isRecallResolution ? 'Kho Vật tư Phụ kiện (KVP)' : 'Kho hàng lỗi (KHO-LOI)';
+
                                 return (
                                   <div className="d-flex flex-column h-100 justify-content-center gap-3">
                                     <div className="p-3 bg-light rounded-3 border">
                                       <div className="d-flex align-items-center justify-content-between mb-2">
                                         <span className="small text-muted">Phương án xử lý:</span>
                                         <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-                                          Nhập lại kho (Nhập kho hàng trả lại)
+                                          {currentRes} ({importTypeName})
                                         </span>
                                       </div>
                                       <div className="d-flex align-items-center justify-content-between small text-muted">
-                                        <span>Lệnh nhập kho hàng trả lại:</span>
+                                        <span>Lệnh {importTypeName.toLowerCase()}:</span>
                                         <div className="d-flex align-items-center gap-1">
                                           <span className={`badge ${isImportCompleted ? 'bg-success-subtle text-success border border-success' : 'bg-warning-subtle text-warning-emphasis border border-warning'}`}>
-                                            {defect.warehouseTask?.title || `Yêu cầu nhập kho hàng trả lại (${defect.code})`} {isImportCompleted ? '• Đã nhập kho' : '• Chờ kho nhập'}
+                                            {defect.warehouseTask?.title || `Yêu cầu ${importTypeName.toLowerCase()} (${defect.code})`} {isImportCompleted ? '• Đã nhập kho' : '• Chờ kho nhập'}
                                           </span>
                                           <button
                                             type="button"
@@ -477,28 +486,28 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                       {!isImportCompleted ? (
                                         <div className="mt-2 pt-2 border-top small text-muted d-flex align-items-center gap-2">
                                           <i className="bi bi-lock-fill text-warning fs-6"></i>
-                                          <span>Nút <strong>Hoàn thành</strong> chỉ mở khoá khi bộ phận kho hoàn tất lập phiếu nhập kho hàng trả lại (KHO-LOI).</span>
+                                          <span>Nút <strong>{isReturnResolution ? 'Hoàn thành' : 'Tiếp tục xử lý'}</strong> chỉ mở khoá khi bộ phận kho hoàn tất lập phiếu {importTypeName.toLowerCase()} ({whName}).</span>
                                         </div>
                                       ) : (
                                         <div className="mt-2 pt-2 border-top small text-success d-flex align-items-center gap-2">
                                           <i className="bi bi-check-circle-fill fs-6"></i>
-                                          <span>Đã hoàn tất nhập kho hàng trả lại vào Kho hàng lỗi. Bạn có thể hoàn thành hồ sơ.</span>
+                                          <span>Đã hoàn tất {importTypeName.toLowerCase()} vào {whName}. Bạn có thể tiếp tục.</span>
                                         </div>
                                       )}
                                     </div>
                                     <button 
-                                      className={`btn ${isImportCompleted ? 'btn-success' : 'btn-secondary'} fw-bold rounded-pill shadow-sm py-2`} 
+                                      className={`btn ${isImportCompleted ? (isReturnResolution ? 'btn-success' : 'btn-primary') : 'btn-secondary'} fw-bold rounded-pill shadow-sm py-2`} 
                                       disabled={!isImportCompleted || isSubmitting} 
-                                      onClick={() => handleProcess('HOÀN THÀNH', 'COMPLETED')}
-                                      title={!isImportCompleted ? 'Chỉ mở khoá khi hoàn tất nhập kho hàng trả lại' : 'Hoàn thành hồ sơ'}
+                                      onClick={() => isReturnResolution ? handleProcess('HOÀN THÀNH', 'COMPLETED') : handleProcess('TIẾP TỤC XỬ LÝ', 'PROCESSING')}
+                                      title={!isImportCompleted ? `Chỉ mở khoá khi hoàn tất ${importTypeName.toLowerCase()}` : (isReturnResolution ? 'Hoàn thành hồ sơ' : 'Tiếp tục xử lý')}
                                     >
                                       {!isImportCompleted ? (
                                         <>
-                                          <i className="bi bi-lock-fill me-1"></i> Hoàn thành
+                                          <i className="bi bi-lock-fill me-1"></i> {isReturnResolution ? 'Hoàn thành' : 'Tiếp tục xử lý'}
                                         </>
                                       ) : (
                                         <>
-                                          <i className="bi bi-check2-circle me-1"></i> Hoàn thành hồ sơ
+                                          <i className={`bi ${isReturnResolution ? 'bi-check2-circle' : 'bi-arrow-right-circle'} me-1`}></i> {isReturnResolution ? 'Hoàn thành hồ sơ' : 'Tiếp tục xử lý'}
                                         </>
                                       )}
                                     </button>
@@ -523,10 +532,10 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                     </div>
                                     {mainTicket ? (
                                       <div className="d-flex align-items-center justify-content-between small text-muted">
-                                        <span>Lệnh xuất kho vật tư:</span>
+                                        <span>Lệnh cấp phát linh kiện:</span>
                                         <div className="d-flex align-items-center gap-1">
                                           <span className={`badge ${isExportCompleted ? 'bg-success-subtle text-success border border-success' : 'bg-warning-subtle text-warning-emphasis border border-warning'}`}>
-                                            {mainTicket.code} {isExportCompleted ? '• Đã xuất kho' : '• Chờ kho xuất'}
+                                            {mainTicket.code} {isExportCompleted ? '• Đã cấp phát' : '• Chờ kho cấp phát'}
                                           </span>
                                           <button
                                             type="button"

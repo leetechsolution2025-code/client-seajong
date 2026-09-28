@@ -15,6 +15,8 @@ export async function GET() {
         OR: [
           { title: { contains: "nhập kho thành phẩm" } },
           { title: { contains: "nhập kho vật tư" } },
+          { title: { contains: "nhập kho thu hồi" } },
+          { title: { contains: "thu hồi" } },
           { title: { contains: "nhập kho hàng lỗi" } },
           { title: { contains: "nhập kho hàng trả lại" } },
           { title: { contains: "hàng trả lại" } }

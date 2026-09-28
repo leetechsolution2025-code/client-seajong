@@ -110,6 +110,10 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
   const [toWarehouseId, setToWarehouseId] = React.useState("");
   const [nguoiThucHien, setNguoiThucHien] = React.useState("");
   const [lyDo, setLyDo] = React.useState(() => {
+    if (initialItems && initialItems.length > 0 && initialItems[0].loaiNhapKho) {
+      const matchErr = initialItems[0].defectCode || (typeof initialItems[0].name === "string" ? initialItems[0].name.match(/(ERR-[\w-]+)/)?.[1] : "");
+      return matchErr ? `${initialItems[0].loaiNhapKho} theo hồ sơ lỗi ${matchErr}` : initialItems[0].loaiNhapKho;
+    }
     if (isInitialReturn) return "Nhập kho hàng trả lại";
     const isDefect = initialItems && initialItems.some((it: any) => 
       it.type === "Kho Hàng Lỗi" || 
@@ -117,10 +121,13 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
       (typeof it.name === "string" && it.name.includes("(Hàng lỗi)")) ||
       (typeof it.tenHang === "string" && it.tenHang.includes("(Hàng lỗi)"))
     );
-    if (isDefect) return "Nhập kho hàng lỗi OQC";
+    if (isDefect) return "Nhập kho hàng lỗi";
     return initialItems && initialItems.length > 0 ? "Nhập kho thành phẩm OQC" : "Nhập kho hàng hoá";
   });
   const [loaiNhapKho, setLoaiNhapKho] = React.useState(() => {
+    if (initialItems && initialItems.length > 0 && initialItems[0].loaiNhapKho) {
+      return initialItems[0].loaiNhapKho;
+    }
     if (isInitialReturn) return "Nhập kho hàng trả lại";
     return initialItems && initialItems.length > 0 ? "Nhập từ sản xuất" : "Nhập mua hàng";
   });
@@ -129,7 +136,11 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
     if (mode === "return") {
       setLoaiNhapKho("Nhập kho hàng trả lại");
     } else if (mode === "production") {
-      setLoaiNhapKho("Nhập từ sản xuất");
+      if (initialItems && initialItems.length > 0 && initialItems[0].loaiNhapKho) {
+        setLoaiNhapKho(initialItems[0].loaiNhapKho);
+      } else {
+        setLoaiNhapKho("Nhập từ sản xuất");
+      }
     } else if (mode === "po") {
       setLoaiNhapKho("Nhập mua hàng");
     }
@@ -380,19 +391,28 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
     const titleLower = (task.title || "").toLowerCase();
     const isReturnTask = titleLower.includes("hàng trả lại") || 
                          titleLower.includes("trả lại") || 
-                         task.title.includes("ERR-") ||
-                         (task.actualResult && (task.actualResult.includes("Nhập kho hàng trả lại") || task.actualResult.includes("KHO-LOI")));
-    const isDefectTask = isReturnTask || titleLower.includes("hàng lỗi") || titleLower.includes("kho-loi");
+                         (task.actualResult && (task.actualResult.includes("Nhập kho hàng trả lại") || task.actualResult.includes("isReturn")));
+    const isRecallTask = titleLower.includes("thu hồi") || 
+                         (task.actualResult && (task.actualResult.includes("Nhập kho thu hồi") || task.actualResult.includes("isRecall")));
+    const isDefectTask = titleLower.includes("hàng lỗi") || 
+                         titleLower.includes("kho-loi") || 
+                         (task.actualResult && (task.actualResult.includes("Nhập kho hàng lỗi") || task.actualResult.includes("isDefect")));
+
+    const matchErr = task.title.match(/(ERR-[\w-]+)/i);
 
     if (isReturnTask) {
       setLoaiNhapKho("Nhập kho hàng trả lại");
-      const matchErr = task.title.match(/(ERR-[\w-]+)/i);
       setLyDo(matchErr ? `Nhập kho hàng trả lại theo hồ sơ lỗi ${matchErr[1]}` : `Nhập kho hàng trả lại: ${task.title.replace("Yêu cầu ", "")}`);
       const khoLoi = warehouses.find(w => w.code === "KHO-LOI");
       if (khoLoi) setToWarehouseId(khoLoi.id);
+    } else if (isRecallTask) {
+      setLoaiNhapKho("Nhập kho thu hồi");
+      setLyDo(matchErr ? `Nhập kho thu hồi theo hồ sơ lỗi ${matchErr[1]}` : `Nhập kho thu hồi: ${task.title.replace("Yêu cầu ", "")}`);
+      const khoKvp = warehouses.find(w => w.code === "KVP");
+      if (khoKvp) setToWarehouseId(khoKvp.id);
     } else if (isDefectTask) {
-      setLoaiNhapKho("Nhập từ sản xuất");
-      setLyDo(`Theo yêu cầu: ${task.title.replace("Yêu cầu ", "")}`);
+      setLoaiNhapKho("Nhập kho hàng lỗi");
+      setLyDo(matchErr ? `Nhập kho hàng lỗi theo hồ sơ lỗi ${matchErr[1]}` : `Nhập kho hàng lỗi: ${task.title.replace("Yêu cầu ", "")}`);
       const khoLoi = warehouses.find(w => w.code === "KHO-LOI");
       if (khoLoi) setToWarehouseId(khoLoi.id);
     } else {
@@ -927,6 +947,8 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
                   >
                     <option value="Nhập mua hàng">Nhập mua hàng</option>
                     <option value="Nhập từ sản xuất">Nhập từ sản xuất</option>
+                    <option value="Nhập kho thu hồi">Nhập kho thu hồi</option>
+                    <option value="Nhập kho hàng lỗi">Nhập kho hàng lỗi</option>
                     <option value="Nhập kho hàng trả lại">Nhập kho hàng trả lại</option>
                     <option value="Nhập hàng hoàn trả">Nhập hàng hoàn trả</option>
                     <option value="Nhập nội bộ">Nhập nội bộ</option>

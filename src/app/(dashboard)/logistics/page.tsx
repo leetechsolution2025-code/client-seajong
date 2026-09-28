@@ -376,20 +376,35 @@ export default function LogisticsOverviewPage() {
 
         const isDefectGroup = orderCode.startsWith('ERR-') || orderCode.startsWith('WR-');
 
+        // Phân biệt chính xác loại nhập kho cho hồ sơ lỗi: Thu hồi, Hàng lỗi, Hàng trả lại
+        let defectImportType = "hàng lỗi";
+        if (isDefectGroup && isGroupImport) {
+          const firstItem = items[0];
+          const tLabel = (firstItem?.typeLabel || "").toLowerCase();
+          const itTitle = (firstItem?.title || firstItem?.code || "").toLowerCase();
+          if (tLabel.includes("hàng trả lại") || itTitle.includes("hàng trả lại") || itTitle.includes("trả lại")) {
+            defectImportType = "hàng trả lại";
+          } else if (tLabel.includes("thu hồi") || itTitle.includes("thu hồi")) {
+            defectImportType = "thu hồi";
+          } else {
+            defectImportType = "hàng lỗi";
+          }
+        }
+
         let groupStatusText = isGroupImport 
-          ? (isDefectGroup ? "Chưa nhập kho lỗi" : "Chưa nhập kho") 
-          : (isDefectGroup ? "Chưa cấp phát" : "Chưa xuất kho");
+          ? (isDefectGroup ? `Chưa nhập kho ${defectImportType}` : "Chưa nhập kho") 
+          : (isDefectGroup ? "Chưa cấp phát linh kiện" : "Chưa xuất kho");
         let groupStatusColor = "bg-secondary text-white";
         
         if (totalTickets > 0) {
           if (allExported) {
             groupStatusText = isGroupImport 
-              ? (isDefectGroup ? "Đã nhập kho lỗi" : "Đã nhập kho") 
-              : (isDefectGroup ? "Đã cấp phát vật tư" : "Đã xuất kho");
+              ? (isDefectGroup ? `Đã nhập kho ${defectImportType}` : "Đã nhập kho") 
+              : (isDefectGroup ? "Đã cấp phát linh kiện" : "Đã xuất kho");
             groupStatusColor = "bg-success text-white";
           } else if (isDefectGroup) {
             if (completedCount > 0) {
-              groupStatusText = "Đang cấp phát vật tư";
+              groupStatusText = isGroupImport ? `Đang nhập kho ${defectImportType}` : "Đang cấp phát linh kiện";
               groupStatusColor = "bg-warning text-dark";
             }
           } else if (!isGroupImport) {

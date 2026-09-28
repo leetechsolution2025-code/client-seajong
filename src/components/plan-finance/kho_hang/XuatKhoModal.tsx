@@ -485,8 +485,8 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
     const def = defects.find(d => d.id === id || d.code === id) ?? null;
     setSelectedDefect(def);
     if (def) {
-      setLyDo(`Xuất vật tư xử lý hồ sơ lỗi ${def.code}`);
-      setLoaiXuatKho("Xuất vật tư bảo hành");
+      setLyDo(`Cấp phát linh kiện thay thế theo hồ sơ lỗi ${def.code}`);
+      setLoaiXuatKho("Cấp phát linh kiện thay thế");
       loadItemsFromDefect(def);
     }
   };
@@ -1088,6 +1088,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
                       style={{ ...CSS.input, appearance: "none", opacity: locked ? 0.65 : 1, cursor: locked ? "not-allowed" : "pointer" }}>
                       <option value="Xuất bán hàng">Xuất bán hàng</option>
                       <option value="Xuất sản xuất">Xuất sản xuất</option>
+                      <option value="Cấp phát linh kiện thay thế">Cấp phát linh kiện thay thế</option>
                       <option value="Xuất vật tư bảo hành">Xuất vật tư bảo hành</option>
                       <option value="Xuất trả nhà cung cấp">Xuất trả nhà cung cấp</option>
                       <option value="Xuất huỷ/hao hụt">Xuất huỷ / hao hụt</option>

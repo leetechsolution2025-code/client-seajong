@@ -767,8 +767,8 @@ async function syncEntityStatus(
               
               const uniqueStorekeeperIds = [...new Set(storekeepers.map(s => s.userId).filter(Boolean) as string[])];
               if (uniqueStorekeeperIds.length > 0) {
-                const title = `📦 Yêu cầu xuất/nhập vật tư bảo hành`;
-                const content = `Phiếu kho **${ticketCode}** vừa được tạo tự động từ hồ sơ bảo hành **${defect.code}** (đã được kế toán duyệt).\n\nVui lòng kiểm tra và xử lý cấp phát vật tư!`;
+                const title = `📦 Yêu cầu cấp phát linh kiện thay thế`;
+                const content = `Phiếu kho **${ticketCode}** vừa được tạo tự động từ hồ sơ bảo hành **${defect.code}** (đã được kế toán duyệt).\n\nVui lòng kiểm tra và xử lý cấp phát linh kiện thay thế!`;
                 
                 const notif = await prisma.notification.create({
                   data: {
