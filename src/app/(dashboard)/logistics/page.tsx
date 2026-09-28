@@ -941,8 +941,43 @@ export default function LogisticsOverviewPage() {
                 ? `Phiếu Cấp Phát Vật Tư: ${selectedOrder?.exportCode}`
                 : `Lệnh ${selectedOrder?.type === 'material-import' ? 'Nhập' : 'Xuất'} Kho: ${selectedOrder?.exportCode}`}
             </h5>
-            <div className="text-muted" style={{ fontSize: 13 }}>
-              {selectedOrder?.typeLabel} {selectedOrder?.code}
+            <div className="text-muted d-flex align-items-center flex-wrap gap-1" style={{ fontSize: 13 }}>
+              {selectedOrder?.ticketType === 'WARRANTY_MATERIAL' ? (
+                <>
+                  <span className="badge bg-light text-dark border">
+                    <i className="bi bi-tools me-1 text-warning"></i>
+                    {selectedOrder?.saleOrderCode || "Hồ sơ lỗi"}
+                  </span>
+                  {selectedOrder?.customer && !selectedOrder.customer.includes("Từ hồ sơ") && (
+                    <span>• {selectedOrder.customer}</span>
+                  )}
+                </>
+              ) : selectedOrder?.ticketType === 'MATERIAL_PICKING' || selectedOrder?.type === 'material-export' ? (
+                <>
+                  <span className="badge bg-light text-dark border">
+                    <i className="bi bi-gear me-1 text-primary"></i>
+                    {selectedOrder?.saleOrderCode ? `Đơn: ${selectedOrder.saleOrderCode}` : selectedOrder?.typeLabel}
+                  </span>
+                  {selectedOrder?.customer && <span>• {selectedOrder.customer}</span>}
+                </>
+              ) : (
+                <>
+                  {selectedOrder?.saleOrderCode ? (
+                    <span className="badge bg-light text-dark border">
+                      <i className="bi bi-receipt me-1 text-primary"></i>
+                      Đơn: {selectedOrder.saleOrderCode}
+                    </span>
+                  ) : selectedOrder?.code?.startsWith("QC-") ? (
+                    <span className="badge bg-light text-dark border">
+                      <i className="bi bi-shield-check me-1 text-success"></i>
+                      {selectedOrder.code}
+                    </span>
+                  ) : (
+                    <span>{selectedOrder?.typeLabel}</span>
+                  )}
+                  {selectedOrder?.customer && <span>• {selectedOrder.customer}</span>}
+                </>
+              )}
             </div>
           </div>
           <button type="button" className="btn-close" onClick={() => setSelectedOrder(null)}></button>
@@ -1067,7 +1102,10 @@ export default function LogisticsOverviewPage() {
           <button 
             className="btn btn-primary w-100" 
             disabled={
-              (selectedOrder?.type === "logistics-ticket" && selectedOrder.ticketType !== "WARRANTY_MATERIAL" && selectedOrder.trangThai !== "PACKED") ||
+              (selectedOrder?.type === "logistics-ticket" && 
+                selectedOrder.trangThai !== "PACKED" && 
+                !(orderDetails.length > 0 && orderDetails.every((it: any) => (it.pickedQty || 0) >= (it.qty || 0)))
+              ) ||
               (selectedOrder?.trangThai?.toLowerCase() === "completed" || selectedOrder?.trangThai?.toLowerCase() === "done") ||
               !isThuKho
             }
@@ -1108,17 +1146,17 @@ export default function LogisticsOverviewPage() {
             {(() => {
               const lowerStatus = selectedOrder?.trangThai?.toLowerCase();
               if (lowerStatus === "completed" || lowerStatus === "done") {
-                if (selectedOrder?.type === 'material-import') return "Đã nhập kho";
-                if (selectedOrder?.ticketType === 'WARRANTY_MATERIAL' || selectedOrder?.ticketType === 'MATERIAL_PICKING') return "Đã cấp phát";
-                return "Đã xuất kho";
+                return selectedOrder?.type === 'material-import' ? "Đã nhập kho" : "Đã xuất kho";
               }
               if (selectedOrder?.type === "logistics-ticket") {
-                if (selectedOrder.ticketType === "WARRANTY_MATERIAL") {
-                  return selectedOrder.trangThai === "PACKED" || selectedOrder.trangThai === "COMPLETED" ? "Đã cấp phát" : "Cấp phát vật tư";
-                }
-                return selectedOrder.trangThai === "PACKED" ? "Thực hiện" : "Chưa nhặt đủ hàng";
+                const isPacked = selectedOrder.trangThai === "PACKED" || 
+                  (orderDetails.length > 0 && orderDetails.every((it: any) => (it.pickedQty || 0) >= (it.qty || 0)));
+                return isPacked ? "Xuất kho" : "Chưa nhặt đủ hàng";
               }
-              return "Thực hiện";
+              if (selectedOrder?.type === "material-import") {
+                return "Nhập kho";
+              }
+              return "Xuất kho";
             })()}
           </button>
         </div>
