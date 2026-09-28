@@ -793,19 +793,19 @@ export default function LogisticsOverviewPage() {
                   wrapperClassName="mkt-plan-table-no-min flex-grow-1 table-hover"
                   wrapperStyle={{ overflowX: "hidden", cursor: "pointer" }}
                 />
-                {totalPages > 1 && (
-                  <div className="py-2 border-top bg-white px-3 flex-shrink-0">
-                    <Pagination 
-                      page={currentPage} 
-                      totalPages={totalPages} 
-                      onChange={setCurrentPage} 
-                    />
-                  </div>
-                )}
               </div>
               <div className="p-3 border-top bg-light mt-auto" style={{ borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
                  <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
                    <div className="d-flex align-items-center flex-wrap gap-2">
+                     {/* Phân trang đặt trước bộ lọc trạng thái */}
+                     <div className="flex-shrink-0 d-flex align-items-center">
+                       <Pagination 
+                         page={currentPage} 
+                         totalPages={Math.max(1, totalPages)} 
+                         onChange={setCurrentPage} 
+                       />
+                     </div>
+
                      {/* Bộ lọc trạng thái */}
                      <TreeFilterSelect
                        options={[
