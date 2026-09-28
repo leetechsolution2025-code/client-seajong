@@ -208,15 +208,17 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
           
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 30 }}>
             {/* Logo + Company Info (Left) */}
-            <div style={{ display: "flex", gap: 16, maxWidth: "55%" }}>
-              {companyInfo?.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={companyInfo.logoUrl} alt="Logo" style={{ width: 80, height: 80, objectFit: "contain", flexShrink: 0 }} />
-              ) : (
-                <div style={{ width: 80, height: 80, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#0088cc" }}>
-                  <i className="bi bi-building" style={{ fontSize: 40 }} />
-                </div>
-              )}
+            <div style={{ display: "flex", alignItems: "center", gap: 16, maxWidth: "55%" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, width: 85 }}>
+                {companyInfo?.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={companyInfo.logoUrl} alt="Logo" style={{ width: 85, height: "auto", maxHeight: 55, objectFit: "contain", display: "block" }} />
+                ) : (
+                  <div style={{ width: 55, height: 55, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#0088cc" }}>
+                    <i className="bi bi-building" style={{ fontSize: 36 }} />
+                  </div>
+                )}
+              </div>
               <div style={{ lineHeight: 1.3 }}>
                 <h1 style={{ margin: "0 0 2px 0", fontSize: 13, fontWeight: 900, color: "#0088cc", textTransform: "uppercase" }}>{companyInfo?.name || "Đang tải thông tin..."}</h1>
                 {companyInfo?.address && <p style={{ margin: "0 0 1px 0", fontSize: 9, color: "#1e293b" }}><strong>Địa chỉ:</strong> {companyInfo.address}</p>}

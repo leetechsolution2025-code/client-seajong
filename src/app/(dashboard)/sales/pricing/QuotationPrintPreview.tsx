@@ -155,15 +155,17 @@ export function QuotationPrintPreview({ open, onClose, quotations }: Props) {
               />
             )}
 
-            <div style={{ display: "flex", gap: 16, maxWidth: "60%" }}>
-              {companyInfo?.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={companyInfo.logoUrl} alt="Logo" style={{ width: 80, height: 80, objectFit: "contain", flexShrink: 0 }} />
-              ) : (
-                <div style={{ width: 80, height: 80, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#0088cc" }}>
-                  <i className="bi bi-building" style={{ fontSize: 40 }} />
-                </div>
-              )}
+            <div style={{ display: "flex", alignItems: "center", gap: 16, maxWidth: "60%" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, width: 85 }}>
+                {companyInfo?.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={companyInfo.logoUrl} alt="Logo" style={{ width: 85, height: "auto", maxHeight: 55, objectFit: "contain", display: "block" }} />
+                ) : (
+                  <div style={{ width: 55, height: 55, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#0088cc" }}>
+                    <i className="bi bi-building" style={{ fontSize: 36 }} />
+                  </div>
+                )}
+              </div>
               <div>
                 <h1 style={{ margin: "0 0 2px 0", fontSize: 14, fontWeight: 900, color: "#0088cc", textTransform: "uppercase" }}>{companyInfo?.name || "CÔNG TY CỔ PHẦN SEAJONG FAUCET VIỆT NAM"}</h1>
                 {companyInfo?.address && <p style={{ margin: "0 0 2px 0", fontSize: 10, color: "#1e293b" }}><strong>Địa chỉ:</strong> {companyInfo.address}</p>}
