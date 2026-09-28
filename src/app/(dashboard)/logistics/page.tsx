@@ -43,6 +43,9 @@ export default function LogisticsOverviewPage() {
   const [nhapKhoTaskId, setNhapKhoTaskId] = useState<string | undefined>();
   const [nhapKhoMode, setNhapKhoMode] = useState<"manual" | "po" | "production" | "return" | undefined>();
   const [nhapKhoSoBienBanQC, setNhapKhoSoBienBanQC] = useState<string>("");
+  const [nhapKhoPurchaseOrderId, setNhapKhoPurchaseOrderId] = useState<string | null>(null);
+  const [nhapKhoPurchaseOrderCode, setNhapKhoPurchaseOrderCode] = useState<string | null>(null);
+  const [nhapKhoShippingFee, setNhapKhoShippingFee] = useState<number>(0);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -1133,6 +1136,9 @@ export default function LogisticsOverviewPage() {
                                  selectedOrder.code?.startsWith("ERR-");
                 setNhapKhoMode(isReturn ? "return" : selectedOrder.typeLabel?.toLowerCase().includes("vật tư") ? "po" : "production");
                 setNhapKhoSoBienBanQC(selectedOrder.code?.startsWith("QC-") ? selectedOrder.code : "");
+                setNhapKhoPurchaseOrderId(selectedOrder.purchaseOrderId || null);
+                setNhapKhoPurchaseOrderCode(selectedOrder.purchaseOrderCode || null);
+                setNhapKhoShippingFee(selectedOrder.shippingFee || 0);
                 setShowNhapKhoModal(true);
               } else {
                 const isDefect = selectedOrder?.ticketType === "WARRANTY_MATERIAL" || 
@@ -1215,6 +1221,9 @@ export default function LogisticsOverviewPage() {
           initialTaskId={nhapKhoTaskId}
           initialMode={nhapKhoMode}
           initialSoBienBanQC={nhapKhoSoBienBanQC}
+          initialPurchaseOrderId={nhapKhoPurchaseOrderId}
+          initialPurchaseOrderCode={nhapKhoPurchaseOrderCode}
+          initialShippingFee={nhapKhoShippingFee}
           onClose={() => setShowNhapKhoModal(false)}
           onSaved={() => {
             // refresh data without closing modal

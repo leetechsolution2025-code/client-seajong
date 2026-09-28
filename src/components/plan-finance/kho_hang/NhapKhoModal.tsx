@@ -57,6 +57,9 @@ interface NhapKhoModalProps {
   initialTaskId?: string;
   initialSoBienBanQC?: string;
   initialMode?: "manual" | "po" | "production" | "return";
+  initialPurchaseOrderId?: string | null;
+  initialPurchaseOrderCode?: string | null;
+  initialShippingFee?: number | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -82,7 +85,17 @@ const CSS: Record<string, React.CSSProperties> = {
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, initialSoBienBanQC, initialMode }: NhapKhoModalProps) {
+export function NhapKhoModal({ 
+  onClose, 
+  onSaved, 
+  initialItems, 
+  initialTaskId, 
+  initialSoBienBanQC, 
+  initialMode,
+  initialPurchaseOrderId,
+  initialPurchaseOrderCode,
+  initialShippingFee,
+}: NhapKhoModalProps) {
   const { data: session } = useSession();
 
   const isInitialReturn = (
@@ -147,7 +160,19 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
   }, [mode]);
   const [soBienBanQC, setSoBienBanQC] = React.useState(initialSoBienBanQC || "");
   const [ghiChu, setGhiChu] = React.useState("");
-  const [chiPhiVanChuyen, setChiPhiVanChuyen] = React.useState(0);
+  const detectedShippingFee = (
+    initialShippingFee ?? 
+    (initialItems && initialItems.length > 0 && initialItems[0].shippingFee !== undefined ? Number(initialItems[0].shippingFee) : 0)
+  ) || 0;
+  const [chiPhiVanChuyen, setChiPhiVanChuyen] = React.useState<number>(detectedShippingFee);
+
+  React.useEffect(() => {
+    if (initialShippingFee !== undefined && initialShippingFee !== null && initialShippingFee > 0) {
+      setChiPhiVanChuyen(initialShippingFee);
+    } else if (initialItems && initialItems.length > 0 && initialItems[0].shippingFee !== undefined && Number(initialItems[0].shippingFee) > 0) {
+      setChiPhiVanChuyen(Number(initialItems[0].shippingFee));
+    }
+  }, [initialShippingFee, initialItems]);
 
   React.useEffect(() => {
     if (session?.user?.name && !nguoiThucHien) {
@@ -293,16 +318,88 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
     setSelectedPO(null);
     fetch("/api/plan-finance/purchasing?trangThai=received&limit=100")
       .then(r => r.json())
-      .then(d => {
+      .then(async d => {
         const list = Array.isArray(d.items) ? d.items : [];
         setPoList(list);
         
+        const keepLines = !!(initialItems && initialItems.length > 0);
+        const targetPoId = initialPurchaseOrderId || (initialItems && initialItems[0]?.purchaseOrderId);
+        const targetPoCode = initialPurchaseOrderCode || (initialItems && initialItems[0]?.purchaseOrderCode);
+
+        // 1. Tìm theo PO ID hoặc Code trực tiếp nếu có
+        if (targetPoId) {
+          const matchedPo = list.find((p: any) => p.id === targetPoId);
+          if (matchedPo) {
+            onSelectPOById(matchedPo.id, list, keepLines);
+            return;
+          }
+        }
+        if (targetPoCode) {
+          const matchedPo = list.find((p: any) => p.code === targetPoCode);
+          if (matchedPo) {
+            onSelectPOById(matchedPo.id, list, keepLines);
+            return;
+          }
+        }
+
+        // 2. Tìm theo initialSoBienBanQC
         if (initialSoBienBanQC) {
           const poCodeMatch = initialSoBienBanQC.match(/(DH-\d{8}-\d{4})/);
           if (poCodeMatch) {
             const matchedPo = list.find((p: any) => p.code === poCodeMatch[1]);
             if (matchedPo) {
-              onSelectPOById(matchedPo.id, list, !!(initialItems && initialItems.length > 0));
+              onSelectPOById(matchedPo.id, list, keepLines);
+              return;
+            }
+          }
+
+          // Nếu là mã QC (QC-...)
+          if (initialSoBienBanQC.startsWith("QC-")) {
+            try {
+              const qcRes = await fetch(`/api/qa/inspections?q=${encodeURIComponent(initialSoBienBanQC)}`);
+              const qcD = await qcRes.json();
+              if (Array.isArray(qcD) && qcD.length > 0) {
+                const qcItem = qcD.find((q: any) => q.code === initialSoBienBanQC) || qcD[0];
+                let meta: any = null;
+                if (qcItem?.metadata) {
+                  meta = typeof qcItem.metadata === "string" ? JSON.parse(qcItem.metadata) : qcItem.metadata;
+                }
+                const foundPoId = meta?.purchaseOrderId;
+                const foundPoCode = meta?.purchaseOrderCode || meta?.poNumber;
+                
+                if (foundPoId || foundPoCode) {
+                  const matchedPo = list.find((p: any) => (foundPoId && p.id === foundPoId) || (foundPoCode && p.code === foundPoCode));
+                  if (matchedPo) {
+                    onSelectPOById(matchedPo.id, list, keepLines);
+                    return;
+                  } else if (foundPoId) {
+                    const singlePoRes = await fetch(`/api/plan-finance/purchasing/${foundPoId}`);
+                    const singlePo = await singlePoRes.json();
+                    if (singlePo && singlePo.id) {
+                      setPoList(prev => [singlePo, ...prev]);
+                      setSelectedPO(singlePo);
+                      if (singlePo.shippingFee !== undefined) {
+                        setChiPhiVanChuyen(Number(singlePo.shippingFee) || 0);
+                      }
+                      if (Array.isArray(singlePo.items) && singlePo.items.length > 0 && keepLines) {
+                        setLines(prev => prev.map(l => {
+                          const matchedPoItem = singlePo.items.find((it: any) => 
+                            (it.inventoryItemId && it.inventoryItemId === l.item?.id) || 
+                            (it.tenHang && l.itemSearch && it.tenHang.toLowerCase().trim() === l.itemSearch.toLowerCase().trim())
+                          );
+                          if (matchedPoItem && (!l.donGia || l.donGia === 0)) {
+                            return { ...l, donGia: matchedPoItem.donGia };
+                          }
+                          return l;
+                        }));
+                      }
+                      setLyDo(`Nhập kho theo đơn mua: ${singlePo.code ?? singlePo.id}`);
+                    }
+                  }
+                }
+              }
+            } catch(e) {
+              console.error("Lỗi liên kết PO từ biên bản QC", e);
             }
           }
         }
@@ -310,7 +407,7 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
       .catch(() => setPoList([]))
       .finally(() => setPoLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, initialSoBienBanQC, initialItems]);
+  }, [mode, initialSoBienBanQC, initialPurchaseOrderId, initialPurchaseOrderCode, initialItems]);
 
   // Fetch pending import tasks for mode === "production" || mode === "return"
   React.useEffect(() => {
@@ -354,22 +451,39 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
     try {
       const res = await fetch(`/api/plan-finance/purchasing/${po.id}`);
       const full = await res.json();
-      if (Array.isArray(full.items) && full.items.length > 0) {
-        if (!keepExistingLines) {
-          setLines(full.items.map((it: POItem) => ({
-            id: uid(),
-            item: it.inventoryItem
-              ? { id: it.inventoryItemId!, code: it.inventoryItem.code, tenHang: it.tenHang, donVi: it.donVi ?? null, giaNhap: it.donGia }
-              : null,
-            itemSearch: it.tenHang,
-            suggestions: [], showSugg: false,
-            soLuong: it.soLuong,
-            soLuongThucTe: it.soLuong, // mặc định thực tế = chứng từ
-            donGia: it.donGia,
-            viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
-          })));
+      if (full) {
+        if (full.shippingFee !== undefined && full.shippingFee !== null) {
+          setChiPhiVanChuyen(Number(full.shippingFee) || 0);
         }
-        setLyDo(`Nhập kho theo PO: ${po.code ?? po.id}`);
+        if (Array.isArray(full.items) && full.items.length > 0) {
+          if (!keepExistingLines) {
+            setLines(full.items.map((it: POItem) => ({
+              id: uid(),
+              item: it.inventoryItem
+                ? { id: it.inventoryItemId!, code: it.inventoryItem.code, tenHang: it.tenHang, donVi: it.donVi ?? null, giaNhap: it.donGia }
+                : null,
+              itemSearch: it.tenHang,
+              suggestions: [], showSugg: false,
+              soLuong: it.soLuong,
+              soLuongThucTe: it.soLuong, // mặc định thực tế = chứng từ
+              donGia: it.donGia,
+              viTriHang: "", viTriCot: "", viTriTang: "", ghiChu: "",
+            })));
+          } else {
+            // Cập nhật donGia nếu lines hiện tại có donGia = 0
+            setLines(prev => prev.map(l => {
+              const matchedPoItem = full.items.find((it: any) => 
+                (it.inventoryItemId && it.inventoryItemId === l.item?.id) || 
+                (it.tenHang && l.itemSearch && it.tenHang.toLowerCase().trim() === l.itemSearch.toLowerCase().trim())
+              );
+              if (matchedPoItem && (!l.donGia || l.donGia === 0)) {
+                return { ...l, donGia: matchedPoItem.donGia };
+              }
+              return l;
+            }));
+          }
+          setLyDo(`Nhập kho theo đơn mua: ${po.code ?? po.id}`);
+        }
       }
     } catch { /* giữ lines cũ */ }
     finally { setPoLoading(false); }
@@ -525,7 +639,7 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
         body: JSON.stringify({
           toWarehouseId,
           soChungTu: soChungTu || undefined,
-          purchaseOrderId: selectedPO?.id || undefined,
+          purchaseOrderId: selectedPO?.id || initialPurchaseOrderId || (initialItems && initialItems[0]?.purchaseOrderId) || undefined,
           lyDo: [loaiNhapKho, lyDo, soBienBanQC ? `Số BB QC: ${soBienBanQC}` : "", ghiChu ? `Ghi chú: ${ghiChu}` : "", chiPhiVanChuyen > 0 ? `Phí vận chuyển: ${fmtVnd(chiPhiVanChuyen)}` : ""].filter(Boolean).join(" - ") || undefined,
           nguoiThucHien: nguoiThucHien || undefined,
           lines: validLines.map(l => {

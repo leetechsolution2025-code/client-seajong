@@ -175,6 +175,9 @@ export async function GET(_req: NextRequest) {
       select: { code: true, metadata: true }
     });
     const qcProdOrderMap = new Map<string, string>();
+    const qcPoMap = new Map<string, { purchaseOrderId: string | null; purchaseOrderCode: string | null; shippingFee: number; supplierName: string | null }>();
+
+    const poIdsToFetch: string[] = [];
     qcInspections.forEach(qc => {
       let meta: any = null;
       try {
@@ -182,6 +185,31 @@ export async function GET(_req: NextRequest) {
       } catch (e) {}
       if (meta?.productionOrder) {
         qcProdOrderMap.set(qc.code, meta.productionOrder);
+      }
+      if (meta?.purchaseOrderId) {
+        poIdsToFetch.push(meta.purchaseOrderId);
+      }
+    });
+
+    const pos = poIdsToFetch.length > 0 ? await prisma.purchaseOrder.findMany({
+      where: { id: { in: poIdsToFetch } },
+      select: { id: true, code: true, shippingFee: true, supplier: { select: { name: true } } }
+    }) : [];
+    const poMap = new Map<string, any>(pos.map(p => [p.id, p]));
+
+    qcInspections.forEach(qc => {
+      let meta: any = null;
+      try {
+        meta = typeof qc.metadata === "string" ? JSON.parse(qc.metadata) : qc.metadata;
+      } catch (e) {}
+      if (meta?.purchaseOrderId) {
+        const po = poMap.get(meta.purchaseOrderId);
+        qcPoMap.set(qc.code, {
+          purchaseOrderId: meta.purchaseOrderId,
+          purchaseOrderCode: po?.code || meta.purchaseOrderCode || meta.poNumber || null,
+          shippingFee: Number(po?.shippingFee || 0),
+          supplierName: po?.supplier?.name || meta.supplierName || null
+        });
       }
     });
 
@@ -319,14 +347,23 @@ export async function GET(_req: NextRequest) {
           typeLabel = "Nhập kho thành phẩm";
         }
 
+        const poInfo = qcPoMap.get(code) || null;
+        const purchaseOrderId = parsedItems[0]?.purchaseOrderId || poInfo?.purchaseOrderId || null;
+        const purchaseOrderCode = parsedItems[0]?.purchaseOrderCode || poInfo?.purchaseOrderCode || null;
+        const shippingFee = parsedItems[0]?.shippingFee !== undefined ? parsedItems[0].shippingFee : (poInfo?.shippingFee ?? 0);
+        const supplierName = poInfo?.supplierName || null;
+
         return {
           id:        t.id,
           code:      code,
           productionOrder: prodOrder,
+          purchaseOrderId,
+          purchaseOrderCode,
+          shippingFee,
           saleOrderCode: null,
           type:      "material-import" as const,
           typeLabel: typeLabel,
-          customer:  null,
+          customer:  supplierName,
           tongTien:  null,
           trangThai: t.status,
           assigneeName: (t.assigneeId && userMap.get(t.assigneeId)) || null,

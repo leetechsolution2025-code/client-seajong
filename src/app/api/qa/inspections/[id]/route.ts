@@ -302,6 +302,24 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
         const passedItems = items.filter((it: any) => parseInt(it.passQuantity?.toString() || "0", 10) > 0);
         const failedItems = items.filter((it: any) => parseInt(it.failQuantity?.toString() || "0", 10) > 0);
 
+        let poId = oldMeta.purchaseOrderId || null;
+        let poCode = oldMeta.purchaseOrderCode || oldMeta.poNumber || null;
+        let shippingFee = 0;
+        if (poId) {
+          try {
+            const po = await tx.purchaseOrder.findUnique({
+              where: { id: poId },
+              select: { id: true, code: true, shippingFee: true }
+            });
+            if (po) {
+              poCode = po.code || poCode;
+              shippingFee = Number(po.shippingFee || 0);
+            }
+          } catch (e) {
+            console.error("Lỗi lấy thông tin PO trong IQC", e);
+          }
+        }
+
         // A. Nhập kho vật tư đạt (KVP)
         if (passedItems.length > 0) {
           const taskItems = passedItems.map((it: any) => ({
@@ -310,13 +328,23 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
             donVi: "Cái",
             type: "Kho Vật Tư / Linh kiện",
             isShortage: false,
-            inventoryItemId: it.inventoryItemId || it.id || null
+            inventoryItemId: it.inventoryItemId || it.id || null,
+            purchaseOrderId: poId,
+            purchaseOrderCode: poCode,
+            shippingFee
           }));
+
+          const descLines = [
+            `Kiểm tra IQC có hàng hóa đạt yêu cầu. Đề nghị bộ phận Kho vận tiến hành nhập kho vật tư / linh kiện.`,
+            oldMeta.supplierName ? `Từ nhà cung cấp: ${oldMeta.supplierName}` : "",
+            poCode ? `Theo đơn mua hàng: ${poCode}` : "",
+            shippingFee > 0 ? `Chi phí vận chuyển: ${shippingFee.toLocaleString("vi-VN")} đ` : ""
+          ].filter(Boolean);
 
           await tx.task.create({
             data: {
               title: `Yêu cầu nhập kho vật tư đạt (${inspection.code})`,
-              description: `Kiểm tra IQC có hàng hóa đạt yêu cầu. Đề nghị bộ phận Kho vận tiến hành nhập kho vật tư / linh kiện.\nTừ nhà cung cấp: ${oldMeta.supplierName || "N/A"}`,
+              description: descLines.join("\n"),
               assigneeId,
               creatorId: session.user.id,
               deptCode: "logistics",
@@ -336,13 +364,22 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
             type: "Kho Hàng Lỗi",
             isShortage: false,
             inventoryItemId: it.inventoryItemId || it.id || null,
-            warehouseCode: "KHO-LOI"
+            warehouseCode: "KHO-LOI",
+            purchaseOrderId: poId,
+            purchaseOrderCode: poCode,
+            shippingFee: 0
           }));
+
+          const descLines = [
+            `Kiểm tra IQC phát hiện hàng hóa lỗi. Đề nghị bộ phận Kho vận tiến hành nhập kho hàng lỗi.`,
+            oldMeta.supplierName ? `Từ nhà cung cấp: ${oldMeta.supplierName}` : "",
+            poCode ? `Theo đơn mua hàng: ${poCode}` : ""
+          ].filter(Boolean);
 
           await tx.task.create({
             data: {
               title: `Yêu cầu nhập kho hàng lỗi (${inspection.code})`,
-              description: `Kiểm tra IQC phát hiện hàng hóa lỗi. Đề nghị bộ phận Kho vận tiến hành nhập kho hàng lỗi.\nTừ nhà cung cấp: ${oldMeta.supplierName || "N/A"}`,
+              description: descLines.join("\n"),
               assigneeId,
               creatorId: session.user.id,
               deptCode: "logistics",
