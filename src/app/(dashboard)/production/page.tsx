@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { KPICard } from "@/components/ui/KPICard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { Pagination } from "@/components/ui/Pagination";
 import { ProductionOrderDetailOffcanvas } from "@/components/production/ProductionOrderDetailOffcanvas";
 import { CreateProductionRequestOffcanvas } from "@/components/production/CreateProductionRequestOffcanvas";
 
@@ -41,6 +42,15 @@ export default function ProductionDashboardPage() {
   const [filterDate, setFilterDate] = useState("");
   const [filterToday, setFilterToday] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, filterDate, filterToday, searchQuery]);
+
+  const totalPages = Math.ceil(recentOrders.length / pageSize);
+  const paginatedOrders = recentOrders.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const fetchOrders = () => {
     const params = new URLSearchParams();
@@ -182,7 +192,7 @@ export default function ProductionDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentOrders.length > 0 ? recentOrders.map((order) => (
+                  {paginatedOrders.length > 0 ? paginatedOrders.map((order) => (
                     <tr 
                       key={order.id} 
                       style={{ cursor: "pointer" }}
@@ -246,6 +256,33 @@ export default function ProductionDashboardPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Pagination Footer */}
+            <div className="pt-3 border-top mt-auto d-flex flex-column flex-sm-row align-items-center justify-content-between gap-2">
+              <div className="d-flex align-items-center gap-2 text-muted" style={{ fontSize: 12 }}>
+                <span>Hiển thị <strong>{recentOrders.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</strong> - <strong>{Math.min(currentPage * pageSize, recentOrders.length)}</strong> trên tổng số <strong>{recentOrders.length}</strong> lệnh</span>
+                <select 
+                  className="form-select form-select-sm ms-1 border-secondary-subtle" 
+                  style={{ width: "auto", fontSize: 12, padding: "2px 24px 2px 8px" }}
+                  value={pageSize}
+                  onChange={e => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={10}>10 lệnh / trang</option>
+                  <option value={20}>20 lệnh / trang</option>
+                  <option value={50}>50 lệnh / trang</option>
+                </select>
+              </div>
+              <div className="d-flex align-items-center gap-2">
+                <Pagination 
+                  page={currentPage} 
+                  totalPages={Math.max(1, totalPages)} 
+                  onChange={setCurrentPage} 
+                />
+              </div>
             </div>
           </div>
 
