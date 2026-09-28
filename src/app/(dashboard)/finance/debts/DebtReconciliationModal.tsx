@@ -116,52 +116,94 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
 
       // Fetch partner info based on type
       const isRec = debt.type?.toUpperCase() === "RECEIVABLE" || debt.type === "phai-thu";
+      const resolvedCustomerId = debt.customerId || debt.groupItems?.find((it: any) => it.customerId)?.customerId;
+      const resolvedSupplierId = debt.supplierId || debt.groupItems?.find((it: any) => it.supplierId)?.supplierId;
+      const cleanPartnerName = (debt.partnerName || "").split(/[-–]/)[0].trim();
+
+      // Initialize partnerInfo immediately from debt row if available
+      let initialPartner: any = null;
+      if (isRec) {
+        initialPartner = {
+          name: debt.customerName || debt.partnerName,
+          address: debt.customerAddress || debt.address || "Khu vực đối tác giao nhận hàng",
+          phone: debt.customerPhone || debt.phone || "---",
+          email: debt.customerEmail || debt.email || "---",
+          daiDien: debt.customerDaiDien || debt.customerName || debt.partnerName,
+          chucVu: debt.customerChucVu || "Khách hàng doanh nghiệp / Đối tác liên kết",
+          taxCode: debt.customerTaxCode || "---",
+        };
+      } else {
+        initialPartner = {
+          name: debt.supplierName || debt.partnerName,
+          address: debt.supplierAddress || debt.address || "Khu vực đối tác giao nhận hàng",
+          phone: debt.supplierPhone || debt.phone || "---",
+          email: debt.supplierEmail || debt.email || "---",
+          daiDien: debt.supplierContactName || debt.supplierName || debt.partnerName,
+          chucVu: "Nhà cung cấp / Đối tác liên kết",
+          taxCode: debt.supplierTaxCode || "---",
+        };
+      }
+      setPartnerInfo(initialPartner);
+
       const partnerSearchUrl = isRec
-        ? (debt.customerId ? `/api/plan-finance/customers?id=${debt.customerId}` : `/api/plan-finance/customers?search=${encodeURIComponent(debt.partnerName)}`)
-        : (debt.supplierId ? `/api/plan-finance/suppliers?id=${debt.supplierId}` : `/api/plan-finance/suppliers?search=${encodeURIComponent(debt.partnerName)}`);
+        ? (resolvedCustomerId ? `/api/plan-finance/customers?id=${resolvedCustomerId}` : `/api/plan-finance/customers?search=${encodeURIComponent(cleanPartnerName)}&pageSize=50`)
+        : (resolvedSupplierId ? `/api/plan-finance/suppliers?id=${resolvedSupplierId}` : `/api/plan-finance/suppliers?search=${encodeURIComponent(cleanPartnerName)}&limit=50`);
 
       fetch(partnerSearchUrl)
         .then((res) => res.json())
         .then((data) => {
           if (isRec) {
-            const found = debt.customerId 
-              ? (data.customers?.find((c: any) => c.id === debt.customerId) || data.customer || data.customers?.[0])
-              : (data.customers?.find((c: any) => c.name === debt.partnerName) || data.customers?.[0]);
+            let found: any = null;
+            if (resolvedCustomerId) {
+              found = (data.customer?.id === resolvedCustomerId ? data.customer : null) || data.customers?.find((c: any) => c.id === resolvedCustomerId);
+            }
+            if (!found && cleanPartnerName) {
+              const lower = cleanPartnerName.toLowerCase();
+              found = data.customers?.find((c: any) => {
+                const cName = (c.name || "").toLowerCase();
+                const cDaiDien = (c.daiDien || "").toLowerCase();
+                return cName === lower || cName.includes(lower) || lower.includes(cName) || cDaiDien === lower || cDaiDien.includes(lower);
+              });
+            }
             if (found) {
               setPartnerInfo({
-                name: found.name,
-                address: found.address || "Khu vực đối tác giao nhận hàng",
-                phone: found.dienThoai || "---",
-                email: found.email || "---",
-                daiDien: found.daiDien || found.name,
+                name: found.name || debt.partnerName,
+                address: found.address && found.address !== "Khu vực đối tác giao nhận hàng" ? found.address : (debt.address || "Khu vực đối tác giao nhận hàng"),
+                phone: found.dienThoai || debt.customerPhone || debt.phone || "---",
+                email: found.email || debt.customerEmail || debt.email || "---",
+                daiDien: found.daiDien || found.name || debt.partnerName,
                 chucVu: found.chucVu || "Khách hàng doanh nghiệp / Đối tác liên kết",
                 taxCode: found.soTaiKhoan || "---",
               });
-            } else {
-              setPartnerInfo(null);
             }
           } else {
-            const found = debt.supplierId
-              ? (data.items?.find((s: any) => s.id === debt.supplierId) || data.supplier || data.items?.[0])
-              : (data.items?.find((s: any) => s.name === debt.partnerName) || data.items?.[0]);
+            let found: any = null;
+            if (resolvedSupplierId) {
+              found = (data.supplier?.id === resolvedSupplierId ? data.supplier : null) || data.items?.find((s: any) => s.id === resolvedSupplierId);
+            }
+            if (!found && cleanPartnerName) {
+              const lower = cleanPartnerName.toLowerCase();
+              found = data.items?.find((s: any) => {
+                const sName = (s.name || "").toLowerCase();
+                const sContact = (s.contactName || "").toLowerCase();
+                return sName === lower || sName.includes(lower) || lower.includes(sName) || sContact === lower || sContact.includes(lower);
+              });
+            }
             if (found) {
               setPartnerInfo({
-                name: found.name,
-                address: found.address || "Khu vực đối tác giao nhận hàng",
-                phone: found.phone || "---",
-                email: found.email || "---",
-                daiDien: found.contactName || found.name,
+                name: found.name || debt.partnerName,
+                address: found.address && found.address !== "Khu vực đối tác giao nhận hàng" ? found.address : (debt.address || "Khu vực đối tác giao nhận hàng"),
+                phone: found.phone || debt.supplierPhone || debt.phone || "---",
+                email: found.email || debt.supplierEmail || debt.email || "---",
+                daiDien: found.contactName || found.name || debt.partnerName,
                 chucVu: "Nhà cung cấp / Đối tác liên kết",
                 taxCode: found.taxCode || "---",
               });
-            } else {
-              setPartnerInfo(null);
             }
           }
         })
         .catch((err) => {
           console.error("Error fetching partner details:", err);
-          setPartnerInfo(null);
         });
 
       const parsed = parseDebtDescription(debt.description);
@@ -499,6 +541,16 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
   };
 
   const handlePrintReconciliation = (log: ReconciliationLog) => {
+    const finalPartnerInfo = partnerInfo || {
+      name: debt.partnerName,
+      address: debt.address || "Khu vực đối tác giao nhận hàng",
+      phone: debt.customerPhone || debt.supplierPhone || debt.phone || "---",
+      email: debt.customerEmail || debt.supplierEmail || debt.email || "---",
+      daiDien: debt.customerDaiDien || debt.supplierContactName || debt.partnerName,
+      chucVu: isReceivable ? "Khách hàng doanh nghiệp / Đối tác liên kết" : "Nhà cung cấp / Đối tác liên kết",
+      taxCode: debt.customerTaxCode || debt.supplierTaxCode || "---",
+    };
+
     setActivePrintItem({
       log,
       debt,
@@ -506,7 +558,7 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
       totals,
       isReceivable,
       companyInfo,
-      partnerInfo,
+      partnerInfo: finalPartnerInfo,
       reconcilerInfo
     });
 

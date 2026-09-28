@@ -10,6 +10,19 @@ export async function GET(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = req.nextUrl;
+    const id = searchParams.get("id");
+    if (id) {
+      const supplier = await prisma.supplier.findUnique({
+        where: { id },
+        include: { categories: true }
+      });
+      return NextResponse.json({
+        total: supplier ? 1 : 0,
+        supplier,
+        items: supplier ? [supplier] : []
+      });
+    }
+
     const page       = Math.max(1, parseInt(searchParams.get("page")  ?? "1"));
     const limit      = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "10")));
     const search     = searchParams.get("search")     ?? "";

@@ -29,7 +29,18 @@ export async function GET(request: Request) {
     let query = `
       SELECT d.*, 
              c.address as "customerAddress", 
+             c.name as "customerName",
+             c."dienThoai" as "customerPhone",
+             c."daiDien" as "customerDaiDien",
+             c."chucVu" as "customerChucVu",
+             c."soTaiKhoan" as "customerTaxCode",
+             c.email as "customerEmail",
              s.address as "supplierAddress",
+             s.name as "supplierName",
+             s.phone as "supplierPhone",
+             s."contactName" as "supplierContactName",
+             s."taxCode" as "supplierTaxCode",
+             s.email as "supplierEmail",
              cr.address as "carrierAddress"
       FROM "Debt" d
       LEFT JOIN "Customer" c ON d."customerId" = c.id

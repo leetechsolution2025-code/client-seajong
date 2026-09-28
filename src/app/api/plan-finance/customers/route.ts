@@ -12,6 +12,22 @@ export async function GET(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = req.nextUrl;
+    const id = searchParams.get("id");
+    if (id) {
+      const customer = await prisma.customer.findUnique({
+        where: { id },
+        include: { 
+          nguoiChamSoc: { select: { id: true, fullName: true } },
+          contracts: { select: { giaTriHopDong: true, trangThai: true, code: true, ngayKy: true } }
+        },
+      });
+      return NextResponse.json({
+        total: customer ? 1 : 0,
+        customer,
+        customers: customer ? [customer] : []
+      });
+    }
+
     const page   = Math.max(1, parseInt(searchParams.get("page")  ?? "1"));
     const pageSize = parseInt(searchParams.get("pageSize") ?? "10");
     const search = searchParams.get("search") ?? "";
@@ -30,7 +46,14 @@ export async function GET(req: NextRequest) {
     const isManager = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPERADMIN";
 
     const where: any = {
-      ...(search && { name: { contains: search } }),
+      ...(search && {
+        OR: [
+          { name: { contains: search } },
+          { daiDien: { contains: search } },
+          { dienThoai: { contains: search } },
+          { code: { contains: search } },
+        ]
+      }),
       ...(nguon  && { nguon }),
       ...(nhom   && { nhom }),
       ...(loai   && { loai }),

@@ -402,7 +402,26 @@ export default function DebtsPage() {
         if (row.id?.toString().startsWith("AUTO_")) return null;
         
         const targetRow = row.isGroupHeader && row.originalItems?.length 
-          ? { ...row.originalItems[row.originalItems.length - 1], groupItems: row.originalItems } 
+          ? { 
+              ...row.originalItems[row.originalItems.length - 1], 
+              partnerName: row.partnerName || row.originalItems[0]?.partnerName,
+              address: row.address || row.originalItems[0]?.address,
+              customerId: row.originalItems.find((it: any) => it.customerId)?.customerId || row.originalItems[row.originalItems.length - 1]?.customerId,
+              supplierId: row.originalItems.find((it: any) => it.supplierId)?.supplierId || row.originalItems[row.originalItems.length - 1]?.supplierId,
+              carrierId: row.originalItems.find((it: any) => it.carrierId)?.carrierId || row.originalItems[row.originalItems.length - 1]?.carrierId,
+              customerName: row.originalItems.find((it: any) => it.customerName)?.customerName,
+              customerPhone: row.originalItems.find((it: any) => it.customerPhone)?.customerPhone,
+              customerDaiDien: row.originalItems.find((it: any) => it.customerDaiDien)?.customerDaiDien,
+              customerChucVu: row.originalItems.find((it: any) => it.customerChucVu)?.customerChucVu,
+              customerTaxCode: row.originalItems.find((it: any) => it.customerTaxCode)?.customerTaxCode,
+              customerEmail: row.originalItems.find((it: any) => it.customerEmail)?.customerEmail,
+              supplierName: row.originalItems.find((it: any) => it.supplierName)?.supplierName,
+              supplierPhone: row.originalItems.find((it: any) => it.supplierPhone)?.supplierPhone,
+              supplierContactName: row.originalItems.find((it: any) => it.supplierContactName)?.supplierContactName,
+              supplierTaxCode: row.originalItems.find((it: any) => it.supplierTaxCode)?.supplierTaxCode,
+              supplierEmail: row.originalItems.find((it: any) => it.supplierEmail)?.supplierEmail,
+              groupItems: row.originalItems 
+            } 
           : row;
 
         return (
