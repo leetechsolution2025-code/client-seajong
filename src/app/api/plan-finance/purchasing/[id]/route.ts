@@ -781,23 +781,31 @@ export async function PUT(
       // 2. Tạo các items mới
       const newItems = await Promise.all(items.map(async (item: any, idx: number) => {
         let dinhMucId = null;
+        let invItem: any = null;
         if (item.inventoryItemId) {
-           const invItem = await tx.inventoryItem.findUnique({
+           invItem = await tx.inventoryItem.findUnique({
               where: { id: item.inventoryItemId },
               include: { dinhMucs: { orderBy: { createdAt: 'desc' } } }
            });
            if (invItem && invItem.dinhMucs.length > 0) {
-              const stdBom = invItem.dinhMucs.find(d => d.code === `DM-${invItem.model}`) || invItem.dinhMucs[0];
+              const stdBom = invItem.dinhMucs.find((d: any) => d.code === `DM-${invItem.model}`) || invItem.dinhMucs[0];
               dinhMucId = stdBom.id;
            }
         }
+        const defaultGiaNhap = (invItem?.giaNhap && invItem.giaNhap > 0) ? invItem.giaNhap : 0;
+        const donGia = (parseFloat(item.donGia) > 0) ? parseFloat(item.donGia) : defaultGiaNhap;
+        const soLuong = parseFloat(item.soLuong) || 1;
+        const thanhTien = (parseFloat(item.thanhTien) > 0 && parseFloat(item.donGia) > 0)
+          ? parseFloat(item.thanhTien)
+          : (soLuong * donGia);
+
         return {
           inventoryItemId: item.inventoryItemId,
           tenHang: item.tenHang,
           donVi: item.donVi,
-          soLuong: item.soLuong,
-          donGia: item.donGia,
-          thanhTien: item.soLuong * item.donGia,
+          soLuong,
+          donGia,
+          thanhTien,
           ghiChu: item.ghiChu,
           sortOrder: idx,
           ngayGiao: item.ngayGiao ? new Date(item.ngayGiao) : null,

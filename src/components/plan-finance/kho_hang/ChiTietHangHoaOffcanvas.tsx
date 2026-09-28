@@ -14,6 +14,7 @@ export interface InventoryItemDetail {
   soLuong: number;
   soLuongMin?: number;
   giaNhap?: number;
+  giaVon?: number;
   giaBan?: number;
   nhaCungCap?: string | null;
   thongSoKyThuat?: string | null;
@@ -100,7 +101,7 @@ export function ChiTietHangHoaOffcanvas({ open, item, onClose, onDeleted, onUpda
   const [editSaving, setEditSaving] = useState(false);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [editCategories, setEditCategories] = useState<{ id: string; name: string }[]>([]);
-  const [editForm, setEditForm] = useState({ tenHang: "", code: "", categoryId: "", donVi: "", soLuong: 0, soLuongMin: 0, giaNhap: 0, giaBan: 0, nhaCungCap: "", thongSoKyThuat: "", ghiChu: "" });
+  const [editForm, setEditForm] = useState({ tenHang: "", code: "", categoryId: "", donVi: "", soLuong: 0, soLuongMin: 0, giaNhap: 0, giaVon: 0, giaBan: 0, nhaCungCap: "", thongSoKyThuat: "", ghiChu: "" });
 
   // Nhập hàng
   const [nhapMode, setNhapMode] = useState(false);
@@ -163,7 +164,7 @@ export function ChiTietHangHoaOffcanvas({ open, item, onClose, onDeleted, onUpda
   const openEditMode = useCallback(() => {
     const i = fullItem ?? item;
     if (!i) return;
-    setEditForm({ tenHang: i.tenHang ?? "", code: i.code ?? "", categoryId: "", donVi: i.donVi ?? "", soLuong: i.soLuong ?? 0, soLuongMin: i.soLuongMin ?? 0, giaNhap: i.giaNhap ?? 0, giaBan: i.giaBan ?? 0, nhaCungCap: i.nhaCungCap ?? "", thongSoKyThuat: i.thongSoKyThuat ?? "", ghiChu: i.ghiChu ?? "" });
+    setEditForm({ tenHang: i.tenHang ?? "", code: i.code ?? "", categoryId: "", donVi: i.donVi ?? "", soLuong: i.soLuong ?? 0, soLuongMin: i.soLuongMin ?? 0, giaNhap: i.giaNhap ?? 0, giaVon: i.giaVon ?? i.giaNhap ?? 0, giaBan: i.giaBan ?? 0, nhaCungCap: i.nhaCungCap ?? "", thongSoKyThuat: i.thongSoKyThuat ?? "", ghiChu: i.ghiChu ?? "" });
     setEditErrors({});
     setEditMode(true);
     fetch("/api/plan-finance/inventory/categories")
@@ -185,7 +186,7 @@ export function ChiTietHangHoaOffcanvas({ open, item, onClose, onDeleted, onUpda
     try {
       const res = await fetch(`/api/plan-finance/inventory/${i.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...editForm, tenHang: editForm.tenHang.trim(), soLuong: Number(editForm.soLuong), soLuongMin: Number(editForm.soLuongMin), giaNhap: Number(editForm.giaNhap), giaBan: Number(editForm.giaBan) }),
+        body: JSON.stringify({ ...editForm, tenHang: editForm.tenHang.trim(), soLuong: Number(editForm.soLuong), soLuongMin: Number(editForm.soLuongMin), giaNhap: Number(editForm.giaNhap), giaVon: Number(editForm.giaVon), giaBan: Number(editForm.giaBan) }),
       });
       const data = await res.json();
       if (!res.ok) { setEditErrors({ _: data.error ?? "Lỗi" }); return; }
@@ -377,8 +378,9 @@ export function ChiTietHangHoaOffcanvas({ open, item, onClose, onDeleted, onUpda
                         <div><Lbl t="Tồn đầu kỳ" /><input type="number" min={0} value={editForm.soLuong} onChange={e => setEditForm(f => ({ ...f, soLuong: Number(e.target.value) }))} style={IS} /></div>
                         <div><Lbl t="Tồn tối thiểu" /><input type="number" min={0} value={editForm.soLuongMin} onChange={e => setEditForm(f => ({ ...f, soLuongMin: Number(e.target.value) }))} style={IS} /></div>
                       </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                         <div><Lbl t="Giá nhập (₫)" /><CurrencyInput value={Number(editForm.giaNhap)} onChange={v => setEditForm(f => ({ ...f, giaNhap: v }))} style={IS} /></div>
+                        <div><Lbl t="Giá vốn (₫)" /><CurrencyInput value={Number(editForm.giaVon ?? editForm.giaNhap ?? 0)} onChange={v => setEditForm(f => ({ ...f, giaVon: v }))} style={IS} /></div>
                         <div><Lbl t="Giá bán (₫)" /><CurrencyInput value={Number(editForm.giaBan)} onChange={v => setEditForm(f => ({ ...f, giaBan: v }))} style={IS} /></div>
                       </div>
                       <div><Lbl t="Thông số kỹ thuật" /><textarea rows={2} value={editForm.thongSoKyThuat} onChange={e => setEditForm(f => ({ ...f, thongSoKyThuat: e.target.value }))} style={{ ...IS, resize: "vertical" }} /></div>
@@ -452,8 +454,12 @@ export function ChiTietHangHoaOffcanvas({ open, item, onClose, onDeleted, onUpda
                       )}
 
                       <Sec title="Giá" icon="bi-tag" />
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                        {[{ label: "Giá nhập", value: fmtVnd(displayItem.giaNhap), color: "#f59e0b", bg: "rgba(245,158,11,0.08)" }, { label: "Giá bán", value: fmtVnd(displayItem.giaBan), color: "#10b981", bg: "rgba(16,185,129,0.08)" }].map(c => (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                        {[
+                          { label: "Giá nhập", value: fmtVnd(displayItem.giaNhap), color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
+                          { label: "Giá vốn", value: fmtVnd(displayItem.giaVon ?? displayItem.giaNhap), color: "#6366f1", bg: "rgba(99,102,241,0.08)" },
+                          { label: "Giá bán", value: fmtVnd(displayItem.giaBan), color: "#10b981", bg: "rgba(16,185,129,0.08)" }
+                        ].map(c => (
                           <div key={c.label} style={{ padding: "9px 11px", borderRadius: 9, background: c.bg, border: `1px solid ${c.color}22` }}>
                             <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: c.color, textTransform: "uppercase" }}>{c.label}</p>
                             <p style={{ margin: "3px 0 0", fontSize: 13.5, fontWeight: 800, color: c.color }}>{c.value}</p>

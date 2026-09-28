@@ -44,6 +44,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
     donVi: "Cái",
     soLuongMin: 0,
     giaNhap: "" as any,
+    giaVon: "" as any,
     giaBan: "" as any,
     nhaCungCap: "",
     thongSoKyThuat: "",
@@ -137,6 +138,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
           donVi: editItem.donVi || "Cái",
           soLuongMin: editItem.soLuongMin ?? 0,
           giaNhap: editItem.giaNhap ?? "",
+          giaVon: editItem.giaVon ?? editItem.giaNhap ?? "",
           giaBan: editItem.giaBan ?? "",
           nhaCungCap: editItem.nhaCungCap || "",
           thongSoKyThuat: editItem.thongSoKyThuat || "",
@@ -161,6 +163,7 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
           donVi: "Cái",
           soLuongMin: 0,
           giaNhap: "",
+          giaVon: "",
           giaBan: "",
           nhaCungCap: "",
           thongSoKyThuat: "",
@@ -231,9 +234,14 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
     return num.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
 
-  const handleCurrencyChange = (field: "giaNhap" | "giaBan", val: string) => {
+  const handleCurrencyChange = (field: "giaNhap" | "giaBan" | "giaVon", val: string) => {
     const numericValue = val.replace(/\D/g, "");
-    setForm({ ...form, [field]: numericValue });
+    if (field === "giaNhap" && !editItem) {
+      // Khi khởi tạo tự động lấy giá vốn bằng giá nhập
+      setForm(prev => ({ ...prev, giaNhap: numericValue, giaVon: numericValue }));
+    } else {
+      setForm(prev => ({ ...prev, [field]: numericValue }));
+    }
   };
 
 
@@ -601,8 +609,8 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                           </div>
 
                           <div className="row g-2 g-md-3">
-                            <div className="col-6">
-                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Giá nhập dự kiến</label>
+                            <div className="col-12 col-md-4">
+                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Giá nhập</label>
                               <div className="input-group">
                                 <input 
                                   type="text" 
@@ -614,7 +622,23 @@ export function AddSanitaryProductModal({ open, onClose, onSaved, warehouseId, w
                                 <span className="input-group-text bg-light fw-bold text-muted px-2" style={{ fontSize: 10 }}>VNĐ</span>
                               </div>
                             </div>
-                            <div className="col-6">
+                            <div className="col-12 col-md-4">
+                              <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }} title="Giá vốn tự động tính theo bình quân gia quyền qua các lần nhập kho">
+                                Giá vốn <span className="fw-normal text-primary" style={{ fontSize: "10px" }}>(Bình quân)</span>
+                              </label>
+                              <div className="input-group">
+                                <input 
+                                  type="text" 
+                                  className="form-control rounded-3 bg-light text-muted fw-semibold" 
+                                  style={{ fontSize: "13px" }} 
+                                  value={formatCurrency(form.giaVon !== "" && form.giaVon !== undefined ? form.giaVon : form.giaNhap)} 
+                                  readOnly
+                                  title="Giá vốn tính theo bình quân gia quyền qua các lần nhập kho"
+                                />
+                                <span className="input-group-text bg-light fw-bold text-muted px-2" style={{ fontSize: 10 }}>VNĐ</span>
+                              </div>
+                            </div>
+                            <div className="col-12 col-md-4">
                               <label className="form-label fw-bold small text-muted" style={{ fontSize: "11px" }}>Giá bán niêm yết</label>
                               <div className="input-group">
                                 <input 

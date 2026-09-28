@@ -126,8 +126,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
         await tx.task.create({
           data: {
-            title: `Yêu cầu nhập kho thành phẩm lỗi (${defect.code})`,
-            description: `Yêu cầu nhập lại thành phẩm lỗi về kho.\n` +
+            title: `Yêu cầu nhập kho hàng lỗi (${defect.code})`,
+            description: `Yêu cầu nhập lại hàng lỗi về kho.\n` +
               `Hồ sơ: ${defect.code}\n` +
               `Sản phẩm: ${defect.productName}\n` +
               `Số lượng: ${qty}\n` +
@@ -141,7 +141,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           }
         });
         
-        await sendWarehouseNotification(tx, `Yêu cầu nhập kho thành phẩm lỗi (${defect.code})`, `Kỹ thuật đã yêu cầu nhập lại ${qty} thành phẩm lỗi nguyên chiếc từ hồ sơ **${defect.code}**.\n\nVui lòng tiếp nhận và xác nhận nhập kho lỗi (KHO-LOI).`);
+        await sendWarehouseNotification(tx, `Yêu cầu nhập kho hàng lỗi (${defect.code})`, `Kỹ thuật đã yêu cầu nhập lại ${qty} sản phẩm lỗi từ hồ sơ **${defect.code}**.\n\nVui lòng tiếp nhận và xác nhận nhập kho lỗi (KHO-LOI).`);
       }
     });
 

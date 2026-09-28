@@ -20,6 +20,7 @@ interface Item {
   images?: string[];
   categoryName: string | null;
   giaNhap: number;
+  giaVon?: number;
   giaBan: number;
   spec: string | null;
   thongSoKyThuat: string | null;
@@ -182,7 +183,8 @@ export function LogisticsItemDetailOffcanvas({ item, open, onClose, onEdit, onDe
               <div className="d-flex flex-column gap-3">
                 <DetailRow label="Thương hiệu" value={item.brand} />
                 <DetailRow label="Kiểu dáng" value={item.model || item.spec} />
-                <DetailRow label="Giá nhập dự kiến" value="***" />
+                <DetailRow label="Giá nhập" value="***" />
+                <DetailRow label="Giá vốn (Bình quân)" value="***" />
                 <div className="d-flex align-items-center justify-content-between p-2 rounded-3 hover-bg-light transition-all">
                   <span className="text-muted" style={{ fontSize: 13 }}>Giá bán niêm yết</span>
                   {isEditingPrice ? (

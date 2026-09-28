@@ -22,15 +22,16 @@ export async function GET(req: NextRequest) {
 
     const employeeId = session.user.employeeId || session.user.id;
 
-    // Lấy các Phiếu Cấp phát vật tư (MATERIAL_PICKING)
+    // Lấy các Phiếu Cấp phát vật tư (MATERIAL_PICKING & WARRANTY_MATERIAL)
     const tickets = await (prisma as any).logisticsTicket.findMany({
       where: {
-        type: "MATERIAL_PICKING",
+        type: { in: ["MATERIAL_PICKING", "WARRANTY_MATERIAL"] },
         status: { in: ["PENDING", "PICKING", "PACKED"] },
         ...(isManager ? {} : { assignedToId: employeeId }) // Chỉ hiển thị phiếu của mình nếu không phải Manager
       },
       include: {
         saleOrder: { select: { code: true, ngayGiao: true } },
+        defectRecord: { select: { code: true } },
         items: {
           include: {
             inventoryItem: {
@@ -129,7 +130,7 @@ export async function GET(req: NextRequest) {
             viTriKho: viTriStr,
             tongSoLuong: 0,
             tongDaNhat: 0,
-            ngayGiao: ticket.saleOrder?.ngayGiao, // Hiển thị ngày giao hàng thực tế
+            ngayGiao: ticket.saleOrder?.ngayGiao || (ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString('vi-VN') : undefined),
             orders: []
           });
         }
@@ -141,9 +142,9 @@ export async function GET(req: NextRequest) {
         batchItem.orders.push({
           id: ticket.id,
           ticketItemId: item.id,
-          code: ticket.saleOrder?.code || ticket.code,
+          code: ticket.saleOrder?.code || ticket.defectRecord?.code || ticket.code,
           soLuongTrongDon: item.requestedQty || 0,
-          ngayGiao: ticket.saleOrder?.ngayGiao,
+          ngayGiao: ticket.saleOrder?.ngayGiao || (ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString('vi-VN') : undefined),
           createdAt: ticket.createdAt,
           assignedTo: ticket.assignedTo?.fullName
         });

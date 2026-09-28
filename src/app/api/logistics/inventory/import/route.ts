@@ -76,6 +76,7 @@ export async function POST(req: Request) {
               donVi: item.unit || "Cái",
               soLuong: item.quantity || 0,
               giaNhap: item.importPrice || 0,
+              giaVon: item.costPrice || item.importPrice || 0,
               giaBan: item.sellPrice || 0,
               brand: item.brand || "Seajong",
               ghiChu: item.note || "",

@@ -433,7 +433,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, warehouseId, chieuDai, chieuRong, chieuDay, source, material, maThayThe, chatLieu } = body;
+    const { tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaVon, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, warehouseId, chieuDai, chieuRong, chieuDay, source, material, maThayThe, chatLieu } = body;
 
     if (!tenHang) return NextResponse.json({ error: "Thiếu tên hàng hoá" }, { status: 400 });
 
@@ -458,6 +458,9 @@ export async function POST(req: Request) {
         erpCatId = categoryId || null;
     }
 
+    const giaNhapNum = Number(giaNhap) || 0;
+    const giaVonNum = Number(giaVon) > 0 ? Number(giaVon) : giaNhapNum;
+
     const newItem = await prisma.inventoryItem.create({
         data: {
             tenHang,
@@ -468,7 +471,8 @@ export async function POST(req: Request) {
             model: kieuDang || "",
             donVi: donVi || "cái",
             soLuongMin: Number(soLuongMin) || 0,
-            giaNhap: Number(giaNhap) || 0,
+            giaNhap: giaNhapNum,
+            giaVon: giaVonNum,
             giaBan: Number(giaBan) || 0,
             thongSoKyThuat: thongSoKyThuat || "",
             ghiChu: ghiChu || "",
@@ -507,7 +511,7 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
     const {
-      id, tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, source,
+      id, tenHang, code, categoryId, brand, donVi, soLuongMin, giaNhap, giaVon, giaBan, kieuDang, thongSoKyThuat, ghiChu, imageUrl, source,
       chieuDai, chieuRong, chieuDay, material, maThayThe, chatLieu
     } = body;
 
@@ -569,6 +573,7 @@ export async function PUT(req: Request) {
           donVi,
           soLuongMin: Number(soLuongMin) || 0,
           giaNhap: Number(giaNhap) || 0,
+          ...(giaVon !== undefined ? { giaVon: Number(giaVon) || 0 } : {}),
           giaBan: Number(giaBan) || 0,
           thongSoKyThuat,
           ghiChu,

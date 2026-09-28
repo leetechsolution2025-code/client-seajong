@@ -91,23 +91,31 @@ export async function POST(req: NextRequest) {
           items: {
             create: await Promise.all(items.map(async (i: any, index: number) => {
               let dinhMucId = null;
+              let invItem: any = null;
               if (i.inventoryItemId) {
-                const invItem = await prisma.inventoryItem.findUnique({
+                invItem = await prisma.inventoryItem.findUnique({
                    where: { id: i.inventoryItemId },
                    include: { dinhMucs: { orderBy: { createdAt: 'desc' } } }
                 });
                 if (invItem && invItem.dinhMucs.length > 0) {
-                   const stdBom = invItem.dinhMucs.find(d => d.code === `DM-${invItem.model}`) || invItem.dinhMucs[0];
+                   const stdBom = invItem.dinhMucs.find((d: any) => d.code === `DM-${invItem.model}`) || invItem.dinhMucs[0];
                    dinhMucId = stdBom.id;
                 }
               }
+              const defaultGiaNhap = (invItem?.giaNhap && invItem.giaNhap > 0) ? invItem.giaNhap : 0;
+              const donGia = (parseFloat(i.donGia) > 0) ? parseFloat(i.donGia) : defaultGiaNhap;
+              const soLuong = parseFloat(i.soLuong) || 1;
+              const thanhTien = (parseFloat(i.thanhTien) > 0 && parseFloat(i.donGia) > 0)
+                ? parseFloat(i.thanhTien)
+                : (soLuong * donGia);
+
               return {
                 inventoryItemId: i.inventoryItemId || null,
                 tenHang: i.tenHang,
                 donVi: i.donVi || null,
-                soLuong: parseFloat(i.soLuong) || 1,
-                donGia: parseFloat(i.donGia) || 0,
-                thanhTien: parseFloat(i.thanhTien) || 0,
+                soLuong,
+                donGia,
+                thanhTien,
                 ghiChu: i.ghiChu || null,
                 sortOrder: index,
                 dinhMucId

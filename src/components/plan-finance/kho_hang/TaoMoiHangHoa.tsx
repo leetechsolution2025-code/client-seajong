@@ -12,7 +12,7 @@ type MaterialRow = { id: number; ten: string; sl: number; dvt: string };
 
 const DEFAULT_FORM = {
   code: "", tenHang: "", categoryId: "", donVi: "",
-  soLuong: 0, soLuongMin: 0, giaNhap: 0, giaBan: 0,
+  soLuong: 0, soLuongMin: 0, giaNhap: 0, giaVon: 0, giaBan: 0,
   thongSoKyThuat: "", ghiChu: "", trangThai: "con-hang", nhaCungCapId: "",
 };
 
@@ -220,6 +220,7 @@ export function TaoMoiHangHoa({ open, onClose, onSaved, editItem }: {
           soLuong:        Number(form.soLuong),
           soLuongMin:     Number(form.soLuongMin),
           giaNhap:        Number(form.giaNhap),
+          giaVon:         Number(form.giaVon || form.giaNhap),
           giaBan:         Number(form.giaBan),
           nhaCungCap:     form.ghiChu        || undefined,
           thongSoKyThuat: form.thongSoKyThuat || undefined,
@@ -278,6 +279,7 @@ export function TaoMoiHangHoa({ open, onClose, onSaved, editItem }: {
         soLuong: editItem.soLuong || 0,
         soLuongMin: editItem.soLuongMin || 0,
         giaNhap: editItem.giaNhap || 0,
+        giaVon: editItem.giaVon || editItem.giaNhap || 0,
         giaBan: editItem.giaBan || 0,
         thongSoKyThuat: editItem.thongSoKyThuat || editItem.spec || "",
         ghiChu: editItem.ghiChu || editItem.supplier || editItem.nhaCungCap || "",
@@ -432,7 +434,7 @@ export function TaoMoiHangHoa({ open, onClose, onSaved, editItem }: {
               </div>
 
               {/* Số lượng + Giá */}
-              <div style={{ display: "grid", gridTemplateColumns: "80px 80px 1fr 1fr 34px", gap: 10, alignItems: "end" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "75px 75px 1fr 1fr 1fr 34px", gap: 8, alignItems: "end" }}>
                 {([{ k: "soLuong", label: "Tồn đầu" }, { k: "soLuongMin", label: "Tồn tối thiểu" }] as { k: keyof typeof form; label: string }[]).map(({ k, label }) => (
                   <div key={k}>
                     <FLabel text={label} />
@@ -441,7 +443,11 @@ export function TaoMoiHangHoa({ open, onClose, onSaved, editItem }: {
                 ))}
                 <div>
                   <FLabel text="Giá nhập (₫)" />
-                  <CurrencyInput name="giaNhap" value={Number(form.giaNhap)} onChange={v => setForm(f => ({ ...f, giaNhap: v }))} style={inputSt} onFocus={onFocus} onBlur={onBlur} />
+                  <CurrencyInput name="giaNhap" value={Number(form.giaNhap)} onChange={v => setForm(f => ({ ...f, giaNhap: v, ...(!editItem ? { giaVon: v } : {}) }))} style={inputSt} onFocus={onFocus} onBlur={onBlur} />
+                </div>
+                <div>
+                  <FLabel text="Giá vốn (₫)" />
+                  <CurrencyInput name="giaVon" value={Number(form.giaVon || form.giaNhap)} onChange={v => setForm(f => ({ ...f, giaVon: v }))} style={inputSt} onFocus={onFocus} onBlur={onBlur} />
                 </div>
                 <div>
                   <FLabel text="Giá bán (₫)" />

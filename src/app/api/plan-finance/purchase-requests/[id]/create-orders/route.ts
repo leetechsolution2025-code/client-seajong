@@ -93,7 +93,8 @@ export async function POST(
 
       const orderItems = group.map((a, idx) => {
         const item = itemMap.get(a.itemId)!;
-        const donGia = a.donGia ?? item.donGiaDK;
+        const defaultGiaNhap = (item.inventoryItem?.giaNhap && item.inventoryItem.giaNhap > 0) ? item.inventoryItem.giaNhap : (item.donGiaDK || 0);
+        const donGia = (a.donGia !== undefined && a.donGia > 0) ? a.donGia : defaultGiaNhap;
         
         // Yêu cầu: Định mức tiêu chuẩn là định mức không có đuôi phiên bản (ví dụ không có -01, -02, ...)
         let dinhMucId = null;

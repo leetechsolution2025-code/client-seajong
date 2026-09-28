@@ -124,8 +124,11 @@ export default function LogisticsOverviewPage() {
             let exportCode = `LXK-202607-${suffix}`;
             if (d.type === "material-export") exportCode = `LXK-VATTU-${suffix}`;
             if (d.type === "material-import") {
-              const isIQC = (d.title || d.code || "").includes("IQC") || (d.title || d.code || "").toLowerCase().includes("vật tư");
-              exportCode = `LNK-${isIQC ? 'IQC' : 'OQC'}-${suffix}`;
+              const text = (d.title || d.code || d.typeLabel || "").toLowerCase();
+              const isDefect = text.includes("hàng lỗi") || text.includes("kho-loi") || text.includes("lỗi");
+              const isIQC = text.includes("iqc") || text.includes("vật tư");
+              const prefix = isDefect ? "LNK-LOI" : (isIQC ? "LNK-IQC" : "LNK-OQC");
+              exportCode = `${prefix}-${suffix}`;
             }
             if (d.type === "logistics-ticket") exportCode = d.code;
             
@@ -370,13 +373,24 @@ export default function LogisticsOverviewPage() {
           orderCode.startsWith('QC-')
         );
 
-        let groupStatusText = isGroupImport ? "Chưa nhập kho" : "Chưa xuất kho";
+        const isDefectGroup = orderCode.startsWith('ERR-') || orderCode.startsWith('WR-');
+
+        let groupStatusText = isGroupImport 
+          ? (isDefectGroup ? "Chưa nhập kho lỗi" : "Chưa nhập kho") 
+          : (isDefectGroup ? "Chưa cấp phát" : "Chưa xuất kho");
         let groupStatusColor = "bg-secondary text-white";
         
         if (totalTickets > 0) {
           if (allExported) {
-            groupStatusText = isGroupImport ? "Đã nhập kho" : "Đã xuất kho";
+            groupStatusText = isGroupImport 
+              ? (isDefectGroup ? "Đã nhập kho lỗi" : "Đã nhập kho") 
+              : (isDefectGroup ? "Đã cấp phát vật tư" : "Đã xuất kho");
             groupStatusColor = "bg-success text-white";
+          } else if (isDefectGroup) {
+            if (completedCount > 0) {
+              groupStatusText = "Đang cấp phát vật tư";
+              groupStatusColor = "bg-warning text-dark";
+            }
           } else if (!isGroupImport) {
              if (hasMaterialCompleted && hasPackingPacked) {
                groupStatusText = "Đã xuất VT & Gom đủ hàng";
@@ -401,9 +415,9 @@ export default function LogisticsOverviewPage() {
         
         // Priority: 0 for totally unexecuted, 1 for in progress / partially completed, 2 for fully completed
         let priority = 1;
-        if (groupStatusText === "Chưa nhập kho" || groupStatusText === "Chưa xuất kho") {
+        if (groupStatusText.startsWith("Chưa")) {
           priority = 0;
-        } else if (groupStatusText === "Đã nhập kho" || groupStatusText === "Đã xuất kho") {
+        } else if (groupStatusText.startsWith("Đã") && !groupStatusText.includes("một phần") && !groupStatusText.includes("VT & Gom")) {
           priority = 2;
         }
         
@@ -492,7 +506,7 @@ export default function LogisticsOverviewPage() {
               <div className="d-flex align-items-center gap-2">
                 <i className={`bi ${isCollapsed ? 'bi-caret-right-fill' : 'bi-caret-down-fill'} text-muted`}></i> 
                 <span className="fw-bold" style={{ fontSize: 12 }}>
-                  {orderCode.startsWith("QC-") ? "SỐ HIỆU BIÊN BẢN QC: " : "SỐ HIỆU ĐƠN HÀNG: "}
+                  {orderCode.startsWith("QC-") ? "SỐ HIỆU BIÊN BẢN QC: " : (orderCode.startsWith("ERR-") ? "SỐ HIỆU HỒ SƠ LỖI: " : "SỐ HIỆU ĐƠN HÀNG: ")}
                   <span className="text-primary">{orderCode}</span>
                 </span>
                 <span className={`badge ${groupStatusColor} rounded-pill fw-normal`} style={{ fontSize: 10 }}>{groupStatusText}</span>
@@ -690,11 +704,27 @@ export default function LogisticsOverviewPage() {
                     { 
                       header: "Loại", 
                       noWrap: true,
-                      render: (row: any) => (
-                        <span className={`badge bg-label-${row.type === 'material-import' ? 'success' : 'primary'} text-${row.type === 'material-import' ? 'success' : 'primary'}`} style={{ fontSize: 11 }}>
-                          {row.type === 'material-import' ? 'Nhập kho' : 'Xuất kho'}
-                        </span>
-                      ),
+                      render: (row: any) => {
+                        const isImport = row.type === 'material-import';
+                        const isMaterial = row.ticketType === 'WARRANTY_MATERIAL' || row.ticketType === 'MATERIAL_PICKING' || row.type === 'material-export';
+                        
+                        let badgeColor = "primary";
+                        let label = "Xuất kho";
+                        
+                        if (isImport) {
+                          badgeColor = "success";
+                          label = row.typeLabel?.includes("hàng lỗi") ? "Nhập hàng lỗi" : "Nhập kho";
+                        } else if (isMaterial) {
+                          badgeColor = "warning";
+                          label = "Cấp phát vật tư";
+                        }
+                        
+                        return (
+                          <span className={`badge bg-label-${badgeColor} text-${badgeColor}`} style={{ fontSize: 11 }}>
+                            {label}
+                          </span>
+                        );
+                      },
                       width: "20%" 
                     },
                     { 
@@ -719,7 +749,13 @@ export default function LogisticsOverviewPage() {
                           statusText = "Đang sản xuất";
                         } else if (lowerStatus === "completed" || lowerStatus === "done") {
                           statusColor = "bg-success";
-                          statusText = row.type === 'material-import' ? "Đã nhập kho" : "Đã xuất kho";
+                          if (row.type === 'material-import') {
+                            statusText = row.typeLabel?.includes("hàng lỗi") ? "Đã nhập hàng lỗi" : "Đã nhập kho";
+                          } else if (row.ticketType === 'WARRANTY_MATERIAL' || row.ticketType === 'MATERIAL_PICKING') {
+                            statusText = "Đã cấp phát";
+                          } else {
+                            statusText = "Đã xuất kho";
+                          }
                         } else if (lowerStatus === "packed") {
                           statusColor = "bg-success";
                           statusText = "Đã gom đủ hàng";
@@ -844,8 +880,11 @@ export default function LogisticsOverviewPage() {
                                const suffix = parts[parts.length - 1] || `${index}`;
                                let exportCode = `LXK-202607-${suffix}`;
                                if (d.type === "material-import") {
-                                 const isIQC = (d.title || d.code || "").includes("IQC") || (d.title || d.code || "").toLowerCase().includes("vật tư");
-                                 exportCode = `LNK-${isIQC ? 'IQC' : 'OQC'}-${suffix}`;
+                                 const text = (d.title || d.code || d.typeLabel || "").toLowerCase();
+                                 const isDefect = text.includes("hàng lỗi") || text.includes("kho-loi") || text.includes("lỗi");
+                                 const isIQC = text.includes("iqc") || text.includes("vật tư");
+                                 const prefix = isDefect ? "LNK-LOI" : (isIQC ? "LNK-IQC" : "LNK-OQC");
+                                 exportCode = `${prefix}-${suffix}`;
                                }
                                if (d.type === "logistics-ticket") exportCode = d.code;
                                return { ...d, exportCode };
@@ -897,7 +936,11 @@ export default function LogisticsOverviewPage() {
       >
         <div className="offcanvas-header border-bottom px-4 py-3 bg-light">
           <div>
-            <h5 className="offcanvas-title fw-bold mb-1">Lệnh {selectedOrder?.type === 'material-import' ? 'Nhập' : 'Xuất'} Kho: {selectedOrder?.exportCode}</h5>
+            <h5 className="offcanvas-title fw-bold mb-1">
+              {selectedOrder?.ticketType === 'WARRANTY_MATERIAL' || selectedOrder?.ticketType === 'MATERIAL_PICKING'
+                ? `Phiếu Cấp Phát Vật Tư: ${selectedOrder?.exportCode}`
+                : `Lệnh ${selectedOrder?.type === 'material-import' ? 'Nhập' : 'Xuất'} Kho: ${selectedOrder?.exportCode}`}
+            </h5>
             <div className="text-muted" style={{ fontSize: 13 }}>
               {selectedOrder?.typeLabel} {selectedOrder?.code}
             </div>
@@ -908,7 +951,9 @@ export default function LogisticsOverviewPage() {
           <div className="p-4">
             <h6 className="fw-bold mb-3 d-flex align-items-center gap-2">
               <i className="bi bi-box-seam text-primary"></i> 
-              Danh sách hàng hoá
+              {selectedOrder?.ticketType === 'WARRANTY_MATERIAL' || selectedOrder?.ticketType === 'MATERIAL_PICKING' 
+                ? "Danh sách vật tư / linh kiện" 
+                : "Danh sách hàng hoá"}
             </h6>
             
             {fetchingDetails ? (
@@ -921,7 +966,11 @@ export default function LogisticsOverviewPage() {
                 {selectedOrder?.type === "logistics-ticket" && (
                   <div className="mb-3 p-3 bg-light rounded-3 border">
                     <div className="d-flex justify-content-between align-items-center mb-2">
-                      <span className="text-muted" style={{ fontSize: 13 }}>Tiến độ gom hàng:</span>
+                      <span className="text-muted" style={{ fontSize: 13 }}>
+                        {selectedOrder?.ticketType === 'WARRANTY_MATERIAL' || selectedOrder?.ticketType === 'MATERIAL_PICKING' 
+                          ? "Tiến độ cấp phát:" 
+                          : "Tiến độ gom hàng:"}
+                      </span>
                       <span className="fw-bold text-primary">
                         {orderDetails.filter(it => (it.pickedQty || 0) >= (it.qty || 0)).length} / {orderDetails.length} 
                         <span className="fw-normal text-muted ms-1" style={{ fontSize: 12 }}>mặt hàng</span>
@@ -1018,7 +1067,7 @@ export default function LogisticsOverviewPage() {
           <button 
             className="btn btn-primary w-100" 
             disabled={
-              (selectedOrder?.type === "logistics-ticket" && selectedOrder.trangThai !== "PACKED") ||
+              (selectedOrder?.type === "logistics-ticket" && selectedOrder.ticketType !== "WARRANTY_MATERIAL" && selectedOrder.trangThai !== "PACKED") ||
               (selectedOrder?.trangThai?.toLowerCase() === "completed" || selectedOrder?.trangThai?.toLowerCase() === "done") ||
               !isThuKho
             }
@@ -1059,9 +1108,14 @@ export default function LogisticsOverviewPage() {
             {(() => {
               const lowerStatus = selectedOrder?.trangThai?.toLowerCase();
               if (lowerStatus === "completed" || lowerStatus === "done") {
-                return selectedOrder?.type === 'material-import' ? "Đã nhập kho" : "Đã xuất kho";
+                if (selectedOrder?.type === 'material-import') return "Đã nhập kho";
+                if (selectedOrder?.ticketType === 'WARRANTY_MATERIAL' || selectedOrder?.ticketType === 'MATERIAL_PICKING') return "Đã cấp phát";
+                return "Đã xuất kho";
               }
               if (selectedOrder?.type === "logistics-ticket") {
+                if (selectedOrder.ticketType === "WARRANTY_MATERIAL") {
+                  return selectedOrder.trangThai === "PACKED" || selectedOrder.trangThai === "COMPLETED" ? "Đã cấp phát" : "Cấp phát vật tư";
+                }
                 return selectedOrder.trangThai === "PACKED" ? "Thực hiện" : "Chưa nhặt đủ hàng";
               }
               return "Thực hiện";

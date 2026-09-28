@@ -14,7 +14,7 @@ export async function GET() {
     const productCodes = [...new Set(defects.map((d: any) => d.productCode).filter(Boolean))] as string[];
     const orderNumbers = [...new Set(defects.map((d: any) => d.orderNumber).filter(Boolean))] as string[];
     const qcCodes = orderNumbers.filter(c => c.startsWith("QC-"));
-    const soCodes = orderNumbers.filter(c => c.startsWith("SO-"));
+    const nonQcOrderNumbers = orderNumbers.filter(c => !c.startsWith("QC-"));
 
     const [items, inspections, saleOrders] = await Promise.all([
       prisma.inventoryItem.findMany({
@@ -35,17 +35,37 @@ export async function GET() {
         where: { code: { in: qcCodes } },
         select: { code: true, metadata: true }
       }) : Promise.resolve([]),
-      soCodes.length > 0 ? (prisma as any).saleOrder.findMany({
-        where: { code: { in: soCodes } },
-        include: { saleOrderItems: { include: { inventoryItem: true, dinhMuc: true } } }
+      nonQcOrderNumbers.length > 0 ? (prisma as any).saleOrder.findMany({
+        where: {
+          OR: [
+            { code: { in: nonQcOrderNumbers } },
+            { id: { in: nonQcOrderNumbers } }
+          ]
+        },
+        include: {
+          saleOrderItems: {
+            include: {
+              inventoryItem: {
+                include: {
+                  dinhMucs: {
+                    orderBy: { createdAt: 'desc' },
+                    select: { code: true }
+                  }
+                }
+              }
+            }
+          }
+        }
       }) : Promise.resolve([])
     ]);
 
     const bomMap: Record<string, string> = {};
     items.forEach(item => {
-      const bom = item.dinhMucs?.[0]?.code || "Không có định mức";
-      if (item.code) bomMap[item.code] = bom;
-      if (item.model) bomMap[item.model] = bom;
+      const bom = item.dinhMucs?.[0]?.code;
+      if (bom) {
+        if (item.code) bomMap[item.code] = bom;
+        if (item.model) bomMap[item.model] = bom;
+      }
     });
 
     const specificBomMap: Record<string, string> = {};
@@ -59,22 +79,94 @@ export async function GET() {
       }
     });
 
+    const dinhMucRefIds: string[] = [];
+    saleOrders.forEach((so: any) => {
+      so.saleOrderItems?.forEach((item: any) => {
+        if (item.dinhMucId) dinhMucRefIds.push(item.dinhMucId);
+        if (item.ghiChu) {
+          try {
+            const parsed = JSON.parse(item.ghiChu);
+            if (parsed.bomCode) dinhMucRefIds.push(parsed.bomCode);
+            if (parsed.dinhMucId) dinhMucRefIds.push(parsed.dinhMucId);
+            if (typeof parsed.code === "string" && parsed.code.startsWith("DM-")) dinhMucRefIds.push(parsed.code);
+          } catch(e) {}
+        }
+      });
+    });
+
+    const referencedDinhMucs = dinhMucRefIds.length > 0 ? await prisma.dinhMuc.findMany({
+      where: {
+        OR: [
+          { id: { in: dinhMucRefIds } },
+          { code: { in: dinhMucRefIds } }
+        ]
+      },
+      select: { id: true, code: true }
+    }) : [];
+
+    const dinhMucLookup: Record<string, string> = {};
+    referencedDinhMucs.forEach(dm => {
+      if (dm.code) {
+        dinhMucLookup[dm.id] = dm.code;
+        dinhMucLookup[dm.code] = dm.code;
+      }
+    });
+
     defects.forEach((d: any) => {
-      if (d.orderNumber && d.orderNumber.startsWith("SO-")) {
-         const so = saleOrders.find((s: any) => s.code === d.orderNumber);
-         if (so) {
-            const item = so.saleOrderItems.find((i: any) => i.inventoryItem?.code === d.productCode || i.inventoryItem?.model === d.productCode);
-            if (item && item.dinhMuc) specificBomMap[`${d.orderNumber}_${d.productCode}`] = item.dinhMuc.code;
-         }
+      if (d.orderNumber && !d.orderNumber.startsWith("QC-")) {
+        const so = saleOrders.find((s: any) => s.code === d.orderNumber || s.id === d.orderNumber);
+        if (so) {
+          const matchingItems = (so.saleOrderItems || []).filter((i: any) =>
+            (i.inventoryItem?.code && i.inventoryItem.code === d.productCode) ||
+            (i.inventoryItem?.model && i.inventoryItem.model === d.productCode) ||
+            (i.tenHang && d.productCode && i.tenHang.toLowerCase().includes(d.productCode.toLowerCase())) ||
+            (i.tenHang && d.productName && i.tenHang.trim() === d.productName.trim())
+          );
+
+          // Pass 1: find exact matching DinhMuc among candidates across all order items
+          for (const item of matchingItems) {
+            let parsedGhiChu: any = {};
+            if (item.ghiChu) {
+              try { parsedGhiChu = JSON.parse(item.ghiChu); } catch (e) {}
+            }
+
+            const candidates = [
+              item.dinhMucId,
+              parsedGhiChu?.bomCode,
+              parsedGhiChu?.dinhMucId,
+              (typeof parsedGhiChu?.code === "string" && parsedGhiChu.code.startsWith("DM-") ? parsedGhiChu.code : null)
+            ].filter(Boolean);
+
+            for (const cand of candidates) {
+              if (dinhMucLookup[cand]) {
+                specificBomMap[`${d.orderNumber}_${d.productCode}`] = dinhMucLookup[cand];
+                break;
+              }
+            }
+            if (specificBomMap[`${d.orderNumber}_${d.productCode}`]) break;
+          }
+
+          // Pass 2: Fallback to item.inventoryItem.dinhMucs if no exact match found
+          if (!specificBomMap[`${d.orderNumber}_${d.productCode}`]) {
+            for (const item of matchingItems) {
+              if (item.inventoryItem?.dinhMucs?.[0]?.code) {
+                specificBomMap[`${d.orderNumber}_${d.productCode}`] = item.inventoryItem.dinhMucs[0].code;
+                break;
+              }
+            }
+          }
+        }
       }
     });
     
     const formatted = defects.map((d: any) => {
-      let bom = "Không có định mức";
+      let bom: string | null = null;
       if (d.orderNumber && d.orderNumber.startsWith("QC-") && specificBomMap[d.orderNumber]) {
          bom = specificBomMap[d.orderNumber];
-      } else if (d.orderNumber && d.orderNumber.startsWith("SO-") && specificBomMap[`${d.orderNumber}_${d.productCode}`]) {
+      } else if (d.orderNumber && specificBomMap[`${d.orderNumber}_${d.productCode}`]) {
          bom = specificBomMap[`${d.orderNumber}_${d.productCode}`];
+      } else if (bomMap[d.productCode]) {
+         bom = bomMap[d.productCode];
       }
 
       return {

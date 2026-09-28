@@ -2387,39 +2387,41 @@ export default function FinancePage() {
                           <span className="fw-bold text-secondary text-uppercase d-block mb-2" style={{ fontSize: "10px", letterSpacing: "0.05em" }}>
                             Chi tiết yêu cầu xuất
                           </span>
-                          <div className="p-2 bg-light rounded-3 border" style={{ fontSize: "12.5px" }}>
-                            <span className="fw-bold text-dark d-block">Thông số yêu cầu:</span>
-                            {Array.isArray(requestDetail) ? (
-                              <div className="table-responsive mt-2">
-                                <table className="table table-bordered table-sm mb-0 bg-white" style={{ fontSize: "12px" }}>
-                                  <thead className="table-light text-muted">
-                                    <tr>
-                                      <th className="text-center align-middle" style={{ width: "40px" }}>STT</th>
-                                      <th className="align-middle">Mã vật tư</th>
-                                      <th className="align-middle">Tên vật tư</th>
-                                      <th className="text-end align-middle">Số lượng</th>
-                                      <th className="align-middle">Đơn vị</th>
+                          {Array.isArray(requestDetail) ? (
+                            <div className="table-responsive border rounded-3 overflow-hidden">
+                              <table className="table table-bordered table-sm mb-0 bg-white" style={{ fontSize: "12px" }}>
+                                <thead className="table-light text-muted">
+                                  <tr>
+                                    <th className="text-center align-middle" style={{ width: "40px" }}>STT</th>
+                                    <th className="align-middle">Tên vật tư</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {requestDetail.map((item: any, idx: number) => (
+                                    <tr key={item.id || idx}>
+                                      <td className="text-center align-middle text-muted" style={{ width: "40px" }}>{idx + 1}</td>
+                                      <td className="align-middle py-2">
+                                        <div className="fw-semibold text-dark">{item.name}</div>
+                                        <div className="d-flex align-items-center gap-2 mt-1" style={{ fontSize: "11px" }}>
+                                          <span className="badge bg-light text-secondary border fw-normal">{item.code || item.id}</span>
+                                          <span className="text-muted">•</span>
+                                          <span className="text-muted">
+                                            Số lượng: <strong className="text-primary">{item.quantity}</strong> {item.unit || "cái"}
+                                          </span>
+                                        </div>
+                                      </td>
                                     </tr>
-                                  </thead>
-                                  <tbody>
-                                    {requestDetail.map((item: any, idx: number) => (
-                                      <tr key={item.id || idx}>
-                                        <td className="text-center align-middle">{idx + 1}</td>
-                                        <td className="align-middle"><span className="badge bg-light text-dark border">{item.code || item.id}</span></td>
-                                        <td className="fw-medium align-middle">{item.name}</td>
-                                        <td className="text-end fw-bold text-primary align-middle">{item.quantity}</td>
-                                        <td className="align-middle text-muted">{item.unit}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            ) : (
-                              <pre className="text-muted mb-0 mt-2" style={{ fontSize: "11px", whiteSpace: "pre-wrap" }}>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className="p-2.5 bg-light rounded-3 border">
+                              <pre className="text-muted mb-0" style={{ fontSize: "11px", whiteSpace: "pre-wrap" }}>
                                 {JSON.stringify(requestDetail, null, 2)}
                               </pre>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div>

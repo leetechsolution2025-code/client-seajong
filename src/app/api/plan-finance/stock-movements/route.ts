@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
     // ── Cập nhật trangThai + soLuong tổng trên InventoryItem ────────────────
     const allStocks = await prisma.inventoryStock.findMany({
       where: { inventoryItemId },
-      include: { inventoryItem: { select: { soLuongMin: true } }, warehouse: { select: { code: true } } },
+      include: { inventoryItem: { select: { soLuongMin: true, giaNhap: true, giaVon: true } }, warehouse: { select: { code: true } } },
     });
     const validStocks = allStocks.filter((st: any) => st.warehouse?.code !== 'KHO-LOI');
       const tongSoLuong = validStocks.reduce((s, st) => s + st.soLuong, 0);
@@ -178,9 +178,27 @@ export async function POST(req: NextRequest) {
                       : soLuongMin > 0 && tongSoLuong <= soLuongMin ? "sap-het"
                       : "con-hang";
 
+    let finalGiaVon: number | undefined = undefined;
+    if (type === "nhap" && donGia !== undefined && donGia > 0) {
+      const currentItem = allStocks[0]?.inventoryItem;
+      const currentCost = (currentItem?.giaVon && currentItem.giaVon > 0)
+        ? currentItem.giaVon
+        : (currentItem?.giaNhap ?? 0);
+      const oldQty = tongSoLuong - soLuong;
+      if (oldQty > 0 && currentCost > 0) {
+        finalGiaVon = Math.round(((oldQty * currentCost) + (soLuong * donGia)) / tongSoLuong);
+      } else {
+        finalGiaVon = Math.round(donGia);
+      }
+    }
+
     await prisma.inventoryItem.update({
       where: { id: inventoryItemId },
-      data:  { soLuong: tongSoLuong, trangThai },
+      data:  { 
+        soLuong: tongSoLuong, 
+        trangThai,
+        ...(finalGiaVon !== undefined && { giaVon: finalGiaVon }),
+      },
     });
 
     return NextResponse.json({ ok: true, movement });

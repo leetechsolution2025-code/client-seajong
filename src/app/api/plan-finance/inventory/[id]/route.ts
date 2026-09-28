@@ -52,7 +52,7 @@ export async function PUT(
     const {
       code, tenHang, categoryId,
       donVi, soLuong, soLuongMin,
-      giaNhap, giaBan,
+      giaNhap, giaVon, giaBan,
       nhaCungCap, thongSoKyThuat, ghiChu,
     } = body;
 
@@ -79,6 +79,7 @@ export async function PUT(
         soLuong:        soLuongVal,
         soLuongMin:     soLuongMinVal,
         giaNhap:        parseFloat(giaNhap  ?? 0),
+        ...(giaVon !== undefined ? { giaVon: parseFloat(giaVon ?? 0) } : {}),
         giaBan:         parseFloat(giaBan   ?? 0),
         nhaCungCap:     nhaCungCap      || null,
         thongSoKyThuat: thongSoKyThuat  || null,

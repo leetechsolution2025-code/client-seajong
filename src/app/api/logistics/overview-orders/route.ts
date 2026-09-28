@@ -186,7 +186,7 @@ export async function GET(_req: NextRequest) {
         id:        t.id,
         code:      t.code,
         type:      "logistics-ticket" as const,
-        typeLabel: t.type === "BATCH_PACKING" ? "Gom hàng & đóng gói" : (t.type === "WARRANTY_MATERIAL" ? "Vật tư bảo hành" : "Xuất kho sản xuất"),
+        typeLabel: t.type === "BATCH_PACKING" ? "Gom hàng & đóng gói" : (t.type === "WARRANTY_MATERIAL" ? "Cấp phát vật tư bảo hành" : "Xuất kho sản xuất"),
         customer:  t.saleOrder?.customer?.name ?? (t.defectRecord ? `Từ hồ sơ: ${t.defectRecord.code}` : null),
         customerAddress: t.saleOrder?.customer?.address ?? null,
         ghiChu:    t.saleOrder?.ghiChu ?? (t.defectRecord ? `Yêu cầu vật tư cho lỗi ${t.defectRecord.code}` : null),
@@ -196,7 +196,7 @@ export async function GET(_req: NextRequest) {
         assigneeName: assignedOrderAssignees.get(t.id) || null,
         ticketType: t.type,
         saleOrderId: t.saleOrder?.id,
-        saleOrderCode: t.saleOrder?.code,
+        saleOrderCode: t.saleOrder?.code || (t.defectRecord ? t.defectRecord.code : null),
         requestedDate: t.type === "BATCH_PACKING" ? (t.saleOrder?.ngayGiao ?? t.createdAt) : t.createdAt,
         items: t.items?.map((it: any) => {
           let bomCode = null;
@@ -303,9 +303,9 @@ export async function GET(_req: NextRequest) {
         const prodOrder = qcProdOrderMap.get(code) || null;
 
         const titleLower = t.title.toLowerCase();
-        const typeLabel = titleLower.includes("thành phẩm") 
-          ? "Nhập kho thành phẩm" 
-          : (titleLower.includes("hàng lỗi") ? "Nhập kho hàng lỗi" : "Nhập kho vật tư");
+        const typeLabel = (titleLower.includes("hàng lỗi") || titleLower.includes("kho-loi") || titleLower.includes("lỗi"))
+          ? "Nhập kho hàng lỗi" 
+          : (titleLower.includes("thành phẩm") ? "Nhập kho thành phẩm" : "Nhập kho vật tư");
 
         return {
           id:        t.id,

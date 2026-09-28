@@ -123,7 +123,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                           <div className="mb-2">Sản phẩm: <strong className="text-dark">{defect.productName}</strong></div>
                           <div className="d-flex gap-4 mb-2">
                             <div>Mã SP: <strong className="text-dark">{defect.productCode}</strong></div>
-                            <div>Số lượng: <strong className="text-danger">{defect.quantity}</strong></div>
+                            <div>Số lượng: <strong className="text-danger">{String(defect.quantity || 0).padStart(2, '0')}</strong></div>
                           </div>
                           <div className="d-flex gap-4">
                             <div>Mã định mức: <strong className="text-dark">{defect.bomCode || 'Không có'}</strong></div>
@@ -162,7 +162,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                               className="m-0 py-1"
                               title="Vật tư linh kiện phân rã" 
                               icon="bi-box-seam" 
-                              action={<span className="badge bg-danger text-white border-0 fw-normal" style={{ textTransform: 'none' }}>{defect.bomCode || 'Không có định mức'}</span>}
+                              action={<span className={`badge ${defect.bomCode ? "bg-primary" : "bg-danger"} text-white border-0 fw-normal`} style={{ textTransform: 'none' }}>{defect.bomCode || 'Không có định mức'}</span>}
                             />
                           }
                           table={

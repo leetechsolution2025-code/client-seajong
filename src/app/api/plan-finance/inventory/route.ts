@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       code, tenHang, loai, categoryId,
-      donVi, soLuong, soLuongMin, giaNhap, giaBan,
+      donVi, soLuong, soLuongMin, giaNhap, giaVon, giaBan,
       nhaCungCap, thongSoKyThuat, viTri, trangThai, ghiChu,
       dinhMuc,
     } = body;
@@ -156,6 +156,7 @@ export async function POST(req: NextRequest) {
         soLuong:        soLuongVal,
         soLuongMin:     soLuongMinVal,
         giaNhap:        parseFloat(giaNhap ?? 0),
+        giaVon:         giaVon !== undefined ? parseFloat(giaVon ?? 0) : parseFloat(giaNhap ?? 0),
         giaBan:         parseFloat(giaBan  ?? 0),
         nhaCungCap:     nhaCungCap      || undefined,
         thongSoKyThuat: thongSoKyThuat  || undefined,

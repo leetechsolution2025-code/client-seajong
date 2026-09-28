@@ -57,7 +57,7 @@ export function DefectList({ data, onSelect }: DefectListProps) {
               <td style={{ maxWidth: '250px' }}>
                 <div className="fw-medium text-dark text-truncate" title={defect.productName}>{defect.productName}</div>
                 <div className="text-muted small">
-                  {defect.productCode} - SL: {defect.quantity}
+                  Số lượng: <span className="fw-medium text-dark">{String(defect.quantity || 0).padStart(2, '0')}</span>
                 </div>
                 <div className="text-muted small mt-1">
                   Mã định mức: <span className="fw-medium text-dark">{defect.bomCode || "Không có định mức"}</span>

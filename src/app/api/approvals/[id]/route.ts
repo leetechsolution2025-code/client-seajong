@@ -704,11 +704,38 @@ async function syncEntityStatus(
               } catch (e) {}
             }
             
+            // Ensure every item has inventoryItemId resolved
+            const missingInvItems = items.filter(i => !i.inventoryItemId);
+            if (missingInvItems.length > 0) {
+              const queryCodes = missingInvItems.map(i => i.code || i.id).filter(Boolean);
+              const foundInvItems = await prisma.inventoryItem.findMany({
+                where: {
+                  OR: [
+                    { code: { in: queryCodes } },
+                    { id: { in: queryCodes } }
+                  ]
+                },
+                select: { id: true, code: true }
+              });
+              const invMap = new Map<string, string>();
+              foundInvItems.forEach(it => {
+                if (it.code) invMap.set(it.code, it.id);
+                invMap.set(it.id, it.id);
+              });
+
+              items.forEach(i => {
+                if (!i.inventoryItemId) {
+                  const resolvedId = invMap.get(i.code) || invMap.get(i.id);
+                  if (resolvedId) i.inventoryItemId = resolvedId;
+                }
+              });
+            }
+            
             const validItems = items.filter(i => i.inventoryItemId);
             if (validItems.length > 0) {
               const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
               const count = await prisma.logisticsTicket.count();
-              const ticketCode = `PK-${dateStr}-${(count + 1).toString().padStart(3, '0')}`;
+              const ticketCode = `CP-${dateStr}-${(count + 1).toString().padStart(3, '0')}`;
               
               await prisma.logisticsTicket.create({
                 data: {
@@ -719,7 +746,7 @@ async function syncEntityStatus(
                   items: {
                     create: validItems.map((i: any) => ({
                       inventoryItemId: i.inventoryItemId,
-                      quantity: parseInt(i.quantity, 10) || 1,
+                      requestedQty: parseFloat(String(i.quantity ?? 1)) || 1,
                     }))
                   }
                 }

@@ -131,7 +131,7 @@ export function DefectSummaryOffcanvas({ defectId, defect: initialDefect, onClos
                 <div className="text-muted mt-0.5">
                   Mã: <span className="fw-semibold text-dark">{defect.productCode || '—'}</span>
                   {defect.quantity !== undefined && (
-                    <span className="ms-2">SL: <span className="text-danger fw-bold">{defect.quantity}</span></span>
+                    <span className="ms-2">Số lượng: <span className="text-danger fw-bold">{String(defect.quantity || 0).padStart(2, '0')}</span></span>
                   )}
                 </div>
                 {defect.bomCode && (

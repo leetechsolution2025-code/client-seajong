@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
       // Cập nhật trangThai + soLuong tổng trên InventoryItem
       const allStocks = await prisma.inventoryStock.findMany({
         where: { inventoryItemId },
-        include: { inventoryItem: { select: { soLuongMin: true, giaNhap: true } }, warehouse: { select: { code: true } } },
+        include: { inventoryItem: { select: { soLuongMin: true, giaNhap: true, giaVon: true } }, warehouse: { select: { code: true } } },
       });
       const validStocks = allStocks.filter((st: any) => st.warehouse?.code !== 'KHO-LOI');
       const tongSoLuong = validStocks.reduce((s, st) => s + st.soLuong, 0);
@@ -138,25 +138,29 @@ export async function POST(req: NextRequest) {
                         : soLuongMin > 0 && tongSoLuong <= soLuongMin ? "sap-het"
                         : "con-hang";
 
-      // Tính giá bình quân gia quyền (Moving Average Cost)
-      let finalGiaNhap = undefined;
+      // Tính giá bình quân gia quyền (Moving Average Cost) và lưu vào Giá vốn (giaVon)
+      let finalGiaVon: number | undefined = undefined;
       if (donGia !== undefined && donGia > 0) {
-        const oldPrice = allStocks[0]?.inventoryItem.giaNhap ?? 0;
+        const currentItem = allStocks[0]?.inventoryItem;
+        const currentCost = (currentItem?.giaVon && currentItem.giaVon > 0)
+          ? currentItem.giaVon
+          : (currentItem?.giaNhap ?? 0);
         const oldQty = tongSoLuong - soLuong;
-        
-        if (oldQty > 0 && oldPrice > 0) {
-          finalGiaNhap = ((oldQty * oldPrice) + (soLuong * donGia)) / tongSoLuong;
+
+        if (oldQty > 0 && currentCost > 0) {
+          finalGiaVon = Math.round(((oldQty * currentCost) + (soLuong * donGia)) / tongSoLuong);
         } else {
-          finalGiaNhap = donGia;
+          finalGiaVon = Math.round(donGia);
         }
       }
 
+      // Lưu ý: Giá nhập (giaNhap) cố định theo thiết lập thủ công của người dùng, Giá vốn (giaVon) tính theo bình quân gia quyền
       await prisma.inventoryItem.update({
         where: { id: inventoryItemId },
         data:  { 
           soLuong: tongSoLuong, 
           trangThai,
-          ...(finalGiaNhap !== undefined && { giaNhap: finalGiaNhap }),
+          ...(finalGiaVon !== undefined && { giaVon: finalGiaVon }),
         },
       });
     }
