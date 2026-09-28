@@ -39,6 +39,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
   const [selectedBomItemIds, setSelectedBomItemIds] = useState<Set<string>>(new Set());
   const [editedQuantities, setEditedQuantities] = useState<Record<string, number>>({});
   const [returnQty, setReturnQty] = useState<number>(1);
+  const isBomLocked = defect?.status !== 'NEW' && defect?.status !== 'TECH_EVALUATING';
   const toast = useToast();
 
   const prevDefectId = React.useRef<string | null>(null);
@@ -195,9 +196,11 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                   <th style={{ width: '40px', borderBottomWidth: 1 }} className="text-center align-middle py-3">
                                     <input 
                                       type="checkbox" 
-                                      className="form-check-input shadow-none cursor-pointer"
+                                      className={`form-check-input shadow-none ${isBomLocked ? '' : 'cursor-pointer'}`}
                                       checked={defect?.bomItems?.length > 0 && selectedBomItemIds.size === defect.bomItems.length}
+                                      disabled={isBomLocked}
                                       onChange={(e) => {
+                                        if (isBomLocked) return;
                                         if (e.target.checked && defect?.bomItems) {
                                           setSelectedBomItemIds(new Set(defect.bomItems.map((i: any) => i.id)));
                                         } else {
@@ -217,8 +220,9 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                   defect.bomItems.map((item: any) => (
                                      <tr 
                                        key={item.id} 
-                                       className="cursor-pointer"
+                                       className={isBomLocked ? "" : "cursor-pointer"}
                                        onClick={() => {
+                                         if (isBomLocked) return;
                                          const next = new Set(selectedBomItemIds);
                                          if (next.has(item.id)) next.delete(item.id);
                                          else next.add(item.id);
@@ -228,9 +232,11 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                        <td className="text-center" onClick={(e) => e.stopPropagation()}>
                                          <input 
                                            type="checkbox" 
-                                           className="form-check-input shadow-none cursor-pointer" 
+                                           className={`form-check-input shadow-none ${isBomLocked ? '' : 'cursor-pointer'}`} 
                                            checked={selectedBomItemIds.has(item.id)}
+                                           disabled={isBomLocked}
                                            onChange={(e) => {
+                                             if (isBomLocked) return;
                                              const next = new Set(selectedBomItemIds);
                                              if (e.target.checked) next.add(item.id);
                                              else next.delete(item.id);
@@ -641,20 +647,13 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                   </div>
                                 </div>
 
-                                <div className="d-flex gap-2">
+                                <div className="d-flex">
                                   <button 
                                     type="button"
                                     className="btn btn-outline-secondary w-100 rounded-pill py-2 small fw-semibold"
                                     onClick={onClose}
                                   >
                                     <i className="bi bi-x-lg me-1"></i> Đóng
-                                  </button>
-                                  <button 
-                                    type="button"
-                                    className="btn btn-outline-primary w-100 rounded-pill py-2 small fw-semibold"
-                                    onClick={() => mutate()}
-                                  >
-                                    <i className="bi bi-arrow-clockwise me-1"></i> Làm mới tiến độ
                                   </button>
                                 </div>
                               </div>

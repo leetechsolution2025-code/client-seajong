@@ -160,10 +160,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             type: "OQC",
             status: "Chưa thực hiện",
             productName: defect.productName,
-            requesterName: performedBy || 'Kỹ thuật viên',
+            requesterName: performedBy || 'Bộ phận sản xuất',
             requesterDept: 'Kỹ thuật / Sản xuất',
             executionTime: new Date(),
-            notes: `Kiểm tra OQC đầu ra sau sửa chữa cho hồ sơ ${defect.code}. Nội dung sửa chữa: ${note || defect.repairPlan || ''}`,
+            notes: `Kiểm tra OQC đầu ra: Bộ phận sản xuất đã hoàn thành công việc này lại rồi cho hồ sơ ${defect.code}. Nội dung xử lý: ${note || defect.repairPlan || ''}`,
             metadata: JSON.stringify({
               defectId: id,
               defectCode: defect.code,
@@ -212,9 +212,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         await tx.task.create({
           data: {
             title: `Kiểm tra chất lượng đầu ra (OQC) - Hồ sơ ${defect.code}`,
-            description: `Kỹ thuật đã hoàn tất sửa chữa hồ sơ ${defect.code} (${defect.productName}, SL: ${defect.quantity || 1} bộ).\n` +
+            description: `Bộ phận sản xuất đã hoàn thành công việc này lại rồi (Hồ sơ: ${defect.code}, Sản phẩm: ${defect.productName}, SL: ${defect.quantity || 1} bộ).\n` +
               `Mã phiếu OQC: ${qcCode}\n` +
-              `Nội dung sửa chữa: ${note || defect.repairPlan || ''}\n` +
+              `Nội dung xử lý: ${note || defect.repairPlan || ''}\n` +
               `Đề nghị bộ phận QC kiểm tra theo quy trình OQC và đưa ra kết luận.`,
             status: 'pending',
             priority: 'high',
@@ -230,7 +230,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           tx,
           qaUserIds,
           `🔍 Yêu cầu kiểm tra chất lượng (OQC) - ${defect.code}`,
-          `Kỹ thuật đã hoàn tất sửa chữa sản phẩm cho hồ sơ **${defect.code}** (${defect.productName}). Vui lòng tiến hành kiểm tra chất lượng theo phiếu OQC **${qcCode}**.`
+          `Bộ phận sản xuất đã hoàn thành công việc này lại rồi cho hồ sơ **${defect.code}** (${defect.productName}). Vui lòng tiến hành kiểm tra chất lượng theo phiếu OQC **${qcCode}**.`
         );
       } else if (action === 'QC KẾT LUẬN: ĐẠT') {
         // Cập nhật phiếu QualityInspection
