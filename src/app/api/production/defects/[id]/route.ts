@@ -11,7 +11,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     
     const defect = await (prisma as any).defectRecord.findUnique({
       where: { id },
-      include: { activities: { orderBy: { createdAt: 'desc' } } }
+      include: { 
+        activities: { orderBy: { createdAt: 'desc' } },
+        logisticsTickets: {
+          include: {
+            items: {
+              include: {
+                inventoryItem: true
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!defect) {
@@ -192,6 +203,106 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const customerAddress = customerInfo?.address || saleOrder?.customer?.address || defect.customerAddress;
     const purchaseDate = defect.purchaseDate || saleOrder?.ngayGiao || saleOrder?.ngayDat || null;
 
+    // Lấy thông tin phê duyệt và tác vụ liên quan
+    const [approval, task] = await Promise.all([
+      (prisma as any).approvalRequest.findFirst({
+        where: { entityId: id },
+        orderBy: { createdAt: 'desc' }
+      }),
+      (prisma as any).task.findFirst({
+        where: {
+          OR: [
+            { description: { contains: defect.code } },
+            { title: { contains: defect.code } }
+          ]
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+    ]);
+
+    // Tìm quyết định và mức xử lý
+    const decisionActivity = defect.activities?.find((a: any) => a.action?.startsWith('QUYẾT ĐỊNH:'));
+    let resolution = 'Sửa chữa tại chỗ';
+    if (decisionActivity) {
+      if (decisionActivity.action.includes('THAY LINH KIỆN')) resolution = 'Thay linh kiện';
+      else if (decisionActivity.action.includes('PHÂN RÃ')) resolution = 'Phân rã thu hồi vật tư linh kiện';
+      else if (decisionActivity.action.includes('HUỶ BỎ')) resolution = 'Huỷ bỏ thay thế bằng hàng hoá mới';
+      else if (decisionActivity.action.includes('NHẬP LẠI KHO')) resolution = 'Nhập lại kho';
+      else if (decisionActivity.action.includes('SỬA CHỮA')) resolution = 'Sửa chữa tại chỗ';
+    } else if (approval?.entityType === 'DEFECT_MATERIAL_EXPORT') {
+      resolution = 'Thay linh kiện';
+    } else if (approval?.entityType === 'DEFECT_PRODUCT_EXPORT') {
+      resolution = 'Huỷ bỏ thay thế bằng hàng hoá mới';
+    } else if (task) {
+      resolution = 'Phân rã thu hồi vật tư linh kiện';
+    }
+
+    // Trích xuất các linh kiện đã được chọn
+    const rawSelectedKeys: string[] = [];
+    const editedQuantities: Record<string, number> = {};
+
+    if (approval?.metadata) {
+      try {
+        const items = JSON.parse(approval.metadata);
+        if (Array.isArray(items)) {
+          items.forEach((it: any) => {
+            const key = it.id || it.code;
+            if (key) {
+              rawSelectedKeys.push(key);
+              if (it.inventoryItemId) rawSelectedKeys.push(it.inventoryItemId);
+              editedQuantities[key] = it.quantity || it.qty || 1;
+            }
+          });
+        }
+      } catch (e) {}
+    }
+
+    if (rawSelectedKeys.length === 0 && task?.actualResult) {
+      try {
+        const items = JSON.parse(task.actualResult);
+        if (Array.isArray(items)) {
+          items.forEach((it: any) => {
+            const key = it.code || it.name;
+            if (key) {
+              rawSelectedKeys.push(key);
+              editedQuantities[key] = it.soLuong || it.quantity || 1;
+            }
+          });
+        }
+      } catch (e) {}
+    }
+
+    if (rawSelectedKeys.length === 0 && defect.logisticsTickets?.length > 0) {
+      defect.logisticsTickets.forEach((t: any) => {
+        t.items?.forEach((it: any) => {
+          const key = it.inventoryItem?.code || it.inventoryItemId;
+          if (key) {
+            rawSelectedKeys.push(key);
+            if (it.inventoryItem?.code) rawSelectedKeys.push(it.inventoryItem.code);
+            editedQuantities[key] = it.requestedQty || 1;
+          }
+        });
+      });
+    }
+
+    // Khớp danh sách key với bomItems để lấy đúng id trong bảng bomItems
+    const selectedBomItemIds: string[] = [];
+    bomItems.forEach((b: any) => {
+      const isMatched = rawSelectedKeys.includes(b.id) ||
+        (b.realInventoryItemId && rawSelectedKeys.includes(b.realInventoryItemId)) ||
+        (b.name && rawSelectedKeys.includes(b.name));
+      if (isMatched) {
+        selectedBomItemIds.push(b.id);
+        if (editedQuantities[b.id]) {
+          editedQuantities[b.id] = editedQuantities[b.id];
+        } else if (b.realInventoryItemId && editedQuantities[b.realInventoryItemId]) {
+          editedQuantities[b.id] = editedQuantities[b.realInventoryItemId];
+        }
+      }
+    });
+
+    const repairPlan = defect.repairPlan || decisionActivity?.description || approval?.note || '';
+
     return NextResponse.json({
       ...defect,
       customerName,
@@ -200,6 +311,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       purchaseDate,
       bomCode,
       bomItems,
+      resolution,
+      repairPlan,
+      selectedBomItemIds,
+      editedQuantities,
       mediaUrls: defect.mediaUrls ? JSON.parse(defect.mediaUrls) : []
     });
   } catch (error: any) {

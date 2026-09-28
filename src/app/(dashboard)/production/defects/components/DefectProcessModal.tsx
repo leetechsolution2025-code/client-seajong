@@ -40,6 +40,28 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
   const [returnQty, setReturnQty] = useState<number>(1);
   const toast = useToast();
 
+  const prevDefectId = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (defect && defect.id && defect.id !== prevDefectId.current) {
+      prevDefectId.current = defect.id;
+      setNote(defect.repairPlan || '');
+      if (defect.resolution) {
+        setResolution(defect.resolution);
+      }
+      if (Array.isArray(defect.selectedBomItemIds) && defect.selectedBomItemIds.length > 0) {
+        setSelectedBomItemIds(new Set(defect.selectedBomItemIds));
+      } else {
+        setSelectedBomItemIds(new Set());
+      }
+      if (defect.editedQuantities && Object.keys(defect.editedQuantities).length > 0) {
+        setEditedQuantities(defect.editedQuantities);
+      } else {
+        setEditedQuantities({});
+      }
+    }
+  }, [defect]);
+
   useEffect(() => {
     if (defect?.quantity) {
       setReturnQty(Number(defect.quantity) || 1);
@@ -47,15 +69,16 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
   }, [defect?.quantity]);
 
   useEffect(() => {
-    if (selectedBomItemIds.size === 0 && (resolution === 'Thay linh kiện' || resolution === 'Phân rã thu hồi vật tư linh kiện')) {
+    if ((defect?.status === 'NEW' || defect?.status === 'TECH_EVALUATING') && selectedBomItemIds.size === 0 && (resolution === 'Thay linh kiện' || resolution === 'Phân rã thu hồi vật tư linh kiện')) {
       setResolution('Sửa chữa tại chỗ');
     }
-  }, [selectedBomItemIds.size, resolution]);
+  }, [selectedBomItemIds.size, resolution, defect?.status]);
 
   if (!defectId) return null;
 
   const handleProcess = async (action: string, nextStatus: string, bomUpdates?: any[], customReturnQty?: number) => {
-    if (!note && action !== 'ĐÓNG HỒ SƠ') {
+    const finalNote = note || defect?.repairPlan || (action === 'NHẬN LINH KIỆN & XỬ LÝ' ? 'Đã nhận linh kiện và tiếp tục xử lý' : '');
+    if (!finalNote && action !== 'ĐÓNG HỒ SƠ') {
       toast.warning('Thiếu thông tin', 'Vui lòng nhập báo cáo nội dung xử lý!');
       return;
     }
@@ -68,7 +91,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
         body: JSON.stringify({
           action,
           nextStatus,
-          note,
+          note: finalNote,
           performedBy: session?.user?.name || 'Hệ thống',
           bomUpdates,
           returnQty: customReturnQty ?? returnQty
@@ -77,7 +100,6 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
       
       if (res.ok) {
         toast.success('Thành công', 'Đã lưu quyết định xử lý!');
-        setNote('');
         mutate();
         if (onRefresh) onRefresh();
       } else {
@@ -408,7 +430,23 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                             )}
 
                             {defect.status === 'WAITING_INVENTORY' && (
-                              <div className="d-flex flex-column h-100 justify-content-center">
+                              <div className="d-flex flex-column h-100 justify-content-center gap-3">
+                                <div className="p-3 bg-light rounded-3 border">
+                                  <div className="d-flex align-items-center justify-content-between mb-2">
+                                    <span className="small text-muted">Phương án xử lý:</span>
+                                    <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                      {resolution || defect.resolution || 'Thay linh kiện'}
+                                    </span>
+                                  </div>
+                                  {defect.logisticsTickets?.[0] && (
+                                    <div className="d-flex align-items-center justify-content-between small text-muted">
+                                      <span>Phiếu cấp phát vật tư:</span>
+                                      <span className="fw-semibold text-dark">
+                                        {defect.logisticsTickets[0].code} {defect.logisticsTickets[0].status === 'COMPLETED' ? '(Đã xuất kho)' : '(Chờ kho xuất)'}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                                 <button className="btn btn-primary fw-bold rounded-pill shadow-sm py-2" disabled={isSubmitting} onClick={() => handleProcess('NHẬN LINH KIỆN & XỬ LÝ', 'PROCESSING')}>
                                   Đã nhận linh kiện & Tiếp tục xử lý
                                 </button>
@@ -416,7 +454,15 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                             )}
 
                             {defect.status === 'PROCESSING' && (
-                              <div className="d-flex flex-column h-100 justify-content-center">
+                              <div className="d-flex flex-column h-100 justify-content-center gap-3">
+                                <div className="p-3 bg-light rounded-3 border">
+                                  <div className="d-flex align-items-center justify-content-between">
+                                    <span className="small text-muted">Phương án xử lý:</span>
+                                    <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                      {resolution || defect.resolution || 'Đang xử lý'}
+                                    </span>
+                                  </div>
+                                </div>
                                 <button className="btn btn-success fw-bold rounded-pill shadow-sm py-2" disabled={isSubmitting} onClick={() => handleProcess('ĐÓNG HỒ SƠ', 'COMPLETED')}>
                                   Xác nhận Hoàn tất (Đóng hồ sơ)
                                 </button>

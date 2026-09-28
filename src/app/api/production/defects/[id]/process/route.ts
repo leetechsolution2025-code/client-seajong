@@ -19,13 +19,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     // Use transaction to update status and create activity log
     await (prisma as any).$transaction(async (tx: any) => {
-      // 1. Update status if it changed
-      if (nextStatus && nextStatus !== oldStatus) {
-        await tx.defectRecord.update({
-          where: { id },
-          data: { status: nextStatus }
-        });
-      }
+      // 1. Update status if it changed and save note to repairPlan
+      await tx.defectRecord.update({
+        where: { id },
+        data: {
+          ...(nextStatus && nextStatus !== oldStatus ? { status: nextStatus } : {}),
+          ...(note ? { repairPlan: note } : {})
+        }
+      });
 
       // 2. Create activity log
       await tx.defectActivity.create({
