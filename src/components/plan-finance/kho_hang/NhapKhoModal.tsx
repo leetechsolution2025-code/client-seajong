@@ -56,7 +56,7 @@ interface NhapKhoModalProps {
   }[];
   initialTaskId?: string;
   initialSoBienBanQC?: string;
-  initialMode?: "manual" | "po" | "production";
+  initialMode?: "manual" | "po" | "production" | "return";
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -84,8 +84,19 @@ const CSS: Record<string, React.CSSProperties> = {
 // ── Component ─────────────────────────────────────────────────────────────────
 export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, initialSoBienBanQC, initialMode }: NhapKhoModalProps) {
   const { data: session } = useSession();
-  const [mode, setMode] = React.useState<"manual" | "po" | "production">(
-    initialMode ? initialMode : (initialItems && initialItems.length > 0 ? "production" : "manual")
+
+  const isInitialReturn = (
+    initialMode === "return" ||
+    (initialItems && initialItems.some((it: any) => 
+      it.loaiNhapKho === "Nhập kho hàng trả lại" ||
+      it.isReturn ||
+      (typeof it.name === "string" && (it.name.toLowerCase().includes("trả lại") || it.name.includes("ERR-"))) ||
+      (typeof it.tenHang === "string" && (it.tenHang.toLowerCase().includes("trả lại") || it.tenHang.includes("ERR-")))
+    ))
+  );
+
+  const [mode, setMode] = React.useState<"manual" | "po" | "production" | "return">(
+    initialMode ? initialMode : (isInitialReturn ? "return" : (initialItems && initialItems.length > 0 ? "production" : "manual"))
   );
 
   // Header fields
@@ -99,6 +110,7 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
   const [toWarehouseId, setToWarehouseId] = React.useState("");
   const [nguoiThucHien, setNguoiThucHien] = React.useState("");
   const [lyDo, setLyDo] = React.useState(() => {
+    if (isInitialReturn) return "Nhập kho hàng trả lại";
     const isDefect = initialItems && initialItems.some((it: any) => 
       it.type === "Kho Hàng Lỗi" || 
       it.warehouseCode === "KHO-LOI" || 
@@ -108,11 +120,19 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
     if (isDefect) return "Nhập kho hàng lỗi OQC";
     return initialItems && initialItems.length > 0 ? "Nhập kho thành phẩm OQC" : "Nhập kho hàng hoá";
   });
-  const [loaiNhapKho, setLoaiNhapKho] = React.useState(initialItems && initialItems.length > 0 ? "Nhập từ sản xuất" : "Nhập mua hàng");
+  const [loaiNhapKho, setLoaiNhapKho] = React.useState(() => {
+    if (isInitialReturn) return "Nhập kho hàng trả lại";
+    return initialItems && initialItems.length > 0 ? "Nhập từ sản xuất" : "Nhập mua hàng";
+  });
 
   React.useEffect(() => {
-    if (mode === "production") setLoaiNhapKho("Nhập từ sản xuất");
-    else if (mode === "po") setLoaiNhapKho("Nhập mua hàng");
+    if (mode === "return") {
+      setLoaiNhapKho("Nhập kho hàng trả lại");
+    } else if (mode === "production") {
+      setLoaiNhapKho("Nhập từ sản xuất");
+    } else if (mode === "po") {
+      setLoaiNhapKho("Nhập mua hàng");
+    }
   }, [mode]);
   const [soBienBanQC, setSoBienBanQC] = React.useState(initialSoBienBanQC || "");
   const [ghiChu, setGhiChu] = React.useState("");
@@ -132,6 +152,21 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
   const [woLoading, setWoLoading] = React.useState(false);
   const [woList, setWoList] = React.useState<any[]>([]);
   const [selectedWO, setSelectedWO] = React.useState<any | null>(null);
+
+  const filteredWOList = React.useMemo(() => {
+    if (mode === "return") {
+      const returns = woList.filter(t => {
+        const titleLower = (t.title || "").toLowerCase();
+        return titleLower.includes("hàng trả lại") || 
+               titleLower.includes("trả lại") || 
+               t.title.includes("ERR-") ||
+               titleLower.includes("hàng lỗi") ||
+               (t.actualResult && (t.actualResult.includes("Nhập kho hàng trả lại") || t.actualResult.includes("KHO-LOI")));
+      });
+      return returns.length > 0 ? returns : woList;
+    }
+    return woList;
+  }, [mode, woList]);
 
   const toast = useToast();
 
@@ -201,14 +236,16 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
         const active = Array.isArray(d) ? d.filter(w => w.isActive) : [];
         setWarehouses(active);
         
-        const isDefect = initialItems && initialItems.some((it: any) => 
+        const isReturn = initialMode === "return" || (initialItems && initialItems.some((it: any) => 
+          it.loaiNhapKho === "Nhập kho hàng trả lại" ||
+          it.isReturn ||
           it.type === "Kho Hàng Lỗi" || 
           it.warehouseCode === "KHO-LOI" || 
-          (typeof it.name === "string" && it.name.includes("(Hàng lỗi)")) ||
-          (typeof it.tenHang === "string" && it.tenHang.includes("(Hàng lỗi)"))
-        );
+          (typeof it.name === "string" && (it.name.toLowerCase().includes("trả lại") || it.name.includes("ERR-") || it.name.includes("(Hàng lỗi)"))) ||
+          (typeof it.tenHang === "string" && (it.tenHang.toLowerCase().includes("trả lại") || it.tenHang.includes("ERR-") || it.tenHang.includes("(Hàng lỗi)")))
+        ));
 
-        if (isDefect) {
+        if (isReturn) {
           const khoLoi = active.find(w => w.code === "KHO-LOI");
           if (khoLoi) {
             setToWarehouseId(khoLoi.id);
@@ -264,9 +301,9 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, initialSoBienBanQC, initialItems]);
 
-  // Fetch pending import tasks for mode === "production"
+  // Fetch pending import tasks for mode === "production" || mode === "return"
   React.useEffect(() => {
-    if (mode !== "production") return;
+    if (mode !== "production" && mode !== "return") return;
     setWoLoading(true);
     setSelectedWO(null);
     fetch("/api/logistics/tasks/pending-import")
@@ -327,7 +364,7 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
     finally { setPoLoading(false); }
   };
 
-  // ── WO select ──────────────────────────────────────────────────────────────
+  // ── WO / Return select ──────────────────────────────────────────────────────
   const onSelectWOById = async (taskId: string, fallbackList?: any[], keepExistingLines?: boolean) => {
     if (!taskId) {
       setSelectedWO(null);
@@ -339,7 +376,31 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
     setSelectedWO(task);
     if (!task) return;
 
-    setLyDo(`Theo yêu cầu: ${task.title}`);
+    // Check if task is return / defect
+    const titleLower = (task.title || "").toLowerCase();
+    const isReturnTask = titleLower.includes("hàng trả lại") || 
+                         titleLower.includes("trả lại") || 
+                         task.title.includes("ERR-") ||
+                         (task.actualResult && (task.actualResult.includes("Nhập kho hàng trả lại") || task.actualResult.includes("KHO-LOI")));
+    const isDefectTask = isReturnTask || titleLower.includes("hàng lỗi") || titleLower.includes("kho-loi");
+
+    if (isReturnTask) {
+      setLoaiNhapKho("Nhập kho hàng trả lại");
+      const matchErr = task.title.match(/(ERR-[\w-]+)/i);
+      setLyDo(matchErr ? `Nhập kho hàng trả lại theo hồ sơ lỗi ${matchErr[1]}` : `Nhập kho hàng trả lại: ${task.title.replace("Yêu cầu ", "")}`);
+      const khoLoi = warehouses.find(w => w.code === "KHO-LOI");
+      if (khoLoi) setToWarehouseId(khoLoi.id);
+    } else if (isDefectTask) {
+      setLoaiNhapKho("Nhập từ sản xuất");
+      setLyDo(`Theo yêu cầu: ${task.title.replace("Yêu cầu ", "")}`);
+      const khoLoi = warehouses.find(w => w.code === "KHO-LOI");
+      if (khoLoi) setToWarehouseId(khoLoi.id);
+    } else {
+      setLoaiNhapKho("Nhập từ sản xuất");
+      setLyDo(`Theo yêu cầu: ${task.title.replace("Yêu cầu ", "")}`);
+      const khoChinh = warehouses.find(w => w.code === "KHO-CHINH" || w.code === "KVP");
+      if (khoChinh) setToWarehouseId(khoChinh.id);
+    }
     
     if (task.actualResult && !keepExistingLines) {
       try {
@@ -482,6 +543,23 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
         }
       }
 
+      // Record activity to defect record if from defect
+      const taskTitle = selectedWO?.title || "";
+      const matchErr = taskTitle.match(/(ERR-[\w-]+)/i);
+      if (matchErr) {
+        try {
+          await fetch(`/api/production/defects/${matchErr[1]}/process`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "NHẬP KHO HÀNG TRẢ LẠI THÀNH CÔNG",
+              note: `Thủ kho (${nguoiThucHien || "Kho"}) đã xác nhận nhập kho hàng trả lại ${soChungTu} vào Kho hàng lỗi (KHO-LOI).`,
+              performedBy: nguoiThucHien || "Thủ kho"
+            })
+          });
+        } catch (e) {}
+      }
+
       toast.success("✅ Nhập kho thành công!", `Phữu ${soChungTu} đã được xác nhận`, 5000);
       setSuccess(true);
       onSaved();
@@ -557,12 +635,15 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
         <div className="nk-top-actions" style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "flex-end", gap: 16 }}>
           {/* Mode toggle */}
           <div className="nk-mode-select" style={{ display: "flex", background: "var(--muted)", padding: 4, borderRadius: 10, gap: 4, border: "1px solid rgba(0,0,0,0.05)" }}>
-            {([{ val: "manual" as const, label: "Nhập thủ công", icon: "bi-pencil" },
-            { val: "po" as const, label: "Theo đơn mua", icon: "bi-file-earmark-text" },
-            { val: "production" as const, label: "Thành phẩm sản xuất", icon: "bi-box-seam" }]).map(m => (
+            {([
+              { val: "manual" as const, label: "Nhập thủ công", icon: "bi-pencil" },
+              { val: "po" as const, label: "Theo đơn mua", icon: "bi-file-earmark-text" },
+              { val: "production" as const, label: "Thành phẩm sản xuất", icon: "bi-box-seam" },
+              { val: "return" as const, label: "Hàng trả lại", icon: "bi-arrow-return-left" }
+            ]).map(m => (
               <button key={m.val} onClick={() => setMode(m.val)} style={{
                 display: "flex", alignItems: "center", gap: 6, flex: 1, justifyContent: "center",
-                padding: "6px 16px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                padding: "6px 14px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
                 cursor: "pointer", transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                 background: mode === m.val ? "var(--card)" : "transparent",
                 color: mode === m.val ? "var(--foreground)" : "var(--muted-foreground)",
@@ -618,8 +699,8 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
             </div>
           )}
 
-          {/* WO select */}
-          {mode === "production" && (
+          {/* WO / Return select */}
+          {(mode === "production" || mode === "return") && (
             <div className="nk-po-select position-relative" style={{ display: "flex", alignItems: "center" }}>
               {woLoading ? (
                 <div style={{ fontSize: 13, color: "var(--muted-foreground)", padding: "0 10px" }}>
@@ -638,13 +719,19 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
                       color: selectedWO ? "#059669" : "var(--foreground)",
                       fontSize: 13, fontWeight: selectedWO ? 600 : 400,
                       outline: "none", cursor: "pointer",
-                      width: 280, transition: "all 0.2s",
+                      width: 290, transition: "all 0.2s",
                       appearance: "none", textOverflow: "ellipsis"
                     }}
                   >
-                    <option value="">-- Chọn lệnh chờ nhập --</option>
-                    {woList.length === 0 && <option disabled value="">Không có lệnh chờ nhập</option>}
-                    {woList.map(wo => (
+                    <option value="">
+                      {mode === "return" ? "-- Chọn lệnh hàng trả lại --" : "-- Chọn lệnh chờ nhập --"}
+                    </option>
+                    {filteredWOList.length === 0 && (
+                      <option disabled value="">
+                        {mode === "return" ? "Không có lệnh hàng trả lại" : "Không có lệnh chờ nhập"}
+                      </option>
+                    )}
+                    {filteredWOList.map(wo => (
                       <option key={wo.id} value={wo.id}>
                         {wo.title.replace("Yêu cầu ", "")}
                       </option>
@@ -840,6 +927,7 @@ export function NhapKhoModal({ onClose, onSaved, initialItems, initialTaskId, in
                   >
                     <option value="Nhập mua hàng">Nhập mua hàng</option>
                     <option value="Nhập từ sản xuất">Nhập từ sản xuất</option>
+                    <option value="Nhập kho hàng trả lại">Nhập kho hàng trả lại</option>
                     <option value="Nhập hàng hoàn trả">Nhập hàng hoàn trả</option>
                     <option value="Nhập nội bộ">Nhập nội bộ</option>
                     <option value="Khác">Khác</option>

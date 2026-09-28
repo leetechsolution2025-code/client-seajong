@@ -34,8 +34,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       await tx.defectActivity.create({
         data: {
           defectId: id,
-          action: action || 'CẬP NHẬT',
-          description: note,
+          action: (nextStatus === 'WAITING_QC' && (action === 'HOÀN THÀNH' || action === 'YÊU CẦU QC KIỂM TRA'))
+            ? 'HOÀN THÀNH (CHUYỂN QC KIỂM TRA)'
+            : (action || 'CẬP NHẬT'),
+          description: note || 'Kỹ thuật viên hoàn tất xử lý và chuyển thông tin sang bộ phận QC kiểm định chất lượng (OQC).',
           oldStatus,
           newStatus: nextStatus || oldStatus,
           performedBy: performedBy || 'Hệ thống'
@@ -124,13 +126,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           donVi: "Bộ",
           type: "Kho Hàng Lỗi (KHO-LOI)",
           warehouseCode: "KHO-LOI",
+          loaiNhapKho: "Nhập kho hàng trả lại",
+          isReturn: true,
+          defectCode: defect.code,
           isShortage: false
         }];
 
         await tx.task.create({
           data: {
-            title: `Yêu cầu nhập kho hàng lỗi (${defect.code})`,
-            description: `Yêu cầu nhập lại hàng lỗi về kho.\n` +
+            title: `Yêu cầu nhập kho hàng trả lại (${defect.code})`,
+            description: `Yêu cầu nhập kho hàng trả lại (Xử lý hàng lỗi Mức 5: Nhập lại kho).\n` +
               `Hồ sơ: ${defect.code}\n` +
               `Sản phẩm: ${defect.productName}\n` +
               `Số lượng: ${qty}\n` +
@@ -144,8 +149,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           }
         });
         
-        await sendWarehouseNotification(tx, `Yêu cầu nhập kho hàng lỗi (${defect.code})`, `Kỹ thuật đã yêu cầu nhập lại ${qty} sản phẩm lỗi từ hồ sơ **${defect.code}**.\n\nVui lòng tiếp nhận và xác nhận nhập kho lỗi (KHO-LOI).`);
-      } else if (action === 'YÊU CẦU QC KIỂM TRA' || nextStatus === 'WAITING_QC') {
+        await sendWarehouseNotification(tx, `Yêu cầu nhập kho hàng trả lại (${defect.code})`, `Kỹ thuật đã yêu cầu nhập kho hàng trả lại cho ${qty} sản phẩm từ hồ sơ **${defect.code}** (Mức 5: Nhập lại kho).\n\nVui lòng tiếp nhận và lập phiếu nhập kho hàng trả lại vào Kho hàng lỗi (KHO-LOI).`);
+      } else if (action === 'YÊU CẦU QC KIỂM TRA' || nextStatus === 'WAITING_QC' || action === 'HOÀN THÀNH') {
         // Tạo phiếu kiểm tra chất lượng đầu ra (OQC)
         const qcCode = await getNextQcCode(new Date(), tx);
 

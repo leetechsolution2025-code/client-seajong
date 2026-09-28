@@ -326,6 +326,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       selectedBomItemIds,
       editedQuantities,
       qcInspection,
+      warehouseTask: task ? { id: task.id, title: task.title, status: task.status, actualResult: task.actualResult } : null,
       mediaUrls: defect.mediaUrls ? JSON.parse(defect.mediaUrls) : []
     });
   } catch (error: any) {

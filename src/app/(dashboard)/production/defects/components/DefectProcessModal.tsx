@@ -78,8 +78,8 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
   if (!defectId) return null;
 
   const handleProcess = async (action: string, nextStatus: string, bomUpdates?: any[], customReturnQty?: number) => {
-    const finalNote = note || defect?.repairPlan || (action === 'TIẾP TỤC XỬ LÝ' || action === 'NHẬN LINH KIỆN & XỬ LÝ' ? 'Tiếp tục xử lý sau khi kho xuất vật tư' : (action === 'QC KẾT LUẬN: ĐẠT' ? 'QC kiểm tra đạt yêu cầu kỹ thuật' : ''));
-    if (!finalNote && action !== 'ĐÓNG HỒ SƠ' && action !== 'HOÀN THÀNH' && action !== 'QC KẾT LUẬN: ĐẠT') {
+    const finalNote = note || defect?.repairPlan || (action === 'TIẾP TỤC XỬ LÝ' || action === 'NHẬN LINH KIỆN & XỬ LÝ' ? 'Tiếp tục xử lý sau khi kho xuất vật tư' : (action === 'HOÀN THÀNH' ? 'Hoàn tất xử lý và chuyển QC kiểm tra' : ''));
+    if (!finalNote && action !== 'ĐÓNG HỒ SƠ' && action !== 'HOÀN THÀNH') {
       toast.warning('Thiếu thông tin', 'Vui lòng nhập báo cáo nội dung xử lý!');
       return;
     }
@@ -342,12 +342,20 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                         <div className="row g-4">
                           <div className="col-md-6 border-end-md">
                             <div className="form-group h-100 d-flex flex-column">
-                              <label className="form-label small fw-medium text-muted mb-3">Báo cáo nội dung xử lý <span className="text-danger">*</span></label>
+                              <label className="form-label small fw-medium text-muted mb-3">
+                                Báo cáo nội dung xử lý {defect.status !== 'WAITING_QC' && defect.status !== 'COMPLETED' && <span className="text-danger">*</span>}
+                                {defect.status === 'WAITING_QC' && (
+                                  <span className="badge bg-info-subtle text-info-emphasis border border-info ms-2 fw-normal" style={{ fontSize: '11px' }}>
+                                    <i className="bi bi-send me-1"></i>Đã chuyển QC
+                                  </span>
+                                )}
+                              </label>
                               <textarea 
                                 className="form-control form-control-sm rounded-3 shadow-none flex-grow-1 border-opacity-50" 
                                 placeholder="Nhập chi tiết về tình trạng lỗi và hướng xử lý..."
                                 value={note}
                                 onChange={e => setNote(e.target.value)}
+                                readOnly={defect.status === 'WAITING_QC' || defect.status === 'COMPLETED'}
                                 style={{ minHeight: '200px' }}
                               ></textarea>
                             </div>
@@ -364,7 +372,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                     { title: 'Thay linh kiện', description: 'Chọn linh kiện, vật tư trong bảng định mức để thay thế' },
                                     { title: 'Phân rã thu hồi vật tư linh kiện', description: 'Chọn linh kiện, vật tư trong bảng định mức để thu hồi' },
                                     { title: 'Huỷ bỏ thay thế bằng hàng hoá mới', description: 'Tạo yêu cầu xuất kho hàng hoá để thay thế' },
-                                    { title: 'Nhập lại kho', description: 'Tạo yêu cầu nhập kho hàng trả về' }
+                                    { title: 'Nhập lại kho', description: 'Tạo yêu cầu nhập kho hàng trả lại' }
                                   ].map((opt, idx) => {
                                     const isDisabled = selectedBomItemIds.size === 0 && (opt.title === 'Thay linh kiện' || opt.title === 'Phân rã thu hồi vật tư linh kiện');
                                     return (
@@ -402,7 +410,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                     <div className="d-flex align-items-center justify-content-between">
                                       <div>
                                         <div className="fw-semibold text-dark" style={{ fontSize: '13px' }}>
-                                          <i className="bi bi-box-arrow-in-down text-primary me-1"></i> Số lượng nhập lại kho:
+                                          <i className="bi bi-box-arrow-in-down text-primary me-1"></i> Số lượng nhập kho hàng trả lại:
                                         </div>
                                         <div className="text-muted" style={{ fontSize: '11px' }}>
                                           Khách trả: {defect?.quantity || 1} bộ sản phẩm
@@ -431,6 +439,67 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                             )}
 
                             {defect.status === 'WAITING_INVENTORY' && (() => {
+                              const isReturnResolution = (resolution === 'Nhập lại kho' || defect.resolution === 'Nhập lại kho');
+
+                              if (isReturnResolution) {
+                                const isImportCompleted = defect.warehouseTask?.status === 'done' || defect.warehouseTask?.status === 'completed';
+                                return (
+                                  <div className="d-flex flex-column h-100 justify-content-center gap-3">
+                                    <div className="p-3 bg-light rounded-3 border">
+                                      <div className="d-flex align-items-center justify-content-between mb-2">
+                                        <span className="small text-muted">Phương án xử lý:</span>
+                                        <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                          Nhập lại kho (Nhập kho hàng trả lại)
+                                        </span>
+                                      </div>
+                                      <div className="d-flex align-items-center justify-content-between small text-muted">
+                                        <span>Lệnh nhập kho hàng trả lại:</span>
+                                        <div className="d-flex align-items-center gap-1">
+                                          <span className={`badge ${isImportCompleted ? 'bg-success-subtle text-success border border-success' : 'bg-warning-subtle text-warning-emphasis border border-warning'}`}>
+                                            {defect.warehouseTask?.title || `Yêu cầu nhập kho hàng trả lại (${defect.code})`} {isImportCompleted ? '• Đã nhập kho' : '• Chờ kho nhập'}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            className="btn btn-link btn-sm p-0 text-muted"
+                                            title="Kiểm tra lại trạng thái nhập kho"
+                                            onClick={() => mutate()}
+                                          >
+                                            <i className="bi bi-arrow-clockwise"></i>
+                                          </button>
+                                        </div>
+                                      </div>
+                                      {!isImportCompleted ? (
+                                        <div className="mt-2 pt-2 border-top small text-muted d-flex align-items-center gap-2">
+                                          <i className="bi bi-lock-fill text-warning fs-6"></i>
+                                          <span>Nút <strong>Hoàn thành</strong> chỉ mở khoá khi bộ phận kho hoàn tất lập phiếu nhập kho hàng trả lại (KHO-LOI).</span>
+                                        </div>
+                                      ) : (
+                                        <div className="mt-2 pt-2 border-top small text-success d-flex align-items-center gap-2">
+                                          <i className="bi bi-check-circle-fill fs-6"></i>
+                                          <span>Đã hoàn tất nhập kho hàng trả lại vào Kho hàng lỗi. Bạn có thể hoàn thành hồ sơ.</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <button 
+                                      className={`btn ${isImportCompleted ? 'btn-success' : 'btn-secondary'} fw-bold rounded-pill shadow-sm py-2`} 
+                                      disabled={!isImportCompleted || isSubmitting} 
+                                      onClick={() => handleProcess('HOÀN THÀNH', 'COMPLETED')}
+                                      title={!isImportCompleted ? 'Chỉ mở khoá khi hoàn tất nhập kho hàng trả lại' : 'Hoàn thành hồ sơ'}
+                                    >
+                                      {!isImportCompleted ? (
+                                        <>
+                                          <i className="bi bi-lock-fill me-1"></i> Hoàn thành
+                                        </>
+                                      ) : (
+                                        <>
+                                          <i className="bi bi-check2-circle me-1"></i> Hoàn thành hồ sơ
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                );
+                              }
+
                               const materialTickets = (defect.logisticsTickets || []).filter((t: any) => t.type === 'WARRANTY_MATERIAL');
                               const ticketsToCheck = materialTickets.length > 0 ? materialTickets : (defect.logisticsTickets || []);
                               const mainTicket = ticketsToCheck[0];
@@ -512,21 +581,22 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                   <div className="d-flex align-items-center justify-content-between small text-muted">
                                     <span>Bước tiếp theo:</span>
                                     <span className="fw-semibold text-dark">
-                                      Kiểm tra chất lượng đầu ra (OQC)
+                                      Chuyển thông tin sang bộ phận QC
                                     </span>
                                   </div>
                                   <div className="mt-2 pt-2 border-top small text-muted d-flex align-items-center gap-2">
                                     <i className="bi bi-info-circle text-primary fs-6"></i>
-                                    <span>Sau khi sửa chữa/thay thế xong, gửi yêu cầu để bộ phận QC kiểm định chất lượng trước khi nhập kho.</span>
+                                    <span>Sau khi hoàn tất sửa chữa, nhấn <strong>Hoàn thành</strong> để chuyển thông tin sang bộ phận QC kiểm tra chất lượng xuất xưởng (OQC).</span>
                                   </div>
                                 </div>
                                 <button 
                                   className="btn btn-primary fw-bold rounded-pill shadow-sm py-2 d-flex align-items-center justify-content-center gap-2" 
                                   disabled={isSubmitting} 
-                                  onClick={() => handleProcess('YÊU CẦU QC KIỂM TRA', 'WAITING_QC')}
+                                  onClick={() => handleProcess('HOÀN THÀNH', 'WAITING_QC')}
+                                  title="Nhấn Hoàn thành để kết thúc xử lý tại xưởng sản xuất và bàn giao sang bộ phận QC kiểm định"
                                 >
-                                  <i className="bi bi-shield-check fs-5"></i>
-                                  <span>Thông báo QC kiểm tra (OQC)</span>
+                                  <i className="bi bi-check2-circle fs-5"></i>
+                                  <span>Hoàn thành</span>
                                 </button>
                               </div>
                             )}
@@ -541,7 +611,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                     </span>
                                   </div>
                                   {defect.qcInspection ? (
-                                    <div className="d-flex align-items-center justify-content-between small text-muted mb-1">
+                                    <div className="d-flex align-items-center justify-content-between small text-muted mb-2">
                                       <span>Phiếu kiểm tra OQC:</span>
                                       <div className="d-flex align-items-center gap-1">
                                         <span className="fw-semibold text-dark">
@@ -561,35 +631,30 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="small text-muted mb-1">
-                                      Đã gửi thông báo đến bộ phận QC kiểm tra.
+                                    <div className="small text-muted mb-2">
+                                      Đã tạo yêu cầu và thông báo đến bộ phận QC.
                                     </div>
                                   )}
                                   <div className="mt-2 pt-2 border-top small text-muted d-flex align-items-center gap-2">
-                                    <i className="bi bi-shield-exclamation text-info fs-6"></i>
-                                    <span>QC kết luận ĐẠT sẽ tự động phát sinh lệnh nhập kho thành phẩm (KHO-CHINH) để kết thúc quy trình.</span>
+                                    <i className="bi bi-shield-check text-info fs-6"></i>
+                                    <span>Bộ phận QC sẽ tiến hành kiểm định tại <strong>Phân hệ Quản lý chất lượng</strong>. Khi QC kết luận ĐẠT, hệ thống sẽ tự động phát sinh lệnh nhập kho thành phẩm (KHO-CHINH) để kết thúc quy trình.</span>
                                   </div>
                                 </div>
 
-                                <div className="d-flex flex-column gap-2">
+                                <div className="d-flex gap-2">
                                   <button 
-                                    className="btn btn-success fw-bold rounded-pill shadow-sm py-2 d-flex align-items-center justify-content-center gap-2" 
-                                    disabled={isSubmitting} 
-                                    onClick={() => handleProcess('QC KẾT LUẬN: ĐẠT', 'COMPLETED')}
-                                    title="QC đánh giá Đạt, tự động tạo lệnh nhập kho thành phẩm và hoàn tất hồ sơ"
+                                    type="button"
+                                    className="btn btn-outline-secondary w-100 rounded-pill py-2 small fw-semibold"
+                                    onClick={onClose}
                                   >
-                                    <i className="bi bi-check2-circle fs-5"></i>
-                                    <span>QC Kết luận: ĐẠT (Tự động nhập kho)</span>
+                                    <i className="bi bi-x-lg me-1"></i> Đóng
                                   </button>
-                                  
                                   <button 
-                                    className="btn btn-outline-danger fw-semibold rounded-pill shadow-sm py-2 d-flex align-items-center justify-content-center gap-2" 
-                                    disabled={isSubmitting} 
-                                    onClick={() => handleProcess('QC KẾT LUẬN: KHÔNG ĐẠT', 'PROCESSING')}
-                                    title="QC đánh giá Không đạt, chuyển lại kỹ thuật viên để tiếp tục sửa chữa"
+                                    type="button"
+                                    className="btn btn-outline-primary w-100 rounded-pill py-2 small fw-semibold"
+                                    onClick={() => mutate()}
                                   >
-                                    <i className="bi bi-arrow-counterclockwise fs-5"></i>
-                                    <span>QC Kết luận: KHÔNG ĐẠT (Xử lý lại)</span>
+                                    <i className="bi bi-arrow-clockwise me-1"></i> Làm mới tiến độ
                                   </button>
                                 </div>
                               </div>
@@ -688,7 +753,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
             <p className="mb-2">Bạn có chắc chắn muốn thực hiện xử lý lỗi với phương án <strong>{resolution}</strong>?</p>
             {resolution === 'Nhập lại kho' && (
               <p className="mb-0 text-primary small fw-semibold">
-                <i className="bi bi-box-arrow-in-down me-1"></i> Số lượng nhập kho hàng lỗi: <strong>{returnQty}</strong> bộ
+                <i className="bi bi-box-arrow-in-down me-1"></i> Số lượng nhập kho hàng trả lại: <strong>{returnQty}</strong> bộ
               </p>
             )}
           </div>

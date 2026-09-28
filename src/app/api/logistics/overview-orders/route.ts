@@ -74,7 +74,9 @@ export async function GET(_req: NextRequest) {
           OR: [
             { title: { contains: "nhập kho thành phẩm" } },
             { title: { contains: "nhập kho vật tư" } },
-            { title: { contains: "nhập kho hàng lỗi" } }
+            { title: { contains: "nhập kho hàng lỗi" } },
+            { title: { contains: "nhập kho hàng trả lại" } },
+            { title: { contains: "hàng trả lại" } }
           ]
         },
         orderBy: { createdAt: "desc" },
@@ -304,7 +306,9 @@ export async function GET(_req: NextRequest) {
         const prodOrder = qcProdOrderMap.get(code) || null;
 
         const titleLower = t.title.toLowerCase();
-        const typeLabel = (titleLower.includes("hàng lỗi") || titleLower.includes("kho-loi") || titleLower.includes("lỗi"))
+        const typeLabel = (titleLower.includes("hàng trả lại") || titleLower.includes("trả lại"))
+          ? "Nhập kho hàng trả lại"
+          : (titleLower.includes("hàng lỗi") || titleLower.includes("kho-loi") || titleLower.includes("lỗi"))
           ? "Nhập kho hàng lỗi" 
           : (titleLower.includes("thành phẩm") ? "Nhập kho thành phẩm" : "Nhập kho vật tư");
 

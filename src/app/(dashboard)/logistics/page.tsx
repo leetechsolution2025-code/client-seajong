@@ -41,7 +41,7 @@ export default function LogisticsOverviewPage() {
   const [xuatKhoTicketId, setXuatKhoTicketId] = useState<string | undefined>(undefined);
   const [showNhapKhoModal, setShowNhapKhoModal] = useState(false);
   const [nhapKhoTaskId, setNhapKhoTaskId] = useState<string | undefined>();
-  const [nhapKhoMode, setNhapKhoMode] = useState<"manual" | "po" | "production" | undefined>();
+  const [nhapKhoMode, setNhapKhoMode] = useState<"manual" | "po" | "production" | "return" | undefined>();
   const [nhapKhoSoBienBanQC, setNhapKhoSoBienBanQC] = useState<string>("");
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -1113,7 +1113,10 @@ export default function LogisticsOverviewPage() {
             onClick={() => {
               if (selectedOrder?.type === "material-import") {
                 setNhapKhoTaskId(selectedOrder.id);
-                setNhapKhoMode(selectedOrder.typeLabel?.toLowerCase().includes("vật tư") ? "po" : "production");
+                const isReturn = selectedOrder.typeLabel?.includes("trả lại") || 
+                                 selectedOrder.typeLabel?.includes("hàng lỗi") ||
+                                 selectedOrder.code?.startsWith("ERR-");
+                setNhapKhoMode(isReturn ? "return" : selectedOrder.typeLabel?.toLowerCase().includes("vật tư") ? "po" : "production");
                 setNhapKhoSoBienBanQC(selectedOrder.code?.startsWith("QC-") ? selectedOrder.code : "");
                 setShowNhapKhoModal(true);
               } else {
