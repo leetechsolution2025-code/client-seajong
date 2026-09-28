@@ -96,12 +96,30 @@ export function HoverImage({ previewSize = 300, images, fallback, ...props }: Ho
     setHover(false);
   };
 
+  const targetWidth = props.style?.width;
+  const targetHeight = props.style?.height;
+  const isPercent = typeof targetWidth === "string" && targetWidth.endsWith("%");
+
   if (hasError || imageList.length === 0) {
     if (fallback) return <>{fallback}</>;
+    const fallbackWidth = targetWidth ?? "100%";
+    const fallbackHeight = targetHeight ?? "100%";
     return (
       <div 
-        className="w-100 h-100 d-flex align-items-center justify-content-center bg-light"
-        style={{ width: "100%", height: "100%", ...(props.style?.borderRadius ? { borderRadius: props.style.borderRadius } : {}) }}
+        className={`d-flex align-items-center justify-content-center bg-light ${props.className || ""}`}
+        style={{ 
+          border: props.style?.border || "1px solid #e2e8f0",
+          borderRadius: props.style?.borderRadius || 6,
+          boxSizing: "border-box",
+          ...props.style,
+          width: fallbackWidth,
+          height: fallbackHeight,
+          ...(targetWidth && !isPercent ? {
+            minWidth: targetWidth,
+            maxWidth: targetWidth,
+            flexShrink: 0
+          } : {})
+        }}
       >
         <i className="bi bi-box-seam text-muted opacity-50" style={{ fontSize: 16 }} />
       </div>
@@ -119,6 +137,15 @@ export function HoverImage({ previewSize = 300, images, fallback, ...props }: Ho
         onError={handleError}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        style={{
+          boxSizing: "border-box",
+          ...props.style,
+          ...(targetWidth && !isPercent ? {
+            minWidth: targetWidth,
+            maxWidth: targetWidth,
+            flexShrink: 0
+          } : {})
+        }}
       />
       {hover && !hasError && mounted && typeof document !== "undefined" && createPortal(
         <div 

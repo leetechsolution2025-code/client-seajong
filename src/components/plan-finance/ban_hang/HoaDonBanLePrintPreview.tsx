@@ -281,14 +281,27 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
                   <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 6px", textAlign: "center", verticalAlign: "middle" }}>{idx + 1}</td>
                   <td style={{ border: "1px solid #1e293b", padding: donTrang ? "5px" : "8px 12px", verticalAlign: "middle" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      {line.hinhAnh ? (
-                        <HoverImage src={line.hinhAnh} alt={line.name} style={{ width: 50, height: 50, objectFit: "contain", borderRadius: 6, border: "1px solid #e2e8f0" }} />
-                      ) : (
-                        <div style={{ width: 50, height: 50, background: "#f1f5f9", borderRadius: 6, border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", color: "#cbd5e1" }}>
-                          <i className="bi bi-image" style={{ fontSize: 18 }} />
-                        </div>
-                      )}
-                      <div>
+                      <div style={{
+                        width: 50,
+                        height: 50,
+                        minWidth: 50,
+                        maxWidth: 50,
+                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#f8fafc",
+                        borderRadius: 6,
+                        border: "1px solid #e2e8f0",
+                        overflow: "hidden"
+                      }}>
+                        {line.hinhAnh ? (
+                          <HoverImage src={line.hinhAnh} alt={line.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                        ) : (
+                          <i className="bi bi-box-seam text-muted opacity-50" style={{ fontSize: 18 }} />
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4, color: "#1e293b" }}>{line.name}</div>
                         {(() => {
                           let dmDesc = line.dinhMucTen || "";
@@ -297,14 +310,41 @@ export function HoaDonBanLePrintPreview({ open, onClose, invoiceData }: Props) {
                             try {
                               const parsed = JSON.parse(line.ghiChu);
                               dmDesc = parsed.dinhMucTen || "";
-                              dmCode = parsed.bomCode || "";
+                              dmCode = dmCode || parsed.bomCode || "";
                             } catch (e) {}
                           }
-                          if (!dmDesc) return null;
+                          if (!dmDesc && !dmCode) return null;
                           return (
-                            <div style={{ fontSize: 11, color: "#64748b", display: "flex", alignItems: "center", gap: 4, fontStyle: "italic" }}>
-                              {dmCode && <span style={{ fontWeight: 600, fontFamily: "monospace" }}>[{dmCode}]</span>}
-                              <span>{dmDesc}</span>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 3 }}>
+                              {dmCode && (
+                                <div style={{ display: "flex", alignItems: "center" }}>
+                                  <span style={{
+                                    fontFamily: "monospace",
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    color: "#2563eb",
+                                    background: "rgba(37, 99, 235, 0.08)",
+                                    padding: "1px 6px",
+                                    borderRadius: 4,
+                                    whiteSpace: "nowrap",
+                                    display: "inline-block",
+                                    lineHeight: 1.4
+                                  }}>
+                                    {dmCode}
+                                  </span>
+                                </div>
+                              )}
+                              {dmDesc && (
+                                <div style={{ 
+                                  fontSize: 11, 
+                                  color: "#64748b", 
+                                  fontStyle: "italic", 
+                                  lineHeight: 1.35,
+                                  wordBreak: "break-word"
+                                }}>
+                                  {dmDesc}
+                                </div>
+                              )}
                             </div>
                           );
                         })()}

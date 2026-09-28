@@ -274,10 +274,32 @@ export function QuotationPrintPreview({ open, onClose, quotations }: Props) {
                               dmCode = parsed.bomCode || "";
                             } catch (e) {}
                           }
-                          if (!dmDesc) return null;
+                          if (!dmDesc && !dmCode) return null;
                           return (
-                            <div style={{ fontSize: 10, color: "#64748b", fontStyle: "italic", marginTop: 2 }}>
-                              {dmCode ? `[${dmCode}] ${dmDesc}` : dmDesc}
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 2 }}>
+                              {dmCode && (
+                                <div style={{ display: "flex", alignItems: "center" }}>
+                                  <span style={{
+                                    fontFamily: "monospace",
+                                    fontSize: 9.5,
+                                    fontWeight: 600,
+                                    color: "#2563eb",
+                                    background: "rgba(37, 99, 235, 0.08)",
+                                    padding: "0.5px 5px",
+                                    borderRadius: 3,
+                                    whiteSpace: "nowrap",
+                                    display: "inline-block",
+                                    lineHeight: 1.3
+                                  }}>
+                                    {dmCode}
+                                  </span>
+                                </div>
+                              )}
+                              {dmDesc && (
+                                <div style={{ fontSize: 10, color: "#64748b", fontStyle: "italic", lineHeight: 1.3, wordBreak: "break-word" }}>
+                                  {dmDesc}
+                                </div>
+                              )}
                             </div>
                           );
                         })()}

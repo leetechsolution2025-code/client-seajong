@@ -1939,31 +1939,37 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
                             </div>
                             {(() => {
                               const moTaDinhMuc = it.dinhMucTen || activeDinhMuc?.tenDinhMuc;
-                              if (!moTaDinhMuc) return null;
+                              const dmCode = activeDinhMuc?.code || it.bomCode;
+                              if (!moTaDinhMuc && !dmCode) return null;
                               return (
                                 <div style={{ 
                                   fontSize: 11.5, 
                                   color: "var(--muted-foreground)", 
                                   paddingLeft: activeDinhMuc ? 18 : 0,
                                   display: "flex",
-                                  alignItems: "center",
-                                  gap: 6,
-                                  lineHeight: 1.3
+                                  flexDirection: "column",
+                                  gap: 2,
+                                  lineHeight: 1.3,
+                                  marginTop: 2
                                 }}>
-                                  {(activeDinhMuc?.code || it.bomCode) && (
-                                    <span style={{
-                                      fontFamily: "monospace",
-                                      fontSize: 10,
-                                      fontWeight: 600,
-                                      color: "#2563eb",
-                                      background: "rgba(37, 99, 235, 0.08)",
-                                      padding: "0.5px 5px",
-                                      borderRadius: 4
-                                    }}>
-                                      {activeDinhMuc?.code || it.bomCode}
-                                    </span>
+                                  {dmCode && (
+                                    <div style={{ display: "flex" }}>
+                                      <span style={{
+                                        fontFamily: "monospace",
+                                        fontSize: 10,
+                                        fontWeight: 600,
+                                        color: "#2563eb",
+                                        background: "rgba(37, 99, 235, 0.08)",
+                                        padding: "1px 6px",
+                                        borderRadius: 4,
+                                        whiteSpace: "nowrap",
+                                        display: "inline-block"
+                                      }}>
+                                        {dmCode}
+                                      </span>
+                                    </div>
                                   )}
-                                  <span style={{ fontStyle: "italic" }}>{moTaDinhMuc}</span>
+                                  {moTaDinhMuc && <span style={{ fontStyle: "italic", wordBreak: "break-word" }}>{moTaDinhMuc}</span>}
                                 </div>
                               );
                             })()}
