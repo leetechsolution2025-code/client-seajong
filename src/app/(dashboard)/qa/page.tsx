@@ -398,8 +398,9 @@ export default function QaPage() {
       const matchProduct = ins.product?.toLowerCase().includes(q);
       const matchPo = ins.poNumber?.toLowerCase().includes(q);
       const matchProdOrder = ins.metadata?.productionOrder?.toLowerCase().includes(q);
+      const matchDefect = ins.metadata?.defectCode?.toLowerCase().includes(q);
       const matchSupplier = ins.metadata?.supplierName?.toLowerCase().includes(q);
-      if (!matchId && !matchInspector && !matchProduct && !matchPo && !matchProdOrder && !matchSupplier) return false;
+      if (!matchId && !matchInspector && !matchProduct && !matchPo && !matchProdOrder && !matchDefect && !matchSupplier) return false;
     }
     return true;
   });
@@ -519,7 +520,11 @@ export default function QaPage() {
         if (isIQC) {
           docTitle = poCode ? `Đơn hàng ${poCode}` : (row.product.startsWith("Đơn hàng") ? row.product : `Đơn hàng ${row.product}`);
         } else {
-          docTitle = prodCode ? `Lệnh sản xuất ${prodCode}` : (row.metadata?.bomCode ? `Lệnh sản xuất ${row.metadata.bomCode}` : (row.notes && row.notes.includes("đơn hàng") ? row.notes.replace("Yêu cầu kiểm soát chất lượng cho ", "") : "Lệnh sản xuất"));
+          if (row.metadata?.defectCode) {
+            docTitle = `Hồ sơ lỗi ${row.metadata.defectCode}`;
+          } else {
+            docTitle = prodCode ? `Lệnh sản xuất ${prodCode}` : (row.metadata?.bomCode ? `Lệnh sản xuất ${row.metadata.bomCode}` : (row.notes && row.notes.includes("đơn hàng") ? row.notes.replace("Yêu cầu kiểm soát chất lượng cho ", "") : "Lệnh sản xuất"));
+          }
         }
 
         return (

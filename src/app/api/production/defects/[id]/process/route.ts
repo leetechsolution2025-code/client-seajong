@@ -164,11 +164,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
               defectCode: defect.code,
               productCode: defect.productCode,
               productName: defect.productName,
+              model: defect.productCode,
               quantity: defect.quantity || 1,
-              orderNumber: defect.orderNumber,
+              totalQuantity: defect.quantity || 1,
+              sampleQuantity: defect.quantity || 1,
+              productionOrder: defect.orderNumber || defect.code,
               customerName: defect.customerName,
               repairNote: note || defect.repairPlan,
-              source: "DEFECT_REPAIR"
+              source: "DEFECT_REPAIR",
+              items: [{
+                productName: defect.productName,
+                model: defect.productCode,
+                quantity: defect.quantity || 1,
+                sampleQuantity: defect.quantity || 1,
+                soLuong: defect.quantity || 1,
+                donVi: "Bộ"
+              }]
             })
           }
         });
