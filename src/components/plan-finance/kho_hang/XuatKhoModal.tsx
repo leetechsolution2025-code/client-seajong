@@ -22,6 +22,37 @@ interface SaleOrderOption {
   trangThai: string;
 }
 interface WorkOrderOption { id: string; code: string | null; tenLenhSX?: string | null; }
+interface DefectOption {
+  id: string;
+  code: string;
+  productName: string;
+  productCode: string;
+  customerName?: string | null;
+  status: string;
+  logisticsTickets?: Array<{
+    id: string;
+    code: string;
+    type: string;
+    status: string;
+    items?: Array<{
+      id: string;
+      requestedQty: number;
+      pickedQty: number;
+      inventoryItemId: string;
+      inventoryItem?: {
+        id: string;
+        code: string | null;
+        tenHang: string;
+        donVi: string | null;
+        giaNhap: number;
+        soLuongTon?: number;
+        viTriHang?: string | null;
+        viTriCot?: string | null;
+        viTriTang?: string | null;
+      } | null;
+    }>;
+  }>;
+}
 
 interface StockLine {
   id:          string;
@@ -40,7 +71,15 @@ interface StockLine {
   error?:      string;
 }
 
-interface XuatKhoModalProps { onClose: () => void; onSaved: () => void; initialMode?: "manual" | "so" | "wo"; initialSoId?: string; initialWoId?: string; initialTicketId?: string; }
+interface XuatKhoModalProps { 
+  onClose: () => void; 
+  onSaved: () => void; 
+  initialMode?: "manual" | "so" | "wo" | "defect"; 
+  initialSoId?: string; 
+  initialWoId?: string; 
+  initialDefectId?: string;
+  initialTicketId?: string; 
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const uid       = () => Math.random().toString(36).slice(2);
@@ -65,11 +104,11 @@ const CSS: Record<string, React.CSSProperties> = {
 const GRID = "28px 1fr 60px 80px 80px 60px 60px 60px 110px 110px 32px";
 
 // ── Main Component ─────────────────────────────────────────────────────────────
-export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initialWoId, initialTicketId }: XuatKhoModalProps) {
+export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initialWoId, initialDefectId, initialTicketId }: XuatKhoModalProps) {
   const { data: session } = useSession();
   const toast = useToast();
 
-  const [mode, setMode]                 = React.useState<"manual" | "so" | "wo">(initialMode || "manual");
+  const [mode, setMode]                 = React.useState<"manual" | "so" | "wo" | "defect">(initialMode || "manual");
   const [fromWarehouseId, setFromWarehouseId] = React.useState<string>("");
   const [suggestedWarehouseType, setSuggestedWarehouseType] = React.useState<"vat-tu" | "hang-hoa" | null>(null);
   const [soChungTu, setSoChungTu]       = React.useState(() => {
@@ -101,11 +140,14 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
   const [allowExportShortage, setAllowExportShortage] = React.useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false); // Toggles mobile accordion
 
-  // SO / WO
+  // SO / WO / Defect
   const [saleOrders, setSaleOrders]     = React.useState<SaleOrderOption[]>([]);
   const [selectedSo, setSelectedSo]     = React.useState<SaleOrderOption | null>(null);
   const [workOrders, setWorkOrders]     = React.useState<WorkOrderOption[]>([]);
   const [selectedWo, setSelectedWo]     = React.useState<WorkOrderOption | null>(null);
+  const [defects, setDefects]           = React.useState<DefectOption[]>([]);
+  const [selectedDefect, setSelectedDefect] = React.useState<DefectOption | null>(null);
+  const [currentTicketId, setCurrentTicketId] = React.useState<string | undefined>(initialTicketId);
   const [listLoading, setListLoading]   = React.useState(false);
 
   // Fetch warehouses
@@ -139,7 +181,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
       if (mode === "so") {
         const khoChinh = warehouses.find(w => w.code === "KHO-CHINH" || w.name.toLowerCase().includes("kho hàng hoá"));
         if (khoChinh) setFromWarehouseId(khoChinh.id);
-      } else if (mode === "wo") {
+      } else if (mode === "wo" || mode === "defect") {
         const kvp = warehouses.find(w => w.code === "KVP" || w.name.toLowerCase().includes("vật tư"));
         if (kvp) setFromWarehouseId(kvp.id);
       }
@@ -176,6 +218,34 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
       .finally(() => setListLoading(false));
   }, [mode, initialWoId]);
 
+  // Fetch danh sách hồ sơ lỗi khi chuyển sang mode "defect"
+  React.useEffect(() => {
+    if (mode !== "defect") return;
+    setListLoading(true); setSelectedDefect(null);
+    fetch("/api/production/defects")
+      .then(r => r.json())
+      .then((data: any[]) => {
+        if (!Array.isArray(data)) {
+          setDefects([]);
+          return;
+        }
+        // Lọc các hồ sơ lỗi chưa được xuất kho
+        const unexported = data.filter((d: any) => {
+          if (initialDefectId && (d.id === initialDefectId || d.code === initialDefectId)) {
+            return true;
+          }
+          const tickets = d.logisticsTickets || [];
+          if (tickets.length > 0) {
+            return tickets.some((t: any) => t.status !== "COMPLETED");
+          }
+          return !["COMPLETED", "RESOLVED", "CLOSED", "HUY"].includes(d.status);
+        });
+        setDefects(unexported);
+      })
+      .catch(() => setDefects([]))
+      .finally(() => setListLoading(false));
+  }, [mode, initialDefectId]);
+
   const hasAutoSelected = React.useRef<Record<string, boolean>>({});
   React.useEffect(() => {
     if (mode === "so" && initialSoId && saleOrders.length > 0 && !hasAutoSelected.current["so"]) {
@@ -190,6 +260,13 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
       onSelectWo(initialWoId);
     }
   }, [mode, initialWoId, workOrders]);
+
+  React.useEffect(() => {
+    if (mode === "defect" && initialDefectId && defects.length > 0 && !hasAutoSelected.current["defect"]) {
+      hasAutoSelected.current["defect"] = true;
+      onSelectDefect(initialDefectId);
+    }
+  }, [mode, initialDefectId, defects]);
 
   const onSelectSo = (id: string) => {
     if (!id) { setSelectedSo(null); setLines([emptyLine()]); return; }
@@ -398,6 +475,127 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
     } catch { /* ignore */ }
   };
 
+  const onSelectDefect = (id: string) => {
+    if (!id) { 
+      setSelectedDefect(null); 
+      setCurrentTicketId(undefined);
+      setLines([emptyLine()]); 
+      return; 
+    }
+    const def = defects.find(d => d.id === id || d.code === id) ?? null;
+    setSelectedDefect(def);
+    if (def) {
+      setLyDo(`Xuất vật tư xử lý hồ sơ lỗi ${def.code}`);
+      setLoaiXuatKho("Xuất vật tư bảo hành");
+      loadItemsFromDefect(def);
+    }
+  };
+
+  const loadItemsFromDefect = async (def: DefectOption) => {
+    try {
+      const tickets = def.logisticsTickets || [];
+      const targetTicket = (initialTicketId ? tickets.find(t => t.id === initialTicketId) : null)
+        || tickets.find(t => t.status !== "COMPLETED")
+        || tickets.find(t => t.type === "WARRANTY_MATERIAL")
+        || tickets[0];
+
+      setCurrentTicketId(targetTicket?.id || initialTicketId);
+
+      const ticketItems = targetTicket?.items || [];
+      if (ticketItems.length === 0) {
+        setLines([emptyLine()]);
+        return;
+      }
+
+      const rawLines = ticketItems.map(it => {
+        const inv = it.inventoryItem;
+        const qty = it.pickedQty > 0 ? it.pickedQty : (it.requestedQty || 1);
+        return {
+          inventoryItemId: it.inventoryItemId,
+          code: inv?.code || null,
+          tenHang: inv?.tenHang || "Vật tư",
+          donVi: inv?.donVi || "cái",
+          soLuong: qty,
+          soLuongYC: it.requestedQty || qty,
+          giaNhap: inv?.giaNhap || 0,
+          soLuongTon: inv?.soLuongTon,
+          viTriHang: inv?.viTriHang || "",
+          viTriCot: inv?.viTriCot || "",
+          viTriTang: inv?.viTriTang || "",
+        };
+      });
+
+      const newLines: StockLine[] = rawLines.map(raw => {
+        const l = emptyLine();
+        l.item = {
+          id: raw.inventoryItemId,
+          code: raw.code,
+          tenHang: raw.tenHang,
+          donVi: raw.donVi,
+          giaNhap: raw.giaNhap,
+          soLuongTon: raw.soLuongTon,
+          viTriHang: raw.viTriHang,
+          viTriCot: raw.viTriCot,
+          viTriTang: raw.viTriTang,
+        };
+        l.itemSearch = raw.tenHang;
+        l.soLuongYC = raw.soLuongYC;
+        l.soLuong = raw.soLuong;
+        l.donGia = raw.giaNhap;
+        l.viTriHang = raw.viTriHang;
+        l.viTriCot = raw.viTriCot;
+        l.viTriTang = raw.viTriTang;
+        return l;
+      });
+
+      setLines(newLines);
+
+      let currentWhId: string | undefined = fromWarehouseId;
+      if (!currentWhId) {
+        let whList = warehouses;
+        if (whList.length === 0) {
+          try {
+            const r = await fetch("/api/plan-finance/warehouses");
+            const d = await r.json();
+            if (Array.isArray(d)) whList = d;
+          } catch (e) { /* ignore */ }
+        }
+        currentWhId = whList.find((w: any) => w.code === "KVP" || w.name.toLowerCase().includes("vật tư"))?.id;
+        if (currentWhId) setFromWarehouseId(currentWhId);
+      }
+
+      if (currentWhId) {
+        rawLines.forEach((raw, idx) => {
+          if (!raw.tenHang && !raw.code) return;
+          const warehouseParam = `&warehouseId=${currentWhId}`;
+          const searchKey = raw.code || raw.tenHang;
+          fetch(`/api/plan-finance/inventory/search?q=${encodeURIComponent(searchKey)}&limit=5${warehouseParam}`)
+            .then(r => r.json())
+            .then((searchData) => {
+              if (!Array.isArray(searchData) || !searchData.length) return;
+              const found = searchData.find((d: any) => d.id === raw.inventoryItemId || d.code === raw.code || d.tenHang.toLowerCase() === raw.tenHang.toLowerCase()) ?? searchData[0];
+              setLines(prev => prev.map((l, i) => {
+                if (i !== idx) return l;
+                return {
+                  ...l,
+                  item: {
+                    id: found.id, code: found.code, tenHang: found.tenHang,
+                    donVi: found.donVi, giaNhap: found.giaNhap,
+                  },
+                  itemSearch: found.tenHang,
+                  donGia: found.giaNhap || raw.giaNhap || 0,
+                  viTriHang: found.viTriHang ?? l.viTriHang,
+                  viTriCot: found.viTriCot ?? l.viTriCot,
+                  viTriTang: found.viTriTang ?? l.viTriTang,
+                  soLuongTon: found.soLuongTon ?? 0,
+                };
+              }));
+            }).catch(() => {});
+        });
+      }
+    } catch { /* ignore */ }
+  };
+
   // ESC close
   React.useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape" && !showPreview) onClose(); };
@@ -520,7 +718,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           soChungTu,
-          reference: mode === "so" ? selectedSo?.code : mode === "wo" ? selectedWo?.code : null,
+          reference: mode === "so" ? selectedSo?.code : mode === "wo" ? selectedWo?.code : mode === "defect" ? selectedDefect?.code : null,
           items: deficientLines.map(l => ({
             tenHang: l.item?.tenHang || l.itemSearch,
             thieu: l.item ? (l.soLuong - (l.soLuongTon ?? 0)) : l.soLuong,
@@ -551,7 +749,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
           soChungTu:     soChungTu     || undefined,
           lyDo:          [loaiXuatKho, lyDo, ghiChu ? `Ghi chú: ${ghiChu}` : ""].filter(Boolean).join(" - ") || undefined,
           nguoiThucHien: nguoiThucHien || undefined,
-          ticketId:      initialTicketId,
+          ticketId:      currentTicketId || selectedDefect?.logisticsTickets?.[0]?.id || initialTicketId,
           lines: validLines.map(l => ({
             inventoryItemId: l.item!.id,
             soLuong:   l.soLuong,
@@ -670,10 +868,11 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
               { val: "manual" as const, label: "Thủ công",        icon: "bi-pencil" },
               { val: "so"     as const, label: "Theo đơn bán hàng",    icon: "bi-bag-check" },
               { val: "wo"     as const, label: "Theo lệnh sản xuất",   icon: "bi-gear" },
+              { val: "defect" as const, label: "Theo hồ sơ lỗi",     icon: "bi-tools" },
             ]).map(m => (
               <button key={m.val} onClick={() => !locked && setMode(m.val)} style={{
                 display: "flex", alignItems: "center", gap: 6, flex: 1, justifyContent: "center",
-                padding: "6px 16px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                padding: "6px 14px", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
                 cursor: locked ? "not-allowed" : "pointer", transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
                 background: mode === m.val ? "var(--card)"  : "transparent",
                 color:      mode === m.val ? "var(--foreground)" : "var(--muted-foreground)",
@@ -775,6 +974,51 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
             </div>
           )}
 
+          {mode === "defect" && (
+            <div className="xk-so-select position-relative" style={{ display: "flex", alignItems: "center" }}>
+              {listLoading ? (
+                <div style={{ fontSize: 13, color: "var(--muted-foreground)", padding: "0 10px" }}>
+                  <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> Đang tải…
+                </div>
+              ) : (
+                <div className="position-relative">
+                  <select
+                    value={selectedDefect?.id ?? ""}
+                    onChange={e => !locked && onSelectDefect(e.target.value)}
+                    style={{
+                      height: 38, padding: "0 36px 0 16px",
+                      border: `1px solid ${selectedDefect ? "rgba(239,68,68,0.4)" : "var(--border)"}`,
+                      borderRadius: 10,
+                      background: selectedDefect ? "rgba(239,68,68,0.05)" : "var(--background)",
+                      color: selectedDefect ? "#dc2626" : "var(--foreground)",
+                      fontSize: 13, fontWeight: selectedDefect ? 600 : 400,
+                      outline: "none", cursor: locked ? "not-allowed" : "pointer",
+                      width: 320, transition: "all 0.2s",
+                      appearance: "none", textOverflow: "ellipsis"
+                    }}
+                  >
+                    <option value="">-- Chọn hồ sơ lỗi --</option>
+                    {defects.length === 0 && <option disabled value="">Chưa có hồ sơ lỗi cần xuất kho</option>}
+                    {defects.map(d => {
+                      const ticket = d.logisticsTickets?.[0];
+                      return (
+                        <option key={d.id} value={d.id}>
+                          {d.code}{ticket?.code ? ` [${ticket.code}]` : ""} — {d.productName || d.productCode}{d.customerName ? ` (${d.customerName})` : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <i className="bi bi-chevron-down position-absolute" style={{ right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 12, pointerEvents: "none", color: selectedDefect ? "#dc2626" : "var(--muted-foreground)" }} />
+                  {selectedDefect && (
+                    <span className="position-absolute" style={{ top: -10, right: -10, fontSize: 10, color: "#fff", fontWeight: 600, background: "#10b981", borderRadius: 20, padding: "2px 8px", boxShadow: "0 2px 4px rgba(16, 185, 129, 0.3)", zIndex: 10 }}>
+                      <i className="bi bi-check" style={{ marginRight: 2 }} />Đã chọn
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={{ width: 1, height: 24, background: "var(--border)", margin: "0 4px" }} className="d-none d-lg-block" />
 
           {/* Close Button Top Right */}
@@ -847,6 +1091,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
                     style={{ ...CSS.input, appearance: "none", opacity: locked ? 0.65 : 1, cursor: locked ? "not-allowed" : "pointer" }}>
                     <option value="Xuất bán hàng">Xuất bán hàng</option>
                     <option value="Xuất sản xuất">Xuất sản xuất</option>
+                    <option value="Xuất vật tư bảo hành">Xuất vật tư bảo hành</option>
                     <option value="Xuất trả nhà cung cấp">Xuất trả nhà cung cấp</option>
                     <option value="Xuất huỷ/hao hụt">Xuất huỷ / hao hụt</option>
                     <option value="Khác">Khác</option>

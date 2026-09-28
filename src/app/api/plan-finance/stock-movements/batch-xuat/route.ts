@@ -244,10 +244,20 @@ export async function POST(req: NextRequest) {
 
     if (body.ticketId) {
       try {
-        await prisma.logisticsTicket.update({
+        const updatedTicket = await prisma.logisticsTicket.update({
           where: { id: body.ticketId },
           data: { status: "COMPLETED" }
         });
+        if (updatedTicket.defectRecordId) {
+          await (prisma as any).defectActivity.create({
+            data: {
+              defectId: updatedTicket.defectRecordId,
+              action: "XUẤT KHO VẬT TƯ",
+              description: `Đã hoàn tất xuất kho vật tư theo phiếu ${soChungTu || updatedTicket.code}`,
+              performedBy: nguoiThucHien || "Thủ kho"
+            }
+          }).catch(() => {});
+        }
       } catch (err) {
         console.error("Failed to update ticket status:", err);
       }

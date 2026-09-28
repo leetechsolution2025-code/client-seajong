@@ -34,9 +34,10 @@ export default function LogisticsOverviewPage() {
   const [orderDetails, setOrderDetails] = useState<any[]>([]);
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [showXuatKhoModal, setShowXuatKhoModal] = useState(false);
-  const [xuatKhoOrderType, setXuatKhoOrderType] = useState<"so" | "wo" | "manual">("manual");
+  const [xuatKhoOrderType, setXuatKhoOrderType] = useState<"so" | "wo" | "defect" | "manual">("manual");
   const [xuatKhoSoId, setXuatKhoSoId] = useState<string | undefined>(undefined);
   const [xuatKhoWoId, setXuatKhoWoId] = useState<string | undefined>(undefined);
+  const [xuatKhoDefectId, setXuatKhoDefectId] = useState<string | undefined>(undefined);
   const [xuatKhoTicketId, setXuatKhoTicketId] = useState<string | undefined>(undefined);
   const [showNhapKhoModal, setShowNhapKhoModal] = useState(false);
   const [nhapKhoTaskId, setNhapKhoTaskId] = useState<string | undefined>();
@@ -1116,29 +1117,41 @@ export default function LogisticsOverviewPage() {
                 setNhapKhoSoBienBanQC(selectedOrder.code?.startsWith("QC-") ? selectedOrder.code : "");
                 setShowNhapKhoModal(true);
               } else {
-                let isSo = false;
-                let targetId = selectedOrder?.id;
+                const isDefect = selectedOrder?.ticketType === "WARRANTY_MATERIAL" || 
+                  !!selectedOrder?.defectRecordId ||
+                  (typeof selectedOrder?.saleOrderCode === "string" && selectedOrder.saleOrderCode.startsWith("ERR-")) ||
+                  (typeof selectedOrder?.code === "string" && selectedOrder.code.startsWith("ERR-"));
 
-                if (selectedOrder?.type === "sale-order") {
-                  isSo = true;
-                } else if (selectedOrder?.type === "logistics-ticket") {
-                  isSo = selectedOrder.ticketType === "BATCH_PACKING"; 
-                  if (isSo) {
-                    targetId = selectedOrder.saleOrderId;
-                  } else {
-                    targetId = selectedOrder.saleOrderCode 
-                      ? selectedOrder.saleOrderCode.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX')
-                      : selectedOrder.saleOrderId;
+                if (isDefect) {
+                  setXuatKhoOrderType("defect");
+                  setXuatKhoDefectId(selectedOrder?.defectRecordId || selectedOrder?.saleOrderCode || selectedOrder?.code || selectedOrder?.id);
+                  setXuatKhoTicketId(selectedOrder?.type === "logistics-ticket" ? selectedOrder.id : undefined);
+                  setShowXuatKhoModal(true);
+                } else {
+                  let isSo = false;
+                  let targetId = selectedOrder?.id;
+
+                  if (selectedOrder?.type === "sale-order") {
+                    isSo = true;
+                  } else if (selectedOrder?.type === "logistics-ticket") {
+                    isSo = selectedOrder.ticketType === "BATCH_PACKING"; 
+                    if (isSo) {
+                      targetId = selectedOrder.saleOrderId;
+                    } else {
+                      targetId = selectedOrder.saleOrderCode 
+                        ? selectedOrder.saleOrderCode.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX')
+                        : selectedOrder.saleOrderId;
+                    }
                   }
+                  
+                  setXuatKhoOrderType(isSo ? "so" : "wo");
+                  setXuatKhoSoId(selectedOrder?.saleOrderId || (selectedOrder?.type === "sale-order" ? selectedOrder.id : undefined));
+                  setXuatKhoWoId(selectedOrder?.saleOrderCode 
+                    ? selectedOrder.saleOrderCode.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX')
+                    : (selectedOrder?.type === "sale-order" && selectedOrder.code ? selectedOrder.code.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX') : selectedOrder?.id));
+                  setXuatKhoTicketId(selectedOrder?.type === "logistics-ticket" ? selectedOrder.id : undefined);
+                  setShowXuatKhoModal(true);
                 }
-                
-                setXuatKhoOrderType(isSo ? "so" : "wo");
-                setXuatKhoSoId(selectedOrder?.saleOrderId || (selectedOrder?.type === "sale-order" ? selectedOrder.id : undefined));
-                setXuatKhoWoId(selectedOrder?.saleOrderCode 
-                  ? selectedOrder.saleOrderCode.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX')
-                  : (selectedOrder?.type === "sale-order" && selectedOrder.code ? selectedOrder.code.replace('DBH', 'LSX').replace('DHBL', 'LSX').replace('DH', 'LSX') : selectedOrder?.id));
-                setXuatKhoTicketId(selectedOrder?.type === "logistics-ticket" ? selectedOrder.id : undefined);
-                setShowXuatKhoModal(true);
               }
               setSelectedOrder(null);
             }}
@@ -1167,6 +1180,7 @@ export default function LogisticsOverviewPage() {
           initialMode={xuatKhoOrderType}
           initialSoId={xuatKhoSoId}
           initialWoId={xuatKhoWoId}
+          initialDefectId={xuatKhoDefectId}
           initialTicketId={xuatKhoTicketId}
           onClose={() => setShowXuatKhoModal(false)}
           onSaved={() => {

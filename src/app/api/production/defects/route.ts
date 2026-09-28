@@ -8,7 +8,18 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const defects = await (prisma as any).defectRecord.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      include: {
+        logisticsTickets: {
+          include: {
+            items: {
+              include: {
+                inventoryItem: true
+              }
+            }
+          }
+        }
+      }
     });
     
     const productCodes = [...new Set(defects.map((d: any) => d.productCode).filter(Boolean))] as string[];

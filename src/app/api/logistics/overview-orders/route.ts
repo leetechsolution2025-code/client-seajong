@@ -98,7 +98,7 @@ export async function GET(_req: NextRequest) {
         orderBy: { createdAt: "desc" },
         take: 500,
         select: {
-          id: true, code: true, status: true, type: true, createdAt: true,
+          id: true, code: true, status: true, type: true, createdAt: true, defectRecordId: true,
           saleOrder: { 
             select: { 
               id: true, code: true, ngayGiao: true, ghiChu: true,
@@ -113,7 +113,7 @@ export async function GET(_req: NextRequest) {
             } 
           },
           defectRecord: {
-            select: { code: true }
+            select: { id: true, code: true }
           },
           items: {
             select: {
@@ -195,6 +195,7 @@ export async function GET(_req: NextRequest) {
         isAssigned: assignedOrderIds.has(t.id),
         assigneeName: assignedOrderAssignees.get(t.id) || null,
         ticketType: t.type,
+        defectRecordId: t.defectRecordId || t.defectRecord?.id || null,
         saleOrderId: t.saleOrder?.id,
         saleOrderCode: t.saleOrder?.code || (t.defectRecord ? t.defectRecord.code : null),
         requestedDate: t.type === "BATCH_PACKING" ? (t.saleOrder?.ngayGiao ?? t.createdAt) : t.createdAt,
