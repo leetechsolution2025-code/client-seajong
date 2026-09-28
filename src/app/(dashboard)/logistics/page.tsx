@@ -936,10 +936,10 @@ export default function LogisticsOverviewPage() {
       >
         <div className="offcanvas-header border-bottom px-4 py-3 bg-light">
           <div>
-            <h5 className="offcanvas-title fw-bold mb-1">
+            <h5 className="offcanvas-title fw-bold mb-1" style={{ fontSize: 15 }}>
               {selectedOrder?.ticketType === 'WARRANTY_MATERIAL' || selectedOrder?.ticketType === 'MATERIAL_PICKING'
-                ? `Phiếu Cấp Phát Vật Tư: ${selectedOrder?.exportCode}`
-                : `Lệnh ${selectedOrder?.type === 'material-import' ? 'Nhập' : 'Xuất'} Kho: ${selectedOrder?.exportCode}`}
+                ? `Cấp phát vật tư: ${selectedOrder?.exportCode}`
+                : `Lệnh ${selectedOrder?.type === 'material-import' ? 'nhập' : 'xuất'} kho: ${selectedOrder?.exportCode}`}
             </h5>
             <div className="text-muted d-flex align-items-center flex-wrap gap-1" style={{ fontSize: 13 }}>
               {selectedOrder?.ticketType === 'WARRANTY_MATERIAL' ? (
