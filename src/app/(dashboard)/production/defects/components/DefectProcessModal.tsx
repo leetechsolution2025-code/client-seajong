@@ -78,7 +78,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
 
   const handleProcess = async (action: string, nextStatus: string, bomUpdates?: any[], customReturnQty?: number) => {
     const finalNote = note || defect?.repairPlan || (action === 'TIẾP TỤC XỬ LÝ' || action === 'NHẬN LINH KIỆN & XỬ LÝ' ? 'Tiếp tục xử lý sau khi kho xuất vật tư' : '');
-    if (!finalNote && action !== 'ĐÓNG HỒ SƠ') {
+    if (!finalNote && action !== 'ĐÓNG HỒ SƠ' && action !== 'HOÀN THÀNH') {
       toast.warning('Thiếu thông tin', 'Vui lòng nhập báo cáo nội dung xử lý!');
       return;
     }
@@ -509,8 +509,8 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                     </span>
                                   </div>
                                 </div>
-                                <button className="btn btn-success fw-bold rounded-pill shadow-sm py-2" disabled={isSubmitting} onClick={() => handleProcess('ĐÓNG HỒ SƠ', 'COMPLETED')}>
-                                  Xác nhận Hoàn tất (Đóng hồ sơ)
+                                <button className="btn btn-success fw-bold rounded-pill shadow-sm py-2" disabled={isSubmitting} onClick={() => handleProcess('HOÀN THÀNH', 'COMPLETED')}>
+                                  <i className="bi bi-check2-circle me-1"></i> Hoàn thành
                                 </button>
                               </div>
                             )}

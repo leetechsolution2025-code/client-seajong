@@ -24,6 +24,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         where: { id },
         data: {
           ...(nextStatus && nextStatus !== oldStatus ? { status: nextStatus } : {}),
+          ...(nextStatus === 'COMPLETED' ? { completionDate: new Date() } : {}),
           ...(note ? { repairPlan: note } : {})
         }
       });
