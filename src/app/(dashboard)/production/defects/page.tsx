@@ -10,6 +10,7 @@ import { BrandButton } from "@/components/ui/BrandButton";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
+import { Pagination } from "@/components/ui/Pagination";
 import useSWR from 'swr';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -21,16 +22,32 @@ export default function DefectHandlingPage() {
   const [activeTab, setActiveTab] = useState<'ALL' | 'INTERNAL' | 'WARRANTY' | 'RETURN'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   
   const { data: defects, mutate } = useSWR('/api/production/defects', fetcher);
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, statusFilter, searchQuery]);
   
   // Lọc dữ liệu
   const filteredDefects = defects?.filter((d: any) => {
     if (activeTab !== 'ALL' && d.source !== activeTab) return false;
     if (statusFilter && d.status !== statusFilter) return false;
-    if (searchQuery && !d.code.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchCode = d.code?.toLowerCase().includes(q);
+      const matchProduct = d.productName?.toLowerCase().includes(q);
+      const matchPhone = d.customerPhone?.includes(q);
+      const matchCustomer = d.customerName?.toLowerCase().includes(q);
+      if (!matchCode && !matchProduct && !matchPhone && !matchCustomer) return false;
+    }
     return true;
   }) || [];
+
+  const totalPages = Math.ceil(filteredDefects.length / pageSize);
+  const paginatedDefects = filteredDefects.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <StandardPage
@@ -100,8 +117,36 @@ export default function DefectHandlingPage() {
               </div>
             }
             table={
-              <DefectList data={filteredDefects} onSelect={id => setSelectedDefectId(id)} />
+              <DefectList data={paginatedDefects} onSelect={id => setSelectedDefectId(id)} />
             }
+            footer={
+              <div className="d-flex flex-column flex-sm-row align-items-center justify-content-between gap-2 w-100 px-3 py-1">
+                <div className="d-flex align-items-center gap-2 text-muted" style={{ fontSize: 12 }}>
+                  <span>Hiển thị <strong>{filteredDefects.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</strong> - <strong>{Math.min(currentPage * pageSize, filteredDefects.length)}</strong> trên tổng số <strong>{filteredDefects.length}</strong> hồ sơ</span>
+                  <select 
+                    className="form-select form-select-sm ms-1 border-secondary-subtle" 
+                    style={{ width: "auto", fontSize: 12, padding: "2px 24px 2px 8px" }}
+                    value={pageSize}
+                    onChange={e => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <option value={10}>10 hồ sơ / trang</option>
+                    <option value={20}>20 hồ sơ / trang</option>
+                    <option value={50}>50 hồ sơ / trang</option>
+                  </select>
+                </div>
+                <div className="d-flex align-items-center gap-2">
+                  <Pagination 
+                    page={currentPage} 
+                    totalPages={Math.max(1, totalPages)} 
+                    onChange={setCurrentPage} 
+                  />
+                </div>
+              </div>
+            }
+            footerStyle={{ padding: "10px 16px", backgroundColor: "#fff" }}
           />
         </div>
       </div>
