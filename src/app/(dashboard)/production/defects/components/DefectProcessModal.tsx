@@ -77,7 +77,7 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
   if (!defectId) return null;
 
   const handleProcess = async (action: string, nextStatus: string, bomUpdates?: any[], customReturnQty?: number) => {
-    const finalNote = note || defect?.repairPlan || (action === 'NHẬN LINH KIỆN & XỬ LÝ' ? 'Đã nhận linh kiện và tiếp tục xử lý' : '');
+    const finalNote = note || defect?.repairPlan || (action === 'TIẾP TỤC XỬ LÝ' || action === 'NHẬN LINH KIỆN & XỬ LÝ' ? 'Tiếp tục xử lý sau khi kho xuất vật tư' : '');
     if (!finalNote && action !== 'ĐÓNG HỒ SƠ') {
       toast.warning('Thiếu thông tin', 'Vui lòng nhập báo cáo nội dung xử lý!');
       return;
@@ -429,29 +429,75 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                               </div>
                             )}
 
-                            {defect.status === 'WAITING_INVENTORY' && (
-                              <div className="d-flex flex-column h-100 justify-content-center gap-3">
-                                <div className="p-3 bg-light rounded-3 border">
-                                  <div className="d-flex align-items-center justify-content-between mb-2">
-                                    <span className="small text-muted">Phương án xử lý:</span>
-                                    <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
-                                      {resolution || defect.resolution || 'Thay linh kiện'}
-                                    </span>
-                                  </div>
-                                  {defect.logisticsTickets?.[0] && (
-                                    <div className="d-flex align-items-center justify-content-between small text-muted">
-                                      <span>Phiếu cấp phát vật tư:</span>
-                                      <span className="fw-semibold text-dark">
-                                        {defect.logisticsTickets[0].code} {defect.logisticsTickets[0].status === 'COMPLETED' ? '(Đã xuất kho)' : '(Chờ kho xuất)'}
+                            {defect.status === 'WAITING_INVENTORY' && (() => {
+                              const materialTickets = (defect.logisticsTickets || []).filter((t: any) => t.type === 'WARRANTY_MATERIAL');
+                              const ticketsToCheck = materialTickets.length > 0 ? materialTickets : (defect.logisticsTickets || []);
+                              const mainTicket = ticketsToCheck[0];
+                              const hasTicket = ticketsToCheck.length > 0;
+                              const isExportCompleted = hasTicket && ticketsToCheck.every((t: any) => t.status === 'COMPLETED');
+
+                              return (
+                                <div className="d-flex flex-column h-100 justify-content-center gap-3">
+                                  <div className="p-3 bg-light rounded-3 border">
+                                    <div className="d-flex align-items-center justify-content-between mb-2">
+                                      <span className="small text-muted">Phương án xử lý:</span>
+                                      <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                        {resolution || defect.resolution || 'Thay linh kiện'}
                                       </span>
                                     </div>
-                                  )}
+                                    {mainTicket ? (
+                                      <div className="d-flex align-items-center justify-content-between small text-muted">
+                                        <span>Lệnh xuất kho vật tư:</span>
+                                        <div className="d-flex align-items-center gap-1">
+                                          <span className={`badge ${isExportCompleted ? 'bg-success-subtle text-success border border-success' : 'bg-warning-subtle text-warning-emphasis border border-warning'}`}>
+                                            {mainTicket.code} {isExportCompleted ? '• Đã xuất kho' : '• Chờ kho xuất'}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            className="btn btn-link btn-sm p-0 text-muted"
+                                            title="Kiểm tra lại trạng thái xuất kho"
+                                            onClick={() => mutate()}
+                                          >
+                                            <i className="bi bi-arrow-clockwise"></i>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="small text-danger">
+                                        Chưa có lệnh cấp phát vật tư
+                                      </div>
+                                    )}
+                                    {!isExportCompleted ? (
+                                      <div className="mt-2 pt-2 border-top small text-muted d-flex align-items-center gap-2">
+                                        <i className="bi bi-lock-fill text-warning fs-6"></i>
+                                        <span>Nút <strong>Tiếp tục xử lý</strong> chỉ mở khoá khi bộ phận kho hoàn tất lệnh xuất kho vật tư.</span>
+                                      </div>
+                                    ) : (
+                                      <div className="mt-2 pt-2 border-top small text-success d-flex align-items-center gap-2">
+                                        <i className="bi bi-check-circle-fill fs-6"></i>
+                                        <span>Đã hoàn tất lệnh xuất kho vật tư. Bạn có thể tiếp tục xử lý hồ sơ.</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <button 
+                                    className={`btn ${isExportCompleted ? 'btn-primary' : 'btn-secondary'} fw-bold rounded-pill shadow-sm py-2`} 
+                                    disabled={!isExportCompleted || isSubmitting} 
+                                    onClick={() => handleProcess('TIẾP TỤC XỬ LÝ', 'PROCESSING')}
+                                    title={!isExportCompleted ? 'Chỉ mở khoá khi hoàn tất lệnh xuất kho vật tư' : 'Tiếp tục xử lý'}
+                                  >
+                                    {!isExportCompleted ? (
+                                      <>
+                                        <i className="bi bi-lock-fill me-1"></i> Tiếp tục xử lý
+                                      </>
+                                    ) : (
+                                      <>
+                                        <i className="bi bi-arrow-right-circle me-1"></i> Tiếp tục xử lý
+                                      </>
+                                    )}
+                                  </button>
                                 </div>
-                                <button className="btn btn-primary fw-bold rounded-pill shadow-sm py-2" disabled={isSubmitting} onClick={() => handleProcess('NHẬN LINH KIỆN & XỬ LÝ', 'PROCESSING')}>
-                                  Đã nhận linh kiện & Tiếp tục xử lý
-                                </button>
-                              </div>
-                            )}
+                              );
+                            })()}
 
                             {defect.status === 'PROCESSING' && (
                               <div className="d-flex flex-column h-100 justify-content-center gap-3">
