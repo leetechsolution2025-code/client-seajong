@@ -31,6 +31,7 @@ export interface InventoryItem {
   donVi: string | null;
   soLuong: number;
   giaNhap: number;
+  giaVon?: number;
   giaBan: number;
   trangThai: string;
   category?: { name: string };
@@ -517,14 +518,19 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
       }
     },
     {
-        header: "Giá nhập (đ)",
+        header: "Giá vốn (đ)",
         width: 130,
         align: "right",
-        render: (row) => (
-          <span className="fw-medium text-dark">
-            {canViewPrice ? (row.giaNhap || 0).toLocaleString("vi-VN") : "*****"}
-          </span>
-        )
+        render: (row) => {
+          const val = row.giaVon !== undefined && row.giaVon !== null && Number(row.giaVon) > 0 
+            ? Number(row.giaVon) 
+            : (row.giaNhap || 0);
+          return (
+            <span className="fw-medium text-dark">
+              {canViewPrice ? val.toLocaleString("vi-VN") : "*****"}
+            </span>
+          );
+        }
     },
     {
         header: "Giá bán (đ)",
@@ -560,7 +566,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
   const isBoard = mode === "board";
   const hidePrice = isCS;
   const columns = rawColumns.filter(c => {
-    if (hidePrice && ["Giá nhập (đ)", "Giá bán (đ)"].includes(c.header as string)) return false;
+    if (hidePrice && ["Giá vốn (đ)", "Giá nhập (đ)", "Giá bán (đ)"].includes(c.header as string)) return false;
     return true;
   });
 
@@ -651,9 +657,9 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
             {canViewPrice ? (row.giaBan || 0).toLocaleString("vi-VN") : "*****"}
             <span style={{ fontSize: 9.5, fontWeight: 500, marginLeft: 1 }}>₫</span>
           </span>
-          {canViewPrice && row.giaNhap ? (
+          {canViewPrice && (row.giaVon || row.giaNhap) ? (
             <span className="text-muted lh-1 mt-1 text-nowrap" style={{ fontSize: 9, opacity: 0.75 }}>
-              Vốn: {(row.giaNhap || 0).toLocaleString("vi-VN")}
+              Vốn: {(row.giaVon !== undefined && row.giaVon !== null && Number(row.giaVon) > 0 ? Number(row.giaVon) : (row.giaNhap || 0)).toLocaleString("vi-VN")}
             </span>
           ) : null}
         </div>

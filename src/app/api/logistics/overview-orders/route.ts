@@ -84,7 +84,7 @@ export async function GET(_req: NextRequest) {
         orderBy: { createdAt: "desc" },
         take: 500,
         select: {
-          id: true, title: true, status: true,
+          id: true, title: true, description: true, status: true,
           actualResult: true, createdAt: true,
           assigneeId: true
         }
@@ -191,6 +191,17 @@ export async function GET(_req: NextRequest) {
       }
     });
 
+    inboundTasks.forEach(t => {
+      try {
+        if (t.actualResult) {
+          const parsed = JSON.parse(t.actualResult);
+          if (Array.isArray(parsed) && parsed[0]?.purchaseOrderId) {
+            poIdsToFetch.push(parsed[0].purchaseOrderId);
+          }
+        }
+      } catch (e) {}
+    });
+
     const pos = poIdsToFetch.length > 0 ? await prisma.purchaseOrder.findMany({
       where: { id: { in: poIdsToFetch } },
       select: { id: true, code: true, shippingFee: true, supplier: { select: { name: true } } }
@@ -202,13 +213,14 @@ export async function GET(_req: NextRequest) {
       try {
         meta = typeof qc.metadata === "string" ? JSON.parse(qc.metadata) : qc.metadata;
       } catch (e) {}
-      if (meta?.purchaseOrderId) {
-        const po = poMap.get(meta.purchaseOrderId);
+      const poId = meta?.purchaseOrderId || null;
+      const po = poId ? poMap.get(poId) : null;
+      if (poId || meta?.purchaseOrderCode || meta?.poNumber || meta?.supplierName) {
         qcPoMap.set(qc.code, {
-          purchaseOrderId: meta.purchaseOrderId,
-          purchaseOrderCode: po?.code || meta.purchaseOrderCode || meta.poNumber || null,
+          purchaseOrderId: poId,
+          purchaseOrderCode: po?.code || meta?.purchaseOrderCode || meta?.poNumber || null,
           shippingFee: Number(po?.shippingFee || 0),
-          supplierName: po?.supplier?.name || meta.supplierName || null
+          supplierName: po?.supplier?.name || meta?.supplierName || null
         });
       }
     });
@@ -219,7 +231,7 @@ export async function GET(_req: NextRequest) {
         code:      t.code,
         type:      "logistics-ticket" as const,
         typeLabel: t.type === "BATCH_PACKING" ? "Gom hàng & đóng gói" : (t.type === "WARRANTY_MATERIAL" || t.defectRecord ? "Cấp phát linh kiện thay thế" : "Xuất kho sản xuất"),
-        customer:  t.saleOrder?.customer?.name ?? (t.defectRecord ? `Từ hồ sơ: ${t.defectRecord.code}` : null),
+        customer:  t.saleOrder?.customer?.name ?? null,
         customerAddress: t.saleOrder?.customer?.address ?? null,
         ghiChu:    t.saleOrder?.ghiChu ?? (t.defectRecord ? `Yêu cầu vật tư cho lỗi ${t.defectRecord.code}` : null),
         tongTien:  null,
@@ -348,13 +360,20 @@ export async function GET(_req: NextRequest) {
         }
 
         const poInfo = qcPoMap.get(code) || null;
-        const purchaseOrderId = parsedItems[0]?.purchaseOrderId || poInfo?.purchaseOrderId || null;
-        const purchaseOrderCode = parsedItems[0]?.purchaseOrderCode || poInfo?.purchaseOrderCode || null;
-        const shippingFee = parsedItems[0]?.shippingFee !== undefined ? parsedItems[0].shippingFee : (poInfo?.shippingFee ?? 0);
-        const supplierName = poInfo?.supplierName || null;
+        const itemPoId = parsedItems[0]?.purchaseOrderId || null;
+        const itemPo = itemPoId ? poMap.get(itemPoId) : null;
+
+        const purchaseOrderId = itemPoId || poInfo?.purchaseOrderId || null;
+        const purchaseOrderCode = parsedItems[0]?.purchaseOrderCode || poInfo?.purchaseOrderCode || itemPo?.code || null;
+        const shippingFee = parsedItems[0]?.shippingFee !== undefined ? parsedItems[0].shippingFee : (poInfo?.shippingFee ?? Number(itemPo?.shippingFee || 0));
+        
+        const descSupplier = t.description?.match(/Từ nhà cung cấp:\s*([^\n\r]+)/i)?.[1]?.trim() || null;
+        const supplierName = poInfo?.supplierName || itemPo?.supplier?.name || descSupplier || null;
+        const isPurchaseOrder = !!(purchaseOrderId || purchaseOrderCode || supplierName);
 
         return {
           id:        t.id,
+          title:     t.title,
           code:      code,
           productionOrder: prodOrder,
           purchaseOrderId,
@@ -364,6 +383,8 @@ export async function GET(_req: NextRequest) {
           type:      "material-import" as const,
           typeLabel: typeLabel,
           customer:  supplierName,
+          supplierName: supplierName,
+          isPurchaseOrder: isPurchaseOrder,
           tongTien:  null,
           trangThai: t.status,
           assigneeName: (t.assigneeId && userMap.get(t.assigneeId)) || null,

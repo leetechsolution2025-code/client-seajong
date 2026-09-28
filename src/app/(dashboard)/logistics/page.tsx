@@ -128,9 +128,10 @@ export default function LogisticsOverviewPage() {
             let exportCode = `LXK-202607-${suffix}`;
             if (d.type === "material-export") exportCode = `LXK-VATTU-${suffix}`;
             if (d.type === "material-import") {
-              const text = (d.title || d.code || d.typeLabel || "").toLowerCase();
+              const text = `${d.title || ""} ${d.code || ""} ${d.typeLabel || ""}`.toLowerCase();
+              const isPurchaseOrder = !!d.purchaseOrderId || !!d.purchaseOrderCode || !!d.isPurchaseOrder;
               const isDefect = text.includes("hàng lỗi") || text.includes("kho-loi") || text.includes("lỗi");
-              const isIQC = text.includes("iqc") || text.includes("vật tư");
+              const isIQC = isPurchaseOrder || text.includes("iqc") || text.includes("vật tư");
               const prefix = isDefect ? "LNK-LOI" : (isIQC ? "LNK-IQC" : "LNK-OQC");
               exportCode = `${prefix}-${suffix}`;
             }
@@ -258,6 +259,9 @@ export default function LogisticsOverviewPage() {
             giaBan: it.giaBan || it.inventoryItem?.giaBan,
             imageUrl: it.imageUrl || it.inventoryItem?.imageUrl,
             inventoryItemId: it.inventoryItemId || it.inventoryItem?.id || null,
+            purchaseOrderId: it.purchaseOrderId || row.purchaseOrderId || null,
+            purchaseOrderCode: it.purchaseOrderCode || row.purchaseOrderCode || null,
+            shippingFee: it.shippingFee !== undefined ? it.shippingFee : (row.shippingFee ?? 0)
           };
         });
         
@@ -315,6 +319,10 @@ export default function LogisticsOverviewPage() {
       latestDate: number;
       customerName: string | null;
       customerAddress: string | null;
+      supplierName: string | null;
+      purchaseOrderCode: string | null;
+      purchaseOrderId: string | null;
+      isPurchaseOrderGroup: boolean;
       ghiChu: string | null;
       isGroupImport: boolean;
     }
@@ -343,6 +351,9 @@ export default function LogisticsOverviewPage() {
         let latestDate = 0;
         let customerName: string | null = null;
         let customerAddress: string | null = null;
+        let supplierName: string | null = null;
+        let purchaseOrderCode: string | null = null;
+        let purchaseOrderId: string | null = null;
         let ghiChu: string | null = null;
         
         let hasMaterialCompleted = false;
@@ -351,9 +362,14 @@ export default function LogisticsOverviewPage() {
         let allExported = totalTickets > 0;
 
         items.forEach((it: any) => {
-          if (!customerName && it.customer) customerName = it.customer;
+          if (!customerName && it.customer && !it.customer.includes("Từ hồ sơ") && !it.customer.startsWith("ERR-")) customerName = it.customer;
           if (!customerAddress && it.customerAddress) customerAddress = it.customerAddress;
           if (!ghiChu && it.ghiChu) ghiChu = it.ghiChu;
+          if (!supplierName && (it.supplierName || (it.isPurchaseOrder ? it.customer : null))) {
+            supplierName = it.supplierName || it.customer;
+          }
+          if (!purchaseOrderCode && it.purchaseOrderCode) purchaseOrderCode = it.purchaseOrderCode;
+          if (!purchaseOrderId && it.purchaseOrderId) purchaseOrderId = it.purchaseOrderId;
           
           const tStatus = (it.trangThai || '').toLowerCase();
           const isExported = tStatus === 'completed' || tStatus === 'done' || tStatus === 'delivered';
@@ -376,6 +392,44 @@ export default function LogisticsOverviewPage() {
           it.ticketType === 'MATERIAL_IMPORT' || 
           orderCode.startsWith('QC-')
         );
+
+        // Xác định nhóm nhập kho từ đơn mua hàng
+        const isPurchaseOrderGroup = isGroupImport && (
+          !!purchaseOrderCode || 
+          !!purchaseOrderId || 
+          orderCode.includes("-DH-") || 
+          orderCode.startsWith("DH-") ||
+          items.some((it: any) => 
+            it.isPurchaseOrder || 
+            !!it.purchaseOrderCode || 
+            !!it.purchaseOrderId || 
+            it.supplierName ||
+            it.items?.some((p: any) => p.purchaseOrderId || p.purchaseOrderCode)
+          )
+        );
+
+        if (isPurchaseOrderGroup) {
+          if (!supplierName && customerName) {
+            supplierName = customerName;
+          }
+          if (!purchaseOrderCode) {
+            if (orderCode.includes("-DH-") || orderCode.startsWith("DH-")) {
+              purchaseOrderCode = orderCode.match(/(DH-\d+(-\d+)?)/)?.[0] || orderCode;
+            } else {
+              for (const it of items) {
+                if (it.items && Array.isArray(it.items)) {
+                  for (const p of it.items) {
+                    if (p.purchaseOrderCode) {
+                      purchaseOrderCode = p.purchaseOrderCode;
+                      break;
+                    }
+                  }
+                }
+                if (purchaseOrderCode) break;
+              }
+            }
+          }
+        }
 
         const isDefectGroup = orderCode.startsWith('ERR-') || orderCode.startsWith('WR-');
 
@@ -451,6 +505,10 @@ export default function LogisticsOverviewPage() {
           latestDate,
           customerName,
           customerAddress,
+          supplierName,
+          purchaseOrderCode,
+          purchaseOrderId,
+          isPurchaseOrderGroup,
           ghiChu,
           isGroupImport,
         };
@@ -498,7 +556,7 @@ export default function LogisticsOverviewPage() {
 
     const finalOrders: any[] = [];
     paginatedGroups.forEach((group, index) => {
-      const { orderCode, items, groupStatusText, groupStatusColor, customerName, customerAddress, ghiChu, isGroupImport, latestDate } = group;
+      const { orderCode, items, groupStatusText, groupStatusColor, customerName, customerAddress, supplierName, purchaseOrderCode, isPurchaseOrderGroup, ghiChu, isGroupImport, latestDate } = group;
       
       const isToggled = collapsedGroups.has(orderCode);
       const isCollapsed = index === 0 ? isToggled : !isToggled;
@@ -571,37 +629,64 @@ export default function LogisticsOverviewPage() {
               </div>
             </div>
             
-            {isGroupImport && (orderCode.includes("-DH-") || orderCode.startsWith("QC-")) && (
-              <div className="ms-4 text-muted fw-bold" style={{ fontSize: 11 }}>
-                <i className="bi bi-file-earmark-text me-1"></i>
-                {orderCode.includes("-DH-") 
-                  ? `Theo đơn mua hàng số: ${orderCode.match(/(DH-\d+(-\d+)?)/)?.[0] || orderCode}` 
-                  : (() => {
-                      const prodOrders = Array.from(new Set(items.map(it => it.productionOrder).filter(Boolean)));
-                      if (prodOrders.length > 0) {
-                        return `Theo lệnh sản xuất: ${prodOrders.join(", ")}`;
-                      }
-                      return `Theo lệnh sản xuất: ${orderCode.replace('QC-', 'LSX-')}`;
-                    })()}
-              </div>
-            )}
-            
-            {(customerName || customerAddress) && (
-              <div className="ms-4 d-flex align-items-center gap-1 text-muted fw-bold" style={{ fontSize: 11 }}>
-                {customerName && (
+            {isPurchaseOrderGroup ? (
+              <div className="ms-4 d-flex align-items-center flex-wrap gap-1 text-muted fw-bold" style={{ fontSize: 11 }}>
+                {(supplierName || customerName) && (
                   <>
                     <i className="bi bi-person me-1"></i>
-                    Khách hàng: <span className="fw-bold text-dark">{customerName}</span>
-                    {customerAddress && <span className="mx-1">|</span>}
+                    Nhà cung cấp: <span className="fw-bold text-dark">{supplierName || customerName}</span>
+                    <span className="mx-1">|</span>
                   </>
                 )}
-                {!customerName && customerAddress && (
-                  <i className="bi bi-geo-alt me-1"></i>
-                )}
+                <i className="bi bi-file-earmark-text me-1"></i>
+                Theo đơn mua hàng: <span className="fw-bold text-dark">{purchaseOrderCode || "Đang xử lý"}</span>
                 {customerAddress && (
-                  <span>{customerAddress}</span>
+                  <>
+                    <span className="mx-1">|</span>
+                    <i className="bi bi-geo-alt me-1"></i>
+                    <span>{customerAddress}</span>
+                  </>
                 )}
               </div>
+            ) : (
+              <>
+                {isGroupImport && (orderCode.includes("-DH-") || orderCode.startsWith("QC-")) && (
+                  <div className="ms-4 text-muted fw-bold" style={{ fontSize: 11 }}>
+                    <i className="bi bi-file-earmark-text me-1"></i>
+                    {orderCode.includes("-DH-") 
+                      ? `Theo đơn mua hàng số: ${orderCode.match(/(DH-\d+(-\d+)?)/)?.[0] || orderCode}` 
+                      : (() => {
+                          const prodOrders = Array.from(new Set(items.map(it => it.productionOrder).filter(Boolean)));
+                          if (prodOrders.length > 0) {
+                            return `Theo lệnh sản xuất: ${prodOrders.join(", ")}`;
+                          }
+                          return `Theo lệnh sản xuất: ${orderCode.replace('QC-', 'LSX-')}`;
+                        })()}
+                  </div>
+                )}
+                
+                {(() => {
+                  const validCustomer = customerName && !customerName.includes("Từ hồ sơ") && !customerName.startsWith("ERR-");
+                  if (!validCustomer && !customerAddress) return null;
+                  return (
+                    <div className="ms-4 d-flex align-items-center gap-1 text-muted fw-bold" style={{ fontSize: 11 }}>
+                      {validCustomer && (
+                        <>
+                          <i className="bi bi-person me-1"></i>
+                          Khách hàng: <span className="fw-bold text-dark">{customerName}</span>
+                          {customerAddress && <span className="mx-1">|</span>}
+                        </>
+                      )}
+                      {!validCustomer && customerAddress && (
+                        <i className="bi bi-geo-alt me-1"></i>
+                      )}
+                      {customerAddress && (
+                        <span>{customerAddress}</span>
+                      )}
+                    </div>
+                  );
+                })()}
+              </>
             )}
             
             {ghiChu && (
@@ -714,7 +799,7 @@ export default function LogisticsOverviewPage() {
                             {!readOrderIds.has(row.id) && <span className="badge bg-danger rounded-pill" style={{ fontSize: 9, padding: "2px 6px" }}>Mới</span>}
                           </div>
                           <div className="text-muted text-truncate" style={{ fontSize: 12, maxWidth: 240 }}>
-                            {row.typeLabel} {row.code?.startsWith("QC-") ? row.code : (row.saleOrderCode || row.code)} {row.customer ? `- ${row.customer}` : ""}
+                            {row.typeLabel} {row.code?.startsWith("QC-") ? row.code : (row.saleOrderCode || row.code)} {row.customer && !row.customer.includes("Từ hồ sơ") && !row.customer.startsWith("ERR-") ? `- ${row.customer}` : ""}
                           </div>
                         </div>
                       ),
@@ -899,9 +984,10 @@ export default function LogisticsOverviewPage() {
                                const suffix = parts[parts.length - 1] || `${index}`;
                                let exportCode = `LXK-202607-${suffix}`;
                                if (d.type === "material-import") {
-                                 const text = (d.title || d.code || d.typeLabel || "").toLowerCase();
+                                 const text = `${d.title || ""} ${d.code || ""} ${d.typeLabel || ""}`.toLowerCase();
+                                 const isPurchaseOrder = !!d.purchaseOrderId || !!d.purchaseOrderCode || !!d.isPurchaseOrder;
                                  const isDefect = text.includes("hàng lỗi") || text.includes("kho-loi") || text.includes("lỗi");
-                                 const isIQC = text.includes("iqc") || text.includes("vật tư");
+                                 const isIQC = isPurchaseOrder || text.includes("iqc") || text.includes("vật tư");
                                  const prefix = isDefect ? "LNK-LOI" : (isIQC ? "LNK-IQC" : "LNK-OQC");
                                  exportCode = `${prefix}-${suffix}`;
                                }
@@ -994,7 +1080,7 @@ export default function LogisticsOverviewPage() {
                   ) : (
                     <span>{selectedOrder?.typeLabel}</span>
                   )}
-                  {selectedOrder?.customer && <span>• {selectedOrder.customer}</span>}
+                  {selectedOrder?.customer && !selectedOrder.customer.includes("Từ hồ sơ") && !selectedOrder.customer.startsWith("ERR-") && <span>• {selectedOrder.customer}</span>}
                 </>
               )}
             </div>

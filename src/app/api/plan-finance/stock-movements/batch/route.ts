@@ -127,13 +127,21 @@ export async function POST(req: NextRequest) {
       movements.push(mv);
 
       // Cập nhật trangThai + soLuong tổng trên InventoryItem
-      const allStocks = await prisma.inventoryStock.findMany({
-        where: { inventoryItemId },
-        include: { inventoryItem: { select: { soLuongMin: true, giaNhap: true, giaVon: true } }, warehouse: { select: { code: true } } },
-      });
+      let allStocks: any[] = [];
+      try {
+        allStocks = await prisma.inventoryStock.findMany({
+          where: { inventoryItemId },
+          include: { inventoryItem: { select: { soLuongMin: true, giaNhap: true, giaVon: true } as any }, warehouse: { select: { code: true } } },
+        });
+      } catch {
+        allStocks = await prisma.inventoryStock.findMany({
+          where: { inventoryItemId },
+          include: { inventoryItem: { select: { soLuongMin: true, giaNhap: true } }, warehouse: { select: { code: true } } },
+        });
+      }
       const validStocks = allStocks.filter((st: any) => st.warehouse?.code !== 'KHO-LOI');
       const tongSoLuong = validStocks.reduce((s, st) => s + st.soLuong, 0);
-      const soLuongMin  = allStocks[0]?.inventoryItem.soLuongMin ?? 0;
+      const soLuongMin  = allStocks[0]?.inventoryItem?.soLuongMin ?? 0;
       const trangThai   = tongSoLuong === 0 ? "het-hang"
                         : soLuongMin > 0 && tongSoLuong <= soLuongMin ? "sap-het"
                         : "con-hang";
@@ -155,14 +163,24 @@ export async function POST(req: NextRequest) {
       }
 
       // Lưu ý: Giá nhập (giaNhap) cố định theo thiết lập thủ công của người dùng, Giá vốn (giaVon) tính theo bình quân gia quyền
-      await prisma.inventoryItem.update({
-        where: { id: inventoryItemId },
-        data:  { 
-          soLuong: tongSoLuong, 
-          trangThai,
-          ...(finalGiaVon !== undefined && { giaVon: finalGiaVon }),
-        },
-      });
+      try {
+        await prisma.inventoryItem.update({
+          where: { id: inventoryItemId },
+          data:  { 
+            soLuong: tongSoLuong, 
+            trangThai,
+            ...(finalGiaVon !== undefined && { giaVon: finalGiaVon }),
+          },
+        });
+      } catch {
+        await prisma.inventoryItem.update({
+          where: { id: inventoryItemId },
+          data:  { 
+            soLuong: tongSoLuong, 
+            trangThai,
+          },
+        });
+      }
     }
 
     if (purchaseOrderId) {
