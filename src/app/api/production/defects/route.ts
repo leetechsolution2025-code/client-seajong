@@ -280,10 +280,14 @@ export async function POST(req: Request) {
       }
     });
 
+    const discountInfo = (formData.get('discountInfo') as string) || null;
+    const orderNumber = (formData.get('orderNumber') as string) || null;
+
     // Nếu là luồng hàng trả về (source === 'RETURN' hoặc có refundAmount > 0)
     if (source === 'RETURN' || refundAmount > 0) {
       // 1. Điều chỉnh giảm công nợ khách hàng
       if (refundAmount > 0 && customerId) {
+        const descDebt = `Trả lại hàng theo ${code}${orderNumber ? ` (Đơn: ${orderNumber})` : ''}${discountInfo ? ` - [${discountInfo}]` : ''}`;
         await (prisma.debt as any).create({
           data: {
             type: 'RECEIVABLE',
@@ -293,7 +297,7 @@ export async function POST(req: Request) {
             paidAmount: Math.abs(refundAmount),
             dueDate: new Date(),
             status: 'PAID',
-            description: `Trả lại hàng theo ${code}`,
+            description: descDebt,
             referenceId: code,
           }
         });
@@ -303,7 +307,7 @@ export async function POST(req: Request) {
           data: {
             defectId: defect.id,
             action: 'ĐIỀU CHỈNH CÔNG NỢ',
-            description: `Đã tự động cấn trừ công nợ: -${refundAmount.toLocaleString('vi-VN')} đ (Trả lại hàng theo ${code})`,
+            description: `Đã tự động cấn trừ công nợ: -${refundAmount.toLocaleString('vi-VN')} đ (Trả lại hàng theo ${code}${discountInfo ? `, ${discountInfo}` : ''})`,
             oldStatus: 'NEW',
             newStatus: defect.status,
             performedBy: defect.reporterName || 'Hệ thống'
@@ -360,7 +364,7 @@ export async function POST(req: Request) {
           const notifContent = `Khách hàng: **${customerName || "Chưa xác định"}**\n` +
             `Đơn hàng gốc: **${formData.get('orderNumber') || "Không gắn đơn"}**\n` +
             `Sản phẩm trả lại: **${formData.get('productCode')} - ${formData.get('productName')}** (Số lượng: **${formData.get('quantity') || 1}**)\n` +
-            (refundAmount > 0 ? `Giá trị giảm trừ công nợ: **${refundAmount.toLocaleString('vi-VN')} đ**\n` : '') +
+            (refundAmount > 0 ? `Giá trị giảm trừ công nợ: **${refundAmount.toLocaleString('vi-VN')} đ**${discountInfo ? ` _(${discountInfo})_` : ''}\n` : '') +
             `Lý do / Hiện trạng: _"${formData.get('description') || 'Không có mô tả'}"_\n` +
             `Người xử lý kỹ thuật: **${formData.get('assignedTo') || 'Chưa phân công'}** | Người tiếp nhận: **${formData.get('reporterName') || 'Kinh doanh'}**`;
 

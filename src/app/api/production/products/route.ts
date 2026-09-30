@@ -70,13 +70,13 @@ export async function GET(req: NextRequest) {
         if (shouldUpgrade) {
           existing.id = item.id;
           if (item.code) existing.code = item.code;
-          existing.name = item.tenHang;
+          existing.name = item.tenHang || item.code || "Sản phẩm";
           if (item.donVi) existing.unit = item.donVi;
           existing.loai = item.loai;
         }
 
         // Kế thừa mã định mức BOM nếu có
-        if (item.dinhMucs.length > 0) {
+        if (item.dinhMucs && item.dinhMucs.length > 0) {
           existing.hasBom = true;
           if (!existing.bomCode) {
             existing.bomId = item.dinhMucs[0].id;
@@ -88,13 +88,13 @@ export async function GET(req: NextRequest) {
         deduplicatedMap.set(key, {
           id: item.id,
           code: item.code || null,
-          name: item.tenHang,
+          name: item.tenHang || item.code || "Sản phẩm",
           unit: item.donVi || "cái",
           loai: item.loai,
-          hasBom: item.dinhMucs.length > 0,
-          bomId: item.dinhMucs[0]?.id || null,
-          bomCode: item.dinhMucs[0]?.code || null,
-          bomName: item.dinhMucs[0]?.tenDinhMuc || null,
+          hasBom: (item.dinhMucs?.length || 0) > 0,
+          bomId: item.dinhMucs?.[0]?.id || null,
+          bomCode: item.dinhMucs?.[0]?.code || null,
+          bomName: item.dinhMucs?.[0]?.tenDinhMuc || null,
           warehouses: itemWarehouseNames,
           totalStock: itemStockQty,
         });
@@ -107,9 +107,9 @@ export async function GET(req: NextRequest) {
     if (q) {
       result = result.filter(
         (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.code && p.code.toLowerCase().includes(q)) ||
-          (p.bomCode && p.bomCode.toLowerCase().includes(q))
+          (p.name ? p.name.toLowerCase().includes(q) : false) ||
+          (p.code ? p.code.toLowerCase().includes(q) : false) ||
+          (p.bomCode ? p.bomCode.toLowerCase().includes(q) : false)
       );
     }
 

@@ -814,7 +814,7 @@ export function NhapKhoModal({
                       appearance: "none", textOverflow: "ellipsis"
                     }}
                   >
-                    <option value="">-- Chọn đơn mua hàng --</option>
+                    <option value="">Chọn đơn mua hàng</option>
                     {poList.length === 0 && <option disabled value="">Không có đơn hàng</option>}
                     {poList.map(po => (
                       <option key={po.id} value={po.id}>

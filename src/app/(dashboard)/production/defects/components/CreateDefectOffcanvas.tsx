@@ -11,6 +11,57 @@ interface CreateDefectOffcanvasProps {
   defaultSource?: string;
 }
 
+function calculateItemRefundPricing(item: any, selectedOrder: any) {
+  if (!item) {
+    return {
+      originalUnitPrice: 0,
+      itemNetUnitPrice: 0,
+      itemDiscountPct: 0,
+      orderDiscountPct: 0,
+      effectiveUnitPrice: 0,
+      discountInfo: ''
+    };
+  }
+
+  const originalUnitPrice = Number(item.donGia) || 0;
+  const orderQty = Number(item.soLuong) || 1;
+  const thanhTien = Number(item.thanhTien) !== undefined && !isNaN(Number(item.thanhTien))
+    ? Number(item.thanhTien)
+    : (originalUnitPrice * orderQty);
+
+  // Đơn giá thực sau chiết khấu dòng sản phẩm
+  const itemNetUnitPrice = orderQty > 0 ? (thanhTien / orderQty) : originalUnitPrice;
+  
+  // Tỷ lệ chiết khấu dòng sản phẩm (%)
+  let itemDiscountPct = 0;
+  if (originalUnitPrice > 0 && originalUnitPrice > itemNetUnitPrice) {
+    itemDiscountPct = Math.round(((originalUnitPrice - itemNetUnitPrice) / originalUnitPrice) * 1000) / 10;
+  }
+
+  // Tỷ lệ chiết khấu tổng đơn hàng (%)
+  const orderDiscountPct = Number(selectedOrder?.discount) || 0;
+
+  // Đơn giá thực tế sau khi tính cả 2 tầng chiết khấu (dòng + tổng đơn)
+  const effectiveUnitPrice = Math.max(0, Math.round(itemNetUnitPrice * (1 - orderDiscountPct / 100)));
+
+  // Chuỗi tóm tắt thông tin chiết khấu
+  const parts: string[] = [];
+  if (itemDiscountPct > 0) parts.push(`CK sản phẩm -${itemDiscountPct}%`);
+  if (orderDiscountPct > 0) parts.push(`CK đơn -${orderDiscountPct}%`);
+  const discountInfo = parts.length > 0 
+    ? `${parts.join(", ")} (Đơn giá thực: ${effectiveUnitPrice.toLocaleString('vi-VN')} đ/sp, gốc: ${originalUnitPrice.toLocaleString('vi-VN')} đ)`
+    : '';
+
+  return {
+    originalUnitPrice,
+    itemNetUnitPrice,
+    itemDiscountPct,
+    orderDiscountPct,
+    effectiveUnitPrice,
+    discountInfo
+  };
+}
+
 export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource = 'INTERNAL' }: CreateDefectOffcanvasProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -21,6 +72,10 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
     quantity: 1,
     refundAmount: 0,
     unitPrice: 0,
+    effectiveUnitPrice: 0,
+    itemDiscountPct: 0,
+    orderDiscountPct: 0,
+    discountInfo: '',
     description: '',
     customerId: '',
     customerName: '',
@@ -31,6 +86,7 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
     assignedTo: '',
     completionDate: '',
   });
+  const [useDiscountedPrice, setUseDiscountedPrice] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   
   const [customers, setCustomers] = useState<any[]>([]);
@@ -114,8 +170,8 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
       const res = await fetch(`/api/plan-finance/inventory/search?q=${formData.productCode}&limit=5`);
       const data = await res.json();
       if (data.items && data.items.length > 0) {
-        const item = data.items.find((i: any) => i.code.toLowerCase() === formData.productCode.toLowerCase()) || data.items[0];
-        setFormData(prev => ({ ...prev, productName: item.tenHang }));
+        const item = data.items.find((i: any) => (i.code ? i.code.toLowerCase() : "") === formData.productCode.toLowerCase()) || data.items[0];
+        setFormData(prev => ({ ...prev, productName: item?.tenHang || "" }));
       }
     } catch (error) {
       console.error(error);
@@ -149,6 +205,10 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
           quantity: 1,
           refundAmount: 0,
           unitPrice: 0,
+          effectiveUnitPrice: 0,
+          itemDiscountPct: 0,
+          orderDiscountPct: 0,
+          discountInfo: '',
           description: '',
           customerId: '',
           customerName: '',
@@ -159,6 +219,7 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
           assignedTo: employees.find(e => e.level === 'Trưởng phòng' || e.level === 'Trưởng bộ phận')?.fullName || employees[0]?.fullName || '',
           completionDate: '',
         });
+        setUseDiscountedPrice(true);
         setFiles([]);
       } else {
         alert('Có lỗi xảy ra khi tạo hồ sơ!');
@@ -288,12 +349,18 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
                       productCode: '', 
                       productName: '', 
                       unitPrice: 0, 
+                      effectiveUnitPrice: 0,
+                      itemDiscountPct: 0,
+                      orderDiscountPct: 0,
+                      discountInfo: '',
                       refundAmount: 0 
                     }))}
                   >
                     <option value="">Chọn đơn hàng...</option>
                     {orders.map(o => (
-                      <option key={o.id} value={o.code || o.id}>{o.code || o.id}</option>
+                      <option key={o.id} value={o.code || o.id}>
+                        {o.code || o.id} {o.discount > 0 ? `(CK đơn: -${o.discount}%)` : ''}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -307,10 +374,13 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
                     value={formData.quantity}
                     onChange={e => {
                       const qty = parseInt(e.target.value) || 1;
+                      const priceToUse = useDiscountedPrice && formData.effectiveUnitPrice > 0 
+                        ? formData.effectiveUnitPrice 
+                        : (formData.unitPrice > 0 ? formData.unitPrice : 0);
                       setFormData(prev => ({ 
                         ...prev, 
                         quantity: qty,
-                        refundAmount: prev.unitPrice > 0 ? prev.unitPrice * qty : prev.refundAmount
+                        refundAmount: priceToUse > 0 ? priceToUse * qty : prev.refundAmount
                       }));
                     }}
                     required 
@@ -343,24 +413,59 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
                       onChange={e => {
                         const val = e.target.value;
                         const selectedOrder = orders.find(o => (o.code || o.id) === formData.orderNumber);
-                        const item = selectedOrder?.saleOrderItems?.find((i: any) => i.inventoryItem?.code === val);
-                        const unitPrice = item?.donGia || 0;
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          productCode: val, 
-                          productName: item?.inventoryItem?.tenHang || item?.tenHang || '',
-                          unitPrice: unitPrice,
-                          refundAmount: unitPrice > 0 ? unitPrice * prev.quantity : prev.refundAmount
-                        }));
+                        const item = selectedOrder?.saleOrderItems?.find((i: any) => 
+                          (i.inventoryItem?.code && i.inventoryItem.code === val) || i.id === val || (i.code && i.code === val)
+                        );
+                        
+                        if (item) {
+                          const pricing = calculateItemRefundPricing(item, selectedOrder);
+                          const priceToUse = useDiscountedPrice && pricing.effectiveUnitPrice > 0 
+                            ? pricing.effectiveUnitPrice 
+                            : pricing.originalUnitPrice;
+                          const currentQty = formData.quantity || 1;
+                          
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            productCode: item.inventoryItem?.code || item.code || val, 
+                            productName: item.inventoryItem?.tenHang || item.tenHang || '',
+                            unitPrice: pricing.originalUnitPrice,
+                            effectiveUnitPrice: pricing.effectiveUnitPrice,
+                            itemDiscountPct: pricing.itemDiscountPct,
+                            orderDiscountPct: pricing.orderDiscountPct,
+                            discountInfo: pricing.discountInfo,
+                            refundAmount: priceToUse > 0 ? priceToUse * currentQty : 0
+                          }));
+                        } else {
+                          setFormData(prev => ({ 
+                            ...prev, 
+                            productCode: val, 
+                            productName: '',
+                            unitPrice: 0,
+                            effectiveUnitPrice: 0,
+                            itemDiscountPct: 0,
+                            orderDiscountPct: 0,
+                            discountInfo: '',
+                            refundAmount: 0
+                          }));
+                        }
                       }}
                       required
                     >
-                      <option value="">Chọn sản phẩm...</option>
-                      {orders.find(o => (o.code || o.id) === formData.orderNumber)?.saleOrderItems?.map((item: any) => (
-                        <option key={item.id} value={item.inventoryItem?.code}>
-                          {item.inventoryItem?.code} {item.donGia ? `(${item.donGia.toLocaleString('vi-VN')} đ)` : ''}
-                        </option>
-                      ))}
+                      <option value="">Chọn sản phẩm trong đơn...</option>
+                      {orders.find(o => (o.code || o.id) === formData.orderNumber)?.saleOrderItems?.map((item: any) => {
+                        const selectedOrder = orders.find(o => (o.code || o.id) === formData.orderNumber);
+                        const pricing = calculateItemRefundPricing(item, selectedOrder);
+                        const hasDiscount = pricing.itemDiscountPct > 0 || pricing.orderDiscountPct > 0;
+                        const codeVal = item.inventoryItem?.code || item.code || item.id;
+                        return (
+                          <option key={item.id} value={codeVal}>
+                            {codeVal} - {item.inventoryItem?.tenHang || item.tenHang} 
+                            {hasDiscount 
+                              ? ` (Đã mua: ${item.soLuong} | Thực giá: ${pricing.effectiveUnitPrice.toLocaleString('vi-VN')} đ | Gốc: ${pricing.originalUnitPrice.toLocaleString('vi-VN')} đ)` 
+                              : ` (Đã mua: ${item.soLuong} | ${pricing.originalUnitPrice.toLocaleString('vi-VN')} đ)`}
+                          </option>
+                        );
+                      })}
                     </select>
                   ) : (
                     <input 
@@ -396,11 +501,66 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
                     Giá trị hoàn trả / Giảm công nợ (VNĐ) {formData.source === 'RETURN' && <span className="text-danger">*</span>}
                   </label>
                   {formData.unitPrice > 0 && (
-                    <span className="badge bg-light text-secondary border" style={{ fontSize: 11 }}>
-                      Đơn giá: {formData.unitPrice.toLocaleString('vi-VN')} đ
+                    <span className="badge bg-light text-secondary border font-monospace" style={{ fontSize: 11 }}>
+                      Đơn giá: {((useDiscountedPrice && formData.effectiveUnitPrice > 0 ? formData.effectiveUnitPrice : formData.unitPrice) || 0).toLocaleString('vi-VN')} đ
                     </span>
                   )}
                 </div>
+
+                {/* Bảng bóc tách chiết khấu theo đơn hàng */}
+                {formData.unitPrice > 0 && (formData.itemDiscountPct > 0 || formData.orderDiscountPct > 0) && (
+                  <div className="p-2.5 rounded-3 border bg-light-subtle mb-2" style={{ fontSize: 11.5 }}>
+                    <div className="d-flex align-items-center justify-content-between mb-1.5 pb-1 border-bottom">
+                      <span className="fw-semibold text-dark d-flex align-items-center gap-1">
+                        <i className="bi bi-percent text-warning"></i>
+                        Chiết khấu theo đơn hàng:
+                      </span>
+                      <div className="form-check form-switch mb-0 d-flex align-items-center gap-1">
+                        <input
+                          className="form-check-input shadow-none"
+                          type="checkbox"
+                          id="useDiscountedToggle"
+                          style={{ cursor: "pointer" }}
+                          checked={useDiscountedPrice}
+                          onChange={e => {
+                            const checked = e.target.checked;
+                            setUseDiscountedPrice(checked);
+                            const p = checked && formData.effectiveUnitPrice > 0 ? formData.effectiveUnitPrice : formData.unitPrice;
+                            setFormData(prev => ({
+                              ...prev,
+                              refundAmount: p * (prev.quantity || 1)
+                            }));
+                          }}
+                        />
+                        <label className="form-check-label text-muted" htmlFor="useDiscountedToggle" style={{ fontSize: 11, cursor: "pointer" }}>
+                          {useDiscountedPrice ? "Áp dụng giá sau CK" : "Áp dụng giá gốc"}
+                        </label>
+                      </div>
+                    </div>
+                    <div className="d-flex flex-wrap align-items-center gap-3 text-muted">
+                      <div>
+                        Đơn giá gốc: <strong className="text-dark">{formData.unitPrice.toLocaleString('vi-VN')} đ</strong>
+                      </div>
+                      {formData.itemDiscountPct > 0 && (
+                        <div>
+                          CK sản phẩm: <strong className="text-danger font-monospace">-{formData.itemDiscountPct}%</strong>
+                        </div>
+                      )}
+                      {formData.orderDiscountPct > 0 && (
+                        <div>
+                          CK tổng đơn: <strong className="text-danger font-monospace">-{formData.orderDiscountPct}%</strong>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-1.5 pt-1 border-top d-flex justify-content-between align-items-center">
+                      <span className="text-secondary">Đơn giá thực tế {useDiscountedPrice ? "(sau chiết khấu)" : "(giá gốc)"}:</span>
+                      <strong className="text-primary font-monospace" style={{ fontSize: 12.5 }}>
+                        {(useDiscountedPrice && formData.effectiveUnitPrice > 0 ? formData.effectiveUnitPrice : formData.unitPrice).toLocaleString('vi-VN')} đ / sp
+                      </strong>
+                    </div>
+                  </div>
+                )}
+
                 <div className="input-group">
                   <CurrencyInput 
                     className="form-control shadow-none fw-bold text-primary" 

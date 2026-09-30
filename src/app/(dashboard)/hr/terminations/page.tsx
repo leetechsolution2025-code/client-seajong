@@ -115,8 +115,8 @@ export default function TerminationsPage() {
     if (currentStep === 2) matchesStep = r.status === "Approved";
     if (currentStep === 3) matchesStep = r.status === "Handover" || r.status === "Finalizing" || r.status === "Completed";
 
-    const matchesSearch = r.employee?.fullName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          r.employee?.code.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (r.employee?.fullName ? r.employee.fullName.toLowerCase().includes(searchQuery.toLowerCase()) : false) || 
+                          (r.employee?.code ? r.employee.code.toLowerCase().includes(searchQuery.toLowerCase()) : false);
     return matchesTab && matchesSearch && matchesStep;
   });
 

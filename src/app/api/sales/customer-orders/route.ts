@@ -17,6 +17,10 @@ export async function GET(req: NextRequest) {
         id: true,
         code: true,
         createdAt: true,
+        ngayDat: true,
+        discount: true,
+        vat: true,
+        tongTien: true,
         saleOrderItems: {
           select: {
             id: true,
@@ -24,6 +28,7 @@ export async function GET(req: NextRequest) {
             soLuong: true,
             donGia: true,
             thanhTien: true,
+            ghiChu: true,
             inventoryItem: {
               select: {
                 id: true,

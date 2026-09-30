@@ -1,32 +1,32 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import toast from "react-hot-toast";
 
 interface ProductItem {
   id: string;
-  code: string;
+  code?: string | null;
   name: string;
-  unit: string;
-  hasBom: boolean;
-  bomId: string | null;
-  bomCode: string | null;
-  bomName: string | null;
+  unit?: string | null;
+  hasBom?: boolean;
+  bomId?: string | null;
+  bomCode?: string | null;
+  bomName?: string | null;
   warehouses?: string[];
   totalStock?: number;
 }
 
 export interface SelectedProductionItem {
   id: string;
-  inventoryItemId?: string;
+  inventoryItemId?: string | null;
   productName: string;
-  productCode?: string;
+  productCode?: string | null;
   quantity: number;
   unit: string;
   hasBom?: boolean;
-  bomCode?: string;
-  bomId?: string;
+  bomCode?: string | null;
+  bomId?: string | null;
 }
 
 interface CreateProductionRequestOffcanvasProps {
@@ -116,7 +116,7 @@ export function CreateProductionRequestOffcanvas({
   // Chọn sản phẩm từ danh sách gợi ý
   const handleSelectProduct = (prod: ProductItem) => {
     setCurrentProduct(prod);
-    setProductSearch(prod.name);
+    setProductSearch(prod.name || prod.code || "");
     setCurrentUnit(prod.unit || "cái");
     setShowProductDropdown(false);
   };
@@ -130,7 +130,7 @@ export function CreateProductionRequestOffcanvas({
     }
 
     const qty = Number(currentQty);
-    if (!qty || qty <= 0) {
+    if (!qty || qty <= 0 || isNaN(qty)) {
       toast.error("Số lượng phải lớn hơn 0");
       return;
     }
@@ -138,8 +138,8 @@ export function CreateProductionRequestOffcanvas({
     // Kiểm tra trùng sản phẩm
     const existingIndex = items.findIndex(
       (i) =>
-        (currentProduct && i.inventoryItemId === currentProduct.id) ||
-        i.productName.toLowerCase() === finalName.toLowerCase()
+        (currentProduct?.id && i.inventoryItemId === currentProduct.id) ||
+        (i.productName && finalName && i.productName.toLowerCase() === finalName.toLowerCase())
     );
 
     if (existingIndex >= 0) {
@@ -147,18 +147,18 @@ export function CreateProductionRequestOffcanvas({
       const updated = [...items];
       updated[existingIndex].quantity += qty;
       setItems(updated);
-      toast.success(`Đã cộng thêm ${qty} ${updated[existingIndex].unit} vào "${finalName}"`);
+      toast.success(`Đã cộng thêm ${qty} ${updated[existingIndex].unit || "cái"} vào "${finalName}"`);
     } else {
       const newItem: SelectedProductionItem = {
         id: `temp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        inventoryItemId: currentProduct?.id,
+        inventoryItemId: currentProduct?.id || null,
         productName: finalName,
-        productCode: currentProduct?.code,
+        productCode: currentProduct?.code || null,
         quantity: qty,
         unit: currentUnit || "cái",
-        hasBom: currentProduct?.hasBom,
-        bomCode: currentProduct?.bomCode || undefined,
-        bomId: currentProduct?.bomId || undefined,
+        hasBom: currentProduct?.hasBom || false,
+        bomCode: currentProduct?.bomCode || null,
+        bomId: currentProduct?.bomId || null,
       };
       setItems((prev) => [...prev, newItem]);
       toast.success(`Đã thêm "${finalName}" vào danh sách`);
@@ -177,7 +177,7 @@ export function CreateProductionRequestOffcanvas({
 
   // Cập nhật số lượng của một mặt hàng trong danh sách
   const handleUpdateItemQty = (id: string, newQty: number) => {
-    if (newQty <= 0) return;
+    if (isNaN(newQty) || newQty <= 0) return;
     setItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, quantity: newQty } : item))
     );
@@ -193,14 +193,14 @@ export function CreateProductionRequestOffcanvas({
     if (pendingName && Number(currentQty) > 0) {
       finalItems.push({
         id: `temp-${Date.now()}`,
-        inventoryItemId: currentProduct?.id,
+        inventoryItemId: currentProduct?.id || null,
         productName: pendingName,
-        productCode: currentProduct?.code,
+        productCode: currentProduct?.code || null,
         quantity: Number(currentQty),
         unit: currentUnit || "cái",
-        hasBom: currentProduct?.hasBom,
-        bomCode: currentProduct?.bomCode || undefined,
-        bomId: currentProduct?.bomId || undefined,
+        hasBom: currentProduct?.hasBom || false,
+        bomCode: currentProduct?.bomCode || null,
+        bomId: currentProduct?.bomId || null,
       });
     }
 
@@ -253,17 +253,19 @@ export function CreateProductionRequestOffcanvas({
     }
   };
 
-  if (!mounted) return null;
+  const filteredProducts = useMemo(() => {
+    if (!productSearch) return products;
+    const s = productSearch.trim().toLowerCase();
+    if (!s) return products;
+    return products.filter((p) => {
+      const nameMatch = p.name ? p.name.toLowerCase().includes(s) : false;
+      const codeMatch = p.code ? p.code.toLowerCase().includes(s) : false;
+      const bomMatch = p.bomCode ? p.bomCode.toLowerCase().includes(s) : false;
+      return nameMatch || codeMatch || bomMatch;
+    });
+  }, [products, productSearch]);
 
-  const filteredProducts = products.filter((p) => {
-    if (!productSearch) return true;
-    const s = productSearch.toLowerCase();
-    return (
-      p.name.toLowerCase().includes(s) ||
-      p.code.toLowerCase().includes(s) ||
-      (p.bomCode && p.bomCode.toLowerCase().includes(s))
-    );
-  });
+  if (!mounted) return null;
 
   const labelStyle = {
     fontSize: 12,
@@ -454,13 +456,13 @@ export function CreateProductionRequestOffcanvas({
                                   )}
                                 </div>
                                 <span className="badge bg-light text-muted border px-1" style={{ fontSize: 9.5 }}>
-                                  {p.unit}
+                                  {p.unit || "cái"}
                                 </span>
                               </div>
-                              <div className="text-dark text-truncate" title={p.name}>
-                                {p.name}
+                              <div className="text-dark text-truncate" title={p.name || ""}>
+                                {p.name || p.code || "Sản phẩm không tên"}
                               </div>
-                              {p.warehouses && p.warehouses.length > 0 && (
+                              {Array.isArray(p.warehouses) && p.warehouses.length > 0 && (
                                 <div className="text-muted text-truncate mt-0.5" style={{ fontSize: 10 }}>
                                   <i className="bi bi-building me-1"></i>
                                   {p.warehouses.join(" • ")}
@@ -563,9 +565,9 @@ export function CreateProductionRequestOffcanvas({
                         >
                           <div className="d-flex align-items-start justify-content-between gap-2">
                             <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                              <div className="fw-semibold text-dark text-truncate" title={item.productName}>
+                              <div className="fw-semibold text-dark text-truncate" title={item.productName || ""}>
                                 <span className="text-muted me-1">{idx + 1}.</span>
-                                {item.productName}
+                                {item.productName || "Sản phẩm"}
                               </div>
                               {/* Mã sản phẩm và Mã định mức BOM cạnh nhau */}
                               <div className="d-flex align-items-center gap-1.5 mt-1 flex-wrap">
@@ -597,7 +599,7 @@ export function CreateProductionRequestOffcanvas({
                                 onChange={(e) => handleUpdateItemQty(item.id, Number(e.target.value))}
                               />
                               <span className="text-muted small" style={{ minWidth: 26, fontSize: 11 }}>
-                                {item.unit}
+                                {item.unit || "cái"}
                               </span>
                               <button
                                 type="button"
