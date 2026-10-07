@@ -377,7 +377,6 @@ export function ApprovalCenter({
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 5,
                   padding: "3px 8px",
                   borderRadius: 6,
                   background: cfg.bg,
@@ -386,7 +385,6 @@ export function ApprovalCenter({
                   fontWeight: 700,
                 }}
               >
-                <i className={`bi ${cfg.icon}`} />
                 {cfg.label}
               </span>
 
@@ -395,7 +393,6 @@ export function ApprovalCenter({
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: 3,
                     padding: "1px 6px",
                     borderRadius: 99,
                     fontSize: 9.5,
@@ -406,7 +403,6 @@ export function ApprovalCenter({
                     boxShadow: "0 2px 5px rgba(220, 38, 38, 0.35)",
                   }}
                 >
-                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#fff" }} />
                   MỚI
                 </span>
               )}
@@ -423,8 +419,8 @@ export function ApprovalCenter({
 
             {/* Hàng 3: Đếm trao đổi nếu có */}
             {row.commentCount && row.commentCount > 0 ? (
-              <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 4 }}>
-                <i className="bi bi-chat-dots" /> {row.commentCount} trao đổi
+              <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+                {row.commentCount} trao đổi
               </div>
             ) : null}
           </div>
@@ -484,7 +480,6 @@ export function ApprovalCenter({
               fontWeight: 700,
             }}
           >
-            {row.priority === "urgent" && "🔥 "}
             {p.label}
           </span>
         );
@@ -501,7 +496,6 @@ export function ApprovalCenter({
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 4,
               padding: "3px 9px",
               borderRadius: 99,
               background: s.bg,
@@ -510,7 +504,6 @@ export function ApprovalCenter({
               fontWeight: 700,
             }}
           >
-            <i className={`bi ${s.icon}`} style={{ fontSize: 11 }} />
             {s.label}
           </span>
         );
@@ -831,11 +824,11 @@ export function ApprovalCenter({
             style={{ width: "auto", minWidth: 140, borderRadius: 8, fontSize: 12, height: 36 }}
           >
             <option value="">Tất cả trạng thái</option>
-            <option value="pending">⏳ Chờ duyệt</option>
-            <option value="approved">✅ Đã duyệt</option>
-            <option value="rejected">❌ Từ chối</option>
-            <option value="on_hold">⏸️ Tạm giữ</option>
-            <option value="recalled">↩️ Thu hồi</option>
+            <option value="pending">Chờ duyệt</option>
+            <option value="approved">Đã duyệt</option>
+            <option value="rejected">Từ chối</option>
+            <option value="on_hold">Tạm giữ</option>
+            <option value="recalled">Thu hồi</option>
           </select>
 
           {/* Lọc Loại hồ sơ */}
