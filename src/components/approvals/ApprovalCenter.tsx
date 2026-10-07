@@ -665,64 +665,6 @@ export function ApprovalCenter({
           </div>
         ) : null}
 
-        {/* Thẻ Tài khoản ngân hàng VIP nếu có */}
-        {(bankAccount || details.bankInfo) && (
-          <div
-            style={{
-              background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
-              borderRadius: 14,
-              padding: "16px 18px",
-              color: "#ffffff",
-              boxShadow: "0 4px 14px rgba(15, 23, 42, 0.25)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", color: "#94a3b8" }}>
-                Tài khoản nhận tiền
-              </span>
-              {shortBankName && (
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#38bdf8", background: "rgba(56, 189, 248, 0.15)", padding: "2px 8px", borderRadius: 99 }}>
-                  {shortBankName}
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "6px 0" }}>
-              <div className="font-monospace" style={{ fontSize: 18, fontWeight: 800, letterSpacing: "1.5px", color: "#f8fafc" }}>
-                {bankAccount || details.bankInfo}
-              </div>
-              {bankAccount && (
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    padding: "3px 10px",
-                    borderRadius: 6,
-                    background: copiedBank ? "rgba(34, 197, 94, 0.25)" : "rgba(255, 255, 255, 0.15)",
-                    color: copiedBank ? "#4ade80" : "#ffffff",
-                    border: "none",
-                  }}
-                  onClick={() => {
-                    navigator.clipboard.writeText(bankAccount);
-                    setCopiedBank(true);
-                    setTimeout(() => setCopiedBank(false), 2000);
-                  }}
-                >
-                  {copiedBank ? "Đã chép" : "Sao chép"}
-                </button>
-              )}
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "#f1f5f9" }}>
-                {bankAccountName}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Grid thông số mini */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px" }}>
@@ -741,6 +683,27 @@ export function ApprovalCenter({
               {details.paymentMethod || "Chuyển khoản"}
             </div>
           </div>
+
+          {(bankAccount || details.bankInfo) && (
+            <>
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 3 }}>
+                  Tài khoản nhận
+                </div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }} className="font-monospace">
+                  {bankAccount || details.bankInfo} {shortBankName ? `(${shortBankName})` : ""}
+                </div>
+              </div>
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 3 }}>
+                  Chủ tài khoản
+                </div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>
+                  {bankAccountName}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Lý do đề xuất */}
@@ -970,7 +933,7 @@ export function ApprovalCenter({
               top: 0,
               right: 0,
               bottom: 0,
-              width: 520,
+              width: 400,
               maxWidth: "100vw",
               zIndex: 1050,
               background: "#ffffff",
