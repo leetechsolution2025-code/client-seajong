@@ -21,17 +21,19 @@ export async function GET(
       },
     });
 
-    const targetRequestId = appReq ? appReq.id : id;
+    if (!appReq) {
+      return NextResponse.json({ success: true, data: [], approvalRequestId: null });
+    }
 
     const comments = await prisma.approvalComment.findMany({
-      where: { requestId: targetRequestId, parentId: null },
+      where: { requestId: appReq.id, parentId: null },
       include: {
         replies: { orderBy: { createdAt: "asc" } },
       },
       orderBy: { createdAt: "asc" },
     });
 
-    return NextResponse.json({ success: true, data: comments, approvalRequestId: targetRequestId });
+    return NextResponse.json({ success: true, data: comments, approvalRequestId: appReq.id });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
@@ -55,25 +57,50 @@ export async function POST(
     }
 
     // Tìm approvalRequest theo id hoặc entityId (mã YC-...)
-    const request = await prisma.approvalRequest.findFirst({
+    let request = await prisma.approvalRequest.findFirst({
       where: {
         OR: [{ id }, { entityId: id }, { entityCode: id }],
       },
     });
+
+    // Nếu chưa có ApprovalRequest (đơn chưa trình sếp), tự động tạo bản ghi để lưu luồng trao đổi
+    if (!request) {
+      const pReq = await prisma.personalRequest.findFirst({
+        where: { id },
+        include: { employee: true },
+      });
+      if (pReq) {
+        request = await prisma.approvalRequest.create({
+          data: {
+            entityType: "PERSONAL_REQUEST",
+            entityId: pReq.id,
+            entityCode: pReq.id,
+            entityTitle: `Đề xuất: ${pReq.type} - ${pReq.employee?.fullName || "Nhân viên"}`,
+            status: pReq.status || "pending",
+            requestedById: pReq.employee?.userId || session.user.id as string,
+            requestedByName: pReq.employee?.fullName || session.user.name || "Nhân viên",
+            department: pReq.employee?.departmentName || "Phòng ban",
+          },
+        });
+      }
+    }
+
     if (!request) return NextResponse.json({ error: "Không tìm thấy hồ sơ" }, { status: 404 });
 
     const userId   = session.user.id as string;
     const userName = session.user.name || session.user.email || "Người dùng";
     const userRole = (session.user as any).role || "";
-    const userDept = (session.user as any).departmentCode || "";
-    const userPos  = (session.user as any).position || (session.user as any).positionName || "";
+    const userDept = ((session.user as any).departmentCode || "").toUpperCase();
+    const userDeptName = ((session.user as any).departmentName || "").toLowerCase();
+    const userPos  = ((session.user as any).position || (session.user as any).positionName || "").toLowerCase();
 
     // Xác định role chuẩn xác
     let authorRole = "observer";
     if (
       userRole === "admin" ||
       userDept === "BGD" ||
-      userPos.toLowerCase().includes("giám đốc") ||
+      userDept === "BOD" ||
+      userPos.includes("giám đốc") ||
       request.approverId === userId ||
       request.approvedById === userId
     ) {
@@ -81,7 +108,8 @@ export async function POST(
     } else if (
       userDept === "HR" ||
       userDept === "HCNS" ||
-      userPos.toLowerCase().includes("nhân sự") ||
+      userDeptName.includes("nhân sự") ||
+      userPos.includes("nhân sự") ||
       request.requestedByName.includes("Nhân sự")
     ) {
       authorRole = "hr";
@@ -91,7 +119,7 @@ export async function POST(
 
     const comment = await prisma.approvalComment.create({
       data: {
-        requestId:  id,
+        requestId:  request.id,
         authorId:   userId,
         authorName: userName as string,
         authorRole,
