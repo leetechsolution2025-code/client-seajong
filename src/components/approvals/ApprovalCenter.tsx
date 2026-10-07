@@ -751,6 +751,24 @@ function ApprovalDetail({
                     {item.entityCode}
                   </span>
                 )}
+                {item.status === "pending" && (Date.now() - new Date(item.createdAt).getTime() < 48 * 3600 * 1000) && (
+                  <span style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3.5,
+                    padding: "2px 7.5px",
+                    borderRadius: 99,
+                    fontSize: 10,
+                    fontWeight: 800,
+                    background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                    color: "#ffffff",
+                    letterSpacing: "0.04em",
+                    boxShadow: "0 2px 5px rgba(220, 38, 38, 0.35)",
+                  }}>
+                    <i className="bi bi-stars" style={{ fontSize: 9.5 }} />
+                    MỚI
+                  </span>
+                )}
                 <StatusBadge status={item.status} />
                 {item.priority !== "normal" && (
                   <span style={{ fontSize: 10, fontWeight: 700, color: PRIORITY_CONFIG[item.priority].color }}>
@@ -759,7 +777,7 @@ function ApprovalDetail({
                   </span>
                 )}
               </div>
-              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "var(--foreground)", lineHeight: 1.4 }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--foreground)", lineHeight: 1.4 }}>
                 {item.entityTitle}
               </h3>
             </div>
@@ -781,9 +799,18 @@ function ApprovalDetail({
                     <button
                       onClick={() => setShowRejectModal(true)}
                       disabled={!!actionLoading}
-                      className="btn btn-sm btn-outline-danger"
-                      style={{ fontSize: 12, fontWeight: 400, padding: "4px 10px", borderRadius: 6, borderColor: "rgba(220,38,38,0.4)" }}
+                      className="btn btn-sm d-inline-flex align-items-center gap-1.5 border-0 shadow-xs"
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        padding: "6px 14px",
+                        borderRadius: 8,
+                        background: "#fff1f2",
+                        color: "#e11d48",
+                        border: "1px solid #fecdd3"
+                      }}
                     >
+                      <i className="bi bi-x-circle" style={{ fontSize: 13 }} />
                       Từ chối
                     </button>
                     <button
@@ -795,25 +822,42 @@ function ApprovalDetail({
                         setShowApproveNote(true);
                       }}
                       disabled={!!actionLoading || (isRecruitmentReport && !allCandidatesProcessed)}
-                      className="btn btn-sm btn-success"
+                      className="btn btn-sm d-inline-flex align-items-center gap-1.5 border-0 shadow-sm"
                       style={{ 
-                        fontSize: 12, fontWeight: 400, padding: "4px 12px", borderRadius: 6, 
-                        background: (isRecruitmentReport && !allCandidatesProcessed) ? "#94a3b8" : "#059669", 
-                        color: "#fff", border: "none",
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        padding: "6px 18px",
+                        borderRadius: 8, 
+                        background: (isRecruitmentReport && !allCandidatesProcessed) ? "#94a3b8" : "linear-gradient(135deg, #059669 0%, #047857 100%)", 
+                        color: "#fff",
+                        boxShadow: "0 2px 8px rgba(5, 150, 105, 0.35)",
                         opacity: (isRecruitmentReport && !allCandidatesProcessed) ? 0.6 : 1
                       }}
                     >
-                      {actionLoading === "approve" && <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12, marginRight: 4 }} />}
+                      {actionLoading === "approve" ? (
+                        <span className="spinner-border spinner-border-sm" style={{ width: 13, height: 13 }} />
+                      ) : (
+                        <i className="bi bi-check2-circle" style={{ fontSize: 14 }} />
+                      )}
                       Phê duyệt
                     </button>
                     {item.status !== "on_hold" && (
                       <button
                         onClick={() => handleAction("on_hold")}
                         disabled={!!actionLoading}
-                        className="btn btn-sm"
-                        style={{ fontSize: 12, fontWeight: 400, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(245, 158, 11, 0.4)", background: "rgba(245, 158, 11, 0.05)", color: "#d97706" }}
+                        className="btn btn-sm d-inline-flex align-items-center gap-1 border-0"
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 500,
+                          padding: "6px 12px",
+                          borderRadius: 8,
+                          background: "#fffbeb",
+                          color: "#d97706",
+                          border: "1px solid #fde68a"
+                        }}
                       >
                         {actionLoading === "on_hold" && <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12, marginRight: 4 }} />}
+                        <i className="bi bi-pause-circle" />
                         Tạm giữ
                       </button>
                     )}
@@ -823,10 +867,20 @@ function ApprovalDetail({
                   <button
                     onClick={() => handleAction("recall")}
                     disabled={!!actionLoading}
-                    className="btn btn-sm btn-outline-secondary"
-                    style={{ fontSize: 12, fontWeight: 400, padding: "4px 10px", borderRadius: 6 }}
+                    className="btn btn-sm d-inline-flex align-items-center gap-1 border-0"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      padding: "6px 12px",
+                      borderRadius: 8,
+                      background: "#f1f5f9",
+                      color: "#475569",
+                      border: "1px solid #e2e8f0"
+                    }}
                   >
-                    {actionLoading === "recall" && <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12, marginRight: 4 }} />} Thu hồi
+                    {actionLoading === "recall" && <span className="spinner-border spinner-border-sm" style={{ width: 12, height: 12, marginRight: 4 }} />}
+                    <i className="bi bi-arrow-counterclockwise" />
+                    Thu hồi
                   </button>
                 )}
               </>
@@ -1110,17 +1164,22 @@ function ApprovalDetail({
                       candidateDecisions={candidateDecisions}
                       onRowClick={(id) => setSelectedCandidateId(id)}
                       onPdfOpen={(url) => setFullscreenPdfUrl(url)}
-                      isMobileOrTablet={isMobileOrTablet}
+                      isMobileOrTablet={isMobileOrTablet} 
+                    />
+                  ) : previewData.type === "PERSONAL_REQUEST" ? (
+                    <PersonalRequestPreview 
+                      data={previewData} 
+                      isMobileOrTablet={isMobileOrTablet} 
                     />
                   ) : (
                     <>
                       {/* Tóm tắt */}
                       {previewData.summary && previewData.summary.length > 0 && (
-                        <div style={{ marginBottom: 20, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                        <div style={{ marginBottom: 20, display: "grid", gridTemplateColumns: isMobileOrTablet ? "1fr" : "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
                           {previewData.summary.map((s: any, idx: number) => (
-                            <div key={idx} style={{ flex: 1, minWidth: 140, background: "rgba(14,165,233,0.05)", border: "1px solid rgba(14,165,233,0.15)", padding: "12px 16px", borderRadius: 12 }}>
-                              <div style={{ fontSize: 11, color: "val(--primary)", opacity: 0.8, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>{s.label}</div>
-                              <div style={{ fontSize: 14, fontWeight: 800, color: "var(--foreground)" }}>{s.value}</div>
+                            <div key={idx} style={{ background: "#ffffff", border: "1px solid #e2e8f0", padding: "12px 16px", borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+                              <div style={{ fontSize: 10.5, color: "#64748b", opacity: 0.9, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>{s.label}</div>
+                              <div style={{ fontSize: 13.5, fontWeight: 800, color: "#0f172a" }}>{s.value}</div>
                             </div>
                           ))}
                         </div>
@@ -1625,6 +1684,7 @@ function ApprovalListItem({
   onClick: () => void;
 }) {
   const entityCfg = ENTITY_TYPE_LABELS[item.entityType] || { label: item.entityType, icon: "bi-file-earmark", color: "#64748b" };
+  const isNew = item.status === "pending" && (Date.now() - new Date(item.createdAt).getTime() < 48 * 3600 * 1000);
   return (
     <div
       onClick={onClick}
@@ -1646,8 +1706,26 @@ function ApprovalListItem({
           <i className={`bi ${entityCfg.icon}`} style={{ fontSize: 16, color: entityCfg.color }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" }}>
             <EntityBadge entityType={item.entityType} />
+            {isNew && (
+              <span style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3,
+                padding: "1px 6px",
+                borderRadius: 99,
+                fontSize: 9.5,
+                fontWeight: 800,
+                background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                color: "#ffffff",
+                letterSpacing: "0.04em",
+                boxShadow: "0 2px 5px rgba(220, 38, 38, 0.35)",
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#fff", display: "inline-block" }} />
+                MỚI
+              </span>
+            )}
             {item.priority === "urgent" && (
               <span style={{ fontSize: 10, fontWeight: 800, color: "#dc2626" }}>🔥 KHẨN</span>
             )}
@@ -1857,12 +1935,27 @@ export function ApprovalCenter({
               <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                 {(["inbox", "mine"] as const).map(v => (
                   <button key={v} onClick={() => setView(v)} style={{
-                    flex: 1, padding: "6px 10px", borderRadius: 8, border: "none",
-                    background: view === v ? "var(--primary)" : "var(--muted)",
+                    flex: 1, padding: "8px 10px", borderRadius: 8, border: "none",
+                    background: view === v ? "linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)" : "rgba(0,0,0,0.04)",
                     color: view === v ? "#fff" : "var(--muted-foreground)",
                     fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    boxShadow: view === v ? "0 2px 6px rgba(79, 70, 229, 0.25)" : "none",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                    transition: "all 0.15s ease"
                   }}>
-                    {v === "inbox" ? `📥 Cần tôi duyệt${pendingCount > 0 && v === "inbox" && statusFilter === "pending" ? ` (${pendingCount})` : ""}` : "📤 Tôi đã gửi"}
+                    <span>{v === "inbox" ? "📥 Cần tôi duyệt" : "📤 Tôi đã gửi"}</span>
+                    {v === "inbox" && pendingCount > 0 && statusFilter === "pending" && (
+                      <span style={{
+                        background: view === v ? "rgba(255,255,255,0.25)" : "#e2e8f0",
+                        color: view === v ? "#fff" : "#1e293b",
+                        padding: "1px 6px",
+                        borderRadius: 99,
+                        fontSize: 10,
+                        fontWeight: 800
+                      }}>
+                        {pendingCount}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -3182,5 +3275,360 @@ function CandidateViewOffcanvas({ candidateId, onClose, onAction, isMobileOrTabl
       </div>
     </div>,
     document.body
+  );
+}
+
+// ── High-Fidelity Custom Preview for Personal Requests (HR Proposals) ──────────
+function PersonalRequestPreview({ data, isMobileOrTablet = false }: { data: any; isMobileOrTablet?: boolean }) {
+  const req = data.personalRequest || {};
+  const emp = req.employee || {};
+  const details = req.details || {};
+  const [copiedBank, setCopiedBank] = useState(false);
+
+  // Phân tích thông tin tài khoản ngân hàng nếu có
+  let bankName = details.bankName || "";
+  let bankAccount = details.bankAccount || "";
+  let bankAccountName = details.bankAccountName || emp.fullName || "";
+
+  if (details.bankInfo && !bankAccount) {
+    const raw = String(details.bankInfo).trim();
+    const match = raw.match(/^(.*?)\s*-\s*([0-9A-Za-z]+)\s*\((.*?)\)$/);
+    if (match) {
+      bankName = match[1].trim();
+      bankAccount = match[2].trim();
+      bankAccountName = match[3].trim();
+    } else {
+      const matchNum = raw.match(/(\d{6,20})/);
+      if (matchNum) bankAccount = matchNum[1];
+      const matchName = raw.match(/\((.*?)\)/);
+      if (matchName) bankAccountName = matchName[1];
+    }
+  }
+
+  // Rút gọn tên ngân hàng
+  let shortBankName = bankName;
+  if (bankName.includes(" - ")) {
+    shortBankName = bankName.split(" - ")[0].trim();
+  }
+
+  // Thông số chính
+  const amount = Number(details.amount || 0);
+  const days = Number(details.numberOfDays || req.totalDays || 0);
+  const hours = Number(details.hours || req.totalHours || 0);
+  const minutes = Number(details.minutes || 0);
+
+  const dateRangeStr = req.startDate && req.endDate
+    ? `${new Date(req.startDate).toLocaleDateString("vi-VN")} — ${new Date(req.endDate).toLocaleDateString("vi-VN")}`
+    : req.startDate
+    ? new Date(req.startDate).toLocaleDateString("vi-VN")
+    : null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* ── 1. Hero Card: Thông tin Nhân sự & Chỉ số cốt lõi ── */}
+      <div 
+        style={{
+          background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+          border: "1px solid #e2e8f0",
+          borderRadius: 16,
+          padding: isMobileOrTablet ? "16px" : "20px 24px",
+          display: "flex",
+          flexDirection: isMobileOrTablet ? "column" : "row",
+          justifyContent: "space-between",
+          alignItems: isMobileOrTablet ? "flex-start" : "center",
+          gap: 16,
+          boxShadow: "0 2px 10px rgba(0,0,0,0.03)"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: "50%",
+            background: "linear-gradient(135deg, #6366f1 0%, #4338ca 100%)",
+            color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 20, fontWeight: 800, flexShrink: 0,
+            boxShadow: "0 4px 12px rgba(99, 102, 241, 0.25)"
+          }}>
+            {getInitials(emp.fullName || "NV")}
+          </div>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 3 }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: "#0f172a" }}>
+                {emp.fullName || "Nhân sự đề xuất"}
+              </span>
+              <span style={{
+                fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 99,
+                background: "rgba(99, 102, 241, 0.1)", color: "#4f46e5"
+              }}>
+                Nhân sự đề xuất
+              </span>
+            </div>
+            <div style={{ fontSize: 12.5, color: "#64748b", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span>{emp.position || "Nhân viên"}</span>
+              <span>•</span>
+              <span style={{ fontWeight: 600, color: "#334155" }}>{emp.departmentName || "Ban Giám đốc"}</span>
+              {emp.code && (
+                <>
+                  <span>•</span>
+                  <span className="font-monospace" style={{ fontSize: 11.5 }}>{emp.code}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Khối chỉ số Hero nổi bật */}
+        {amount > 0 ? (
+          <div style={{
+            background: "linear-gradient(135deg, #fef2f2 0%, #ffffff 100%)",
+            border: "1.5px solid #fecaca",
+            borderRadius: 14,
+            padding: "10px 18px",
+            textAlign: isMobileOrTablet ? "left" : "right",
+            minWidth: 180,
+            boxShadow: "0 2px 8px rgba(239, 68, 68, 0.08)"
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "#dc2626", letterSpacing: "0.5px" }}>
+              Số tiền đề xuất
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: "#b91c1c", margin: "2px 0" }}>
+              {amount.toLocaleString("vi-VN")} đ
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>
+              Khấu trừ: <strong style={{ color: "#2563eb" }}>Tháng {details.salaryMonth || "Hiện tại"}</strong>
+            </div>
+          </div>
+        ) : days > 0 ? (
+          <div style={{
+            background: "linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)",
+            border: "1.5px solid #bfdbfe",
+            borderRadius: 14,
+            padding: "10px 18px",
+            textAlign: isMobileOrTablet ? "left" : "right",
+            minWidth: 160,
+            boxShadow: "0 2px 8px rgba(37, 99, 235, 0.08)"
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "#2563eb", letterSpacing: "0.5px" }}>
+              Thời gian xin nghỉ
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: "#1d4ed8", margin: "2px 0" }}>
+              {days} ngày
+            </div>
+            {dateRangeStr && (
+              <div style={{ fontSize: 11, color: "#64748b" }}>
+                {dateRangeStr}
+              </div>
+            )}
+          </div>
+        ) : hours > 0 ? (
+          <div style={{
+            background: "linear-gradient(135deg, #fffbeb 0%, #ffffff 100%)",
+            border: "1.5px solid #fde68a",
+            borderRadius: 14,
+            padding: "10px 18px",
+            textAlign: isMobileOrTablet ? "left" : "right",
+            minWidth: 160,
+            boxShadow: "0 2px 8px rgba(217, 119, 6, 0.08)"
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "#d97706", letterSpacing: "0.5px" }}>
+              Số giờ làm thêm
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: "#b45309", margin: "2px 0" }}>
+              {hours} giờ
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>
+              {details.overtimeType || "Ngày thường"}
+            </div>
+          </div>
+        ) : minutes > 0 ? (
+          <div style={{
+            background: "linear-gradient(135deg, #faf5ff 0%, #ffffff 100%)",
+            border: "1.5px solid #e9d5ff",
+            borderRadius: 14,
+            padding: "10px 18px",
+            textAlign: isMobileOrTablet ? "left" : "right",
+            minWidth: 160
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "#9333ea", letterSpacing: "0.5px" }}>
+              Thời lượng
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: "#7e22ce", margin: "2px 0" }}>
+              {minutes} phút
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {/* ── 2. Thẻ Tài khoản Ngân hàng (nếu có tiền tạm ứng / hoàn ứng) ── */}
+      {(bankAccount || details.bankInfo) && (
+        <div 
+          style={{
+            background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+            borderRadius: 14,
+            padding: "18px 22px",
+            color: "#ffffff",
+            position: "relative",
+            overflow: "hidden",
+            boxShadow: "0 4px 14px rgba(15, 23, 42, 0.25)"
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <i className="bi bi-credit-card-2-front" style={{ fontSize: 18, color: "#38bdf8" }} />
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", color: "#94a3b8" }}>
+                Tài khoản thụ hưởng chuyển khoản
+              </span>
+            </div>
+            {shortBankName && (
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#38bdf8", background: "rgba(56, 189, 248, 0.12)", padding: "2px 10px", borderRadius: 99 }}>
+                {shortBankName}
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, margin: "8px 0" }}>
+            <div>
+              <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Số tài khoản</div>
+              <div className="font-monospace" style={{ fontSize: 19, fontWeight: 800, letterSpacing: "1.5px", color: "#f8fafc" }}>
+                {bankAccount || details.bankInfo}
+              </div>
+            </div>
+            {bankAccount && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  padding: "4px 12px",
+                  borderRadius: 6,
+                  background: copiedBank ? "rgba(34, 197, 94, 0.25)" : "rgba(255, 255, 255, 0.15)",
+                  color: copiedBank ? "#4ade80" : "#ffffff",
+                  border: "none"
+                }}
+                onClick={() => {
+                  navigator.clipboard.writeText(bankAccount);
+                  setCopiedBank(true);
+                  setTimeout(() => setCopiedBank(false), 2000);
+                }}
+              >
+                <i className={`bi ${copiedBank ? "bi-check2" : "bi-copy"}`} style={{ marginRight: 4 }} />
+                {copiedBank ? "Đã sao chép" : "Sao chép STK"}
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+            <div>
+              <div style={{ fontSize: 9.5, color: "#94a3b8", textTransform: "uppercase" }}>Chủ tài khoản</div>
+              <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", color: "#f1f5f9" }}>
+                {bankAccountName}
+              </div>
+            </div>
+            {bankName && bankName !== shortBankName && (
+              <span style={{ fontSize: 11, color: "#94a3b8", maxWidth: 260, textAlign: "right" }}>
+                {bankName}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── 3. Grid Thông tin chi tiết ── */}
+      <div 
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobileOrTablet ? "1fr" : "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 12
+        }}
+      >
+        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}>
+            <i className="bi bi-tag-fill" style={{ color: "#6366f1" }} /> Phân loại đề xuất
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+            {req.loaiText || "Yêu cầu cá nhân"}
+          </div>
+        </div>
+
+        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}>
+            <i className="bi bi-person-check-fill" style={{ color: "#0ea5e9" }} /> Người trình duyệt
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+            {req.forwardedBy || "Phòng Nhân sự"}
+          </div>
+        </div>
+
+        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}>
+            <i className="bi bi-wallet2" style={{ color: "#10b981" }} /> Phương thức nhận
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+            {details.paymentMethod || "Chuyển khoản"}
+          </div>
+        </div>
+
+        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}>
+            <i className="bi bi-clock-history" style={{ color: "#f59e0b" }} /> Thời điểm trình duyệt
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+            {req.forwardedAt ? new Date(req.forwardedAt).toLocaleDateString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" }) : "Vừa xong"}
+          </div>
+        </div>
+      </div>
+
+      {/* ── 4. Khối Lý do & Ý kiến thẩm định Nhân sự ── */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* Lý do */}
+        <div 
+          style={{
+            background: "rgba(99, 102, 241, 0.03)",
+            border: "1px solid rgba(99, 102, 241, 0.15)",
+            borderLeft: "4px solid #6366f1",
+            borderRadius: 12,
+            padding: "16px 20px"
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#4f46e5", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+            <i className="bi bi-chat-left-quote-fill" /> Lý do đề xuất từ nhân viên
+          </div>
+          <div style={{ fontSize: 13.5, color: "#1e293b", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+            {req.reason || details.reason || "Không có lý do chi tiết."}
+          </div>
+        </div>
+
+        {/* Ý kiến Nhân sự */}
+        <div 
+          style={{
+            background: "rgba(16, 185, 129, 0.03)",
+            border: "1px solid rgba(16, 185, 129, 0.15)",
+            borderLeft: "4px solid #10b981",
+            borderRadius: 12,
+            padding: "16px 20px"
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#059669", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+            <i className="bi bi-shield-check" /> Ý kiến thẩm định của Phòng Nhân sự
+          </div>
+          <div style={{ fontSize: 13.5, color: "#1e293b", lineHeight: 1.6 }}>
+            {req.hrNote || "Đã thẩm định và trình Ban Giám đốc phê duyệt theo quy định."}
+          </div>
+        </div>
+      </div>
+
+      {/* ── 5. Liên kết mở hồ sơ gốc ── */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+        <a
+          href="/hr?fromAdmin=true"
+          target="_blank"
+          className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5 shadow-xs"
+          style={{ fontSize: 12, color: "#475569", borderRadius: 8, padding: "6px 14px", textDecoration: "none" }}
+        >
+          <i className="bi bi-box-arrow-up-right" style={{ fontSize: 11 }} />
+          Mở xem tại phân hệ Quản trị Nhân sự
+        </a>
+      </div>
+    </div>
   );
 }

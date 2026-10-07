@@ -82,10 +82,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
 
       previewData = {
-        type: meta.loaiText || "Yêu cầu cá nhân",
+        type: "PERSONAL_REQUEST",
         title: request.entityTitle,
         summary: summaryList,
-        details: detailContent.trim() || undefined
+        details: detailContent.trim() || undefined,
+        personalRequest: {
+          id: personalReq?.id || request.entityId,
+          code: request.entityCode || personalReq?.id,
+          type: personalReq?.type || meta.type,
+          loaiText: meta.loaiText || "Yêu cầu cá nhân",
+          employee: personalReq?.employee || { fullName: meta.employeeName, departmentName: meta.departmentName },
+          details,
+          reason: personalReq?.reason || details.reason,
+          hrNote: meta.hrNote || personalReq?.hrNote,
+          forwardedBy: meta.forwardedBy || request.requestedByName,
+          forwardedAt: meta.forwardedAt || request.createdAt,
+          startDate: personalReq?.startDate,
+          endDate: personalReq?.endDate,
+          status: request.status,
+          priority: request.priority
+        }
       };
     } else if (request.entityType === "PAYROLL") {
       const month = meta.month || 0;
