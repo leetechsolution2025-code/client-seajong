@@ -175,6 +175,15 @@ export function ApprovalCenter({
 
   const currentUserId = (session?.user as any)?.id || "";
 
+  // Debounce search term để tránh spam API
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // ── Fetch danh sách ───────────────────────────────────────────────────────────
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -186,7 +195,7 @@ export function ApprovalCenter({
       });
       if (statusFilter) params.set("status", statusFilter);
       if (selectedEntityType) params.set("entityType", selectedEntityType);
-      if (searchTerm) params.set("search", searchTerm);
+      if (debouncedSearch) params.set("search", debouncedSearch);
 
       const res = await fetch(`/api/approvals?${params}`);
       const data = await res.json();
@@ -194,18 +203,22 @@ export function ApprovalCenter({
         setItems(data.data || []);
         setTotal(data.total || 0);
 
-        // Sync selectedItem nếu đang mở
-        if (selectedItem) {
-          const fresh = (data.data || []).find((i: ApprovalRequest) => i.id === selectedItem.id);
-          if (fresh) setSelectedItem(fresh);
-        }
+        // Sync selectedItem nếu đang mở mà không tạo loop
+        setSelectedItem((prev) => {
+          if (!prev) return null;
+          const fresh = (data.data || []).find((i: ApprovalRequest) => i.id === prev.id);
+          if (fresh && fresh.status !== prev.status) {
+            return fresh;
+          }
+          return prev;
+        });
       }
     } catch (e) {
       console.error("loadItems error:", e);
     } finally {
       setLoading(false);
     }
-  }, [view, statusFilter, selectedEntityType, searchTerm, page, pageSize, selectedItem]);
+  }, [view, statusFilter, selectedEntityType, debouncedSearch, page, pageSize]);
 
   useEffect(() => {
     loadItems();
@@ -213,53 +226,55 @@ export function ApprovalCenter({
 
   // Auto-select từ queryId
   useEffect(() => {
-    if (queryId && items.length > 0 && !selectedItem) {
-      const found = items.find(
-        (i) => i.id === queryId || i.entityId === queryId || i.entityCode === queryId
-      );
-      if (found) setSelectedItem(found);
+    if (queryId && items.length > 0) {
+      setSelectedItem((prev) => {
+        if (prev) return prev;
+        return items.find((i) => i.id === queryId || i.entityId === queryId || i.entityCode === queryId) || null;
+      });
     }
-  }, [queryId, items, selectedItem]);
+  }, [queryId, items]);
 
-  // Load preview & comments khi selectedItem thay đổi
+  // Load preview & comments khi selectedItem.id thay đổi
+  const selectedItemId = selectedItem?.id;
   useEffect(() => {
-    if (!selectedItem) {
+    if (!selectedItemId) {
       setPreviewData(null);
       setComments([]);
       return;
     }
 
-    let isMounted = true;
+    let isEffectActive = true;
     const fetchDetail = async () => {
       setLoadingPreview(true);
       try {
-        // 1. Fetch preview
-        const resPreview = await fetch(`/api/approvals/${selectedItem.id}/preview`);
-        if (resPreview.ok) {
+        const [resPreview, resComments] = await Promise.all([
+          fetch(`/api/approvals/${selectedItemId}/preview`),
+          fetch(`/api/approvals/${selectedItemId}/comments`),
+        ]);
+
+        if (resPreview.ok && isEffectActive) {
           const pData = await resPreview.json();
-          if (isMounted) setPreviewData(pData);
+          setPreviewData(pData);
         }
 
-        // 2. Fetch comments
-        const resComments = await fetch(`/api/approvals/${selectedItem.id}/comments`);
-        if (resComments.ok) {
+        if (resComments.ok && isEffectActive) {
           const cData = await resComments.json();
-          if (isMounted && cData.success) {
+          if (cData.success) {
             setComments(cData.data || []);
           }
         }
       } catch (err) {
         console.error("Error fetching detail:", err);
       } finally {
-        if (isMounted) setLoadingPreview(false);
+        if (isEffectActive) setLoadingPreview(false);
       }
     };
 
     fetchDetail();
     return () => {
-      isMounted = false;
+      isEffectActive = false;
     };
-  }, [selectedItem?.id]);
+  }, [selectedItemId]);
 
   // ── Actions ──────────────────────────────────────────────────────────────────
   const handleAction = async (action: "approve" | "reject" | "on_hold" | "recall", noteOrReason?: string) => {
