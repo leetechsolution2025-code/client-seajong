@@ -27,7 +27,67 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const meta = request.metadata ? JSON.parse(request.metadata) : {};
     let previewData: any = { type: request.entityType, title: request.entityTitle, summary: [] };
 
-    if (request.entityType === "PAYROLL") {
+    if (request.entityType === "PERSONAL_REQUEST") {
+      const personalReq = await prisma.personalRequest.findUnique({
+        where: { id: request.entityId },
+        include: { employee: true }
+      });
+
+      let details: any = {};
+      if (personalReq?.details) {
+        try {
+          details = typeof personalReq.details === "string" ? JSON.parse(personalReq.details) : personalReq.details;
+        } catch (e) {
+          details = {};
+        }
+      }
+
+      const summaryList = [
+        { label: "Mã yêu cầu", value: request.entityCode || personalReq?.id || "N/A" },
+        { label: "Nhân viên đề xuất", value: personalReq?.employee?.fullName || meta.employeeName || "N/A" },
+        { label: "Phòng ban", value: personalReq?.employee?.departmentName || meta.departmentName || "N/A" },
+        { label: "Loại yêu cầu", value: meta.loaiText || "Yêu cầu cá nhân" },
+        { label: "Người trình duyệt", value: request.requestedByName || "Phòng Nhân sự" },
+        { label: "Trạng thái", value: request.status === "approved" ? "Đã duyệt" : request.status === "rejected" ? "Từ chối" : "Chờ Giám đốc duyệt" }
+      ];
+
+      if (details.amount) {
+        summaryList.splice(4, 0, { label: "Số tiền", value: `${Number(details.amount).toLocaleString("vi-VN")} đ` });
+      }
+      if (details.numberOfDays || personalReq?.totalDays) {
+        summaryList.splice(4, 0, { label: "Số ngày nghỉ", value: `${details.numberOfDays || personalReq?.totalDays} ngày` });
+      }
+      if (details.hours || personalReq?.totalHours) {
+        summaryList.splice(4, 0, { label: "Số giờ làm thêm", value: `${details.hours || personalReq?.totalHours} giờ` });
+      }
+      if (details.minutes) {
+        summaryList.splice(4, 0, { label: "Thời lượng", value: `${details.minutes} phút` });
+      }
+      if (details.salaryMonth) {
+        summaryList.push({ label: "Khấu trừ vào kỳ", value: `Tháng ${details.salaryMonth}` });
+      }
+      if (details.paymentMethod) {
+        summaryList.push({ label: "Hình thức nhận", value: details.paymentMethod });
+      }
+      if (details.bankAccount) {
+        summaryList.push({ label: "Tài khoản nhận", value: `${details.bankAccount} (${details.bankName || ""})` });
+      }
+
+      let detailContent = "";
+      if (personalReq?.reason || details.reason) {
+        detailContent += `LÝ DO ĐỀ XUẤT:\n${personalReq?.reason || details.reason}\n\n`;
+      }
+      if (meta.hrNote) {
+        detailContent += `GHI CHÚ PHÒNG NHÂN SỰ:\n${meta.hrNote}\n\n`;
+      }
+
+      previewData = {
+        type: meta.loaiText || "Yêu cầu cá nhân",
+        title: request.entityTitle,
+        summary: summaryList,
+        details: detailContent.trim() || undefined
+      };
+    } else if (request.entityType === "PAYROLL") {
       const month = meta.month || 0;
       const year = meta.year || 0;
       const totalEmployees = meta.totalEmployees || 0;

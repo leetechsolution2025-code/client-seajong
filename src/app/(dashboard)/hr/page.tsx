@@ -237,7 +237,7 @@ export default function ApprovalsPage() {
         let msg = "Đã thực hiện";
         if (action === "APPROVE") msg = "Đã phê duyệt yêu cầu";
         else if (action === "REJECT") msg = "Đã từ chối yêu cầu";
-        else if (action === "FORWARD_DIRECTOR") msg = "Đã trình lãnh đạo thành công";
+        else if (action === "FORWARD_DIRECTOR") msg = "Đã gửi vào Trung tâm phê duyệt & thông báo cho Giám đốc";
         
         toastSuccess(msg);
         setRejectionModal({ open: false, id: null });

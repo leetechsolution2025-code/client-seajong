@@ -197,10 +197,169 @@ export async function PATCH(
       notificationContent = `Đề xuất của bạn đã bị từ chối. Lý do: ${note || "Không có lý do chi tiết"}`;
       notifyTarget = "USER";
     } else if (action === "FORWARD_DIRECTOR") {
-      updatedData = { hrApproved: true, hrNote: "Đã trình lãnh đạo" };
-      notificationTitle = "🚀 Đề xuất cần phê duyệt";
-      notificationContent = `Có một đề xuất từ ${request.employee.fullName} cần bạn phê duyệt.`;
-      notifyTarget = "DIRECTOR";
+      updatedData = { hrApproved: true, hrNote: note || "Đã trình lãnh đạo" };
+      
+      // Parse details
+      let details: any = {};
+      if (request.details) {
+        try {
+          details = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
+        } catch (e) {
+          details = {};
+        }
+      }
+
+      const typeKey = request.type.toLowerCase();
+      let loaiText = "Đề xuất cá nhân";
+      let entityTitle = "";
+      let chiTietTomTat = "";
+
+      if (typeKey === "salary-advance") {
+        loaiText = "Tạm ứng lương";
+        const amount = Number(details.amount || 0);
+        const amountStr = amount > 0 ? `${amount.toLocaleString("vi-VN")} đ` : "";
+        entityTitle = `Tạm ứng lương: ${request.employee.fullName} (${amountStr})`;
+        chiTietTomTat = `Số tiền: **${amountStr}** | Khấu trừ vào lương tháng **${details.salaryMonth || "Hiện tại"}** | Hình thức nhận: **${details.paymentMethod || "Chuyển khoản"}**${details.bankAccount ? ` (STK: \`${details.bankAccount}\` - ${details.bankName || ""})` : ""}`;
+      } else if (typeKey === "advance-refund") {
+        const isAdvance = details.subType !== "Hoàn ứng" && details.subType !== "Quyết toán";
+        loaiText = details.subType || (isAdvance ? "Tạm ứng công việc" : "Hoàn ứng quyết toán");
+        const amount = Number(details.amount || 0);
+        const amountStr = amount > 0 ? `${amount.toLocaleString("vi-VN")} đ` : "";
+        entityTitle = `${loaiText}: ${request.employee.fullName} (${amountStr})`;
+        chiTietTomTat = `Số tiền: **${amountStr}** | Mục đích: ${details.purpose || details.reason || request.reason || "Công tác/Công việc"}${details.bankAccount ? ` (STK: \`${details.bankAccount}\` - ${details.bankName || ""})` : ""}`;
+      } else if (typeKey === "sick-leave") {
+        loaiText = "Nghỉ ốm (BHXH)";
+        const days = details.numberOfDays || request.totalDays || 1;
+        entityTitle = `Nghỉ ốm BHXH (${days} ngày): ${request.employee.fullName}`;
+        const dateRange = request.startDate && request.endDate ? `${format(new Date(request.startDate), "dd/MM/yyyy")} - ${format(new Date(request.endDate), "dd/MM/yyyy")}` : "";
+        chiTietTomTat = `Chế độ: **Nghỉ ốm có BHXH** | Thời gian: **${days} ngày** (${dateRange})${details.medicalFacility ? ` | Nơi khám: ${details.medicalFacility}` : ""}`;
+      } else if (typeKey === "leave" || typeKey === "unpaid_leave") {
+        loaiText = details.leaveType || (typeKey === "unpaid_leave" ? "Nghỉ không lương" : "Nghỉ phép năm");
+        const days = details.numberOfDays || request.totalDays || 1;
+        entityTitle = `Nghỉ phép (${days} ngày): ${request.employee.fullName}`;
+        const dateRange = request.startDate && request.endDate ? `${format(new Date(request.startDate), "dd/MM/yyyy")} - ${format(new Date(request.endDate), "dd/MM/yyyy")}` : "";
+        chiTietTomTat = `Loại phép: **${loaiText}** | Thời gian: **${days} ngày** (${dateRange})`;
+      } else if (typeKey === "overtime") {
+        loaiText = "Làm thêm giờ (OT)";
+        const hours = details.hours || request.totalHours || 0;
+        entityTitle = `Làm thêm giờ (${hours}h): ${request.employee.fullName}`;
+        const dateStr = request.startDate ? format(new Date(request.startDate), "dd/MM/yyyy") : "";
+        chiTietTomTat = `Số giờ: **${hours} giờ** | Ca: **${details.overtimeType || "Ngày thường"}** | Khung giờ: **${details.startTime || ""} - ${details.endTime || ""}** (${dateStr})`;
+      } else if (typeKey === "late" || typeKey === "early") {
+        loaiText = details.type || (typeKey === "late" ? "Đi muộn" : "Về sớm");
+        const mins = details.minutes || 0;
+        entityTitle = `${loaiText} (${mins} phút): ${request.employee.fullName}`;
+        const dateStr = request.startDate ? format(new Date(request.startDate), "dd/MM/yyyy") : "";
+        chiTietTomTat = `Hình thức: **${loaiText}** | Thời lượng: **${mins} phút** | Ngày: ${dateStr}`;
+      } else {
+        entityTitle = `Đề xuất cá nhân: ${request.employee.fullName}`;
+        chiTietTomTat = `Nội dung: ${request.reason || "Đề xuất cá nhân"}`;
+      }
+
+      // ── 1. Tạo hoặc cập nhật hồ sơ vào TRUNG TÂM PHÊ DUYỆT (ApprovalRequest) ──
+      const metadataObj = {
+        personalRequestId: request.id,
+        employeeId: request.employee.id,
+        employeeName: request.employee.fullName,
+        employeeCode: request.employee.code,
+        departmentName: request.employee.departmentName,
+        type: request.type,
+        loaiText,
+        details,
+        reason: request.reason,
+        startDate: request.startDate,
+        endDate: request.endDate,
+        forwardedBy: session.user.name,
+        forwardedAt: new Date().toISOString(),
+        hrNote: note || "Đã trình lãnh đạo"
+      };
+
+      const existingApproval = await prisma.approvalRequest.findFirst({
+        where: {
+          entityType: "PERSONAL_REQUEST",
+          entityId: request.id
+        }
+      });
+
+      if (existingApproval) {
+        await prisma.approvalRequest.update({
+          where: { id: existingApproval.id },
+          data: {
+            status: "pending",
+            entityTitle,
+            entityCode: request.id,
+            metadata: JSON.stringify(metadataObj),
+            updatedAt: new Date(),
+            comments: {
+              create: {
+                authorId: session.user.id,
+                authorName: session.user.name || "Phòng Nhân sự",
+                authorRole: "hr",
+                content: `📤 **${session.user.name}** (Phòng Nhân sự) đã trình lại Ban Giám đốc phê duyệt yêu cầu **${entityTitle}** của nhân sự **${request.employee.fullName}**${note ? `.\n\n**Ghi chú của Nhân sự:** _"${note}"_` : "."}`,
+                isSystem: true
+              }
+            }
+          }
+        });
+      } else {
+        await prisma.approvalRequest.create({
+          data: {
+            entityType: "PERSONAL_REQUEST",
+            entityId: request.id,
+            entityCode: request.id,
+            entityTitle,
+            status: "pending",
+            priority: "high",
+            department: request.employee.departmentName || null,
+            requestedById: session.user.id,
+            requestedByName: `${session.user.name} (Phòng Nhân sự)`,
+            metadata: JSON.stringify(metadataObj),
+            comments: {
+              create: [
+                {
+                  authorId: session.user.id,
+                  authorName: session.user.name || "Phòng Nhân sự",
+                  authorRole: "hr",
+                  content: `📤 **${session.user.name}** (Phòng Nhân sự) đã trình Ban Giám đốc phê duyệt yêu cầu **${entityTitle}** của nhân sự **${request.employee.fullName}**${note ? `.\n\n**Ghi chú của Nhân sự:** _"${note}"_` : "."}`,
+                  isSystem: true
+                }
+              ]
+            }
+          }
+        });
+      }
+
+      // ── 2. Gửi thông báo tự động với nội dung chi tiết cho Ban Giám đốc ──
+      const notifTitle = `⚡ Trình phê duyệt: ${loaiText} - ${request.employee.fullName}`;
+      const notifContent = [
+        `## ĐỀ XUẤT CẦN BAN GIÁM ĐỐC PHÊ DUYỆT`,
+        `---`,
+        `- **Mã yêu cầu:** \`${request.id}\``,
+        `- **Nhân sự đề xuất:** **${request.employee.fullName}** (${request.employee.departmentName})`,
+        `- **Loại yêu cầu:** **${loaiText}**`,
+        `- **Thông tin:** ${chiTietTomTat}`,
+        `- **Lý do đề xuất:** ${request.reason || details.reason || "Không có lý do chi tiết"}`,
+        note ? `- **Ghi chú của Nhân sự:** _"${note}"_` : "",
+        `- **Người trình duyệt:** **${session.user.name}** (Phòng Nhân sự)`,
+        ``,
+        `👉 Vui lòng mở **Trung tâm phê duyệt** để xem xét và đưa ra quyết định.`
+      ].filter(Boolean).join("\n");
+
+      const notifAttachments = JSON.stringify([
+        {
+          name: "Trung tâm phê duyệt",
+          type: "link",
+          url: "/board/approvals"
+        },
+        {
+          name: "Chi tiết yêu cầu",
+          type: "link",
+          url: "/hr?fromAdmin=true"
+        }
+      ]);
+
+      await notifyDirector(notifTitle, notifContent, session.user.id, notifAttachments);
+      notifyTarget = "NONE"; // Đã gửi notifyDirector trực tiếp với nội dung phong phú
     } else {
       return new NextResponse("Invalid action", { status: 400 });
     }
@@ -212,8 +371,6 @@ export async function PATCH(
 
     if (notifyTarget === "USER" && request.employee.userId) {
       await notifyUser(request.employee.userId, notificationTitle, notificationContent, session.user.id);
-    } else if (notifyTarget === "DIRECTOR") {
-      await notifyDirector(notificationTitle, notificationContent, session.user.id);
     }
 
     return NextResponse.json(updatedRequest);

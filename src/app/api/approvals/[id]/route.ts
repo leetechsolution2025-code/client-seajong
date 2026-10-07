@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notifyHRManager } from "@/lib/hr-notifications";
+import { eachDayOfInterval } from "date-fns";
 
 // ── GET /api/approvals/[id] ────────────────────────────────────────────────────
 export async function GET(
@@ -189,6 +190,19 @@ export async function PATCH(
               url: "/hr/attendance-payroll",
             },
           ];
+        } else if (existing.entityType === "PERSONAL_REQUEST") {
+          notifTitle = isApprove ? "Đề xuất đã được Ban Giám đốc phê duyệt" : "Đề xuất bị Ban Giám đốc từ chối";
+          notifContent = `Đề xuất **"${existing.entityTitle}"** đã ${statusText} bởi **${userName}** (Giám đốc) lúc ${timeStr} ngày ${dateStr}.${note ? `\nGhi chú: _"${note}"_` : ""}`;
+          if (!isApprove && rejectedReason) {
+            notifContent += `\nLý do: _"${rejectedReason}"_`;
+          }
+          notifAttachments = [
+            {
+              name: "Xem đề xuất",
+              type: "link",
+              url: "/hr?fromAdmin=true",
+            },
+          ];
         } else {
           notifContent = `Kế hoạch **"${existing.entityTitle}"** của bạn ${statusText} bởi **${userName}** lúc ${timeStr} ngày ${dateStr}.`;
           if (isApprove && existing.entityType === "RECRUITMENT_REPORT" && candidateDecisions) {
@@ -372,6 +386,91 @@ async function syncEntityStatus(
 ) {
   try {
     switch (entityType) {
+      case "PERSONAL_REQUEST": {
+        const isApprove = action === "approve";
+        const isReject = action === "reject";
+
+        if (isApprove || isReject) {
+          const reqRecord = await prisma.personalRequest.findUnique({
+            where: { id: entityId },
+            include: { employee: true }
+          });
+
+          if (reqRecord) {
+            await prisma.personalRequest.update({
+              where: { id: entityId },
+              data: {
+                status: isApprove ? "APPROVED" : "REJECTED",
+                directorApproved: isApprove,
+                directorNote: isApprove ? (note || "Ban Giám đốc đã phê duyệt") : (rejectedReason || note || "Ban Giám đốc từ chối")
+              }
+            });
+
+            // Nếu được duyệt và là loại nghỉ phép, ốm, công tác -> tự động cập nhật bảng công Attendance
+            const autoSyncTypes = ["leave", "unpaid_leave", "business-trip", "work", "sick-leave"];
+            if (isApprove && autoSyncTypes.includes(reqRecord.type) && reqRecord.startDate && reqRecord.endDate) {
+              const days = eachDayOfInterval({
+                start: new Date(reqRecord.startDate),
+                end: new Date(reqRecord.endDate)
+              });
+
+              let attendanceStatus = "P";
+              if (reqRecord.details) {
+                try {
+                  const parsed = typeof reqRecord.details === "string" ? JSON.parse(reqRecord.details) : reqRecord.details;
+                  if (parsed.leaveType === "Nghỉ không lương") attendanceStatus = "KL";
+                  else if (parsed.leaveType === "Nghỉ ốm có BHXH" || reqRecord.type === "sick-leave") attendanceStatus = "BHXH";
+                } catch (e) {}
+              }
+
+              await Promise.all(days.map(async (day) => {
+                const dateOnly = new Date(day.setHours(0, 0, 0, 0));
+                return prisma.attendance.upsert({
+                  where: {
+                    employeeId_date: {
+                      employeeId: reqRecord.employeeId,
+                      date: dateOnly
+                    }
+                  },
+                  update: {
+                    status: attendanceStatus,
+                    note: `Giám đốc đã duyệt: ${reqRecord.reason || ""}`
+                  },
+                  create: {
+                    employeeId: reqRecord.employeeId,
+                    date: dateOnly,
+                    status: attendanceStatus,
+                    note: `Giám đốc đã duyệt: ${reqRecord.reason || ""}`
+                  }
+                });
+              }));
+            }
+
+            // Gửi thông báo cho Nhân sự đề xuất
+            if (reqRecord.employee.userId) {
+              await prisma.notification.create({
+                data: {
+                  title: isApprove ? "✅ Đề xuất được Giám đốc phê duyệt" : "❌ Đề xuất bị Giám đốc từ chối",
+                  content: isApprove 
+                    ? `Đề xuất của bạn đã được Ban Giám đốc phê duyệt.${note ? ` Ghi chú: "${note}"` : ""}`
+                    : `Đề xuất của bạn đã bị Ban Giám đốc từ chối.${rejectedReason ? ` Lý do: "${rejectedReason}"` : ""}`,
+                  type: isApprove ? "success" : "error",
+                  priority: "high",
+                  audienceType: "individual",
+                  audienceValue: reqRecord.employee.userId,
+                  createdById: userId,
+                  attachments: JSON.stringify([{ name: "Xem đề xuất", type: "link", url: "/my/leave-request" }]),
+                  recipients: {
+                    create: { userId: reqRecord.employee.userId }
+                  }
+                }
+              });
+            }
+          }
+        }
+        break;
+      }
+
       case "PAYROLL": {
         let month: number | null = null;
         let year: number | null = null;

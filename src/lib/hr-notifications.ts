@@ -57,7 +57,57 @@ export async function notifyHRManager(title: string, content: string, senderId: 
 }
 
 export async function notifyDirector(title: string, content: string, senderId: string, attachments?: string) {
-  return notifyUsersByPosition(["Giám đốc", "Tổng Giám đốc", "vtr-20260401-8730-eauc"], title, content, senderId, attachments);
+  try {
+    const directors = await prisma.employee.findMany({
+      where: {
+        status: "active",
+        OR: [
+          { position: { contains: "Giám đốc" } },
+          { position: { contains: "Tổng Giám đốc" } },
+          { position: { contains: "vtr-20260401-8730-eauc" } },
+          { departmentName: { in: ["Ban Giám đốc", "Ban Lãnh đạo", "Ban Điều hành"] } },
+          { departmentName: { contains: "Giám đốc" } }
+        ]
+      },
+      select: { userId: true, fullName: true }
+    });
+
+    const validUserIds = Array.from(new Set(directors.map(m => m.userId).filter(Boolean))) as string[];
+    if (validUserIds.length === 0) {
+      console.warn("[notifyDirector] Không tìm thấy tài khoản Giám đốc nào");
+      return null;
+    }
+
+    const notification = await prisma.notification.create({
+      data: {
+        title,
+        content,
+        type: "warning",
+        priority: "high",
+        attachments,
+        audienceType: validUserIds.length > 1 ? "group" : "individual",
+        audienceValue: validUserIds.length > 1 ? JSON.stringify(validUserIds) : validUserIds[0],
+        createdById: senderId
+      }
+    });
+
+    await Promise.all(
+      validUserIds.map(userId =>
+        prisma.notificationRecipient.create({
+          data: {
+            notificationId: notification.id,
+            userId,
+            isRead: false
+          }
+        })
+      )
+    );
+
+    return notification;
+  } catch (error) {
+    console.error("[notifyDirector] Error:", error);
+    return null;
+  }
 }
 
 async function notifyUsersByPosition(positions: string[], title: string, content: string, senderId: string, attachments?: string) {

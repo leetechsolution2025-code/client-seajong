@@ -76,6 +76,7 @@ const ENTITY_TYPE_LABELS: Record<string, { label: string; icon: string; color: s
   marketing_monthly_plan: { label: "Kế hoạch MKT tháng", icon: "bi-calendar3", color: "#3b82f6" },
   master_yearly_plan: { label: "KH Marketing Tổng thể", icon: "bi-calendar2-range", color: "#dc2626" },
   PRODUCTION_REQUEST: { label: "Yêu cầu sản xuất", icon: "bi-tools", color: "#2563eb" },
+  PERSONAL_REQUEST: { label: "Yêu cầu cá nhân", icon: "bi-person-badge-fill", color: "#6366f1" },
 };
 
 const STATUS_CONFIG: Record<ApprovalStatus, { label: string; color: string; bg: string; icon: string }> = {
@@ -130,6 +131,7 @@ function getEntityLink(entityType: string, meta: any): string | null {
   if (entityType === "PROMOTION" || entityType === "TRANSFER") return "/hr/promotions";
   if (entityType === "SALARY_ADJUSTMENT") return "/hr/salary-adjustment";
   if (entityType === "STATIONERY_PURCHASE" || entityType === "STATIONERY_PURCHASE_DIRECTOR") return "/hr/stationery";
+  if (entityType === "PERSONAL_REQUEST") return "/hr?fromAdmin=true";
   // Fallbacks for generic requests
   return null;
 }
