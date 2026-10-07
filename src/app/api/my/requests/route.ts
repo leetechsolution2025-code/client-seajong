@@ -22,7 +22,59 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(requests);
+    // Lấy thông tin trao đổi từ Ban Giám đốc cho các đơn này
+    const reqIds = requests.map((r: any) => r.id);
+    let directorFeedbackMap = new Map<string, { content: string; createdAt: Date }>();
+
+    if (reqIds.length > 0) {
+      try {
+        const directorComments = await prisma.approvalComment.findMany({
+          where: {
+            authorRole: "director",
+            request: {
+              entityId: { in: reqIds },
+            },
+          },
+          select: {
+            content: true,
+            createdAt: true,
+            request: { select: { entityId: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        directorComments.forEach((c) => {
+          const eid = c.request?.entityId;
+          if (eid && !directorFeedbackMap.has(eid)) {
+            directorFeedbackMap.set(eid, {
+              content: c.content,
+              createdAt: c.createdAt,
+            });
+          }
+        });
+      } catch (err) {
+        console.error("Lỗi tìm director comments:", err);
+      }
+    }
+
+    const enhancedRequests = requests.map((r: any) => {
+      let d: any = {};
+      try {
+        d = typeof r.details === "string" ? JSON.parse(r.details) : (r.details || {});
+      } catch {}
+
+      const fromDb = directorFeedbackMap.get(r.id);
+      const hasDirectorFeedback = Boolean(fromDb || d.hasDirectorFeedback);
+      const latestDirectorFeedback = fromDb?.content || d.latestDirectorFeedback || null;
+
+      return {
+        ...r,
+        hasDirectorFeedback,
+        latestDirectorFeedback,
+      };
+    });
+
+    return NextResponse.json(enhancedRequests);
   } catch (error) {
     console.error("GET Personal Requests Error:", error);
     return NextResponse.json({ error: "Failed to fetch requests" }, { status: 500 });

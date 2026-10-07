@@ -101,6 +101,35 @@ export async function POST(
       },
     });
 
+    // ── Khi có trao đổi mới từ Giám đốc ──
+    if (authorRole === "director") {
+      try {
+        const pReq = await prisma.personalRequest.findFirst({
+          where: {
+            OR: [{ id: request.entityId }, { id }],
+          },
+        });
+        if (pReq) {
+          let curDetails: any = {};
+          try {
+            curDetails = typeof pReq.details === "string" ? JSON.parse(pReq.details) : (pReq.details || {});
+          } catch {}
+          curDetails.hasDirectorFeedback = true;
+          curDetails.latestDirectorFeedback = content.trim();
+          curDetails.directorFeedbackAt = new Date().toISOString();
+          await prisma.personalRequest.update({
+            where: { id: pReq.id },
+            data: { details: JSON.stringify(curDetails) },
+          });
+        }
+      } catch (err) {
+        console.error("Lỗi cập nhật directorFeedback vào PersonalRequest:", err);
+      }
+
+      // Theo yêu cầu: Khi có trao đổi mới từ giám đốc, không cần gửi thông báo lên quả chuông nữa
+      return NextResponse.json({ success: true, data: comment }, { status: 201 });
+    }
+
     // ── Gửi thông báo tự động cho các bên liên quan ──
     try {
       const recipientIds = new Set<string>();

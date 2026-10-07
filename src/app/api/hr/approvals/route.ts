@@ -66,20 +66,26 @@ export async function GET(request: Request) {
         },
         orderBy: { createdAt: "desc" }
       });
-      allMappedRequests.push(...personalRequests.map(r => ({
-        id: r.id,
-        employeeId: r.employeeId,
-        employee: r.employee,
-        type: r.type,
-        startDate: r.startDate ? r.startDate.toISOString() : null,
-        endDate: r.endDate ? r.endDate.toISOString() : null,
-        reason: r.reason,
-        status: r.status,
-        hrApproved: r.hrApproved,
-        createdAt: r.createdAt.toISOString(),
-        updatedAt: r.updatedAt.toISOString(),
-        details: r.details
-      })));
+      allMappedRequests.push(...personalRequests.map(r => {
+        let d: any = {};
+        try { d = typeof r.details === "string" ? JSON.parse(r.details) : (r.details || {}); } catch {}
+        return {
+          id: r.id,
+          employeeId: r.employeeId,
+          employee: r.employee,
+          type: r.type,
+          startDate: r.startDate ? r.startDate.toISOString() : null,
+          endDate: r.endDate ? r.endDate.toISOString() : null,
+          reason: r.reason,
+          status: r.status,
+          hrApproved: r.hrApproved,
+          createdAt: r.createdAt.toISOString(),
+          updatedAt: r.updatedAt.toISOString(),
+          details: r.details,
+          hasDirectorFeedback: Boolean(d.hasDirectorFeedback),
+          latestDirectorFeedback: d.latestDirectorFeedback || null,
+        };
+      }));
     }
 
     // 2. RecruitmentRequest

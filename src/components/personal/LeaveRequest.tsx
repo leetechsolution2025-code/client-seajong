@@ -714,6 +714,32 @@ export function LeaveRequest() {
                               <i className={`bi ${typeCfg.icon}`} style={{ fontSize: "11px" }}></i>
                               <span>{typeCfg.label}</span>
                             </span>
+
+                            {/* Icon trao đổi / chỉ đạo từ Ban Giám đốc */}
+                            {req.hasDirectorFeedback && (
+                              <span
+                                className="d-inline-flex align-items-center gap-1"
+                                style={{
+                                  fontSize: "10.5px",
+                                  fontWeight: 700,
+                                  padding: "2px 7px",
+                                  borderRadius: "4px",
+                                  background: "#eff6ff",
+                                  color: "#1d4ed8",
+                                  border: "1px solid #bfdbfe",
+                                  lineHeight: 1.2,
+                                  boxShadow: "0 1px 2px rgba(37, 99, 235, 0.08)",
+                                }}
+                                title={
+                                  req.latestDirectorFeedback
+                                    ? `Ý kiến từ Ban Giám đốc: "${req.latestDirectorFeedback}"`
+                                    : "Có ý kiến trao đổi từ Ban Giám đốc"
+                                }
+                              >
+                                <i className="bi bi-chat-quote-fill text-primary" style={{ fontSize: "11px" }}></i>
+                                <span>Ý kiến Sếp</span>
+                              </span>
+                            )}
                           </div>
 
                           {/* Hàng 2: Tiêu đề yêu cầu in đậm */}

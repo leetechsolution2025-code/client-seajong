@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { useSession } from "next-auth/react";
@@ -26,16 +27,24 @@ export function PersonalRequestDetailOffcanvas({
   const { data: session } = useSession();
   const currentUserId = session?.user?.id;
   const { success: toastSuccess, error: toastError } = useToast();
+  const searchParams = useSearchParams();
+  const paramTab = searchParams.get("tab");
 
-  const [activeTab, setActiveTab] = useState<"detail" | "comments">(initialTab);
+  const [activeTab, setActiveTab] = useState<"detail" | "comments">(
+    paramTab === "comments" ? "comments" : initialTab
+  );
   const [comments, setComments] = useState<any[]>([]);
   const [commentInput, setCommentInput] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (initialTab) setActiveTab(initialTab);
-  }, [initialTab]);
+    if (paramTab === "comments") {
+      setActiveTab("comments");
+    } else if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, paramTab]);
 
   useEffect(() => {
     if (!request) {
@@ -136,7 +145,7 @@ export function PersonalRequestDetailOffcanvas({
         className="offcanvas offcanvas-end show border-0 shadow-lg"
         tabIndex={-1}
         style={{
-          width: 480,
+          width: 400,
           zIndex: 1050,
           display: "flex",
           flexDirection: "column",
