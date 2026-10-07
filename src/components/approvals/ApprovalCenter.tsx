@@ -360,34 +360,48 @@ export function ApprovalCenter({
     },
     {
       header: "Mã yêu cầu",
-      width: 170,
       render: (row) => {
         const isNew = isRequestNew(row);
         return (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-            <span className="font-monospace fw-bold text-primary" style={{ fontSize: 12.5 }}>
-              {row.entityCode || row.id}
-            </span>
-            {isNew && (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 3,
-                  padding: "1px 6px",
-                  borderRadius: 99,
-                  fontSize: 9.5,
-                  fontWeight: 800,
-                  background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
-                  color: "#ffffff",
-                  letterSpacing: "0.03em",
-                  boxShadow: "0 2px 5px rgba(220, 38, 38, 0.35)",
-                }}
-              >
-                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#fff" }} />
-                MỚI
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {/* Hàng 1: Mã yêu cầu + Badge MỚI */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span className="font-monospace fw-bold text-primary" style={{ fontSize: 12.5 }}>
+                {row.entityCode || row.id}
               </span>
-            )}
+              {isNew && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                    padding: "1px 6px",
+                    borderRadius: 99,
+                    fontSize: 9.5,
+                    fontWeight: 800,
+                    background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                    color: "#ffffff",
+                    letterSpacing: "0.03em",
+                    boxShadow: "0 2px 5px rgba(220, 38, 38, 0.35)",
+                  }}
+                >
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#fff" }} />
+                  MỚI
+                </span>
+              )}
+            </div>
+
+            {/* Hàng 2: Tiêu đề, nội dung yêu cầu */}
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)", lineHeight: 1.4 }}>
+              {row.entityTitle}
+            </div>
+
+            {/* Hàng 3: Đếm trao đổi nếu có */}
+            {row.commentCount && row.commentCount > 0 ? (
+              <div style={{ fontSize: 11, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 4 }}>
+                <i className="bi bi-chat-dots" /> {row.commentCount} trao đổi
+              </div>
+            ) : null}
           </div>
         );
       },
@@ -423,23 +437,8 @@ export function ApprovalCenter({
       },
     },
     {
-      header: "Nội dung / Tiêu đề",
-      render: (row) => (
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)", lineHeight: 1.4 }}>
-            {row.entityTitle}
-          </div>
-          {row.commentCount && row.commentCount > 0 ? (
-            <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
-              <i className="bi bi-chat-dots" /> {row.commentCount} trao đổi
-            </div>
-          ) : null}
-        </div>
-      ),
-    },
-    {
       header: "Người đề xuất",
-      width: 180,
+      width: 190,
       render: (row) => (
         <div>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--foreground)" }}>
@@ -521,25 +520,6 @@ export function ApprovalCenter({
           </span>
         );
       },
-    },
-    {
-      header: "Thao tác",
-      width: 80,
-      align: "center",
-      render: (row) => (
-        <button
-          type="button"
-          className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center"
-          style={{ width: 30, height: 30, borderRadius: 6, color: "var(--primary)" }}
-          onClick={(e) => {
-            e.stopPropagation();
-            setSelectedItem(row);
-          }}
-          title="Xem chi tiết"
-        >
-          <i className="bi bi-chevron-right" />
-        </button>
-      ),
     },
   ];
 
