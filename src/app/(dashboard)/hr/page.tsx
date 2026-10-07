@@ -210,9 +210,13 @@ export default function ApprovalsPage() {
         }
       }
       fetch(`/api/hr/approvals/${paramRequestId}`)
-        .then((r) => r.json())
+        .then(async (r) => {
+          if (!r.ok) return null;
+          const text = await r.text();
+          return text ? JSON.parse(text) : null;
+        })
         .then((d) => {
-          if (d.data) {
+          if (d?.data) {
             setSelectedRequest(d.data);
             if (paramTab === "comments") setHrOffcanvasTab("comments");
           }

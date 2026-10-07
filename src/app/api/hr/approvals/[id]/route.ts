@@ -5,6 +5,103 @@ import prisma from "@/lib/prisma";
 import { notifyUser, notifyDirector } from "@/lib/hr-notifications";
 import { eachDayOfInterval, format } from "date-fns";
 
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return new NextResponse("Unauthorized", { status: 401 });
+
+    const { id } = await params;
+
+    // 1. PersonalRequest
+    const pReq = await prisma.personalRequest.findUnique({
+      where: { id },
+      include: {
+        employee: {
+          select: {
+            fullName: true,
+            code: true,
+            avatarUrl: true,
+            departmentName: true,
+            departmentCode: true,
+            position: true,
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (pReq) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: pReq.id,
+          employeeId: pReq.employeeId,
+          employee: pReq.employee,
+          type: pReq.type,
+          startDate: pReq.startDate ? pReq.startDate.toISOString() : null,
+          endDate: pReq.endDate ? pReq.endDate.toISOString() : null,
+          reason: pReq.reason,
+          status: pReq.status,
+          hrApproved: pReq.hrApproved,
+          createdAt: pReq.createdAt.toISOString(),
+          updatedAt: pReq.updatedAt.toISOString(),
+          details: pReq.details,
+        },
+      });
+    }
+
+    // 2. Tra cứu qua ApprovalRequest nếu id là của ApprovalRequest
+    const appReq = await prisma.approvalRequest.findUnique({
+      where: { id },
+    });
+
+    if (appReq && appReq.entityId) {
+      const pReqFromEntity = await prisma.personalRequest.findUnique({
+        where: { id: appReq.entityId },
+        include: {
+          employee: {
+            select: {
+              fullName: true,
+              code: true,
+              avatarUrl: true,
+              departmentName: true,
+              departmentCode: true,
+              position: true,
+              userId: true,
+            },
+          },
+        },
+      });
+      if (pReqFromEntity) {
+        return NextResponse.json({
+          success: true,
+          data: {
+            id: pReqFromEntity.id,
+            employeeId: pReqFromEntity.employeeId,
+            employee: pReqFromEntity.employee,
+            type: pReqFromEntity.type,
+            startDate: pReqFromEntity.startDate ? pReqFromEntity.startDate.toISOString() : null,
+            endDate: pReqFromEntity.endDate ? pReqFromEntity.endDate.toISOString() : null,
+            reason: pReqFromEntity.reason,
+            status: pReqFromEntity.status,
+            hrApproved: pReqFromEntity.hrApproved,
+            createdAt: pReqFromEntity.createdAt.toISOString(),
+            updatedAt: pReqFromEntity.updatedAt.toISOString(),
+            details: pReqFromEntity.details,
+          },
+        });
+      }
+    }
+
+    return NextResponse.json({ error: "Không tìm thấy yêu cầu" }, { status: 404 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
