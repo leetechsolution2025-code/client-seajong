@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { StandardPage } from "@/components/layout/StandardPage";
@@ -46,6 +46,41 @@ interface Department {
   id: string;
   code: string;
   nameVi: string;
+}
+
+const AVATAR_COLORS: [string, string][] = [
+  ["#4338ca", "#e0e7ff"],
+  ["#0369a1", "#e0f2fe"],
+  ["#047857", "#d1fae5"],
+  ["#b45309", "#fef3c7"],
+  ["#be123c", "#ffe4e6"],
+  ["#6d28d9", "#ede9fe"],
+];
+
+function avatarColor(name: string): [string, string] {
+  let hash = 0;
+  for (let i = 0; i < (name || "").length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitials(name: string): string {
+  if (!name) return "NV";
+  const parts = name.trim().split(" ");
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function getRoleBadge(role?: string | null, authorName?: string) {
+  if (role === "approver" || role === "director" || role === "lead" || authorName?.includes("Giám đốc")) {
+    return { label: "Ban Giám đốc", bg: "#fef3c7", color: "#b45309" };
+  }
+  if (role === "hr" || authorName?.includes("Nhân sự")) {
+    return { label: "Nhân sự", bg: "#dcfce7", color: "#15803d" };
+  }
+  if (role === "requester") {
+    return { label: "Người đề xuất", bg: "#e0f2fe", color: "#0369a1" };
+  }
+  return null;
 }
 
 const STEP_ITEMS: ModernStepItem[] = [
@@ -123,6 +158,64 @@ export default function ApprovalsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false);
   const [copiedBankId, setCopiedBankId] = useState<string | null>(null);
+
+  // Tab Trao đổi công việc trong Offcanvas của HR
+  const [hrOffcanvasTab, setHrOffcanvasTab] = useState<"detail" | "comments">("detail");
+  const [hrComments, setHrComments] = useState<any[]>([]);
+  const [hrCommentInput, setHrCommentInput] = useState("");
+  const [hrSubmittingComment, setHrSubmittingComment] = useState(false);
+  const hrChatScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!selectedRequest) {
+      setHrComments([]);
+      setHrOffcanvasTab("detail");
+      return;
+    }
+    const fetchComments = async () => {
+      try {
+        const res = await fetch(`/api/approvals/${selectedRequest.id}/comments`);
+        const json = await res.json();
+        if (json.success) {
+          setHrComments(json.data || []);
+        }
+      } catch (err) {
+        console.error("fetch comments error:", err);
+      }
+    };
+    fetchComments();
+  }, [selectedRequest]);
+
+  useEffect(() => {
+    if (hrOffcanvasTab === "comments") {
+      const el = hrChatScrollRef.current;
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }
+  }, [hrOffcanvasTab, hrComments]);
+
+  const handleHrSendComment = async () => {
+    if (!selectedRequest || !hrCommentInput.trim() || hrSubmittingComment) return;
+    setHrSubmittingComment(true);
+    try {
+      const res = await fetch(`/api/approvals/${selectedRequest.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: hrCommentInput.trim() }),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        setHrComments((prev) => [...prev, data.data]);
+        setHrCommentInput("");
+        toastSuccess("Đã gửi ý kiến trao đổi");
+      } else {
+        toastError(data.error || "Gửi thất bại");
+      }
+    } catch {
+      toastError("Không thể gửi bình luận");
+    } finally {
+      setHrSubmittingComment(false);
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState("");
@@ -1232,101 +1325,394 @@ export default function ApprovalsPage() {
               <button type="button" className="btn-close shadow-none" onClick={() => setSelectedRequest(null)} />
             </div>
 
-            {/* Body */}
-            <div className="offcanvas-body px-4" style={{ overflowY: "auto", overflowX: "hidden", paddingBottom: "90px" }}>
-              {/* Employee Card & Status */}
-              <div className="d-flex align-items-center justify-content-between p-3 rounded-3 mb-3 bg-light border">
-                <div className="d-flex align-items-center gap-2.5">
-                  <EmployeeAvatar name={selectedRequest.employee.fullName} url={selectedRequest.employee.avatarUrl} size={44} />
-                  <div>
-                    <div className="d-flex align-items-center gap-1.5">
-                      <span className="fw-bold text-dark" style={{ fontSize: 14 }}>{selectedRequest.employee.fullName}</span>
-                      {selectedRequest.employeeId === currentUserId && (
-                        <span className="badge bg-primary-subtle text-primary border border-primary-subtle" style={{ fontSize: 10, padding: "1px 5px" }}>Tôi</span>
-                      )}
-                    </div>
-                    <div className="text-muted" style={{ fontSize: 12 }}>
-                      {getPositionName(selectedRequest.employee.position)} • {selectedRequest.employee.departmentName}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  {getStatusBadge()}
-                </div>
-              </div>
-
-              {/* Loại đề xuất pill */}
-              <div className="d-flex align-items-center justify-content-between mb-3 px-1">
-                <span className="text-muted fw-semibold" style={{ fontSize: 12 }}>Loại đề xuất:</span>
-                <span className="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold" style={{ fontSize: 12, padding: "5px 10px", borderRadius: 6 }}>
-                  {TYPE_MAP[typeKey]?.label || selectedRequest.type}
-                </span>
-              </div>
-
-              {/* Tùy biến nội dung cho từng loại đề xuất */}
-              {renderTypeSpecificContent()}
+            {/* Tab chuyển đổi giữa Chi tiết đề xuất & Trao đổi công việc */}
+            <div style={{ display: "flex", background: "#f1f5f9", padding: "4px", gap: 4, borderBottom: "1px solid #e2e8f0" }}>
+              <button
+                type="button"
+                onClick={() => setHrOffcanvasTab("detail")}
+                style={{
+                  flex: 1,
+                  padding: "6px 12px",
+                  borderRadius: 6,
+                  border: "none",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  background: hrOffcanvasTab === "detail" ? "#ffffff" : "transparent",
+                  color: hrOffcanvasTab === "detail" ? "#0f172a" : "#64748b",
+                  boxShadow: hrOffcanvasTab === "detail" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                Thông tin đề xuất
+              </button>
+              <button
+                type="button"
+                onClick={() => setHrOffcanvasTab("comments")}
+                style={{
+                  flex: 1,
+                  padding: "6px 12px",
+                  borderRadius: 6,
+                  border: "none",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  background: hrOffcanvasTab === "comments" ? "#ffffff" : "transparent",
+                  color: hrOffcanvasTab === "comments" ? "#0f172a" : "#64748b",
+                  boxShadow: hrOffcanvasTab === "comments" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                  transition: "all 0.15s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                <span>Trao đổi</span>
+                {hrComments.length > 0 && (
+                  <span className="badge rounded-pill bg-danger" style={{ fontSize: 10, padding: "2px 6px" }}>
+                    {hrComments.length}
+                  </span>
+                )}
+              </button>
             </div>
 
-          <div className="offcanvas-footer p-3 border-top bg-white d-flex align-items-center gap-2 position-absolute bottom-0 w-100">
-            {/* Nút Xoá (icon only) */}
-            <button 
-              type="button"
-              className="btn btn-outline-danger p-0 d-flex align-items-center justify-content-center flex-shrink-0" 
-              style={{ width: 42, height: 40, borderRadius: 8 }}
-              title="Xoá đề xuất"
-              onClick={() => setDeleteConfirm({ open: true, id: selectedRequest.id })}
-            >
-              <i className="bi bi-trash3 fs-5"></i>
-            </button>
-
-            {activeTabId === "pending" && selectedRequest.status.toUpperCase() === "PENDING" && !selectedRequest.hrApproved ? (
+            {/* Body */}
+            {hrOffcanvasTab === "detail" ? (
               <>
-                {/* Nút Từ chối (icon only) */}
-                <button 
-                  type="button"
-                  className="btn btn-outline-danger p-0 d-flex align-items-center justify-content-center flex-shrink-0 bg-danger-subtle bg-opacity-25" 
-                  style={{ width: 42, height: 40, borderRadius: 8, borderColor: "#fca5a5" }}
-                  title="Từ chối đề xuất"
-                  onClick={() => setRejectionModal({ open: true, id: selectedRequest.id })}
-                >
-                  <i className="bi bi-x-lg fs-5 text-danger"></i>
-                </button>
+                <div className="offcanvas-body px-4" style={{ overflowY: "auto", overflowX: "hidden", paddingBottom: "90px" }}>
+                  {/* Employee Card & Status */}
+                  <div className="d-flex align-items-center justify-content-between p-3 rounded-3 mb-3 bg-light border">
+                    <div className="d-flex align-items-center gap-2.5">
+                      <EmployeeAvatar name={selectedRequest.employee.fullName} url={selectedRequest.employee.avatarUrl} size={44} />
+                      <div>
+                        <div className="d-flex align-items-center gap-1.5">
+                          <span className="fw-bold text-dark" style={{ fontSize: 14 }}>{selectedRequest.employee.fullName}</span>
+                          {selectedRequest.employeeId === currentUserId && (
+                            <span className="badge bg-primary-subtle text-primary border border-primary-subtle" style={{ fontSize: 10, padding: "1px 5px" }}>Tôi</span>
+                          )}
+                        </div>
+                        <div className="text-muted" style={{ fontSize: 12 }}>
+                          {getPositionName(selectedRequest.employee.position)} • {selectedRequest.employee.departmentName}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      {getStatusBadge()}
+                    </div>
+                  </div>
 
-                {/* Nút Trình lãnh đạo */}
-                <BrandButton 
-                  icon="bi-send" 
-                  variant="outline"
-                  className="flex-grow-1" 
-                  style={{ height: 40 }}
-                  onClick={() => handleAction(selectedRequest.id, "FORWARD_DIRECTOR")}
-                  loading={actionLoading}
-                >
-                  Trình lãnh đạo
-                </BrandButton>
+                  {/* Loại đề xuất pill */}
+                  <div className="d-flex align-items-center justify-content-between mb-3 px-1">
+                    <span className="text-muted fw-semibold" style={{ fontSize: 12 }}>Loại đề xuất:</span>
+                    <span className="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold" style={{ fontSize: 12, padding: "5px 10px", borderRadius: 6 }}>
+                      {TYPE_MAP[typeKey]?.label || selectedRequest.type}
+                    </span>
+                  </div>
 
-                {/* Nút Duyệt (icon only) */}
-                <button 
-                  type="button"
-                  className="btn btn-primary p-0 d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" 
-                  style={{ width: 42, height: 40, borderRadius: 8, backgroundColor: "#0284c7", borderColor: "#0284c7" }}
-                  title="Phê duyệt"
-                  onClick={() => handleAction(selectedRequest.id, "APPROVE")}
-                  disabled={actionLoading}
-                >
-                  <i className="bi bi-check-lg fs-4 text-white"></i>
-                </button>
+                  {/* Tùy biến nội dung cho từng loại đề xuất */}
+                  {renderTypeSpecificContent()}
+                </div>
+
+                <div className="offcanvas-footer p-3 border-top bg-white d-flex align-items-center gap-2 position-absolute bottom-0 w-100">
+                  {/* Nút Xoá (icon only) */}
+                  <button 
+                    type="button"
+                    className="btn btn-outline-danger p-0 d-flex align-items-center justify-content-center flex-shrink-0" 
+                    style={{ width: 42, height: 40, borderRadius: 8 }}
+                    title="Xoá đề xuất"
+                    onClick={() => setDeleteConfirm({ open: true, id: selectedRequest.id })}
+                  >
+                    <i className="bi bi-trash3 fs-5"></i>
+                  </button>
+
+                  {activeTabId === "pending" && selectedRequest.status.toUpperCase() === "PENDING" && !selectedRequest.hrApproved ? (
+                    <>
+                      {/* Nút Từ chối (icon only) */}
+                      <button 
+                        type="button"
+                        className="btn btn-outline-danger p-0 d-flex align-items-center justify-content-center flex-shrink-0 bg-danger-subtle bg-opacity-25" 
+                        style={{ width: 42, height: 40, borderRadius: 8, borderColor: "#fca5a5" }}
+                        title="Từ chối đề xuất"
+                        onClick={() => setRejectionModal({ open: true, id: selectedRequest.id })}
+                      >
+                        <i className="bi bi-x-lg fs-5 text-danger"></i>
+                      </button>
+
+                      {/* Nút Trình lãnh đạo */}
+                      <BrandButton 
+                        icon="bi-send" 
+                        variant="outline"
+                        className="flex-grow-1" 
+                        style={{ height: 40 }}
+                        onClick={() => handleAction(selectedRequest.id, "FORWARD_DIRECTOR")}
+                        loading={actionLoading}
+                      >
+                        Trình lãnh đạo
+                      </BrandButton>
+
+                      {/* Nút Duyệt (icon only) */}
+                      <button 
+                        type="button"
+                        className="btn btn-primary p-0 d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" 
+                        style={{ width: 42, height: 40, borderRadius: 8, backgroundColor: "#0284c7", borderColor: "#0284c7" }}
+                        title="Phê duyệt"
+                        onClick={() => handleAction(selectedRequest.id, "APPROVE")}
+                        disabled={actionLoading}
+                      >
+                        <i className="bi bi-check-lg fs-4 text-white"></i>
+                      </button>
+                    </>
+                  ) : (
+                    <button 
+                      type="button" 
+                      className="btn btn-light border flex-grow-1" 
+                      style={{ height: 40, borderRadius: 8 }}
+                      onClick={() => setSelectedRequest(null)}
+                    >
+                      Đóng
+                    </button>
+                  )}
+                </div>
               </>
             ) : (
-              <button 
-                type="button" 
-                className="btn btn-light border flex-grow-1" 
-                style={{ height: 40, borderRadius: 8 }}
-                onClick={() => setSelectedRequest(null)}
-              >
-                Đóng
-              </button>
+              /* ── TAB TRAO ĐỔI CÔNG VIỆC ── */
+              <div style={{ display: "flex", flexDirection: "column", height: "calc(100% - 95px)", background: "#f2f3f5" }}>
+                {/* Danh sách tin nhắn thread */}
+                <div
+                  ref={hrChatScrollRef}
+                  style={{
+                    flex: 1,
+                    overflowY: "auto",
+                    overflowX: "hidden",
+                    padding: "14px 16px 12px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6,
+                  }}
+                >
+                  {(() => {
+                    const userComments = hrComments.filter(
+                      (c: any) => !c.isSystem && !c.content.includes("đã trình Ban Giám đốc")
+                    );
+
+                    if (userComments.length === 0) {
+                      return (
+                        <div style={{ textAlign: "center", padding: "80px 20px", color: "#94a3b8" }}>
+                          <i
+                            className="bi bi-chat-dots"
+                            style={{ fontSize: 38, opacity: 0.45, display: "block", marginBottom: 12, color: "#6366f1" }}
+                          />
+                          <div style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>
+                            Chưa có trao đổi nào trong đề xuất này
+                          </div>
+                          <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 4, maxWidth: 280, margin: "4px auto 0" }}>
+                            Ban Giám đốc, Trưởng phòng Nhân sự và Người đề xuất có thể trao đổi trực tiếp tại đây.
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    let lastDate = "";
+                    return userComments.map((msg: any, idx: number) => {
+                      const dateStr = new Date(msg.createdAt).toLocaleDateString("vi-VN", {
+                        weekday: "long",
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      });
+                      const showDate = dateStr !== lastDate;
+                      lastDate = dateStr;
+
+                      const isSentByMe =
+                        msg.authorId === currentUserId ||
+                        (Boolean(session?.user?.name) && msg.authorName === session?.user?.name);
+
+                      const [clr, bg] = avatarColor(msg.authorName);
+                      const roleBadge = getRoleBadge(msg.authorRole, msg.authorName);
+
+                      return (
+                        <React.Fragment key={msg.id || idx}>
+                          {showDate && (
+                            <div
+                              style={{
+                                fontSize: 10.5,
+                                color: "#888",
+                                textAlign: "center",
+                                margin: "10px 0 6px",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {dateStr}
+                            </div>
+                          )}
+
+                          <div style={{ marginBottom: 4 }}>
+                            {!isSentByMe && (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  marginLeft: 32,
+                                  marginBottom: 3,
+                                }}
+                              >
+                                <span style={{ fontSize: 11, color: "#475569", fontWeight: 700 }}>
+                                  {msg.authorName}
+                                </span>
+                                {roleBadge && (
+                                  <span
+                                    style={{
+                                      fontSize: 9.5,
+                                      fontWeight: 700,
+                                      padding: "1px 6px",
+                                      borderRadius: 4,
+                                      background: roleBadge.bg,
+                                      color: roleBadge.color,
+                                    }}
+                                  >
+                                    {roleBadge.label}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "flex-end",
+                                gap: 6,
+                                justifyContent: isSentByMe ? "flex-end" : "flex-start",
+                              }}
+                            >
+                              {!isSentByMe ? (
+                                <div
+                                  style={{
+                                    width: 26,
+                                    height: 26,
+                                    borderRadius: "50%",
+                                    flexShrink: 0,
+                                    background: bg,
+                                    color: clr,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: 9.5,
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  {getInitials(msg.authorName)}
+                                </div>
+                              ) : null}
+
+                              <div
+                                style={{
+                                  maxWidth: "76%",
+                                  padding: "7px 11px",
+                                  borderRadius: 6,
+                                  background: isSentByMe ? "#d6e9ff" : "#ffffff",
+                                  color: "#1a1a2e",
+                                  fontSize: 13.5,
+                                  lineHeight: 1.55,
+                                  whiteSpace: "pre-wrap",
+                                  wordBreak: "break-word",
+                                  border: isSentByMe ? "1px solid #b8d4f8" : "1px solid #e0e0e0",
+                                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                                }}
+                              >
+                                {msg.content}
+                              </div>
+                            </div>
+
+                            <div
+                              style={{
+                                fontSize: 10,
+                                color: "#94a3b8",
+                                marginTop: 2,
+                                textAlign: isSentByMe ? "right" : "left",
+                                paddingLeft: isSentByMe ? 0 : 32,
+                                paddingRight: isSentByMe ? 2 : 0,
+                              }}
+                            >
+                              {new Date(msg.createdAt).toLocaleTimeString("vi-VN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                              {isSentByMe && (
+                                <i className="bi bi-check2" style={{ marginLeft: 3, color: "#3b82f6" }} />
+                              )}
+                            </div>
+                          </div>
+                        </React.Fragment>
+                      );
+                    });
+                  })()}
+                </div>
+
+                {/* Input bar */}
+                <div
+                  style={{
+                    flexShrink: 0,
+                    background: "#ffffff",
+                    borderTop: "1px solid #e2e8f0",
+                    padding: "8px 12px 10px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Nhập nội dung trao đổi... (Nhấn Enter để gửi)"
+                    value={hrCommentInput}
+                    onChange={(e) => setHrCommentInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleHrSendComment();
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      borderRadius: 20,
+                      padding: "7px 14px",
+                      fontSize: 13,
+                      background: "#f8fafc",
+                      border: "1px solid #cbd5e1",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleHrSendComment}
+                    disabled={!hrCommentInput.trim() || hrSubmittingComment}
+                    title="Gửi trao đổi"
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: "50%",
+                      border: "none",
+                      background: hrCommentInput.trim()
+                        ? "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
+                        : "#e2e8f0",
+                      color: hrCommentInput.trim() ? "#ffffff" : "#94a3b8",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: hrCommentInput.trim() ? "pointer" : "default",
+                      transition: "all 0.15s ease",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {hrSubmittingComment ? (
+                      <span className="spinner-border spinner-border-sm" style={{ width: 13, height: 13 }} />
+                    ) : (
+                      <i className="bi bi-send-fill" style={{ fontSize: 12, transform: "translateX(1px)" }} />
+                    )}
+                  </button>
+                </div>
+              </div>
             )}
-          </div>
         </div>
       );
     })()}
