@@ -34,11 +34,18 @@ export async function GET(_req: NextRequest) {
         orderBy: { createdAt: "desc" },
         take: 500,
         select: {
-          id: true, code: true, trangThai: true,
+          id: true, code: true, trangThai: true, trangThaiKho: true,
           tongTien: true,
           ghiChu: true,
           customer: { select: { name: true, address: true } },
-          logisticsTickets: { select: { id: true } } // Fetch to check if it already has tickets
+          saleOrderItems: {
+            select: {
+              inventoryItemId: true,
+              dinhMucId: true,
+              ghiChu: true
+            }
+          },
+          logisticsTickets: { select: { id: true, type: true } } // Fetch to check if it already has tickets
         },
       }),
       // Hoá đơn bán lẻ chưa thanh toán hết / còn nợ
@@ -105,8 +112,9 @@ export async function GET(_req: NextRequest) {
           id: true, code: true, status: true, type: true, createdAt: true, defectRecordId: true,
           saleOrder: { 
             select: { 
-              id: true, code: true, ngayGiao: true, ghiChu: true,
+              id: true, code: true, trangThai: true, keToanDuyet: true, trangThaiKho: true, ngayGiao: true, ghiChu: true,
               customer: { select: { name: true, address: true } },
+              logisticsTickets: { select: { id: true, type: true } },
               saleOrderItems: {
                 select: {
                   inventoryItemId: true,
@@ -242,6 +250,16 @@ export async function GET(_req: NextRequest) {
         defectRecordId: t.defectRecordId || t.defectRecord?.id || null,
         saleOrderId: t.saleOrder?.id,
         saleOrderCode: t.saleOrder?.code || (t.defectRecord ? t.defectRecord.code : null),
+        saleOrderTrangThai: t.saleOrder?.trangThai,
+        saleOrderTrangThaiKho: t.saleOrder?.trangThaiKho,
+        hasProduction: Boolean(
+          t.type === "MATERIAL_PICKING" || 
+          t.saleOrder?.trangThai === "in_production" ||
+          (t.saleOrder?.logisticsTickets && t.saleOrder.logisticsTickets.some((lt: any) => lt.type === "MATERIAL_PICKING")) ||
+          (t.saleOrder?.trangThaiKho === "out_of_stock" && t.saleOrder?.saleOrderItems?.some((soi: any) => 
+            soi.dinhMucId || (soi.ghiChu && (soi.ghiChu.includes("dinhMucId") || soi.ghiChu.includes("DM-") || soi.ghiChu.includes("bomCode")))
+          ))
+        ),
         requestedDate: t.type === "BATCH_PACKING" ? (t.saleOrder?.ngayGiao ?? t.createdAt) : t.createdAt,
         items: t.items?.map((it: any) => {
           let bomCode = null;
@@ -280,19 +298,29 @@ export async function GET(_req: NextRequest) {
         isAssigned: assignedOrderIds.has(c.id)
       })),
       // Lọc bỏ saleOrder nếu đã được tạo LogisticsTicket
-      ...saleOrders.filter(so => so.logisticsTickets.length === 0).map(so => ({
-        id:        so.id,
-        code:      so.code,
-        type:      "sale-order" as const,
-        typeLabel: "Đơn bán hàng",
-        customer:  so.customer?.name ?? null,
-        customerAddress: so.customer?.address ?? null,
-        ghiChu:    so.ghiChu ?? null,
-        tongTien:  so.tongTien,
-        trangThai: so.trangThai,
-        isAssigned: assignedOrderIds.has(so.id),
-        assigneeName: assignedOrderAssignees.get(so.id) || null
-      })),
+      ...saleOrders.filter(so => so.logisticsTickets.length === 0).map(so => {
+        const hasDinhMuc = so.saleOrderItems?.some((soi: any) => 
+          soi.dinhMucId || (soi.ghiChu && (soi.ghiChu.includes("dinhMucId") || soi.ghiChu.includes("DM-") || soi.ghiChu.includes("bomCode")))
+        );
+        const isOutOfStock = so.trangThaiKho === "out_of_stock";
+        const hasProduction = Boolean(so.trangThai === "in_production" || (isOutOfStock && hasDinhMuc));
+
+        return {
+          id:        so.id,
+          code:      so.code,
+          type:      "sale-order" as const,
+          typeLabel: "Đơn bán hàng",
+          customer:  so.customer?.name ?? null,
+          customerAddress: so.customer?.address ?? null,
+          ghiChu:    so.ghiChu ?? null,
+          tongTien:  so.tongTien,
+          trangThai: so.trangThai,
+          trangThaiKho: so.trangThaiKho,
+          hasProduction,
+          isAssigned: assignedOrderIds.has(so.id),
+          assigneeName: assignedOrderAssignees.get(so.id) || null
+        };
+      }),
       ...retailInvoices.map(inv => ({
         id:        inv.id,
         code:      inv.code,

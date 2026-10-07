@@ -7,7 +7,8 @@ import { Table, TableColumn } from "@/components/ui/Table";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { BrandButton } from "@/components/ui/BrandButton";
 import { FilterSelect } from "@/components/ui/FilterSelect";
-import { Pagination } from "@/components/ui/Pagination";
+import { TableToolbar } from "@/components/ui/TableToolbar";
+import { TablePagination } from "@/components/ui/TablePagination";
 import { cn } from "@/lib/utils";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { useToast } from "@/components/ui/Toast";
@@ -25,6 +26,7 @@ import { DebtReconciliationModal } from "./DebtReconciliationModal";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { FinanceOrderDetailsOffcanvas } from "./FinanceOrderDetailsOffcanvas";
+import { FinanceReceiptDetailsOffcanvas } from "./FinanceReceiptDetailsOffcanvas";
 
 
 const formatCurrency = (val: number) => (Math.round(val / 1000) * 1000).toLocaleString("vi-VN");
@@ -111,6 +113,9 @@ export default function DebtsPage() {
   const [showReconciliationModal, setShowReconciliationModal] = useState(false);
   const [selectedReconciliationDebt, setSelectedReconciliationDebt] = useState<any>(null);
   const [selectedOrderCode, setSelectedOrderCode] = useState<string | null>(null);
+  const [selectedReceiptItem, setSelectedReceiptItem] = useState<any | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const { success, error } = useToast();
   const currentStepId = DEBT_STEPS.find(s => s.num === currentStep)?.id || "RECEIVABLE";
@@ -204,6 +209,10 @@ export default function DebtsPage() {
 
   useEffect(() => {
     fetchDebts();
+  }, [currentStep, status, searchTerm, daysFilter, selectedSubCategory, selectedExpenseStatus]);
+
+  useEffect(() => {
+    setPage(1);
   }, [currentStep, status, searchTerm, daysFilter, selectedSubCategory, selectedExpenseStatus]);
 
   useEffect(() => {
@@ -327,7 +336,7 @@ export default function DebtsPage() {
             )}
             
             {row.isChild ? (
-              <div className={row.referenceId?.startsWith("DBH-") ? "cursor-pointer" : ""}>
+              <div className={(row.referenceId?.startsWith("DBH-") || isReturnItem || row.isPaymentLog || row.referenceId?.startsWith("PT-") || row.referenceId?.startsWith("PAY-")) ? "cursor-pointer" : ""}>
                 <div className="d-flex align-items-center gap-2">
                   <span className={`fw-bold ${isReturnItem ? "text-danger" : "text-dark"}`}>
                     {row.referenceId || (row.isPaymentLog ? "Phiếu thu/chi" : "Không có số ĐH")}
@@ -682,6 +691,373 @@ export default function DebtsPage() {
 
   const columns = getColumns();
 
+  // --- Process and Paginate Table Data ---
+  let totalCount = 0;
+  let currentCount = 0;
+  let finalRows: any[] = [];
+
+  if (debts.length > 0) {
+    if (currentStepId === "RECEIVABLE" || currentStepId === "PAYABLE") {
+      const groupedByPartner = debts.reduce((acc, curr) => {
+        // Ưu tiên nhóm theo ID, nếu không có thì nhóm theo Tên
+        const groupKey = curr.customerId || curr.supplierId || curr.carrierId || curr.partnerName;
+        if (!acc[groupKey]) acc[groupKey] = [];
+        acc[groupKey].push(curr);
+        return acc;
+      }, {} as Record<string, any[]>);
+
+      const groupsArray = Object.entries(groupedByPartner).map(([groupKey, itemsValue]) => {
+        const items = itemsValue as any[];
+        items.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
+        });
+        return { groupKey, items };
+      });
+
+      groupsArray.sort((a, b) => {
+        const aHasMany = a.items.length > 1;
+        const bHasMany = b.items.length > 1;
+        if (aHasMany && !bHasMany) return -1;
+        if (!aHasMany && bHasMany) return 1;
+        
+        const dateA = a.items[0]?.createdAt ? new Date(a.items[0].createdAt).getTime() : 0;
+        const dateB = b.items[0]?.createdAt ? new Date(b.items[0].createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      totalCount = groupsArray.length;
+      const totalPagesCount = Math.max(1, Math.ceil(totalCount / pageSize));
+      const safePage = Math.min(Math.max(1, page), totalPagesCount);
+      const pagedGroups = groupsArray.slice((safePage - 1) * pageSize, safePage * pageSize);
+      currentCount = pagedGroups.length;
+
+      const groupedDebts: any[] = [];
+      pagedGroups.forEach(({ groupKey, items }) => {
+        let displayName = items[0].partnerName || "";
+        displayName = displayName.split(/[-–]/)[0].trim();
+        const address = items[0].customerAddress || items[0].supplierAddress || "Chưa cập nhật địa chỉ";
+        
+        const expandedItems: any[] = [];
+        items.forEach((item: any) => {
+          const parsed = parseDebtDescription(item.description || "");
+          const isReturnItem = item.amount < 0 || 
+                               item.referenceId?.startsWith("ERR-") || 
+                               item.referenceId?.startsWith("WR-") || 
+                               item.description?.includes("Trả lại hàng") || 
+                               item.description?.includes("hàng trả về");
+          const isReceiptRecord = (item.amount === 0 && item.paidAmount > 0) || item.amount < 0 || isReturnItem;
+          
+          if (isReceiptRecord) {
+            const paidVal = item.amount < 0 ? Math.abs(item.amount) : (item.paidAmount || item.amount || 0);
+            let cleanDesc = parsed.originalDesc;
+            if (!cleanDesc && parsed.history && parsed.history.length > 0 && parsed.history[0]?.note) {
+              cleanDesc = parsed.history[0].note;
+              if (parsed.history[0].method) {
+                cleanDesc += ` - ${parsed.history[0].method}`;
+              }
+            }
+            if (!cleanDesc && item.description) {
+              cleanDesc = item.description.split("\n")[0]
+                .replace(/\[PAYMENT_LOGS\]:.*$/, "")
+                .replace(/\[RECONCILIATION_LOGS\]:.*$/, "")
+                .trim();
+            }
+            if (!cleanDesc) {
+              cleanDesc = isReturnItem ? "Khách trả lại hàng" : (currentStepId === "RECEIVABLE" ? "Thu nợ khách hàng" : "Thanh toán công nợ");
+            }
+            expandedItems.push({
+              ...item,
+              displayDescription: cleanDesc,
+              amount: 0,
+              paidAmount: paidVal,
+              isOriginalDebt: true,
+              isPaymentLog: true,
+              isReturn: isReturnItem
+            });
+          } else {
+            let cleanDesc = parsed.originalDesc;
+            if (!cleanDesc && item.description) {
+              cleanDesc = item.description.split("\n")[0]
+                .replace(/\[PAYMENT_LOGS\]:.*$/, "")
+                .replace(/\[RECONCILIATION_LOGS\]:.*$/, "")
+                .trim();
+            }
+            expandedItems.push({
+              ...item,
+              displayDescription: cleanDesc || (currentStepId === "RECEIVABLE" ? "Phát sinh công nợ phải thu" : "Phát sinh công nợ phải trả"),
+              isOriginalDebt: true
+            });
+            
+            if (parsed.history && parsed.history.length > 0) {
+              parsed.history.forEach((hist: any) => {
+                expandedItems.push({
+                  ...item,
+                  id: hist.id,
+                  partnerName: item.partnerName,
+                  referenceId: hist.ref,
+                  description: item.description,
+                  displayDescription: hist.note || (hist.method ? `Thanh toán qua ${hist.method}` : "Phiếu thu/chi"),
+                  amount: 0,
+                  paidAmount: hist.amount,
+                  createdAt: hist.date,
+                  dueDate: null,
+                  status: "PAID",
+                  isPaymentLog: true,
+                  isOriginalDebt: false
+                });
+              });
+            }
+          }
+        });
+        
+        expandedItems.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
+        });
+        
+        if (expandedItems.length > 1) {
+          const isCollapsed = !expandedGroups[groupKey];
+          const groupAmount = items.reduce((s: number, i: any) => s + (i.amount > 0 ? i.amount : 0), 0);
+          const groupPaid = items.reduce((s: number, i: any) => {
+            if (i.amount < 0) return s + Math.abs(i.amount);
+            return s + (i.paidAmount || 0);
+          }, 0);
+
+          groupedDebts.push({
+            id: `group_${groupKey}`,
+            groupKey,
+            isGroupHeader: true,
+            partnerName: displayName,
+            address,
+            items: expandedItems,
+            originalItems: items,
+            amount: groupAmount,
+            paidAmount: groupPaid,
+            isCollapsed,
+          });
+          if (!isCollapsed) {
+            expandedItems.forEach((item: any) => groupedDebts.push({ 
+              ...item, 
+              isChild: true, 
+              groupItems: items 
+            }));
+          }
+        } else {
+          const firstItem = expandedItems[0];
+          const isReturn = firstItem?.isReturn || firstItem?.amount < 0;
+          const singleAmount = isReturn ? 0 : (firstItem?.amount || 0);
+          const singlePaid = isReturn ? (firstItem?.amount < 0 ? Math.abs(firstItem.amount) : (firstItem?.paidAmount || 0)) : (firstItem?.paidAmount || 0);
+          groupedDebts.push({ 
+            ...firstItem, 
+            partnerName: displayName, 
+            amount: singleAmount,
+            paidAmount: singlePaid,
+            groupItems: items 
+          });
+        }
+      });
+
+      const totalAmount = debts.reduce((sum, d) => sum + (d.amount > 0 ? d.amount : 0), 0);
+      const totalPaid = debts.reduce((sum, d) => sum + (d.amount < 0 ? Math.abs(d.amount) : (d.paidAmount || 0)), 0);
+      const totalRow = {
+        id: "TOTAL_ROW",
+        partnerName: "TỔNG CỘNG",
+        amount: totalAmount,
+        paidAmount: totalPaid,
+        type: currentStepId,
+        dueDate: null,
+        interestRate: null,
+        status: totalPaid === 0 ? "UNPAID" : (totalPaid >= totalAmount ? "PAID" : "PARTIAL"),
+        description: null,
+        referenceId: null,
+        isTotalRow: true
+      };
+
+      finalRows = [totalRow, ...groupedDebts];
+    } else if (currentStepId === "LOAN") {
+      totalCount = debts.length;
+      const totalPagesCount = Math.max(1, Math.ceil(totalCount / pageSize));
+      const safePage = Math.min(Math.max(1, page), totalPagesCount);
+      const pagedLoans = debts.slice((safePage - 1) * pageSize, safePage * pageSize);
+      currentCount = pagedLoans.length;
+
+      const groupedDebts: any[] = [];
+      pagedLoans.forEach(loan => {
+        const isCollapsed = !expandedGroups[loan.id];
+        groupedDebts.push({
+          ...loan,
+          id: loan.id,
+          isGroupHeader: true,
+          partnerName: loan.bankName,
+          referenceId: loan.contractNumber,
+          amount: loan.creditLimit,
+          paidAmount: loan.totalDisbursed,
+          isCollapsed,
+          items: loan.disbursements || []
+        });
+        if (!isCollapsed && loan.disbursements) {
+          loan.disbursements.forEach((d: any) => {
+            groupedDebts.push({
+              ...d,
+              isChild: true,
+              isDisbursement: true,
+              partnerName: "Giải ngân",
+              referenceId: d.disbursementNumber,
+              amount: d.amount,
+              paidAmount: d.paidPrincipal,
+            });
+          });
+        }
+      });
+
+      const totalAmount = debts.reduce((sum, d) => sum + (d.creditLimit || 0), 0);
+      const totalPaid = debts.reduce((sum, d) => sum + (d.totalDisbursed || 0), 0);
+      const totalRow = {
+        id: "TOTAL_ROW",
+        partnerName: "TỔNG CỘNG",
+        amount: totalAmount,
+        paidAmount: totalPaid,
+        type: currentStepId,
+        dueDate: null,
+        interestRate: null,
+        status: totalPaid === 0 ? "UNPAID" : (totalPaid >= totalAmount ? "PAID" : "PARTIAL"),
+        description: null,
+        referenceId: null,
+        isTotalRow: true
+      };
+
+      finalRows = [totalRow, ...groupedDebts];
+    } else {
+      // EXPENSE
+      totalCount = debts.length;
+      const totalPagesCount = Math.max(1, Math.ceil(totalCount / pageSize));
+      const safePage = Math.min(Math.max(1, page), totalPagesCount);
+      const pagedExpenses = debts.slice((safePage - 1) * pageSize, safePage * pageSize);
+      currentCount = pagedExpenses.length;
+
+      const totalAmount = debts.reduce((sum, d) => sum + (d.amount || 0), 0);
+      const totalPaid = debts.reduce((sum, d) => sum + (d.paidAmount || 0), 0);
+      const totalRow = {
+        id: "TOTAL_ROW",
+        partnerName: "TỔNG CỘNG",
+        amount: totalAmount,
+        paidAmount: totalPaid,
+        type: currentStepId,
+        dueDate: null,
+        interestRate: null,
+        status: totalPaid === 0 ? "UNPAID" : (totalPaid >= totalAmount ? "PAID" : "PARTIAL"),
+        description: null,
+        referenceId: null,
+        isTotalRow: true
+      };
+
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+
+      const itemsByMonth: Record<string, any[]> = {};
+      const monthlyTotals: Record<string, number> = {};
+      const itemsWithoutDate: any[] = [];
+
+      debts.forEach(d => {
+        if (d.dueDate) {
+          const date = new Date(d.dueDate);
+          const mKey = `THÁNG ${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+          monthlyTotals[mKey] = (monthlyTotals[mKey] || 0) + (d.amount || 0);
+        }
+      });
+
+      pagedExpenses.forEach(d => {
+        if (d.dueDate) {
+          const date = new Date(d.dueDate);
+          const mKey = `THÁNG ${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+          if (!itemsByMonth[mKey]) itemsByMonth[mKey] = [];
+          itemsByMonth[mKey].push(d);
+        } else {
+          itemsWithoutDate.push(d);
+        }
+      });
+
+      const monthSet = new Set<string>();
+      if (safePage === 1) {
+        monthSet.add(`THÁNG ${String(currentMonth).padStart(2, "0")}/${currentYear}`);
+      }
+      Object.keys(itemsByMonth).forEach(mKey => monthSet.add(mKey));
+
+      const sortedMonthKeys = Array.from(monthSet).sort((a, b) => {
+        const parseMY = (str: string) => {
+          const parts = str.replace("THÁNG ", "").split("/");
+          return parseInt(parts[1], 10) * 100 + parseInt(parts[0], 10);
+        };
+        return parseMY(b) - parseMY(a);
+      });
+
+      const grouped: any[] = [];
+      sortedMonthKeys.forEach(monthStr => {
+        const isCollapsed = !expandedMonths.includes(monthStr);
+        const monthTotal = monthlyTotals[monthStr] || 0;
+        const monthItems = itemsByMonth[monthStr] || [];
+
+        grouped.push({
+          id: `HEADER_${monthStr}`,
+          isFullWidth: true,
+          fullWidthContent: (
+            <div 
+              className="d-flex align-items-center justify-content-between w-100 cursor-pointer"
+              onClick={() => setExpandedMonths(prev => 
+                prev.includes(monthStr) ? prev.filter(m => m !== monthStr) : [...prev, monthStr]
+              )}
+            >
+              <div className="d-flex align-items-center gap-3">
+                <div className="d-flex align-items-center gap-2">
+                  <i className="bi bi-calendar-check text-primary" />
+                  <span>{monthStr}</span>
+                </div>
+                <div className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1" style={{ fontSize: 10.5, fontWeight: 700 }}>
+                  Tổng: {monthTotal.toLocaleString("vi-VN")} đồng
+                </div>
+              </div>
+              <i className={cn("bi text-muted ms-auto", isCollapsed ? "bi-chevron-down" : "bi-chevron-up")} />
+            </div>
+          )
+        });
+
+        if (!isCollapsed) {
+          if (monthItems.length > 0) {
+            const sortedItems = [...monthItems].sort((a, b) => {
+              const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+              const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+              return dateB - dateA;
+            });
+            grouped.push(...sortedItems);
+          } else {
+            grouped.push({
+              id: `EMPTY_${monthStr}`,
+              isFullWidth: true,
+              fullWidthContent: (
+                <div className="text-center py-3 text-muted" style={{ fontSize: 13, fontStyle: "italic", textTransform: "none", letterSpacing: "normal", fontWeight: 400 }}>
+                  Không có khoản chi phí nào trong {monthStr.toLowerCase()}
+                </div>
+              )
+            });
+          }
+        }
+      });
+
+      if (itemsWithoutDate.length > 0) {
+        grouped.push(...itemsWithoutDate);
+      }
+
+      finalRows = [totalRow, ...grouped];
+    }
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+
   return (
     <>
       <style>{`
@@ -698,9 +1074,10 @@ export default function DebtsPage() {
         <div className="d-flex flex-column h-100 flex-grow-1 overflow-hidden">
           <FullWidthTableLayout
             className="bg-white rounded-4 shadow-sm border flex-grow-1 overflow-hidden"
+            tableWrapperClassName="border-top"
             header={
               <>
-                <div className="px-4 py-1 border-bottom flex-shrink-0 bg-white workflow-card-stepper-container">
+                <div className="border-bottom flex-shrink-0 bg-white workflow-card-stepper-container" style={{ margin: "0 -1rem", padding: "0 1rem" }}>
                   <ModernStepper 
                     steps={DEBT_STEPS} 
                     currentStep={currentStep} 
@@ -709,65 +1086,40 @@ export default function DebtsPage() {
                     paddingY={8}
                   />
                 </div>
-                
-              </>
-            }
-            footer={
-              <div className="d-flex align-items-center w-100 px-4 py-2 border-top bg-light">
-                <div className="flex-grow-1">
-                  
-                  {currentStepId === "EXPENSE" ? (
-                    <div className="d-flex align-items-center flex-wrap gap-2 w-100">
-                      {/* Dropdown & Search */}
-                      <FilterSelect
-                        options={[
-                          { label: "Tất cả loại chi phí", value: "" },
-                          ...categories
-                            .filter(c => !c.parentId && c.code !== "tra-no-ngan-hang" && !c.name.toLowerCase().includes("trả nợ") && !c.name.toLowerCase().includes("nợ vay"))
-                            .map(c => ({ label: c.name, value: c.code }))
-                        ]}
-                        value={status}
-                        onChange={setStatus}
-                        width={180}
-                      />
-                      <div className="flex-grow-1" style={{ minWidth: 200 }}>
-                        <SearchInput 
-                          placeholder="Tìm khoản chi, người phụ trách..."
-                          value={searchTerm}
-                          onChange={setSearchTerm}
+                <div className="pt-2 pb-1">
+                  <TableToolbar
+                  searchValue={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  searchPlaceholder={
+                    currentStepId === "RECEIVABLE" ? "Tìm khách hàng, số điện thoại..." : 
+                    currentStepId === "PAYABLE" ? "Tìm nhà cung cấp, số hóa đơn..." : 
+                    currentStepId === "LOAN" ? "Tìm gói vay, ngân hàng..." : 
+                    "Tìm khoản chi, người phụ trách..."
+                  }
+                  searchWidth={320}
+                  filters={
+                    currentStepId === "EXPENSE" ? (
+                      <>
+                        <FilterSelect
+                          options={[
+                            { label: "Tất cả loại chi phí", value: "" },
+                            ...categories
+                              .filter(c => !c.parentId && c.code !== "tra-no-ngan-hang" && !c.name.toLowerCase().includes("trả nợ") && !c.name.toLowerCase().includes("nợ vay"))
+                              .map(c => ({ label: c.name, value: c.code }))
+                          ]}
+                          value={status}
+                          onChange={setStatus}
+                          width={180}
                         />
-                      </div>
-                      <FilterSelect 
-                        options={expenseStatuses.map(s => ({ label: s.name, value: s.code }))}
-                        value={selectedExpenseStatus}
-                        onChange={setSelectedExpenseStatus}
-                        width={160}
-                        placeholder="Tất cả trạng thái"
-                      />
-                      <BrandButton 
-                        icon="bi-plus-lg" 
-                        style={{ height: 34, fontSize: 12, padding: "0 16px" }}
-                        onClick={() => {
-                          setEditingItem(null);
-                          setShowExpenseForm(true);
-                        }}
-                      >
-                        Ghi phí
-                      </BrandButton>
-                    </div>
-                  ) : (
-                    <div className="d-flex align-items-center flex-wrap gap-2 w-100">
-                      <div className="flex-grow-1" style={{ minWidth: 200 }}>
-                        <SearchInput 
-                          placeholder={
-                            currentStepId === "RECEIVABLE" ? "Tìm khách hàng, số điện thoại..." : 
-                            currentStepId === "PAYABLE" ? "Tìm nhà cung cấp, số hóa đơn..." : 
-                            "Tìm gói vay, ngân hàng..."
-                          }
-                          value={searchTerm}
-                          onChange={setSearchTerm}
+                        <FilterSelect 
+                          options={expenseStatuses.map(s => ({ label: s.name, value: s.code }))}
+                          value={selectedExpenseStatus}
+                          onChange={setSelectedExpenseStatus}
+                          width={160}
+                          placeholder="Tất cả trạng thái"
                         />
-                      </div>
+                      </>
+                    ) : (
                       <FilterSelect 
                         options={[
                           { label: "Trạng thái", value: "" },
@@ -777,349 +1129,59 @@ export default function DebtsPage() {
                         onChange={setStatus} 
                         width={140}
                       />
-                      <BrandButton 
-                        icon="bi-plus-lg" 
-                        style={{ height: 34, fontSize: 12, padding: "0 16px" }}
-                        onClick={() => {
-                          setEditingItem(null);
-                          if (currentStepId === "EXPENSE") {
-                            setShowExpenseForm(true);
-                          } else {
-                            setShowDebtForm(true);
-                          }
-                        }}
-                      >
-                        {currentStepId === "EXPENSE" ? "Thêm chi phí" : currentStepId === "LOAN" ? "Thêm Hợp đồng Hạn mức" : "Nhập dư nợ cũ"}
-                      </BrandButton>
-                    </div>
-                  )}
-          
-                </div>
-                <div className="flex-shrink-0 ms-3">
-                  <Pagination 
-                    page={1} 
-                    totalPages={1} 
-                    onChange={() => {}} 
-                  />
-                </div>
+                    )
+                  }
+                  actions={
+                    <BrandButton 
+                      icon="bi-plus-lg" 
+                      style={{ height: 34, fontSize: 12, padding: "0 16px" }}
+                      onClick={() => {
+                        setEditingItem(null);
+                        if (currentStepId === "EXPENSE") {
+                          setShowExpenseForm(true);
+                        } else {
+                          setShowDebtForm(true);
+                        }
+                      }}
+                    >
+                      {currentStepId === "EXPENSE" ? "Ghi phí" : currentStepId === "LOAN" ? "Thêm Hợp đồng Hạn mức" : "Nhập dư nợ cũ"}
+                    </BrandButton>
+                  }
+                />
               </div>
+            </>
+          }
+            footer={
+              <TablePagination
+                currentCount={currentCount}
+                totalCount={totalCount}
+                itemName={
+                  currentStepId === "RECEIVABLE" ? "khách hàng" :
+                  currentStepId === "PAYABLE" ? "nhà cung cấp" :
+                  currentStepId === "LOAN" ? "khoản vay" : "khoản chi"
+                }
+                page={currentPage}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                pageSize={pageSize}
+                pageSizeOptions={[10, 20, 50, 100]}
+                onPageSizeChange={(sz) => {
+                  setPageSize(sz);
+                  setPage(1);
+                }}
+              />
             }
+            footerStyle={{ padding: "6px 16px", backgroundColor: "#fff" }}
             table={
               <div className="flex-grow-1 d-flex flex-column position-relative" style={{ minHeight: 400 }}>
-                {(() => {
-                  if (true) {
-                    if (debts.length === 0) return (
-                  <Table columns={columns} rows={[]} loading={loading} emptyText={currentStepId === "EXPENSE" ? "Không tìm thấy khoản chi nào" : "Không tìm thấy khoản công nợ nào"} />
-                );
-
-                const groupedDebts: any[] = [];
-                if (currentStepId === "RECEIVABLE" || currentStepId === "PAYABLE") {
-                  const groupedByPartner = debts.reduce((acc, curr) => {
-                    // Ưu tiên nhóm theo ID, nếu không có thì nhóm theo Tên
-                    const groupKey = curr.customerId || curr.supplierId || curr.carrierId || curr.partnerName;
-                    if (!acc[groupKey]) acc[groupKey] = [];
-                    acc[groupKey].push(curr);
-                    return acc;
-                  }, {} as Record<string, any[]>);
-
-                  const groupsArray = Object.entries(groupedByPartner).map(([groupKey, itemsValue]) => {
-                    const items = itemsValue as any[];
-                    items.sort((a, b) => {
-                      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                      return dateB - dateA;
-                    });
-                    return { groupKey, items };
-                  });
-
-                  groupsArray.sort((a, b) => {
-                    const aHasMany = a.items.length > 1;
-                    const bHasMany = b.items.length > 1;
-                    if (aHasMany && !bHasMany) return -1;
-                    if (!aHasMany && bHasMany) return 1;
-                    
-                    const dateA = a.items[0]?.createdAt ? new Date(a.items[0].createdAt).getTime() : 0;
-                    const dateB = b.items[0]?.createdAt ? new Date(b.items[0].createdAt).getTime() : 0;
-                    return dateB - dateA;
-                  });
-
-                  groupsArray.forEach(({ groupKey, items }) => {
-                    // Lọc số điện thoại ra khỏi tên (VD: "Đại lý Hồng Liên - 0934...")
-                    let displayName = items[0].partnerName || "";
-                    displayName = displayName.split(/[-–]/)[0].trim();
-                    const address = items[0].customerAddress || items[0].supplierAddress || "Chưa cập nhật địa chỉ";
-                    
-                    // Expand payment logs into separate items
-                    const expandedItems: any[] = [];
-                    items.forEach((item: any) => {
-                      const parsed = parseDebtDescription(item.description || "");
-                      const isReturnItem = item.amount < 0 || 
-                                           item.referenceId?.startsWith("ERR-") || 
-                                           item.referenceId?.startsWith("WR-") || 
-                                           item.description?.includes("Trả lại hàng") || 
-                                           item.description?.includes("hàng trả về");
-                      const isReceiptRecord = (item.amount === 0 && item.paidAmount > 0) || item.amount < 0 || isReturnItem;
-                      
-                      if (isReceiptRecord) {
-                        const paidVal = item.amount < 0 ? Math.abs(item.amount) : (item.paidAmount || item.amount || 0);
-                        let cleanDesc = parsed.originalDesc;
-                        if (!cleanDesc && parsed.history && parsed.history.length > 0 && parsed.history[0]?.note) {
-                          cleanDesc = parsed.history[0].note;
-                          if (parsed.history[0].method) {
-                            cleanDesc += ` - ${parsed.history[0].method}`;
-                          }
-                        }
-                        if (!cleanDesc && item.description) {
-                          cleanDesc = item.description.split("\n")[0]
-                            .replace(/\[PAYMENT_LOGS\]:.*$/, "")
-                            .replace(/\[RECONCILIATION_LOGS\]:.*$/, "")
-                            .trim();
-                        }
-                        if (!cleanDesc) {
-                          cleanDesc = isReturnItem ? "Khách trả lại hàng" : (currentStepId === "RECEIVABLE" ? "Thu nợ khách hàng" : "Thanh toán công nợ");
-                        }
-                        expandedItems.push({
-                          ...item,
-                          displayDescription: cleanDesc,
-                          amount: 0,
-                          paidAmount: paidVal,
-                          isOriginalDebt: true,
-                          isPaymentLog: true,
-                          isReturn: isReturnItem
-                        });
-                      } else {
-                        let cleanDesc = parsed.originalDesc;
-                        if (!cleanDesc && item.description) {
-                          cleanDesc = item.description.split("\n")[0]
-                            .replace(/\[PAYMENT_LOGS\]:.*$/, "")
-                            .replace(/\[RECONCILIATION_LOGS\]:.*$/, "")
-                            .trim();
-                        }
-                        expandedItems.push({
-                          ...item,
-                          displayDescription: cleanDesc || (currentStepId === "RECEIVABLE" ? "Phát sinh công nợ phải thu" : "Phát sinh công nợ phải trả"),
-                          isOriginalDebt: true
-                        });
-                        
-                        if (parsed.history && parsed.history.length > 0) {
-                          parsed.history.forEach((hist: any) => {
-                            expandedItems.push({
-                              ...item, // Inherit base properties for safety
-                              id: hist.id,
-                              partnerName: item.partnerName,
-                              referenceId: hist.ref,
-                              description: item.description, // keep original description
-                              displayDescription: hist.note || (hist.method ? `Thanh toán qua ${hist.method}` : "Phiếu thu/chi"),
-                              amount: 0,
-                              paidAmount: hist.amount,
-                              createdAt: hist.date,
-                              dueDate: null,
-                              status: "PAID",
-                              isPaymentLog: true,
-                              isOriginalDebt: false
-                            });
-                          });
-                        }
-                      }
-                    });
-                    
-                    expandedItems.sort((a, b) => {
-                      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                      return dateB - dateA;
-                    });
-                    
-                    if (expandedItems.length > 1) {
-                      const isCollapsed = !expandedGroups[groupKey];
-                      const groupAmount = items.reduce((s: number, i: any) => s + (i.amount > 0 ? i.amount : 0), 0);
-                      const groupPaid = items.reduce((s: number, i: any) => {
-                        if (i.amount < 0) return s + Math.abs(i.amount);
-                        return s + (i.paidAmount || 0);
-                      }, 0);
-
-                      groupedDebts.push({
-                        id: `group_${groupKey}`,
-                        groupKey,
-                        isGroupHeader: true,
-                        partnerName: displayName,
-                        address,
-                        items: expandedItems,
-                        originalItems: items,
-                        amount: groupAmount,
-                        paidAmount: groupPaid,
-                        isCollapsed,
-                      });
-                      if (!isCollapsed) {
-                        expandedItems.forEach((item: any) => groupedDebts.push({ 
-                          ...item, 
-                          isChild: true, 
-                          groupItems: items 
-                        }));
-                      }
-                    } else {
-                      const firstItem = expandedItems[0];
-                      const isReturn = firstItem?.isReturn || firstItem?.amount < 0;
-                      const singleAmount = isReturn ? 0 : (firstItem?.amount || 0);
-                      const singlePaid = isReturn ? (firstItem?.amount < 0 ? Math.abs(firstItem.amount) : (firstItem?.paidAmount || 0)) : (firstItem?.paidAmount || 0);
-                      groupedDebts.push({ 
-                        ...firstItem, 
-                        partnerName: displayName, 
-                        amount: singleAmount,
-                        paidAmount: singlePaid,
-                        groupItems: items 
-                      });
-                    }
-                  });
-                } else if (currentStepId === "LOAN") {
-                  debts.forEach(loan => {
-                    const isCollapsed = !expandedGroups[loan.id];
-                    groupedDebts.push({
-                      ...loan,
-                      id: loan.id,
-                      isGroupHeader: true,
-                      partnerName: loan.bankName,
-                      referenceId: loan.contractNumber,
-                      amount: loan.creditLimit,
-                      paidAmount: loan.totalDisbursed,
-                      isCollapsed,
-                      items: loan.disbursements || []
-                    });
-                    if (!isCollapsed && loan.disbursements) {
-                      loan.disbursements.forEach((d: any) => {
-                        groupedDebts.push({
-                          ...d,
-                          isChild: true,
-                          isDisbursement: true,
-                          partnerName: "Giải ngân",
-                          referenceId: d.disbursementNumber,
-                          amount: d.amount,
-                          paidAmount: d.paidPrincipal,
-                        });
-                      });
-                    }
-                  });
-                } else {
-                  groupedDebts.push(...debts.map(d => ({ ...d, groupItems: [d] })));
-                }
-
-                const totalAmount = debts.reduce((sum, d) => sum + (currentStepId === "LOAN" ? d.creditLimit : (d.amount > 0 ? d.amount : 0)), 0);
-                const totalPaid = debts.reduce((sum, d) => sum + (currentStepId === "LOAN" ? d.totalDisbursed : (d.amount < 0 ? Math.abs(d.amount) : (d.paidAmount || 0))), 0);
-                const totalRows = [{
-                  id: "TOTAL_ROW",
-                  partnerName: "TỔNG CỘNG",
-                  amount: totalAmount,
-                  paidAmount: totalPaid,
-                  type: currentStepId,
-                  dueDate: null,
-                  interestRate: null,
-                  status: totalPaid === 0 ? "UNPAID" : (totalPaid >= totalAmount ? "PAID" : "PARTIAL"),
-                  description: null,
-                  referenceId: null,
-                  isTotalRow: true
-                } as any, ...groupedDebts];
-
-                let finalRows = totalRows;
-
-                if (currentStepId === "EXPENSE") {
-                  const now = new Date();
-                  const currentYear = now.getFullYear();
-                  const currentMonth = now.getMonth() + 1;
-
-                  // Group items by month key
-                  const itemsByMonth: Record<string, any[]> = {};
-                  const monthlyTotals: Record<string, number> = {};
-                  const itemsWithoutDate: any[] = [];
-
-                  debts.forEach(d => {
-                    if (d.dueDate) {
-                      const date = new Date(d.dueDate);
-                      const mKey = `THÁNG ${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
-                      if (!itemsByMonth[mKey]) itemsByMonth[mKey] = [];
-                      itemsByMonth[mKey].push(d);
-                      monthlyTotals[mKey] = (monthlyTotals[mKey] || 0) + d.amount;
-                    } else {
-                      itemsWithoutDate.push(d);
-                    }
-                  });
-
-                  // Ensure all months from month 1 to currentMonth of currentYear are included
-                  const monthSet = new Set<string>();
-                  for (let m = currentMonth; m >= 1; m--) {
-                    monthSet.add(`THÁNG ${String(m).padStart(2, "0")}/${currentYear}`);
-                  }
-                  // Also include any other months with existing expenses
-                  Object.keys(itemsByMonth).forEach(mKey => monthSet.add(mKey));
-
-                  // Sort month keys descending (e.g. 09/2026, 08/2026, ..., 01/2026)
-                  const sortedMonthKeys = Array.from(monthSet).sort((a, b) => {
-                    const parseMY = (str: string) => {
-                      const parts = str.replace("THÁNG ", "").split("/");
-                      return parseInt(parts[1], 10) * 100 + parseInt(parts[0], 10);
-                    };
-                    return parseMY(b) - parseMY(a);
-                  });
-
-                  const grouped: any[] = [];
-
-                  sortedMonthKeys.forEach(monthStr => {
-                    const isCollapsed = !expandedMonths.includes(monthStr);
-                    const monthTotal = monthlyTotals[monthStr] || 0;
-                    const monthItems = itemsByMonth[monthStr] || [];
-
-                    grouped.push({
-                      id: `HEADER_${monthStr}`,
-                      isFullWidth: true,
-                      fullWidthContent: (
-                        <div 
-                          className="d-flex align-items-center justify-content-between w-100 cursor-pointer"
-                          onClick={() => setExpandedMonths(prev => 
-                            prev.includes(monthStr) ? prev.filter(m => m !== monthStr) : [...prev, monthStr]
-                          )}
-                        >
-                          <div className="d-flex align-items-center gap-3">
-                            <div className="d-flex align-items-center gap-2">
-                              <i className="bi bi-calendar-check text-primary" />
-                              <span>{monthStr}</span>
-                            </div>
-                            <div className="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1" style={{ fontSize: 10.5, fontWeight: 700 }}>
-                              Tổng: {monthTotal.toLocaleString("vi-VN")} đồng
-                            </div>
-                          </div>
-                          <i className={cn("bi text-muted ms-auto", isCollapsed ? "bi-chevron-down" : "bi-chevron-up")} />
-                        </div>
-                      )
-                    });
-
-                    if (!isCollapsed) {
-                      if (monthItems.length > 0) {
-                        const sortedItems = [...monthItems].sort((a, b) => {
-                          const dateA = a.dueDate ? new Date(a.dueDate).getTime() : 0;
-                          const dateB = b.dueDate ? new Date(b.dueDate).getTime() : 0;
-                          return dateB - dateA;
-                        });
-                        grouped.push(...sortedItems);
-                      } else {
-                        grouped.push({
-                          id: `EMPTY_${monthStr}`,
-                          isFullWidth: true,
-                          fullWidthContent: (
-                            <div className="text-center py-3 text-muted" style={{ fontSize: 13, fontStyle: "italic", textTransform: "none", letterSpacing: "normal", fontWeight: 400 }}>
-                              Không có khoản chi phí nào trong {monthStr.toLowerCase()}
-                            </div>
-                          )
-                        });
-                      }
-                    }
-                  });
-
-                  if (itemsWithoutDate.length > 0) {
-                    grouped.push(...itemsWithoutDate);
-                  }
-
-                  finalRows = [totalRows[0], ...grouped];
-                }
-
-                return (
+                {debts.length === 0 ? (
+                  <Table 
+                    columns={columns} 
+                    rows={[]} 
+                    loading={loading} 
+                    emptyText={currentStepId === "EXPENSE" ? "Không tìm thấy khoản chi nào" : "Không tìm thấy khoản công nợ nào"} 
+                  />
+                ) : (
                   <Table 
                     columns={columns.map(col => ({
                       ...col,
@@ -1142,14 +1204,23 @@ export default function DebtsPage() {
                     stickyFirstRow={true}
                     compact={true}
                     onRowClick={(row: any) => {
-                      if (row.isChild && row.referenceId?.startsWith("DBH-")) {
+                      if (row.id === "TOTAL_ROW" || row.isGroupHeader) return;
+
+                      if (row.referenceId?.startsWith("DBH-")) {
                         setSelectedOrderCode(row.referenceId);
+                        return;
+                      }
+
+                      const isReturnItem = row.isReturn || row.amount < 0 || row.displayDescription?.includes("Trả lại hàng") || row.referenceId?.startsWith("ERR-") || row.referenceId?.startsWith("WR-");
+                      const isPaymentReceipt = row.isPaymentLog || row.referenceId?.startsWith("PT-") || row.referenceId?.startsWith("PAY-") || (row.paidAmount > 0 && row.amount === 0);
+
+                      if (isReturnItem || isPaymentReceipt) {
+                        setSelectedReceiptItem(row);
+                        return;
                       }
                     }}
                   />
-                );
-              }
-              })()}
+                )}
               </div>
             }
           />
@@ -1236,6 +1307,13 @@ export default function DebtsPage() {
         <FinanceOrderDetailsOffcanvas
           orderId={selectedOrderCode}
           onClose={() => setSelectedOrderCode(null)}
+        />
+      )}
+
+      {selectedReceiptItem && (
+        <FinanceReceiptDetailsOffcanvas
+          item={selectedReceiptItem}
+          onClose={() => setSelectedReceiptItem(null)}
         />
       )}
     </>

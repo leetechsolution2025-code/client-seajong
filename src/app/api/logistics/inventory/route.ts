@@ -102,8 +102,9 @@ export async function GET(req: Request) {
     const excludeDinhMucs = searchParams.get("excludeDinhMucs") === "true";
     const search = searchParams.get("search");
     const reqTrangThai = searchParams.get("trangThai");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "15");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const rawLimit = searchParams.get("limit") || searchParams.get("pageSize") || "15";
+    const limit = Math.max(1, parseInt(rawLimit) || 15);
     const skip = (page - 1) * limit;
 
     const session = await getServerSession(authOptions);

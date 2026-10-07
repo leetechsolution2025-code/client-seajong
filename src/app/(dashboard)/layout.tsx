@@ -202,19 +202,19 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
         group: "Quản lý tài chính", icon: "bi-wallet2", items: [
           { name: "Quản lý tài sản", href: "/finance/assets", icon: "bi-building" },
           { name: "Quản lý công nợ và chi phí", href: "/finance/debts", icon: "bi-receipt" },
-          { name: "Hàng hoá trong kho", href: "/finance/inventory", icon: "bi-box-seam" },
         ]
       },
       {
-        group: "Khởi tạo dữ liệu", icon: "bi-database-gear", items: [
-          { name: "Danh mục tài khoản", href: "/finance/accounts", icon: "bi-journal-bookmark" },
-          { name: "Khai báo số dư đầu kỳ", href: "/finance/opening-balances", icon: "bi-wallet2" },
+        group: "Theo dõi kho hàng", icon: "bi-boxes", items: [
+          { name: "Hàng hoá trong kho", href: "/finance/inventory", icon: "bi-box-seam" },
+          { name: "Nhật ký hoạt động kho", href: "/finance/audit-logs", icon: "bi-journal-text" },
+          { name: "Báo cáo kho", href: "/finance/inventory-reports", icon: "bi-bar-chart-line" },
         ]
       },
       {
         group: "Kế toán nội bộ", icon: "bi-journal-text", items: [
-          { name: "Sổ nhật ký chung", href: "/finance/journal-entries", icon: "bi-journal-text" },
-          { name: "Kết xuất dữ liệu", href: "/finance/export", icon: "bi-file-earmark-excel" },
+          { name: "Sổ nhật ký chung", href: "/finance/journal-entries", icon: "bi-journal-text", isLocked: true },
+          { name: "Kết xuất dữ liệu", href: "/finance/export", icon: "bi-file-earmark-excel", isLocked: true },
           { name: "Tạm ứng và chi phí", href: "/finance/advances", icon: "bi-cash" },
         ]
       },
@@ -227,7 +227,7 @@ const DEPT_SIDEBARS: Record<string, DeptSidebar> = {
       // },
       {
         group: "Báo cáo và phân tích", icon: "bi-file-earmark-bar-graph", items: [
-          { name: "Báo cáo tài chính", href: "/finance/reports", icon: "bi-file-earmark-bar-graph" },
+          { name: "Báo cáo tài chính", href: "/finance/reports", icon: "bi-file-earmark-bar-graph", isLocked: true },
           // { name: "Phân tích doanh thu và chi phí", href: "/finance/revenue-expense-analysis", icon: "bi-pie-chart" },
         ]
       },
@@ -838,6 +838,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         }
                         if (item.href === "/sales/plan") {
                           return { ...item, isLocked: isSalesPlanLocked };
+                        }
+                        if (
+                          item.name === "Danh mục tài khoản" ||
+                          item.name === "Khai báo số dư đầu kỳ" ||
+                          item.name === "Sổ nhật ký chung" ||
+                          item.name === "Kết xuất dữ liệu" ||
+                          item.name === "Báo cáo tài chính" ||
+                          item.href === "/finance/accounts" ||
+                          item.href === "/finance/opening-balances" ||
+                          item.href === "/finance/journal-entries" ||
+                          item.href === "/finance/export" ||
+                          item.href === "/finance/reports"
+                        ) {
+                          return { ...item, isLocked: true };
                         }
                         return item;
                       })

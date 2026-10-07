@@ -9,7 +9,7 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { BrandButton } from "@/components/ui/BrandButton";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { TreeFilterSelect } from "@/components/ui/TreeFilterSelect";
-import { Pagination } from "@/components/ui/Pagination";
+import { TableFooter } from "@/components/ui/TableFooter";
 import { HoverImage } from "@/components/ui/HoverImage";
 import { InventoryDetailOffcanvas } from "@/app/(dashboard)/finance/inventory/InventoryDetailOffcanvas";
 import { AddLogisticsProductModal } from "@/components/logistics/inventory/AddLogisticsProductModal";
@@ -109,9 +109,10 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
   const [warehouseId, setWarehouseId] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [warehouseCount, setWarehouseCount] = useState(0);
   
-  const [pageSize] = useState(100);
+  const [pageSize, setPageSize] = useState<number>(15);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -305,6 +306,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
 
       const params = new URLSearchParams({
         page: page.toString(),
+        limit: pageSize.toString(),
         search: searchTerm,
         categoryId,
         trangThai,
@@ -315,6 +317,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
       const data = await res.json();
       setItems(data.items);
       setTotalPages(data.totalPages);
+      setTotalItems(data.total ?? data.stats?.tongMatHang ?? 0);
     } catch (err) {
       error("Lỗi", "Không thể tải danh sách hàng hoá");
     } finally {
@@ -389,7 +392,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
   useEffect(() => {
     const timer = setTimeout(fetchItems, 300);
     return () => clearTimeout(timer);
-  }, [page, searchTerm, categoryId, trangThai, warehouseId]);
+  }, [page, pageSize, searchTerm, categoryId, trangThai, warehouseId]);
 
   const tableRef = useRef<HTMLDivElement>(null);
 
@@ -730,53 +733,28 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
               className="flex-grow-1 overflow-hidden"
               style={{ minHeight: 0 }}
               header={
-                <div className="d-flex flex-column gap-1">
-                  <SectionTitle 
-                    title="Danh sách hàng hoá" 
-                    action={
-                      <div className="d-flex gap-2">
-                        <input type="file" accept=".xlsx, .xls" hidden ref={fileInputRef} onChange={handleUploadExcel} />
-                        <button 
-                          className="btn btn-light btn-sm border shadow-sm px-2 py-1" 
-                          title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để tải file mẫu" : "Tải file mẫu"} 
-                          onClick={handleDownloadTemplate}
-                          disabled={isProcessingExcel || !warehouseId}
-                        >
-                          <i className="bi bi-file-earmark-arrow-down" />
-                        </button>
-                        <button 
-                          className="btn btn-light btn-sm border shadow-sm px-2 py-1" 
-                          title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để Import" : "Import Excel"} 
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isProcessingExcel || !warehouseId}
-                        >
-                          {isProcessingExcel ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-file-earmark-arrow-up" />}
-                        </button>
-                        <button className="btn btn-light btn-sm border shadow-sm px-2 py-1"><i className="bi bi-printer" /></button>
-                        <button 
-                          className="btn btn-light btn-sm border shadow-sm px-2 py-1 text-danger position-relative" 
-                          onClick={() => setShowMissingMaterials(true)}
-                          title="Kiểm tra vật tư bị thiếu"
-                        >
-                          <i className="bi bi-exclamation-triangle-fill" />
-                        </button>
-                      </div>
-                    }
-                  />
+                <div className="d-flex flex-column gap-2">
+                  <input type="file" accept=".xlsx, .xls" hidden ref={fileInputRef} onChange={handleUploadExcel} />
 
                   {/* Desktop / Tablet Filters (>= 769px) */}
                   <div className="d-none d-md-flex align-items-center gap-2 flex-wrap">
                     <FilterSelect 
                         options={warehouses}
                         value={warehouseId}
-                        onChange={setWarehouseId}
+                        onChange={(val) => {
+                          setWarehouseId(val);
+                          setPage(1);
+                        }}
                         placeholder="Tất cả kho"
                         width={200}
                     />
                     <TreeFilterSelect 
                         options={categories}
                         value={categoryId}
-                        onChange={setCategoryId}
+                        onChange={(val) => {
+                          setCategoryId(val);
+                          setPage(1);
+                        }}
                         placeholder="Tất cả các loại hàng hoá"
                         width={240}
                         disabled={!warehouseId}
@@ -788,23 +766,66 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                             { label: "Hết hàng", value: "het-hang" },
                         ]}
                         value={trangThai}
-                        onChange={setTrangThai}
+                        onChange={(val) => {
+                          setTrangThai(val);
+                          setPage(1);
+                        }}
                         placeholder="Trạng thái"
                         width={150}
                         disabled={!warehouseId}
                     />
-                    <div className="flex-grow-1">
+                    <div className="flex-grow-1" style={{ minWidth: 200 }}>
                       <SearchInput 
                           value={searchTerm}
-                          onChange={setSearchTerm}
+                          onChange={(val) => {
+                            setSearchTerm(val);
+                            setPage(1);
+                          }}
                           onKeyDown={handleSearchKeyDown}
                           placeholder="Tìm theo tên, SKU..."
                       />
                     </div>
+                    {/* Các nút thao tác cạnh ô tìm kiếm */}
+                    <div className="d-flex align-items-center gap-1.5 flex-shrink-0">
+                      <button 
+                        className="btn btn-light btn-sm border shadow-sm d-flex align-items-center justify-content-center" 
+                        style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
+                        title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để tải file mẫu" : "Tải file mẫu"} 
+                        onClick={handleDownloadTemplate}
+                        disabled={isProcessingExcel || !warehouseId}
+                      >
+                        <i className="bi bi-file-earmark-arrow-down" />
+                      </button>
+                      <button 
+                        className="btn btn-light btn-sm border shadow-sm d-flex align-items-center justify-content-center" 
+                        style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
+                        title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để Import" : "Import Excel"} 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isProcessingExcel || !warehouseId}
+                      >
+                        {isProcessingExcel ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-file-earmark-arrow-up" />}
+                      </button>
+                      <button 
+                        className="btn btn-light btn-sm border shadow-sm d-flex align-items-center justify-content-center" 
+                        style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
+                        title="In ấn"
+                      >
+                        <i className="bi bi-printer" />
+                      </button>
+                      <button 
+                        className="btn btn-light btn-sm border shadow-sm text-danger position-relative d-flex align-items-center justify-content-center" 
+                        style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
+                        onClick={() => setShowMissingMaterials(true)}
+                        title="Kiểm tra vật tư bị thiếu"
+                      >
+                        <i className="bi bi-exclamation-triangle-fill" />
+                      </button>
+                    </div>
+
                     {selectedWHCode === "KVP" && (
                       <button 
                         className="btn btn-outline-primary btn-sm flex-shrink-0 d-flex align-items-center gap-2"
-                        style={{ height: '36px', padding: '0 16px', fontWeight: 600, borderRadius: '8px' }}
+                        style={{ height: '34px', padding: '0 16px', fontWeight: 600, borderRadius: '8px' }}
                         onClick={() => setShowPriceOffcanvas(true)}
                       >
                         <i className="bi bi-tag"></i> Giá bán linh kiện
@@ -815,13 +836,52 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
 
                   {/* Mobile Filters (< 769px) */}
                   <div className="d-flex d-md-none flex-column gap-2 mt-1">
-                    <SearchInput 
-                        value={searchTerm}
-                        onChange={setSearchTerm}
-                        onKeyDown={handleSearchKeyDown}
-                        placeholder="Tìm theo tên, SKU..."
-                        className="w-100"
-                    />
+                    <div className="d-flex align-items-center gap-1.5 w-100">
+                      <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                        <SearchInput 
+                            value={searchTerm}
+                            onChange={setSearchTerm}
+                            onKeyDown={handleSearchKeyDown}
+                            placeholder="Tìm theo tên, SKU..."
+                            className="w-100"
+                        />
+                      </div>
+                      <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                        <button 
+                          className="btn btn-light btn-sm border shadow-sm d-flex align-items-center justify-content-center" 
+                          style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
+                          title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để tải file mẫu" : "Tải file mẫu"} 
+                          onClick={handleDownloadTemplate}
+                          disabled={isProcessingExcel || !warehouseId}
+                        >
+                          <i className="bi bi-file-earmark-arrow-down" />
+                        </button>
+                        <button 
+                          className="btn btn-light btn-sm border shadow-sm d-flex align-items-center justify-content-center" 
+                          style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
+                          title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để Import" : "Import Excel"} 
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isProcessingExcel || !warehouseId}
+                        >
+                          {isProcessingExcel ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-file-earmark-arrow-up" />}
+                        </button>
+                        <button 
+                          className="btn btn-light btn-sm border shadow-sm d-flex align-items-center justify-content-center" 
+                          style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
+                          title="In ấn"
+                        >
+                          <i className="bi bi-printer" />
+                        </button>
+                        <button 
+                          className="btn btn-light btn-sm border shadow-sm text-danger d-flex align-items-center justify-content-center" 
+                          style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
+                          onClick={() => setShowMissingMaterials(true)}
+                          title="Kiểm tra vật tư bị thiếu"
+                        >
+                          <i className="bi bi-exclamation-triangle-fill" />
+                        </button>
+                      </div>
+                    </div>
                     <div className="d-flex gap-2">
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <FilterSelect 
@@ -909,19 +969,23 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                   </div>
                 </>
               }
-              footerStyle={{ padding: "10px 14px", backgroundColor: "#f8f9fa" }}
+              footerStyle={{ padding: "8px 16px", backgroundColor: "#fff" }}
               footer={
-                <div className="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2 m-0 p-0">
-                  <small className="text-muted m-0 p-0 text-nowrap" style={{ fontSize: 11.5 }}>Hiển thị <b>{(items || []).length}/{stats.tongMatHang}</b> mặt hàng</small>
-                  <div className="ms-auto">
-                    <Pagination 
-                        page={page}
-                        totalPages={totalPages}
-                        onChange={setPage}
-                        siblingCount={0}
-                    />
-                  </div>
-                </div>
+                <TableFooter
+                  currentCount={(items || []).length}
+                  totalCount={totalItems || stats.tongMatHang || 0}
+                  itemName="mặt hàng"
+                  page={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                  pageSize={pageSize}
+                  pageSizeOptions={[15, 30, 50, 100]}
+                  onPageSizeChange={(sz) => {
+                    setPageSize(sz);
+                    setPage(1);
+                  }}
+                  className="px-3 py-2 bg-transparent"
+                />
               }
             />
             

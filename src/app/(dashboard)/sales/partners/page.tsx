@@ -9,6 +9,7 @@ import { DynamicTicker } from "@/components/layout/DynamicTicker";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { Table, TableColumn } from "@/components/ui/Table";
+import { TableFooter } from "@/components/ui/TableFooter";
 import { GanttChart } from "@/components/ui/GanttChart";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -418,15 +419,46 @@ const STEPS: ModernStepItem[] = [
 const SOURCE_MAP: Record<string, string> = {
   "make_com_direct": "Make.com (Trực tiếp)",
   "facebook": "Facebook Ads",
+  "facebook_ads": "Facebook Ads",
+  "fb": "Facebook Ads",
+  "fb_ads": "Facebook Ads",
   "google": "Google Ads",
+  "google_ads": "Google Ads",
+  "gg_ads": "Google Ads",
   "tiktok": "TikTok Ads",
-  "Website": "Website",
-  "Facebook Ads": "Facebook Ads",
-  "Google Ads": "Google Ads",
-  "Triển lãm": "Triển lãm",
-  "Hotline": "Hotline",
-  "Zalo": "Zalo",
-  "Kinh doanh tự khai thác": "Tự khai thác",
+  "tiktok_ads": "TikTok Ads",
+  "website": "Website",
+  "hotline": "Hotline",
+  "zalo": "Zalo OA",
+  "zalo_oa": "Zalo OA",
+  "youtube": "YouTube",
+  "crm": "Tự khai thác",
+  "tu_khai_thac": "Tự khai thác",
+  "tu-khai-thac": "Tự khai thác",
+  "kinh doanh tu khai thac": "Tự khai thác",
+  "kinh doanh tự khai thác": "Tự khai thác",
+  "self_found": "Tự khai thác",
+  "referral": "Giới thiệu",
+  "gioi_thieu": "Giới thiệu",
+  "showroom": "Showroom",
+  "vang_lai": "Khách vãng lai",
+  "trien_lam": "Triển lãm",
+  "direct": "Trực tiếp",
+  "khac": "Khác",
+  "other": "Khác",
+};
+
+const getSourceLabel = (source?: string): string => {
+  if (!source) return "Trực tiếp";
+  const trimmed = source.trim();
+  if (SOURCE_MAP[trimmed]) return SOURCE_MAP[trimmed];
+  const lower = trimmed.toLowerCase();
+  if (SOURCE_MAP[lower]) return SOURCE_MAP[lower];
+  const snake = lower.replace(/[-\s]+/g, "_");
+  if (SOURCE_MAP[snake]) return SOURCE_MAP[snake];
+  return trimmed
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, c => c.toUpperCase());
 };
 
 interface InfoFieldProps {
@@ -1907,13 +1939,7 @@ export default function PartnersPage() {
     setSelectedIds(new Set());
   }, [currentStep, searchTerm, areaFilter]);
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(new Set(filteredPartners.map(p => p.id)));
-    } else {
-      setSelectedIds(new Set());
-    }
-  };
+
 
   const handleSelectRow = (id: string, checked: boolean) => {
     const next = new Set(selectedIds);
@@ -2079,6 +2105,34 @@ export default function PartnersPage() {
       return true;
     });
   }, [partners, currentStep, searchTerm, areaFilter, quoteStatusFilter, careStatusFilter]);
+
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+
+  // Reset to page 1 when step, search, or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [currentStep, searchTerm, areaFilter, careStatusFilter, quoteStatusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPartners.length / pageSize));
+  const validPage = Math.min(currentPage, totalPages);
+
+  const paginatedPartners = useMemo(() => {
+    const start = (validPage - 1) * pageSize;
+    return filteredPartners.slice(start, start + pageSize);
+  }, [filteredPartners, validPage, pageSize]);
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const next = new Set(selectedIds);
+      paginatedPartners.forEach(p => next.add(p.id));
+      setSelectedIds(next);
+    } else {
+      const next = new Set(selectedIds);
+      paginatedPartners.forEach(p => next.delete(p.id));
+      setSelectedIds(next);
+    }
+  };
 
   const ganttTasksForStep5 = useMemo(() => {
     const year = new Date().getFullYear();
@@ -5697,7 +5751,7 @@ export default function PartnersPage() {
           <input
             type="checkbox"
             className="form-check-input cursor-pointer"
-            checked={filteredPartners.length > 0 && filteredPartners.every(p => selectedIds.has(p.id))}
+            checked={paginatedPartners.length > 0 && paginatedPartners.every(p => selectedIds.has(p.id))}
             onChange={(e) => handleSelectAll(e.target.checked)}
           />
         </div>
@@ -5724,9 +5778,27 @@ export default function PartnersPage() {
           {
             header: "Thông tin khách hàng",
             render: (row) => {
+              let isOverdue24h = false;
+              if (row.date) {
+                const receiveTime = new Date(row.date).getTime();
+                const diffHours = (currentTime - receiveTime) / (1000 * 60 * 60);
+                if (diffHours > 24) {
+                  isOverdue24h = true;
+                }
+              }
+
               return (
                 <div>
-                  <div className="fw-bold text-dark">{row.name}</div>
+                  <div className="fw-bold text-dark d-inline-flex align-items-center">
+                    <span>{row.name}</span>
+                    {isOverdue24h && (
+                      <span
+                        className="d-inline-block rounded-circle bg-danger ms-2"
+                        style={{ width: 7, height: 7, flexShrink: 0 }}
+                        title="Khách hàng chưa được liên hệ sau 24 giờ kể từ lúc tiếp nhận"
+                      />
+                    )}
+                  </div>
                   <div className="text-muted" style={{ fontSize: "11px" }}>{row.detailBusinessAddress?.trim() || row.area || "—"}</div>
                 </div>
               );
@@ -5812,21 +5884,6 @@ export default function PartnersPage() {
             header: "Người tiếp nhận",
             render: (row) => {
               const caregiver = crmEmployees.find(emp => emp.fullName === row.careStaff);
-              
-              let warningMessage = null;
-              let warningStyle: React.CSSProperties = {};
-              if (row.date) {
-                const receiveTime = new Date(row.date).getTime();
-                const diffHours = (currentTime - receiveTime) / (1000 * 60 * 60);
-                
-                if (diffHours > 24) {
-                  warningMessage = "Khách hàng chưa được liên hệ sau 24 giờ kể từ lúc tiếp nhận";
-                  warningStyle = { color: "#dc3545", backgroundColor: "#f8d7da", border: "1px solid #f5c2c7" };
-                } else if (diffHours > 6) {
-                  warningMessage = "Khách hàng chưa được liên hệ sau 6 giờ kể từ lúc tiếp nhận";
-                  warningStyle = { color: "#fd7e14", backgroundColor: "#ffe8d6", border: "1px solid #ffd8b8" };
-                }
-              }
 
               return (
                 <div>
@@ -5840,12 +5897,6 @@ export default function PartnersPage() {
                       {caregiver.phone}
                     </div>
                   )}
-                  {warningMessage && (
-                    <div className="mt-2 rounded px-2 py-1" style={{ fontSize: "10.5px", whiteSpace: "normal", textAlign: "left", lineHeight: "1.3", ...warningStyle }}>
-                      <i className="bi bi-exclamation-triangle-fill me-1" />
-                      {warningMessage}
-                    </div>
-                  )}
                 </div>
               );
             },
@@ -5853,7 +5904,7 @@ export default function PartnersPage() {
           },
           {
             header: "Nguồn",
-            render: (row) => <span className="badge bg-primary-subtle text-primary">{SOURCE_MAP[row.source] || row.source}</span>,
+            render: (row) => <span className="badge bg-primary-subtle text-primary">{getSourceLabel(row.source)}</span>,
             width: "10%",
           }
         ];
@@ -6408,7 +6459,7 @@ export default function PartnersPage() {
     };
 
     return [checkboxColumn, ...baseColumns, actionColumn];
-  }, [currentStep, filteredPartners, selectedIds, crmEmployees, activeDropdownRowId, dropdownCoords]);
+  }, [currentStep, filteredPartners, paginatedPartners, selectedIds, crmEmployees, activeDropdownRowId, dropdownCoords]);
 
   const mobileColumns: TableColumn<PartnerProcessItem>[] = useMemo(() => {
     const checkboxColumn: TableColumn<PartnerProcessItem> = {
@@ -6417,7 +6468,7 @@ export default function PartnersPage() {
           <input
             type="checkbox"
             className="form-check-input cursor-pointer"
-            checked={filteredPartners.length > 0 && filteredPartners.every(p => selectedIds.has(p.id))}
+            checked={paginatedPartners.length > 0 && paginatedPartners.every(p => selectedIds.has(p.id))}
             onChange={(e) => handleSelectAll(e.target.checked)}
           />
         </div>
@@ -6448,12 +6499,27 @@ export default function PartnersPage() {
           <div className="d-flex flex-column py-1" style={{ minWidth: 0 }}>
             {/* Hàng 1: Tên & Badge trạng thái theo từng bước */}
             <div className="d-flex align-items-center justify-content-between gap-1 mb-1">
-              <span className="fw-bold text-dark text-truncate" style={{ fontSize: "13px" }}>
-                {row.name}
+              <span className="fw-bold text-dark text-truncate d-inline-flex align-items-center" style={{ fontSize: "13px" }}>
+                <span>{row.name}</span>
+                {Number(currentStep) === 1 && (() => {
+                  if (!row.date) return null;
+                  const receiveTime = new Date(row.date).getTime();
+                  const diffHours = (currentTime - receiveTime) / (1000 * 60 * 60);
+                  if (diffHours > 24) {
+                    return (
+                      <span
+                        className="d-inline-block rounded-circle bg-danger ms-2"
+                        style={{ width: 7, height: 7, flexShrink: 0 }}
+                        title="Khách hàng chưa được liên hệ sau 24 giờ kể từ lúc tiếp nhận"
+                      />
+                    );
+                  }
+                  return null;
+                })()}
               </span>
               {Number(currentStep) === 1 && (
                 <span className="badge bg-primary-subtle text-primary flex-shrink-0" style={{ fontSize: "10px" }}>
-                  {SOURCE_MAP[row.source] || row.source || "Trực tiếp"}
+                  {getSourceLabel(row.source)}
                 </span>
               )}
               {Number(currentStep) === 2 && (
@@ -6556,7 +6622,7 @@ export default function PartnersPage() {
     };
 
     return [checkboxColumn, mainColumn, mobileActionColumn];
-  }, [currentStep, filteredPartners, selectedIds, currentTime]);
+  }, [currentStep, filteredPartners, paginatedPartners, selectedIds, currentTime]);
 
   const BottomToolbarContent = useMemo(() => {
     if (selectedIds.size === 0) return null;
@@ -6657,9 +6723,9 @@ export default function PartnersPage() {
   return (
     <div className="d-flex flex-column h-100 partners-page" style={{ background: "var(--background)" }}>
       <style>{`
-        .partners-page .workflow-card-stepper-container + div > div:first-child {
-          margin-bottom: 6px !important;
-          padding-top: 6px !important;
+        .partners-page .partners-table-layout > div:first-child {
+          padding-top: 10px !important;
+          padding-bottom: 10px !important;
         }
       `}</style>
       <PageHeader
@@ -6679,13 +6745,15 @@ export default function PartnersPage() {
               currentStep={currentStep}
               onStepChange={setCurrentStep}
               paddingX={0}
+              paddingY={8}
             />
           }
           toolbar={null}
         >
           <FullWidthTableLayout
-            className="flex-grow-1 overflow-hidden full-width-table-wrapper"
+            className="flex-grow-1 overflow-hidden full-width-table-wrapper partners-table-layout"
             style={{ minHeight: 0 }}
+            tableWrapperClassName="border-top"
             header={
               <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2 w-100">
                 <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 flex-grow-1">
@@ -6943,7 +7011,7 @@ export default function PartnersPage() {
               </>
             ) : (
               <Table
-                rows={filteredPartners}
+                rows={paginatedPartners}
                 columns={isMobile ? mobileColumns : columns}
                 compact={true}
                 loading={loading}
@@ -6956,6 +7024,26 @@ export default function PartnersPage() {
                 )}
               </div>
             }
+            footer={
+              Number(currentStep) !== 5 ? (
+                <TableFooter
+                  currentCount={paginatedPartners.length}
+                  totalCount={filteredPartners.length}
+                  itemName="khách hàng"
+                  page={validPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  pageSize={pageSize}
+                  pageSizeOptions={[10, 20, 50, 100]}
+                  onPageSizeChange={(sz) => {
+                    setPageSize(sz);
+                    setCurrentPage(1);
+                  }}
+                  className="px-3 py-1.5 bg-transparent"
+                />
+              ) : undefined
+            }
+            footerStyle={{ padding: "6px 16px", backgroundColor: "#fff" }}
           />
         </WorkflowCard>
       </div>
@@ -7246,7 +7334,7 @@ export default function PartnersPage() {
                     <div className="row g-2">
                       <InfoField
                         label="Nguồn khách hàng"
-                        value={SOURCE_MAP[selectedPartner.source] || selectedPartner.source}
+                        value={getSourceLabel(selectedPartner.source)}
                         icon="funnel"
                       />
                       <InfoField
@@ -7656,7 +7744,7 @@ export default function PartnersPage() {
                           </div>
                           <div className="fw-bold text-dark" style={{ fontSize: '13px' }}>Tiếp nhận thông tin</div>
                           <div className="text-muted small mt-0.5" style={{ fontSize: '11.5px' }}>
-                            Lead được phân bổ tự động qua kênh <strong>{SOURCE_MAP[selectedPartner.source] || selectedPartner.source}</strong>.
+                            Lead được phân bổ tự động qua kênh <strong>{getSourceLabel(selectedPartner.source)}</strong>.
                           </div>
                         </div>
                       ];

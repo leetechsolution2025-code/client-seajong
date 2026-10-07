@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         ...(isManager ? {} : { assignedToId: employeeId }) // Chỉ hiển thị phiếu của mình nếu không phải Manager
       },
       include: {
-        saleOrder: { select: { code: true, ngayGiao: true } },
+        saleOrder: { select: { code: true, ngayGiao: true, customer: { select: { name: true } } } },
         items: {
           include: {
             inventoryItem: {
@@ -168,9 +168,12 @@ export async function GET(req: NextRequest) {
 
         batchItem.orders.push({
           id: ticket.id,
+          ticketCode: ticket.code,
           ticketItemId: item.id,
           code: ticket.saleOrder?.code || ticket.code,
+          customerName: ticket.saleOrder?.customer?.name,
           soLuongTrongDon: item.requestedQty || 0,
+          daNhatTrongDon: item.pickedQty || 0,
           ngayGiao: ticket.saleOrder?.ngayGiao,
           createdAt: ticket.createdAt,
           assignedTo: ticket.assignedTo?.fullName

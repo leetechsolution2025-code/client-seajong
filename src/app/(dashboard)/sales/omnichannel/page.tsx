@@ -9,6 +9,7 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { BrandButton } from "@/components/ui/BrandButton";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { TableFooter } from "@/components/ui/TableFooter";
 import { ShopeeConfigOffcanvas } from "./ShopeeConfigOffcanvas";
 import { ShopeeOrderDetailOffcanvas } from "./ShopeeOrderDetailOffcanvas";
 
@@ -36,6 +37,8 @@ export function OmnichannelContent() {
   const [timeFilter, setTimeFilter] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -340,7 +343,7 @@ export function OmnichannelContent() {
     },
     {
       header: "Giao hàng",
-      render: (row) => <span className="text-muted" style={{ fontSize: 12 }}>{row.createdAt}</span>
+      render: (row) => <span className="text-muted" style={{ fontSize: 12 }}>{row.shippingDate || row.createdAt}</span>
     }
   ];
 
@@ -354,6 +357,19 @@ export function OmnichannelContent() {
     
     return matchesSearch && matchesStatus;
   }) : [];
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(1);
+    }
+  }, [totalPages, page]);
+
+  const paginatedOrders = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredOrders.slice(start, start + pageSize);
+  }, [filteredOrders, page, pageSize]);
 
   return (
     <>
@@ -404,7 +420,10 @@ export function OmnichannelContent() {
                       { label: "Huỷ bỏ", value: "Huỷ bỏ" },
                     ]} 
                     value={statusFilter} 
-                    onChange={setStatusFilter} 
+                    onChange={(val) => {
+                      setStatusFilter(val);
+                      setPage(1);
+                    }} 
                     placeholder="Tất cả trạng thái"
                     width={isMobile ? "100%" : 180}
                   />
@@ -419,9 +438,12 @@ export function OmnichannelContent() {
                       { label: "Tháng này", value: "this_month" },
                       { label: "Tháng trước", value: "last_month" },
                       { label: "Năm nay", value: "this_year" },
-                    ]}
-                    value={timeFilter}
-                    onChange={setTimeFilter}
+                    ]} 
+                    value={timeFilter} 
+                    onChange={(val) => {
+                      setTimeFilter(val);
+                      setPage(1);
+                    }} 
                     placeholder="Thời gian"
                     width={isMobile ? "100%" : 150}
                   />
@@ -433,7 +455,10 @@ export function OmnichannelContent() {
                 <div className="flex-grow-1" style={{ maxWidth: isMobile ? "none" : 300, minWidth: 0 }}>
                   <SearchInput 
                     value={searchTerm} 
-                    onChange={setSearchTerm} 
+                    onChange={(val) => {
+                      setSearchTerm(val);
+                      setPage(1);
+                    }} 
                     placeholder="Tìm kiếm..." 
                   />
                 </div>
@@ -498,7 +523,7 @@ export function OmnichannelContent() {
         }
         table={
             <Table 
-              rows={filteredOrders} 
+              rows={paginatedOrders} 
               columns={isMobile ? mobileColumns : columns} 
               loading={loading}
               onRowClick={setSelectedOrder}
@@ -507,6 +532,23 @@ export function OmnichannelContent() {
               wrapperStyle={{ overflowY: "auto", overflowX: isMobile ? "hidden" : "auto", flex: 1, minHeight: 0 }}
             />
           }
+          footer={
+            <TableFooter
+              currentCount={paginatedOrders.length}
+              totalCount={filteredOrders.length}
+              itemName="đơn hàng"
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={(sz) => {
+                setPageSize(sz);
+                setPage(1);
+              }}
+              className="px-3 py-2 bg-transparent"
+            />
+          }
+          footerStyle={{ padding: "8px 16px", backgroundColor: "#fff" }}
         />
       </div>
 

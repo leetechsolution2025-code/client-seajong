@@ -31,6 +31,8 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = req.nextUrl;
     const page      = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
+    const rawLimit  = parseInt(searchParams.get("pageSize") ?? searchParams.get("limit") ?? "10");
+    const pageSize  = isNaN(rawLimit) || rawLimit <= 0 ? 10 : Math.min(rawLimit, 200);
     const search    = searchParams.get("search")    ?? "";
     const trangThai = searchParams.get("trangThai") ?? "";
     const keToanDuyet = searchParams.get("keToanDuyet") ?? "";
@@ -72,7 +74,7 @@ export async function GET(req: NextRequest) {
     const [total, items] = await Promise.all([
       prisma.saleOrder.count({ where }),
       prisma.saleOrder.findMany({
-        where, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE,
+        where, skip: (page - 1) * pageSize, take: pageSize,
         orderBy: { createdAt: "desc" },
         include: { customer: { select: { id: true, name: true, address: true, hanMucCongNo: true } } },
       }),
@@ -155,7 +157,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ items: itemsWithCreator, total, page, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) });
+    return NextResponse.json({ items: itemsWithCreator, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) });
   } catch (e: unknown) {
     console.error("[GET /sales]", e);
     return NextResponse.json({ items: [], total: 0, page: 1, totalPages: 1 });

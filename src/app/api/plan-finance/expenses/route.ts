@@ -4,8 +4,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
-const PAGE_SIZE = 15;
-
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -13,6 +11,8 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = req.nextUrl;
     const page      = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
+    const rawLimit  = parseInt(searchParams.get("pageSize") ?? searchParams.get("limit") ?? "10");
+    const PAGE_SIZE = isNaN(rawLimit) || rawLimit <= 0 ? 10 : Math.min(rawLimit, 200);
     const search    = searchParams.get("search")    ?? "";
     const trangThai = searchParams.get("trangThai") ?? "";
     const loai      = searchParams.get("loai")      ?? "";

@@ -325,6 +325,7 @@ export default function LogisticsOverviewPage() {
       isPurchaseOrderGroup: boolean;
       ghiChu: string | null;
       isGroupImport: boolean;
+      needsProduction: boolean;
     }
 
     const grouped: Record<string, any[]> = rawOrders.reduce((acc: Record<string, any[]>, curr: any) => {
@@ -493,6 +494,20 @@ export default function LogisticsOverviewPage() {
         } else if (groupStatusText.startsWith("Đã") && !groupStatusText.includes("một phần") && !groupStatusText.includes("VT & Gom")) {
           priority = 2;
         }
+
+        const isSaleOrderGroup = !isDefectGroup && !isGroupImport && !orderCode.startsWith('QC-');
+        const needsProduction = isSaleOrderGroup && items.some((it: any) => 
+          it.hasProduction === true ||
+          it.ticketType === 'MATERIAL_PICKING' ||
+          it.type === 'material-export' ||
+          (it.code && it.code.startsWith('CP-')) ||
+          (it.typeLabel && (it.typeLabel.toLowerCase().includes('sản xuất') || it.typeLabel.toLowerCase().includes('cấp phát vật tư'))) ||
+          it.trangThai === 'in_production' ||
+          it.saleOrderTrangThai === 'in_production' ||
+          it.saleOrderTrangThaiKho === 'out_of_stock' ||
+          (it.items && Array.isArray(it.items) && it.items.some((i: any) => i.bomCode)) ||
+          (it.title && (it.title.toLowerCase().includes('sản xuất') || it.title.toLowerCase().includes('xuất kho kvp')))
+        );
         
         return {
           orderCode,
@@ -511,6 +526,7 @@ export default function LogisticsOverviewPage() {
           isPurchaseOrderGroup,
           ghiChu,
           isGroupImport,
+          needsProduction,
         };
       })
       .filter((group) => {
@@ -556,7 +572,7 @@ export default function LogisticsOverviewPage() {
 
     const finalOrders: any[] = [];
     paginatedGroups.forEach((group, index) => {
-      const { orderCode, items, groupStatusText, groupStatusColor, customerName, customerAddress, supplierName, purchaseOrderCode, isPurchaseOrderGroup, ghiChu, isGroupImport, latestDate } = group;
+      const { orderCode, items, groupStatusText, groupStatusColor, customerName, customerAddress, supplierName, purchaseOrderCode, isPurchaseOrderGroup, ghiChu, isGroupImport, latestDate, needsProduction } = group;
       
       const isToggled = collapsedGroups.has(orderCode);
       const isCollapsed = index === 0 ? isToggled : !isToggled;
@@ -587,6 +603,24 @@ export default function LogisticsOverviewPage() {
                   <span className="text-primary">{orderCode}</span>
                 </span>
                 <span className={`badge ${groupStatusColor} rounded-pill fw-normal`} style={{ fontSize: 10 }}>{groupStatusText}</span>
+                {needsProduction && (
+                  <span 
+                    className="badge rounded-pill fw-medium" 
+                    style={{ 
+                      fontSize: 10,
+                      backgroundColor: "rgba(245, 158, 11, 0.15)",
+                      color: "#b45309",
+                      border: "1px solid rgba(245, 158, 11, 0.35)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "3px 8px"
+                    }}
+                  >
+                    <i className="bi bi-gear-wide-connected" style={{ fontSize: 9.5 }}></i>
+                    Cần sản xuất
+                  </span>
+                )}
                 {latestDate > 0 && (
                   <span className="text-muted" style={{ fontSize: 11 }}>
                     <i className="bi bi-clock me-1"></i>
@@ -1062,6 +1096,22 @@ export default function LogisticsOverviewPage() {
                   <span className="badge bg-light text-dark border">
                     <i className="bi bi-gear me-1 text-primary"></i>
                     {selectedOrder?.saleOrderCode ? `Đơn: ${selectedOrder.saleOrderCode}` : selectedOrder?.typeLabel}
+                  </span>
+                  <span 
+                    className="badge rounded-pill fw-medium" 
+                    style={{ 
+                      fontSize: 10,
+                      backgroundColor: "rgba(245, 158, 11, 0.15)",
+                      color: "#b45309",
+                      border: "1px solid rgba(245, 158, 11, 0.35)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "3px 8px"
+                    }}
+                  >
+                    <i className="bi bi-gear-wide-connected" style={{ fontSize: 9.5 }}></i>
+                    Cần sản xuất
                   </span>
                   {selectedOrder?.customer && <span>• {selectedOrder.customer}</span>}
                 </>

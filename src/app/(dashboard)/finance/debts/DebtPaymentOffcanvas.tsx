@@ -398,7 +398,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
             companyInfo,
           });
           setTimeout(() => {
-            printDocumentById("phieu-thu-print-area", "portrait", `${isReceivable ? "Phiếu thu" : "Phiếu chi"} - ${newHistoryItem.ref}`, true, "15mm 15mm 15mm 20mm");
+            printDocumentById("phieu-thu-print-area", "portrait", `${isReceivable ? "Phiếu thu" : "Phiếu chi"} - ${newHistoryItem.ref}`, true, "20mm 20mm 20mm 25mm");
             setActivePrintItem(null);
           }, 300);
         }
@@ -433,7 +433,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
       companyInfo,
     });
     setTimeout(() => {
-      printDocumentById("phieu-thu-print-area", "portrait", `${isReceivable ? "Phiếu thu" : "Phiếu chi"} nháp - ${payRef}`, true, "15mm 15mm 15mm 20mm");
+      printDocumentById("phieu-thu-print-area", "portrait", `${isReceivable ? "Phiếu thu" : "Phiếu chi"} nháp - ${payRef}`, true, "20mm 20mm 20mm 25mm");
       setActivePrintItem(null);
     }, 300);
   };
@@ -447,7 +447,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
     });
     // Allow DOM to update then print
     setTimeout(() => {
-      printDocumentById("phieu-thu-print-area", "portrait", `${isReceivable ? "Phiếu thu" : "Phiếu chi"} - ${item.ref}`, true, "15mm 15mm 15mm 20mm");
+      printDocumentById("phieu-thu-print-area", "portrait", `${isReceivable ? "Phiếu thu" : "Phiếu chi"} - ${item.ref}`, true, "20mm 20mm 20mm 25mm");
       setActivePrintItem(null);
     }, 300);
   };

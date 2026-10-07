@@ -652,13 +652,19 @@ export async function PATCH(
             }
 
             const requiredQty = item.soLuong;
-            const isSelectedForProduction = productionItemIds.includes(item.id);
-
-            let bomId = resolvedDinhMucId;
-
             const availableStock = invItem ? invItem.soLuong : 0;
             const actualMissingQty = Math.max(0, requiredQty - availableStock);
             const actualExportQty = Math.min(requiredQty, availableStock);
+            let bomId = resolvedDinhMucId;
+
+            // Xử lý triệt để: Đơn hàng cần sản xuất nếu:
+            // 1. Kế toán tick chọn item này (productionItemIds.includes(item.id))
+            // 2. Kế toán tick chọn quyết định Sản xuất (isProduction && bomId)
+            // 3. Mặt hàng có cấu hình định mức sản xuất/lắp ráp (bomId) và thiếu hàng trong kho
+            const isSelectedForProduction = 
+              productionItemIds.includes(item.id) || 
+              Boolean(isProduction && bomId) ||
+              Boolean(bomId && (actualMissingQty > 0 || order.trangThaiKho === "out_of_stock"));
 
             // BƯỚC 1: XÁC ĐỊNH HÀNG CẦN SẢN XUẤT
             if (isSelectedForProduction) {

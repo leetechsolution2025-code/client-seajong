@@ -40,23 +40,31 @@ const STATUS_OPTIONS = [
 ];
 
 const ORDER_STATUS_OPTIONS = [
+  { label: "Chờ duyệt", value: "pending" },
+  { label: "Đã phê duyệt", value: "approved" },
   { label: "Đang thực hiện", value: "active" },
+  { label: "Hoàn tất", value: "completed" },
   { label: "Hoàn thành", value: "done" },
+  { label: "Huỷ bỏ", value: "cancelled" },
 ];
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
     draft: { label: "Bản nháp", cls: "bg-light text-muted border" },
+    pending: { label: "Chờ duyệt", cls: "bg-warning-subtle text-warning-emphasis border border-warning-subtle" },
+    pending_approval: { label: "Đang trình duyệt", cls: "bg-warning-subtle text-warning-emphasis border border-warning-subtle" },
+    approved: { label: "Đã phê duyệt", cls: "bg-success-subtle text-success" },
+    rejected: { label: "Từ chối", cls: "bg-danger-subtle text-danger" },
     sent: { label: "Đang thương thảo", cls: "bg-info-subtle text-info" },
     success: { label: "Thành công", cls: "bg-success-subtle text-success" },
     failed: { label: "Thất bại", cls: "bg-danger-subtle text-danger" },
     paused: { label: "Tạm dừng", cls: "bg-warning-subtle text-warning" },
     cancelled: { label: "Huỷ bỏ", cls: "bg-secondary-subtle text-secondary" },
-    approved: { label: "Đã phê duyệt", cls: "bg-success-subtle text-success" },
-    pending_approval: { label: "Đang trình duyệt", cls: "bg-warning-subtle text-warning" },
+    canceled: { label: "Huỷ bỏ", cls: "bg-secondary-subtle text-secondary" },
     won: { label: "Thành công", cls: "bg-success-subtle text-success" },
     lost: { label: "Thất bại", cls: "bg-danger-subtle text-danger" },
     active: { label: "Đang thực hiện", cls: "bg-primary-subtle text-primary" },
+    processing: { label: "Đang thực hiện", cls: "bg-primary-subtle text-primary" },
     done: { label: "Hoàn thành", cls: "bg-success-subtle text-success" },
     completed: { label: "Hoàn tất", cls: "bg-success-subtle text-success" },
     in_production: { label: "Đang sản xuất", cls: "bg-warning-subtle text-warning" },
@@ -132,7 +140,17 @@ export function QuotationsContent() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Step 1: Quotation pagination
+  const [quotationPage, setQuotationPage] = useState(1);
+  const [quotationPageSize, setQuotationPageSize] = useState(10);
+  const [quotationTotal, setQuotationTotal] = useState(0);
+  const [quotationTotalPages, setQuotationTotalPages] = useState(1);
+
   // Step 2: Orders state
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderPageSize, setOrderPageSize] = useState(10);
+  const [orderTotal, setOrderTotal] = useState(0);
+  const [orderTotalPages, setOrderTotalPages] = useState(1);
   const [orderStatusFilter, setOrderStatusFilter] = useState("");
   const [orderTimeFilter, setOrderTimeFilter] = useState("");
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
@@ -155,6 +173,7 @@ export function QuotationsContent() {
   const [confirmDeleteReturns, setConfirmDeleteReturns] = useState(false);
   const [isDeletingReturns, setIsDeletingReturns] = useState(false);
   const [returnPage, setReturnPage] = useState(1);
+  const [returnPageSize, setReturnPageSize] = useState(10);
 
   useEffect(() => {
     if (isManager) {
@@ -257,12 +276,13 @@ export function QuotationsContent() {
       if (timeFilter) params.append("time", timeFilter);
       if (searchTerm) params.append("search", searchTerm);
       if (employeeFilter) params.append("employeeId", employeeFilter);
-      params.append("page", "1");
+      params.append("page", String(quotationPage));
+      params.append("pageSize", String(quotationPageSize));
 
       const res = await fetch(`/api/plan-finance/quotations?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        const items = data.items.map((it: any) => ({
+        const items = (data.items || []).map((it: any) => ({
           id: it.id,
           soBaoGia: it.code || "BG-—",
           khachHang: it.customer?.name || "Khách hàng vãng lai",
@@ -272,6 +292,8 @@ export function QuotationsContent() {
           ngayTao: new Date(it.createdAt).toLocaleDateString("vi-VN"),
         }));
         setQuotations(items);
+        setQuotationTotal(data.total || 0);
+        setQuotationTotalPages(data.totalPages || 1);
       }
     } catch (e) {
       console.error("Lỗi tải báo giá", e);
@@ -283,7 +305,7 @@ export function QuotationsContent() {
 
   useEffect(() => {
     fetchQuotations();
-  }, [statusFilter, searchTerm, timeFilter, employeeFilter]);
+  }, [quotationPage, quotationPageSize, statusFilter, searchTerm, timeFilter, employeeFilter]);
 
   const fetchOrders = async () => {
     setOrdersLoading(true);
@@ -293,12 +315,13 @@ export function QuotationsContent() {
       if (orderTimeFilter) params.append("time", orderTimeFilter);
       if (orderSearchTerm) params.append("search", orderSearchTerm);
       if (orderEmployeeFilter) params.append("employeeId", orderEmployeeFilter);
-      params.append("page", "1");
+      params.append("page", String(orderPage));
+      params.append("pageSize", String(orderPageSize));
 
       const res = await fetch(`/api/plan-finance/sales?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        const items = data.items.map((it: any) => ({
+        const items = (data.items || []).map((it: any) => ({
           id: it.id,
           maDonHang: it.code || "DH-—",
           khachHang: it.customer?.name || "Khách hàng vãng lai",
@@ -309,6 +332,8 @@ export function QuotationsContent() {
           trangThai: it.trangThai || "active",
         }));
         setOrders(items);
+        setOrderTotal(data.total || 0);
+        setOrderTotalPages(data.totalPages || 1);
       }
     } catch (e) {
       console.error("Lỗi tải đơn hàng", e);
@@ -477,25 +502,24 @@ export function QuotationsContent() {
     return list;
   }, [rawReturns, returnStatusFilter, returnSourceFilter, returnTimeFilter, returnSearchTerm]);
 
-  const RETURN_PAGE_SIZE = 10;
-  const totalReturnPages = Math.max(1, Math.ceil(filteredReturns.length / RETURN_PAGE_SIZE));
+  const totalReturnPages = Math.max(1, Math.ceil(filteredReturns.length / returnPageSize));
 
   useEffect(() => {
     if (returnPage > totalReturnPages) {
       setReturnPage(1);
     }
-  }, [totalReturnPages, returnPage]);
+  }, [totalReturnPages, returnPage, returnPageSize]);
 
   const paginatedReturns = useMemo(() => {
-    const start = (returnPage - 1) * RETURN_PAGE_SIZE;
-    return filteredReturns.slice(start, start + RETURN_PAGE_SIZE);
-  }, [filteredReturns, returnPage]);
+    const start = (returnPage - 1) * returnPageSize;
+    return filteredReturns.slice(start, start + returnPageSize);
+  }, [filteredReturns, returnPage, returnPageSize]);
 
   useEffect(() => {
     if (currentStep === 2) {
       fetchOrders();
     }
-  }, [currentStep, orderStatusFilter, orderSearchTerm, orderTimeFilter, orderEmployeeFilter]);
+  }, [currentStep, orderPage, orderPageSize, orderStatusFilter, orderSearchTerm, orderTimeFilter, orderEmployeeFilter]);
 
   // Fetch customers list for autocomplete search
   useEffect(() => {
@@ -1210,7 +1234,10 @@ export function QuotationsContent() {
                       <FilterSelect
                         options={STATUS_OPTIONS}
                         value={statusFilter}
-                        onChange={setStatusFilter}
+                        onChange={(val) => {
+                          setStatusFilter(val);
+                          setQuotationPage(1);
+                        }}
                         placeholder="Tất cả trạng thái"
                         width={isMobile ? "100%" : 180}
                       />
@@ -1228,7 +1255,10 @@ export function QuotationsContent() {
                           { label: "Năm nay", value: "this_year" },
                         ]}
                         value={timeFilter}
-                        onChange={setTimeFilter}
+                        onChange={(val) => {
+                          setTimeFilter(val);
+                          setQuotationPage(1);
+                        }}
                         placeholder="Thời gian"
                         width={isMobile ? "100%" : 150}
                       />
@@ -1241,7 +1271,10 @@ export function QuotationsContent() {
                       <SearchInput
                         placeholder="Tìm kiếm..."
                         value={searchTerm}
-                        onChange={setSearchTerm}
+                        onChange={(val) => {
+                          setSearchTerm(val);
+                          setQuotationPage(1);
+                        }}
                       />
                     </div>
 
@@ -1300,6 +1333,23 @@ export function QuotationsContent() {
                   wrapperStyle={{ overflowY: "auto", overflowX: isMobile ? "hidden" : "auto", flex: 1, minHeight: 0 }}
                 />
               }
+              footer={
+                <TableFooter
+                  currentCount={quotations.length}
+                  totalCount={quotationTotal}
+                  itemName="báo giá"
+                  page={quotationPage}
+                  totalPages={quotationTotalPages}
+                  onPageChange={setQuotationPage}
+                  pageSize={quotationPageSize}
+                  onPageSizeChange={(sz) => {
+                    setQuotationPageSize(sz);
+                    setQuotationPage(1);
+                  }}
+                  className="px-3 py-2 bg-transparent"
+                />
+              }
+              footerStyle={{ padding: "8px 16px", backgroundColor: "#fff" }}
             />
           )}
           {currentStep === 2 && (
@@ -1314,7 +1364,10 @@ export function QuotationsContent() {
                       <FilterSelect
                         options={ORDER_STATUS_OPTIONS}
                         value={orderStatusFilter}
-                        onChange={setOrderStatusFilter}
+                        onChange={(val) => {
+                          setOrderStatusFilter(val);
+                          setOrderPage(1);
+                        }}
                         placeholder="Tất cả trạng thái"
                         width={isMobile ? "100%" : 180}
                       />
@@ -1332,7 +1385,10 @@ export function QuotationsContent() {
                           { label: "Năm nay", value: "this_year" },
                         ]}
                         value={orderTimeFilter}
-                        onChange={setOrderTimeFilter}
+                        onChange={(val) => {
+                          setOrderTimeFilter(val);
+                          setOrderPage(1);
+                        }}
                         placeholder="Thời gian"
                         width={isMobile ? "100%" : 150}
                       />
@@ -1345,7 +1401,10 @@ export function QuotationsContent() {
                       <SearchInput 
                         placeholder="Tìm kiếm..."
                         value={orderSearchTerm}
-                        onChange={setOrderSearchTerm}
+                        onChange={(val) => {
+                          setOrderSearchTerm(val);
+                          setOrderPage(1);
+                        }}
                       />
                     </div>
 
@@ -1404,6 +1463,23 @@ export function QuotationsContent() {
                   wrapperStyle={{ overflowY: "auto", overflowX: isMobile ? "hidden" : "auto", flex: 1, minHeight: 0 }}
                 />
               }
+              footer={
+                <TableFooter
+                  currentCount={orders.length}
+                  totalCount={orderTotal}
+                  itemName="đơn hàng"
+                  page={orderPage}
+                  totalPages={orderTotalPages}
+                  onPageChange={setOrderPage}
+                  pageSize={orderPageSize}
+                  onPageSizeChange={(sz) => {
+                    setOrderPageSize(sz);
+                    setOrderPage(1);
+                  }}
+                  className="px-3 py-2 bg-transparent"
+                />
+              }
+              footerStyle={{ padding: "8px 16px", backgroundColor: "#fff" }}
             />
           )}
           {currentStep === 3 && (
@@ -1547,6 +1623,11 @@ export function QuotationsContent() {
                   page={returnPage}
                   totalPages={totalReturnPages}
                   onPageChange={setReturnPage}
+                  pageSize={returnPageSize}
+                  onPageSizeChange={(sz) => {
+                    setReturnPageSize(sz);
+                    setReturnPage(1);
+                  }}
                   className="px-3 py-2 bg-transparent"
                 />
               }

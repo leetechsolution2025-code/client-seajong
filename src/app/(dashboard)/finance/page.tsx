@@ -11,6 +11,7 @@ import { Table, TableColumn } from "@/components/ui/Table";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Pagination } from "@/components/ui/Pagination";
+import { TableFooter } from "@/components/ui/TableFooter";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -67,6 +68,8 @@ export default function FinancePage() {
   const [expenseStatus, setExpenseStatus] = useState("");
   const [expensePage, setExpensePage] = useState(1);
   const [expensesTotalPages, setExpensesTotalPages] = useState(1);
+  const [expensesTotal, setExpensesTotal] = useState(0);
+  const [expensePageSize, setExpensePageSize] = useState(10);
   const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([]);
   const [showExpenseDeleteConfirm, setShowExpenseDeleteConfirm] = useState(false);
@@ -78,6 +81,8 @@ export default function FinancePage() {
   const [orderStatus, setOrderStatus] = useState("");
   const [orderPage, setOrderPage] = useState(1);
   const [ordersTotalPages, setOrdersTotalPages] = useState(1);
+  const [ordersTotal, setOrdersTotal] = useState(0);
+  const [orderPageSize, setOrderPageSize] = useState(10);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [showItemsOffcanvas, setShowItemsOffcanvas] = useState(false);
   const [orderDetails, setOrderDetails] = useState<any[]>([]);
@@ -102,7 +107,7 @@ export default function FinancePage() {
           setProductionItemIds(detail.productionItemIds);
         } else {
           // Auto-check items that can be produced (default behavior for pending orders)
-          const prodIds = (detail.items || []).filter((it: any) => it.missingQty > 0 && it.isManufactured && it.canProduce).map((it: any) => it.id);
+          const prodIds = (detail.items || []).filter((it: any) => (it.missingQty > 0 || orderToView.trangThaiKho === "out_of_stock") && it.isManufactured).map((it: any) => it.id);
           setProductionItemIds(prodIds);
         }
       } else {
@@ -124,6 +129,8 @@ export default function FinancePage() {
   const [requestStatus, setRequestStatus] = useState("");
   const [requestPage, setRequestPage] = useState(1);
   const [requestsTotalPages, setRequestsTotalPages] = useState(1);
+  const [requestsTotal, setRequestsTotal] = useState(0);
+  const [requestPageSize, setRequestPageSize] = useState(10);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [requestDetail, setRequestDetail] = useState<any | null>(null);
   const [requestDetailLoading, setRequestDetailLoading] = useState(false);
@@ -136,6 +143,8 @@ export default function FinancePage() {
   const [paymentNotificationStatus, setPaymentNotificationStatus] = useState("");
   const [paymentNotificationPage, setPaymentNotificationPage] = useState(1);
   const [paymentNotificationsTotalPages, setPaymentNotificationsTotalPages] = useState(1);
+  const [paymentNotificationsTotal, setPaymentNotificationsTotal] = useState(0);
+  const [paymentNotificationPageSize, setPaymentNotificationPageSize] = useState(10);
   const [selectedPaymentNotification, setSelectedPaymentNotification] = useState<any | null>(null);
   const [selectedPaymentNotificationIds, setSelectedPaymentNotificationIds] = useState<string[]>([]);
   const [showPaymentNotificationDeleteConfirm, setShowPaymentNotificationDeleteConfirm] = useState(false);
@@ -347,6 +356,7 @@ export default function FinancePage() {
     try {
       const params = new URLSearchParams();
       params.set("page", String(orderPage));
+      params.set("pageSize", String(orderPageSize));
       if (orderSearch) params.set("search", orderSearch);
       if (orderStatus) params.set("keToanDuyet", orderStatus);
 
@@ -355,6 +365,7 @@ export default function FinancePage() {
       const resData = await res.json();
       const fetchedOrders = resData.items || [];
       setOrders(fetchedOrders);
+      setOrdersTotal(resData.total || 0);
       setOrdersTotalPages(resData.totalPages || 1);
       
       setSelectedOrder((prev: any) => {
@@ -369,7 +380,7 @@ export default function FinancePage() {
     } finally {
       if (!silent) setOrdersLoading(false);
     }
-  }, [currentStep, orderSearch, orderStatus, orderPage]);
+  }, [currentStep, orderSearch, orderStatus, orderPage, orderPageSize]);
 
   const fetchRequests = useCallback(async (silent = false) => {
     if (currentStep !== 2) return;
@@ -377,6 +388,7 @@ export default function FinancePage() {
     try {
       const params = new URLSearchParams();
       params.set("page", String(requestPage));
+      params.set("pageSize", String(requestPageSize));
       params.set("entityType", "purchase_order,marketing_proposal,marketing_monthly_plan,purchase_request,DEFECT_MATERIAL_EXPORT,DEFECT_PRODUCT_EXPORT");
       if (requestSearch) params.set("search", requestSearch);
       if (requestStatus) params.set("status", requestStatus);
@@ -386,8 +398,9 @@ export default function FinancePage() {
       const resData = await res.json();
       const fetchedReqs = resData.data || [];
       setRequests(fetchedReqs);
-      const limit = resData.limit || 20;
+      const limit = resData.limit || requestPageSize;
       const total = resData.total || 0;
+      setRequestsTotal(total);
       setRequestsTotalPages(Math.max(1, Math.ceil(total / limit)));
 
       setSelectedRequest((prev: any) => {
@@ -402,7 +415,7 @@ export default function FinancePage() {
     } finally {
       if (!silent) setRequestsLoading(false);
     }
-  }, [currentStep, requestSearch, requestStatus, requestPage]);
+  }, [currentStep, requestSearch, requestStatus, requestPage, requestPageSize]);
 
   const fetchPaymentNotifications = useCallback(async (silent = false) => {
     if (currentStep !== 3) return;
@@ -410,6 +423,7 @@ export default function FinancePage() {
     try {
       const params = new URLSearchParams();
       params.set("page", String(paymentNotificationPage));
+      params.set("pageSize", String(paymentNotificationPageSize));
       params.set("createdByFinance", "true");
       if (paymentNotificationSearch) params.set("search", paymentNotificationSearch);
       if (paymentNotificationStatus) params.set("status", paymentNotificationStatus);
@@ -447,7 +461,10 @@ export default function FinancePage() {
         return fetchedReqs;
       });
       
-      setPaymentNotificationsTotalPages(resData.pagination?.totalPages || 1);
+      const total = resData.pagination?.total || 0;
+      setPaymentNotificationsTotal(total);
+      const limit = resData.pagination?.limit || paymentNotificationPageSize;
+      setPaymentNotificationsTotalPages(resData.pagination?.totalPages || Math.max(1, Math.ceil(total / limit)));
 
       setSelectedPaymentNotification((prev: any) => {
         if (prev) {
@@ -461,7 +478,7 @@ export default function FinancePage() {
     } finally {
       if (!silent) setPaymentNotificationsLoading(false);
     }
-  }, [currentStep, paymentNotificationSearch, paymentNotificationStatus, paymentNotificationPage]);
+  }, [currentStep, paymentNotificationSearch, paymentNotificationStatus, paymentNotificationPage, paymentNotificationPageSize]);
 
   const selectedRequestRef = useRef<any>(null);
   selectedRequestRef.current = selectedRequest;
@@ -558,6 +575,7 @@ export default function FinancePage() {
     try {
       const params = new URLSearchParams();
       params.set("page", String(expensePage));
+      params.set("pageSize", String(expensePageSize));
       if (expenseSearch) params.set("search", expenseSearch);
       if (expenseStatus) params.set("trangThai", expenseStatus);
 
@@ -566,8 +584,9 @@ export default function FinancePage() {
       const resData = await res.json();
       const fetchedExp = resData.items || resData.data || [];
       setExpenses(fetchedExp);
-      const limit = resData.pageSize || resData.limit || 15;
+      const limit = resData.pageSize || expensePageSize;
       const total = resData.total || 0;
+      setExpensesTotal(total);
       setExpensesTotalPages(Math.max(1, Math.ceil(total / limit)));
       setSelectedExpense((prev: any) => {
         if (prev) {
@@ -581,7 +600,7 @@ export default function FinancePage() {
     } finally {
       if (!silent) setExpensesLoading(false);
     }
-  }, [currentStep, expensePage, expenseSearch, expenseStatus]);
+  }, [currentStep, expensePage, expenseSearch, expenseStatus, expensePageSize]);
 
   useEffect(() => {
     fetchExpenses(false);
@@ -1243,22 +1262,36 @@ export default function FinancePage() {
             
             
           >
+            <style>{`
+              .finance-table-layout > div:first-child {
+                padding-top: 10px !important;
+                padding-bottom: 10px !important;
+              }
+            `}</style>
             {currentStep === 1 && (
-              <FullWidthTableLayout tableWrapperClassName="" header={undefined}
-                footer={
+              <FullWidthTableLayout
+                className="finance-table-layout"
+                tableWrapperClassName="border-top"
+                header={
                   <div className="d-flex align-items-center justify-content-between w-100 gap-3">
                     <div className="d-flex align-items-center gap-2 flex-grow-1">
                       <FilterSelect
                         options={orderStatusOptions}
                         value={orderStatus}
-                        onChange={setOrderStatus}
+                        onChange={(val) => {
+                          setOrderStatus(val);
+                          setOrderPage(1);
+                        }}
                         placeholder="Tất cả trạng thái"
                         width={180}
                       />
                       <div style={{ flex: 1, maxWidth: "400px" }}>
                         <SearchInput
                           value={orderSearch}
-                          onChange={setOrderSearch}
+                          onChange={(val) => {
+                            setOrderSearch(val);
+                            setOrderPage(1);
+                          }}
                           placeholder="Tìm mã đơn hàng, tên khách hàng..."
                         />
                       </div>
@@ -1273,29 +1306,44 @@ export default function FinancePage() {
                         </button>
                       )}
                     </div>
-                    {ordersTotalPages > 1 && (
-                      <div className="d-flex justify-content-end">
-                        <Pagination
-                          page={orderPage}
-                          totalPages={ordersTotalPages}
-                          onChange={setOrderPage}
-                        />
-                      </div>
-                    )}
                   </div>
-                } table={ <Table
-                columns={orderColumns}
-                rows={orders}
-                loading={ordersLoading}
-                rowKey={(row) => row.id}
-                emptyText="Không tìm thấy đơn hàng nào"
-                compact
-                onRowClick={setSelectedOrder}
-              /> } />
+                }
+                footer={
+                  <TableFooter
+                    currentCount={orders.length}
+                    totalCount={ordersTotal || orders.length}
+                    itemName="đơn hàng"
+                    page={orderPage}
+                    totalPages={ordersTotalPages}
+                    onPageChange={setOrderPage}
+                    pageSize={orderPageSize}
+                    pageSizeOptions={[10, 20, 50, 100]}
+                    onPageSizeChange={(sz) => {
+                      setOrderPageSize(sz);
+                      setOrderPage(1);
+                    }}
+                    className="px-3 py-1.5 bg-transparent"
+                  />
+                }
+                footerStyle={{ padding: "6px 16px", backgroundColor: "#fff" }}
+                table={
+                  <Table
+                    columns={orderColumns}
+                    rows={orders}
+                    loading={ordersLoading}
+                    rowKey={(row) => row.id}
+                    emptyText="Không tìm thấy đơn hàng nào"
+                    compact
+                    onRowClick={setSelectedOrder}
+                  />
+                }
+              />
             )}
             {currentStep === 2 && (
-              <FullWidthTableLayout tableWrapperClassName="" header={undefined}
-                footer={
+              <FullWidthTableLayout
+                className="finance-table-layout"
+                tableWrapperClassName="border-top"
+                header={
                   <div className="d-flex align-items-center justify-content-between w-100 gap-3">
                     <div className="d-flex align-items-center gap-2 flex-grow-1">
                       <FilterSelect
@@ -1305,14 +1353,20 @@ export default function FinancePage() {
                           { label: "Từ chối", value: "rejected" },
                         ]}
                         value={requestStatus}
-                        onChange={setRequestStatus}
+                        onChange={(val) => {
+                          setRequestStatus(val);
+                          setRequestPage(1);
+                        }}
                         placeholder="Tất cả trạng thái"
                         width={180}
                       />
                       <div style={{ flex: 1, maxWidth: "400px" }}>
                         <SearchInput
                           value={requestSearch}
-                          onChange={setRequestSearch}
+                          onChange={(val) => {
+                            setRequestSearch(val);
+                            setRequestPage(1);
+                          }}
                           placeholder="Tìm mã yêu cầu, lý do..."
                         />
                       </div>
@@ -1327,29 +1381,44 @@ export default function FinancePage() {
                         </button>
                       )}
                     </div>
-                    {requestsTotalPages > 1 && (
-                      <div className="d-flex justify-content-end">
-                        <Pagination
-                          page={requestPage}
-                          totalPages={requestsTotalPages}
-                          onChange={setRequestPage}
-                        />
-                      </div>
-                    )}
                   </div>
-                } table={ <Table
-                columns={requestColumns}
-                rows={requests}
-                loading={requestsLoading}
-                rowKey={(row) => row.id}
-                emptyText="Không tìm thấy yêu cầu nào"
-                compact
-                onRowClick={setSelectedRequest}
-              /> } />
+                }
+                footer={
+                  <TableFooter
+                    currentCount={requests.length}
+                    totalCount={requestsTotal || requests.length}
+                    itemName="yêu cầu"
+                    page={requestPage}
+                    totalPages={requestsTotalPages}
+                    onPageChange={setRequestPage}
+                    pageSize={requestPageSize}
+                    pageSizeOptions={[10, 20, 50, 100]}
+                    onPageSizeChange={(sz) => {
+                      setRequestPageSize(sz);
+                      setRequestPage(1);
+                    }}
+                    className="px-3 py-1.5 bg-transparent"
+                  />
+                }
+                footerStyle={{ padding: "6px 16px", backgroundColor: "#fff" }}
+                table={
+                  <Table
+                    columns={requestColumns}
+                    rows={requests}
+                    loading={requestsLoading}
+                    rowKey={(row) => row.id}
+                    emptyText="Không tìm thấy yêu cầu nào"
+                    compact
+                    onRowClick={setSelectedRequest}
+                  />
+                }
+              />
             )}
             {currentStep === 3 && (
-              <FullWidthTableLayout tableWrapperClassName="" header={undefined}
-                footer={
+              <FullWidthTableLayout
+                className="finance-table-layout"
+                tableWrapperClassName="border-top"
+                header={
                   <div className="d-flex align-items-center justify-content-between w-100 gap-3">
                     <div className="d-flex align-items-center gap-2 flex-grow-1">
                       <FilterSelect
@@ -1359,14 +1428,20 @@ export default function FinancePage() {
                           { label: "Từ chối", value: "rejected" },
                         ]}
                         value={paymentNotificationStatus}
-                        onChange={setPaymentNotificationStatus}
+                        onChange={(val) => {
+                          setPaymentNotificationStatus(val);
+                          setPaymentNotificationPage(1);
+                        }}
                         placeholder="Tất cả trạng thái"
                         width={180}
                       />
                       <div style={{ flex: 1, maxWidth: "400px" }}>
                         <SearchInput
                           value={paymentNotificationSearch}
-                          onChange={setPaymentNotificationSearch}
+                          onChange={(val) => {
+                            setPaymentNotificationSearch(val);
+                            setPaymentNotificationPage(1);
+                          }}
                           placeholder="Tìm mã yêu cầu, lý do..."
                         />
                       </div>
@@ -1381,36 +1456,51 @@ export default function FinancePage() {
                         </button>
                       )}
                     </div>
-                    {paymentNotificationsTotalPages > 1 && (
-                      <div className="d-flex justify-content-end">
-                        <Pagination
-                          page={paymentNotificationPage}
-                          totalPages={paymentNotificationsTotalPages}
-                          onChange={setPaymentNotificationPage}
-                        />
-                      </div>
-                    )}
                   </div>
-                } table={ <Table
-                columns={paymentNotificationColumns}
-                rows={paymentNotifications}
-                loading={paymentNotificationsLoading}
-                rowKey={(row) => row.id}
-                emptyText="Không tìm thấy yêu cầu nào"
-                compact
-                onRowClick={(row) => {
-                  setSelectedPaymentNotification(row);
-                  if (row && row.id && !readNotifIds.includes(row.id)) {
-                    const newRead = [...readNotifIds, row.id];
-                    setReadNotifIds(newRead);
-                    localStorage.setItem('readPaymentNotifications', JSON.stringify(newRead));
-                  }
-                }}
-              /> } />
+                }
+                footer={
+                  <TableFooter
+                    currentCount={paymentNotifications.length}
+                    totalCount={paymentNotificationsTotal || paymentNotifications.length}
+                    itemName="thông báo"
+                    page={paymentNotificationPage}
+                    totalPages={paymentNotificationsTotalPages}
+                    onPageChange={setPaymentNotificationPage}
+                    pageSize={paymentNotificationPageSize}
+                    pageSizeOptions={[10, 20, 50, 100]}
+                    onPageSizeChange={(sz) => {
+                      setPaymentNotificationPageSize(sz);
+                      setPaymentNotificationPage(1);
+                    }}
+                    className="px-3 py-1.5 bg-transparent"
+                  />
+                }
+                footerStyle={{ padding: "6px 16px", backgroundColor: "#fff" }}
+                table={
+                  <Table
+                    columns={paymentNotificationColumns}
+                    rows={paymentNotifications}
+                    loading={paymentNotificationsLoading}
+                    rowKey={(row) => row.id}
+                    emptyText="Không tìm thấy yêu cầu nào"
+                    compact
+                    onRowClick={(row) => {
+                      setSelectedPaymentNotification(row);
+                      if (row && row.id && !readNotifIds.includes(row.id)) {
+                        const newRead = [...readNotifIds, row.id];
+                        setReadNotifIds(newRead);
+                        localStorage.setItem('readPaymentNotifications', JSON.stringify(newRead));
+                      }
+                    }}
+                  />
+                }
+              />
             )}
             {currentStep === 4 && (
-              <FullWidthTableLayout tableWrapperClassName="" header={undefined}
-                footer={
+              <FullWidthTableLayout
+                className="finance-table-layout"
+                tableWrapperClassName="border-top"
+                header={
                   <div className="d-flex align-items-center justify-content-between w-100 gap-3">
                     <div className="d-flex align-items-center gap-2 flex-grow-1">
                       <FilterSelect
@@ -1419,14 +1509,20 @@ export default function FinancePage() {
                           { label: "Đã thực hiện", value: "paid" },
                         ]}
                         value={expenseStatus}
-                        onChange={setExpenseStatus}
+                        onChange={(val) => {
+                          setExpenseStatus(val);
+                          setExpensePage(1);
+                        }}
                         placeholder="Tất cả trạng thái"
                         width={180}
                       />
                       <div style={{ flex: 1, maxWidth: "400px" }}>
                         <SearchInput
                           value={expenseSearch}
-                          onChange={setExpenseSearch}
+                          onChange={(val) => {
+                            setExpenseSearch(val);
+                            setExpensePage(1);
+                          }}
                           placeholder="Tìm mã CP, người chi trả..."
                         />
                       </div>
@@ -1441,16 +1537,7 @@ export default function FinancePage() {
                         </button>
                       )}
                     </div>
-                    <div className="d-flex align-items-center gap-3">
-                      {expensesTotalPages > 1 && (
-                        <div className="d-flex justify-content-end">
-                          <Pagination
-                            page={expensePage}
-                            totalPages={expensesTotalPages}
-                            onChange={setExpensePage}
-                          />
-                        </div>
-                      )}
+                    <div>
                       <BrandButton
                         onClick={() => {
                           setShowExpenseForm(true);
@@ -1461,7 +1548,27 @@ export default function FinancePage() {
                       </BrandButton>
                     </div>
                   </div>
-                } table={ <Table
+                }
+                footer={
+                  <TableFooter
+                    currentCount={expenses.length}
+                    totalCount={expensesTotal || expenses.length}
+                    itemName="khoản chi"
+                    page={expensePage}
+                    totalPages={expensesTotalPages}
+                    onPageChange={setExpensePage}
+                    pageSize={expensePageSize}
+                    pageSizeOptions={[10, 20, 50, 100]}
+                    onPageSizeChange={(sz) => {
+                      setExpensePageSize(sz);
+                      setExpensePage(1);
+                    }}
+                    className="px-3 py-1.5 bg-transparent"
+                  />
+                }
+                footerStyle={{ padding: "6px 16px", backgroundColor: "#fff" }}
+                table={
+                  <Table
                 columns={expenseColumns}
                 rows={expenses}
                 loading={expensesLoading}

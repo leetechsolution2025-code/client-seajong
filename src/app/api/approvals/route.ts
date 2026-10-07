@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const entityType = searchParams.get("entityType") || "";
     const search     = searchParams.get("search") || "";
     const page       = Math.max(1, Number(searchParams.get("page") || 1));
-    const limit      = Math.min(50, Number(searchParams.get("limit") || 20));
+    const limit      = Math.min(100, Number(searchParams.get("pageSize") || searchParams.get("limit") || 10));
     const skip       = (page - 1) * limit;
 
     const userId = session.user.id as string;

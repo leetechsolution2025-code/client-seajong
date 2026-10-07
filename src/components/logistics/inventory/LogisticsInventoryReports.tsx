@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useSession } from "next-auth/react";
+import { useSearchParams, usePathname } from "next/navigation";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { TreeFilterSelect } from "@/components/ui/TreeFilterSelect";
 import { FilterSelect } from "@/components/ui/FilterSelect";
@@ -115,6 +117,51 @@ const ToggleSwitch = ({ label, checked, onChange }: { label: string; checked: bo
 
 export function LogisticsInventoryReports() {
   const toast = useToast();
+  const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  // Role and position check: Giá vốn & Thành tiền chỉ hiển thị khi là admin mở qua Quản lý trực tiếp
+  const userRole = (session?.user?.role || "").toUpperCase();
+  const userPos = ((session?.user as any)?.positionName || (session?.user as any)?.position || "").toLowerCase();
+  const userDept = ((session?.user as any)?.departmentName || (session?.user as any)?.departmentCode || "").toLowerCase();
+
+  const isAdmin =
+    ["SUPERADMIN", "ADMIN"].includes(userRole) ||
+    userPos.includes("giám đốc") ||
+    userPos.includes("ban giám đốc") ||
+    userDept.includes("giám đốc") ||
+    (session?.user?.name || "").includes("Lê Công Vụ");
+
+  const [fromAdmin, setFromAdmin] = useState(false);
+
+  useEffect(() => {
+    if (searchParams?.get("fromAdmin") === "true") {
+      setFromAdmin(true);
+      try {
+        sessionStorage.setItem("fromAdmin", "true");
+      } catch {}
+    } else if (typeof window !== "undefined" && window.sessionStorage.getItem("fromAdmin") === "true") {
+      setFromAdmin(true);
+    } else {
+      setFromAdmin(false);
+    }
+  }, [searchParams]);
+
+  const isFromDirectManagement = fromAdmin || (pathname?.startsWith("/finance") ?? false);
+  const canViewCostAndAmount = isAdmin && isFromDirectManagement;
+
+  const formatCost = useCallback((val?: number | null) => {
+    if (!canViewCostAndAmount) return "******";
+    return val != null && val !== 0 ? val.toLocaleString("vi-VN") : "0";
+  }, [canViewCostAndAmount]);
+
+  const formatAmount = useCallback((val?: number | null) => {
+    if (val == null || val === 0) return "—";
+    if (!canViewCostAndAmount) return "******";
+    return val.toLocaleString("vi-VN");
+  }, [canViewCostAndAmount]);
+
   const [currentStep, setCurrentStep] = useState(1);
   const [company, setCompany] = useState<CompanyInfo | null>(null);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -603,15 +650,15 @@ export function LogisticsInventoryReports() {
       l.tenHang,
       l.maSku || "",
       l.donVi || "",
-      l.giaVon ?? 0,
+      canViewCostAndAmount ? (l.giaVon ?? 0) : "******",
       l.tonDauSL,
-      l.tonDauTT,
+      canViewCostAndAmount ? l.tonDauTT : (l.tonDauTT ? "******" : 0),
       l.nhapSL,
-      l.nhapTT,
+      canViewCostAndAmount ? l.nhapTT : (l.nhapTT ? "******" : 0),
       l.xuatSL,
-      l.xuatTT,
+      canViewCostAndAmount ? l.xuatTT : (l.xuatTT ? "******" : 0),
       l.tonCuoiSL,
-      l.tonCuoiTT
+      canViewCostAndAmount ? l.tonCuoiTT : (l.tonCuoiTT ? "******" : 0)
     ]);
     const content = [headers, ...rows].map((e) => e.join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8;" });
@@ -848,31 +895,31 @@ export function LogisticsInventoryReports() {
                         {line.donVi || "—"}
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right", color: "#8b5cf6", fontWeight: 600 }}>
-                        {fmtAmount(line.giaVon ?? 0)}
+                        {formatCost(line.giaVon)}
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 500 }}>
                         {fmtN(line.tonDauSL)}
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right", color: "var(--muted-foreground)" }}>
-                        {fmtAmount(line.tonDauTT)}
+                        {formatAmount(line.tonDauTT)}
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 500 }}>
                         {fmtN(line.nhapSL)}
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right", color: "var(--muted-foreground)" }}>
-                        {fmtAmount(line.nhapTT)}
+                        {formatAmount(line.nhapTT)}
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 500 }}>
                         {fmtN(line.xuatSL)}
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right", color: "var(--muted-foreground)" }}>
-                        {fmtAmount(line.xuatTT)}
+                        {formatAmount(line.xuatTT)}
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 700, color: "var(--foreground)" }}>
                         {fmtN(line.tonCuoiSL)}
                       </td>
                       <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 700, color: "var(--foreground)" }}>
-                        {fmtAmount(line.tonCuoiTT)}
+                        {formatAmount(line.tonCuoiTT)}
                       </td>
                     </tr>
                   ))}
@@ -1134,7 +1181,7 @@ export function LogisticsInventoryReports() {
                     <td style={{ padding: "6px 8px", textAlign: "right", color: "var(--muted-foreground)" }}>—</td>
                     <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 700, color: "var(--foreground)" }}>{fmtN(step2TonDau)}</td>
                     <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 700, color: "var(--foreground)" }}>
-                      {donGia && step2TonDau ? fmtAmount(step2TonDau * donGia) : "—"}
+                      {donGia && step2TonDau ? formatAmount(step2TonDau * donGia) : "—"}
                     </td>
                   </tr>
 
@@ -1192,25 +1239,25 @@ export function LogisticsInventoryReports() {
                           )}
                         </td>
                         <td style={{ padding: "6px 8px", textAlign: "right" }}>
-                          {line.nhap != null && donGia ? fmtN(donGia) : "—"}
+                          {line.nhap != null && donGia ? formatCost(donGia) : "—"}
                         </td>
                         <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 500 }}>
                           {line.nhap != null ? fmtN(line.nhap) : "—"}
                         </td>
                         <td style={{ padding: "6px 8px", textAlign: "right", color: "var(--muted-foreground)" }}>
-                          {nhapTT != null ? fmtAmount(nhapTT) : "—"}
+                          {formatAmount(nhapTT)}
                         </td>
                         <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 500 }}>
                           {line.xuat != null ? fmtN(line.xuat) : "—"}
                         </td>
                         <td style={{ padding: "6px 8px", textAlign: "right", color: "var(--muted-foreground)" }}>
-                          {xuatTT != null ? fmtAmount(xuatTT) : "—"}
+                          {formatAmount(xuatTT)}
                         </td>
                         <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 700, color: "var(--foreground)" }}>
                           {fmtN(line.tonCuoi)}
                         </td>
                         <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 700, color: "var(--foreground)" }}>
-                          {tonTT != null ? fmtAmount(tonTT) : "—"}
+                          {formatAmount(tonTT)}
                         </td>
                       </tr>
                     );
@@ -1675,10 +1722,10 @@ export function LogisticsInventoryReports() {
                         {fmtN(l.soLuong)}
                       </td>
                       <td style={{ padding: "8px 12px", textAlign: "right", color: "var(--muted-foreground)" }}>
-                        {fmtAmount(l.donGia)}
+                        {formatCost(l.donGia)}
                       </td>
                       <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "var(--foreground)" }}>
-                        {fmtAmount(l.thanhTien)}
+                        {formatAmount(l.thanhTien)}
                       </td>
                     </tr>
                   ))}
@@ -1690,7 +1737,7 @@ export function LogisticsInventoryReports() {
                     </td>
                     <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--muted-foreground)" }}>—</td>
                     <td style={{ padding: "10px 12px", textAlign: "right", color: "#003087", fontSize: 13.5 }}>
-                      {fmtAmount(step4Data.reduce((acc, row) => acc + row.thanhTien, 0))}
+                      {formatAmount(step4Data.reduce((acc, row) => acc + row.thanhTien, 0))}
                     </td>
                   </tr>
                 </tbody>
@@ -1928,8 +1975,8 @@ export function LogisticsInventoryReports() {
               <td style={tdCss()}><span style={{ fontWeight: 700 }}>{l.tenHang}</span></td>
               <td style={tdCss("center")}>{l.donVi ?? "—"}</td>
               <td style={tdCss("right")}>{fmtN(l.soLuong)}</td>
-              <td style={tdCss("right")}>{fmtAmount(l.donGia)}</td>
-              <td style={tdCss("right")}><span style={{ fontWeight: 700 }}>{fmtAmount(l.thanhTien)}</span></td>
+              <td style={tdCss("right")}>{formatCost(l.donGia)}</td>
+              <td style={tdCss("right")}><span style={{ fontWeight: 700 }}>{formatAmount(l.thanhTien)}</span></td>
             </tr>
           ))}
           {/* Summary Row */}
@@ -1938,7 +1985,7 @@ export function LogisticsInventoryReports() {
               <td colSpan={4} style={{ border: B1, padding: "5px", textAlign: "center" }}>TỔNG CỘNG</td>
               <td style={tdCss("right")}>{fmtN(step4Data.reduce((s, row) => s + row.soLuong, 0))}</td>
               <td style={tdCss("right")}>—</td>
-              <td style={tdCss("right")}>{fmtAmount(step4Data.reduce((s, row) => s + row.thanhTien, 0))}</td>
+              <td style={tdCss("right")}>{formatAmount(step4Data.reduce((s, row) => s + row.thanhTien, 0))}</td>
             </tr>
           )}
         </tbody>
@@ -2058,28 +2105,28 @@ export function LogisticsInventoryReports() {
               <td style={tdCss("center")}>{l.maSku ?? ""}</td>
               <td style={tdCss()}><span style={{ fontWeight: 600 }}>{l.tenHang}</span></td>
               <td style={tdCss("center")}>{l.donVi}</td>
-              <td style={tdCss("right")}><strong style={{ color: "#8b5cf6" }}>{fmtAmount(l.giaVon ?? 0)}</strong></td>
+              <td style={tdCss("right")}><strong style={{ color: "#8b5cf6" }}>{formatCost(l.giaVon ?? 0)}</strong></td>
               <td style={tdCss("right")}>{fmtN(l.tonDauSL)}</td>
-              <td style={tdCss("right")}>{fmtAmount(l.tonDauTT)}</td>
+              <td style={tdCss("right")}>{formatAmount(l.tonDauTT)}</td>
               <td style={tdCss("right")}>{fmtN(l.nhapSL)}</td>
-              <td style={tdCss("right")}>{fmtAmount(l.nhapTT)}</td>
+              <td style={tdCss("right")}>{formatAmount(l.nhapTT)}</td>
               <td style={tdCss("right")}>{fmtN(l.xuatSL)}</td>
-              <td style={tdCss("right")}>{fmtAmount(l.xuatTT)}</td>
+              <td style={tdCss("right")}>{formatAmount(l.xuatTT)}</td>
               <td style={tdCss("right")}><b>{fmtN(l.tonCuoiSL)}</b></td>
-              <td style={tdCss("right")}><b>{fmtAmount(l.tonCuoiTT)}</b></td>
+              <td style={tdCss("right")}><b>{formatAmount(l.tonCuoiTT)}</b></td>
             </tr>
           ))}
           {/* Tổng cộng */}
           <tr style={{ fontWeight: 700, background: "#f1f5f9" }}>
             <td colSpan={3} style={{ border: B1, padding: "5px", textAlign: "center" }}>Tổng cộng</td>
             <td style={tdCss("right")}>{fmtN(tot.tonDauSL)}</td>
-            <td style={tdCss("right")}>{fmtAmount(tot.tonDauTT)}</td>
+            <td style={tdCss("right")}>{formatAmount(tot.tonDauTT)}</td>
             <td style={tdCss("right")}>{fmtN(tot.nhapSL)}</td>
-            <td style={tdCss("right")}>{fmtAmount(tot.nhapTT)}</td>
+            <td style={tdCss("right")}>{formatAmount(tot.nhapTT)}</td>
             <td style={tdCss("right")}>{fmtN(tot.xuatSL)}</td>
-            <td style={tdCss("right")}>{fmtAmount(tot.xuatTT)}</td>
+            <td style={tdCss("right")}>{formatAmount(tot.xuatTT)}</td>
             <td style={tdCss("right")}>{fmtN(tot.tonCuoiSL)}</td>
-            <td style={tdCss("right")}>{fmtAmount(tot.tonCuoiTT)}</td>
+            <td style={tdCss("right")}>{formatAmount(tot.tonCuoiTT)}</td>
           </tr>
         </tbody>
       </table>
