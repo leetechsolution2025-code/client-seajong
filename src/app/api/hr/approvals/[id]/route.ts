@@ -314,17 +314,6 @@ export async function PATCH(
             requestedById: session.user.id,
             requestedByName: `${session.user.name} (Phòng Nhân sự)`,
             metadata: JSON.stringify(metadataObj),
-            comments: {
-              create: [
-                {
-                  authorId: session.user.id,
-                  authorName: session.user.name || "Phòng Nhân sự",
-                  authorRole: "hr",
-                  content: `📤 **${session.user.name}** (Phòng Nhân sự) đã trình Ban Giám đốc phê duyệt yêu cầu **${entityTitle}** của nhân sự **${request.employee.fullName}**${note ? `.\n\n**Ghi chú của Nhân sự:** _"${note}"_` : "."}`,
-                  isSystem: true
-                }
-              ]
-            }
           }
         });
       }

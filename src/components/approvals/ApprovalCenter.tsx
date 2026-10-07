@@ -1067,7 +1067,7 @@ export function ApprovalCenter({
                   transition: "all 0.15s ease",
                 }}
               >
-                Trao đổi & Ý kiến {comments.length > 0 ? `(${comments.length})` : ""}
+                Trao đổi công việc
               </button>
             </div>
 
@@ -1159,45 +1159,46 @@ export function ApprovalCenter({
                   )}
                 </div>
               ) : (
-                /* ── SLIDE 2: TRAO ĐỔI & Ý KIẾN ── */
+                /* ── SLIDE 2: TRAO ĐỔI CÔNG VIỆC ── */
                 <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>
-                    Trao đổi & Thảo luận ({comments.length})
-                  </div>
-
                   {/* Danh sách ý kiến */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, overflowY: "auto", marginBottom: 16 }}>
-                    {comments.length === 0 ? (
-                      <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", textAlign: "center", padding: "40px 0" }}>
-                        Chưa có ý kiến trao đổi nào.
+                  {(() => {
+                    const userComments = comments.filter((c) => !c.isSystem && !c.content.includes("đã trình Ban Giám đốc"));
+                    return (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, overflowY: "auto", marginBottom: 16 }}>
+                        {userComments.length === 0 ? (
+                          <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", textAlign: "center", padding: "40px 0" }}>
+                            Chưa có trao đổi nào.
+                          </div>
+                        ) : (
+                          userComments.map((c) => (
+                            <div
+                              key={c.id}
+                              style={{
+                                background: "#f8fafc",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: 10,
+                                padding: "10px 12px",
+                                fontSize: 12,
+                              }}
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                                <span style={{ fontWeight: 700, color: "#4f46e5", fontSize: 12 }}>
+                                  {c.authorName}
+                                </span>
+                                <span style={{ fontSize: 10.5, color: "#94a3b8" }}>
+                                  {timeAgo(c.createdAt)}
+                                </span>
+                              </div>
+                              <div style={{ color: "#334155", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                                {c.content}
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
-                    ) : (
-                      comments.map((c) => (
-                        <div
-                          key={c.id}
-                          style={{
-                            background: c.isSystem ? "rgba(241, 245, 249, 0.7)" : "#f8fafc",
-                            border: "1px solid #e2e8f0",
-                            borderRadius: 10,
-                            padding: "10px 12px",
-                            fontSize: 12,
-                          }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                            <span style={{ fontWeight: 700, color: c.isSystem ? "#64748b" : "#4f46e5", fontSize: 12 }}>
-                              {c.authorName}
-                            </span>
-                            <span style={{ fontSize: 10.5, color: "#94a3b8" }}>
-                              {timeAgo(c.createdAt)}
-                            </span>
-                          </div>
-                          <div style={{ color: "#334155", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
-                            {c.content}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                    );
+                  })()}
 
                   {/* Input gửi ý kiến */}
                   <div style={{ display: "flex", gap: 8, marginTop: "auto", borderTop: "1px solid #e2e8f0", paddingTop: 12 }}>
