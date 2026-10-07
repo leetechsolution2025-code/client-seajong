@@ -205,9 +205,18 @@ export async function POST(
                 : recipientsList[0].userId,
             createdById: userId,
             attachments: JSON.stringify([
-              { name: "Trung tâm phê duyệt", type: "link", url: `/board/approvals?id=${id}` },
-              { name: "Phòng Nhân sự", type: "link", url: `/hr` },
-              { name: "Yêu cầu cá nhân", type: "link", url: `/personal/requests` },
+              {
+                name: "Mở trao đổi tại Phòng Nhân sự",
+                type: "chat_link",
+                url: `/hr?requestId=${request.entityId}&tab=comments`,
+                target: "hr",
+              },
+              {
+                name: "Mở tại Trung tâm phê duyệt (Giám đốc)",
+                type: "chat_link",
+                url: `/board/approvals?id=${request.id}&tab=comments`,
+                target: "approval",
+              },
             ]),
             recipients: {
               create: recipientsList,

@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { Table, TableColumn } from "@/components/ui/Table";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
@@ -112,6 +112,9 @@ const TYPE_MAP: Record<string, { label: string; color: string }> = {
 export default function ApprovalsPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const paramRequestId = searchParams?.get("requestId") || searchParams?.get("id");
+  const paramTab = searchParams?.get("tab");
   const currentUserId = (session?.user as any)?.id;
   const { success: toastSuccess, error: toastError } = useToast();
 
@@ -192,6 +195,31 @@ export default function ApprovalsPage() {
       if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
   }, [hrOffcanvasTab, hrComments]);
+
+  // Tự động mở đơn và tab trao đổi khi truy cập từ thông báo
+  useEffect(() => {
+    if (paramRequestId) {
+      if (allRequests.length > 0) {
+        const found = allRequests.find((r) => r.id === paramRequestId);
+        if (found) {
+          setSelectedRequest(found);
+          if (paramTab === "comments") {
+            setHrOffcanvasTab("comments");
+          }
+          return;
+        }
+      }
+      fetch(`/api/hr/approvals/${paramRequestId}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.data) {
+            setSelectedRequest(d.data);
+            if (paramTab === "comments") setHrOffcanvasTab("comments");
+          }
+        })
+        .catch(console.error);
+    }
+  }, [paramRequestId, paramTab, allRequests]);
 
   const handleHrSendComment = async () => {
     if (!selectedRequest || !hrCommentInput.trim() || hrSubmittingComment) return;

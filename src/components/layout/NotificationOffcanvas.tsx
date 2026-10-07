@@ -1492,11 +1492,137 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
               ].includes(type || "");
             };
 
-            const realFiles = selected.attachments ? selected.attachments.filter((att: any) => !isActionMetadata(att.type)) : [];
-            const actionItems = selected.attachments ? selected.attachments.filter((att: any) => isActionMetadata(att.type) && att.type !== "partner_reminder" && att.type !== "special_transition_request" && att.type !== "special_transition_response") : [];
+            const isLinkItem = (att: any) => {
+              return (
+                att.type === "link" ||
+                att.type === "chat_link" ||
+                (typeof att.url === "string" && att.url.startsWith("/"))
+              );
+            };
+
+            const linkItems = selected.attachments
+              ? selected.attachments.filter((att: any) => isLinkItem(att))
+              : [];
+            const realFiles = selected.attachments
+              ? selected.attachments.filter(
+                  (att: any) => !isActionMetadata(att.type) && !isLinkItem(att)
+                )
+              : [];
+            const actionItems = selected.attachments
+              ? selected.attachments.filter(
+                  (att: any) =>
+                    isActionMetadata(att.type) &&
+                    att.type !== "partner_reminder" &&
+                    att.type !== "special_transition_request" &&
+                    att.type !== "special_transition_response"
+                )
+              : [];
 
             return (
               <>
+                {/* Liên kết hành động / Mở trao đổi nhanh */}
+                {linkItems.length > 0 && (
+                  <div style={{ marginTop: 14 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "var(--muted-foreground)",
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Liên kết hành động ({linkItems.length})
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {linkItems.map((att: any, i: number) => {
+                        const isPrimary = i === 0 || att.target === "hr" || att.target === "approval";
+                        return (
+                          <div
+                            key={i}
+                            onClick={() => {
+                              onClose();
+                              window.location.href = att.url;
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 12,
+                              padding: "10px 14px",
+                              borderRadius: 10,
+                              border: isPrimary ? "1px solid #93c5fd" : "1px solid var(--border)",
+                              background: isPrimary
+                                ? "linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)"
+                                : "var(--card)",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
+                              boxShadow: isPrimary ? "0 2px 4px rgba(59,130,246,0.08)" : "none",
+                            }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)";
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLDivElement).style.transform = "none";
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: "50%",
+                                background: isPrimary ? "#3b82f6" : "rgba(99,102,241,0.1)",
+                                color: isPrimary ? "#ffffff" : "#6366f1",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0,
+                              }}
+                            >
+                              <i
+                                className={
+                                  att.url.includes("board/approvals")
+                                    ? "bi bi-shield-check"
+                                    : att.url.includes("comments")
+                                    ? "bi bi-chat-dots-fill"
+                                    : "bi bi-arrow-right-circle-fill"
+                                }
+                                style={{ fontSize: 16 }}
+                              />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: 700,
+                                  color: isPrimary ? "#1d4ed8" : "var(--foreground)",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {att.name}
+                              </div>
+                              <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>
+                                {att.url.includes("board/approvals")
+                                  ? "Mở trực tiếp trên Trung tâm phê duyệt của Giám đốc"
+                                  : att.url.includes("/hr")
+                                  ? "Mở đơn và khung trao đổi tại Phòng Nhân sự"
+                                  : "Mở chi tiết trên hệ thống"}
+                              </div>
+                            </div>
+                            <i
+                              className="bi bi-chevron-right"
+                              style={{ color: isPrimary ? "#3b82f6" : "var(--muted-foreground)", fontSize: 13 }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* File đính kèm tài liệu thực sự */}
                 {realFiles.length > 0 && (
                   <div style={{ marginTop: 12 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
@@ -1509,12 +1635,8 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                           onClick={() => {
                             if (att.url === "#") return;
                             if (att.url.startsWith("/")) {
-                              if (window.location.pathname === att.url) {
-                                window.location.reload();
-                              } else {
-                                router.push(att.url);
-                              }
                               onClose();
+                              window.location.href = att.url;
                             } else {
                               window.open(att.url, "_blank");
                             }

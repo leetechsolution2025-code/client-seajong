@@ -301,11 +301,23 @@ export function ApprovalCenter({
 
   // Auto-select từ queryId
   useEffect(() => {
-    if (queryId && items.length > 0) {
-      setSelectedItem((prev) => {
-        if (prev) return prev;
-        return items.find((i) => i.id === queryId || i.entityId === queryId || i.entityCode === queryId) || null;
-      });
+    if (queryId) {
+      if (items.length > 0) {
+        const found = items.find((i) => i.id === queryId || i.entityId === queryId || i.entityCode === queryId);
+        if (found) {
+          setSelectedItem(found);
+          return;
+        }
+      }
+      // Fetch đơn lẻ nếu item không nằm trong trang hiện tại
+      fetch(`/api/approvals/${queryId}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.success && d.data) {
+            setSelectedItem(d.data);
+          }
+        })
+        .catch(console.error);
     }
   }, [queryId, items]);
 
@@ -318,7 +330,8 @@ export function ApprovalCenter({
       return;
     }
 
-    setOffcanvasSlide("data");
+    const queryTab = searchParams?.get("tab");
+    setOffcanvasSlide(queryTab === "comments" ? "comments" : "data");
 
     let isEffectActive = true;
     const fetchDetail = async () => {
