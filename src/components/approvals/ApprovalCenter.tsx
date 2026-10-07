@@ -831,105 +831,7 @@ export function ApprovalCenter({
     <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
       {/* ── MAIN CARD: BẢNG DANH SÁCH ── */}
       <div className="app-card shadow-sm border bg-white rounded-3" style={{ height: "100%", display: "flex", flexDirection: "column", padding: "16px 20px" }}>
-        {/* Hàng 1: Tabs & Refresh */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
-          {/* Tabs */}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => {
-                setView("inbox");
-                setPage(1);
-              }}
-              style={{
-                padding: "8px 16px",
-                borderRadius: 8,
-                border: "none",
-                background: view === "inbox" ? "linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)" : "rgba(0,0,0,0.04)",
-                color: view === "inbox" ? "#ffffff" : "var(--muted-foreground)",
-                fontSize: 12.5,
-                fontWeight: 700,
-                cursor: "pointer",
-                boxShadow: view === "inbox" ? "0 2px 6px rgba(79, 70, 229, 0.25)" : "none",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                transition: "all 0.15s ease",
-              }}
-            >
-              <i className="bi bi-inbox-fill" />
-              <span>Cần tôi duyệt</span>
-              {view === "inbox" && total > 0 && (
-                <span
-                  style={{
-                    background: "rgba(255,255,255,0.25)",
-                    color: "#fff",
-                    padding: "1px 6px",
-                    borderRadius: 99,
-                    fontSize: 10.5,
-                    fontWeight: 800,
-                  }}
-                >
-                  {total}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setView("mine");
-                setPage(1);
-              }}
-              style={{
-                padding: "8px 16px",
-                borderRadius: 8,
-                border: "none",
-                background: view === "mine" ? "linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)" : "rgba(0,0,0,0.04)",
-                color: view === "mine" ? "#ffffff" : "var(--muted-foreground)",
-                fontSize: 12.5,
-                fontWeight: 700,
-                cursor: "pointer",
-                boxShadow: view === "mine" ? "0 2px 6px rgba(79, 70, 229, 0.25)" : "none",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                transition: "all 0.15s ease",
-              }}
-            >
-              <i className="bi bi-send-fill" />
-              <span>Tôi đã gửi</span>
-              {view === "mine" && total > 0 && (
-                <span
-                  style={{
-                    background: "rgba(255,255,255,0.25)",
-                    color: "#fff",
-                    padding: "1px 6px",
-                    borderRadius: 99,
-                    fontSize: 10.5,
-                    fontWeight: 800,
-                  }}
-                >
-                  {total}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* Refresh */}
-          <button
-            type="button"
-            className="btn btn-sm btn-light border d-inline-flex align-items-center gap-1.5"
-            onClick={loadItems}
-            disabled={loading}
-            style={{ fontSize: 12, borderRadius: 8, padding: "7px 12px" }}
-          >
-            <i className={`bi bi-arrow-clockwise ${loading ? "spin" : ""}`} />
-            <span>Làm mới</span>
-          </button>
-        </div>
-
-        {/* Hàng 2: Search & Bộ lọc */}
+        {/* Thanh công cụ: Search, Bộ lọc & Nút Làm mới (icon only) */}
         <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
           {/* Search */}
           <div style={{ flex: 1, minWidth: 220 }}>
@@ -978,6 +880,18 @@ export function ApprovalCenter({
               </option>
             ))}
           </select>
+
+          {/* Nút Làm mới (icon only) ở cuối thanh công cụ */}
+          <button
+            type="button"
+            className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center"
+            onClick={loadItems}
+            disabled={loading}
+            style={{ width: 36, height: 36, borderRadius: 8, color: "var(--foreground)", flexShrink: 0 }}
+            title="Làm mới dữ liệu"
+          >
+            <i className={`bi bi-arrow-clockwise ${loading ? "spin" : ""}`} style={{ fontSize: 15 }} />
+          </button>
         </div>
 
         {/* Bảng Table */}
