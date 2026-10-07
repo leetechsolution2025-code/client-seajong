@@ -7,6 +7,8 @@ interface WorkflowCardProps {
   stepper?: React.ReactNode;
   /** Thanh công cụ (Tìm kiếm, Lọc, Tabs) */
   toolbar?: React.ReactNode;
+  /** Class bổ sung cho vùng toolbar */
+  toolbarClassName?: string;
   /** Nội dung chính (thường là Table) */
   children: React.ReactNode;
   /** Class bổ sung cho card */
@@ -24,6 +26,7 @@ interface WorkflowCardProps {
 export const WorkflowCard: React.FC<WorkflowCardProps> = ({
   stepper,
   toolbar,
+  toolbarClassName,
   children,
   className = "",
   contentPadding = "p-4",
@@ -45,7 +48,7 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({
       <div className={`flex-grow-1 d-flex flex-column ${contentPadding}`} style={{ minHeight: 0 }}>
         {/* Toolbar Area */}
         {toolbar && (
-          <div className="mb-3 pt-1 flex-shrink-0">
+          <div className={toolbarClassName ?? (contentPadding === "p-0" ? "flex-shrink-0" : "mb-3 pt-1 flex-shrink-0")}>
             {toolbar}
           </div>
         )}

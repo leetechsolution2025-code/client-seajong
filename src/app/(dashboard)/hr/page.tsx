@@ -15,6 +15,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { BrandButton } from "@/components/ui/BrandButton";
 import { MyRequestsTab } from "@/components/hr/MyRequestsTab";
+import { TablePagination } from "@/components/ui/TablePagination";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 type RequestStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -128,6 +129,10 @@ export default function ApprovalsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
 
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const activeTabId = useMemo(() => STEP_ITEMS.find(s => s.num === currentStep)?.id || "pending", [currentStep]);
 
   const monthOptions = useMemo(() => {
@@ -171,6 +176,7 @@ export default function ApprovalsPage() {
 
   useEffect(() => {
     setSelectedIds(new Set());
+    setPage(1);
   }, [currentStep, searchQuery, deptFilter, statusFilter, monthFilter]);
 
   const getPositionName = (code: string) => {
@@ -212,6 +218,12 @@ export default function ApprovalsPage() {
 
     return filtered;
   }, [allRequests, activeTabId, statusFilter, deptFilter, monthFilter, searchQuery, currentUserId]);
+
+  const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
+  const paginatedData = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredData.slice(start, start + pageSize);
+  }, [filteredData, page, pageSize]);
 
   const handleAction = async (id: string, action: "APPROVE" | "REJECT" | "FORWARD_DIRECTOR", note?: string) => {
     setActionLoading(true);
@@ -305,7 +317,7 @@ export default function ApprovalsPage() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(new Set(filteredData.map(r => r.id)));
+      setSelectedIds(new Set(paginatedData.map(r => r.id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -349,7 +361,7 @@ export default function ApprovalsPage() {
           <input
             type="checkbox"
             className="form-check-input cursor-pointer"
-            checked={filteredData.length > 0 && filteredData.every(r => selectedIds.has(r.id))}
+            checked={paginatedData.length > 0 && paginatedData.every(r => selectedIds.has(r.id))}
             onChange={(e) => handleSelectAll(e.target.checked)}
           />
         </div>
@@ -445,8 +457,8 @@ export default function ApprovalsPage() {
     }
   ];
 
-  const ApprovalsBottomToolbar = (
-    <div className="d-flex align-items-center justify-content-between w-100 px-3" style={{ minHeight: 48 }}>
+  const ApprovalsTopToolbar = (
+    <div className="d-flex align-items-center justify-content-between w-100 px-3 py-2 border-bottom bg-white" style={{ minHeight: 48 }}>
       {selectedIds.size > 0 ? (
         <div className="d-flex align-items-center gap-2">
           <span className="text-primary fw-bold" style={{ fontSize: 11 }}>Đã chọn {selectedIds.size} đề xuất:</span>
@@ -522,8 +534,23 @@ export default function ApprovalsPage() {
 
         <WorkflowCard
           contentPadding="p-0"
-          toolbar={null}
-          bottomToolbar={activeTabId === "my-requests" ? null : ApprovalsBottomToolbar}
+          toolbar={activeTabId === "my-requests" ? null : ApprovalsTopToolbar}
+          bottomToolbar={
+            activeTabId === "my-requests" ? null : (
+              <TablePagination
+                page={page}
+                totalPages={totalPages}
+                totalCount={filteredData.length}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setPage(1);
+                }}
+                itemName="đề xuất"
+              />
+            )
+          }
           stepper={
             <ModernStepper steps={STEP_ITEMS} currentStep={currentStep} onStepChange={setCurrentStep} paddingX={0} />
           }
@@ -536,7 +563,7 @@ export default function ApprovalsPage() {
                 tableWrapperClassName=""
                 table={
                   <Table
-                    rows={filteredData}
+                    rows={paginatedData}
                     columns={requestColumns}
                     loading={loading}
                     rowKey={(r) => r.id}

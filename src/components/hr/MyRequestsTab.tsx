@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
@@ -10,6 +10,7 @@ import { FilterSelect } from "@/components/ui/FilterSelect";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { BrandButton } from "@/components/ui/BrandButton";
 import { Table, TableColumn } from "@/components/ui/Table";
+import { TablePagination } from "@/components/ui/TablePagination";
 import { motion, AnimatePresence } from "framer-motion";
 
 const INITIAL_MOCK_DATA: any[] = [];
@@ -661,6 +662,20 @@ function RecruitmentManagementContent() {
     const matchSearch = !searchQuery || item.content.toLowerCase().includes(searchQuery.toLowerCase());
     return matchType && matchStatus && matchSearch;
   });
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [requestType, status, searchQuery]);
+
+  const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
+  const paginatedData = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredData.slice(start, start + pageSize);
+  }, [filteredData, page, pageSize]);
 
   useEffect(() => {
     if (selectedRequest) {
@@ -2551,10 +2566,7 @@ function RecruitmentManagementContent() {
       
       <FullWidthTableLayout
         tableWrapperClassName=""
-
-        footerClassName="px-3 py-2"
-        footerStyle={{ backgroundColor: "transparent" }}
-        footer={
+        header={
           <div className="d-flex align-items-center justify-content-between gap-3 w-100">
             <div className="d-flex align-items-center gap-2">
               <FilterSelect
@@ -2620,7 +2632,7 @@ function RecruitmentManagementContent() {
           </div>
         ) : (
           <Table
-            rows={filteredData}
+            rows={paginatedData}
             rowKey={(r) => r.id}
             fontSize={12.5}
             striped={true}
@@ -2657,6 +2669,21 @@ function RecruitmentManagementContent() {
             ]}
           />
         )
+        }
+        footer={
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            totalCount={filteredData.length}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+            itemName="yêu cầu"
+            compact
+          />
         }
       />
 
