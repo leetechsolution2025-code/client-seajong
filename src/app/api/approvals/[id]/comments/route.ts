@@ -206,16 +206,25 @@ export async function POST(
             createdById: userId,
             attachments: JSON.stringify([
               {
+                name: "Mở đơn tại trang Đề xuất cá nhân",
+                type: "chat_link",
+                url: `/my/leave-request?requestId=${request.entityId}&tab=comments`,
+                target: "personal",
+                entityId: request.entityId,
+              },
+              {
                 name: "Mở trao đổi tại Phòng Nhân sự",
                 type: "chat_link",
                 url: `/hr?requestId=${request.entityId}&tab=comments`,
                 target: "hr",
+                entityId: request.entityId,
               },
               {
                 name: "Mở tại Trung tâm phê duyệt (Giám đốc)",
                 type: "chat_link",
                 url: `/board/approvals?id=${request.id}&tab=comments`,
                 target: "approval",
+                approvalId: request.id,
               },
             ]),
             recipients: {

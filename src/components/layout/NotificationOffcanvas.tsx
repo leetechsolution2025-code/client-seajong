@@ -1519,14 +1519,18 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
               : [];
 
             // Xác định vai trò người dùng hiện tại
-            const userDept = (session?.user as any)?.departmentCode?.toLowerCase();
+            const userDept = ((session?.user as any)?.departmentCode || "").toLowerCase();
+            const userDeptName = ((session?.user as any)?.departmentName || "").toLowerCase();
             const userRole = session?.user?.role;
-            const isHR = userDept === "hr";
             const isDirector =
               userRole === "admin" ||
               userRole === "SUPERADMIN" ||
               userDept === "board" ||
-              userDept === "bod";
+              userDept === "bod" ||
+              userDeptName.includes("giám đốc");
+            const isHR =
+              userDept === "hr" ||
+              userDeptName.includes("nhân sự");
 
             // Tách link trao đổi và link khác
             const chatLinks = linkItems.filter(
@@ -1534,39 +1538,80 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                 att.type === "chat_link" ||
                 att.url?.includes("tab=comments") ||
                 att.target === "hr" ||
-                att.target === "approval"
+                att.target === "approval" ||
+                att.target === "personal"
             );
             const otherLinks = linkItems.filter((att: any) => !chatLinks.includes(att));
 
-            // Gom các chatLinks thành 1 nút thông minh duy nhất phù hợp với người xem
+            // Gom các chatLinks thành 1 nút thông minh DUY NHẤT VÀ CHÍNH XÁC THEO VAI TRÒ
             let displayedLinks: any[] = [];
             if (chatLinks.length > 0) {
               let chosenChat: any = null;
-              if (isHR) {
-                chosenChat =
-                  chatLinks.find((l: any) => l.target === "hr" || l.url?.includes("/hr")) ||
-                  chatLinks[0];
-              } else if (isDirector) {
-                chosenChat =
-                  chatLinks.find(
-                    (l: any) => l.target === "approval" || l.url?.includes("board/approvals")
-                  ) || chatLinks[0];
+              if (isDirector) {
+                // Ban Giám đốc -> chỉ vào Trung tâm phê duyệt của Giám đốc
+                chosenChat = chatLinks.find(
+                  (l: any) => l.target === "approval" || l.url?.includes("board/approvals")
+                );
+              } else if (isHR) {
+                // Phòng Nhân sự -> chỉ vào Quản lý Phòng Nhân sự
+                chosenChat = chatLinks.find(
+                  (l: any) => l.target === "hr" || l.url?.includes("/hr")
+                );
               } else {
-                chosenChat =
-                  chatLinks.find(
-                    (l: any) => l.target === "personal" || l.url?.includes("/personal")
-                  ) || chatLinks[0];
+                // Nhân viên / Người làm đơn -> CHỈ VÀO TRANG CÁ NHÂN CỦA NHÂN VIÊN
+                chosenChat = chatLinks.find(
+                  (l: any) => l.target === "personal" || l.url?.includes("/my/leave-request")
+                );
+
+                // Nếu thông báo cũ chưa có link personal, tự động trích xuất mã đơn để chuyển hướng về trang cá nhân
+                if (!chosenChat) {
+                  const anyChat = chatLinks[0];
+                  let reqIdMatch = anyChat.url?.match(/requestId=([^&]+)/)?.[1];
+                  if (!reqIdMatch && anyChat.entityId) reqIdMatch = anyChat.entityId;
+                  if (reqIdMatch) {
+                    chosenChat = {
+                      url: `/my/leave-request?requestId=${reqIdMatch}&tab=comments`,
+                      target: "personal",
+                    };
+                  }
+                }
+              }
+
+              // Fallback an toàn nếu chưa tìm được link tương thích
+              if (!chosenChat) {
+                if (isDirector) {
+                  chosenChat = chatLinks.find((l: any) => l.url?.includes("board/approvals")) || chatLinks[0];
+                } else if (isHR) {
+                  chosenChat = chatLinks.find((l: any) => l.url?.includes("/hr")) || chatLinks[0];
+                } else {
+                  // Với nhân viên, tuyệt đối không trỏ vào HR hay Giám đốc, luôn trỏ về trang đề xuất của họ
+                  const anyChat = chatLinks[0];
+                  const reqIdMatch =
+                    anyChat.url?.match(/requestId=([^&]+)/)?.[1] ||
+                    anyChat.url?.match(/id=([^&]+)/)?.[1] ||
+                    anyChat.entityId;
+                  chosenChat = {
+                    url: reqIdMatch
+                      ? `/my/leave-request?requestId=${reqIdMatch}&tab=comments`
+                      : `/my/leave-request`,
+                    target: "personal",
+                  };
+                }
               }
 
               if (chosenChat) {
                 displayedLinks.push({
                   ...chosenChat,
-                  name: "Mở cuộc trao đổi ngay",
-                  subtitle: isHR
-                    ? "Mở đơn và khung trao đổi tại Phòng Nhân sự"
-                    : isDirector
+                  name: isDirector
+                    ? "Mở phê duyệt & chỉ đạo"
+                    : isHR
+                    ? "Mở trao đổi tại Phòng Nhân sự"
+                    : "Mở trao đổi đề xuất của bạn",
+                  subtitle: isDirector
                     ? "Mở trực tiếp trên Trung tâm phê duyệt của Giám đốc"
-                    : "Mở chi tiết yêu cầu để theo dõi thảo luận",
+                    : isHR
+                    ? "Mở đơn và khung trao đổi tại Phòng Nhân sự"
+                    : "Mở đơn của bạn để xem và gửi trao đổi phản hồi",
                   isChat: true,
                 });
               }

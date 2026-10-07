@@ -1,6 +1,4 @@
-"use client";
-
-import React from "react";
+import React, { Suspense } from "react";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { LeaveRequest } from "@/components/personal/LeaveRequest";
 
@@ -14,7 +12,9 @@ export default function LeaveRequestPage() {
       useCard={false}
       paddingClassName="p-2"
     >
-      <LeaveRequest />
+      <Suspense fallback={<div className="p-4 text-center text-muted">Đang tải dữ liệu...</div>}>
+        <LeaveRequest />
+      </Suspense>
     </StandardPage>
   );
 }

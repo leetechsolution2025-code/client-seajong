@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { format } from "date-fns";
+import { useSearchParams } from "next/navigation";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { TablePagination } from "@/components/ui/TablePagination";
 import { PersonalRequestOffcanvas } from "./PersonalRequestOffcanvas";
+import { PersonalRequestDetailOffcanvas } from "./PersonalRequestDetailOffcanvas";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialogModal } from "@/components/ui/ConfirmDialog";
 
@@ -105,6 +107,10 @@ function cleanDisplayReason(rawReason?: string, details?: any): string {
 
 export function LeaveRequest() {
   const { success: toastSuccess } = useToast();
+  const searchParams = useSearchParams();
+  const paramRequestId = searchParams.get("requestId") || searchParams.get("id");
+  const paramTab = searchParams.get("tab");
+
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -127,7 +133,39 @@ export function LeaveRequest() {
   const [activeFormType, setActiveFormType] = useState<string | null>(null);
   const [editingRequest, setEditingRequest] = useState<any | null>(null);
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
+
+  // Offcanvas xem chi tiết & trao đổi của nhân viên
+  const [selectedDetailRequest, setSelectedDetailRequest] = useState<any | null>(null);
+  const [detailTab, setDetailTab] = useState<"detail" | "comments">("detail");
+
   const createMenuRef = useRef<HTMLDivElement>(null);
+
+  // Tự động mở đơn và tab trao đổi khi truy cập từ thông báo
+  useEffect(() => {
+    if (paramRequestId) {
+      if (requests.length > 0) {
+        const found = requests.find((r) => r.id === paramRequestId);
+        if (found) {
+          setSelectedDetailRequest(found);
+          if (paramTab === "comments") setDetailTab("comments");
+          return;
+        }
+      }
+      fetch(`/api/hr/approvals/${paramRequestId}`)
+        .then(async (r) => {
+          if (!r.ok) return null;
+          const text = await r.text();
+          return text ? JSON.parse(text) : null;
+        })
+        .then((d) => {
+          if (d?.data) {
+            setSelectedDetailRequest(d.data);
+            if (paramTab === "comments") setDetailTab("comments");
+          }
+        })
+        .catch(console.error);
+    }
+  }, [paramRequestId, paramTab, requests]);
 
   // Đóng dropdown tạo mới khi click ra ngoài hoặc khi offcanvas mở
   useEffect(() => {
@@ -621,8 +659,11 @@ export function LeaveRequest() {
                     <tr 
                       key={req.id} 
                       style={{ borderBottom: "1px solid var(--border)", cursor: "pointer" }}
-                      onClick={() => handleEditRequest(req)}
-                      title="Nhấn vào dòng để xem hoặc chỉnh sửa yêu cầu"
+                      onClick={() => {
+                        setSelectedDetailRequest(req);
+                        setDetailTab("detail");
+                      }}
+                      title="Nhấn vào dòng để xem chi tiết và trao đổi"
                     >
                       {/* Checkbox chọn */}
                       <td 
@@ -769,6 +810,23 @@ export function LeaveRequest() {
         }
         footerClassName="justify-content-between px-3 px-md-4 py-2 border-top bg-white"
         footerStyle={{ backgroundColor: "#ffffff" }}
+      />
+
+      {/* ── OFFCANVAS XEM CHI TIẾT & TRAO ĐỔI CỦA NHÂN VIÊN ── */}
+      <PersonalRequestDetailOffcanvas
+        isOpen={Boolean(selectedDetailRequest)}
+        onClose={() => setSelectedDetailRequest(null)}
+        request={selectedDetailRequest}
+        initialTab={detailTab}
+        onEdit={(req) => {
+          setSelectedDetailRequest(null);
+          handleEditRequest(req);
+        }}
+        onDelete={(id) => {
+          setSelectedIds([id]);
+          setSelectedDetailRequest(null);
+          setIsDeleteDialogOpen(true);
+        }}
       />
 
       {/* ── OFFCANVAS TẠO / CHỈNH SỬA ĐƠN ── */}
