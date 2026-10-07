@@ -21,7 +21,9 @@ export async function GET(req: NextRequest) {
 
     const where = {
       ...(search    && { tenChiPhi: { contains: search } }),
-      ...(trangThai && { trangThai }),
+      ...(trangThai && {
+        trangThai: trangThai === "pending" ? { in: ["pending", "approved"] } : trangThai
+      }),
       ...(loai      && { loai }),
       ...(dateFrom || dateTo
         ? {
@@ -199,7 +201,9 @@ export async function GET(req: NextRequest) {
         let match = true;
         if (search) match = match && item.tenChiPhi.toLowerCase().includes(search.toLowerCase());
         if (loai) match = match && item.loai === loai;
-        if (trangThai) match = match && item.trangThai === trangThai;
+        if (trangThai) {
+          match = match && (trangThai === "pending" ? (item.trangThai === "pending" || item.trangThai === "approved") : item.trangThai === trangThai);
+        }
         if (dateFrom) match = match && new Date(item.ngayChiTra) >= new Date(dateFrom);
         if (dateTo) match = match && new Date(item.ngayChiTra) <= new Date(dateTo + "T23:59:59");
         return match;

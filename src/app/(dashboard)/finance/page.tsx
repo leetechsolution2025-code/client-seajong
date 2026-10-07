@@ -877,6 +877,7 @@ export default function FinancePage() {
       render: (row: any) => {
         const statuses: Record<string, { label: string; color: string; bg: string }> = {
           pending: { label: "Chưa thực hiện", color: "text-warning", bg: "bg-warning" },
+          approved: { label: "Chưa thực hiện", color: "text-warning", bg: "bg-warning" },
           paid: { label: "Đã thực hiện", color: "text-success", bg: "bg-success" },
         };
         const s = statuses[row.trangThai || 'pending'] || statuses.pending;

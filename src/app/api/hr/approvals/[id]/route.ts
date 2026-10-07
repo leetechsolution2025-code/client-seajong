@@ -286,6 +286,52 @@ export async function PATCH(
           });
         }));
       }
+      // ── TỰ ĐỘNG TẠO LỆNH CHI TIỀN CHO PHÒNG TÀI CHÍNH - KẾ TOÁN ──
+      const typeKeyLower = request.type.toLowerCase();
+      if (typeKeyLower === "salary-advance" || typeKeyLower === "advance-refund") {
+        let details: any = {};
+        if (request.details) {
+          try {
+            details = typeof request.details === "string" ? JSON.parse(request.details) : request.details;
+          } catch (e) {
+            details = {};
+          }
+        }
+        const amount = Number(details.amount || details.advanceAmount || 0);
+        if (amount > 0) {
+          const empName = request.employee?.fullName || "Nhân viên";
+          const isSalaryAdvance = typeKeyLower === "salary-advance";
+          const tenChiPhi = isSalaryAdvance
+            ? `Tạm ứng lương: ${empName}${details.salaryMonth ? ` (Lương tháng ${details.salaryMonth})` : ""}`
+            : `Tạm ứng công tác / chi phí: ${empName}`;
+
+          const existingExp = await prisma.expense.findFirst({
+            where: { referenceType: "PERSONAL_REQUEST", referenceId: request.id },
+          });
+
+          const noteParts = [
+            details.reason || details.purpose || request.reason,
+            details.bankAccount ? `STK: ${details.bankAccount} (${details.bankName || ""})` : null,
+            `Đã được phê duyệt ngày ${new Date().toLocaleDateString("vi-VN")}`,
+          ].filter(Boolean).join(" • ");
+
+          if (!existingExp) {
+            await prisma.expense.create({
+              data: {
+                tenChiPhi,
+                soTien: amount,
+                loai: isSalaryAdvance ? "Tạm ứng lương" : "Tạm ứng công tác",
+                nguoiChiTra: empName,
+                trangThai: "pending",
+                ngayChiTra: new Date(),
+                ghiChu: noteParts,
+                referenceType: "PERSONAL_REQUEST",
+                referenceId: request.id,
+              },
+            });
+          }
+        }
+      }
       // ──────────────────────────────────────────────────────────────────────
       
     } else if (action === "REJECT") {

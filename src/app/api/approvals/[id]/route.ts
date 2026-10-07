@@ -373,6 +373,146 @@ async function processAndCreateTask({
   }
 }
 
+// ── Helper tự động tạo Lệnh chi tiền cho Phòng Tài chính - Kế toán ───────
+async function notifyAccountingTeam({
+  title,
+  content,
+  url = "/finance?fromAdmin=true",
+  actorId,
+}: {
+  title: string;
+  content: string;
+  url?: string;
+  actorId?: string;
+}) {
+  try {
+    const accountants = await prisma.employee.findMany({
+      where: {
+        status: "active",
+        OR: [
+          { departmentName: { contains: "Kế toán" } },
+          { departmentName: { contains: "Tài chính" } },
+          { departmentCode: { in: ["finance", "accounting", "ketoan", "taichinh"] } },
+          { position: { contains: "Kế toán" } },
+          { position: { contains: "Tài chính" } },
+        ],
+        userId: { not: null },
+      },
+      select: { userId: true },
+    });
+
+    const accountantUserIds = Array.from(
+      new Set(accountants.map((a: any) => a.userId).filter(Boolean))
+    ) as string[];
+
+    if (accountantUserIds.length > 0) {
+      const notif = await prisma.notification.create({
+        data: {
+          title,
+          content,
+          type: "info",
+          priority: "high",
+          audienceType: "group",
+          audienceValue: JSON.stringify(accountantUserIds),
+          createdById: actorId || "system",
+          attachments: JSON.stringify([
+            {
+              name: "Xem Lệnh chi tiền",
+              type: "link",
+              url,
+            },
+          ]),
+        },
+      });
+
+      await Promise.allSettled(
+        accountantUserIds.map((uid) =>
+          prisma.notificationRecipient.upsert({
+            where: { notificationId_userId: { notificationId: notif.id, userId: uid } },
+            update: {},
+            create: { notificationId: notif.id, userId: uid },
+          })
+        )
+      );
+    }
+  } catch (err) {
+    console.error("[notifyAccountingTeam] Error:", err);
+  }
+}
+
+async function createExpenseFromApproval({
+  tenChiPhi,
+  soTien,
+  loai,
+  nguoiChiTra,
+  ghiChu,
+  referenceType,
+  referenceId,
+  actorId,
+}: {
+  tenChiPhi: string;
+  soTien: number;
+  loai?: string;
+  nguoiChiTra?: string;
+  ghiChu?: string;
+  referenceType: string;
+  referenceId: string;
+  actorId?: string;
+}) {
+  if (!soTien || soTien <= 0) return null;
+
+  try {
+    const existing = await prisma.expense.findFirst({
+      where: {
+        referenceType,
+        referenceId,
+      },
+    });
+
+    let expenseItem;
+    if (existing) {
+      expenseItem = await prisma.expense.update({
+        where: { id: existing.id },
+        data: {
+          tenChiPhi,
+          soTien,
+          loai: loai || existing.loai,
+          nguoiChiTra: nguoiChiTra || existing.nguoiChiTra,
+          ghiChu,
+          trangThai: "pending",
+        },
+      });
+    } else {
+      expenseItem = await prisma.expense.create({
+        data: {
+          tenChiPhi,
+          soTien,
+          loai: loai || "Chi hoạt động",
+          nguoiChiTra: nguoiChiTra || null,
+          trangThai: "pending",
+          ngayChiTra: new Date(),
+          ghiChu,
+          referenceType,
+          referenceId,
+        },
+      });
+    }
+
+    // Gửi thông báo đến cho Kế toán
+    await notifyAccountingTeam({
+      title: `💰 Lệnh chi tiền mới cần thực hiện: ${tenChiPhi}`,
+      content: `Ban Giám đốc đã phê duyệt khoản chi **${tenChiPhi}** với số tiền **${soTien.toLocaleString("vi-VN")} đ**.\n\nVui lòng kiểm tra và thực hiện chi trả trong mục Lệnh chi tiền.`,
+      url: "/finance?fromAdmin=true",
+      actorId,
+    });
+
+    return expenseItem;
+  } catch (err) {
+    console.error("[createExpenseFromApproval] Error:", err);
+    return null;
+  }
+}
+
 // ── Đồng bộ status về model gốc ───────────────────────────────────────────────
 async function syncEntityStatus(
   entityType: string,
@@ -444,6 +584,69 @@ async function syncEntityStatus(
                   }
                 });
               }));
+            }
+
+            // ── TỰ ĐỘNG TẠO LỆNH CHI TIỀN VÀO DB CHO PHÒNG TÀI CHÍNH - KẾ TOÁN ──
+            if (isApprove) {
+              let details: any = {};
+              try {
+                details = typeof reqRecord.details === "string" ? JSON.parse(reqRecord.details) : (reqRecord.details || {});
+              } catch {}
+
+              const empName = reqRecord.employee?.fullName || "Nhân viên";
+
+              // 1. Tạm ứng lương
+              if (reqRecord.type === "salary-advance" || details.category === "salary_advance") {
+                const amount = Number(details.amount || details.advanceAmount || 0);
+                if (amount > 0) {
+                  const monthStr = details.salaryMonth ? ` (Lương tháng ${details.salaryMonth})` : "";
+                  const bankInfo = details.bankInfo || (details.accountNumber ? `${details.bankName || ""} - ${details.accountNumber}` : "");
+                  const noteParts = [
+                    details.reason || reqRecord.reason,
+                    bankInfo ? `Nhận tiền: ${bankInfo}` : null,
+                    `Giám đốc phê duyệt ngày ${new Date().toLocaleDateString("vi-VN")}`,
+                  ].filter(Boolean).join(" • ");
+
+                  await createExpenseFromApproval({
+                    tenChiPhi: `Tạm ứng lương: ${empName}${monthStr}`,
+                    soTien: amount,
+                    loai: "Tạm ứng lương",
+                    nguoiChiTra: empName,
+                    ghiChu: noteParts,
+                    referenceType: "PERSONAL_REQUEST",
+                    referenceId: reqRecord.id,
+                    actorId: userId,
+                  });
+                }
+              }
+
+              // 2. Tạm ứng chi phí / công tác
+              if (reqRecord.type === "advance-refund" || details.category === "advance_refund") {
+                const subType = details.subType || details.financeType || "Tạm ứng";
+                if (subType === "Tạm ứng" || !subType.toLowerCase().includes("hoàn")) {
+                  const amount = Number(details.amount || details.advanceAmount || 0);
+                  if (amount > 0) {
+                    const purpose = details.purpose || details.reason || reqRecord.reason || "";
+                    const bankInfo = details.bankInfo || (details.accountNumber ? `${details.bankName || ""} - ${details.accountNumber}` : "");
+                    const noteParts = [
+                      purpose,
+                      bankInfo ? `Nhận tiền: ${bankInfo}` : null,
+                      `Giám đốc phê duyệt ngày ${new Date().toLocaleDateString("vi-VN")}`,
+                    ].filter(Boolean).join(" • ");
+
+                    await createExpenseFromApproval({
+                      tenChiPhi: `Tạm ứng công tác / chi phí: ${empName}`,
+                      soTien: amount,
+                      loai: "Tạm ứng công tác",
+                      nguoiChiTra: empName,
+                      ghiChu: noteParts,
+                      referenceType: "PERSONAL_REQUEST",
+                      referenceId: reqRecord.id,
+                      actorId: userId,
+                    });
+                  }
+                }
+              }
             }
 
             // Gửi thông báo cho Nhân sự đề xuất
@@ -953,15 +1156,24 @@ async function syncEntityStatus(
       }
       case "expense": {
         const statusMap: Record<string, string> = {
-          approve: "approved",
+          approve: "pending", // Giám đốc duyệt thì sẵn sàng để Kế toán chi trả ("pending" / Chưa thực hiện)
           reject: "rejected",
-          recall: "pending",
+          recall: "draft",
           on_hold: "pending",
         };
-        await prisma.expense.update({
+        const exp = await prisma.expense.update({
           where: { id: entityId },
           data: { trangThai: statusMap[action] || "pending" },
         });
+
+        if (action === "approve" && exp) {
+          await notifyAccountingTeam({
+            title: `💰 Lệnh chi tiền đã được Giám đốc duyệt: ${exp.tenChiPhi}`,
+            content: `Khoản chi **${exp.tenChiPhi}** (${exp.soTien.toLocaleString("vi-VN")} đ) đã được Ban Giám đốc phê duyệt. Kế toán vui lòng thực hiện chi trả.`,
+            url: "/finance?fromAdmin=true",
+            actorId: userId,
+          });
+        }
         break;
       }
       case "marketing_monthly_execution": {
@@ -1061,10 +1273,27 @@ async function syncEntityStatus(
           recall: "ACCOUNTING_APPROVED",
           on_hold: "ACCOUNTING_APPROVED",
         };
-        await (prisma as any).hrSupplyRequest.update({
+        const updatedSupply = await (prisma as any).hrSupplyRequest.update({
           where: { id: entityId },
           data: { status: statusMap[action] || "ACCOUNTING_APPROVED" },
+          include: { requester: true }
         });
+
+        if (action === "approve" && updatedSupply) {
+          const cost = Number(updatedSupply.totalAmount || updatedSupply.estimatedCost || 0);
+          if (cost > 0) {
+            await createExpenseFromApproval({
+              tenChiPhi: `Chi mua sắm văn phòng phẩm / vật tư (${updatedSupply.code || entityId})`,
+              soTien: cost,
+              loai: "Chi văn phòng phẩm",
+              nguoiChiTra: updatedSupply.requester?.fullName || "Hành chính nhân sự",
+              ghiChu: `Được Giám đốc phê duyệt ngày ${new Date().toLocaleDateString("vi-VN")}`,
+              referenceType: "HR_SUPPLY_REQUEST",
+              referenceId: updatedSupply.id,
+              actorId: userId,
+            });
+          }
+        }
         break;
       }
       case "purchase_request": {
@@ -1356,6 +1585,25 @@ async function syncEntityStatus(
                   }
                 } catch (debtErr) {
                   console.error("[syncEntityStatus] Failed to sync supplier debt:", debtErr);
+                }
+
+                // 3.5 Tự động tạo lệnh chi tiền vào phòng Tài chính - Kế toán
+                try {
+                  const tongTien = poFull.tongTien || poFull.items.reduce((s: number, it: any) => s + (Number(it.soLuong) * Number(it.donGia)), 0);
+                  if (tongTien > 0) {
+                    await createExpenseFromApproval({
+                      tenChiPhi: `Thanh toán đơn mua hàng ${poCode} - NCC: ${supplierName}`,
+                      soTien: tongTien,
+                      loai: "Chi mua hàng",
+                      nguoiChiTra: supplierName,
+                      ghiChu: `Đơn mua hàng ${poCode} đã được Giám đốc phê duyệt ngày ${new Date().toLocaleDateString("vi-VN")}`,
+                      referenceType: "PURCHASE_ORDER",
+                      referenceId: poFull.id,
+                      actorId: userId,
+                    });
+                  }
+                } catch (expErr) {
+                  console.error("[syncEntityStatus] Failed to create expense for purchase order:", expErr);
                 }
 
                 // 4. Tạo công việc cá nhân cho người tạo yêu cầu (requesterId)
