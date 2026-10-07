@@ -19,6 +19,8 @@ export interface DayAttendance {
   requestedOutLunch?: string | null;
   requestedInAfternoon?: string | null;
   requestedOutAfternoon?: string | null;
+  hasApprovedOvertime?: boolean; // Chỉ tính OT khi có yêu cầu làm thêm giờ được phê duyệt
+  approvedOtHours?: number | null; // Số giờ làm thêm đăng ký được duyệt
 }
 
 /**
@@ -50,10 +52,15 @@ export function calculateDailyAttendance(day: DayAttendance, rules: AttendanceRu
     return { workPoints: 0.0, otHours: 0, violationMinutes: 0, lateMinutes: 0, earlyMinutes: 0, status: "BHXH" };
   }
 
-  // 3. Nếu là Chủ Nhật: 0 công, chỉ tính OT
+  // 3. Nếu là Chủ Nhật: 0 công, chỉ tính OT khi có yêu cầu làm thêm giờ được phê duyệt
   if (isSunday(date)) {
-    // Logic tính OT ngày Chủ Nhật (Hệ số x2.0)
-    const otHours = calculateOT(day, rules, rules.ot.sun);
+    let otHours = 0;
+    if (day.hasApprovedOvertime) {
+      otHours = calculateOT(day, rules, rules.ot.sun);
+      if (day.approvedOtHours && day.approvedOtHours > 0) {
+        otHours = Math.min(otHours, day.approvedOtHours * rules.ot.sun);
+      }
+    }
     return { workPoints: 0, otHours, violationMinutes: 0, lateMinutes: 0, earlyMinutes: 0, status: "Sun" };
   }
 
@@ -137,8 +144,15 @@ export function calculateDailyAttendance(day: DayAttendance, rules: AttendanceRu
   const isFullWork = (day.checkInMorning && day.checkOutMorning && day.checkInAfternoon && day.checkOutAfternoon);
   const isFullAttendance = isFullWork && !isRegulationViolation && !isAttendanceViolation && !isInsufficientMorning && !isInsufficientAfternoon;
 
-  const otMultiplier = isSunday(date) ? rules.ot.sun : rules.ot.weekday;
-  const otHours = calculateOT(day, rules, otMultiplier);
+  // CHỈ TÍNH LÀM THÊM GIỜ (OT) KHI CÓ YÊU CẦU LÀM THÊM ĐƯỢC DUYỆT
+  let otHours = 0;
+  if (day.hasApprovedOvertime) {
+    const otMultiplier = isSunday(date) ? rules.ot.sun : rules.ot.weekday;
+    otHours = calculateOT(day, rules, otMultiplier);
+    if (day.approvedOtHours && day.approvedOtHours > 0) {
+      otHours = Math.min(otHours, day.approvedOtHours * otMultiplier);
+    }
+  }
 
   let status = "Absent";
   if (isFullAttendance) status = "OK";

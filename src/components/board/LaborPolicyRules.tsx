@@ -180,6 +180,12 @@ export function LaborPolicyRules({ policy, onSave }: { policy: any; onSave: (c: 
       </Section>
 
       <Section icon="bi-lightning-charge" title="Hệ số lương làm thêm giờ (OT)" color="warning">
+        <div className="p-3 bg-light rounded-4 mb-3 border" style={{ borderStyle: 'dashed' }}>
+           <p className="mb-0 small text-muted">
+             <i className="bi bi-info-circle me-1 text-primary"></i>
+             <b>Điều kiện tính OT:</b> Thời gian làm thêm giờ chỉ được hệ thống ghi nhận khi nhân viên có <b>Đơn đăng ký làm thêm giờ (OT)</b> và yêu cầu đó <b>đã được phê duyệt</b>.
+           </p>
+        </div>
         <div className="d-flex gap-2 mb-3">
           <InputGroup label="Ngày thường (T2-T6)" value={ot.weekday} onChange={(v:any) => set("ot", "weekday", v)} type="number" sub={{ text: '150% lương giờ thường', color: '#10b981' }} />
           <InputGroup label="Thứ 7" value={ot.sat} onChange={(v:any) => set("ot", "sat", v)} type="number" sub={{ text: '200%' }} />

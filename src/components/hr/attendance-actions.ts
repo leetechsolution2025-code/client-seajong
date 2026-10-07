@@ -89,11 +89,11 @@ export async function getAttendanceData(month: number, year: number) {
       }
     });
 
-    // Cập nhật: Tìm kiếm không phân biệt hoa thường và bao gồm cả business-trip, late, early
+    // Cập nhật: Tìm kiếm không phân biệt hoa thường và bao gồm cả business-trip, late, early, overtime
     const leaveRequests = await (prisma as any).personalRequest.findMany({
       where: {
-        type: { in: ["leave", "LEAVE", "business-trip", "work", "unpaid_leave", "late", "early"] },
-        status: "APPROVED",
+        type: { in: ["leave", "LEAVE", "business-trip", "work", "unpaid_leave", "late", "early", "overtime", "OVERTIME"] },
+        status: { in: ["approved", "APPROVED"] },
         OR: [
           { startDate: { lte: endDate, gte: startDate } },
           { endDate: { lte: endDate, gte: startDate } },
@@ -210,6 +210,12 @@ export async function getAttendanceData(month: number, year: number) {
           format(new Date(l.startDate!), "yyyy-MM-dd") === dateStr
         );
 
+        const otReq = leaveRequests.find((l: any) => 
+          (l.type === "overtime" || l.type === "OVERTIME") &&
+          l.employeeId === emp.id &&
+          format(new Date(l.startDate!), "yyyy-MM-dd") === dateStr
+        );
+
         let requestedInMorning = null;
         let requestedInAfternoon = null;
         let requestedOutLunch = null;
@@ -265,7 +271,9 @@ export async function getAttendanceData(month: number, year: number) {
           requestedInMorning,
           requestedInAfternoon,
           requestedOutLunch,
-          requestedOutAfternoon
+          requestedOutAfternoon,
+          hasApprovedOvertime: !!otReq,
+          approvedOtHours: otReq?.totalHours ? parseFloat(otReq.totalHours) : null
         };
 
         const result = calculateDailyAttendance(dayAttendance, rules);

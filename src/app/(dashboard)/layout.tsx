@@ -703,7 +703,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <ToastProvider>
-      <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", background: "var(--background)", color: "var(--foreground)" }}>
+      <div style={{ height: "100dvh", minHeight: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", background: "var(--background)", color: "var(--foreground)" }}>
 
         {/* TOPBAR */}
         <React.Suspense fallback={<div style={{ height: 62 }} />}>
@@ -724,7 +724,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setIsCollapsed(true)}
-                style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 30 }}
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "rgba(0, 0, 0, 0.45)",
+                  backdropFilter: "blur(2px)",
+                  WebkitBackdropFilter: "blur(2px)",
+                  zIndex: 1035
+                }}
               />
             )}
           </AnimatePresence>
@@ -734,11 +741,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <motion.aside
               initial={false}
               animate={animPrefs.sidebarMotion ? {
-                width: isCollapsed ? 0 : 300,
-                x: isMobile && isCollapsed ? -300 : 0
+                width: isCollapsed ? 0 : (isMobile ? "min(285px, 85vw)" : 300),
+                x: isMobile && isCollapsed ? -320 : 0
               } : {
-                width: isCollapsed ? 0 : 300,
-                x: isMobile && isCollapsed ? -300 : 0
+                width: isCollapsed ? 0 : (isMobile ? "min(285px, 85vw)" : 300),
+                x: isMobile && isCollapsed ? -320 : 0
               }}
               transition={animPrefs.sidebarMotion
                 ? { duration: 0.22, ease: [0.4, 0, 0.2, 1] }
@@ -746,13 +753,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               }
               className="app-sidebar"
               style={{
-                display: "flex", flexDirection: "column", height: "100%",
-                flexShrink: 0, overflow: "hidden", minWidth: 0,
-                position: isMobile ? "absolute" : "relative",
-                left: 0, top: 0, bottom: 0,
-                zIndex: 40,
-                background: isMobile ? "var(--background)" : undefined,
-                boxShadow: isMobile ? "4px 0 24px rgba(0,0,0,0.15)" : undefined,
+                display: "flex",
+                flexDirection: "column",
+                height: isMobile ? "calc(100dvh - 62px)" : "100%",
+                maxHeight: isMobile ? "calc(100dvh - 62px)" : "100%",
+                flexShrink: 0,
+                overflow: "hidden",
+                minWidth: 0,
+                maxWidth: isMobile ? "85vw" : undefined,
+                position: isMobile ? "fixed" : "relative",
+                left: 0,
+                top: isMobile ? 62 : 0,
+                bottom: 0,
+                zIndex: isMobile ? 1040 : 40,
+                visibility: isMobile && isCollapsed ? "hidden" : "visible",
+                pointerEvents: isMobile && isCollapsed ? "none" : "auto",
+                background: "var(--background)",
+                boxShadow: isMobile && !isCollapsed ? "4px 0 24px rgba(0,0,0,0.2)" : undefined,
               }}
             >
               {/* ── Slogan ── */}

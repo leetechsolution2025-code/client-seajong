@@ -308,7 +308,14 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
   };
 
   return (
-    <nav className="d-flex flex-column flex-grow-1 overflow-x-hidden px-2 py-2" style={{ overflowY: "auto" }}>
+    <nav
+      className="d-flex flex-column flex-grow-1 overflow-x-hidden px-2 py-2"
+      style={{
+        overflowY: "auto",
+        WebkitOverflowScrolling: "touch",
+        overscrollBehavior: "contain"
+      }}
+    >
 
       {/* ── Tổng quan ── */}
       <Link
@@ -477,7 +484,7 @@ export function SidebarAccordion({ overviewHref, groups, isCollapsed, onMenuSele
 
 
       {/* ── Công việc cá nhân ── */}
-      <div className="mt-auto pt-2">
+      <div className="mt-auto pt-2" style={{ paddingBottom: "max(28px, calc(env(safe-area-inset-bottom, 0px) + 20px))" }}>
         <AnimatePresence>
           {!isCollapsed && (
             <motion.p

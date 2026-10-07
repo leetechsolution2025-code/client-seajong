@@ -257,6 +257,12 @@ export async function GET(req: Request) {
         format(new Date(r.startDate), "yyyy-MM-dd") === dateStr
       );
 
+      const otReq = personalRequests.find((r: any) => 
+        (r.type === "overtime" || r.type === "OVERTIME") && 
+        ["approved", "APPROVED"].includes(r.status) &&
+        format(new Date(r.startDate), "yyyy-MM-dd") === dateStr
+      );
+
       // Kiểm tra ngày lễ
       const holiday = holidays.find((hol: any) => {
         const hStart = new Date(hol.startDate);
@@ -341,7 +347,9 @@ export async function GET(req: Request) {
         requestedInMorning,
         requestedInAfternoon,
         requestedOutLunch,
-        requestedOutAfternoon
+        requestedOutAfternoon,
+        hasApprovedOvertime: !!otReq,
+        approvedOtHours: otReq?.totalHours ? parseFloat(otReq.totalHours) : null
       };
 
       const result = calculateDailyAttendance(dayAttendance, rules);

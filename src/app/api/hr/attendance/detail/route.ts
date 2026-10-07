@@ -122,6 +122,12 @@ export async function GET(req: NextRequest) {
         format(new Date(r.startDate), "yyyy-MM-dd") === dateStr
       );
 
+      const otReq = personalRequests.find((r: any) => 
+        (r.type === "overtime" || r.type === "OVERTIME") && 
+        ["approved", "APPROVED"].includes(r.status) &&
+        format(new Date(r.startDate), "yyyy-MM-dd") === dateStr
+      );
+
       let requestedInMorning = null;
       let requestedInAfternoon = null;
       let requestedOutLunch = null;
@@ -197,7 +203,9 @@ export async function GET(req: NextRequest) {
         requestedInMorning,
         requestedInAfternoon,
         requestedOutLunch,
-        requestedOutAfternoon
+        requestedOutAfternoon,
+        hasApprovedOvertime: !!otReq,
+        approvedOtHours: otReq?.totalHours ? parseFloat(otReq.totalHours) : null
       };
 
       // Sử dụng hàm dùng chung để tính toán
