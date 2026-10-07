@@ -1518,10 +1518,66 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                 )
               : [];
 
+            // Xác định vai trò người dùng hiện tại
+            const userDept = (session?.user as any)?.departmentCode?.toLowerCase();
+            const userRole = session?.user?.role;
+            const isHR = userDept === "hr";
+            const isDirector =
+              userRole === "admin" ||
+              userRole === "SUPERADMIN" ||
+              userDept === "board" ||
+              userDept === "bod";
+
+            // Tách link trao đổi và link khác
+            const chatLinks = linkItems.filter(
+              (att: any) =>
+                att.type === "chat_link" ||
+                att.url?.includes("tab=comments") ||
+                att.target === "hr" ||
+                att.target === "approval"
+            );
+            const otherLinks = linkItems.filter((att: any) => !chatLinks.includes(att));
+
+            // Gom các chatLinks thành 1 nút thông minh duy nhất phù hợp với người xem
+            let displayedLinks: any[] = [];
+            if (chatLinks.length > 0) {
+              let chosenChat: any = null;
+              if (isHR) {
+                chosenChat =
+                  chatLinks.find((l: any) => l.target === "hr" || l.url?.includes("/hr")) ||
+                  chatLinks[0];
+              } else if (isDirector) {
+                chosenChat =
+                  chatLinks.find(
+                    (l: any) => l.target === "approval" || l.url?.includes("board/approvals")
+                  ) || chatLinks[0];
+              } else {
+                chosenChat =
+                  chatLinks.find(
+                    (l: any) => l.target === "personal" || l.url?.includes("/personal")
+                  ) || chatLinks[0];
+              }
+
+              if (chosenChat) {
+                displayedLinks.push({
+                  ...chosenChat,
+                  name: "Mở cuộc trao đổi ngay",
+                  subtitle: isHR
+                    ? "Mở đơn và khung trao đổi tại Phòng Nhân sự"
+                    : isDirector
+                    ? "Mở trực tiếp trên Trung tâm phê duyệt của Giám đốc"
+                    : "Mở chi tiết yêu cầu để theo dõi thảo luận",
+                  isChat: true,
+                });
+              }
+            }
+
+            displayedLinks = [...displayedLinks, ...otherLinks];
+
             return (
               <>
-                {/* Liên kết hành động / Mở trao đổi nhanh */}
-                {linkItems.length > 0 && (
+                {/* Nút Liên kết hành động duy nhất / thông minh */}
+                {displayedLinks.length > 0 && (
                   <div style={{ marginTop: 14 }}>
                     <div
                       style={{
@@ -1533,11 +1589,10 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                         marginBottom: 8,
                       }}
                     >
-                      Liên kết hành động ({linkItems.length})
+                      Hành động nhanh
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {linkItems.map((att: any, i: number) => {
-                        const isPrimary = i === 0 || att.target === "hr" || att.target === "approval";
+                      {displayedLinks.map((att: any, i: number) => {
                         return (
                           <div
                             key={i}
@@ -1549,53 +1604,53 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                               display: "flex",
                               alignItems: "center",
                               gap: 12,
-                              padding: "10px 14px",
-                              borderRadius: 10,
-                              border: isPrimary ? "1px solid #93c5fd" : "1px solid var(--border)",
-                              background: isPrimary
-                                ? "linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)"
-                                : "var(--card)",
+                              padding: "12px 14px",
+                              borderRadius: 12,
+                              border: "1.5px solid #60a5fa",
+                              background:
+                                "linear-gradient(135deg, rgba(239, 246, 255, 0.9) 0%, rgba(219, 234, 254, 0.6) 100%)",
                               cursor: "pointer",
                               transition: "all 0.15s ease",
-                              boxShadow: isPrimary ? "0 2px 4px rgba(59,130,246,0.08)" : "none",
+                              boxShadow: "0 2px 5px rgba(59, 130, 246, 0.1)",
                             }}
                             onMouseEnter={(e) => {
                               (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)";
+                              (e.currentTarget as HTMLDivElement).style.borderColor = "#2563eb";
                             }}
                             onMouseLeave={(e) => {
                               (e.currentTarget as HTMLDivElement).style.transform = "none";
+                              (e.currentTarget as HTMLDivElement).style.borderColor = "#60a5fa";
                             }}
                           >
                             <div
                               style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: "50%",
-                                background: isPrimary ? "#3b82f6" : "rgba(99,102,241,0.1)",
-                                color: isPrimary ? "#ffffff" : "#6366f1",
+                                width: 38,
+                                height: 38,
+                                borderRadius: 10,
+                                background: "#2563eb",
+                                color: "#ffffff",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 flexShrink: 0,
+                                boxShadow: "0 2px 4px rgba(37, 99, 235, 0.25)",
                               }}
                             >
                               <i
                                 className={
-                                  att.url.includes("board/approvals")
-                                    ? "bi bi-shield-check"
-                                    : att.url.includes("comments")
+                                  att.isChat || att.url?.includes("comments")
                                     ? "bi bi-chat-dots-fill"
                                     : "bi bi-arrow-right-circle-fill"
                                 }
-                                style={{ fontSize: 16 }}
+                                style={{ fontSize: 17 }}
                               />
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div
                                 style={{
-                                  fontSize: 13,
+                                  fontSize: 13.5,
                                   fontWeight: 700,
-                                  color: isPrimary ? "#1d4ed8" : "var(--foreground)",
+                                  color: "#1d4ed8",
                                   overflow: "hidden",
                                   textOverflow: "ellipsis",
                                   whiteSpace: "nowrap",
@@ -1603,17 +1658,22 @@ export function NotificationOffcanvas({ open, onClose, onUnreadChange, userRole,
                               >
                                 {att.name}
                               </div>
-                              <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>
-                                {att.url.includes("board/approvals")
-                                  ? "Mở trực tiếp trên Trung tâm phê duyệt của Giám đốc"
-                                  : att.url.includes("/hr")
-                                  ? "Mở đơn và khung trao đổi tại Phòng Nhân sự"
-                                  : "Mở chi tiết trên hệ thống"}
+                              <div
+                                style={{
+                                  fontSize: 11.5,
+                                  color: "#475569",
+                                  marginTop: 2,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {att.subtitle || "Bấm để mở nội dung chi tiết"}
                               </div>
                             </div>
                             <i
                               className="bi bi-chevron-right"
-                              style={{ color: isPrimary ? "#3b82f6" : "var(--muted-foreground)", fontSize: 13 }}
+                              style={{ color: "#2563eb", fontSize: 14, fontWeight: 700 }}
                             />
                           </div>
                         );
