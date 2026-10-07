@@ -115,6 +115,9 @@ export async function POST(req: Request) {
       
       const typeLabels: Record<string, string> = {
         "leave": "Nghỉ phép",
+        "sick-leave": "Nghỉ ốm",
+        "salary-advance": "Tạm ứng lương",
+        "advance-refund": "Tạm ứng / Hoàn tạm ứng",
         "overtime": "Làm thêm giờ",
         "business-trip": "Công tác",
         "hr-request": "Nhân sự & Hồ sơ",
@@ -122,6 +125,7 @@ export async function POST(req: Request) {
         "asset": "Tài sản",
         "late": "Đi muộn",
         "early": "Về sớm",
+        "late-early": "Đi muộn / Về sớm",
       };
 
       let notificationTitle = `Yêu cầu ${typeLabels[type] || type} mới`;
@@ -444,3 +448,96 @@ export async function POST(req: Request) {
     }, { status: 500 });
   }
 }
+
+// DELETE: Delete one or multiple personal requests
+export async function DELETE(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.employeeId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { ids, id } = body;
+    const targetIds: string[] = ids ? (Array.isArray(ids) ? ids : [ids]) : (id ? [id] : []);
+
+    if (targetIds.length === 0) {
+      return NextResponse.json({ error: "No request IDs provided" }, { status: 400 });
+    }
+
+    const deleteResult = await (prisma as any).personalRequest.deleteMany({
+      where: {
+        id: { in: targetIds },
+        employeeId: session.user.employeeId,
+      },
+    });
+
+    return NextResponse.json({ success: true, count: deleteResult.count });
+  } catch (error) {
+    console.error("DELETE Personal Request Error:", error);
+    return NextResponse.json({ 
+      error: "Failed to delete request(s)",
+      message: error instanceof Error ? error.message : "Unknown error"
+    }, { status: 500 });
+  }
+}
+
+// PUT: Update an existing personal request
+export async function PUT(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.employeeId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { 
+      id,
+      type, 
+      reason, 
+      startDate, 
+      endDate, 
+      totalDays, 
+      totalHours, 
+      details 
+    } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Request ID is required" }, { status: 400 });
+    }
+
+    const existing = await (prisma as any).personalRequest.findFirst({
+      where: {
+        id,
+        employeeId: session.user.employeeId,
+      },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
+
+    const updatedRequest = await (prisma as any).personalRequest.update({
+      where: { id },
+      data: {
+        ...(type ? { type } : {}),
+        reason: reason !== undefined ? reason : existing.reason,
+        startDate: startDate ? new Date(startDate) : existing.startDate,
+        endDate: endDate ? new Date(endDate) : existing.endDate,
+        totalDays: totalDays !== undefined ? (totalDays ? parseFloat(totalDays) : null) : existing.totalDays,
+        totalHours: totalHours !== undefined ? (totalHours ? parseFloat(totalHours) : null) : existing.totalHours,
+        details: details !== undefined ? (typeof details === 'object' ? JSON.stringify(details) : details) : existing.details,
+      },
+    });
+
+    return NextResponse.json(updatedRequest);
+  } catch (error) {
+    console.error("UPDATE Personal Request Error:", error);
+    return NextResponse.json({ 
+      error: "Failed to update request",
+      message: error instanceof Error ? error.message : "Unknown error"
+    }, { status: 500 });
+  }
+}
+
+

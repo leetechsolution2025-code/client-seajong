@@ -47,7 +47,7 @@ export async function GET(request: Request) {
     const personalWhere: any = {};
     if (status) personalWhere.status = status;
     if (dept) personalWhere.employee = { departmentCode: dept };
-    if (!type || ["leave", "unpaid_leave", "late", "early", "overtime", "hr-request", "work", "business-trip"].includes(type.toLowerCase())) {
+    if (!type || ["leave", "unpaid_leave", "late", "early", "overtime", "hr-request", "work", "business-trip", "salary-advance", "advance-refund", "sick-leave"].includes(type.toLowerCase())) {
       if (type) personalWhere.type = type;
       const personalRequests = await prisma.personalRequest.findMany({
         where: personalWhere,

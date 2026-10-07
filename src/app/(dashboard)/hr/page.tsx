@@ -68,6 +68,9 @@ const TYPE_MAP: Record<string, { label: string; color: string }> = {
   "promotion": { label: "Đề bạt & thuyên chuyển", color: "#8b5cf6" },
   "salary-adjustment": { label: "Điều chỉnh thu nhập", color: "#f43f5e" },
   "stationery": { label: "Văn phòng phẩm và dụng cụ", color: "#ec4899" },
+  "salary-advance": { label: "Tạm ứng lương", color: "#3b82f6" },
+  "advance-refund": { label: "Tạm ứng & hoàn ứng", color: "#7c3aed" },
+  "sick-leave": { label: "Nghỉ ốm (BHXH)", color: "#db2777" },
 };
 
 export default function ApprovalsPage() {
@@ -118,6 +121,7 @@ export default function ApprovalsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false);
+  const [copiedBankId, setCopiedBankId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState("");
@@ -179,9 +183,9 @@ export default function ApprovalsPage() {
     let filtered = [...allRequests];
 
     if (activeTabId === "pending") {
-      filtered = filtered.filter(r => r.status.toUpperCase() === "PENDING" && r.employee.userId !== currentUserId);
+      filtered = filtered.filter(r => r.status.toUpperCase() === "PENDING");
     } else if (activeTabId === "history") {
-      filtered = filtered.filter(r => r.status.toUpperCase() !== "PENDING" && r.employee.userId !== currentUserId);
+      filtered = filtered.filter(r => r.status.toUpperCase() !== "PENDING");
     } else if (activeTabId === "my-requests") {
       filtered = filtered.filter(r => r.employee.userId === currentUserId);
     }
@@ -325,6 +329,7 @@ export default function ApprovalsPage() {
       if (res.ok) {
         toastSuccess("Đã xóa yêu cầu thành công");
         setDeleteConfirm({ open: false, id: null });
+        setSelectedRequest(null);
         fetchData();
       } else {
         const errMsg = await res.text();
@@ -437,28 +442,6 @@ export default function ApprovalsPage() {
       },
       width: "120px",
       align: "center"
-    },
-    {
-      header: "Thao tác",
-      render: (r) => (
-        <div className="d-flex justify-content-end gap-1" onClick={(e) => e.stopPropagation()}>
-          {activeTabId === "pending" && r.status.toUpperCase() === "PENDING" && !r.hrApproved && (
-            <>
-              <button className="btn btn-light btn-sm border-0" title="Duyệt" onClick={() => handleAction(r.id, "APPROVE")}>
-                <i className="bi bi-check-lg text-success" />
-              </button>
-              <button className="btn btn-light btn-sm border-0" title="Trình lãnh đạo" onClick={() => handleAction(r.id, "FORWARD_DIRECTOR")}>
-                <i className="bi bi-send text-info" />
-              </button>
-              <button className="btn btn-light btn-sm border-0" title="Từ chối" onClick={() => setRejectionModal({ open: true, id: r.id })}>
-                <i className="bi bi-x-lg text-danger" />
-              </button>
-            </>
-          )}
-        </div>
-      ),
-      width: "120px",
-      align: "right"
     }
   ];
 
@@ -623,239 +606,703 @@ export default function ApprovalsPage() {
       />
 
       {/* Request Detail Offcanvas */}
-      {selectedRequest && (
-        <div className="offcanvas offcanvas-end show" style={{ visibility: "visible", width: 400 }}>
-          <div className="offcanvas-header border-bottom bg-light">
-            <h6 className="offcanvas-title fw-bold">Chi tiết đề xuất</h6>
-            <button type="button" className="btn-close" onClick={() => setSelectedRequest(null)} />
-          </div>
-          <div className="offcanvas-body pb-5">
-             <div className="d-flex align-items-center gap-3 mb-4">
-                <EmployeeAvatar name={selectedRequest.employee.fullName} url={selectedRequest.employee.avatarUrl} size={60} />
-                <div>
-                   <h6 className="fw-bold mb-1">{selectedRequest.employee.fullName}</h6>
-                   <div className="text-muted" style={{ fontSize: 12 }}>{getPositionName(selectedRequest.employee.position)} • {selectedRequest.employee.departmentName}</div>
-                </div>
-             </div>
+      {selectedRequest && (() => {
+        const typeKey = selectedRequest.type.toLowerCase();
+        let details: any = {};
+        if (selectedRequest.details) {
+          try {
+            details = JSON.parse(selectedRequest.details);
+          } catch (e) {
+            details = {};
+          }
+        }
 
-             <div className="d-flex flex-column gap-3">
-                 <div className="p-3 bg-light rounded-3 border">
-                    <div className="text-muted mb-1" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>Loại đề xuất</div>
-                    <div className="fw-bold text-primary">
-                      {(() => {
-                         const label = TYPE_MAP[selectedRequest.type.toLowerCase()]?.label || selectedRequest.type;
-                         if (selectedRequest.details) {
-                            try {
-                               const parsed = JSON.parse(selectedRequest.details);
-                               if (parsed.leaveType) return `${label} (${parsed.leaveType})`;
-                               if (parsed.requestType) return `${label} (${parsed.requestType})`;
-                               if (parsed.time) return `${label} (${parsed.time})`;
-                            } catch (e) {}
-                         }
-                         return label;
-                      })()}
+        const getStatusBadge = () => {
+          if (typeKey === "stationery") {
+            if (selectedRequest.status.toUpperCase() === "PENDING") {
+              return <span className="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" style={{ fontSize: 11.5 }}>Chưa xử lý</span>;
+            }
+            if (selectedRequest.status.toUpperCase() === "APPROVED") {
+              return <span className="badge bg-info-subtle text-info border border-info-subtle px-2 py-1" style={{ fontSize: 11.5 }}>VP đang xử lý</span>;
+            }
+            if (selectedRequest.status.toUpperCase() === "DELIVERED") {
+              return <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style={{ fontSize: 11.5 }}>Đã cấp phát</span>;
+            }
+            return <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style={{ fontSize: 11.5 }}>Từ chối</span>;
+          }
+
+          if (selectedRequest.status.toUpperCase() === "PENDING") {
+            if (selectedRequest.hrApproved) {
+              return <span className="badge bg-info-subtle text-info border border-info-subtle px-2 py-1" style={{ fontSize: 11.5 }}>Trình lãnh đạo</span>;
+            }
+            return <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1" style={{ fontSize: 11.5 }}>Chờ duyệt</span>;
+          }
+          if (selectedRequest.status.toUpperCase() === "APPROVED") {
+            return <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style={{ fontSize: 11.5 }}>Đã duyệt</span>;
+          }
+          return <span className="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style={{ fontSize: 11.5 }}>Từ chối</span>;
+        };
+
+        const renderBankCard = () => {
+          if (!details.bankInfo && !details.bankAccount) return null;
+
+          let bankName = details.bankName || "";
+          let bankAccount = details.bankAccount || "";
+          let bankAccountName = details.bankAccountName || "";
+
+          if (details.bankInfo) {
+            const raw = String(details.bankInfo).trim();
+            // Khớp dạng: "Tên Ngân hàng - STK (Tên chủ TK)" hoặc "Tên - Chi tiết - STK (Tên chủ TK)"
+            const match = raw.match(/^(.*?)\s*-\s*([0-9A-Za-z]+)\s*\((.*?)\)$/);
+            if (match) {
+              if (!bankName) bankName = match[1].trim();
+              if (!bankAccount) bankAccount = match[2].trim();
+              if (!bankAccountName) bankAccountName = match[3].trim();
+            } else {
+              const matchNum = raw.match(/(\d{6,20})/);
+              const matchName = raw.match(/\((.*?)\)/);
+              if (matchNum && !bankAccount) bankAccount = matchNum[1];
+              if (matchName && !bankAccountName) bankAccountName = matchName[1];
+              if (!bankName && bankAccount) {
+                bankName = raw.split(bankAccount)[0].replace(/[-–—]/g, " ").trim();
+              }
+            }
+            if (!bankName && !bankAccount) {
+              bankName = raw;
+            }
+          }
+
+          if (!bankAccountName) bankAccountName = selectedRequest.employee.fullName;
+
+          // Rút gọn tên ngân hàng hiển thị gọn gàng (ví dụ "Vietcombank - Ngân hàng TMCP Ngoại thương Việt Nam" -> "Vietcombank")
+          let shortBankName = bankName;
+          if (bankName.includes(" - ")) {
+            shortBankName = bankName.split(" - ")[0].trim();
+          }
+
+          const isCopied = copiedBankId === bankAccount;
+
+          return (
+            <div className="pt-2 border-top">
+              <div className="text-muted mb-1.5 fw-semibold text-uppercase" style={{ fontSize: 11 }}>
+                Tài khoản thụ hưởng
+              </div>
+              <div 
+                className="p-3 rounded-3 position-relative overflow-hidden text-white"
+                style={{
+                  background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
+                  border: "1px solid #334155",
+                  boxShadow: "0 4px 14px rgba(15, 23, 42, 0.15)"
+                }}
+              >
+                {/* Background watermark */}
+                <i 
+                  className="bi bi-credit-card-2-front position-absolute" 
+                  style={{
+                    right: -10,
+                    bottom: -15,
+                    fontSize: 75,
+                    opacity: 0.08,
+                    pointerEvents: "none"
+                  }}
+                />
+
+                <div className="d-flex align-items-center justify-content-between mb-2">
+                  <div className="d-flex align-items-center gap-1.5">
+                    <i className="bi bi-bank2 text-warning" style={{ fontSize: 14 }}></i>
+                    <span className="fw-bold text-white" style={{ fontSize: 13, letterSpacing: "0.2px" }}>
+                      {shortBankName || "NGÂN HÀNG"}
+                    </span>
+                  </div>
+                  <span 
+                    className="badge px-2 py-0.5" 
+                    style={{ 
+                      fontSize: 10, 
+                      background: "rgba(255,255,255,0.12)", 
+                      color: "#94a3b8",
+                      fontWeight: 500,
+                      borderRadius: 4
+                    }}
+                  >
+                    Chuyển khoản
+                  </span>
+                </div>
+
+                {bankAccount ? (
+                  <div className="my-2 p-2 rounded" style={{ background: "rgba(255, 255, 255, 0.06)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                    <div className="text-secondary" style={{ fontSize: 10, letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                      Số tài khoản
                     </div>
-                 </div>
+                    <div className="d-flex align-items-center justify-content-between mt-0.5">
+                      <span className="font-monospace fw-bold text-white" style={{ fontSize: 16, letterSpacing: "1.2px" }}>
+                        {bankAccount}
+                      </span>
+                      <button 
+                        type="button"
+                        className="btn btn-sm py-0.5 px-2 d-flex align-items-center gap-1 border-0 shadow-none"
+                        style={{
+                          fontSize: 11,
+                          borderRadius: 4,
+                          background: isCopied ? "rgba(34, 197, 94, 0.25)" : "rgba(255, 255, 255, 0.15)",
+                          color: isCopied ? "#4ade80" : "#e2e8f0"
+                        }}
+                        onClick={() => {
+                          navigator.clipboard.writeText(bankAccount);
+                          setCopiedBankId(bankAccount);
+                          setTimeout(() => setCopiedBankId(null), 2000);
+                        }}
+                        title="Sao chép số tài khoản"
+                      >
+                        <i className={`bi ${isCopied ? "bi-check2" : "bi-copy"}`}></i>
+                        {isCopied ? "Đã chép" : "Sao chép"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="my-1.5 fw-semibold text-light" style={{ fontSize: 13 }}>{details.bankInfo}</div>
+                )}
 
-                <div className="row g-2">
-                   <div className="col-6">
-                      <div className="p-3 bg-light rounded-3 border">
-                        <div className="text-muted mb-1" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>Trạng thái</div>
-                        {(() => {
-                            const map = {
-                               PENDING: { 
-                                  label: selectedRequest.type.toLowerCase() === "stationery" ? "Chưa xử lý" : (selectedRequest.hrApproved ? "Trình lãnh đạo" : "Chờ duyệt"), 
-                                  cls: selectedRequest.type.toLowerCase() === "stationery" ? "text-warning" : (selectedRequest.hrApproved ? "text-info" : "text-warning") 
-                               },
-                               APPROVED: { 
-                                  label: selectedRequest.type.toLowerCase() === "stationery" ? "Văn phòng đang xử lý" : "Đã duyệt", 
-                                  cls: selectedRequest.type.toLowerCase() === "stationery" ? "text-info" : "text-success" 
-                               },
-                               DELIVERED: { label: "Đã cấp phát", cls: "text-success" },
-                               REJECTED: { 
-                                  label: selectedRequest.type.toLowerCase() === "stationery" ? "Văn phòng đang xử lý" : "Từ chối", 
-                                  cls: selectedRequest.type.toLowerCase() === "stationery" ? "text-info" : "text-danger" 
-                               },
-                            };
-                           const m = map[selectedRequest.status.toUpperCase() as keyof typeof map] || map.PENDING;
-                           return <div className={`fw-bold ${m.cls}`}>{m.label}</div>;
-                        })()}
-                      </div>
-                   </div>
-                   <div className="col-6">
-                      <div className="p-3 bg-light rounded-3 border">
-                        <div className="text-muted mb-1" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>Ngày gửi đơn</div>
-                        <div className="fw-bold" style={{ fontSize: 13 }}>{new Date(selectedRequest.createdAt).toLocaleDateString("vi-VN")}</div>
-                      </div>
-                   </div>
+                <div className="mt-2 d-flex justify-content-between align-items-end">
+                  <div>
+                    <div className="text-secondary" style={{ fontSize: 10, letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                      Chủ tài khoản
+                    </div>
+                    <div className="fw-bold text-white text-uppercase" style={{ fontSize: 12.5, letterSpacing: "0.5px" }}>
+                      {bankAccountName}
+                    </div>
+                  </div>
+                  {bankName && bankName !== shortBankName && (
+                    <span className="text-secondary text-truncate ms-2 text-end" style={{ fontSize: 10.5, maxWidth: 150 }} title={bankName}>
+                      {bankName}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        const renderTypeSpecificContent = () => {
+          // 1. Tạm ứng lương
+          if (typeKey === "salary-advance") {
+            const amount = Number(details.amount || 0);
+            return (
+              <div className="d-flex flex-column gap-3">
+                {/* Hero card số tiền */}
+                <div className="p-3 rounded-3 border text-center shadow-xs" style={{ background: "linear-gradient(135deg, #fef2f2 0%, #ffffff 100%)", borderColor: "#fecaca" }}>
+                  <div className="text-muted fw-semibold text-uppercase" style={{ fontSize: 11, letterSpacing: "0.5px" }}>Số tiền tạm ứng</div>
+                  <div className="fw-bold text-danger my-1" style={{ fontSize: 24 }}>
+                    {amount > 0 ? `${amount.toLocaleString("vi-VN")} đ` : "—"}
+                  </div>
+                  <div className="text-muted" style={{ fontSize: 12 }}>
+                    Khấu trừ vào lương: <strong className="text-primary">Tháng {details.salaryMonth || "Hiện tại"}</strong>
+                  </div>
                 </div>
 
-                <div className="row g-2">
-                   <div className="col-6">
-                      <div className="p-3 bg-light rounded-3 border">
-                        <div className="text-muted mb-1" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>Từ ngày</div>
-                        <div className="fw-bold">{selectedRequest.startDate ? new Date(selectedRequest.startDate).toLocaleDateString("vi-VN") : "—"}</div>
-                      </div>
-                   </div>
-                   <div className="col-6">
-                      <div className="p-3 bg-light rounded-3 border">
-                        <div className="text-muted mb-1" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>Đến ngày</div>
-                        <div className="fw-bold">{selectedRequest.endDate ? new Date(selectedRequest.endDate).toLocaleDateString("vi-VN") : "—"}</div>
-                      </div>
-                   </div>
+                {/* Grid chi tiết */}
+                <div className="p-3 bg-light rounded-3 border d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span className="text-muted">Hình thức nhận:</span>
+                    <span className="fw-semibold text-dark">{details.paymentMethod || "Chuyển khoản"}</span>
+                  </div>
+                  {renderBankCard()}
                 </div>
 
-                 <div className="p-3 bg-light rounded-3 border">
-                    <div className="text-muted mb-2" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>Nội dung chi tiết</div>
-                    {(() => {
-                       if (selectedRequest.details) {
-                          try {
-                             const details = JSON.parse(selectedRequest.details);
-                             if (selectedRequest.type.toLowerCase() === "recruitment") {
-                                return (
-                                   <div className="d-flex flex-column gap-2" style={{ fontSize: 13 }}>
-                                      <div><strong>Vị trí tuyển dụng:</strong> {details.position}</div>
-                                      <div><strong>Số lượng:</strong> {details.quantity}</div>
-                                      <div><strong>Cấp bậc:</strong> {details.level}</div>
-                                      <div><strong>Hình thức:</strong> {details.workType}</div>
-                                      <div><strong>Mức lương:</strong> {details.salary}</div>
-                                      {details.deadline && <div><strong>Hạn tuyển:</strong> {new Date(details.deadline).toLocaleDateString("vi-VN")}</div>}
-                                      {selectedRequest.reason && (
-                                         <div className="mt-2 border-top pt-2">
-                                            <strong>Mô tả / Yêu cầu chi tiết:</strong>
-                                            <div className="text-muted mt-1" style={{ whiteSpace: "pre-wrap" }}>
-                                               {selectedRequest.reason.split("\nMô tả chi tiết:\n")[1] || selectedRequest.reason}
-                                            </div>
-                                         </div>
-                                      )}
-                                   </div>
-                                );
-                             }
-                             if (selectedRequest.type.toLowerCase() === "training") {
-                                return (
-                                   <div className="d-flex flex-column gap-2" style={{ fontSize: 13 }}>
-                                      <div><strong>Chủ đề đào tạo:</strong> {details.topic}</div>
-                                      <div><strong>Giảng viên:</strong> {details.trainer || "Chưa xác định"}</div>
-                                      <div><strong>Địa điểm:</strong> {details.location || "Chưa xác định"}</div>
-                                      <div><strong>Đối tượng tham gia:</strong> {details.participants || "Chưa xác định"}</div>
-                                      {selectedRequest.reason && (
-                                         <div className="mt-2 border-top pt-2">
-                                            <strong>Nội dung đào tạo chi tiết:</strong>
-                                            <div className="text-muted mt-1" style={{ whiteSpace: "pre-wrap" }}>
-                                               {selectedRequest.reason.split("\nNội dung chi tiết:\n")[1] || selectedRequest.reason}
-                                            </div>
-                                         </div>
-                                      )}
-                                   </div>
-                                );
-                             }
-                             if (selectedRequest.type.toLowerCase() === "promotion") {
-                                return (
-                                   <div className="d-flex flex-column gap-2" style={{ fontSize: 13 }}>
-                                      <div><strong>Nhân viên:</strong> {details.employee}</div>
-                                      <div><strong>Loại đề xuất:</strong> {details.isTransfer ? "Thuyên chuyển công tác" : "Đề bạt thăng tiến"}</div>
-                                      <div><strong>Bộ phận hiện tại:</strong> {details.currentRole}</div>
-                                      {details.targetDepartment && <div><strong>Bộ phận đề xuất:</strong> {details.targetDepartment}</div>}
-                                      {details.proposedRole && <div><strong>Vị trí đề xuất:</strong> {details.proposedRole}</div>}
-                                      {selectedRequest.reason && (
-                                         <div className="mt-2 border-top pt-2">
-                                            <strong>Lý do thăng tiến / thuyên chuyển:</strong>
-                                            <div className="text-muted mt-1" style={{ whiteSpace: "pre-wrap" }}>
-                                               {selectedRequest.reason.split("\nLý do chi tiết:\n")[1] || selectedRequest.reason}
-                                            </div>
-                                         </div>
-                                      )}
-                                   </div>
-                                );
-                             }
-                             if (selectedRequest.type.toLowerCase() === "salary-adjustment") {
-                                return (
-                                   <div className="d-flex flex-column gap-2" style={{ fontSize: 13 }}>
-                                      <div><strong>Nhân viên:</strong> {details.employee}</div>
-                                      <div><strong>Loại điều chỉnh:</strong> {details.adjustmentType}</div>
-                                      <div><strong>Lương hiện tại:</strong> {details.currentSalary}</div>
-                                      <div><strong>Lương đề xuất mới:</strong> <span className="text-danger fw-bold">{details.proposedSalary}</span></div>
-                                      {selectedRequest.reason && (
-                                         <div className="mt-2 border-top pt-2">
-                                            <strong>Lý do điều chỉnh chi tiết:</strong>
-                                            <div className="text-muted mt-1" style={{ whiteSpace: "pre-wrap" }}>
-                                               {selectedRequest.reason.split("\nLý do chi tiết:\n")[1] || selectedRequest.reason}
-                                            </div>
-                                         </div>
-                                      )}
-                                   </div>
-                                );
-                             }
-                             if (selectedRequest.type.toLowerCase() === "stationery") {
-                                return (
-                                   <div className="d-flex flex-column gap-2" style={{ fontSize: 13 }}>
-                                      {details.note && <div><strong>Ghi chú / Lý do:</strong> {details.note}</div>}
-                                      <div><strong>Tổng tiền dự kiến:</strong> <span className="text-danger fw-bold">{details.totalAmount?.toLocaleString("vi-VN")} đ</span></div>
-                                      <div className="mt-2 border-top pt-2">
-                                         <strong>Danh sách vật tư đề xuất:</strong>
-                                         <div className="table-responsive mt-1">
-                                            <table className="table table-sm table-bordered" style={{ fontSize: 12 }}>
-                                               <thead>
-                                                  <tr className="bg-light">
-                                                     <th>Tên vật tư</th>
-                                                     <th style={{ width: 80 }} className="text-center">Đơn vị</th>
-                                                     <th style={{ width: 80 }} className="text-center">Số lượng</th>
-                                                  </tr>
-                                               </thead>
-                                               <tbody>
-                                                  {details.items?.map((item: any, idx: number) => (
-                                                     <tr key={idx}>
-                                                        <td>{item.name}</td>
-                                                        <td className="text-center">{item.unit}</td>
-                                                        <td className="text-center fw-bold">{item.quantity}</td>
-                                                     </tr>
-                                                  ))}
-                                               </tbody>
-                                            </table>
-                                         </div>
-                                      </div>
-                                   </div>
-                                );
-                             }
-                          } catch (e) {}
-                       }
-                       return <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{selectedRequest.reason || "Không có nội dung chi tiết."}</div>;
-                    })()}
-                 </div>
-             </div>
-          </div>
+                {/* Lý do */}
+                <div className="p-3 bg-light rounded-3 border">
+                  <div className="text-muted fw-semibold text-uppercase mb-1" style={{ fontSize: 11 }}>Lý do tạm ứng</div>
+                  <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    {details.reason || selectedRequest.reason || "Không có lý do chi tiết"}
+                  </div>
+                </div>
+              </div>
+            );
+          }
 
-          {activeTabId === "pending" && selectedRequest.status.toUpperCase() === "PENDING" && !selectedRequest.hrApproved && (
-            <div className="offcanvas-footer p-3 border-top bg-white d-flex gap-2 position-absolute bottom-0 w-100">
-               <BrandButton 
-                  icon="bi-check-lg" 
-                  className="flex-grow-1" 
-                  onClick={() => handleAction(selectedRequest.id, "APPROVE")}
-                  loading={actionLoading}
-               >
-                  Duyệt
-               </BrandButton>
-               <BrandButton 
+          // 2. Tạm ứng & Hoàn ứng
+          if (typeKey === "advance-refund") {
+            const amount = Number(details.amount || 0);
+            const isAdvance = details.subType !== "Hoàn ứng" && details.subType !== "Quyết toán";
+            return (
+              <div className="d-flex flex-column gap-3">
+                <div className="p-3 rounded-3 border text-center shadow-xs" style={{ background: "linear-gradient(135deg, #faf5ff 0%, #ffffff 100%)", borderColor: "#e9d5ff" }}>
+                  <span className="badge bg-purple-subtle text-purple border fw-semibold mb-1" style={{ fontSize: 11 }}>
+                    {details.subType || (isAdvance ? "Tạm ứng công việc" : "Hoàn ứng quyết toán")}
+                  </span>
+                  <div className="fw-bold text-danger my-1" style={{ fontSize: 24 }}>
+                    {amount > 0 ? `${amount.toLocaleString("vi-VN")} đ` : "—"}
+                  </div>
+                  {details.advanceCode && (
+                    <div className="text-muted" style={{ fontSize: 12 }}>
+                      Mã tạm ứng gốc: <span className="font-monospace fw-bold text-dark">{details.advanceCode}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3 bg-light rounded-3 border d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span className="text-muted">Phương thức:</span>
+                    <span className="fw-semibold text-dark">{details.paymentMethod || "Chuyển khoản"}</span>
+                  </div>
+                  {details.isBusinessTrip && (
+                    <div className="d-flex justify-content-between align-items-center border-top pt-2">
+                      <span className="text-muted">Lịch công tác:</span>
+                      <span className="fw-semibold text-primary">
+                        {details.tripStartDate ? new Date(details.tripStartDate).toLocaleDateString("vi-VN") : (selectedRequest.startDate ? new Date(selectedRequest.startDate).toLocaleDateString("vi-VN") : "—")} 
+                        {" - "}
+                        {details.tripEndDate ? new Date(details.tripEndDate).toLocaleDateString("vi-VN") : (selectedRequest.endDate ? new Date(selectedRequest.endDate).toLocaleDateString("vi-VN") : "—")}
+                      </span>
+                    </div>
+                  )}
+                  {renderBankCard()}
+                </div>
+
+                <div className="p-3 bg-light rounded-3 border">
+                  <div className="text-muted fw-semibold text-uppercase mb-1" style={{ fontSize: 11 }}>Mục đích chi / Diễn giải</div>
+                  <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    {details.purpose || details.reason || selectedRequest.reason || "Không có nội dung chi tiết"}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // 3. Nghỉ ốm
+          if (typeKey === "sick-leave") {
+            return (
+              <div className="d-flex flex-column gap-3">
+                <div className="p-3 rounded-3 border text-center shadow-xs" style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffffff 100%)", borderColor: "#fed7aa" }}>
+                  <div className="text-muted fw-semibold text-uppercase" style={{ fontSize: 11 }}>Thời gian xin nghỉ</div>
+                  <div className="fw-bold text-warning-emphasis my-1" style={{ fontSize: 24 }}>
+                    {details.totalDays || 1} <span style={{ fontSize: 16, fontWeight: 500 }}>ngày</span>
+                  </div>
+                  <span className="badge bg-warning-subtle text-warning-emphasis border" style={{ fontSize: 11 }}>
+                    {details.sickType || "Nghỉ ốm hưởng BHXH"}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-light rounded-3 border d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Từ ngày:</span>
+                    <span className="fw-semibold">{selectedRequest.startDate ? new Date(selectedRequest.startDate).toLocaleDateString("vi-VN") : "—"}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-top pt-2">
+                    <span className="text-muted">Đến ngày:</span>
+                    <span className="fw-semibold">{selectedRequest.endDate ? new Date(selectedRequest.endDate).toLocaleDateString("vi-VN") : "—"}</span>
+                  </div>
+                  {details.medicalFacility && (
+                    <div className="d-flex justify-content-between border-top pt-2">
+                      <span className="text-muted">Cơ sở khám bệnh:</span>
+                      <span className="fw-semibold text-end">{details.medicalFacility}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3 bg-light rounded-3 border">
+                  <div className="text-muted fw-semibold text-uppercase mb-1" style={{ fontSize: 11 }}>Lý do nghỉ ốm</div>
+                  <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    {details.reason || selectedRequest.reason || "Không có lý do chi tiết"}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // 4. Nghỉ phép / Không lương / Việc riêng
+          if (typeKey === "leave" || typeKey === "unpaid_leave") {
+            const leaveName = details.leaveType || (typeKey === "unpaid_leave" ? "Nghỉ không hưởng lương" : "Nghỉ phép năm");
+            return (
+              <div className="d-flex flex-column gap-3">
+                <div className="p-3 rounded-3 border text-center shadow-xs" style={{ background: "linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%)", borderColor: "#bae6fd" }}>
+                  <div className="text-muted fw-semibold text-uppercase" style={{ fontSize: 11 }}>Số ngày xin nghỉ</div>
+                  <div className="fw-bold text-primary my-1" style={{ fontSize: 24 }}>
+                    {details.totalDays || 1} <span style={{ fontSize: 16, fontWeight: 500 }}>ngày</span>
+                  </div>
+                  <span className="badge bg-primary-subtle text-primary border" style={{ fontSize: 11 }}>
+                    {leaveName}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-light rounded-3 border d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Từ ngày:</span>
+                    <span className="fw-semibold">{selectedRequest.startDate ? new Date(selectedRequest.startDate).toLocaleDateString("vi-VN") : "—"}</span>
+                  </div>
+                  <div className="d-flex justify-content-between border-top pt-2">
+                    <span className="text-muted">Đến ngày:</span>
+                    <span className="fw-semibold">{selectedRequest.endDate ? new Date(selectedRequest.endDate).toLocaleDateString("vi-VN") : "—"}</span>
+                  </div>
+                  {details.handoverTo && (
+                    <div className="d-flex justify-content-between border-top pt-2">
+                      <span className="text-muted">Người bàn giao:</span>
+                      <span className="fw-semibold">{details.handoverTo}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3 bg-light rounded-3 border">
+                  <div className="text-muted fw-semibold text-uppercase mb-1" style={{ fontSize: 11 }}>Lý do xin nghỉ</div>
+                  <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    {details.reason || selectedRequest.reason || "Không có lý do chi tiết"}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // 5. Đi muộn / Về sớm
+          if (typeKey === "late" || typeKey === "early") {
+            const isLate = typeKey === "late";
+            return (
+              <div className="d-flex flex-column gap-3">
+                <div className="p-3 rounded-3 border text-center shadow-xs" style={{ background: "linear-gradient(135deg, #fffbeb 0%, #ffffff 100%)", borderColor: "#fde68a" }}>
+                  <span className="badge bg-warning-subtle text-warning-emphasis border fw-semibold mb-1" style={{ fontSize: 11 }}>
+                    {details.requestType || (isLate ? "Đăng ký đi muộn" : "Đăng ký về sớm")}
+                  </span>
+                  <div className="fw-bold text-dark my-1" style={{ fontSize: 24 }}>
+                    {details.minutes || 30} <span style={{ fontSize: 16, fontWeight: 500 }}>phút</span>
+                  </div>
+                  <div className="text-muted" style={{ fontSize: 12 }}>
+                    Khung giờ: <strong>{details.time || (isLate ? "08:30" : "17:00")}</strong>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-light rounded-3 border d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Ngày áp dụng:</span>
+                    <span className="fw-semibold text-primary">{selectedRequest.startDate ? new Date(selectedRequest.startDate).toLocaleDateString("vi-VN") : "—"}</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-light rounded-3 border">
+                  <div className="text-muted fw-semibold text-uppercase mb-1" style={{ fontSize: 11 }}>Lý do {isLate ? "đi muộn" : "về sớm"}</div>
+                  <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    {details.reason || selectedRequest.reason || "Không có lý do chi tiết"}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // 6. Làm thêm giờ (Overtime)
+          if (typeKey === "overtime") {
+            return (
+              <div className="d-flex flex-column gap-3">
+                <div className="p-3 rounded-3 border text-center shadow-xs" style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%)", borderColor: "#bbf7d0" }}>
+                  <span className="badge bg-success-subtle text-success border fw-semibold mb-1" style={{ fontSize: 11 }}>
+                    {details.overtimeType || "Làm thêm ngày thường (150%)"}
+                  </span>
+                  <div className="fw-bold text-success my-1" style={{ fontSize: 24 }}>
+                    {details.totalHours || 2} <span style={{ fontSize: 16, fontWeight: 500 }}>giờ</span>
+                  </div>
+                  <div className="text-muted" style={{ fontSize: 12 }}>
+                    Khung giờ: <strong>{details.startTime || "17:30"} - {details.endTime || "19:30"}</strong>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-light rounded-3 border d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Ngày làm thêm:</span>
+                    <span className="fw-semibold text-primary">{selectedRequest.startDate ? new Date(selectedRequest.startDate).toLocaleDateString("vi-VN") : "—"}</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-light rounded-3 border">
+                  <div className="text-muted fw-semibold text-uppercase mb-1" style={{ fontSize: 11 }}>Nội dung làm thêm</div>
+                  <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    {details.reason || selectedRequest.reason || "Không có nội dung chi tiết"}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // 7. Văn phòng phẩm
+          if (typeKey === "stationery") {
+            return (
+              <div className="d-flex flex-column gap-3">
+                {details.totalAmount > 0 && (
+                  <div className="p-3 rounded-3 border text-center shadow-xs" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)" }}>
+                    <div className="text-muted fw-semibold text-uppercase" style={{ fontSize: 11 }}>Tổng tiền dự kiến</div>
+                    <div className="fw-bold text-danger my-1" style={{ fontSize: 22 }}>
+                      {Number(details.totalAmount).toLocaleString("vi-VN")} đ
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-3 bg-light rounded-3 border">
+                  <div className="text-muted fw-semibold text-uppercase mb-2" style={{ fontSize: 11 }}>Danh sách vật tư đề xuất</div>
+                  <div className="table-responsive bg-white rounded border">
+                    <table className="table table-sm table-borderless mb-0" style={{ fontSize: 12 }}>
+                      <thead>
+                        <tr className="border-bottom bg-light">
+                          <th className="px-2 py-1.5">Tên vật tư</th>
+                          <th style={{ width: 70 }} className="text-center px-1 py-1.5">ĐVT</th>
+                          <th style={{ width: 60 }} className="text-center px-1 py-1.5">SL</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {details.items?.map((item: any, idx: number) => (
+                          <tr key={idx} className="border-bottom">
+                            <td className="px-2 py-1.5 fw-medium text-dark">{item.name}</td>
+                            <td className="text-center px-1 py-1.5 text-muted">{item.unit}</td>
+                            <td className="text-center px-1 py-1.5 fw-bold text-primary">{item.quantity}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {(details.note || selectedRequest.reason) && (
+                  <div className="p-3 bg-light rounded-3 border">
+                    <div className="text-muted fw-semibold text-uppercase mb-1" style={{ fontSize: 11 }}>Ghi chú / Mục đích</div>
+                    <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                      {details.note || selectedRequest.reason}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // 8. Tuyển dụng
+          if (typeKey === "recruitment") {
+            return (
+              <div className="d-flex flex-column gap-3">
+                <div className="p-3 bg-light rounded-3 border d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                  <div><strong>Vị trí tuyển dụng:</strong> <span className="text-primary fw-bold ms-1">{details.position}</span></div>
+                  <div><strong>Số lượng cần tuyển:</strong> <span className="badge bg-primary ms-1">{details.quantity}</span></div>
+                  <div><strong>Cấp bậc:</strong> {details.level}</div>
+                  <div><strong>Hình thức làm việc:</strong> {details.workType}</div>
+                  <div><strong>Mức lương đề xuất:</strong> <span className="text-danger fw-bold ms-1">{details.salary}</span></div>
+                  {details.deadline && <div><strong>Hạn tuyển:</strong> {new Date(details.deadline).toLocaleDateString("vi-VN")}</div>}
+                </div>
+                {selectedRequest.reason && (
+                  <div className="p-3 bg-light rounded-3 border">
+                    <div className="text-muted fw-semibold text-uppercase mb-1" style={{ fontSize: 11 }}>Mô tả & Yêu cầu</div>
+                    <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                      {selectedRequest.reason.split("\nMô tả chi tiết:\n")[1] || selectedRequest.reason}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // 9. Đào tạo
+          if (typeKey === "training") {
+            return (
+              <div className="d-flex flex-column gap-3">
+                <div className="p-3 bg-light rounded-3 border d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                  <div><strong>Chủ đề đào tạo:</strong> <span className="text-primary fw-bold ms-1">{details.topic}</span></div>
+                  <div><strong>Giảng viên:</strong> {details.trainer || "Chưa xác định"}</div>
+                  <div><strong>Địa điểm:</strong> {details.location || "Chưa xác định"}</div>
+                  <div><strong>Đối tượng tham gia:</strong> {details.participants || "Chưa xác định"}</div>
+                </div>
+                {selectedRequest.reason && (
+                  <div className="p-3 bg-light rounded-3 border">
+                    <div className="text-muted fw-semibold text-uppercase mb-1" style={{ fontSize: 11 }}>Nội dung chi tiết</div>
+                    <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                      {selectedRequest.reason.split("\nNội dung chi tiết:\n")[1] || selectedRequest.reason}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // 10. Đề bạt / Thăng tiến / Thuyên chuyển
+          if (typeKey === "promotion") {
+            return (
+              <div className="d-flex flex-column gap-3">
+                <div className="p-3 bg-light rounded-3 border d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                  <div><strong>Nhân viên:</strong> {details.employee}</div>
+                  <div><strong>Hình thức:</strong> <span className="badge bg-purple-subtle text-purple border ms-1">{details.isTransfer ? "Thuyên chuyển công tác" : "Đề bạt thăng tiến"}</span></div>
+                  <div><strong>Bộ phận hiện tại:</strong> {details.currentRole}</div>
+                  {details.targetDepartment && <div><strong>Bộ phận đề xuất:</strong> {details.targetDepartment}</div>}
+                  {details.proposedRole && <div><strong>Vị trí đề xuất:</strong> <span className="text-primary fw-bold ms-1">{details.proposedRole}</span></div>}
+                </div>
+                {selectedRequest.reason && (
+                  <div className="p-3 bg-light rounded-3 border">
+                    <div className="text-muted fw-semibold text-uppercase mb-1" style={{ fontSize: 11 }}>Lý do đề bạt / thuyên chuyển</div>
+                    <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                      {selectedRequest.reason.split("\nLý do chi tiết:\n")[1] || selectedRequest.reason}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // 11. Điều chỉnh lương
+          if (typeKey === "salary-adjustment") {
+            return (
+              <div className="d-flex flex-column gap-3">
+                <div className="p-3 bg-light rounded-3 border d-flex flex-column gap-2" style={{ fontSize: 13 }}>
+                  <div><strong>Nhân viên:</strong> {details.employee}</div>
+                  <div><strong>Loại điều chỉnh:</strong> {details.adjustmentType}</div>
+                  <div><strong>Lương hiện tại:</strong> {details.currentSalary}</div>
+                  <div><strong>Lương đề xuất mới:</strong> <span className="text-danger fw-bold ms-1">{details.proposedSalary}</span></div>
+                </div>
+                {selectedRequest.reason && (
+                  <div className="p-3 bg-light rounded-3 border">
+                    <div className="text-muted fw-semibold text-uppercase mb-1" style={{ fontSize: 11 }}>Lý do điều chỉnh</div>
+                    <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                      {selectedRequest.reason.split("\nLý do chi tiết:\n")[1] || selectedRequest.reason}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // Mặc định
+          return (
+            <div className="p-3 bg-light rounded-3 border">
+              <div className="text-muted fw-semibold text-uppercase mb-1" style={{ fontSize: 11 }}>Nội dung chi tiết</div>
+              <div className="text-dark" style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                {selectedRequest.reason || "Không có nội dung chi tiết."}
+              </div>
+            </div>
+          );
+        };
+
+        return (
+          <div 
+            className="offcanvas offcanvas-end show border-0 shadow-lg d-flex flex-column" 
+            style={{ 
+              visibility: "visible", 
+              width: 400,
+              maxWidth: "100%",
+              zIndex: 1050,
+              boxShadow: "-10px 0 30px rgba(0,0,0,0.12)"
+            }}
+          >
+            {/* Header */}
+            <div className="offcanvas-header border-bottom px-4 py-3 flex-shrink-0 d-flex align-items-center justify-content-between bg-white">
+              <div>
+                <div className="d-flex align-items-center gap-2">
+                  <h6 className="offcanvas-title fw-bold mb-0 text-dark" style={{ fontSize: 16 }}>Chi tiết yêu cầu</h6>
+                  <span 
+                    className="font-monospace fw-bold"
+                    style={{
+                      fontSize: 11,
+                      padding: "2px 6px",
+                      borderRadius: 4,
+                      background: "#f1f5f9",
+                      color: "#334155",
+                      border: "1px solid #e2e8f0"
+                    }}
+                  >
+                    {selectedRequest.id}
+                  </span>
+                </div>
+                <div className="text-muted" style={{ fontSize: 11.5 }}>
+                  Gửi lúc: {new Date(selectedRequest.createdAt).toLocaleDateString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" })}
+                </div>
+              </div>
+              <button type="button" className="btn-close shadow-none" onClick={() => setSelectedRequest(null)} />
+            </div>
+
+            {/* Body */}
+            <div className="offcanvas-body px-4" style={{ overflowY: "auto", overflowX: "hidden", paddingBottom: "90px" }}>
+              {/* Employee Card & Status */}
+              <div className="d-flex align-items-center justify-content-between p-3 rounded-3 mb-3 bg-light border">
+                <div className="d-flex align-items-center gap-2.5">
+                  <EmployeeAvatar name={selectedRequest.employee.fullName} url={selectedRequest.employee.avatarUrl} size={44} />
+                  <div>
+                    <div className="d-flex align-items-center gap-1.5">
+                      <span className="fw-bold text-dark" style={{ fontSize: 14 }}>{selectedRequest.employee.fullName}</span>
+                      {selectedRequest.employeeId === currentUserId && (
+                        <span className="badge bg-primary-subtle text-primary border border-primary-subtle" style={{ fontSize: 10, padding: "1px 5px" }}>Tôi</span>
+                      )}
+                    </div>
+                    <div className="text-muted" style={{ fontSize: 12 }}>
+                      {getPositionName(selectedRequest.employee.position)} • {selectedRequest.employee.departmentName}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  {getStatusBadge()}
+                </div>
+              </div>
+
+              {/* Loại đề xuất pill */}
+              <div className="d-flex align-items-center justify-content-between mb-3 px-1">
+                <span className="text-muted fw-semibold" style={{ fontSize: 12 }}>Loại đề xuất:</span>
+                <span className="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold" style={{ fontSize: 12, padding: "5px 10px", borderRadius: 6 }}>
+                  {TYPE_MAP[typeKey]?.label || selectedRequest.type}
+                </span>
+              </div>
+
+              {/* Tùy biến nội dung cho từng loại đề xuất */}
+              {renderTypeSpecificContent()}
+            </div>
+
+          <div className="offcanvas-footer p-3 border-top bg-white d-flex align-items-center gap-2 position-absolute bottom-0 w-100">
+            {/* Nút Xoá (icon only) */}
+            <button 
+              type="button"
+              className="btn btn-outline-danger p-0 d-flex align-items-center justify-content-center flex-shrink-0" 
+              style={{ width: 42, height: 40, borderRadius: 8 }}
+              title="Xoá đề xuất"
+              onClick={() => setDeleteConfirm({ open: true, id: selectedRequest.id })}
+            >
+              <i className="bi bi-trash3 fs-5"></i>
+            </button>
+
+            {activeTabId === "pending" && selectedRequest.status.toUpperCase() === "PENDING" && !selectedRequest.hrApproved ? (
+              <>
+                {/* Nút Từ chối (icon only) */}
+                <button 
+                  type="button"
+                  className="btn btn-outline-danger p-0 d-flex align-items-center justify-content-center flex-shrink-0 bg-danger-subtle bg-opacity-25" 
+                  style={{ width: 42, height: 40, borderRadius: 8, borderColor: "#fca5a5" }}
+                  title="Từ chối đề xuất"
+                  onClick={() => setRejectionModal({ open: true, id: selectedRequest.id })}
+                >
+                  <i className="bi bi-x-lg fs-5 text-danger"></i>
+                </button>
+
+                {/* Nút Trình lãnh đạo */}
+                <BrandButton 
                   icon="bi-send" 
                   variant="outline"
                   className="flex-grow-1" 
+                  style={{ height: 40 }}
                   onClick={() => handleAction(selectedRequest.id, "FORWARD_DIRECTOR")}
                   loading={actionLoading}
-               >
-                  Trình sếp
-               </BrandButton>
-               <BrandButton 
-                  icon="bi-x-lg" 
-                  variant="outline"
-                  className="flex-grow-1" 
-                  onClick={() => setRejectionModal({ open: true, id: selectedRequest.id })}
-               >
-                  Từ chối
-               </BrandButton>
-            </div>
-          )}
+                >
+                  Trình lãnh đạo
+                </BrandButton>
+
+                {/* Nút Duyệt (icon only) */}
+                <button 
+                  type="button"
+                  className="btn btn-primary p-0 d-flex align-items-center justify-content-center flex-shrink-0 shadow-sm" 
+                  style={{ width: 42, height: 40, borderRadius: 8, backgroundColor: "#0284c7", borderColor: "#0284c7" }}
+                  title="Phê duyệt"
+                  onClick={() => handleAction(selectedRequest.id, "APPROVE")}
+                  disabled={actionLoading}
+                >
+                  <i className="bi bi-check-lg fs-4 text-white"></i>
+                </button>
+              </>
+            ) : (
+              <button 
+                type="button" 
+                className="btn btn-light border flex-grow-1" 
+                style={{ height: 40, borderRadius: 8 }}
+                onClick={() => setSelectedRequest(null)}
+              >
+                Đóng
+              </button>
+            )}
+          </div>
         </div>
-      )}
+      );
+    })()}
       {selectedRequest && <div className="offcanvas-backdrop fade show" onClick={() => setSelectedRequest(null)} />}
 
       <style jsx global>{`
@@ -865,6 +1312,23 @@ export default function ApprovalsPage() {
         .cursor-not-allowed { cursor: not-allowed !important; }
         .offcanvas.show { z-index: 1050; }
         .offcanvas-backdrop.show { z-index: 1040; }
+        .offcanvas-body {
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 transparent;
+        }
+        .offcanvas-body::-webkit-scrollbar {
+          width: 5px;
+        }
+        .offcanvas-body::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .offcanvas-body::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 4px;
+        }
+        .offcanvas-body::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
       `}</style>
     </StandardPage>
   );

@@ -2,6 +2,57 @@
 import { prisma } from "./prisma";
 
 export async function notifyHRManager(title: string, content: string, senderId: string, attachments?: string) {
+  try {
+    // Tìm Trưởng phòng Nhân sự
+    const hrManagers = await prisma.employee.findMany({
+      where: {
+        status: "active",
+        OR: [
+          {
+            departmentName: { in: ["Nhân sự", "Phòng Nhân sự", "Hành chính Nhân sự", "Hành chính - Nhân sự"] },
+            position: { contains: "vtr-20260401-1964-sbmg" }
+          },
+          { position: { contains: "Trưởng phòng Nhân sự" } },
+          { position: { contains: "TPNS" } },
+        ]
+      },
+      select: { userId: true, fullName: true }
+    });
+
+    const validUserIds = hrManagers.map(m => m.userId).filter(Boolean) as string[];
+
+    if (validUserIds.length > 0) {
+      const notification = await prisma.notification.create({
+        data: {
+          title,
+          content,
+          type: "info",
+          priority: "high",
+          attachments,
+          audienceType: validUserIds.length > 1 ? "group" : "individual",
+          audienceValue: validUserIds.length > 1 ? JSON.stringify(validUserIds) : validUserIds[0],
+          createdById: senderId
+        }
+      });
+
+      await Promise.all(
+        validUserIds.map(userId => 
+          prisma.notificationRecipient.create({
+            data: {
+              notificationId: notification.id,
+              userId: userId,
+              isRead: false
+            }
+          })
+        )
+      );
+
+      return notification;
+    }
+  } catch (error) {
+    console.error("[notifyHRManager] Error:", error);
+  }
+
   return notifyUsersByPosition(["Trưởng phòng Nhân sự", "TPNS", "vtr-20260401-1964-sbmg"], title, content, senderId, attachments);
 }
 

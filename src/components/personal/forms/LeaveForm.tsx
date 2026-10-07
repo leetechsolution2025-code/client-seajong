@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { SectionTitle } from "@/components/ui/SectionTitle";
 
 interface LeaveFormProps {
+  initialData?: any;
   onSubmit: (data: any) => void;
   loading: boolean;
   onTypeChange?: (type: string) => void;
@@ -15,24 +15,33 @@ interface LeaveBalance {
   remaining: number;
 }
 
-export function LeaveForm({ onSubmit, loading, onTypeChange }: LeaveFormProps) {
+export function LeaveForm({ initialData, onSubmit, loading, onTypeChange }: LeaveFormProps) {
   const [balance, setBalance] = useState<LeaveBalance | null>(null);
   const [fetchingBalance, setFetchingBalance] = useState(true);
-  const [violationMinutes, setViolationMinutes] = useState<number | null>(null);
-  const [fetchingViolation, setFetchingViolation] = useState(false);
   const [paidLeaveCount, setPaidLeaveCount] = useState<number>(0);
   const [unpaidAndUnexcusedCount, setUnpaidAndUnexcusedCount] = useState<number>(0);
   const [fetchingStats, setFetchingStats] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    leaveType: "Phép năm",
-    startDate: "",
-    endDate: "",
-    startHalf: "full", // full, morning, afternoon
-    endHalf: "full",
-    reason: "",
-    time: "",
-  });
+
+  const details = useMemo(() => {
+    if (!initialData) return {};
+    return typeof initialData.details === "string" 
+      ? JSON.parse(initialData.details || "{}") 
+      : (initialData.details || {});
+  }, [initialData]);
+
+  const [formData, setFormData] = useState(() => ({
+    leaveType: details.leaveType || "Phép năm", // "Phép năm" | "Nghỉ việc riêng có lương" | "Nghỉ không lương"
+    startDate: initialData?.startDate 
+      ? new Date(initialData.startDate).toISOString().split("T")[0] 
+      : new Date().toISOString().split("T")[0],
+    endDate: initialData?.endDate 
+      ? new Date(initialData.endDate).toISOString().split("T")[0] 
+      : new Date().toISOString().split("T")[0],
+    sessionType: details.sessionType || "full", // "full" | "morning" | "afternoon" (khi nghỉ 1 ngày)
+    startHalf: details.startHalf || "full", // "full" | "afternoon" (khi nghỉ nhiều ngày)
+    endHalf: details.endHalf || "full", // "full" | "morning" (khi nghỉ nhiều ngày)
+    reason: details.reason || initialData?.reason || "",
+  }));
 
   useEffect(() => {
     if (onTypeChange) {
@@ -40,373 +49,371 @@ export function LeaveForm({ onSubmit, loading, onTypeChange }: LeaveFormProps) {
     }
   }, [formData.leaveType, onTypeChange]);
 
+  // Lấy quỹ phép
   useEffect(() => {
     fetch("/api/my/leave-balance")
       .then(r => r.json())
       .then(data => {
-        console.log("Leave Balance Data:", data);
-        if (data.error) {
-          console.error("API Error:", data.error, data.message);
-        } else {
+        if (!data.error) {
           setBalance(data);
         }
         setFetchingBalance(false);
       })
       .catch(err => {
-        console.error("Fetch Error:", err);
+        console.error("Fetch Leave Balance Error:", err);
         setFetchingBalance(false);
       });
 
-    setFetchingViolation(true);
+    // Lấy thống kê nghỉ
     setFetchingStats(true);
-    
-    Promise.all([
-      fetch("/api/my/attendance").then(r => r.json()),
-      fetch("/api/my/requests").then(r => r.json())
-    ])
-      .then(([attData, requests]) => {
+    fetch("/api/my/attendance")
+      .then(r => r.json())
+      .then(attData => {
         if (attData && Array.isArray(attData.history)) {
-          const totalMin = attData.history.reduce((acc: number, h: any) => acc + (h.violationMinutes || 0), 0);
-          setViolationMinutes(totalMin);
-        }
-
-        if (attData && Array.isArray(attData.history) && Array.isArray(requests)) {
-          const history = attData.history;
-          const holidays = attData.holidays || [];
-          
           const now = new Date();
           const currentMonth = now.getMonth();
           const currentYear = now.getFullYear();
-
-          const todayDay = now.getDate();
-          let unexcusedDays = 0;
-          let paidLeaveDays = 0;
-          let unpaidLeaveDays = 0;
-
-          history.forEach((h: any) => {
+          let unexcused = 0;
+          let paid = 0;
+          attData.history.forEach((h: any) => {
             const hDate = new Date(h.date);
             if (hDate.getMonth() !== currentMonth || hDate.getFullYear() !== currentYear) return;
-
-            const isHoliday = h.isHoliday || h.status === "L";
-            const isLeave = ["P", "KL", "BHXH"].includes(h.status || "");
-            const hasCheckIn = h.checkInMorning || h.checkOutMorning || h.checkInAfternoon || h.checkOutAfternoon;
-
-            if (h.status === "KL") {
-              unpaidLeaveDays++;
-            } else if (h.status === "P" || h.status === "BHXH") {
-              paidLeaveDays++;
-            }
-
-            // Chỉ đếm ngày không phép đối với các ngày trong quá khứ
-            if (hDate.getDate() < todayDay && hDate.getDay() !== 0 && !isHoliday && !isLeave && !hasCheckIn) {
-              unexcusedDays++;
-            }
+            if (h.status === "KL") unexcused++;
+            else if (h.status === "P" || h.status === "BHXH") paid++;
           });
-
-          setPaidLeaveCount(paidLeaveDays);
-          setUnpaidAndUnexcusedCount(unpaidLeaveDays + unexcusedDays);
+          setPaidLeaveCount(paid);
+          setUnpaidAndUnexcusedCount(unexcused);
         }
-        setFetchingViolation(false);
         setFetchingStats(false);
       })
-      .catch(err => {
-        console.error("Fetch Stats Error:", err);
-        setFetchingViolation(false);
-        setFetchingStats(false);
-      });
+      .catch(() => setFetchingStats(false));
   }, []);
 
-  const isSpecialType = formData.leaveType === "Đi muộn" || formData.leaveType === "Về sớm";
+  const isSingleDay = formData.startDate === formData.endDate;
 
+  // Tính tổng số ngày nghỉ chính xác
   const totalDays = useMemo(() => {
-    if (isSpecialType) return 0;
     if (!formData.startDate || !formData.endDate) return 0;
-    
     const start = new Date(formData.startDate);
     const end = new Date(formData.endDate);
-    
     if (start > end) return 0;
-    
-    // Simple diff in days
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    
-    let total = diffDays;
-    
-    // Adjust for half days
-    if (formData.startHalf !== "full") total -= 0.5;
-    if (formData.endHalf !== "full" && diffDays > 1) total -= 0.5;
-    
-    // Special case for same day half-day
-    if (diffDays === 1 && formData.startHalf !== "full") {
-        total = 0.5;
+
+    const diffDays = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    if (diffDays === 1) {
+      if (formData.sessionType === "morning" || formData.sessionType === "afternoon") {
+        return 0.5;
+      }
+      return 1;
     }
 
-    return total;
-  }, [formData.startDate, formData.endDate, formData.startHalf, formData.endHalf, isSpecialType]);
+    let total = diffDays;
+    if (formData.startHalf === "afternoon") total -= 0.5;
+    if (formData.endHalf === "morning") total -= 0.5;
+    return Math.max(0.5, total);
+  }, [formData.startDate, formData.endDate, formData.sessionType, formData.startHalf, formData.endHalf]);
 
-  const isOutOfLeave = !!(balance && formData.leaveType === "Phép năm" && balance.remaining <= 0);
-  const canSubmit = !isOutOfLeave && !loading && (
-    isSpecialType 
-      ? (!!formData.startDate && !!formData.time)
-      : (totalDays > 0)
+  const isOutOfLeave = Boolean(
+    balance && formData.leaveType === "Phép năm" && balance.remaining <= 0
   );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit) return;
-
-    if (isSpecialType) {
-      onSubmit({
-        type: formData.leaveType === "Đi muộn" ? "late" : "early",
-        startDate: formData.startDate,
-        endDate: formData.startDate,
-        totalDays: 0,
-        reason: formData.reason,
-        details: {
-          leaveType: formData.leaveType,
-          time: formData.time,
-        },
-      });
-    } else {
-      onSubmit({
-        type: "leave",
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        totalDays: totalDays,
-        reason: formData.reason,
-        details: {
-          leaveType: formData.leaveType,
-          startHalf: formData.startHalf,
-          endHalf: formData.endHalf,
-        },
-      });
+    if (totalDays <= 0) {
+      alert("Vui lòng chọn khoảng thời gian nghỉ hợp lệ");
+      return;
     }
+    if (isOutOfLeave) {
+      alert("Quỹ phép năm của bạn đã hết. Vui lòng chọn loại nghỉ việc riêng hoặc nghỉ không lương.");
+      return;
+    }
+
+    const sessionDesc = isSingleDay
+      ? (formData.sessionType === "morning" ? "Buổi sáng (08:00 - 12:00)" : formData.sessionType === "afternoon" ? "Buổi chiều (13:00 - 17:00)" : "Cả ngày")
+      : `Từ ${formData.startHalf === "afternoon" ? "chiều" : "sáng"} ${formData.startDate} đến ${formData.endHalf === "morning" ? "trưa" : "hết ngày"} ${formData.endDate}`;
+
+    onSubmit({
+      type: "leave",
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      totalDays: totalDays,
+      reason: formData.reason,
+      details: {
+        category: "leave",
+        leaveType: formData.leaveType,
+        totalDays: totalDays,
+        sessionType: isSingleDay ? formData.sessionType : undefined,
+        startHalf: !isSingleDay ? formData.startHalf : undefined,
+        endHalf: !isSingleDay ? formData.endHalf : undefined,
+        reason: formData.reason,
+      },
+    });
+  };
+
+  const labelStyle = {
+    fontSize: "11px",
+    fontWeight: 700,
+    letterSpacing: "0.5px",
+    color: "var(--muted-foreground)",
+    textTransform: "uppercase" as const,
+    marginBottom: "6px",
+    display: "block",
   };
 
   const inputStyle = {
-    borderRadius: "12px", padding: "10px 15px", border: "1px solid var(--border)",
-    background: "var(--background)", color: "var(--foreground)",
-    fontSize: "14px", transition: "all 0.2s"
+    borderRadius: "8px",
+    padding: "8px 12px",
+    border: "1px solid var(--border)",
+    background: "var(--background)",
+    color: "var(--foreground)",
+    fontSize: "13.5px",
+    transition: "all 0.2s",
   };
-  
+
   return (
-    <div className="d-flex flex-column h-100 gap-4 overflow-hidden">
-      {/* Leave Balance Info / Regulation Info */}
-      {formData.leaveType === "Nghỉ việc riêng có lương" ? (
-        <div className="p-3 rounded-4 flex-shrink-0" style={{ background: "var(--accent-background)", border: "1px solid var(--border)" }}>
-          <SectionTitle title="Quy định nghỉ việc riêng có lương" className="mb-2" />
-          <ul className="list-unstyled mb-0 d-flex flex-column gap-2 text-muted" style={{ fontSize: "12px", lineHeight: "1.5" }}>
-            <li className="d-flex align-items-start gap-2">
-              <i className="bi bi-dot text-primary fs-5 m-0 lh-1"></i>
-              <span><strong>Bản thân kết hôn:</strong> Nghỉ 03 ngày.</span>
-            </li>
-            <li className="d-flex align-items-start gap-2">
-              <i className="bi bi-dot text-primary fs-5 m-0 lh-1"></i>
-              <span><strong>Con đẻ, con nuôi kết hôn:</strong> Nghỉ 01 ngày.</span>
-            </li>
-            <li className="d-flex align-items-start gap-2">
-              <i className="bi bi-dot text-primary fs-5 m-0 lh-1"></i>
-              <span><strong>Bố đẻ, mẹ đẻ, bố nuôi, mẹ nuôi chết; bố đẻ, mẹ đẻ, bố nuôi, mẹ nuôi của vợ hoặc chồng chết; vợ hoặc chồng chết; con đẻ, con nuôi chết:</strong> Nghỉ 03 ngày.</span>
-            </li>
-          </ul>
-        </div>
-      ) : formData.leaveType === "Nghỉ ốm có BHXH" ? (
-        <div className="p-3 rounded-4 flex-shrink-0" style={{ background: "var(--accent-background)", border: "1px solid var(--border)" }}>
-          <SectionTitle title="Quy định nghỉ ốm có BHXH" className="mb-2" />
-          <ul className="list-unstyled mb-0 d-flex flex-column gap-2 text-muted" style={{ fontSize: "12px", lineHeight: "1.5" }}>
-            <li className="d-flex align-items-start gap-2">
-              <i className="bi bi-dot text-primary fs-5 m-0 lh-1"></i>
-              <span>Cơ quan Bảo hiểm xã hội sẽ trực tiếp chi trả tiền trợ cấp ốm đau cho người lao động.</span>
-            </li>
-            <li className="d-flex align-items-start gap-2">
-              <i className="bi bi-dot text-primary fs-5 m-0 lh-1"></i>
-              <span><strong>Mức hưởng:</strong> Bằng 75% mức tiền lương đóng BHXH của tháng liền kề trước khi nghỉ (chia cho 24 ngày để tính mức hưởng ngày).</span>
-            </li>
-            <li className="d-flex align-items-start gap-2">
-              <i className="bi bi-dot text-primary fs-5 m-0 lh-1"></i>
-              <span><strong>Đóng BHXH dưới 15 năm:</strong> Tối đa 30 ngày.</span>
-            </li>
-            <li className="d-flex align-items-start gap-2">
-              <i className="bi bi-dot text-primary fs-5 m-0 lh-1"></i>
-              <span><strong>Đóng BHXH từ đủ 15 năm đến dưới 30 năm:</strong> Tối đa 40 ngày.</span>
-            </li>
-            <li className="d-flex align-items-start gap-2">
-              <i className="bi bi-dot text-primary fs-5 m-0 lh-1"></i>
-              <span><strong>Đóng BHXH từ đủ 30 năm trở lên:</strong> Tối đa 60 ngày.</span>
-            </li>
-          </ul>
-        </div>
-      ) : formData.leaveType === "Nghỉ không lương" ? (
-        <div className="p-3 rounded-4 flex-shrink-0" style={{ background: "var(--accent-background)", border: "1px solid var(--border)" }}>
-          <SectionTitle title="Thống kê nghỉ trong tháng" className="mb-2" />
+    <div className="d-flex flex-column flex-grow-1">
+      {/* 1. Header Card: Quỹ phép năm hoặc Thống kê quy định */}
+      {formData.leaveType === "Phép năm" ? (
+        <div
+          className="p-3 mb-3 rounded-3 flex-shrink-0 border shadow-xs"
+          style={{
+            background: "linear-gradient(135deg, rgba(2, 132, 199, 0.05) 0%, rgba(99, 102, 241, 0.06) 100%)",
+            borderColor: "rgba(2, 132, 199, 0.2)"
+          }}
+        >
+          <div className="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom border-light-subtle">
+            <div className="d-flex align-items-center gap-2">
+              <div
+                className="d-flex align-items-center justify-content-center rounded-circle"
+                style={{ width: 24, height: 24, background: "#0284c715", color: "#0284c7" }}
+              >
+                <i className="bi bi-calendar2-check" style={{ fontSize: "12px" }}></i>
+              </div>
+              <span className="fw-bold text-dark" style={{ fontSize: "12px", letterSpacing: "0.3px" }}>
+                QUỸ PHÉP NĂM {new Date().getFullYear()}
+              </span>
+            </div>
+            <span className="badge bg-light text-primary border" style={{ fontSize: "10.5px", fontWeight: 600 }}>
+              Tiêu chuẩn 12 ngày/năm
+            </span>
+          </div>
+
           <div className="row g-2 text-center">
-              <div className="col-6 border-end">
-                  <div className="fw-bold text-danger h4 mb-0" style={{ fontWeight: 800 }}>
-                    {fetchingStats ? "..." : unpaidAndUnexcusedCount}
-                  </div>
-                  <div className="small text-muted" style={{ fontSize: "10px" }}>Nghỉ không lương, không phép (ngày)</div>
+            <div className="col-4">
+              <div className="p-2 rounded-2 bg-white border shadow-xs">
+                <div className="fw-bold" style={{ fontSize: "18px", color: "#0284c7", lineHeight: 1.2 }}>
+                  {fetchingBalance ? "..." : (balance?.total ?? 12)}
+                </div>
+                <div className="text-muted fw-semibold" style={{ fontSize: "10px", marginTop: "2px" }}>
+                  TỔNG CỘNG
+                </div>
               </div>
-              <div className="col-6">
-                  <div className="fw-bold text-success h4 mb-0" style={{ fontWeight: 800 }}>
-                    {fetchingStats ? "..." : paidLeaveCount}
-                  </div>
-                  <div className="small text-muted" style={{ fontSize: "10px" }}>Nghỉ có phép (ngày)</div>
+            </div>
+
+            <div className="col-4">
+              <div className="p-2 rounded-2 bg-white border shadow-xs">
+                <div className="fw-bold" style={{ fontSize: "18px", color: (balance?.used || 0) > 0 ? "#dc2626" : "#64748b", lineHeight: 1.2 }}>
+                  {fetchingBalance ? "..." : (balance?.used ?? 0)}
+                </div>
+                <div className="text-muted fw-semibold" style={{ fontSize: "10px", marginTop: "2px" }}>
+                  ĐÃ DÙNG
+                </div>
               </div>
+            </div>
+
+            <div className="col-4">
+              <div className="p-2 rounded-2 bg-white border shadow-xs">
+                <div className="fw-bold" style={{ fontSize: "18px", color: "#16a34a", lineHeight: 1.2 }}>
+                  {fetchingBalance ? "..." : (balance?.remaining ?? 12)}
+                </div>
+                <div className="text-muted fw-semibold" style={{ fontSize: "10px", marginTop: "2px" }}>
+                  KHẢ DỤNG
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      ) : !isSpecialType && (
-        <div className="p-3 rounded-4 flex-shrink-0" style={{ background: "var(--accent-background)", border: "1px solid var(--border)" }}>
-          <SectionTitle title="Quỹ phép năm" className="mb-2" />
-          <div className="row g-2 text-center">
-              <div className="col-4">
-                  <div className="fw-bold text-primary h4 mb-0" style={{ fontWeight: 800 }}>{balance?.total ?? "--"}</div>
-                  <div className="small text-muted" style={{ fontSize: "10px" }}>TỔNG CỘNG</div>
-              </div>
-              <div className="col-4 border-start border-end">
-                  <div className="fw-bold text-danger h4 mb-0" style={{ fontWeight: 800 }}>{balance?.used ?? "--"}</div>
-                  <div className="small text-muted" style={{ fontSize: "10px" }}>ĐÃ DÙNG</div>
-              </div>
-              <div className="col-4">
-                  <div className="fw-bold text-success h4 mb-0" style={{ fontWeight: 800 }}>{balance?.remaining ?? "--"}</div>
-                  <div className="small text-muted" style={{ fontSize: "10px" }}>CÒN LẠI</div>
-              </div>
+      ) : formData.leaveType === "Nghỉ việc riêng có lương" ? (
+        <div className="p-3 mb-3 rounded-3 flex-shrink-0 border bg-light-subtle" style={{ fontSize: "12px" }}>
+          <div className="fw-bold text-dark mb-1.5">
+            Quy định Nghỉ việc riêng có lương (Bộ luật LĐ 2019):
+          </div>
+          <ul className="list-unstyled mb-0 text-muted d-flex flex-column gap-1 ps-1" style={{ fontSize: "11.5px", lineHeight: 1.4 }}>
+            <li>• <strong>Bản thân kết hôn:</strong> Nghỉ 03 ngày nguyên lương.</li>
+            <li>• <strong>Con đẻ, con nuôi kết hôn:</strong> Nghỉ 01 ngày nguyên lương.</li>
+            <li>• <strong>Tứ thân phụ mẫu, vợ/chồng, con mất:</strong> Nghỉ 03 ngày nguyên lương.</li>
+          </ul>
+        </div>
+      ) : (
+        <div className="p-3 mb-3 rounded-3 flex-shrink-0 border bg-light-subtle">
+          <div className="d-flex align-items-center justify-content-between">
+            <span className="small text-muted fw-medium">Thống kê nghỉ không lương tháng này:</span>
+            <span className="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold">
+              {fetchingStats ? "..." : `${unpaidAndUnexcusedCount} ngày`}
+            </span>
           </div>
         </div>
       )}
 
+      {/* Cảnh báo hết phép */}
       {isOutOfLeave && (
-        <div className="alert alert-danger d-flex align-items-center gap-2 py-2 px-3 rounded-3 flex-shrink-0" style={{ fontSize: "13px" }}>
-            <i className="bi bi-exclamation-triangle-fill"></i>
-            <span>Bạn đã hết ngày phép năm. Không thể tạo thêm yêu cầu này.</span>
+        <div className="alert alert-danger py-2 px-3 rounded-3 mb-3 d-flex align-items-center gap-2" style={{ fontSize: "12.5px" }}>
+          <i className="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+          <span>Bạn đã dùng hết quỹ phép năm. Vui lòng chuyển sang Nghỉ việc riêng hoặc Nghỉ không lương.</span>
         </div>
       )}
 
-      <form id="personal-request-form" onSubmit={handleSubmit} className="flex-grow-1 d-flex flex-column gap-3 overflow-hidden">
-        <div className="row g-3 flex-shrink-0">
-          <div className="col-12">
-            <SectionTitle title="Loại yêu cầu" className="mb-1" />
-            <select 
-              className="form-select shadow-none" 
-              style={inputStyle} 
+      <form id="personal-request-form" onSubmit={handleSubmit} className="d-flex flex-column flex-grow-1">
+        <div className="flex-shrink-0">
+          {/* Loại yêu cầu */}
+          <div className="mb-3">
+            <label style={labelStyle}>Loại nghỉ phép</label>
+            <select
+              className="form-select shadow-none"
+              style={inputStyle}
               value={formData.leaveType}
-              onChange={e => {
-                const val = e.target.value;
-                setFormData(prev => ({
-                  ...prev,
-                  leaveType: val,
-                  time: val === "Đi muộn" ? "09:00" : val === "Về sớm" ? "16:00" : ""
-                }));
-              }}
+              onChange={e => setFormData({ ...formData, leaveType: e.target.value })}
               required
             >
-              <option>Phép năm</option>
-              <option>Nghỉ ốm có BHXH</option>
-              <option>Nghỉ việc riêng có lương</option>
-              <option>Nghỉ không lương</option>
-              <option>Đi muộn</option>
-              <option>Về sớm</option>
+              <option value="Phép năm">Phép năm hưởng nguyên lương</option>
+              <option value="Nghỉ việc riêng có lương">Nghỉ việc riêng có lương</option>
+              <option value="Nghỉ không lương">Nghỉ việc riêng không lương</option>
             </select>
           </div>
 
-          {isSpecialType && (
-            <div className="col-12">
-              <div className="p-3 rounded-4" style={{ background: "var(--accent-background)", border: "1px solid var(--border)" }}>
-                <SectionTitle title="Số phút vi phạm tháng này" className="mb-2" />
-                <div className="d-flex align-items-baseline gap-2 mt-2 justify-content-center">
-                  <span className="fw-bold text-danger h2 mb-0" style={{ fontWeight: 800 }}>
-                    {fetchingViolation ? "..." : violationMinutes !== null ? violationMinutes : "0"}
-                  </span>
-                  <span className="text-muted fw-semibold" style={{ fontSize: "13px" }}>phút đi muộn / về sớm</span>
-                </div>
+          {/* Thời gian nghỉ: Từ ngày & Đến ngày */}
+          <div className="row g-3 mb-3">
+            <div className="col-6">
+              <label style={labelStyle}>Từ ngày</label>
+              <input
+                type="date"
+                className="form-control shadow-none"
+                style={inputStyle}
+                value={formData.startDate}
+                onChange={e => {
+                  const s = e.target.value;
+                  setFormData(prev => ({
+                    ...prev,
+                    startDate: s,
+                    endDate: prev.endDate && prev.endDate < s ? s : prev.endDate,
+                  }));
+                }}
+                required
+              />
+            </div>
+
+            <div className="col-6">
+              <label style={labelStyle}>Đến ngày</label>
+              <input
+                type="date"
+                className="form-control shadow-none"
+                style={inputStyle}
+                value={formData.endDate}
+                min={formData.startDate}
+                onChange={e => setFormData({ ...formData, endDate: e.target.value })}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Hình thức buổi nghỉ (Sáng / Chiều / Cả ngày) */}
+          {isSingleDay ? (
+            <div className="mb-3">
+              <label style={labelStyle}>Buổi nghỉ trong ngày</label>
+              <div className="d-flex gap-2">
+                {[
+                  { key: "full", label: "Cả ngày", icon: "bi-sun" },
+                  { key: "morning", label: "Buổi sáng", icon: "bi-sunrise" },
+                  { key: "afternoon", label: "Buổi chiều", icon: "bi-sunset" },
+                ].map(opt => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, sessionType: opt.key })}
+                    className="btn flex-fill py-1.5 px-2 rounded-2 text-center transition-all"
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      background: formData.sessionType === opt.key ? "var(--primary)15" : "var(--background)",
+                      color: formData.sessionType === opt.key ? "var(--primary)" : "var(--muted-foreground)",
+                      border: formData.sessionType === opt.key ? "1px solid var(--primary)" : "1px solid var(--border)",
+                    }}
+                  >
+                    <i className={`bi ${opt.icon} me-1`}></i>
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </div>
-          )}
-
-          {isSpecialType ? (
-            <>
-              <div className="col-md-6">
-                <SectionTitle title="Ngày đăng ký" className="mb-1" />
-                <input 
-                  type="date" 
-                  className="form-control shadow-none" 
-                  style={inputStyle} 
-                  value={formData.startDate}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={e => setFormData({...formData, startDate: e.target.value, endDate: e.target.value})}
-                  required 
-                />
-              </div>
-
-              <div className="col-md-6">
-                <SectionTitle title="Giờ đăng ký" className="mb-1" />
-                <input 
-                  type="time" 
-                  className="form-control shadow-none" 
-                  style={inputStyle} 
-                  value={formData.time}
-                  onChange={e => setFormData({...formData, time: e.target.value})}
-                  required 
-                />
-              </div>
-            </>
           ) : (
-            <>
-              <div className="col-md-6">
-                <SectionTitle title="Từ ngày" className="mb-1" />
-                <input 
-                  type="date" 
-                  className="form-control shadow-none" 
-                  style={inputStyle} 
-                  value={formData.startDate}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={e => {
-                    const newStart = e.target.value;
-                    setFormData((prev: any) => ({
-                      ...prev, 
-                      startDate: newStart,
-                      endDate: prev.endDate && prev.endDate < newStart ? newStart : prev.endDate
-                    }));
-                  }}
-                  required 
-                />
+            <div className="row g-3 mb-3">
+              <div className="col-6">
+                <label style={labelStyle}>Buổi bắt đầu</label>
+                <select
+                  className="form-select shadow-none"
+                  style={inputStyle}
+                  value={formData.startHalf}
+                  onChange={e => setFormData({ ...formData, startHalf: e.target.value })}
+                >
+                  <option value="full">Bắt đầu từ buổi sáng</option>
+                  <option value="afternoon">Bắt đầu từ buổi chiều </option>
+                </select>
               </div>
 
-              <div className="col-md-6">
-                <SectionTitle title="Đến ngày" className="mb-1" />
-                <input 
-                  type="date" 
-                  className="form-control shadow-none" 
-                  style={inputStyle} 
-                  value={formData.endDate}
-                  min={formData.startDate || new Date().toISOString().split('T')[0]}
-                  onChange={e => setFormData({...formData, endDate: e.target.value})}
-                  required 
-                />
+              <div className="col-6">
+                <label style={labelStyle}>Buổi kết thúc</label>
+                <select
+                  className="form-select shadow-none"
+                  style={inputStyle}
+                  value={formData.endHalf}
+                  onChange={e => setFormData({ ...formData, endHalf: e.target.value })}
+                >
+                  <option value="full">Kết thúc hết buổi chiều </option>
+                  <option value="morning">Kết thúc hết buổi sáng</option>
+                </select>
               </div>
-            </>
-          )}
-
-          {totalDays > 0 && (
-            <div className="col-12">
-                <div className="d-flex align-items-center gap-2 p-2 px-3 rounded-3" style={{ background: "var(--primary)10", color: "var(--primary)", border: "1px dashed var(--primary)" }}>
-                    <i className="bi bi-info-circle-fill"></i>
-                    <span className="fw-bold small">Tổng cộng: {totalDays} ngày nghỉ</span>
-                </div>
             </div>
           )}
+
+          {/* Banner tính toán tổng ngày nghỉ và quỹ phép dự báo */}
+          <div
+            className="d-flex align-items-center justify-content-between p-2.5 px-3 mb-3 rounded-3"
+            style={{
+              background: "#f0fdf4",
+              border: "1px solid #bbf7d0",
+              color: "#166534",
+            }}
+          >
+            <div className="d-flex align-items-center gap-2">
+              <i className="bi bi-clock-history fs-5 text-success"></i>
+              <div>
+                <span className="fw-bold" style={{ fontSize: "13px" }}>
+                  Tổng cộng: {totalDays} ngày nghỉ
+                </span>
+                <span className="text-muted small ms-1" style={{ fontSize: "11px" }}>
+                  ({totalDays * 8} giờ công)
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="d-flex flex-column flex-grow-1 overflow-hidden mt-2">
-          <SectionTitle title="Lý do chi tiết" className="mb-1" />
-          <textarea 
-            className="form-control shadow-none flex-grow-1" 
-            style={{ ...inputStyle, resize: "none", minHeight: "100px" }} 
+        {/* Lý do chi tiết: TỰ ĐỘNG CHIẾM HẾT CHIỀU CAO KHẢ DỤNG */}
+        <div className="d-flex flex-column flex-grow-1 mb-0 mt-1">
+          <label style={labelStyle}>Lý do xin nghỉ phép</label>
+          <textarea
+            className="form-control shadow-none flex-grow-1 w-100"
+            style={{
+              ...inputStyle,
+              resize: "none",
+              minHeight: "100px",
+              height: "100%",
+            }}
+            placeholder="Nhập lý do xin nghỉ phép chi tiết để cấp trên phê duyệt (vd: giải quyết việc gia đình, khám sức khỏe...)"
             value={formData.reason}
-            onChange={e => setFormData({...formData, reason: e.target.value})}
-            placeholder="Nhập lý do chi tiết..."
+            onChange={e => setFormData({ ...formData, reason: e.target.value })}
             required
-          ></textarea>
+          />
         </div>
       </form>
     </div>
