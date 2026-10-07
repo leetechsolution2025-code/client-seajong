@@ -50,11 +50,30 @@ export async function POST(
 
     const userId   = session.user.id as string;
     const userName = session.user.name || session.user.email || "Người dùng";
+    const userRole = (session.user as any).role || "";
+    const userDept = (session.user as any).departmentCode || "";
+    const userPos  = (session.user as any).position || (session.user as any).positionName || "";
 
-    // Xác định role
+    // Xác định role chuẩn xác
     let authorRole = "observer";
-    if (request.requestedById === userId) authorRole = "requester";
-    if (request.approverId === userId || request.approvedById === userId) authorRole = "approver";
+    if (
+      userRole === "admin" ||
+      userDept === "BGD" ||
+      userPos.toLowerCase().includes("giám đốc") ||
+      request.approverId === userId ||
+      request.approvedById === userId
+    ) {
+      authorRole = "director";
+    } else if (
+      userDept === "HR" ||
+      userDept === "HCNS" ||
+      userPos.toLowerCase().includes("nhân sự") ||
+      request.requestedByName.includes("Nhân sự")
+    ) {
+      authorRole = "hr";
+    } else if (request.requestedById === userId) {
+      authorRole = "requester";
+    }
 
     const comment = await prisma.approvalComment.create({
       data: {
@@ -67,6 +86,54 @@ export async function POST(
         isSystem:   false,
       },
     });
+
+    // ── Gửi thông báo tự động cho các bên liên quan ──
+    try {
+      const recipientIds = new Set<string>();
+
+      // 1. Gửi cho người tạo (nếu không phải chính họ vừa nhắn)
+      if (request.requestedById && request.requestedById !== userId) {
+        recipientIds.add(request.requestedById);
+      }
+
+      // 2. Gửi cho Giám đốc / Approver nếu không phải chính họ vừa nhắn
+      if (request.approverId && request.approverId !== userId) {
+        recipientIds.add(request.approverId);
+      } else if (authorRole !== "director") {
+        // Tìm các tài khoản Ban Giám đốc / Admin để thông báo
+        const directors = await prisma.user.findMany({
+          where: {
+            OR: [
+              { role: "admin" },
+              { employee: { departmentCode: "BGD" } }
+            ]
+          },
+          select: { id: true }
+        });
+        directors.forEach((d) => {
+          if (d.id !== userId) recipientIds.add(d.id);
+        });
+      }
+
+      if (recipientIds.size > 0) {
+        const recipientsList = Array.from(recipientIds).map((uid) => ({ userId: uid }));
+        await prisma.notification.create({
+          data: {
+            title: `💬 Trao đổi mới từ ${userName}: ${request.entityTitle}`,
+            content: content.trim().substring(0, 180),
+            type: "info",
+            priority: "normal",
+            audienceType: "individual",
+            createdById: userId,
+            recipients: {
+              create: recipientsList
+            }
+          }
+        });
+      }
+    } catch (notifErr) {
+      console.error("Lỗi gửi notification comment:", notifErr);
+    }
 
     return NextResponse.json({ success: true, data: comment }, { status: 201 });
   } catch (e: any) {

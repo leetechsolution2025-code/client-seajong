@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
@@ -142,6 +142,34 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+const AVATAR_COLORS: [string, string][] = [
+  ["#4338ca", "#e0e7ff"],
+  ["#0369a1", "#e0f2fe"],
+  ["#047857", "#d1fae5"],
+  ["#b45309", "#fef3c7"],
+  ["#be123c", "#ffe4e6"],
+  ["#6d28d9", "#ede9fe"],
+];
+
+function avatarColor(name: string): [string, string] {
+  let hash = 0;
+  for (let i = 0; i < (name || "").length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getRoleBadge(role?: string | null, authorName?: string) {
+  if (role === "approver" || role === "director" || role === "lead" || authorName?.includes("Giám đốc")) {
+    return { label: "Ban Giám đốc", bg: "#fef3c7", color: "#b45309" };
+  }
+  if (role === "hr" || authorName?.includes("Nhân sự")) {
+    return { label: "Nhân sự", bg: "#dcfce7", color: "#15803d" };
+  }
+  if (role === "requester") {
+    return { label: "Người đề xuất", bg: "#e0f2fe", color: "#0369a1" };
+  }
+  return null;
+}
+
 function isRequestNew(item: ApprovalRequest): boolean {
   if (item.status !== "pending") return false;
   return Date.now() - new Date(item.createdAt).getTime() < 48 * 3600 * 1000;
@@ -210,6 +238,17 @@ export function ApprovalCenter({
   const [copiedBank, setCopiedBank] = useState(false);
 
   const currentUserId = (session?.user as any)?.id || "";
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto scroll xuống cuối khi mở tab comments hoặc khi có comment mới
+  useEffect(() => {
+    if (offcanvasSlide === "comments") {
+      const el = chatScrollRef.current;
+      if (el) {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      }
+    }
+  }, [offcanvasSlide, comments]);
 
   // Debounce search term để tránh spam API
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -1072,7 +1111,15 @@ export function ApprovalCenter({
             </div>
 
             {/* 2. Body Offcanvas (Scrollable) */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "18px 20px" }}>
+            <div
+              style={{
+                flex: 1,
+                overflowY: offcanvasSlide === "comments" ? "hidden" : "auto",
+                padding: offcanvasSlide === "comments" ? 0 : "18px 20px",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               {offcanvasSlide === "data" ? (
                 /* ── SLIDE 1: DỮ LIỆU & THÔNG TIN CẦN PHÊ DUYỆT ── */
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -1159,68 +1206,245 @@ export function ApprovalCenter({
                   )}
                 </div>
               ) : (
-                /* ── SLIDE 2: TRAO ĐỔI CÔNG VIỆC ── */
-                <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-                  {/* Danh sách ý kiến */}
-                  {(() => {
-                    const userComments = comments.filter((c) => !c.isSystem && !c.content.includes("đã trình Ban Giám đốc"));
-                    return (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, overflowY: "auto", marginBottom: 16 }}>
-                        {userComments.length === 0 ? (
-                          <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", textAlign: "center", padding: "40px 0" }}>
-                            Chưa có trao đổi nào.
+                /* ── SLIDE 2: TRAO ĐỔI CÔNG VIỆC (PHONG CÁCH CHAT NỘI BỘ TOPBAR) ── */
+                <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", background: "#f2f3f5" }}>
+                  {/* Danh sách tin nhắn thread */}
+                  <div
+                    ref={chatScrollRef}
+                    style={{
+                      flex: 1,
+                      overflowY: "auto",
+                      overflowX: "hidden",
+                      padding: "14px 16px 12px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                    }}
+                  >
+                    {(() => {
+                      const userComments = comments.filter(
+                        (c) => !c.isSystem && !c.content.includes("đã trình Ban Giám đốc")
+                      );
+
+                      if (userComments.length === 0) {
+                        return (
+                          <div style={{ textAlign: "center", padding: "80px 20px", color: "#94a3b8" }}>
+                            <i
+                              className="bi bi-chat-dots"
+                              style={{ fontSize: 38, opacity: 0.45, display: "block", marginBottom: 12, color: "#6366f1" }}
+                            />
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>
+                              Chưa có trao đổi nào trong hồ sơ này
+                            </div>
+                            <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 4, maxWidth: 280, margin: "4px auto 0" }}>
+                              Ban Giám đốc, Trưởng phòng Nhân sự và Người đề xuất có thể trao đổi trực tiếp tại đây.
+                            </div>
                           </div>
-                        ) : (
-                          userComments.map((c) => (
-                            <div
-                              key={c.id}
-                              style={{
-                                background: "#f8fafc",
-                                border: "1px solid #e2e8f0",
-                                borderRadius: 10,
-                                padding: "10px 12px",
-                                fontSize: 12,
-                              }}
-                            >
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                                <span style={{ fontWeight: 700, color: "#4f46e5", fontSize: 12 }}>
-                                  {c.authorName}
-                                </span>
-                                <span style={{ fontSize: 10.5, color: "#94a3b8" }}>
-                                  {timeAgo(c.createdAt)}
-                                </span>
+                        );
+                      }
+
+                      let lastDate = "";
+                      return userComments.map((msg, idx) => {
+                        const dateStr = new Date(msg.createdAt).toLocaleDateString("vi-VN", {
+                          weekday: "long",
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        });
+                        const showDate = dateStr !== lastDate;
+                        lastDate = dateStr;
+
+                        const isSentByMe =
+                          msg.authorId === currentUserId ||
+                          (Boolean(session?.user?.name) && msg.authorName === session?.user?.name);
+
+                        const [clr, bg] = avatarColor(msg.authorName);
+                        const roleBadge = getRoleBadge(msg.authorRole, msg.authorName);
+
+                        return (
+                          <React.Fragment key={msg.id || idx}>
+                            {showDate && (
+                              <div
+                                style={{
+                                  fontSize: 10.5,
+                                  color: "#888",
+                                  textAlign: "center",
+                                  margin: "10px 0 6px",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {dateStr}
                               </div>
-                              <div style={{ color: "#334155", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
-                                {c.content}
+                            )}
+
+                            <div style={{ marginBottom: 4 }}>
+                              {/* Tên người gửi & Badge vai trò (chỉ hiện khi tin của người khác) */}
+                              {!isSentByMe && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    marginLeft: 32,
+                                    marginBottom: 3,
+                                  }}
+                                >
+                                  <span style={{ fontSize: 11, color: "#475569", fontWeight: 700 }}>
+                                    {msg.authorName}
+                                  </span>
+                                  {roleBadge && (
+                                    <span
+                                      style={{
+                                        fontSize: 9.5,
+                                        fontWeight: 700,
+                                        padding: "1px 6px",
+                                        borderRadius: 4,
+                                        background: roleBadge.bg,
+                                        color: roleBadge.color,
+                                      }}
+                                    >
+                                      {roleBadge.label}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Bubble Row */}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "flex-end",
+                                  gap: 6,
+                                  justifyContent: isSentByMe ? "flex-end" : "flex-start",
+                                }}
+                              >
+                                {/* Avatar (chỉ hiện với tin nhận) */}
+                                {!isSentByMe ? (
+                                  <div
+                                    style={{
+                                      width: 26,
+                                      height: 26,
+                                      borderRadius: "50%",
+                                      flexShrink: 0,
+                                      background: bg,
+                                      color: clr,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: 9.5,
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    {getInitials(msg.authorName)}
+                                  </div>
+                                ) : null}
+
+                                {/* Bong bóng chat (giống hệt MessageOffcanvas) */}
+                                <div
+                                  style={{
+                                    maxWidth: "76%",
+                                    padding: "7px 11px",
+                                    borderRadius: 6,
+                                    background: isSentByMe ? "#d6e9ff" : "#ffffff",
+                                    color: "#1a1a2e",
+                                    fontSize: 13.5,
+                                    lineHeight: 1.55,
+                                    whiteSpace: "pre-wrap",
+                                    wordBreak: "break-word",
+                                    border: isSentByMe ? "1px solid #b8d4f8" : "1px solid #e0e0e0",
+                                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                                  }}
+                                >
+                                  {msg.content}
+                                </div>
+                              </div>
+
+                              {/* Giờ gửi */}
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: "#94a3b8",
+                                  marginTop: 2,
+                                  textAlign: isSentByMe ? "right" : "left",
+                                  paddingLeft: isSentByMe ? 0 : 32,
+                                  paddingRight: isSentByMe ? 2 : 0,
+                                }}
+                              >
+                                {new Date(msg.createdAt).toLocaleTimeString("vi-VN", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                                {isSentByMe && (
+                                  <i className="bi bi-check2" style={{ marginLeft: 3, color: "#3b82f6" }} />
+                                )}
                               </div>
                             </div>
-                          ))
-                        )}
-                      </div>
-                    );
-                  })()}
+                          </React.Fragment>
+                        );
+                      });
+                    })()}
+                  </div>
 
-                  {/* Input gửi ý kiến */}
-                  <div style={{ display: "flex", gap: 8, marginTop: "auto", borderTop: "1px solid #e2e8f0", paddingTop: 12 }}>
+                  {/* Thanh nhập tin nhắn (Input bar) */}
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      background: "#ffffff",
+                      borderTop: "1px solid #e2e8f0",
+                      padding: "8px 12px 10px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
                     <input
                       type="text"
-                      className="form-control form-control-sm"
-                      style={{ fontSize: 12.5, borderRadius: 8 }}
-                      placeholder="Nhập ý kiến trao đổi..."
+                      className="form-control"
+                      placeholder="Nhập nội dung trao đổi... (Nhấn Enter để gửi)"
                       value={commentInput}
                       onChange={(e) => setCommentInput(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSendComment();
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendComment();
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        borderRadius: 20,
+                        padding: "7px 14px",
+                        fontSize: 13,
+                        background: "#f8fafc",
+                        border: "1px solid #cbd5e1",
                       }}
                     />
                     <button
                       type="button"
-                      className="btn btn-sm btn-primary fw-semibold"
-                      style={{ borderRadius: 8, padding: "5px 16px", fontSize: 12.5 }}
-                      disabled={!commentInput.trim() || submittingComment}
                       onClick={handleSendComment}
+                      disabled={!commentInput.trim() || submittingComment}
+                      title="Gửi trao đổi"
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: "50%",
+                        border: "none",
+                        background: commentInput.trim()
+                          ? "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
+                          : "#e2e8f0",
+                        color: commentInput.trim() ? "#ffffff" : "#94a3b8",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: commentInput.trim() ? "pointer" : "default",
+                        transition: "all 0.15s ease",
+                        flexShrink: 0,
+                      }}
                     >
-                      Gửi
+                      {submittingComment ? (
+                        <span className="spinner-border spinner-border-sm" style={{ width: 13, height: 13 }} />
+                      ) : (
+                        <i className="bi bi-send-fill" style={{ fontSize: 12, transform: "translateX(1px)" }} />
+                      )}
                     </button>
                   </div>
                 </div>
