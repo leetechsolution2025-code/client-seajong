@@ -161,10 +161,53 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           { label: "Người trình duyệt", value: request.requestedByName || "N/A" },
           { label: "Người duyệt dự kiến", value: meta.directorName || "Ban Giám Đốc" },
         ],
-        details: items.length > 0 
-          ? `DANH SÁCH MẶT HÀNG SẢN XUẤT:\n${itemsDetailStr}${meta.notes ? `\n\nGHI CHÚ & YÊU CẦU KỸ THUẬT:\n${meta.notes}` : ""}`
-          : (meta.notes || undefined),
+        table: items.length > 0 ? {
+          headers: ["STT", "Tên mặt hàng sản xuất", "Mã", "Số lượng"],
+          rows: items.map((it: any, idx: number) => ({
+            cells: [
+              { value: String(idx + 1) },
+              { value: it.productName, style: { fontWeight: 700 } },
+              { value: it.productCode || "—" },
+              { value: `${it.quantity} ${it.unit || "cái"}`, style: { fontWeight: 700, color: "#2563eb" } }
+            ]
+          }))
+        } : undefined,
+        details: meta.notes || undefined,
       };
+    } else if (request.entityType === "purchase_order") {
+      const po = await prisma.purchaseOrder.findUnique({
+        where: { id: request.entityId },
+        include: { supplier: true, items: true }
+      });
+      if (po) {
+        const totalAmount = po.tongTien || (po.items.reduce((s, i) => s + (i.thanhTien || (i.soLuong * i.donGia)), 0));
+        previewData = {
+          type: "Đơn mua hàng",
+          title: request.entityTitle,
+          summary: [
+            { label: "Mã đơn hàng", value: po.code || request.entityCode || "N/A" },
+            { label: "Nhà cung cấp", value: po.supplier?.name || meta.supplierName || "—" },
+            { label: "Tổng giá trị", value: `${totalAmount.toLocaleString("vi-VN")} đ` },
+            { label: "Số mặt hàng", value: `${po.items.length} mặt hàng` },
+            { label: "Ngày đặt hàng", value: po.ngayDat ? new Date(po.ngayDat).toLocaleDateString("vi-VN") : "—" },
+            { label: "Ngày dự kiến nhận", value: po.ngayNhan ? new Date(po.ngayNhan).toLocaleDateString("vi-VN") : "—" },
+            { label: "Người đề xuất", value: request.requestedByName || "—" },
+          ],
+          table: po.items.length > 0 ? {
+            headers: ["Tên hàng hoá", "ĐVT", "Số lượng", "Đơn giá", "Thành tiền"],
+            rows: po.items.map(item => ({
+              cells: [
+                { value: item.tenHang, style: { fontWeight: 700 } },
+                { value: item.donVi || "—" },
+                { value: String(item.soLuong) },
+                { value: `${(item.donGia || 0).toLocaleString("vi-VN")} đ` },
+                { value: `${(item.thanhTien || (item.soLuong * item.donGia)).toLocaleString("vi-VN")} đ`, style: { fontWeight: 700, color: "#059669" } }
+              ]
+            }))
+          } : undefined,
+          details: po.ghiChu || undefined
+        };
+      }
     } else if (request.entityType === "marketing_monthly_execution") {
       const temp = request.entityId;
       const monthMatch = temp.match(/_m(\d+)_/);
@@ -209,10 +252,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       const expense = await prisma.expense.findUnique({ where: { id: request.entityId } });
       if (expense) {
         previewData.summary = [
-          { label: "Số tiền", value: Number(expense.soTien).toLocaleString("vi-VN") + " đ" },
-          { label: "Phân loại", value: expense.loai || "Khác" }
+          { label: "Số tiền chi", value: `${Number(expense.soTien).toLocaleString("vi-VN")} đ` },
+          { label: "Phân loại", value: expense.loai || "Khác" },
+          { label: "Mã chứng từ", value: request.entityCode || expense.id },
+          { label: "Người đề xuất", value: request.requestedByName || "—" }
         ];
-        previewData.details = expense.ghiChu;
+        previewData.details = expense.ghiChu || expense.tenChiPhi || undefined;
       }
     } else if (request.entityType === "marketing_yearly_plan") {
       const plan = await prisma.marketingYearlyPlan.findUnique({
