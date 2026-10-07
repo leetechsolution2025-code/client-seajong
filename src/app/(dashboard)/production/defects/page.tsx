@@ -11,11 +11,15 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterSelect } from "@/components/ui/FilterSelect";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { Pagination } from "@/components/ui/Pagination";
+import { useSession } from "next-auth/react";
+import { isProductionAdmin } from "@/lib/production-permissions";
 import useSWR from 'swr';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 export default function DefectHandlingPage() {
+  const { data: session } = useSession();
+  const isProdAdmin = isProductionAdmin(session?.user);
   const [selectedDefectId, setSelectedDefectId] = useState<string | null>(null);
   const [isProcessModalOpen, setIsProcessModalOpen] = useState(false);
   const [isCreateOffcanvasOpen, setIsCreateOffcanvasOpen] = useState(false);
@@ -109,7 +113,12 @@ export default function DefectHandlingPage() {
                   <BrandButton 
                     variant="primary" 
                     className="px-3 shadow-sm rounded-3"
-                    onClick={() => setIsCreateOffcanvasOpen(true)}
+                    disabled={!isProdAdmin}
+                    title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền tạo hồ sơ lỗi" : undefined}
+                    onClick={() => {
+                      if (!isProdAdmin) return;
+                      setIsCreateOffcanvasOpen(true);
+                    }}
                   >
                     <i className="bi bi-plus-lg me-1"></i> Tạo hồ sơ lỗi
                   </BrandButton>

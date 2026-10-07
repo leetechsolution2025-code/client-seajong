@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { isProductionAdmin } from "@/lib/production-permissions";
 import { StandardPage } from "@/components/layout/StandardPage";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Pagination } from "@/components/ui/Pagination";
@@ -29,6 +31,8 @@ function StatusBadge({ status }: { status: string }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ProductionDashboardPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isProdAdmin = isProductionAdmin(session?.user);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -150,10 +154,21 @@ export default function ProductionDashboardPage() {
                       />
                     </div>
                     <button 
-                      className="btn btn-primary btn-sm d-flex align-items-center justify-content-center shadow-sm hover-shadow-sm transition-all" 
-                      style={{ width: 31, height: 31, padding: 0, borderRadius: 6 }}
-                      title="Tạo yêu cầu sản xuất"
-                      onClick={() => setShowCreateRequest(true)}
+                      className={`btn btn-primary btn-sm d-flex align-items-center justify-content-center shadow-sm transition-all ${isProdAdmin ? 'hover-shadow-sm' : ''}`} 
+                      style={{ 
+                        width: 31, 
+                        height: 31, 
+                        padding: 0, 
+                        borderRadius: 6,
+                        opacity: isProdAdmin ? 1 : 0.6,
+                        cursor: isProdAdmin ? "pointer" : "not-allowed"
+                      }}
+                      disabled={!isProdAdmin}
+                      title={isProdAdmin ? "Tạo yêu cầu sản xuất" : "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền tạo yêu cầu sản xuất"}
+                      onClick={() => {
+                        if (!isProdAdmin) return;
+                        setShowCreateRequest(true);
+                      }}
                     >
                       <i className="bi bi-plus-lg"></i>
                     </button>

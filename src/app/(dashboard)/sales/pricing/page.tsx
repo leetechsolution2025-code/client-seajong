@@ -129,6 +129,7 @@ interface QuotationItem {
   stt?: number;
   productName: string;
   productCode: string;
+  bomCode?: string;
   specification: string;
   listedPrice: number;
   note: string;
@@ -251,6 +252,7 @@ export default function PricingPage() {
   
   const [qaSearch, setQaSearch] = useState("");
 
+  const [pricingSource, setPricingSource] = useState<"commercial" | "oem">("commercial");
   const [quotationSearch, setQuotationSearch] = useState("");
   const [quotationCategory, setQuotationCategory] = useState("all");
   const [quotationCategories, setQuotationCategories] = useState<string[]>([]);
@@ -275,7 +277,9 @@ export default function PricingPage() {
       filtered = filtered.filter(q => 
          q.isFullWidth || 
          q.productName.toLowerCase().includes(lowerSearch) || 
-         q.productCode.toLowerCase().includes(lowerSearch)
+         q.productCode.toLowerCase().includes(lowerSearch) ||
+         (q.bomCode && q.bomCode.toLowerCase().includes(lowerSearch)) ||
+         (q.note && q.note.toLowerCase().includes(lowerSearch))
       );
       const nonEmptyCategories = new Set(filtered.filter(q => !q.isFullWidth).map(q => q.categoryName));
       filtered = filtered.filter(q => !q.isFullWidth || nonEmptyCategories.has(q.categoryName));
@@ -384,7 +388,23 @@ export default function PricingPage() {
       { header: "Thông tin sản phẩm", width: "35%", render: (row: QuotationItem) => (
         <div>
           <div className="fw-semibold text-dark">{row.productName}</div>
-          <div className="text-muted" style={{ fontSize: "12px" }}>{row.productCode}</div>
+          <div className="d-flex align-items-center gap-2 mt-1">
+            <span className="text-muted" style={{ fontSize: "12px" }}>{row.productCode}</span>
+            {row.bomCode && (
+              <span 
+                className="badge bg-light text-primary border" 
+                style={{ 
+                  fontSize: "11px", 
+                  fontWeight: 600, 
+                  padding: "2px 7px", 
+                  borderRadius: 5,
+                  letterSpacing: "0.2px"
+                }}
+              >
+                <i className="bi bi-file-earmark-code me-1 text-primary opacity-75"></i>ĐM: {row.bomCode}
+              </span>
+            )}
+          </div>
         </div>
       ) },
       { header: "Quy cách", width: "25%", render: (row: QuotationItem) => row.specification },
@@ -397,71 +417,132 @@ export default function PricingPage() {
     fetchQA();
     fetchPolicies();
     fetchPromotions();
-    fetchQuotations();
+    fetchQuotations("commercial");
   }, []);
 
-  const fetchQuotations = async () => {
+  const fetchQuotations = async (source: "commercial" | "oem" = pricingSource) => {
     setLoadingQuotations(true);
+    setQuotationCategory("all");
+    setQuotationSearch("");
+    setQuotationPage(1);
+    setSelectedProductIds(new Set());
+    setCollapsedCategories(new Set());
+
     try {
-      const res = await fetch("/api/seajong/products?per_page=1000");
-      const data = await res.json();
-      if (data.products && Array.isArray(data.products)) {
-        const groups: Record<string, any[]> = {};
-        data.products.forEach((p: any) => {
-           let catName = "Khác";
-           if (p.categoryNames && p.categoryNames.length > 0) {
+      if (source === "oem") {
+        const res = await fetch("/api/sales/pricing/oem");
+        const data = await res.json();
+        if (data.products && Array.isArray(data.products)) {
+          const groups: Record<string, any[]> = {};
+          data.products.forEach((p: any) => {
+            const catName = p.categoryName || "Khác";
+            if (!groups[catName]) groups[catName] = [];
+            groups[catName].push(p);
+          });
+
+          const list: QuotationItem[] = [];
+          const cats = Object.keys(groups).sort();
+          setQuotationCategories(cats);
+
+          cats.forEach(cat => {
+            list.push({ 
+              id: `cat_oem_${cat}`, 
+              isFullWidth: true, 
+              fullWidthContent: cat, 
+              categoryName: cat,
+              productName: "", 
+              productCode: "", 
+              specification: "", 
+              listedPrice: 0, 
+              note: "" 
+            } as QuotationItem);
+            
+            let stt = 1;
+            groups[cat].forEach(p => {
+              list.push({
+                id: p.id.toString(),
+                stt: stt++,
+                categoryName: cat,
+                productName: p.name,
+                productCode: p.code,
+                bomCode: p.bomCode || undefined,
+                specification: p.specification || "BỘ",
+                listedPrice: p.listedPrice || 0,
+                note: p.note || "",
+                originalData: p.originalData,
+                imageUrl: p.imageUrl
+              });
+            });
+          });
+          setQuotations(list);
+        }
+      } else {
+        const res = await fetch("/api/seajong/products?per_page=1000");
+        const data = await res.json();
+        if (data.products && Array.isArray(data.products)) {
+          const groups: Record<string, any[]> = {};
+          data.products.forEach((p: any) => {
+            let catName = "Khác";
+            if (p.categoryNames && p.categoryNames.length > 0) {
               const specificCats = p.categoryNames.filter((c: string) => c !== "Thiết bị vệ sinh" && c !== "Phụ kiện nhà tắm" && c !== "Phụ kiện phòng tắm");
               if (specificCats.length > 0) catName = specificCats[specificCats.length - 1];
               else catName = p.categoryNames[p.categoryNames.length - 1];
-           }
-           if (!groups[catName]) groups[catName] = [];
-           groups[catName].push(p);
-        });
+            }
+            if (!groups[catName]) groups[catName] = [];
+            groups[catName].push(p);
+          });
 
-        const list: QuotationItem[] = [];
-        const cats = Object.keys(groups).sort();
-        setQuotationCategories(cats);
+          const list: QuotationItem[] = [];
+          const cats = Object.keys(groups).sort();
+          setQuotationCategories(cats);
 
-        cats.forEach(cat => {
-           list.push({ 
-             id: `cat_${cat}`, 
-             isFullWidth: true, 
-             fullWidthContent: cat, 
-             categoryName: cat,
-             productName: "", 
-             productCode: "", 
-             specification: "", 
-             listedPrice: 0, 
-             note: "" 
-           } as QuotationItem);
-           
-           let stt = 1;
-           groups[cat].forEach(p => {
-             let pCode = "";
-             if (p.specs) {
+          cats.forEach(cat => {
+            list.push({ 
+              id: `cat_${cat}`, 
+              isFullWidth: true, 
+              fullWidthContent: cat, 
+              categoryName: cat,
+              productName: "", 
+              productCode: "", 
+              specification: "", 
+              listedPrice: 0, 
+              note: "" 
+            } as QuotationItem);
+            
+            let stt = 1;
+            groups[cat].forEach(p => {
+              let pCode = "";
+              if (p.specs) {
                 const key = Object.keys(p.specs).find(k => k.toLowerCase().includes("mã sản phẩm"));
                 if (key) pCode = p.specs[key];
-             }
-             list.push({
-               id: p.id.toString(),
-               stt: stt++,
-               categoryName: cat,
-               productName: p.name,
-               productCode: pCode,
-               specification: "BỘ",
-               listedPrice: p.price,
-               note: "",
-               originalData: p,
-               imageUrl: p.images && p.images.length > 0 ? p.images[0] : undefined
-             });
-           });
-        });
-        setQuotations(list);
+              }
+              list.push({
+                id: p.id.toString(),
+                stt: stt++,
+                categoryName: cat,
+                productName: p.name,
+                productCode: pCode,
+                specification: "BỘ",
+                listedPrice: p.price,
+                note: "",
+                originalData: p,
+                imageUrl: p.images && p.images.length > 0 ? p.images[0] : undefined
+              });
+            });
+          });
+          setQuotations(list);
+        }
       }
     } catch (e) {
-       console.error("Error fetching quotations", e);
+      console.error("Error fetching quotations", e);
     }
     setLoadingQuotations(false);
+  };
+
+  const handleSelectPricingSource = (source: "commercial" | "oem") => {
+    if (source === pricingSource) return;
+    setPricingSource(source);
+    fetchQuotations(source);
   };
 
   const fetchQA = (focusId?: number) => {
@@ -805,13 +886,64 @@ export default function PricingPage() {
               }
             }
 
+            const totalProductsCount = quotations.filter(q => !q.isFullWidth).length;
+            const filteredProductsCount = filteredQuotations.filter(q => !q.isFullWidth).length;
+
             return (
               <FullWidthTableLayout
                 tableWrapperClassName="flex-grow-1"
                 header={
-                  <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2 px-3 py-2 border-bottom bg-white">
-                    <div className="d-flex align-items-center gap-2 flex-grow-1">
-                      <div className="flex-fill" style={{ minWidth: isMobile ? 0 : 200 }}>
+                  <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-2 px-3 py-2 border-bottom bg-white w-100">
+                    <div className="d-flex align-items-center gap-2 flex-grow-1 flex-wrap flex-md-nowrap" style={{ minWidth: 0 }}>
+                      {/* 1. Công tắc Toggle Sản phẩm OEM trực tiếp trên thanh công cụ */}
+                      <div
+                        onClick={() => handleSelectPricingSource(pricingSource === "oem" ? "commercial" : "oem")}
+                        className="d-flex align-items-center gap-2 cursor-pointer flex-shrink-0"
+                        style={{ userSelect: "none" }}
+                        title={pricingSource === "oem" ? "Đang bật Sản phẩm OEM (Click để quay về Kho thương mại)" : "Bật để xem Sản phẩm OEM trong kho sản xuất và lắp ráp có mã định mức"}
+                      >
+                        <div
+                          style={{
+                            width: 32,
+                            height: 18,
+                            borderRadius: 99,
+                            flexShrink: 0,
+                            background: pricingSource === "oem" ? "#003087" : "#cbd5e1",
+                            position: "relative",
+                            transition: "background 0.2s ease"
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: 2,
+                              left: pricingSource === "oem" ? 16 : 2,
+                              width: 14,
+                              height: 14,
+                              borderRadius: "50%",
+                              background: "#fff",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+                              transition: "left 0.2s ease"
+                            }}
+                          />
+                        </div>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: pricingSource === "oem" ? "#003087" : "var(--foreground, #334155)",
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          Sản phẩm OEM
+                        </span>
+                      </div>
+
+                      {/* Phân cách mảnh */}
+                      <div className="d-none d-md-block" style={{ width: 1, height: 20, background: "var(--border, #e2e8f0)", flexShrink: 0, margin: "0 2px" }} />
+
+                      {/* 2. Dropdown chọn nhóm hàng */}
+                      <div className="flex-shrink-0" style={{ width: isMobile ? "100%" : 210 }}>
                         <FilterSelect
                           value={quotationCategory}
                           onChange={setQuotationCategory}
@@ -819,18 +951,23 @@ export default function PricingPage() {
                             { value: "all", label: "Tất cả nhóm hàng" },
                             ...quotationCategories.map(c => ({ value: c, label: c }))
                           ]}
-                          width={isMobile ? "100%" : 200}
+                          width={isMobile ? "100%" : 210}
                         />
                       </div>
-                      <div className="flex-grow-1" style={{ minWidth: 0 }}>
+
+                      {/* 3. Ô tìm kiếm mở rộng full chiều ngang */}
+                      <div className="flex-grow-1" style={{ minWidth: 160 }}>
                         <SearchInput
-                          placeholder="Tìm kiếm sản phẩm..."
+                          placeholder={pricingSource === "oem" ? "Tìm theo tên, mã OEM, mã định mức..." : "Tìm kiếm sản phẩm..."}
                           value={quotationSearch}
                           onChange={setQuotationSearch}
+                          style={{ width: "100%" }}
                         />
                       </div>
                     </div>
-                    <div className="d-flex align-items-center gap-2 justify-content-end">
+
+                    {/* 4. Cụm nút hành động */}
+                    <div className="d-flex align-items-center gap-2 justify-content-end flex-shrink-0">
                       <button 
                         className="btn text-white px-2.5 px-md-3 d-flex align-items-center justify-content-center gap-1 shadow-sm"
                         style={{ height: 34, fontSize: "12.5px", backgroundColor: "#003087", borderColor: "#003087", borderRadius: 8, fontWeight: 700, whiteSpace: "nowrap" }}
@@ -879,7 +1016,10 @@ export default function PricingPage() {
                   !loadingQuotations && quotations.length > 0 ? (
                     <>
                       <div className="text-muted" style={{ fontSize: "13px" }}>
-                        Hiển thị {startIdx + 1}-{Math.min(endIdx, quotations.length)} trong {quotations.length} sản phẩm
+                        Hiển thị {startIdx + 1}-{Math.min(endIdx, filteredQuotations.length)} trong {filteredProductsCount === totalProductsCount ? `${totalProductsCount} sản phẩm` : `${filteredProductsCount} / ${totalProductsCount} sản phẩm`}
+                        <span className="ms-1.5 badge bg-light text-secondary border fw-normal" style={{ fontSize: "11px" }}>
+                          {pricingSource === "oem" ? "Kho sản xuất & lắp ráp" : "Kho thương mại"}
+                        </span>
                       </div>
                       <Pagination
                         page={quotationPage}

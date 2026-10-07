@@ -18,6 +18,7 @@ import { PrintLabelModal } from "@/components/ui/PrintLabelModal";
 import { ModernStepper } from "@/components/ui/ModernStepper";
 import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { useSession } from "next-auth/react";
+import { isLogisticsAdmin } from "@/lib/logistics-permissions";
 
 export default function LogisticsOverviewPage() {
   const [rawOrders, setRawOrders] = useState<any[]>([]);
@@ -26,9 +27,7 @@ export default function LogisticsOverviewPage() {
   const [readOrderIds, setReadOrderIds] = useState<Set<string>>(new Set());
   
   const { data: session } = useSession();
-  const userRole = (session?.user?.role || "").toUpperCase();
-  const position = (session?.user?.positionName || "").toLowerCase();
-  const isThuKho = ["SUPERADMIN", "ADMIN"].includes(userRole) || position.includes("thủ kho") || position.includes("quản lý kho");
+  const isThuKho = isLogisticsAdmin(session?.user);
   
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [orderDetails, setOrderDetails] = useState<any[]>([]);
@@ -638,14 +637,14 @@ export default function LogisticsOverviewPage() {
                       <i className="bi bi-exclamation-triangle me-2 text-warning"></i>Báo cáo sự cố
                     </button>
                   </li>
-                  {currentStep !== 3 && (
+                  {isThuKho && currentStep !== 3 && (
                     <li>
                       <button className="dropdown-item py-2 text-danger" onClick={() => setOrderToDelete(orderCode)}>
                         <i className="bi bi-trash me-2"></i>Xoá
                       </button>
                     </li>
                   )}
-                  {currentStep === 3 && (
+                  {isThuKho && currentStep === 3 && (
                     <li>
                       <button className="dropdown-item py-2 text-success" onClick={() => {
                         setDeletedOrders(prev => {
@@ -783,8 +782,12 @@ export default function LogisticsOverviewPage() {
                           <input 
                             className="form-check-input" 
                             type="checkbox" 
+                            disabled={!isThuKho}
+                            title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền chọn giao việc" : undefined}
+                            style={{ cursor: !isThuKho ? "not-allowed" : "pointer" }}
                             checked={orders.length > 0 && selectedBatchOrders.size === orders.filter(o => !o.isAssigned && o.type !== 'material-import').length}
                             onChange={(e) => {
+                              if (!isThuKho) return;
                               if (e.target.checked) {
                                 setSelectedBatchOrders(new Set(orders.filter(o => !o.isAssigned && o.type !== 'material-import').map(o => o.id)));
                               } else {
@@ -799,9 +802,12 @@ export default function LogisticsOverviewPage() {
                           <input 
                             className="form-check-input" 
                             type="checkbox" 
-                            disabled={row.isAssigned || row.type === 'material-import'}
+                            disabled={!isThuKho || row.isAssigned || row.type === 'material-import'}
+                            title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền chọn giao việc" : undefined}
+                            style={{ cursor: (!isThuKho || row.isAssigned || row.type === 'material-import') ? "not-allowed" : "pointer" }}
                             checked={selectedBatchOrders.has(row.id) || Boolean(row.isAssigned)}
                             onChange={(e) => {
+                              if (!isThuKho) return;
                               const newSet = new Set(selectedBatchOrders);
                               if (e.target.checked) {
                                 newSet.add(row.id);
@@ -974,17 +980,19 @@ export default function LogisticsOverviewPage() {
                    <div 
                      className="d-flex flex-column flex-md-row align-items-md-center gap-2"
                      style={{ 
-                       opacity: selectedBatchOrders.size === 0 ? 0.6 : 1, 
-                       pointerEvents: selectedBatchOrders.size === 0 ? "none" : "auto",
+                       opacity: (!isThuKho || selectedBatchOrders.size === 0) ? 0.6 : 1, 
+                       pointerEvents: (!isThuKho || selectedBatchOrders.size === 0) ? "none" : "auto",
                        transition: "all 0.3s"
                      }}
+                     title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền giao việc" : undefined}
                    >
                      <div className="d-flex align-items-center gap-2 flex-grow-1">
                         <span className="text-muted fw-semibold flex-shrink-0" style={{ fontSize: 13, whiteSpace: "nowrap" }}>Người thực hiện:</span>
                         <select 
                           className="form-select form-select-sm border-secondary shadow-sm" 
-                          style={{ minWidth: 150, maxWidth: 220 }}
+                          style={{ minWidth: 150, maxWidth: 220, cursor: !isThuKho ? "not-allowed" : "pointer" }}
                           value={selectedStaff}
+                          disabled={!isThuKho}
                           onChange={e => setSelectedStaff(e.target.value)}
                         >
                            <option value="">Chọn nhân viên</option>
@@ -996,6 +1004,7 @@ export default function LogisticsOverviewPage() {
                      <button 
                        className="btn btn-sm btn-primary px-3 fw-semibold shadow-sm"
                        disabled={!selectedStaff || selectedBatchOrders.size === 0 || !isThuKho}
+                       title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền giao việc" : undefined}
                        onClick={async () => {
                          try {
                            const res = await fetch("/api/logistics/batch-packing/assign", {
@@ -1256,6 +1265,7 @@ export default function LogisticsOverviewPage() {
           </button>
           <button 
             className="btn btn-primary w-100" 
+            title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền thực hiện xuất/nhập kho" : undefined}
             disabled={
               (selectedOrder?.type === "logistics-ticket" && 
                 selectedOrder.trangThai !== "PACKED" && 

@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { useSession } from "next-auth/react";
+import { isLogisticsAdmin } from "@/lib/logistics-permissions";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -106,6 +107,7 @@ const GRID = "28px 1fr 60px 80px 80px 60px 60px 60px 110px 110px 32px";
 // ── Main Component ─────────────────────────────────────────────────────────────
 export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initialWoId, initialDefectId, initialTicketId }: XuatKhoModalProps) {
   const { data: session } = useSession();
+  const isThuKho = isLogisticsAdmin(session?.user);
   const toast = useToast();
 
   const [mode, setMode] = React.useState<"manual" | "so" | "wo" | "defect">(initialMode || "manual");
@@ -788,6 +790,10 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
   };
 
   const handleSave = (printAfter: boolean) => {
+    if (!isThuKho) {
+      toast.error("Không có quyền", "Chỉ tài khoản Thủ kho mới có quyền xuất kho.");
+      return;
+    }
     setSaveWithPrint(printAfter);
     if (!fromWarehouseId) { toast.error("Thiếu thông tin", "Vui lòng chọn kho xuất"); return; }
     if (!validLines.length) { toast.error("Chưa có hàng hoá", "Cần ít nhất 1 dòng hợp lệ"); return; }
@@ -1343,18 +1349,24 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
 
           {!success && (() => {
             const missingItemsCount = validLines.filter(l => !l.item || l.soLuong > (l.soLuongTon || 0)).length;
-            const canSave = !saving && validLines.length > 0 && !!fromWarehouseId
+            const canSave = !saving && isThuKho && validLines.length > 0 && !!fromWarehouseId
               && !(mode === "so" && !selectedSo)
               && !(mode === "wo" && !selectedWo)
               && (missingItemsCount === 0 || allowExportShortage);
+            const buttonTitle = !isThuKho
+              ? "Chỉ tài khoản Thủ kho mới có quyền xuất kho"
+              : mode === "so" && !selectedSo
+              ? "Vui lòng chọn đơn bán hàng"
+              : mode === "wo" && !selectedWo
+              ? "Vui lòng chọn lệnh sản xuất"
+              : validLines.length === 0
+              ? "Chưa có hàng hoá"
+              : missingItemsCount > 0 && !allowExportShortage
+              ? "Kho không đủ hàng"
+              : undefined;
             return (
               <>
-                <button onClick={() => handleSave(true)} disabled={!canSave} title={
-                  mode === "so" && !selectedSo ? "Vui lòng chọn đơn bán hàng" :
-                    mode === "wo" && !selectedWo ? "Vui lòng chọn lệnh sản xuất" :
-                      validLines.length === 0 ? "Chưa có hàng hoá" :
-                        (missingItemsCount > 0 && !allowExportShortage) ? "Kho không đủ hàng" : undefined
-                } style={{
+                <button onClick={() => handleSave(true)} disabled={!canSave} title={buttonTitle} style={{
                   display: "flex", alignItems: "center", gap: 6,
                   padding: "8px 18px", border: "1.5px solid #f59e0b", borderRadius: 8,
                   background: canSave ? "rgba(245,158,11,0.1)" : "var(--muted)",
@@ -1368,12 +1380,7 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
                     : <i className="bi bi-printer" style={{ fontSize: 14 }} />}
                   Xác nhận & In phiếu
                 </button>
-                <button onClick={() => handleSave(false)} disabled={!canSave} title={
-                  mode === "so" && !selectedSo ? "Vui lòng chọn đơn bán hàng" :
-                    mode === "wo" && !selectedWo ? "Vui lòng chọn lệnh sản xuất" :
-                      validLines.length === 0 ? "Chưa có hàng hoá" :
-                        (missingItemsCount > 0 && !allowExportShortage) ? "Kho không đủ hàng" : undefined
-                } style={{
+                <button onClick={() => handleSave(false)} disabled={!canSave} title={buttonTitle} style={{
                   display: "flex", alignItems: "center", gap: 6,
                   padding: "8px 24px", border: "none", borderRadius: 8,
                   background: canSave ? "#f59e0b" : "var(--muted)",

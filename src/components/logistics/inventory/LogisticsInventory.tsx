@@ -12,6 +12,8 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { ProductDrawer } from "@/components/marketing/ProductDrawer";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { isLogisticsAdmin } from "@/lib/logistics-permissions";
 import { HoverImage } from "@/components/ui/HoverImage";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { Pagination } from "@/components/ui/Pagination";
@@ -57,6 +59,9 @@ interface InventoryItem {
 }
 
 export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, hideActions, compactMode }: { defaultWarehouseNameMatch?: string, hideAddButton?: boolean, hideActions?: boolean, compactMode?: boolean } = {}) {
+  const { data: session } = useSession();
+  const isThuKho = isLogisticsAdmin(session?.user);
+
   const searchParams = useSearchParams();
   const fromAdmin = searchParams.get("fromAdmin") === "true";
   const toast = useToast();
@@ -494,8 +499,12 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
                   <input
                     type="checkbox"
                     className="form-check-input shadow-none"
+                    disabled={!isThuKho}
+                    title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền chọn hàng hoá" : undefined}
+                    style={{ cursor: !isThuKho ? "not-allowed" : "pointer" }}
                     checked={items.length > 0 && selectedIds.length === items.length}
                     onChange={(e) => {
+                      if (!isThuKho) return;
                       if (e.target.checked) {
                         setSelectedIds(items.map(item => item.id));
                       } else {
@@ -541,8 +550,12 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
                       <input
                         type="checkbox"
                         className="form-check-input shadow-none"
+                        disabled={!isThuKho}
+                        title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền chọn hàng hoá" : undefined}
+                        style={{ cursor: !isThuKho ? "not-allowed" : "pointer" }}
                         checked={selectedIds.includes(item.id)}
                         onChange={(e) => {
+                          if (!isThuKho) return;
                           if (e.target.checked) {
                             setSelectedIds(prev => [...prev, item.id]);
                           } else {
@@ -657,13 +670,15 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
                           <button className="btn btn-icon btn-sm rounded-circle" title="Chi tiết">
                             <i className="bi bi-eye text-primary" />
                           </button>
-                          <button
-                            className="btn btn-icon btn-sm rounded-circle"
-                            title="Sửa"
-                            onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}
-                          >
-                            <i className="bi bi-pencil text-muted" />
-                          </button>
+                          {isThuKho && (
+                            <button
+                              className="btn btn-icon btn-sm rounded-circle"
+                              title="Sửa"
+                              onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}
+                            >
+                              <i className="bi bi-pencil text-muted" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     )}
@@ -714,7 +729,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
                 style={{ height: 38, maxWidth: 300 }}
               />
 
-              {!hideAddButton && (
+              {!hideAddButton && isThuKho && (
                 <button
                   id="logistics-add-item-btn"
                   className="btn btn-sm rounded-circle d-flex align-items-center justify-content-center text-white flex-shrink-0"
@@ -736,7 +751,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
             </div>
 
             <div className="d-flex align-items-center justify-content-end gap-3">
-            {fromAdmin && isMaterialWarehouse && filterWarehouse && (
+            {fromAdmin && isMaterialWarehouse && filterWarehouse && isThuKho && (
               <button
                 className="btn btn-sm btn-danger text-white rounded-pill px-4 fw-bold me-auto"
                 style={{ fontSize: 13, height: 32, border: 'none' }}
@@ -748,7 +763,7 @@ export function LogisticsInventory({ defaultWarehouseNameMatch, hideAddButton, h
               </button>
             )}
 
-            {selectedIds.length > 0 && (
+            {selectedIds.length > 0 && isThuKho && (
               <button
                 className="btn btn-sm btn-outline-danger rounded-pill px-4 fw-bold"
                 style={{ fontSize: 13, height: 32 }}

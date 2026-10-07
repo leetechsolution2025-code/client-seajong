@@ -1,4 +1,6 @@
 import React from "react";
+import { useSession } from "next-auth/react";
+import { isLogisticsAdmin } from "@/lib/logistics-permissions";
 import { HoverImage } from "@/components/ui/HoverImage";
 
 interface InventoryItem {
@@ -46,6 +48,8 @@ export function KVPItemTable({
   syncLog,
   setSelectedItem
 }: KVPItemTableProps) {
+  const { data: session } = useSession();
+  const isThuKho = isLogisticsAdmin(session?.user);
 
   // KVPItemTable logic based on User Rules (AGENTS.md):
   // 1. wrapperClassName="mkt-plan-table-no-min" to prevent 850px forced width
@@ -65,8 +69,12 @@ export function KVPItemTable({
               <input
                 type="checkbox"
                 className="form-check-input shadow-none"
+                disabled={!isThuKho}
+                title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền chọn hàng hoá" : undefined}
+                style={{ cursor: !isThuKho ? "not-allowed" : "pointer" }}
                 checked={items.length > 0 && selectedIds.length === items.length}
                 onChange={(e) => {
+                  if (!isThuKho) return;
                   if (e.target.checked) {
                     setSelectedIds(items.map(item => item.id));
                   } else {
@@ -112,8 +120,12 @@ export function KVPItemTable({
                   <input
                     type="checkbox"
                     className="form-check-input shadow-none"
+                    disabled={!isThuKho}
+                    title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền chọn hàng hoá" : undefined}
+                    style={{ cursor: !isThuKho ? "not-allowed" : "pointer" }}
                     checked={selectedIds.includes(item.id)}
                     onChange={(e) => {
+                      if (!isThuKho) return;
                       if (e.target.checked) {
                         setSelectedIds(prev => [...prev, item.id]);
                       } else {
@@ -241,18 +253,23 @@ export function KVPItemTable({
                     {item.soLuong > 0 ? "Còn hàng" : (item.trangThai === "het-hang" ? "Hết hàng" : (item.trangThai === "sap-het" ? "Sắp hết" : "Ngừng KD"))}
                   </span>
                 </td>
-                {hideActions ? null : <td className="text-end pe-4" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    className="btn btn-sm btn-light rounded-circle shadow-sm"
-                    style={{ width: 32, height: 32, padding: 0 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedItem(item);
-                    }}
-                  >
-                    <i className="bi bi-pencil" style={{ fontSize: 13 }} />
-                  </button>
-                </td>}
+                {(!hideActions && isThuKho) ? (
+                  <td className="text-end pe-4" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="btn btn-sm btn-light rounded-circle shadow-sm"
+                      style={{ width: 32, height: 32, padding: 0 }}
+                      title="Sửa"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedItem(item);
+                      }}
+                    >
+                      <i className="bi bi-pencil" style={{ fontSize: 13 }} />
+                    </button>
+                  </td>
+                ) : (
+                  hideActions ? null : <td className="pe-4" />
+                )}
               </tr>
             ))
           )}

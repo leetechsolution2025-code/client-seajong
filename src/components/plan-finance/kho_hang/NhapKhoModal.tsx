@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { useSession } from "next-auth/react";
+import { isLogisticsAdmin } from "@/lib/logistics-permissions";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -97,6 +98,7 @@ export function NhapKhoModal({
   initialShippingFee,
 }: NhapKhoModalProps) {
   const { data: session } = useSession();
+  const isThuKho = isLogisticsAdmin(session?.user);
 
   const isInitialReturn = (
     initialMode === "return" ||
@@ -703,6 +705,7 @@ export function NhapKhoModal({
   };
 
   const handleSave = () => {
+    if (!isThuKho) { toast.error("Không có quyền", "Chỉ tài khoản Thủ kho mới có quyền nhập kho."); return; }
     if (!toWarehouseId) { toast.error("Thiếu thông tin", "Vui lòng chọn kho nhập"); return; }
     if (!validLines.length) { toast.error("Chưa có hàng hoá", "Cần ít nhất 1 dòng hàng hoá hợp lệ"); return; }
     const missingPos = validLines.some(l => !l.viTriHang && !l.viTriCot && !l.viTriTang);
@@ -894,14 +897,16 @@ export function NhapKhoModal({
             {!success && (() => {
               const canSave = !saving
                 && validLines.length > 0
-                && !(mode === "po" && !selectedPO);
+                && !(mode === "po" && !selectedPO)
+                && isThuKho;
               return (
                 <button
                   onClick={handleSave}
                   disabled={!canSave}
                   title={
-                    mode === "po" && !selectedPO ? "Vui lòng chọn đơn mua hàng" :
-                      validLines.length === 0 ? "Chưa có hàng hoá nào trong bảng" : undefined
+                    !isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền nhập kho" :
+                      mode === "po" && !selectedPO ? "Vui lòng chọn đơn mua hàng" :
+                        validLines.length === 0 ? "Chưa có hàng hoá nào trong bảng" : undefined
                   }
                   style={{
                     display: "flex", alignItems: "center", gap: 6,
@@ -1269,9 +1274,10 @@ export function NhapKhoModal({
           </button>
         )}
         {!success && (() => {
-          const canSave = !saving && validLines.length > 0 && !(mode === "po" && !selectedPO);
+          const canSave = !saving && validLines.length > 0 && !(mode === "po" && !selectedPO) && isThuKho;
           return (
             <button onClick={handleSave} disabled={!canSave}
+              title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền nhập kho" : undefined}
               style={{
                 display: "flex", flex: 2, justifyContent: "center", alignItems: "center", gap: 6,
                 padding: "10px 20px", border: "none", borderRadius: 8,

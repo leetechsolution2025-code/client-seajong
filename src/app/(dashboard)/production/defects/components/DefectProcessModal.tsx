@@ -9,6 +9,7 @@ import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { BrandButton } from "@/components/ui/BrandButton";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
+import { isProductionAdmin } from "@/lib/production-permissions";
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -30,6 +31,7 @@ interface DefectProcessModalProps {
 
 export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProcessModalProps) {
   const { data: session } = useSession();
+  const isProdAdmin = isProductionAdmin(session?.user);
   const { data: defect, mutate } = useSWR(defectId ? `/api/production/defects/${defectId}` : null, fetcher);
   const [note, setNote] = useState('');
   const [resolution, setResolution] = useState('Sửa chữa tại chỗ');
@@ -79,6 +81,10 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
   if (!defectId) return null;
 
   const handleProcess = async (action: string, nextStatus: string, bomUpdates?: any[], customReturnQty?: number) => {
+    if (!isProdAdmin) {
+      toast.error('Không có quyền', 'Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền xử lý hàng lỗi!');
+      return;
+    }
     const finalNote = note || defect?.repairPlan || (action === 'TIẾP TỤC XỬ LÝ' || action === 'NHẬN LINH KIỆN & XỬ LÝ' ? 'Tiếp tục xử lý sau khi kho xuất vật tư' : (action === 'HOÀN THÀNH' ? 'Hoàn tất xử lý và chuyển QC kiểm tra' : ''));
     if (!finalNote && action !== 'ĐÓNG HỒ SƠ' && action !== 'HOÀN THÀNH') {
       toast.warning('Thiếu thông tin', 'Vui lòng nhập báo cáo nội dung xử lý!');
@@ -306,8 +312,10 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                               <BrandButton 
                                 className="rounded-2 px-4 shadow-sm"
                                 icon="bi-check2-circle"
-                                disabled={isSubmitting} 
+                                disabled={isSubmitting || !isProdAdmin} 
+                                title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền xử lý hàng lỗi" : undefined}
                                 onClick={() => {
+                                  if (!isProdAdmin) return;
                                   if (!note) {
                                     toast.warning('Thiếu thông tin', 'Vui lòng nhập báo cáo nội dung xử lý!');
                                     return;
@@ -497,9 +505,9 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                     </div>
                                     <button 
                                       className={`btn ${isImportCompleted ? (isReturnResolution ? 'btn-success' : 'btn-primary') : 'btn-secondary'} fw-bold rounded-pill shadow-sm py-2`} 
-                                      disabled={!isImportCompleted || isSubmitting} 
+                                      disabled={!isImportCompleted || isSubmitting || !isProdAdmin} 
                                       onClick={() => isReturnResolution ? handleProcess('HOÀN THÀNH', 'COMPLETED') : handleProcess('TIẾP TỤC XỬ LÝ', 'PROCESSING')}
-                                      title={!isImportCompleted ? `Chỉ mở khoá khi hoàn tất ${importTypeName.toLowerCase()}` : (isReturnResolution ? 'Hoàn thành hồ sơ' : 'Tiếp tục xử lý')}
+                                      title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền xử lý" : !isImportCompleted ? `Chỉ mở khoá khi hoàn tất ${importTypeName.toLowerCase()}` : (isReturnResolution ? 'Hoàn thành hồ sơ' : 'Tiếp tục xử lý')}
                                     >
                                       {!isImportCompleted ? (
                                         <>
@@ -566,9 +574,9 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                   </div>
                                   <button 
                                     className={`btn ${isExportCompleted ? 'btn-primary' : 'btn-secondary'} fw-bold rounded-pill shadow-sm py-2`} 
-                                    disabled={!isExportCompleted || isSubmitting} 
+                                    disabled={!isExportCompleted || isSubmitting || !isProdAdmin} 
                                     onClick={() => handleProcess('TIẾP TỤC XỬ LÝ', 'PROCESSING')}
-                                    title={!isExportCompleted ? 'Chỉ mở khoá khi hoàn tất lệnh xuất kho vật tư' : 'Tiếp tục xử lý'}
+                                    title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền xử lý" : !isExportCompleted ? 'Chỉ mở khoá khi hoàn tất lệnh xuất kho vật tư' : 'Tiếp tục xử lý'}
                                   >
                                     {!isExportCompleted ? (
                                       <>
@@ -606,9 +614,9 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
                                 </div>
                                 <button 
                                   className="btn btn-primary fw-bold rounded-pill shadow-sm py-2 d-flex align-items-center justify-content-center gap-2" 
-                                  disabled={isSubmitting} 
+                                  disabled={isSubmitting || !isProdAdmin} 
                                   onClick={() => handleProcess('HOÀN THÀNH', 'WAITING_QC')}
-                                  title="Nhấn Hoàn thành để kết thúc xử lý tại xưởng sản xuất và bàn giao sang bộ phận QC kiểm định"
+                                  title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền báo cáo hoàn thành" : "Nhấn Hoàn thành để kết thúc xử lý tại xưởng sản xuất và bàn giao sang bộ phận QC kiểm định"}
                                 >
                                   <i className="bi bi-check2-circle fs-5"></i>
                                   <span>Hoàn thành</span>
@@ -730,7 +738,8 @@ export function DefectProcessModal({ defectId, onClose, onRefresh }: DefectProce
         <div className="offcanvas-footer p-3 border-top bg-white mt-auto">
           <BrandButton 
             className="w-100 rounded-2 py-2" 
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isProdAdmin}
+            title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền tạo yêu cầu" : undefined}
             onClick={() => {
               setShowOffcanvas(false);
               const nextStatus = 'WAITING_INVENTORY';

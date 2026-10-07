@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { isProductionAdmin } from '@/lib/production-permissions';
 import { BrandButton } from '@/components/ui/BrandButton';
 import { Offcanvas } from '@/components/ui/Offcanvas';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
@@ -95,6 +96,7 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
   const [orders, setOrders] = useState<any[]>([]);
 
   const { data: session } = useSession();
+  const isProdAdmin = isProductionAdmin(session?.user);
 
   useEffect(() => {
     if (session?.user) {
@@ -180,6 +182,10 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isProdAdmin) {
+      alert("Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền tạo hồ sơ lỗi!");
+      return;
+    }
     setLoading(true);
     try {
       const payload = new FormData();
@@ -643,7 +649,9 @@ export function CreateDefectOffcanvas({ show, onClose, onRefresh, defaultSource 
                 type="submit"
                 variant="primary" 
                 className="px-4 shadow-sm"
+                disabled={loading || !isProdAdmin}
                 loading={loading}
+                title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền tạo hồ sơ lỗi" : undefined}
               >
                 Lưu hồ sơ
               </BrandButton>

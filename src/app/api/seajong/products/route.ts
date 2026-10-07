@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const page    = Math.max(1, parseInt(searchParams.get("page")     || "1"));
-  const perPage = Math.min(parseInt(searchParams.get("per_page")    || "24"), 100);
+  const perPage = Math.min(parseInt(searchParams.get("per_page")    || "24"), 2000);
   const catId   = searchParams.get("category") || "";
   const search  = searchParams.get("search")   || "";
 

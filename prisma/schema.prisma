@@ -238,6 +238,7 @@ model Employee {
   logisticsTickets         LogisticsTicket[]
   internalKpiReports       InternalKpiReport[]
   internalIncomeReports    InternalIncomeReport[]
+  handledDealerTickets     DealerSupportTicket[]     @relation("DealerTicketHandler")
 }
 
 model LaborContract {
@@ -551,7 +552,7 @@ model Customer {
   thuongThanhToan    String?
   thuongDoanhSoNam   String?
   thuongVuotDoanhSo  String?
-
+  dealerSupportTickets DealerSupportTicket[]
 
   @@index([nguon])
   @@index([nhom])
@@ -3144,4 +3145,25 @@ model Revenue {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model DealerSupportTicket {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  dealerName  String?
+  type        String    // Cấp phát vật tư & phụ kiện, Yêu cầu đóng gói phân lô, Bảo hành & Linh kiện, Hỗ trợ catalog & POSM, Hỗ trợ kỹ thuật & chính sách
+  title       String
+  content     String?
+  status      String    @default("In Progress") // In Progress, Resolved, Pending, Cancelled
+  requestDate DateTime  @default(now())
+  handlerId   String?
+  handler     Employee? @relation("DealerTicketHandler", fields: [handlerId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([customerId])
+  @@index([handlerId])
+  @@index([status])
 }

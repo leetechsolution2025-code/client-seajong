@@ -16,6 +16,8 @@ import { KiemKhoModal } from "@/components/plan-finance/kho_hang/KiemKhoModal";
 import { LuanChuyenKhoModal } from "@/components/plan-finance/kho_hang/LuanChuyenKhoModal";
 import { ConfirmDialogModal } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
+import { useSession } from "next-auth/react";
+import { isLogisticsAdmin } from "@/lib/logistics-permissions";
 
 interface Warehouse {
   id: string;
@@ -50,6 +52,9 @@ interface InventoryItem {
 }
 
 export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: any) => void }) {
+  const { data: session } = useSession();
+  const isThuKho = isLogisticsAdmin(session?.user);
+
   const [activeModal, setActiveModal] = useState<"nhap" | "xuat" | "luan-chuyen" | "kiem" | null>(null);
   const [search, setSearch] = useState("");
   const [filterWarehouse, setFilterWarehouse] = useState("");
@@ -234,8 +239,12 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
         <input 
           type="checkbox" 
           className="form-check-input shadow-none"
+          disabled={!isThuKho}
+          title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền chọn hàng hoá" : undefined}
+          style={{ cursor: !isThuKho ? "not-allowed" : "pointer" }}
           checked={filteredItems.length > 0 && selectedIds.length === filteredItems.length}
           onChange={(e) => {
+            if (!isThuKho) return;
             if (e.target.checked) {
               setSelectedIds(filteredItems.map(item => item.id));
             } else {
@@ -250,8 +259,12 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
         <input 
           type="checkbox" 
           className="form-check-input shadow-none"
+          disabled={!isThuKho}
+          title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền chọn hàng hoá" : undefined}
+          style={{ cursor: !isThuKho ? "not-allowed" : "pointer" }}
           checked={selectedIds.includes(row.id)}
           onChange={(e) => {
+            if (!isThuKho) return;
             if (e.target.checked) {
               setSelectedIds(prev => [...prev, row.id]);
             } else {
@@ -405,7 +418,8 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
           <div className="d-none d-md-flex" style={{ gap: "6px", alignItems: "center" }}>
             {/* Tải excel mẫu */}
             <button 
-              title="Tải file Excel mẫu"
+              title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền tải file mẫu" : "Tải file Excel mẫu"}
+              disabled={!isThuKho}
               style={{
                 width: "32px",
                 height: "32px",
@@ -416,18 +430,20 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                cursor: "pointer",
+                cursor: !isThuKho ? "not-allowed" : "pointer",
+                opacity: !isThuKho ? 0.5 : 1,
                 transition: "all 0.2s"
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--muted)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--card)"; }}
+              onMouseEnter={(e) => { if (isThuKho) e.currentTarget.style.background = "var(--muted)"; }}
+              onMouseLeave={(e) => { if (isThuKho) e.currentTarget.style.background = "var(--card)"; }}
             >
               <i className="bi bi-file-earmark-arrow-down" style={{ fontSize: "14px", color: "#10b981" }} />
             </button>
             
             {/* Import */}
             <button 
-              title="Nhập dữ liệu (Import)"
+              title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền nhập dữ liệu (Import)" : "Nhập dữ liệu (Import)"}
+              disabled={!isThuKho}
               style={{
                 width: "32px",
                 height: "32px",
@@ -438,20 +454,21 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                cursor: "pointer",
+                cursor: !isThuKho ? "not-allowed" : "pointer",
+                opacity: !isThuKho ? 0.5 : 1,
                 transition: "all 0.2s"
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--muted)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--card)"; }}
+              onMouseEnter={(e) => { if (isThuKho) e.currentTarget.style.background = "var(--muted)"; }}
+              onMouseLeave={(e) => { if (isThuKho) e.currentTarget.style.background = "var(--card)"; }}
             >
               <i className="bi bi-file-earmark-plus" style={{ fontSize: "14px", color: "#3b82f6" }} />
             </button>
 
             {/* Export */}
             <button 
-              title="Xuất dữ liệu (Export)"
+              title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền xuất dữ liệu (Export)" : "Xuất dữ liệu (Export)"}
               onClick={handleExportExcel}
-              disabled={isExporting}
+              disabled={isExporting || !isThuKho}
               style={{
                 width: "32px",
                 height: "32px",
@@ -462,12 +479,12 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                cursor: isExporting ? "not-allowed" : "pointer",
+                cursor: (isExporting || !isThuKho) ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
-                opacity: isExporting ? 0.6 : 1
+                opacity: (isExporting || !isThuKho) ? 0.5 : 1
               }}
-              onMouseEnter={(e) => { if (!isExporting) e.currentTarget.style.background = "var(--muted)"; }}
-              onMouseLeave={(e) => { if (!isExporting) e.currentTarget.style.background = "var(--card)"; }}
+              onMouseEnter={(e) => { if (!isExporting && isThuKho) e.currentTarget.style.background = "var(--muted)"; }}
+              onMouseLeave={(e) => { if (!isExporting && isThuKho) e.currentTarget.style.background = "var(--card)"; }}
             >
               {isExporting ? (
                 <div className="spinner-border spinner-border-sm text-primary" role="status">
@@ -480,9 +497,9 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
 
             {/* Huỷ đã giữ */}
             <button 
-              title="Huỷ hàng đang giữ (Chuyển hết về thực tồn)"
-              onClick={() => setShowClearHoldModal(true)}
-              disabled={isClearingHold}
+              title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền huỷ giữ hàng" : "Huỷ hàng đang giữ (Chuyển hết về thực tồn)"}
+              onClick={() => isThuKho && setShowClearHoldModal(true)}
+              disabled={isClearingHold || !isThuKho}
               style={{
                 height: "32px",
                 padding: "0 10px",
@@ -495,13 +512,13 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
                 gap: "5px",
                 fontSize: "12px",
                 fontWeight: 600,
-                cursor: isClearingHold ? "not-allowed" : "pointer",
+                cursor: (isClearingHold || !isThuKho) ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
-                opacity: isClearingHold ? 0.6 : 1,
+                opacity: (isClearingHold || !isThuKho) ? 0.5 : 1,
                 whiteSpace: "nowrap"
               }}
-              onMouseEnter={(e) => { if (!isClearingHold) e.currentTarget.style.background = "#fee2e2"; }}
-              onMouseLeave={(e) => { if (!isClearingHold) e.currentTarget.style.background = "#fef2f2"; }}
+              onMouseEnter={(e) => { if (!isClearingHold && isThuKho) e.currentTarget.style.background = "#fee2e2"; }}
+              onMouseLeave={(e) => { if (!isClearingHold && isThuKho) e.currentTarget.style.background = "#fef2f2"; }}
             >
               {isClearingHold ? (
                 <div className="spinner-border spinner-border-sm text-danger" role="status" style={{ width: 14, height: 14 }}>
@@ -548,46 +565,61 @@ export function LogisticsInbound({ onStatsChange }: { onStatsChange?: (stats: an
 
         {/* Các nút chức năng bên phải */}
         <div className="d-flex flex-wrap flex-sm-nowrap gap-2 align-items-center inbound-action-container">
-          {actions.map(action => (
-            <button
-              key={action.label}
-              onClick={() => {
-                if (action.label === "Nhập hàng") setActiveModal("nhap");
-                else if (action.label === "Xuất hàng") setActiveModal("xuat");
-                else if (action.label === "Luân chuyển") setActiveModal("luan-chuyen");
-                else if (action.label === "Kiểm kho") setActiveModal("kiem");
-              }}
-              className="inbound-action-btn"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "8px 14px",
-                borderRadius: 10,
-                border: "none",
-                cursor: "pointer",
-                background: `linear-gradient(135deg, ${action.fromColor}, ${action.toColor})`,
-                color: "#fff",
-                fontSize: 12.5,
-                fontWeight: 700,
-                boxShadow: `0 4px 10px ${action.shadow}`,
-                transition: "transform 0.2s, box-shadow 0.2s",
-                whiteSpace: "nowrap"
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-1.5px)";
-                e.currentTarget.style.boxShadow = `0 6px 14px ${action.shadow}`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = `0 4px 10px ${action.shadow}`;
-              }}
-            >
-              <i className={`bi ${action.icon}`} style={{ fontSize: 13.5 }} />
-              <span className="d-none d-sm-inline">{action.label}</span>
-              <span className="d-inline d-sm-none">{action.label.split(" ")[0]}</span>
-            </button>
-          ))}
+          {actions.map(action => {
+            const isRestricted = action.label !== "Kiểm kho" && !isThuKho;
+            return (
+              <button
+                key={action.label}
+                disabled={isRestricted}
+                title={isRestricted ? "Chỉ tài khoản Thủ kho mới có quyền thực hiện nghiệp vụ này" : undefined}
+                onClick={() => {
+                  if (isRestricted) {
+                    toast.error("Không có quyền", "Chỉ tài khoản Thủ kho hoặc Quản trị viên mới có quyền thực hiện nghiệp vụ này.");
+                    return;
+                  }
+                  if (action.label === "Nhập hàng") setActiveModal("nhap");
+                  else if (action.label === "Xuất hàng") setActiveModal("xuat");
+                  else if (action.label === "Luân chuyển") setActiveModal("luan-chuyen");
+                  else if (action.label === "Kiểm kho") setActiveModal("kiem");
+                }}
+                className="inbound-action-btn"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 14px",
+                  borderRadius: 10,
+                  border: "none",
+                  cursor: isRestricted ? "not-allowed" : "pointer",
+                  opacity: isRestricted ? 0.45 : 1,
+                  filter: isRestricted ? "grayscale(40%)" : "none",
+                  background: `linear-gradient(135deg, ${action.fromColor}, ${action.toColor})`,
+                  color: "#fff",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  boxShadow: isRestricted ? "none" : `0 4px 10px ${action.shadow}`,
+                  transition: "transform 0.2s, box-shadow 0.2s",
+                  whiteSpace: "nowrap"
+                }}
+                onMouseEnter={(e) => {
+                  if (!isRestricted) {
+                    e.currentTarget.style.transform = "translateY(-1.5px)";
+                    e.currentTarget.style.boxShadow = `0 6px 14px ${action.shadow}`;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isRestricted) {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = `0 4px 10px ${action.shadow}`;
+                  }
+                }}
+              >
+                <i className={`bi ${action.icon}`} style={{ fontSize: 13.5 }} />
+                <span className="d-none d-sm-inline">{action.label}</span>
+                <span className="d-inline d-sm-none">{action.label.split(" ")[0]}</span>
+              </button>
+            );
+          })}
         </div>
         </div>
       }

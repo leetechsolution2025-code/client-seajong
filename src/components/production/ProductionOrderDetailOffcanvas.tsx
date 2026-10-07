@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { isProductionAdmin } from "@/lib/production-permissions";
 import toast from "react-hot-toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -10,6 +12,8 @@ interface ProductionOrderDetailOffcanvasProps {
 }
 
 export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate }: ProductionOrderDetailOffcanvasProps) {
+  const { data: session } = useSession();
+  const isProdAdmin = isProductionAdmin(session?.user);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
   
@@ -44,6 +48,10 @@ export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate
 
   const handleUpdateStatus = async (newStatus: string) => {
     if (!orderId) return;
+    if (newStatus === "completed" && !isProdAdmin) {
+      toast.error("Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền báo cáo hoàn thành lệnh sản xuất");
+      return;
+    }
     try {
       setLoading(true);
       const res = await fetch(`/api/production/orders/${orderId}`, {
@@ -73,6 +81,10 @@ export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate
   const handleUpdateQCDate = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     if (!orderId) return;
+    if (!isProdAdmin) {
+      toast.error("Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền thay đổi ngày QC");
+      return;
+    }
     try {
       setData((prev: any) => ({ ...prev, order: { ...prev.order, ngayYeuCauQC: newValue } }));
       const res = await fetch(`/api/production/orders/${orderId}`, {
@@ -168,7 +180,9 @@ export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate
                   <input 
                     type="date"
                     className="form-control form-control-sm text-end fw-medium border-0 bg-transparent p-0 w-auto text-primary"
-                    style={{ cursor: "pointer", outline: "none", boxShadow: "none" }}
+                    style={{ cursor: isProdAdmin ? "pointer" : "not-allowed", outline: "none", boxShadow: "none", opacity: isProdAdmin ? 1 : 0.7 }}
+                    disabled={!isProdAdmin}
+                    title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền thay đổi ngày QC" : undefined}
                     value={data.order?.ngayYeuCauQC ? new Date(data.order.ngayYeuCauQC).toISOString().split('T')[0] : (data.order?.ngayHoanThanh ? new Date(data.order.ngayHoanThanh).toISOString().split('T')[0] : "")}
                     min={new Date().toISOString().split('T')[0]}
                     onChange={handleUpdateQCDate}
@@ -328,8 +342,18 @@ export function ProductionOrderDetailOffcanvas({ orderId, show, onHide, onUpdate
               {data.order?.trangThai === "running" && (
                 <button 
                   className="btn btn-success flex-grow-1" 
-                  style={{ fontSize: 13, fontWeight: 500 }}
-                  onClick={() => setShowConfirmComplete(true)}
+                  style={{ 
+                    fontSize: 13, 
+                    fontWeight: 500,
+                    opacity: isProdAdmin ? 1 : 0.6,
+                    cursor: isProdAdmin ? "pointer" : "not-allowed"
+                  }}
+                  disabled={!isProdAdmin}
+                  title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền báo cáo hoàn thành lệnh sản xuất" : undefined}
+                  onClick={() => {
+                    if (!isProdAdmin) return;
+                    setShowConfirmComplete(true);
+                  }}
                 >
                   <i className="bi bi-check-circle me-2"></i>
                   Hoàn thành

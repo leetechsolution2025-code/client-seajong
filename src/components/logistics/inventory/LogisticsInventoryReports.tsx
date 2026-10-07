@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
+import { isLogisticsAdmin } from "@/lib/logistics-permissions";
 import { useSearchParams, usePathname } from "next/navigation";
 import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 import { TreeFilterSelect } from "@/components/ui/TreeFilterSelect";
@@ -126,6 +127,7 @@ export function LogisticsInventoryReports() {
   const userPos = ((session?.user as any)?.positionName || (session?.user as any)?.position || "").toLowerCase();
   const userDept = ((session?.user as any)?.departmentName || (session?.user as any)?.departmentCode || "").toLowerCase();
 
+  const isThuKho = isLogisticsAdmin(session?.user);
   const isAdmin =
     ["SUPERADMIN", "ADMIN"].includes(userRole) ||
     userPos.includes("giám đốc") ||
@@ -765,22 +767,24 @@ export function LogisticsInventoryReports() {
             {/* Action Buttons */}
             <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
               <button 
-                onClick={() => setShowPrintModal(true)} 
-                disabled={xntLoading || filteredXntLines.length === 0}
+                onClick={() => isThuKho && setShowPrintModal(true)} 
+                disabled={xntLoading || filteredXntLines.length === 0 || !isThuKho}
+                title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền in báo cáo" : undefined}
                 className="btn btn-sm btn-primary"
                 style={{ 
                   display: "flex", 
                   alignItems: "center", 
                   gap: 6, 
                   height: 32, 
-                  background: "#003087", 
-                  color: "#fff", 
+                  background: !isThuKho ? "var(--muted)" : "#003087", 
+                  color: !isThuKho ? "var(--muted-foreground)" : "#fff", 
                   border: "none", 
                   borderRadius: 8, 
                   padding: "0 16px",
                   fontSize: 13,
                   fontWeight: 700,
-                  cursor: "pointer"
+                  cursor: (xntLoading || filteredXntLines.length === 0 || !isThuKho) ? "not-allowed" : "pointer",
+                  opacity: !isThuKho ? 0.6 : 1
                 }}
               >
                 <i className="bi bi-printer" />
@@ -788,7 +792,9 @@ export function LogisticsInventoryReports() {
               </button>
 
               <button 
-                onClick={handleExportExcel}
+                onClick={() => isThuKho && handleExportExcel()}
+                disabled={xntLoading || filteredXntLines.length === 0 || !isThuKho}
+                title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền xuất Excel" : undefined}
                 className="btn btn-sm btn-outline-success"
                 style={{ 
                   display: "flex", 
@@ -802,13 +808,14 @@ export function LogisticsInventoryReports() {
                   padding: "0 16px",
                   fontSize: 13,
                   fontWeight: 700,
-                  cursor: "pointer"
+                  cursor: (xntLoading || filteredXntLines.length === 0 || !isThuKho) ? "not-allowed" : "pointer",
+                  opacity: !isThuKho ? 0.5 : 1
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(16,185,129,0.08)";
+                  if (isThuKho) e.currentTarget.style.background = "rgba(16,185,129,0.08)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
+                  if (isThuKho) e.currentTarget.style.background = "transparent";
                 }}
               >
                 <i className="bi bi-file-earmark-excel" />

@@ -28,8 +28,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const page   = Math.max(1, parseInt(searchParams.get("page")  ?? "1"));
-    const pageSize = parseInt(searchParams.get("pageSize") ?? "10");
+    const page   = Math.max(1, parseInt(searchParams.get("page")  ?? "1") || 1);
+    const pageSize = Math.max(1, parseInt(searchParams.get("pageSize") ?? "10") || 10);
     const search = searchParams.get("search") ?? "";
     const nguon  = searchParams.get("nguon")  ?? "";
     const nhom   = searchParams.get("nhom")   ?? "";
@@ -55,7 +55,13 @@ export async function GET(req: NextRequest) {
         ]
       }),
       ...(nguon  && { nguon }),
-      ...(nhom   && { nhom }),
+      ...(nhom   && { 
+        nhom: (nhom === "dai-ly" || nhom === "dai_ly")
+          ? { in: ["dai-ly", "dai_ly"] }
+          : (nhom === "ca-nhan" || nhom === "ca_nhan")
+          ? { in: ["ca-nhan", "ca_nhan"] }
+          : nhom
+      }),
       ...(loai   && { loai }),
     };
 
@@ -198,7 +204,7 @@ export async function GET(req: NextRequest) {
       committedSales: committedSalesMap.get(c.id) || 0,
     }));
 
-    return NextResponse.json({ customers: customersWithDebt, total, page, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) });
+    return NextResponse.json({ customers: customersWithDebt, total, page, totalPages: Math.max(1, Math.ceil(total / pageSize)) });
   } catch (e) {
     console.error("[GET /customers]", e);
     return NextResponse.json({ customers: [], total: 0, page: 1, totalPages: 1 });

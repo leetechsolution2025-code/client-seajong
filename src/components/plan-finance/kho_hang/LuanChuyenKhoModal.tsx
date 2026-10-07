@@ -6,6 +6,7 @@ import { useToast }                  from "@/components/ui/Toast";
 import { ConfirmDialog }             from "@/components/ui/ConfirmDialog";
 import { TaoYeuCauMuaHangModal }     from "@/components/plan-finance/mua_hang/TaoYeuCauMuaHangModal";
 import { genDocCode }                from "@/lib/genDocCode";
+import { isLogisticsAdmin }           from "@/lib/logistics-permissions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Warehouse     { id: string; code: string | null; name: string; isActive: boolean; }
@@ -70,6 +71,7 @@ const CSS = {
 // ── Component ─────────────────────────────────────────────────────────────────
 export function LuanChuyenKhoModal({ onClose, onSaved }: LuanChuyenKhoModalProps) {
   const { data: session } = useSession();
+  const isThuKho = isLogisticsAdmin(session?.user);
   const toast = useToast();
 
   // ── Header state ────────────────────────────────────────────────────────────
@@ -274,6 +276,10 @@ export function LuanChuyenKhoModal({ onClose, onSaved }: LuanChuyenKhoModalProps
   };
 
   const handleSave = () => {
+    if (!isThuKho) {
+      toast.error("Không có quyền", "Chỉ tài khoản Thủ kho mới có quyền luân chuyển kho.");
+      return;
+    }
     if (!fromWarehouseId) { toast.error("Thiếu thông tin", "Vui lòng chọn kho nguồn"); return; }
     if (!toWarehouseId)   { toast.error("Thiếu thông tin", "Vui lòng chọn kho đích");  return; }
     if (fromWarehouseId === toWarehouseId) { toast.error("Lỗi", "Kho nguồn và kho đích phải khác nhau"); return; }
@@ -332,8 +338,9 @@ export function LuanChuyenKhoModal({ onClose, onSaved }: LuanChuyenKhoModalProps
               <i className="bi bi-check-circle-fill" /> Đã chuyển kho thành công!
             </div>
           ) : (
-            <button onClick={handleSave} disabled={saving || locked}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 20px", border: "none", background: (saving || locked) ? "var(--muted)" : "#6366f1", color: (saving || locked) ? "var(--muted-foreground)" : "#fff", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: (saving || locked) ? "not-allowed" : "pointer" }}>
+            <button onClick={handleSave} disabled={saving || locked || !isThuKho}
+              title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền luân chuyển kho" : undefined}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 20px", border: "none", background: (saving || locked || !isThuKho) ? "var(--muted)" : "#6366f1", color: (saving || locked || !isThuKho) ? "var(--muted-foreground)" : "#fff", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: (saving || locked || !isThuKho) ? "not-allowed" : "pointer" }}>
               {saving ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-arrow-left-right" />}
               {saving ? "Đang xử lý…" : "Xác nhận chuyển kho"}
             </button>
@@ -448,8 +455,8 @@ export function LuanChuyenKhoModal({ onClose, onSaved }: LuanChuyenKhoModalProps
               )
             )}
 
-            {/* Nút tạo yêu cầu mua hàng khi thiếu tồn */}
-            {stockStatus === "insufficient" && !locked && (
+            {/* Nút tạo yêu cầu mua hàng khi thiếu tồn (chỉ Thủ kho) */}
+            {stockStatus === "insufficient" && !locked && isThuKho && (
               <button onClick={openPurchaseRequestModal}
                 onMouseEnter={e => { e.currentTarget.style.background = "rgba(244,63,94,0.12)"; e.currentTarget.style.borderColor = "#f43f5e"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "rgba(244,63,94,0.06)"; e.currentTarget.style.borderColor = "rgba(244,63,94,0.35)"; }}

@@ -124,21 +124,43 @@ export function YearAreaChart({ series, height = 360, showLegend, hideYAxis = tr
       theme: "dark",
       shared: true,
       intersect: false,
-      x: { show: true },
-      y: {
-        formatter: (v) => {
-          if (exactTooltip) {
-            return `${Number(v).toLocaleString("vi-VN")} ${unit}`.trim();
-          }
-          return v >= 1_000_000
-            ? `${(v / 1_000_000).toFixed(1)}M ${unit}`.trim()
-            : `${Number.isInteger(v) ? v.toLocaleString("vi-VN") : v.toFixed(2).replace(/\.00$/, "")}${unit ? " " + unit : ""}`;
-        }
-      },
-      marker: { 
-        show: true,
-        fillColors: colors // Sử dụng fillColors thay vì fillSeriesColor
-      },
+      custom: function({ series: sValues, dataPointIndex, w }) {
+        const monthName = w?.globals?.categoryLabels?.[dataPointIndex] || `T${dataPointIndex + 1}`;
+        const sNames = w?.globals?.seriesNames || [];
+        let rowsHtml = "";
+
+        sNames.forEach((name: string, i: number) => {
+          const val = sValues[i]?.[dataPointIndex];
+          if (val === null || val === undefined) return;
+          const color = colors[i] || w?.globals?.colors?.[i] || "#2563eb";
+          const formattedVal = exactTooltip
+            ? `${Number(val).toLocaleString("vi-VN")} ${unit}`.trim()
+            : (val >= 1_000_000
+                ? `${(val / 1_000_000).toFixed(1)}M ${unit}`.trim()
+                : `${Number(val).toLocaleString("vi-VN")} ${unit}`.trim());
+
+          rowsHtml += `
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 4px 0; font-size: 12.5px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="width: 9px; height: 9px; border-radius: 50%; background-color: ${color}; display: inline-block; flex-shrink: 0;"></span>
+                <span style="color: #cbd5e1; font-weight: 500;">${name}:</span>
+              </div>
+              <div style="font-weight: 700; color: #ffffff; text-align: right; min-width: 100px; font-variant-numeric: tabular-nums;">
+                ${formattedVal}
+              </div>
+            </div>
+          `;
+        });
+
+        return `
+          <div style="background: rgba(24, 24, 27, 0.95); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 10px 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); min-width: 260px; font-family: inherit;">
+            <div style="font-weight: 700; font-size: 12px; color: #94a3b8; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 5px; margin-bottom: 3px;">
+              ${monthName}
+            </div>
+            ${rowsHtml}
+          </div>
+        `;
+      }
     },
     markers: { 
       size: 0,

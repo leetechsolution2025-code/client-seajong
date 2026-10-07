@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
+import { useSession } from "next-auth/react";
+import { isProductionAdmin } from "@/lib/production-permissions";
 import toast from "react-hot-toast";
 
 interface ProductItem {
@@ -40,6 +42,8 @@ export function CreateProductionRequestOffcanvas({
   onHide,
   onSuccess,
 }: CreateProductionRequestOffcanvasProps) {
+  const { data: session } = useSession();
+  const isProdAdmin = isProductionAdmin(session?.user);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -186,6 +190,11 @@ export function CreateProductionRequestOffcanvas({
   // Submit toàn bộ yêu cầu
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isProdAdmin) {
+      toast.error("Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền tạo yêu cầu sản xuất");
+      return;
+    }
 
     // Nếu người dùng đang nhập dở một sản phẩm mà chưa bấm thêm, tự động thêm vào
     let finalItems = [...items];
@@ -626,7 +635,8 @@ export function CreateProductionRequestOffcanvas({
                 type="submit"
                 className="btn btn-primary w-100 shadow-sm d-flex align-items-center justify-content-center gap-2 py-2 fw-semibold"
                 style={{ fontSize: 13, borderRadius: 7 }}
-                disabled={loading || (items.length === 0 && !productSearch)}
+                disabled={loading || (items.length === 0 && !productSearch) || !isProdAdmin}
+                title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền tạo yêu cầu sản xuất" : undefined}
               >
                 {loading ? (
                   <>

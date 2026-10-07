@@ -698,7 +698,7 @@ export default function MarketingProductsPage() {
       />
 
       {/* ── Unified Toolbar (sticky) ── */}
-      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--background)", padding: "10px 24px 0" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "var(--background)", padding: "8px 8px 0" }}>
 
         {/* ── Hàng 1: Search | Toggles | Dropdown | [right] Grid/List | Đồng bộ ── */}
         <div style={{
@@ -896,7 +896,7 @@ export default function MarketingProductsPage() {
       </div>
 
       {/* Content — flow tự nhiên */}
-      <div style={{ padding: "20px 24px 24px" }}>
+      <div style={{ padding: "8px 8px 16px" }}>
 
         {/* Loading */}
         {loading && (
@@ -929,7 +929,7 @@ export default function MarketingProductsPage() {
         {/* Product Grid / List */}
         {!loading && products.length > 0 && (
           viewMode === "grid" ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16, marginBottom: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8, marginBottom: 16 }}>
               {products.map(p => (
                 <ProductCard key={p.id} p={p} cats={categories} onClick={() => setSelected(p)} />
               ))}

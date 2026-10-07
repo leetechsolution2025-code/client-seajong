@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { useSession } from "next-auth/react";
+import { isLogisticsAdmin } from "@/lib/logistics-permissions";
 import { useToast }                  from "@/components/ui/Toast";
 import { ConfirmDialog }             from "@/components/ui/ConfirmDialog";
 import { TaoYeuCauMuaHangModal }     from "@/components/plan-finance/mua_hang/TaoYeuCauMuaHangModal";
@@ -89,6 +90,7 @@ function useBreakpoint() {
 // ── Component ─────────────────────────────────────────────────────────────────
 export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
   const { data: session } = useSession();
+  const isThuKho = isLogisticsAdmin(session?.user);
   const toast    = useToast();
   const toastRef  = React.useRef(toast);
   React.useEffect(() => { toastRef.current = toast; });
@@ -560,7 +562,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", background: "rgba(16,185,129,0.1)", borderRadius: 8, color: "#10b981", fontSize: isPhone ? 11 : 13, fontWeight: 700 }}>
                 <i className="bi bi-check-circle-fill" /> {isPhone ? "Xong!" : "Kiểm kho thành công!"}
               </div>
-              {!isPhone && (
+              {!isPhone && isThuKho && (
                 <button onClick={() => setShowBaoCao(true)}
                   style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", border: "1px solid #6366f1", background: "rgba(99,102,241,0.08)", color: "#6366f1", fontSize: 12.5, fontWeight: 700, borderRadius: 8, cursor: "pointer" }}>
                   <i className="bi bi-file-earmark-bar-graph" /> Báo cáo kiểm kho
@@ -572,20 +574,23 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
               {!isPhone && (
                 <>
                   <input type="file" accept=".xlsx, .xls" style={{ display: "none" }} ref={fileInputRef} onChange={handleImportExcel} />
-                  <button onClick={() => fileInputRef.current?.click()} disabled={locked || rows.length === 0}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: (locked || rows.length === 0) ? "not-allowed" : "pointer", opacity: (locked || rows.length === 0) ? 0.5 : 1 }}>
+                  <button onClick={() => isThuKho && fileInputRef.current?.click()} disabled={locked || rows.length === 0 || !isThuKho}
+                    title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền nhập Excel" : undefined}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: (locked || rows.length === 0 || !isThuKho) ? "not-allowed" : "pointer", opacity: (locked || rows.length === 0 || !isThuKho) ? 0.5 : 1 }}>
                     <i className="bi bi-file-earmark-excel text-success" /> Nhập Excel
                   </button>
-                  <button onClick={saveDraft} disabled={savingDraft || locked || rows.length === 0}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", border: "1px solid var(--border)", background: "var(--card)", color: draftId ? "#10b981" : "var(--foreground)", fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: (savingDraft || locked || rows.length === 0) ? "not-allowed" : "pointer", opacity: (savingDraft || locked || rows.length === 0) ? 0.5 : 1 }}>
+                  <button onClick={() => isThuKho && saveDraft()} disabled={savingDraft || locked || rows.length === 0 || !isThuKho}
+                    title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền lưu nháp" : undefined}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 16px", border: "1px solid var(--border)", background: "var(--card)", color: draftId ? "#10b981" : "var(--foreground)", fontSize: 13, fontWeight: 600, borderRadius: 8, cursor: (savingDraft || locked || rows.length === 0 || !isThuKho) ? "not-allowed" : "pointer", opacity: (savingDraft || locked || rows.length === 0 || !isThuKho) ? 0.5 : 1 }}>
                     {savingDraft ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> : draftId ? <i className="bi bi-cloud-check-fill" style={{ color: "#10b981" }} /> : <i className="bi bi-floppy" />}
                     {savingDraft ? "Lưu..." : "Lưu nháp"}
                   </button>
                 </>
               )}
               {!isMobile && warehouseId && (
-                <button onClick={handleSave} disabled={saving || locked || loading || entered.length === 0}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 20px", border: "none", background: (saving || locked || loading || entered.length === 0) ? "var(--muted)" : "#0ea5e9", color: (saving || locked || loading || entered.length === 0) ? "var(--muted-foreground)" : "#fff", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: (saving || locked || loading || entered.length === 0) ? "not-allowed" : "pointer" }}>
+                <button onClick={() => isThuKho && handleSave()} disabled={saving || locked || loading || entered.length === 0 || !isThuKho}
+                  title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền xác nhận kiểm kho" : undefined}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 20px", border: "none", background: (saving || locked || loading || entered.length === 0 || !isThuKho) ? "var(--muted)" : "#0ea5e9", color: (saving || locked || loading || entered.length === 0 || !isThuKho) ? "var(--muted-foreground)" : "#fff", fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: (saving || locked || loading || entered.length === 0 || !isThuKho) ? "not-allowed" : "pointer" }}>
                   {saving ? <i className="bi bi-arrow-repeat" style={{ animation: "spin 1s linear infinite" }} /> : <i className="bi bi-clipboard-check" />}
                   {saving ? "Xử lý…" : "Xác nhận kiểm kho"}
                 </button>
@@ -892,7 +897,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
             ))}
 
             {/* Nút YCMH khi có hàng dưới tồn min */}
-            {belowMinRows.length > 0 && !locked && (
+            {belowMinRows.length > 0 && !locked && isThuKho && (
               <button onClick={() => setShowPRModal(true)}
                 onMouseEnter={e => { e.currentTarget.style.background = "rgba(249,115,22,0.14)"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "rgba(249,115,22,0.07)"; }}
@@ -978,16 +983,19 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                         <div style={{ flex: 1, display: "flex", gap: 8, alignItems: "flex-end", minWidth: 160 }}>
                           <div style={{ flex: 1 }}>
                             <label style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", display: "block", marginBottom: 4 }}>Kiểm</label>
-                            <input type="number" min={0} placeholder="SL..." disabled={locked || row.chuaPhanKho}
+                            <input type="number" min={0} placeholder="SL..." disabled={locked || row.chuaPhanKho || !isThuKho}
                               value={row.soLuongThucTe}
+                              readOnly={!isThuKho}
+                              title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền nhập số lượng thực tế" : undefined}
                               onChange={e => {
+                                if (!isThuKho) return;
                                 const v = e.target.value === "" ? "" : Math.max(0, parseFloat(e.target.value) || 0);
                                 updateRow(row.inventoryItemId, row.warehouseId, "soLuongThucTe", v as never);
                               }}
-                              style={{ width: "100%", height: 50, padding: "0 10px", borderWidth: 2, borderStyle: "solid", borderColor: st === "under" ? "rgba(244,63,94,0.5)" : st === "over" ? "rgba(245,158,11,0.5)" : blm ? "rgba(249,115,22,0.5)" : "var(--border)", borderRadius: 10, fontSize: 16, fontWeight: 700, background: locked ? "var(--muted)" : "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box", textAlign: "center" }} />
+                              style={{ width: "100%", height: 50, padding: "0 10px", borderWidth: 2, borderStyle: "solid", borderColor: st === "under" ? "rgba(244,63,94,0.5)" : st === "over" ? "rgba(245,158,11,0.5)" : blm ? "rgba(249,115,22,0.5)" : "var(--border)", borderRadius: 10, fontSize: 16, fontWeight: 700, background: (locked || !isThuKho) ? "var(--muted)" : "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box", textAlign: "center", cursor: !isThuKho ? "not-allowed" : "text" }} />
                           </div>
                           {/* Quick match button */}
-                          {!locked && !row.chuaPhanKho && (
+                          {!locked && !row.chuaPhanKho && isThuKho && (
                             <button
                               onClick={() => updateRow(row.inventoryItemId, row.warehouseId, "soLuongThucTe", row.soLuongHeTong as never)}
                               title="Khớp HT"
@@ -996,7 +1004,7 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                             </button>
                           )}
                           {/* Clear button */}
-                          {!locked && row.soLuongThucTe !== "" && (
+                          {!locked && row.soLuongThucTe !== "" && isThuKho && (
                             <button onClick={() => updateRow(row.inventoryItemId, row.warehouseId, "soLuongThucTe", "" as never)}
                               style={{ width: 50, height: 50, borderRadius: 10, border: "1.5px solid rgba(244,63,94,0.3)", background: "rgba(244,63,94,0.07)", color: "#f43f5e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
                               <i className="bi bi-x" style={{ fontSize: 20 }} />
@@ -1068,15 +1076,18 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                           ) : <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>—</span>}
                         </div>
                         {/* Nhập SL thực tế */}
-                        <input type="number" min={0} placeholder="Nhập..." disabled={locked}
+                        <input type="number" min={0} placeholder="Nhập..." disabled={locked || !isThuKho}
                           value={row.soLuongThucTe}
+                          readOnly={!isThuKho}
+                          title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền nhập số lượng thực tế" : undefined}
                           onChange={e => {
+                            if (!isThuKho) return;
                             const v = e.target.value === "" ? "" : Math.max(0, parseFloat(e.target.value) || 0);
                             updateRow(row.inventoryItemId, row.warehouseId, "soLuongThucTe", v as never);
                           }}
                           style={{ ...cellInput,
                             borderColor: st === "under" ? "rgba(244,63,94,0.5)" : st === "over" ? "rgba(245,158,11,0.5)" : blm ? "rgba(249,115,22,0.5)" : "var(--border)",
-                            background: locked ? "var(--muted)" : "var(--background)", cursor: locked ? "not-allowed" : "text",
+                            background: (locked || !isThuKho) ? "var(--muted)" : "var(--background)", cursor: (locked || !isThuKho) ? "not-allowed" : "text",
                           }} />
                         {/* Chênh lệch */}
                         <div style={{ textAlign: "center" }}>
@@ -1094,13 +1105,13 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                           {row.chuaPhanKho ? (
                             <button
                               className="assign-popover"
-                              disabled={assigning === row.inventoryItemId}
+                              disabled={assigning === row.inventoryItemId || !isThuKho}
                               onClick={e => {
-                                if (locked) return;
+                                if (locked || !isThuKho) return;
                                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                                 setAssignPopover(p => p?.itemId === row.inventoryItemId ? null : { itemId: row.inventoryItemId, top: rect.bottom + 4, left: rect.left });
                               }}
-                              style={{ fontSize: 10, fontWeight: 700, color: "#8b5cf6", background: assigning === row.inventoryItemId ? "rgba(139,92,246,0.06)" : "rgba(139,92,246,0.1)", borderRadius: 10, padding: "2px 7px", border: "1px solid rgba(139,92,246,0.3)", cursor: locked ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+                              style={{ fontSize: 10, fontWeight: 700, color: "#8b5cf6", background: (assigning === row.inventoryItemId || !isThuKho) ? "rgba(139,92,246,0.06)" : "rgba(139,92,246,0.1)", borderRadius: 10, padding: "2px 7px", border: "1px solid rgba(139,92,246,0.3)", cursor: (locked || !isThuKho) ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
                               {assigning === row.inventoryItemId ? <i className="bi bi-arrow-repeat" style={{ fontSize: 9, animation: "spin 1s linear infinite" }} /> : <i className="bi bi-boxes" style={{ fontSize: 9 }} />}
                               Phân kho
                             </button>
@@ -1116,9 +1127,9 @@ export function KiemKhoModal({ onClose, onSaved }: KiemKhoModalProps) {
                         </div>
                         {/* Nút clear */}
                         <button onClick={() => updateRow(row.inventoryItemId, row.warehouseId, "soLuongThucTe", "" as never)}
-                          disabled={locked || row.soLuongThucTe === "" || row.chuaPhanKho}
-                          title={row.chuaPhanKho ? "Hàng chưa phân kho — không thể kiểm" : undefined}
-                          style={{ width: 26, height: 26, border: "none", background: "transparent", color: (row.soLuongThucTe !== "" && !locked && !row.chuaPhanKho) ? "#f43f5e" : "var(--border)", cursor: (row.soLuongThucTe !== "" && !locked && !row.chuaPhanKho) ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6 }}>
+                          disabled={locked || row.soLuongThucTe === "" || row.chuaPhanKho || !isThuKho}
+                          title={!isThuKho ? "Chỉ tài khoản Thủ kho mới có quyền điều chỉnh" : (row.chuaPhanKho ? "Hàng chưa phân kho — không thể kiểm" : undefined)}
+                          style={{ width: 26, height: 26, border: "none", background: "transparent", color: (row.soLuongThucTe !== "" && !locked && !row.chuaPhanKho && isThuKho) ? "#f43f5e" : "var(--border)", cursor: (row.soLuongThucTe !== "" && !locked && !row.chuaPhanKho && isThuKho) ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6 }}>
                           <i className="bi bi-x" style={{ fontSize: 14 }} />
                         </button>
                       </div>

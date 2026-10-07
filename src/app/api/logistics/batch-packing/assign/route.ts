@@ -2,11 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isLogisticsAdmin } from "@/lib/logistics-permissions";
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (!isLogisticsAdmin(session.user)) {
+      return NextResponse.json(
+        { error: "Chỉ tài khoản Thủ kho hoặc Quản trị viên mới có quyền giao việc." },
+        { status: 403 }
+      );
+    }
 
     const body = await req.json();
     const { staffId, orderIds } = body;

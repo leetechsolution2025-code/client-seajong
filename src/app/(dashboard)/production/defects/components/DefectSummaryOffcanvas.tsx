@@ -1,5 +1,7 @@
 import { DefectStatus } from '../mockData';
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { isProductionAdmin } from '@/lib/production-permissions';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { BrandButton } from '@/components/ui/BrandButton';
 import { Offcanvas } from '@/components/ui/Offcanvas';
@@ -27,6 +29,8 @@ interface DefectSummaryOffcanvasProps {
 }
 
 export function DefectSummaryOffcanvas({ defectId, defect: initialDefect, onClose, onRefresh, onOpenProcess }: DefectSummaryOffcanvasProps) {
+  const { data: session } = useSession();
+  const isProdAdmin = isProductionAdmin(session?.user);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [fetchedDefect, setFetchedDefect] = useState<any>(null);
@@ -258,8 +262,9 @@ export function DefectSummaryOffcanvas({ defectId, defect: initialDefect, onClos
               variant="outline-danger"
               icon="bi-trash"
               onClick={handleDelete}
-              disabled={isDeleting}
+              disabled={isDeleting || !isProdAdmin}
               loading={isDeleting}
+              title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền xoá hồ sơ lỗi" : undefined}
             >
               {isDeleting ? 'Đang xoá...' : 'Xoá'}
             </BrandButton>
@@ -267,8 +272,12 @@ export function DefectSummaryOffcanvas({ defectId, defect: initialDefect, onClos
               {onOpenProcess && (
                 <BrandButton 
                   variant="primary"
-                  disabled={defect.status === 'COMPLETED'}
-                  onClick={onOpenProcess}
+                  disabled={defect.status === 'COMPLETED' || !isProdAdmin}
+                  title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền xử lý hàng lỗi" : undefined}
+                  onClick={() => {
+                    if (!isProdAdmin) return;
+                    onOpenProcess();
+                  }}
                 >
                   Tiến trình xử lý <i className="bi bi-arrow-right ms-1"></i>
                 </BrandButton>

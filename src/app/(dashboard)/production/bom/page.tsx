@@ -9,11 +9,15 @@ import { Pagination } from "@/components/ui/Pagination";
 import UpdatePriceOffcanvas from "@/components/ui/UpdatePriceOffcanvas";
 import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useSession } from "next-auth/react";
+import { isProductionAdmin } from "@/lib/production-permissions";
 import BomDiffOffcanvas from "@/components/production/BomDiffOffcanvas";
 import BOMPriceDetailsOffcanvas from "@/components/production/BOMPriceDetailsOffcanvas";
 
 
 export default function BOMPage() {
+  const { data: session } = useSession();
+  const isProdAdmin = isProductionAdmin(session?.user);
   const { success: toastSuccess, error: toastError, info: toastInfo } = useToast();
   const [products, setProducts] = useState<any[]>([]);
   const [page, setPage] = useState(1);
@@ -167,6 +171,10 @@ export default function BOMPage() {
   };
 
   const handleSaveProduct = async () => {
+    if (!isProdAdmin) {
+      toastError("Không có quyền", "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền thao tác sản phẩm");
+      return;
+    }
     if (!newProduct.name.trim()) {
       toastError("Lỗi", "Vui lòng nhập tên sản phẩm");
       return;
@@ -386,6 +394,10 @@ export default function BOMPage() {
   };
 
   const handleDeleteBom = async () => {
+    if (!isProdAdmin) {
+      toastError("Không có quyền", "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền xoá định mức");
+      return;
+    }
     if (!bomData.id) return;
     setDeletingBom(true);
     try {
@@ -420,6 +432,10 @@ export default function BOMPage() {
   };
 
   const handleSaveBom = async () => {
+    if (!isProdAdmin) {
+      toastError("Không có quyền", "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền lưu định mức");
+      return;
+    }
     if (!selectedProduct) return;
     setSaving(true);
     try {
@@ -616,9 +632,12 @@ export default function BOMPage() {
                 />
                 <button
                   className="btn btn-sm btn-outline-success"
-                  title="Import Excel"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={saving}
+                  title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền import định mức" : "Import Excel"}
+                  onClick={() => {
+                    if (!isProdAdmin) return;
+                    fileInputRef.current?.click();
+                  }}
+                  disabled={saving || !isProdAdmin}
                 >
                   <i className="bi bi-upload"></i>
                 </button>
@@ -670,16 +689,16 @@ export default function BOMPage() {
               <div className="offcanvas-footer p-3 border-top mt-auto bg-light">
                 {editProductId ? (
                   <div className="d-flex gap-2">
-                    <button className="btn btn-danger flex-grow-0" onClick={() => setShowConfirmDelete(true)} title="Xóa">
+                    <button className="btn btn-danger flex-grow-0" onClick={() => setShowConfirmDelete(true)} disabled={!isProdAdmin} title="Xóa">
                       <i className="bi bi-trash"></i>
                     </button>
-                    <button className="btn btn-primary flex-grow-1" onClick={handleSaveProduct} disabled={savingProduct}>
+                    <button className="btn btn-primary flex-grow-1" onClick={handleSaveProduct} disabled={savingProduct || !isProdAdmin}>
                       {savingProduct ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-save me-2"></i>}
                       Cập nhật
                     </button>
                   </div>
                 ) : (
-                  <button className="btn btn-primary w-100" onClick={handleSaveProduct} disabled={savingProduct}>
+                  <button className="btn btn-primary w-100" onClick={handleSaveProduct} disabled={savingProduct || !isProdAdmin}>
                     {savingProduct ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-save me-2"></i>}
                     Lưu sản phẩm
                   </button>
@@ -967,7 +986,10 @@ export default function BOMPage() {
                         data-bs-toggle="dropdown"
                         aria-expanded="false"
                         data-bs-auto-close="outside"
+                        disabled={!isProdAdmin}
+                        title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền thêm vật tư" : undefined}
                         onClick={() => {
+                          if (!isProdAdmin) return;
                           setTimeout(() => {
                             searchInputRef.current?.focus();
                           }, 100);
@@ -1037,7 +1059,8 @@ export default function BOMPage() {
                       <button
                         className="btn btn-sm btn-outline-danger"
                         onClick={() => setShowConfirmDeleteBom(true)}
-                        title="Xóa định mức"
+                        disabled={!isProdAdmin}
+                        title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền xóa định mức" : "Xóa định mức"}
                       >
                         <i className="bi bi-trash"></i> Xóa
                       </button>
@@ -1045,8 +1068,8 @@ export default function BOMPage() {
                     <button 
                       className="btn btn-sm btn-primary" 
                       onClick={handleSaveBom} 
-                      disabled={saving || isSameAsStandard}
-                      title={isSameAsStandard ? "Danh sách vật tư trùng khớp hoàn toàn với tiêu chuẩn, vui lòng thay đổi để lưu bản biến thể" : ""}
+                      disabled={saving || isSameAsStandard || !isProdAdmin}
+                      title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền lưu định mức" : isSameAsStandard ? "Danh sách vật tư trùng khớp hoàn toàn với tiêu chuẩn, vui lòng thay đổi để lưu bản biến thể" : ""}
                     >
                       {saving ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-save me-2"></i>}
                       Lưu định mức
@@ -1084,6 +1107,7 @@ export default function BOMPage() {
                                   type="text"
                                   className="form-control form-control-sm border-0 bg-transparent px-1"
                                   value={row.donViTinh}
+                                  disabled={!isProdAdmin}
                                   onChange={e => updateMaterialLine(idx, "donViTinh", e.target.value)}
                                 />
                               </td>
@@ -1092,6 +1116,7 @@ export default function BOMPage() {
                                   type="number"
                                   className="form-control form-control-sm"
                                   value={row.soLuong}
+                                  disabled={!isProdAdmin}
                                   onChange={e => updateMaterialLine(idx, "soLuong", parseFloat(e.target.value) || 0)}
                                   min="0" step="0.1"
                                 />
@@ -1105,12 +1130,15 @@ export default function BOMPage() {
                                     }
                                     
                                     const count = query ? (swapCounts[query] || 0) : 0;
-                                    const isDisabled = count !== -1 && count <= 1;
+                                    const isDisabled = (count !== -1 && count <= 1) || !isProdAdmin;
                                     return (
                                       <button 
                                         className="btn btn-sm btn-light text-primary p-1" 
-                                        title="Đổi vật tư"
+                                        title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền đổi vật tư" : "Đổi vật tư"}
+                                        disabled={isDisabled}
+                                        style={{ opacity: isDisabled ? 0.5 : 1, cursor: isDisabled ? "not-allowed" : "pointer" }}
                                         onClick={() => {
+                                          if (!isProdAdmin) return;
                                           setSwapIndex(idx);
                                           const rowMaThayThe = row.material?.maThayThe || row.material?.code || "";
                                           const rowCategoryId = row.material?.category?.id || "";
@@ -1125,7 +1153,16 @@ export default function BOMPage() {
                                       </button>
                                     );
                                   })()}
-                                  <button className="btn btn-sm btn-light text-danger p-1" onClick={() => removeMaterialLine(idx)} title="Xóa">
+                                  <button 
+                                    className="btn btn-sm btn-light text-danger p-1" 
+                                    onClick={() => {
+                                      if (!isProdAdmin) return;
+                                      removeMaterialLine(idx);
+                                    }} 
+                                    disabled={!isProdAdmin}
+                                    style={{ opacity: isProdAdmin ? 1 : 0.5, cursor: isProdAdmin ? "pointer" : "not-allowed" }}
+                                    title={!isProdAdmin ? "Chỉ Quản đốc xưởng sản xuất, Trưởng bộ phận, Trưởng phòng mới có quyền xóa vật tư" : "Xóa"}
+                                  >
                                     <i className="bi bi-trash"></i>
                                   </button>
                                 </div>
