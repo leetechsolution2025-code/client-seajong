@@ -13,7 +13,7 @@ export default function BoardApprovalsPage() {
         color="indigo"
         icon="bi-check2-square"
       />
-      <div style={{ flex: 1, overflow: "hidden" }}>
+      <div style={{ padding: "8px 16px 16px 16px", flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
         <Suspense fallback={<div className="p-4 text-muted">Đang tải trung tâm phê duyệt...</div>}>
           <ApprovalCenter
             mode="page"

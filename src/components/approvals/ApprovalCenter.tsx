@@ -8,6 +8,8 @@ import { Table, TableColumn } from "@/components/ui/Table";
 import { TablePagination } from "@/components/ui/TablePagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { useToast } from "@/components/ui/Toast";
+import { WorkflowCard } from "@/components/ui/WorkflowCard";
+import { ModernStepper, ModernStepItem } from "@/components/ui/ModernStepper";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "on_hold" | "recalled";
@@ -93,6 +95,30 @@ const PRIORITY_CONFIG: Record<ApprovalPriority, { label: string; color: string; 
   urgent: { label: "Khẩn", color: "#dc2626", bg: "#fef2f2" },
 };
 
+const APPROVAL_STEPS: ModernStepItem[] = [
+  {
+    num: 1,
+    id: "pending",
+    title: "Chờ phê duyệt",
+    desc: "Hồ sơ đang chờ xử lý",
+    icon: "bi-hourglass-split",
+  },
+  {
+    num: 2,
+    id: "approved",
+    title: "Đã phê duyệt",
+    desc: "Hồ sơ đã được phê duyệt",
+    icon: "bi-check2-circle",
+  },
+  {
+    num: 3,
+    id: "rejected",
+    title: "Từ chối",
+    desc: "Hồ sơ không được duyệt",
+    icon: "bi-x-circle",
+  },
+];
+
 function timeAgo(dateStr: string): string {
   try {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -143,11 +169,20 @@ export function ApprovalCenter({
   }, []);
 
   const [view, setView] = useState<"inbox" | "mine">(defaultView);
+  const [currentStep, setCurrentStep] = useState(1);
   const [statusFilter, setStatusFilter] = useState("pending");
   const [selectedEntityType, setSelectedEntityType] = useState(entityFilter || "");
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  const handleStepChange = (stepNum: number) => {
+    setCurrentStep(stepNum);
+    setPage(1);
+    if (stepNum === 1) setStatusFilter("pending");
+    else if (stepNum === 2) setStatusFilter("approved");
+    else if (stepNum === 3) setStatusFilter("rejected");
+  };
 
   const [items, setItems] = useState<ApprovalRequest[]>([]);
   const [total, setTotal] = useState(0);
@@ -797,103 +832,91 @@ export function ApprovalCenter({
 
   const content = (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
-      {/* ── MAIN CARD: BẢNG DANH SÁCH ── */}
-      <div className="app-card shadow-sm border bg-white rounded-3" style={{ height: "100%", display: "flex", flexDirection: "column", padding: "16px 20px" }}>
-        {/* Thanh công cụ: Search, Bộ lọc & Nút Làm mới (icon only) */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-          {/* Search */}
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <SearchInput
-              value={searchTerm}
-              onChange={(val) => {
-                setSearchTerm(val);
+      {/* ── WORKFLOW CARD VỚI MODERN STEPPER ── */}
+      <WorkflowCard
+        className="h-100"
+        contentPadding="p-0"
+        stepper={
+          <ModernStepper
+            steps={APPROVAL_STEPS}
+            currentStep={currentStep}
+            onStepChange={handleStepChange}
+            paddingX={0}
+            paddingY={10}
+          />
+        }
+        toolbar={
+          <div className="p-3 border-bottom bg-white d-flex gap-2 flex-wrap align-items-center">
+            {/* Search */}
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <SearchInput
+                value={searchTerm}
+                onChange={(val) => {
+                  setSearchTerm(val);
+                  setPage(1);
+                }}
+                placeholder="Tìm theo mã, nội dung, người gửi..."
+              />
+            </div>
+
+            {/* Lọc Loại hồ sơ */}
+            <select
+              value={selectedEntityType}
+              onChange={(e) => {
+                setSelectedEntityType(e.target.value);
                 setPage(1);
               }}
-              placeholder="Tìm theo mã, nội dung, người gửi..."
-            />
-          </div>
+              className="form-select form-select-sm"
+              style={{ width: "auto", minWidth: 170, borderRadius: 8, fontSize: 12, height: 36 }}
+            >
+              <option value="">Tất cả loại đề xuất</option>
+              {Object.entries(ENTITY_TYPE_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
 
-          {/* Lọc Trạng thái */}
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
+            {/* Nút Làm mới (icon only) */}
+            <button
+              type="button"
+              className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center"
+              onClick={loadItems}
+              disabled={loading}
+              style={{ width: 36, height: 36, borderRadius: 8, color: "var(--foreground)", flexShrink: 0 }}
+              title="Làm mới dữ liệu"
+            >
+              <i className={`bi bi-arrow-clockwise ${loading ? "spin" : ""}`} style={{ fontSize: 15 }} />
+            </button>
+          </div>
+        }
+        bottomToolbar={
+          <TablePagination
+            page={page}
+            totalPages={Math.ceil(total / pageSize) || 1}
+            totalCount={total}
+            pageSize={pageSize}
+            itemName="yêu cầu"
+            onPageChange={(p) => setPage(p)}
+            onPageSizeChange={(s) => {
+              setPageSize(s);
               setPage(1);
             }}
-            className="form-select form-select-sm"
-            style={{ width: "auto", minWidth: 140, borderRadius: 8, fontSize: 12, height: 36 }}
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="pending">Chờ duyệt</option>
-            <option value="approved">Đã duyệt</option>
-            <option value="rejected">Từ chối</option>
-            <option value="on_hold">Tạm giữ</option>
-            <option value="recalled">Thu hồi</option>
-          </select>
-
-          {/* Lọc Loại hồ sơ */}
-          <select
-            value={selectedEntityType}
-            onChange={(e) => {
-              setSelectedEntityType(e.target.value);
-              setPage(1);
-            }}
-            className="form-select form-select-sm"
-            style={{ width: "auto", minWidth: 170, borderRadius: 8, fontSize: 12, height: 36 }}
-          >
-            <option value="">Tất cả loại đề xuất</option>
-            {Object.entries(ENTITY_TYPE_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v.label}
-              </option>
-            ))}
-          </select>
-
-          {/* Nút Làm mới (icon only) ở cuối thanh công cụ */}
-          <button
-            type="button"
-            className="btn btn-sm btn-light border d-inline-flex align-items-center justify-content-center"
-            onClick={loadItems}
-            disabled={loading}
-            style={{ width: 36, height: 36, borderRadius: 8, color: "var(--foreground)", flexShrink: 0 }}
-            title="Làm mới dữ liệu"
-          >
-            <i className={`bi bi-arrow-clockwise ${loading ? "spin" : ""}`} style={{ fontSize: 15 }} />
-          </button>
+          />
+        }
+      >
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+          <Table
+            rows={items}
+            columns={columns}
+            loading={loading && items.length === 0}
+            fetching={loading}
+            emptyText={`Không có yêu cầu nào trong danh sách ${APPROVAL_STEPS.find((s) => s.num === currentStep)?.title.toLowerCase() || ""}.`}
+            wrapperClassName="mkt-plan-table-no-min"
+            onRowClick={(row) => setSelectedItem(row)}
+          />
         </div>
-
-        {/* Bảng Table */}
-        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          <div style={{ flex: 1, overflowY: "auto" }}>
-            <Table
-              rows={items}
-              columns={columns}
-              loading={loading && items.length === 0}
-              fetching={loading}
-              emptyText="Không có yêu cầu phê duyệt nào phù hợp."
-              emptyIcon="bi-clipboard-check"
-              wrapperClassName="mkt-plan-table-no-min"
-              onRowClick={(row) => setSelectedItem(row)}
-            />
-          </div>
-
-          {/* Pagination */}
-          <div style={{ marginTop: 10 }}>
-            <TablePagination
-              page={page}
-              totalPages={Math.ceil(total / pageSize) || 1}
-              totalCount={total}
-              pageSize={pageSize}
-              itemName="yêu cầu"
-              onPageChange={(p) => setPage(p)}
-              onPageSizeChange={(s) => {
-                setPageSize(s);
-                setPage(1);
-              }}
-            />
-          </div>
-        </div>
-      </div>
+      </WorkflowCard>
 
       {/* ── OFFCANVAS CHI TIẾT RỘNG 400PX ── */}
       {selectedItem && (
