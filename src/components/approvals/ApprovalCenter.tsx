@@ -359,16 +359,37 @@ export function ApprovalCenter({
       ),
     },
     {
-      header: "Mã yêu cầu",
+      header: "Loại đề xuất",
       render: (row) => {
         const isNew = isRequestNew(row);
+        const cfg = ENTITY_TYPE_LABELS[row.entityType] || {
+          label: row.entityType,
+          icon: "bi-file-earmark",
+          color: "#64748b",
+          bg: "#f1f5f9",
+        };
+
         return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {/* Hàng 1: Mã yêu cầu + Badge MỚI */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {/* Hàng 1: Loại đề xuất + Mã yêu cầu + Badge MỚI */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <span className="font-monospace fw-bold text-primary" style={{ fontSize: 12.5 }}>
-                {row.entityCode || row.id}
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "3px 8px",
+                  borderRadius: 6,
+                  background: cfg.bg,
+                  color: cfg.color,
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                }}
+              >
+                <i className={`bi ${cfg.icon}`} />
+                {cfg.label}
               </span>
+
               {isNew && (
                 <span
                   style={{
@@ -389,6 +410,10 @@ export function ApprovalCenter({
                   MỚI
                 </span>
               )}
+
+              <span className="font-monospace text-muted" style={{ fontSize: 11 }}>
+                ({row.entityCode || row.id})
+              </span>
             </div>
 
             {/* Hàng 2: Tiêu đề, nội dung yêu cầu */}
@@ -403,36 +428,6 @@ export function ApprovalCenter({
               </div>
             ) : null}
           </div>
-        );
-      },
-    },
-    {
-      header: "Loại đề xuất",
-      width: 165,
-      render: (row) => {
-        const cfg = ENTITY_TYPE_LABELS[row.entityType] || {
-          label: row.entityType,
-          icon: "bi-file-earmark",
-          color: "#64748b",
-          bg: "#f1f5f9",
-        };
-        return (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "4px 8px",
-              borderRadius: 6,
-              background: cfg.bg,
-              color: cfg.color,
-              fontSize: 11.5,
-              fontWeight: 700,
-            }}
-          >
-            <i className={`bi ${cfg.icon}`} />
-            {cfg.label}
-          </span>
         );
       },
     },
