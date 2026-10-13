@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       soChungTu,
       lyDo,
       nguoiThucHien,
+      taskId,
       purchaseOrderId,
       lines = [],
     }: {
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
       lyDo?:           string;
       nguoiThucHien?:  string;
       purchaseOrderId?: string;
+      taskId?:          string;
       lines: {
         inventoryItemId: string;
         soLuong:         number;   // SL thực tế nhập
@@ -63,6 +65,31 @@ export async function POST(req: NextRequest) {
 
     if (!toWarehouseId)    return NextResponse.json({ error: "toWarehouseId bắt buộc" }, { status: 400 });
     if (!lines.length)     return NextResponse.json({ error: "Cần ít nhất 1 dòng hàng hoá" }, { status: 400 });
+
+    // Kiểm tra tính hợp lệ nghiệp vụ (Guard check) tránh nhập lặp lại
+    if (purchaseOrderId) {
+      const existingPo = await prisma.purchaseOrder.findUnique({
+        where: { id: purchaseOrderId },
+        select: { id: true, code: true, trangThai: true }
+      });
+      if (existingPo && existingPo.trangThai === "completed") {
+        return NextResponse.json({
+          error: `Đơn mua hàng ${existingPo.code || purchaseOrderId} đã được nhập kho hoàn tất trước đó, không thể nhập lại.`
+        }, { status: 400 });
+      }
+    }
+
+    if (taskId) {
+      const existingTask = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { id: true, title: true, status: true }
+      });
+      if (existingTask && (existingTask.status === "done" || existingTask.status === "completed")) {
+        return NextResponse.json({
+          error: `Lệnh công việc này (${existingTask.title}) đã được xử lý hoàn thành trước đó, không thể nhập lại.`
+        }, { status: 400 });
+      }
+    }
 
     const movements = [];
     let totalBatchValue = 0; // Tính tổng giá trị nhập kho để hạch toán
@@ -415,9 +442,71 @@ export async function POST(req: NextRequest) {
               data: { notificationId: creatorNotif.id, userId: creatorId }
             });
           }
+          // 4. Tự động hoàn thành các Task kiểm định QC / logistics liên quan đến đơn mua hàng này
+          try {
+            const relatedTasks = await prisma.task.findMany({
+              where: {
+                deptCode: "logistics",
+                status: "pending",
+                OR: [
+                  ...(po.code ? [
+                    { title: { contains: po.code } },
+                    { description: { contains: po.code } },
+                    { actualResult: { contains: po.code } }
+                  ] : []),
+                  { actualResult: { contains: purchaseOrderId } }
+                ]
+              },
+              select: { id: true }
+            });
+
+            // Tìm các biên bản QC liên quan để lấy mã QC
+            const relatedQcs = await prisma.qualityInspection.findMany({
+              where: {
+                OR: [
+                  { metadata: { contains: purchaseOrderId } },
+                  ...(po.code ? [{ metadata: { contains: po.code } }] : [])
+                ]
+              },
+              select: { id: true, code: true }
+            });
+
+            const qcCodes = relatedQcs.map(q => q.code).filter(Boolean);
+            if (qcCodes.length > 0) {
+              const qcTasks = await prisma.task.findMany({
+                where: {
+                  deptCode: "logistics",
+                  status: "pending",
+                  OR: qcCodes.map(code => ({ title: { contains: code } }))
+                },
+                select: { id: true }
+              });
+              relatedTasks.push(...qcTasks);
+            }
+
+            const taskIdsToClose = [...new Set([...relatedTasks.map(t => t.id), ...(taskId ? [taskId] : [])])];
+            if (taskIdsToClose.length > 0) {
+              await prisma.task.updateMany({
+                where: { id: { in: taskIdsToClose } },
+                data: { status: "done", completedAt: new Date() }
+              });
+            }
+          } catch (errTask) {
+            console.error("Lỗi tự động đóng task liên quan PO:", errTask);
+          }
         }
       } catch (err: any) {
         console.error("Lỗi hoàn thành PO:", err.message);
+      }
+    } else if (taskId) {
+      // Nếu nhập kho trực tiếp theo Task (lệnh sản xuất / hàng trả lại) mà không qua PO
+      try {
+        await prisma.task.update({
+          where: { id: taskId },
+          data: { status: "done", completedAt: new Date() }
+        });
+      } catch (errTask) {
+        console.error("Lỗi hoàn thành task:", errTask);
       }
     }
 

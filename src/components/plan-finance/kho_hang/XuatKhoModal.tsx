@@ -316,6 +316,15 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
         const res = await fetch(`/api/plan-finance/sales/${so.id}`);
         if (!res.ok) return;
         const detail = await res.json();
+
+        // Tự động tìm và gán ticketId nếu đơn có logisticsTickets
+        if (detail.logisticsTickets && Array.isArray(detail.logisticsTickets) && detail.logisticsTickets.length > 0) {
+          const targetTicket = detail.logisticsTickets.find((t: any) => t.status !== "COMPLETED") || detail.logisticsTickets[0];
+          if (targetTicket) {
+            setCurrentTicketId(targetTicket.id);
+          }
+        }
+
         rawLines = (detail.saleOrderItems ?? []).map((it: { tenHang: string; donGia: number; soLuong: number; inventoryItemId: string | null; inventoryItem?: { id: string; code: string | null; tenHang: string; donVi: string | null; giaNhap: number } | null }) => ({
           tenHang: it.tenHang,
           donVi: null, // we don't have unit directly on SaleOrderItem, wait: inventoryItem has it?
@@ -751,6 +760,8 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
           soChungTu: soChungTu || undefined,
           lyDo: [loaiXuatKho, lyDo, ghiChu ? `Ghi chú: ${ghiChu}` : ""].filter(Boolean).join(" - ") || undefined,
           nguoiThucHien: nguoiThucHien || undefined,
+          salesOrderId: selectedSo?.id || initialSoId || undefined,
+          workOrderId: selectedWo?.id || initialWoId || undefined,
           ticketId: currentTicketId || selectedDefect?.logisticsTickets?.[0]?.id || initialTicketId,
           lines: validLines.map(l => ({
             inventoryItemId: l.item!.id,
@@ -782,6 +793,9 @@ export function XuatKhoModal({ onClose, onSaved, initialMode, initialSoId, initi
       setSuccess(true);
       if (printAfter) {
         setShowPreview(true);
+      }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("logistics-orders-updated"));
       }
       onSaved();
     } catch (e) {

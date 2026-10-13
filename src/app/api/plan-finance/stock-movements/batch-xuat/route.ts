@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       nguoiThucHien,
       salesOrderId,
       workOrderId,
+      ticketId,
       lines = [],
     }: {
       fromWarehouseId: string;
@@ -72,6 +73,31 @@ export async function POST(req: NextRequest) {
 
     if (!fromWarehouseId) return NextResponse.json({ error: "fromWarehouseId bắt buộc" }, { status: 400 });
     if (!lines.length)    return NextResponse.json({ error: "Cần ít nhất 1 dòng hàng hoá" }, { status: 400 });
+
+    // ── Guard check: Chặn xuất kho lặp lại ───────────────────────────────────
+    if (ticketId) {
+      const existingTicket = await prisma.logisticsTicket.findUnique({
+        where: { id: ticketId },
+        select: { id: true, code: true, status: true, saleOrderId: true }
+      });
+      if (existingTicket && existingTicket.status === "COMPLETED") {
+        return NextResponse.json({
+          error: `Phiếu xuất kho ${existingTicket.code || ticketId} đã hoàn tất xuất kho trước đó, không thể xuất lại.`
+        }, { status: 400 });
+      }
+    }
+
+    if (salesOrderId) {
+      const existingOrder = await prisma.saleOrder.findUnique({
+        where: { id: salesOrderId },
+        select: { id: true, code: true, trangThaiKho: true }
+      });
+      if (existingOrder && existingOrder.trangThaiKho === "exported") {
+        return NextResponse.json({
+          error: `Đơn bán hàng ${existingOrder.code || salesOrderId} đã hoàn tất xuất kho trước đó, không thể xuất lại.`
+        }, { status: 400 });
+      }
+    }
 
     // ── Bước 1: Kiểm tra tồn kho trước khi ghi ──────────────────────────────
     const insufficient: { inventoryItemId: string; tenHang: string; soLuong: number; soLuongTon: number }[] = [];
@@ -242,12 +268,21 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    if (body.ticketId) {
+    // Cập nhật trạng thái ticket và đơn hàng liên quan
+    const effectiveTicketId = ticketId || body.ticketId;
+    let targetSaleOrderId = salesOrderId || body.salesOrderId;
+
+    if (effectiveTicketId) {
       try {
         const updatedTicket = await prisma.logisticsTicket.update({
-          where: { id: body.ticketId },
+          where: { id: effectiveTicketId },
           data: { status: "COMPLETED" }
         });
+
+        if (!targetSaleOrderId && updatedTicket.saleOrderId) {
+          targetSaleOrderId = updatedTicket.saleOrderId;
+        }
+
         if (updatedTicket.defectRecordId) {
           await (prisma as any).defectActivity.create({
             data: {
@@ -260,6 +295,78 @@ export async function POST(req: NextRequest) {
         }
       } catch (err) {
         console.error("Failed to update ticket status:", err);
+      }
+    }
+
+    if (targetSaleOrderId) {
+      try {
+        // Nếu xuất theo đơn hàng hoặc ticket đã hoàn thành, kiểm tra và cập nhật toàn diện
+        if (!effectiveTicketId) {
+          await prisma.logisticsTicket.updateMany({
+            where: {
+              saleOrderId: targetSaleOrderId,
+              status: { not: "COMPLETED" }
+            },
+            data: { status: "COMPLETED" }
+          });
+        } else {
+          // Kiểm tra xem đơn hàng còn ticket nào chưa hoàn thành không
+          const remaining = await prisma.logisticsTicket.count({
+            where: {
+              saleOrderId: targetSaleOrderId,
+              status: { not: "COMPLETED" }
+            }
+          });
+          if (remaining === 0) {
+            await prisma.saleOrder.update({
+              where: { id: targetSaleOrderId },
+              data: { trangThaiKho: "exported" }
+            });
+          }
+        }
+
+        // Cập nhật trangThaiKho nếu không còn ticket nào pending
+        const pendingCount = await prisma.logisticsTicket.count({
+          where: {
+            saleOrderId: targetSaleOrderId,
+            status: { not: "COMPLETED" }
+          }
+        });
+        if (pendingCount === 0) {
+          const so = await prisma.saleOrder.update({
+            where: { id: targetSaleOrderId },
+            data: { trangThaiKho: "exported" },
+            select: { code: true }
+          });
+
+          if (so?.code) {
+            await prisma.task.updateMany({
+              where: {
+                deptCode: "logistics",
+                status: "pending",
+                title: { contains: so.code }
+              },
+              data: { status: "done", completedAt: new Date() }
+            });
+          }
+        }
+      } catch (errSo) {
+        console.error("Failed to update sale order status:", errSo);
+      }
+    }
+
+    if (workOrderId) {
+      try {
+        await prisma.task.updateMany({
+          where: {
+            deptCode: "logistics",
+            status: "pending",
+            title: { contains: workOrderId }
+          },
+          data: { status: "done", completedAt: new Date() }
+        });
+      } catch (errWo) {
+        console.error("Failed to update work order tasks:", errWo);
       }
     }
 

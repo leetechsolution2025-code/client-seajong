@@ -5,7 +5,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { apiKey } = body;
 
-    const elApiKey = apiKey || process.env.ELEVENLABS_API_KEY;
+    const DEFAULT_KEY = "sk_4e9ca9836cad5b6f66685f1d670ed8390436608d41f56964";
+    const elApiKey = apiKey || process.env.ELEVENLABS_API_KEY || DEFAULT_KEY;
     if (!elApiKey) {
       return NextResponse.json({ error: "Chưa cấu hình API Key ElevenLabs" }, { status: 400 });
     }

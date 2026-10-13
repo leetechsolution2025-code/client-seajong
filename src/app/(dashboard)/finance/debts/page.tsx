@@ -27,6 +27,7 @@ import { WorkflowCard } from "@/components/ui/WorkflowCard";
 import { FullWidthTableLayout } from "@/components/layout/FullWidthTableLayout";
 import { FinanceOrderDetailsOffcanvas } from "./FinanceOrderDetailsOffcanvas";
 import { FinanceReceiptDetailsOffcanvas } from "./FinanceReceiptDetailsOffcanvas";
+import { FinancePayableDetailsOffcanvas } from "./FinancePayableDetailsOffcanvas";
 
 
 const formatCurrency = (val: number) => (Math.round(val / 1000) * 1000).toLocaleString("vi-VN");
@@ -114,6 +115,7 @@ export default function DebtsPage() {
   const [selectedReconciliationDebt, setSelectedReconciliationDebt] = useState<any>(null);
   const [selectedOrderCode, setSelectedOrderCode] = useState<string | null>(null);
   const [selectedReceiptItem, setSelectedReceiptItem] = useState<any | null>(null);
+  const [selectedPayableDebt, setSelectedPayableDebt] = useState<any | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -336,7 +338,10 @@ export default function DebtsPage() {
             )}
             
             {row.isChild ? (
-              <div className={(row.referenceId?.startsWith("DBH-") || isReturnItem || row.isPaymentLog || row.referenceId?.startsWith("PT-") || row.referenceId?.startsWith("PAY-")) ? "cursor-pointer" : ""}>
+              <div 
+                className={(row.referenceId?.startsWith("DBH-") || row.referenceId?.startsWith("DH-") || currentStepId === "PAYABLE" || isReturnItem || row.isPaymentLog || row.referenceId?.startsWith("PT-") || row.referenceId?.startsWith("PAY-")) ? "cursor-pointer" : ""}
+                title="Nhấn để xem chi tiết"
+              >
                 <div className="d-flex align-items-center gap-2">
                   <span className={`fw-bold ${isReturnItem ? "text-danger" : "text-dark"}`}>
                     {row.referenceId || (row.isPaymentLog ? "Phiếu thu/chi" : "Không có số ĐH")}
@@ -354,7 +359,10 @@ export default function DebtsPage() {
                 </div>
               </div>
             ) : (
-              <>
+              <div
+                className={(row.referenceId?.startsWith("DBH-") || row.referenceId?.startsWith("DH-") || currentStepId === "PAYABLE" || isReturnItem || row.isPaymentLog) ? "cursor-pointer" : ""}
+                title="Nhấn để xem chi tiết"
+              >
                 <div className={`fw-bold ${isAgencyChild ? 'text-uppercase' : 'text-dark'}`} style={isAgencyChild ? { color: '#0d6efd' } : {}}>
                   {cleanedPartnerName}
                   {isReturnItem && (
@@ -368,7 +376,7 @@ export default function DebtsPage() {
                     REF: {row.referenceId || "N/A"} <span className="mx-1">|</span> <span className={isReturnItem ? "text-danger fw-medium" : ""}>{row.displayDescription || "Không có nội dung"}</span>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
           );
@@ -1206,6 +1214,28 @@ export default function DebtsPage() {
                     onRowClick={(row: any) => {
                       if (row.id === "TOTAL_ROW" || row.isGroupHeader) return;
 
+                      // Tab Công nợ phải trả
+                      if (currentStepId === "PAYABLE" || row.type === "phai-tra" || row.referenceId?.startsWith("DH-")) {
+                        const isPaymentReceipt = row.isPaymentLog || row.referenceId?.startsWith("PT-") || row.referenceId?.startsWith("PC-") || row.referenceId?.startsWith("PAY-") || (row.paidAmount > 0 && row.amount === 0);
+                        const isReturnItem = row.isReturn || row.amount < 0 || row.displayDescription?.includes("Trả lại hàng") || row.referenceId?.startsWith("ERR-") || row.referenceId?.startsWith("WR-");
+
+                        if ((isPaymentReceipt || isReturnItem) && !row.referenceId?.startsWith("DH-")) {
+                          setSelectedReceiptItem(row);
+                          return;
+                        }
+
+                        const partnerRow = {
+                          ...row,
+                          supplierName: row.supplierName || row.partnerName || row.groupItems?.[0]?.supplierName || row.groupItems?.[0]?.partnerName,
+                          supplierAddress: row.supplierAddress || row.address || row.groupItems?.[0]?.supplierAddress || row.groupItems?.[0]?.address,
+                          supplierPhone: row.supplierPhone || row.phone || row.groupItems?.[0]?.supplierPhone || row.groupItems?.[0]?.phone,
+                          supplierTaxCode: row.supplierTaxCode || row.groupItems?.[0]?.supplierTaxCode,
+                          supplierContactName: row.supplierContactName || row.groupItems?.[0]?.supplierContactName,
+                        };
+                        setSelectedPayableDebt(partnerRow);
+                        return;
+                      }
+
                       if (row.referenceId?.startsWith("DBH-")) {
                         setSelectedOrderCode(row.referenceId);
                         return;
@@ -1314,6 +1344,17 @@ export default function DebtsPage() {
         <FinanceReceiptDetailsOffcanvas
           item={selectedReceiptItem}
           onClose={() => setSelectedReceiptItem(null)}
+        />
+      )}
+
+      {selectedPayableDebt && (
+        <FinancePayableDetailsOffcanvas
+          item={selectedPayableDebt}
+          onClose={() => setSelectedPayableDebt(null)}
+          onPayDebt={(debt) => {
+            setSelectedPaymentDebt(debt);
+            setShowPaymentOffcanvas(true);
+          }}
         />
       )}
     </>

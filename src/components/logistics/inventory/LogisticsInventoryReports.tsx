@@ -168,13 +168,29 @@ export function LogisticsInventoryReports() {
   const [company, setCompany] = useState<CompanyInfo | null>(null);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
+  const isLogisticsPage = pathname?.startsWith("/logistics") ?? false;
 
-  const steps: ModernStepItem[] = [
-    { num: 1, id: "xnt", title: "Nhập-Xuất-Tồn", desc: "Bảng kê tổng hợp hàng hóa", icon: "bi-table" },
-    { num: 2, id: "card", title: "Thẻ kho", desc: "Sổ chi tiết từng vật tư", icon: "bi-journal-text" },
-    { num: 3, id: "audit", title: "Báo cáo kiểm kho", desc: "Biên bản đối soát kiểm kê", icon: "bi-clipboard-check" },
-    { num: 4, id: "sales", title: "Báo cáo bán hàng", desc: "Hiệu quả doanh thu & đơn hàng", icon: "bi-graph-up-arrow" },
-  ];
+  const steps: ModernStepItem[] = useMemo(() => {
+    const list: ModernStepItem[] = [
+      { num: 1, id: "xnt", title: "Nhập-Xuất-Tồn", desc: "Bảng kê tổng hợp hàng hóa", icon: "bi-table" },
+      { num: 2, id: "card", title: "Thẻ kho", desc: "Sổ chi tiết từng vật tư", icon: "bi-journal-text" },
+      { num: 3, id: "audit", title: "Báo cáo kiểm kho", desc: "Biên bản đối soát kiểm kê", icon: "bi-clipboard-check" },
+    ];
+
+    // Chỉ hiển thị Báo cáo bán hàng ở trang Tài chính / Quản trị, ẩn ở trang của bộ phận Kho vận
+    if (!isLogisticsPage) {
+      list.push({ num: 4, id: "sales", title: "Báo cáo bán hàng", desc: "Hiệu quả doanh thu & đơn hàng", icon: "bi-graph-up-arrow" });
+    }
+
+    return list;
+  }, [isLogisticsPage]);
+
+  // Nếu đang ở trang Kho vận mà currentStep là 4 thì tự động chuyển về step 1
+  useEffect(() => {
+    if (isLogisticsPage && currentStep === 4) {
+      setCurrentStep(1);
+    }
+  }, [isLogisticsPage, currentStep]);
 
   // Load initial settings
   useEffect(() => {
@@ -189,8 +205,14 @@ export function LogisticsInventoryReports() {
         const active = Array.isArray(d) ? d.filter((w) => w.isActive) : [];
         setWarehouses(active);
         if (active.length > 0) {
-          const finishedGoodsWh = active.find((w) => w.name.toLowerCase().includes("thành phẩm"));
-          setSelectedWarehouseId(finishedGoodsWh ? finishedGoodsWh.id : active[0].id);
+          // Ưu tiên chọn Kho thương mại (KHO-CHINH) hoặc Kho sản xuất (KVP), tuyệt đối không mặc định vào Kho hàng lỗi
+          const defaultWh = active.find((w) => 
+            w.code === "KHO-CHINH" || 
+            w.name.toLowerCase().includes("thương mại") || 
+            w.name.toLowerCase().includes("chính")
+          ) || active.find((w) => w.code !== "KHO-LOI" && !w.name.toLowerCase().includes("lỗi")) || active[0];
+
+          setSelectedWarehouseId(defaultWh.id);
         }
       })
       .catch(() => {});
@@ -217,7 +239,7 @@ export function LogisticsInventoryReports() {
   const [step2CustomTo, setStep2CustomTo] = useState(() => new Date().toISOString().slice(0, 10));
 
   // ── Step 3 Báo cáo kiểm kho States & Effects ─────────────────────────────────
-  const [step3WarehouseId, setStep3WarehouseId] = useState("");
+  const [step3WarehouseId, setStep3WarehouseId] = useState("all"); // Mặc định tất cả các kho
   const [step3Status, setStep3Status] = useState("all");
   const [step3Year, setStep3Year] = useState(() => String(new Date().getFullYear()));
   const [step3Month, setStep3Month] = useState(() => String(new Date().getMonth() + 1));
@@ -233,7 +255,7 @@ export function LogisticsInventoryReports() {
   const [selectedStockCountId, setSelectedStockCountId] = useState<string | null>(null);
 
   // ── Step 4 Báo cáo bán hàng States & Effects ─────────────────────────────────
-  const [step4WarehouseId, setStep4WarehouseId] = useState("");
+  const [step4WarehouseId, setStep4WarehouseId] = useState("all"); // Mặc định tất cả các kho
   const [step4Year, setStep4Year] = useState(() => String(new Date().getFullYear()));
   const [step4Month, setStep4Month] = useState(() => String(new Date().getMonth() + 1));
   const [step4TuyChonKy, setStep4TuyChonKy] = useState(false);
@@ -410,13 +432,6 @@ export function LogisticsInventoryReports() {
     }
   }, [step3Year, step3AvailableMonths, step3Month]);
 
-  // Sync step3WarehouseId with selectedWarehouseId when it loads or changes
-  useEffect(() => {
-    if (selectedWarehouseId && !step3WarehouseId) {
-      setStep3WarehouseId(selectedWarehouseId);
-    }
-  }, [selectedWarehouseId, step3WarehouseId]);
-
   const loadStep3Report = useCallback(() => {
     setStep3Loading(true);
     fetch("/api/plan-finance/stock-counts?trangThai=all")
@@ -447,13 +462,6 @@ export function LogisticsInventoryReports() {
       setStep4Month(String(step4AvailableMonths[step4AvailableMonths.length - 1]));
     }
   }, [step4Year, step4AvailableMonths, step4Month]);
-
-  // Sync step4WarehouseId with selectedWarehouseId when it loads or changes
-  useEffect(() => {
-    if (selectedWarehouseId && !step4WarehouseId) {
-      setStep4WarehouseId(selectedWarehouseId);
-    }
-  }, [selectedWarehouseId, step4WarehouseId]);
 
   const loadStep4Report = useCallback(() => {
     if (!step4WarehouseId) return;

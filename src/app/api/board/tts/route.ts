@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Thiếu văn bản cần đọc" }, { status: 400 });
     }
 
-    // Prioritize user-provided key, fallback to server environment variable
-    const elApiKey = apiKey || process.env.ELEVENLABS_API_KEY;
+    const DEFAULT_KEY = "sk_4e9ca9836cad5b6f66685f1d670ed8390436608d41f56964";
+    const elApiKey = apiKey || process.env.ELEVENLABS_API_KEY || DEFAULT_KEY;
     if (!elApiKey) {
       writeTtsLog("Validation failed", { error: "Chưa cấu hình API Key ElevenLabs" });
       return NextResponse.json({ 

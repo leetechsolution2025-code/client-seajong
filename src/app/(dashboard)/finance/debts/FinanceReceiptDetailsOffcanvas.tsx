@@ -340,31 +340,105 @@ export function FinanceReceiptDetailsOffcanvas({ item, onClose }: Props) {
               </div>
 
               {/* Chữ ký */}
-              <div style={{ display: "flex", justifyContent: "space-between", margin: "40px 0 40px 0", fontSize: "13px", textAlign: "center" }}>
-                <div style={{ width: "22%" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", margin: "35px 0 25px 0", fontSize: "12px", textAlign: "center" }}>
+                <div style={{ width: "20%" }}>
                   <div style={{ fontWeight: "bold" }}>Giám đốc</div>
-                  <div style={{ fontStyle: "italic", fontSize: "11px", color: "#555" }}>(Ký, đóng dấu)</div>
-                  <div style={{ height: "70px" }}></div>
+                  <div style={{ fontStyle: "italic", fontSize: "10.5px", color: "#555" }}>(Ký, đóng dấu)</div>
+                  <div style={{ height: "65px" }}></div>
                   <div style={{ fontWeight: "bold" }}>....................</div>
                 </div>
-                <div style={{ width: "22%" }}>
+                <div style={{ width: "20%" }}>
                   <div style={{ fontWeight: "bold" }}>Kế toán trưởng</div>
-                  <div style={{ fontStyle: "italic", fontSize: "11px", color: "#555" }}>(Ký, ghi họ tên)</div>
-                  <div style={{ height: "70px" }}></div>
+                  <div style={{ fontStyle: "italic", fontSize: "10.5px", color: "#555" }}>(Ký, ghi họ tên)</div>
+                  <div style={{ height: "65px" }}></div>
                   <div style={{ fontWeight: "bold" }}>....................</div>
                 </div>
-                <div style={{ width: "22%" }}>
+                <div style={{ width: "20%" }}>
                   <div style={{ fontWeight: "bold" }}>Thủ quỹ</div>
-                  <div style={{ fontStyle: "italic", fontSize: "11px", color: "#555" }}>(Ký, ghi họ tên)</div>
-                  <div style={{ height: "70px" }}></div>
+                  <div style={{ fontStyle: "italic", fontSize: "10.5px", color: "#555" }}>(Ký, ghi họ tên)</div>
+                  <div style={{ height: "65px" }}></div>
                   <div style={{ fontWeight: "bold" }}>....................</div>
                 </div>
-                <div style={{ width: "22%" }}>
+                <div style={{ width: "20%" }}>
                   <div style={{ fontWeight: "bold" }}>Người {isReturn ? "trả hàng" : "nộp tiền"}</div>
-                  <div style={{ fontStyle: "italic", fontSize: "11px", color: "#555" }}>(Ký, ghi họ tên)</div>
-                  <div style={{ height: "70px" }}></div>
-                  <div style={{ fontWeight: "bold" }}>{cleanedPartnerName}</div>
+                  <div style={{ fontStyle: "italic", fontSize: "10.5px", color: "#555" }}>(Ký, ghi họ tên)</div>
+                  <div style={{ height: "65px" }}></div>
+                  <div style={{ fontWeight: "bold", fontSize: "11px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                    {cleanedPartnerName}
+                  </div>
                 </div>
+                <div style={{ width: "20%", position: "relative" }}>
+                  <div style={{ fontWeight: "bold" }}>Người lập phiếu</div>
+                  <div style={{ fontStyle: "italic", fontSize: "10.5px", color: "#555" }}>(Ký, ghi họ tên)</div>
+                  <div style={{ height: "65px" }}></div>
+                  <div style={{ fontWeight: "bold" }}>{item.creatorName || item.createdByName || item.userName || "Trần Thị Linh"}</div>
+                  {!isReturn && (
+                    <div style={{ display: "flex", justifyContent: "center", marginTop: "10px" }}>
+                      <div style={{ position: "relative", width: "58mm", height: "27.6mm", transform: "rotate(-4deg)", pointerEvents: "none" }}>
+                        <img 
+                          src="/thutien_stampt.png" 
+                          alt="Đã thu tiền" 
+                          style={{ 
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                            opacity: 0.88,
+                            filter: "contrast(1.05)",
+                            pointerEvents: "none"
+                          }} 
+                        />
+                        {/* Ngày */}
+                        <div style={{
+                          position: "absolute",
+                          bottom: "19%",
+                          left: "28.3%",
+                          transform: "translateX(-50%)",
+                          fontSize: "9.5px",
+                          fontWeight: "bold",
+                          color: "#002b80",
+                          opacity: 0.9,
+                          fontFamily: "'Courier New', Courier, monospace"
+                        }}>
+                          {(item.createdAt ? new Date(item.createdAt) : (item.date ? new Date(item.date) : new Date())).getDate().toString().padStart(2, "0")}
+                        </div>
+                        {/* Tháng */}
+                        <div style={{
+                          position: "absolute",
+                          bottom: "19%",
+                          left: "54.2%",
+                          transform: "translateX(-50%)",
+                          fontSize: "9.5px",
+                          fontWeight: "bold",
+                          color: "#002b80",
+                          opacity: 0.9,
+                          fontFamily: "'Courier New', Courier, monospace"
+                        }}>
+                          {((item.createdAt ? new Date(item.createdAt) : (item.date ? new Date(item.date) : new Date())).getMonth() + 1).toString().padStart(2, "0")}
+                        </div>
+                        {/* Năm */}
+                        <div style={{
+                          position: "absolute",
+                          bottom: "19%",
+                          left: "84.7%",
+                          transform: "translateX(-50%)",
+                          fontSize: "9.5px",
+                          fontWeight: "bold",
+                          color: "#002b80",
+                          opacity: 0.9,
+                          fontFamily: "'Courier New', Courier, monospace"
+                        }}>
+                          {(item.createdAt ? new Date(item.createdAt) : (item.date ? new Date(item.date) : new Date())).getFullYear().toString().slice(-2)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Ghi chú nhận tiền */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #ccc", paddingTop: "15px", fontStyle: "italic", fontSize: "11px", color: "#333" }}>
+                <div>Đã nhận đủ số tiền (viết bằng chữ): {docSoTien(amount)}</div>
+                <div style={{ fontWeight: "bold", fontSize: "11.5px" }}>Đơn vị tính: đồng Việt Nam (VND)</div>
               </div>
             </div>
           }

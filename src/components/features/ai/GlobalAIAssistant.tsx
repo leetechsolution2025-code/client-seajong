@@ -28,46 +28,49 @@ const getDepartmentConfig = (pathname: string) => {
   }
   if (pathname.includes("/finance")) {
     return {
-      name: "Kế toán",
-      description: "tư vấn nghiệp vụ tài chính kế toán",
+      name: "Tài chính & Kế toán",
+      description: "truy vấn công nợ, chi phí, doanh thu",
       suggestions: [
-        "Tổng công nợ phải thu hiện tại?",
-        "Doanh thu bán lẻ là bao nhiêu?",
-        "Chi phí hoạt động ở mức bao nhiêu?",
+        "Tổng công nợ phải thu và phải trả hiện tại?",
+        "Khách hàng nào đang nợ nhiều nhất?",
+        "Chi phí vận hành tháng này thế nào?",
+        "Giá các loại sen vòi và tồn kho hiện tại?",
       ]
     };
   }
-  if (pathname.includes("/production")) {
+  if (pathname.includes("/production") || pathname.includes("/logistics")) {
     return {
-      name: "Sản xuất & Kho",
-      description: "quản lý kho và tiến độ sản xuất",
+      name: "Sản xuất & Kho hàng",
+      description: "tra cứu tồn kho, giá bán và vật tư",
       suggestions: [
-        "Có mã vật tư nào đang dưới định mức không?",
-        "Báo cáo số lượng hàng hóa trong kho?",
-        "Tình hình sản xuất gần đây",
+        "Giá sen vòi 01s là bao nhiêu, tồn kho bao nhiêu?",
+        "Báo cáo giá các loại sen vòi trong kho?",
+        "Mặt hàng nào đang hết hoặc dưới định mức?",
+        "Tồn kho các loại bồn cầu và chậu rửa?",
       ]
     };
   }
-  if (pathname.includes("/cs") || pathname.includes("/sales")) {
+  if (pathname.includes("/cs") || pathname.includes("/sales") || pathname.includes("/marketing")) {
     return {
-      name: "Kinh doanh & CSKH",
-      description: "phân tích dữ liệu khách hàng và doanh số",
+      name: "Kinh doanh & Bán hàng",
+      description: "tra cứu giá sản phẩm, tồn kho và đơn hàng",
       suggestions: [
-        "Tỷ lệ chốt sale (Win rate) đang ở mức bao nhiêu?",
-        "Tổng giá trị các hợp đồng là bao nhiêu?",
-        "Tình hình chăm sóc khách hàng",
+        "Giá các loại sen vòi là bao nhiêu?",
+        "Giá sen vòi 01s và tồn kho khả dụng?",
+        "Tỷ lệ chốt sale (Win rate) hiện tại?",
+        "Tổng công nợ phải thu của khách hàng?",
       ]
     };
   }
   
   return {
     name: "Ban Giám đốc",
-    description: "phân tích dữ liệu kinh doanh tổng quát",
+    description: "truy cập toàn bộ cơ sở dữ liệu hệ thống",
     suggestions: [
-      "Tóm tắt tình hình kinh doanh hiện tại",
-      "Hợp đồng nào đang chậm tiến độ?",
-      "Win rate báo giá đang ở mức bao nhiêu?",
-      "Tổng công nợ hợp đồng hiện là bao nhiêu?",
+      "Giá các loại sen vòi là bao nhiêu?",
+      "Giá sen vòi 01s và tồn kho hiện tại?",
+      "Tổng công nợ phải thu và phải trả?",
+      "Chi phí hoạt động và doanh thu hiện tại?",
     ]
   };
 };
@@ -121,8 +124,9 @@ export function GlobalAIAssistant() {
 
   // ElevenLabs configurations
   const [showSettings, setShowSettings] = useState(false);
-  const [useElevenLabs, setUseElevenLabs] = useState(false);
-  const [elApiKey, setElApiKey] = useState("");
+  const DEFAULT_ELEVENLABS_KEY = "sk_4e9ca9836cad5b6f66685f1d670ed8390436608d41f56964";
+  const [useElevenLabs, setUseElevenLabs] = useState(true);
+  const [elApiKey, setElApiKey] = useState(DEFAULT_ELEVENLABS_KEY);
   const [elVoiceId, setElVoiceId] = useState("21m00Tcm4TlvDq8ikWAM");
   const [voiceSource, setVoiceSource] = useState<"preset" | "custom">("preset");
   const [customVoiceId, setCustomVoiceId] = useState("");
@@ -269,11 +273,15 @@ export function GlobalAIAssistant() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedUseEl = localStorage.getItem("ai_use_elevenlabs") === "true";
-      const storedKey = localStorage.getItem("ai_elevenlabs_apikey") || "";
+      const storedUseEl = localStorage.getItem("ai_use_elevenlabs");
+      const storedKey = localStorage.getItem("ai_elevenlabs_apikey");
       const storedVoice = localStorage.getItem("ai_elevenlabs_voiceid") || "21m00Tcm4TlvDq8ikWAM";
-      setUseElevenLabs(storedUseEl);
-      setElApiKey(storedKey);
+      
+      const activeKey = storedKey && storedKey.trim() ? storedKey.trim() : DEFAULT_ELEVENLABS_KEY;
+      const activeUseEl = storedUseEl !== null ? storedUseEl === "true" : true;
+
+      setUseElevenLabs(activeUseEl);
+      setElApiKey(activeKey);
       
       const presets = ["21m00Tcm4TlvDq8ikWAM", "AZnzlk1XhkZOKCFLE30d", "EXAVITQu4vr4xnSDxMaL", "ErXwobaYiN019PkySvjV"];
       if (presets.includes(storedVoice)) {
@@ -282,13 +290,11 @@ export function GlobalAIAssistant() {
         setCustomVoiceId("");
       } else {
         setVoiceSource("custom");
-        setElVoiceId("21m00Tcm4TlvDq8ikWAM"); // Fallback select view to default
+        setElVoiceId("21m00Tcm4TlvDq8ikWAM");
         setCustomVoiceId(storedVoice);
       }
 
-      if (storedKey.trim()) {
-        fetchVoicesFromApi(storedKey);
-      }
+      fetchVoicesFromApi(activeKey);
     }
   }, []);
 
@@ -746,16 +752,17 @@ export function GlobalAIAssistant() {
     <>
       <style>{`
         @keyframes ai-fab-in   { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        @keyframes ai-panel-in { from { opacity: 0; transform: translateY(20px) scale(0.97); } to { opacity: 1; transform: none; } }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slideOutRight { from { transform: translateX(0); } to { transform: translateX(100%); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes ai-msg-in   { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-        @keyframes ai-panel-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(24px) scale(0.97); } }
-        .ai-panel-closing { animation: ai-panel-out 0.26s cubic-bezier(0.4,0,0.2,1) forwards; }
+        .ai-panel-closing { animation: slideOutRight 0.2s cubic-bezier(0.4,0,0.2,1) forwards; }
         @keyframes ai-pulse    { 0%,100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.5); } 60% { box-shadow: 0 0 0 10px rgba(99,102,241,0); } }
         @keyframes typing-dot  { 0%,80%,100% { transform: translateY(0); opacity: 0.5; } 40% { transform: translateY(-5px); opacity: 1; } }
         @keyframes mic-pulse   { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         .ai-fab        { animation: ai-fab-in 0.22s cubic-bezier(0.34,1.56,0.64,1); }
         .ai-fab-pulse  { animation: ai-pulse 2s ease-in-out infinite; }
-        .ai-panel      { animation: ai-panel-in 0.28s cubic-bezier(0.4,0,0.2,1); }
+        .ai-panel      { animation: slideInRight 0.22s ease-out; }
         .ai-msg        { animation: ai-msg-in 0.2s ease; }
         .ai-dot        { display:inline-block; width:7px; height:7px; border-radius:50%; background:${ACCENT}; animation:typing-dot 1.2s infinite; margin: 0 2px; }
         .ai-dot:nth-child(2) { animation-delay:.2s; }
@@ -776,9 +783,8 @@ export function GlobalAIAssistant() {
           style={{
             position: "fixed", 
             bottom: 24 + offset.y, 
-            left: `calc(50% - ${offset.x}px)`,
-            transform: "translateX(-50%)",
-            zIndex: 1200,
+            right: 24 - offset.x,
+            zIndex: 1100,
             width: 56, height: 56, borderRadius: "50%", border: "none",
             background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT2})`,
             color: "#fff", cursor: "pointer", fontSize: 24,
@@ -791,23 +797,37 @@ export function GlobalAIAssistant() {
         >🤖</button>
       )}
 
-      {/* Chat panel */}
+      {/* Backdrop mờ phủ màn hình khi mở Offcanvas */}
+      {open && (
+        <div
+          onClick={handleClose}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1198,
+            background: "rgba(0,0,0,0.35)",
+            backdropFilter: "blur(2px)",
+            animation: "fadeIn 0.2s ease-out",
+          }}
+        />
+      )}
+
+      {/* Offcanvas chat panel 400px trượt từ bên phải */}
       {open && (
         <div className={`ai-panel${closing ? " ai-panel-closing" : ""}`} style={{
           position: "fixed", 
-          bottom: viewportOffsetBottom, 
-          left: isMobile ? 0 : "50%", 
-          transform: isMobile ? "none" : "translateX(-50%)",
+          top: 0,
+          right: 0,
+          bottom: 0,
           zIndex: 1199,
-          width: isMobile ? "100%" : 420, 
-          maxHeight: viewportHeight 
-            ? `${viewportHeight - (isMobile ? 0 : 24)}px` 
-            : "calc(100vh - 24px)",
+          width: 400,
+          maxWidth: "100vw",
           background: "var(--card)", 
-          borderRadius: isMobile ? "16px 16px 0 0" : "20px 20px 0 0",
-          border: "1px solid var(--border)",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.16)",
-          display: "flex", flexDirection: "column", overflow: "hidden",
+          borderLeft: "1px solid var(--border)",
+          boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
+          display: "flex", 
+          flexDirection: "column", 
+          overflow: "hidden",
         }}>
 
           {/* Header */}
@@ -816,26 +836,54 @@ export function GlobalAIAssistant() {
             borderBottom: "1px solid var(--border)",
             display: "flex", alignItems: "center", gap: 12,
             background: "var(--card)",
+            flexShrink: 0
           }}>
             <div style={{
-              width: 42, height: 42, borderRadius: 12, flexShrink: 0, fontSize: 24,
+              width: 40, height: 40, borderRadius: 12, flexShrink: 0, fontSize: 22,
               background: `linear-gradient(135deg, ${ACCENT}22, ${ACCENT2}33)`,
               border: `1.5px solid ${ACCENT_BORDER}`,
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>🤖</div>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "var(--foreground)" }}>Trợ lý AI</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "var(--foreground)" }}>Trợ lý AI Seajong</p>
               <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 5 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: isContinuousVoiceMode ? "#ef4444" : "#10b981", display: "inline-block" }} className={isContinuousVoiceMode ? "listening" : ""} />
-                {isContinuousVoiceMode ? "Đang đàm thoại liên tục..." : `${deptConfig.name} · Dữ liệu thực tế`}
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: isContinuousVoiceMode ? "#ef4444" : "#10b981", display: "inline-block", flexShrink: 0 }} className={isContinuousVoiceMode ? "listening" : ""} />
+                <span className="text-truncate">
+                  {isContinuousVoiceMode ? "Đang đàm thoại liên tục..." : `${deptConfig.name} · CSDL Realtime`}
+                </span>
               </p>
             </div>
+            
+            {/* Nút Làm mới chat */}
+            <button 
+              onClick={() => {
+                if (typeof window !== "undefined" && window.speechSynthesis) {
+                  window.speechSynthesis.cancel();
+                }
+                if (activeAudioRef.current) {
+                  activeAudioRef.current.pause();
+                  activeAudioRef.current = null;
+                }
+                setMessages([]);
+                setCurrentlySpeakingId(null);
+              }}
+              style={{
+                width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)",
+                background: "var(--muted)", cursor: "pointer", color: "var(--muted-foreground)",
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13,
+                marginRight: 4
+              }}
+              title="Làm mới cuộc trò chuyện"
+            >
+              <i className="bi bi-arrow-clockwise" />
+            </button>
+
             <button onClick={() => setShowSettings(!showSettings)} style={{
               width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)",
               background: showSettings ? "rgba(99,102,241,0.12)" : "var(--muted)", cursor: "pointer", 
               color: showSettings ? ACCENT : "var(--muted-foreground)",
-              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
-              marginRight: 6
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13,
+              marginRight: 4
             }} title="Cấu hình giọng đọc ElevenLabs">
               <i className="bi bi-gear-fill" />
             </button>
@@ -856,8 +904,8 @@ export function GlobalAIAssistant() {
               width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)",
               background: isAudioEnabled ? "rgba(99,102,241,0.12)" : "var(--muted)", cursor: "pointer", 
               color: isAudioEnabled ? ACCENT : "var(--muted-foreground)",
-              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
-              marginRight: 6
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13,
+              marginRight: 4
             }} title={isAudioEnabled ? "Tắt đọc câu trả lời" : "Bật đọc câu trả lời"}>
               <i className={`bi bi-volume-${isAudioEnabled ? "up-fill" : "mute-fill"}`} />
             </button>
@@ -1044,10 +1092,10 @@ export function GlobalAIAssistant() {
                   <div style={{ textAlign: "center", marginBottom: 20 }}>
                     <div style={{ fontSize: 52, marginBottom: 10 }}>🤖</div>
                     <p style={{ margin: "0 0 4px", fontSize: 15, fontWeight: 800, color: "var(--foreground)" }}>
-                      Xin chào! Tôi là Trợ lý AI
+                      Xin chào! Tôi là Trợ lý AI Seajong
                     </p>
                     <p style={{ margin: 0, fontSize: 12.5, color: "var(--muted-foreground)" }}>
-                      Chuyên hỗ trợ <span style={{ color: ACCENT, fontWeight: 700 }}>{deptConfig.name}</span> {deptConfig.description}
+                      Hỗ trợ <span style={{ color: ACCENT, fontWeight: 700 }}>{deptConfig.name}</span> · Kết nối toàn bộ CSDL hàng hoá, kho, giá, công nợ &amp; tài chính.
                     </p>
                   </div>
                 )}
@@ -1175,8 +1223,8 @@ export function GlobalAIAssistant() {
                     }}
                   >▶</button>
                 </div>
-                <p style={{ margin: "6px 0 8px", fontSize: 10, color: "var(--muted-foreground)", textAlign: "center" }}>
-                  Trí tuệ nhân tạo · Dữ liệu được lọc theo phòng ban &amp; quyền hạn
+                <p style={{ margin: "6px 0 8px", fontSize: 10.5, color: "var(--muted-foreground)", textAlign: "center" }}>
+                  Trí tuệ nhân tạo Seajong · Kết nối trực tiếp CSDL sản phẩm, kho, công nợ &amp; tài chính
                 </p>
               </div>
             </>

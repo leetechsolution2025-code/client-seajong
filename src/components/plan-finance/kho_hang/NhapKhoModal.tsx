@@ -636,11 +636,13 @@ export function NhapKhoModal({
   const doSave = async () => {
     setSaving(true);
     try {
+      const taskIdToComplete = initialTaskId || selectedWO?.id;
       const res = await fetch("/api/plan-finance/stock-movements/batch", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           toWarehouseId,
           soChungTu: soChungTu || undefined,
+          taskId: taskIdToComplete || undefined,
           purchaseOrderId: selectedPO?.id || initialPurchaseOrderId || (initialItems && initialItems[0]?.purchaseOrderId) || undefined,
           lyDo: [loaiNhapKho, lyDo, soBienBanQC ? `Số BB QC: ${soBienBanQC}` : "", ghiChu ? `Ghi chú: ${ghiChu}` : "", chiPhiVanChuyen > 0 ? `Phí vận chuyển: ${fmtVnd(chiPhiVanChuyen)}` : ""].filter(Boolean).join(" - ") || undefined,
           nguoiThucHien: nguoiThucHien || undefined,
@@ -666,7 +668,6 @@ export function NhapKhoModal({
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Lỗi lưu"); }
       
       // Update task status if applicable
-      const taskIdToComplete = initialTaskId || selectedWO?.id;
       if (taskIdToComplete) {
         try {
           await fetch(`/api/board/tasks/${taskIdToComplete}`, {
@@ -696,8 +697,11 @@ export function NhapKhoModal({
         } catch (e) {}
       }
 
-      toast.success("✅ Nhập kho thành công!", `Phữu ${soChungTu} đã được xác nhận`, 5000);
+      toast.success("✅ Nhập kho thành công!", `Phiếu ${soChungTu} đã được xác nhận`, 5000);
       setSuccess(true);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("logistics-orders-updated"));
+      }
       onSaved();
     } catch (e) {
       toast.error("Nhập kho thất bại", e instanceof Error ? e.message : "Lỗi không xác định");

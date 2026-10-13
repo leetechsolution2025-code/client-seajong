@@ -202,10 +202,16 @@ export default function LogisticsOverviewPage() {
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    const handleExternalUpdate = () => {
+      fetchOrders(true);
+    };
+    window.addEventListener("logistics-orders-updated", handleExternalUpdate);
+
     return () => {
       mounted = false;
       clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("logistics-orders-updated", handleExternalUpdate);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

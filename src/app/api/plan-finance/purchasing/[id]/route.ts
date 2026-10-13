@@ -16,8 +16,13 @@ export async function GET(
 
     const { id } = await params;
 
-    const po = await prisma.purchaseOrder.findUnique({
-      where: { id },
+    const po = await prisma.purchaseOrder.findFirst({
+      where: {
+        OR: [
+          { id },
+          { code: id }
+        ]
+      },
       include: {
         supplier: { select: { id: true, name: true, address: true, phone: true, email: true } },
         items: {
@@ -41,7 +46,7 @@ export async function GET(
     if (carrierDebtVal === undefined || shippingFeeVal === undefined || shippingDepotVal === undefined || carrierIdVal === undefined) {
       const rows = await prisma.$queryRawUnsafe<any[]>(
         `SELECT carrierId, shippingFee, shippingDepot, carrierDebt FROM PurchaseOrder WHERE id = ? LIMIT 1`,
-        id
+        po.id
       );
       if (rows && rows.length > 0) {
         carrierIdVal = rows[0].carrierId ?? null;

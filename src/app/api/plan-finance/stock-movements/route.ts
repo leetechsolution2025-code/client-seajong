@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession }          from "next-auth";
 import { authOptions }               from "@/lib/auth";
 import { prisma }                    from "@/lib/prisma";
+import { deleteAutoJournalByReference } from "@/lib/accounting-engine";
 
 /**
  * POST /api/plan-finance/stock-movements
@@ -236,7 +237,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const itemId      = searchParams.get("itemId")      ?? "";
     const warehouseId = searchParams.get("warehouseId") ?? "";
-    const limit       = Math.min(100, parseInt(searchParams.get("limit") ?? "50"));
+    const limit       = Math.min(1000, parseInt(searchParams.get("limit") ?? "50"));
 
     const where = {
       ...(itemId      && { inventoryItemId: itemId }),
@@ -260,5 +261,128 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     console.error("[GET /stock-movements]", e);
     return NextResponse.json([], { status: 500 });
+  }
+}
+
+// DELETE /api/plan-finance/stock-movements
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await req.json().catch(() => ({}));
+    const { searchParams } = req.nextUrl;
+    
+    let ids: string[] = [];
+    if (Array.isArray(body?.ids)) {
+      ids = body.ids;
+    } else if (body?.id) {
+      ids = [body.id];
+    } else if (searchParams.get("id")) {
+      ids = [searchParams.get("id")!];
+    }
+
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "Chưa chọn bản ghi nào để xoá" }, { status: 400 });
+    }
+
+    // 1. Tìm các bản ghi StockMovement cần xoá
+    const movements = await prisma.stockMovement.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        type: true,
+        inventoryItemId: true,
+        fromWarehouseId: true,
+        toWarehouseId: true,
+        soLuong: true,
+        soChungTu: true,
+      }
+    });
+
+    if (movements.length === 0) {
+      return NextResponse.json({ error: "Không tìm thấy bản ghi biến động kho phù hợp" }, { status: 404 });
+    }
+
+    const affectedItemIds = new Set<string>();
+
+    // 2. Hoàn tác số lượng tồn kho của từng biến động
+    for (const m of movements) {
+      affectedItemIds.add(m.inventoryItemId);
+
+      // Nếu là phiếu Nhập kho: trừ bớt số lượng đã nhập tại kho nhận (toWarehouseId)
+      if (m.type === "nhap" && m.toWarehouseId) {
+        const stock = await prisma.inventoryStock.findUnique({
+          where: {
+            inventoryItemId_warehouseId: {
+              inventoryItemId: m.inventoryItemId,
+              warehouseId: m.toWarehouseId
+            }
+          }
+        });
+        if (stock) {
+          const soLuongMoi = Math.max(0, stock.soLuong - m.soLuong);
+          await prisma.inventoryStock.update({
+            where: { id: stock.id },
+            data: { soLuong: soLuongMoi }
+          });
+        }
+      }
+
+      // Nếu là phiếu Xuất kho: cộng hoàn trả số lượng đã xuất tại kho xuất (fromWarehouseId)
+      else if (m.type === "xuat" && m.fromWarehouseId) {
+        const stock = await prisma.inventoryStock.findUnique({
+          where: {
+            inventoryItemId_warehouseId: {
+              inventoryItemId: m.inventoryItemId,
+              warehouseId: m.fromWarehouseId
+            }
+          }
+        });
+        if (stock) {
+          const soLuongMoi = stock.soLuong + m.soLuong;
+          await prisma.inventoryStock.update({
+            where: { id: stock.id },
+            data: { soLuong: soLuongMoi }
+          });
+        }
+      }
+
+      // Xoá bút toán hạch toán tự động nếu có liên quan tới chứng từ
+      if (m.soChungTu) {
+        try {
+          await deleteAutoJournalByReference(m.soChungTu, "Xoá nhật ký biến động kho");
+        } catch (_) {}
+      }
+    }
+
+    // 3. Cập nhật lại tổng tồn và trạng thái tồn kho trên InventoryItem
+    for (const itemId of affectedItemIds) {
+      const allStocks = await prisma.inventoryStock.findMany({
+        where: { inventoryItemId: itemId },
+        include: { inventoryItem: { select: { soLuongMin: true } }, warehouse: { select: { code: true } } }
+      });
+      const validStocks = allStocks.filter(st => st.warehouse?.code !== 'KHO-LOI');
+      const tongSoLuong = validStocks.reduce((s, st) => s + st.soLuong, 0);
+      const soLuongMin = allStocks[0]?.inventoryItem?.soLuongMin ?? 0;
+      const trangThai = tongSoLuong === 0 ? "het-hang"
+                      : soLuongMin > 0 && tongSoLuong <= soLuongMin ? "sap-het"
+                      : "con-hang";
+
+      await prisma.inventoryItem.update({
+        where: { id: itemId },
+        data: { soLuong: tongSoLuong, trangThai }
+      });
+    }
+
+    // 4. Xoá các bản ghi StockMovement
+    const deleteResult = await prisma.stockMovement.deleteMany({
+      where: { id: { in: ids } }
+    });
+
+    return NextResponse.json({ success: true, count: deleteResult.count });
+  } catch (error: any) {
+    console.error("[DELETE /stock-movements]", error);
+    return NextResponse.json({ error: error.message || "Lỗi khi xoá nhật ký kho" }, { status: 500 });
   }
 }

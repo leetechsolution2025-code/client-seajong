@@ -12,7 +12,7 @@ export default function FinanceAuditLogsPage() {
       icon="bi-journal-text"
       color="amber"
       useCard={false}
-      paddingClassName="px-2 pb-2 pt-1"
+      paddingClassName="p-0"
     >
       <div className="flex-grow-1 d-flex flex-column h-100 overflow-hidden">
         <LogisticsAuditLogs />
