@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CareHistoryTimeline, type CareHistoryItem } from "@/components/ui/CareHistoryTimeline";
 import { ThemKetQuaChamSocModal } from "@/components/plan-finance/khach_hang/ThemKetQuaChamSocModal";
+import { getCustomerGroupInfo } from "@/lib/customer-group-utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type EmployeeOption = { id: string; fullName: string };
@@ -21,8 +22,9 @@ export type CustomerRow = {
 };
 
 const NHOM_LABEL: Record<string, string> = {
-  "ca-nhan": "Cá nhân", "doanh-nghiep": "Doanh nghiệp",
-  "doi-tac": "Đối tác", "khach-le": "Khách lẻ",
+  "dai-ly": "Đại lý", "ca-nhan": "Cá nhân", "du-an": "Dự án",
+  "doanh-nghiep": "Doanh nghiệp", "doi-tac": "Đối tác", "khach-le": "Khách lẻ",
+  "nha-phan-phoi": "Nhà phân phối",
 };
 const NGUON_LABEL: Record<string, string> = {
   "tu-nhien": "Tự nhiên", "gioi-thieu": "Giới thiệu",
@@ -30,8 +32,9 @@ const NGUON_LABEL: Record<string, string> = {
 };
 
 const nhomColor: Record<string, string> = {
-  "ca-nhan": "#6366f1", "doanh-nghiep": "#10b981",
-  "doi-tac": "#f59e0b", "khach-le": "#06b6d4",
+  "dai-ly": "#003087", "ca-nhan": "#d97706", "du-an": "#7c3aed",
+  "doanh-nghiep": "#059669", "doi-tac": "#ea580c", "khach-le": "#0891b2",
+  "nha-phan-phoi": "#4f46e5",
 };
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -206,11 +209,16 @@ export function ChiTietKhachHangOffcanvas({ customer, onClose, onDeleted, onEdit
 
                         {/* Nhóm + nguồn + ngày tạo */}
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, flexWrap: "wrap" }}>
-                          {customer?.nhom && (
-                            <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: `color-mix(in srgb, ${nhomColor[customer.nhom] ?? "#94a3b8"} 12%, transparent)`, color: nhomColor[customer.nhom] ?? "#94a3b8" }}>
-                              {NHOM_LABEL[customer.nhom] ?? customer.nhom}
-                            </span>
-                          )}
+                          {customer?.nhom && (() => {
+                            const groupInfo = getCustomerGroupInfo(customer.nhom);
+                            const label = groupInfo?.name ?? NHOM_LABEL[customer.nhom] ?? customer.nhom;
+                            const color = groupInfo?.color ?? nhomColor[customer.nhom] ?? "#94a3b8";
+                            return (
+                              <span style={{ padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: `color-mix(in srgb, ${color} 12%, transparent)`, color }}>
+                                {label}
+                              </span>
+                            );
+                          })()}
                           {customer?.nguon && (
                             <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
                               · {NGUON_LABEL[customer.nguon] ?? customer.nguon}

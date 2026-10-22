@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createAutoJournal } from "@/lib/accounting-engine";
+import { getSearchVariants } from "@/lib/search-utils";
 
 function parseGuestInfo(ghiChu: string | null | undefined): { name: string; dienThoai: string; address: string } | null {
   if (!ghiChu) return null;
@@ -43,8 +44,21 @@ export async function GET(req: NextRequest) {
     
     const isFinance = employee?.departmentCode === "finance" || employee?.departmentName?.includes("Kế toán") || employee?.departmentName?.includes("Tài chính");
 
+    const searchVariants = getSearchVariants(search);
+    const searchOrConditions: any[] = [];
+    if (searchVariants.length > 0) {
+      for (const v of searchVariants) {
+        searchOrConditions.push({ code: { contains: v } });
+        searchOrConditions.push({ ghiChu: { contains: v } });
+        searchOrConditions.push({ customer: { name: { contains: v } } });
+        searchOrConditions.push({ customer: { code: { contains: v } } });
+        searchOrConditions.push({ customer: { daiDien: { contains: v } } });
+        searchOrConditions.push({ customer: { dienThoai: { contains: v } } });
+      }
+    }
+
     const where: any = {
-      ...(search    && { OR: [{ code: { contains: search } }, { customer: { name: { contains: search } } }, { ghiChu: { contains: search } }] }),
+      ...(searchOrConditions.length > 0 && { OR: searchOrConditions }),
       ...(trangThai && { trangThai }),
       ...(keToanDuyet && { keToanDuyet }),
     };
@@ -157,7 +171,31 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ items: itemsWithCreator, total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)) });
+    // Also find any matching customers if searching
+    let matchingCustomers: any[] = [];
+    if (searchVariants.length > 0) {
+      const custOr: any[] = [];
+      for (const v of searchVariants) {
+        custOr.push({ name: { contains: v } });
+        custOr.push({ code: { contains: v } });
+        custOr.push({ dienThoai: { contains: v } });
+        custOr.push({ daiDien: { contains: v } });
+      }
+      matchingCustomers = await prisma.customer.findMany({
+        where: { OR: custOr },
+        take: 5,
+        select: { id: true, code: true, name: true, nhom: true, dienThoai: true, address: true, daiDien: true }
+      });
+    }
+
+    return NextResponse.json({ 
+      items: itemsWithCreator, 
+      total, 
+      page, 
+      pageSize, 
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      matchingCustomers
+    });
   } catch (e: unknown) {
     console.error("[GET /sales]", e);
     return NextResponse.json({ items: [], total: 0, page: 1, totalPages: 1 });

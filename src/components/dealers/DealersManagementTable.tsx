@@ -14,6 +14,11 @@ import { TaoDonHangModal } from "@/components/plan-finance/bao_gia/TaoDonHangMod
 import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
 import { useToast } from "@/components/ui/Toast";
 import dynamic from "next/dynamic";
+import { 
+  buildCustomerGroupOptions, 
+  normalizeCustomerGroupCode, 
+  getCustomerGroupInfo 
+} from "@/lib/customer-group-utils";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -114,6 +119,9 @@ export function DealersManagementTable({
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteType, setDeleteType] = useState<"single" | "bulk">("single");
+  const [deleteTarget, setDeleteTarget] = useState<CustomerRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [editForm, setEditForm] = useState<{
@@ -221,15 +229,7 @@ export function DealersManagementTable({
   const nguonOptions = useMemo(() => sourceCategories.map(c => ({ label: c.name, value: c.code })), [sourceCategories]);
   const hangOptions = useMemo(() => groupCategories.map(c => ({ label: c.name, value: c.code })), [groupCategories]);
   const nhomOptions = useMemo(() => {
-    if (nhomCategories.length > 0) {
-      return nhomCategories.map(c => ({ label: c.name, value: c.code }));
-    }
-    return [
-      { label: "Đại lý", value: "dai-ly" },
-      { label: "Cá nhân", value: "ca-nhan" },
-      { label: "Dự án", value: "du-an" },
-      { label: "Nhà phân phối", value: "nha-phan-phoi" },
-    ];
+    return buildCustomerGroupOptions(nhomCategories);
   }, [nhomCategories]);
 
   const onTotalChangeRef = React.useRef(onTotalChange);
@@ -281,6 +281,7 @@ export function DealersManagementTable({
   // Reset page to 1 when filters change
   useEffect(() => {
     setPage(1);
+    setSelectedIds([]);
   }, [searchQuery, nguonFilter, hangFilter, employeeFilter, showAllCustomers]);
 
   // Fetch transaction history
@@ -310,7 +311,7 @@ export function DealersManagementTable({
     setEditForm({
       code: "",
       name: "",
-      nhom: defaultNhom || "dai-ly",
+      nhom: normalizeCustomerGroupCode(defaultNhom) || "dai-ly",
       nguon: "tu-nhien",
       loai: "bac",
       dienThoai: "",
@@ -338,7 +339,7 @@ export function DealersManagementTable({
     setEditForm({
       code: customer.code || "",
       name: customer.name || "",
-      nhom: customer.nhom || "",
+      nhom: normalizeCustomerGroupCode(customer.nhom) || "dai-ly",
       nguon: customer.nguon || "",
       loai: customer.loai || "",
       dienThoai: customer.dienThoai || "",
@@ -487,7 +488,7 @@ export function DealersManagementTable({
             body: JSON.stringify({
               code: code ? String(code).trim() : undefined,
               name: String(name).trim(),
-              nhom: nhom ? String(nhom).trim() : defaultNhom,
+              nhom: nhom ? normalizeCustomerGroupCode(String(nhom).trim()) : (normalizeCustomerGroupCode(defaultNhom) || "dai-ly"),
               nguon: nguon ? String(nguon).trim() : "",
               loai: "",
               dienThoai: dienThoai ? String(dienThoai).trim() : "",
@@ -539,7 +540,7 @@ export function DealersManagementTable({
         body: JSON.stringify({
           code: editForm.code,
           name: editForm.name,
-          nhom: editForm.nhom || null,
+          nhom: normalizeCustomerGroupCode(editForm.nhom) || "dai-ly",
           nguon: editForm.nguon || null,
           loai: editForm.loai || null,
           dienThoai: editForm.dienThoai || null,
@@ -595,23 +596,99 @@ export function DealersManagementTable({
     }
   };
 
+  const isAllCurrentPageSelected = customers.length > 0 && customers.every(c => selectedIds.includes(c.id));
+  const isSomeCurrentPageSelected = customers.some(c => selectedIds.includes(c.id)) && !isAllCurrentPageSelected;
+
+  const handleToggleSelectAll = () => {
+    if (isAllCurrentPageSelected) {
+      const currentIds = new Set(customers.map(c => c.id));
+      setSelectedIds(prev => prev.filter(id => !currentIds.has(id)));
+    } else {
+      const idsToAdd = customers.map(c => c.id).filter(id => !selectedIds.includes(id));
+      setSelectedIds(prev => [...prev, ...idsToAdd]);
+    }
+  };
+
+  const handleToggleSelectRow = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleConfirmDeleteSingle = (customer: CustomerRow, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setDeleteTarget(customer);
+    setDeleteType("single");
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDeleteBulk = () => {
+    if (selectedIds.length === 0) return;
+    setDeleteType("bulk");
+    setDeleteTarget(null);
+    setDeleteConfirmOpen(true);
+  };
+
   const handleDeleteCustomer = async () => {
-    if (!selectedCustomer) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/plan-finance/customers/${selectedCustomer.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        throw new Error(d.error ?? "Lỗi xóa khách hàng");
+      if (deleteType === "single") {
+        const target = deleteTarget || selectedCustomer;
+        if (!target) return;
+        const res = await fetch(`/api/plan-finance/customers/${target.id}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          const d = await res.json();
+          throw new Error(d.error ?? "Lỗi xóa khách hàng");
+        }
+        setCustomers(prev => prev.filter(c => c.id !== target.id));
+        setSelectedIds(prev => prev.filter(id => id !== target.id));
+        if (selectedCustomer?.id === target.id) {
+          setSelectedCustomer(null);
+          setShowDetailOffcanvas(false);
+          setEditModalOpen(false);
+        }
+        const newTotal = Math.max(0, total - 1);
+        setTotal(newTotal);
+        if (onTotalChangeRef.current) {
+          onTotalChangeRef.current(newTotal);
+        }
+        success("Thành công", `Đã xoá đại lý "${target.name}"`);
+      } else {
+        // Bulk delete
+        if (selectedIds.length === 0) return;
+        const res = await fetch(`/api/plan-finance/customers`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: selectedIds }),
+        });
+        if (!res.ok) {
+          const d = await res.json();
+          throw new Error(d.error ?? "Lỗi xóa khách hàng");
+        }
+        const deletedSet = new Set(selectedIds);
+        setCustomers(prev => prev.filter(c => !deletedSet.has(c.id)));
+        const countDeleted = selectedIds.length;
+        setSelectedIds([]);
+        if (selectedCustomer && deletedSet.has(selectedCustomer.id)) {
+          setSelectedCustomer(null);
+          setShowDetailOffcanvas(false);
+          setEditModalOpen(false);
+        }
+        const newTotal = Math.max(0, total - countDeleted);
+        setTotal(newTotal);
+        if (onTotalChangeRef.current) {
+          onTotalChangeRef.current(newTotal);
+        }
+        success("Thành công", `Đã xoá thành công ${countDeleted} đại lý đã chọn`);
       }
-      setCustomers(prev => prev.filter(c => c.id !== selectedCustomer.id));
-      setSelectedCustomer(null);
       setDeleteConfirmOpen(false);
+      setDeleteTarget(null);
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "Lỗi xóa khách hàng");
+      error("Thất bại", err.message || "Lỗi xóa khách hàng");
     } finally {
       setSubmitting(false);
     }
@@ -620,10 +697,36 @@ export function DealersManagementTable({
   // Table Columns Definition
   const columns: TableColumn<CustomerRow>[] = [
     {
-      header: "STT",
+      header: (
+        <div className="d-flex align-items-center justify-content-center" style={{ width: 22, margin: "0 auto" }}>
+          <input
+            type="checkbox"
+            className="form-check-input m-0 cursor-pointer"
+            checked={isAllCurrentPageSelected}
+            ref={el => {
+              if (el) el.indeterminate = isSomeCurrentPageSelected;
+            }}
+            onChange={handleToggleSelectAll}
+            title={isAllCurrentPageSelected ? "Bỏ chọn tất cả trên trang này" : "Chọn tất cả trên trang này"}
+          />
+        </div>
+      ),
+      width: 44,
       align: "center",
-      width: 60,
-      render: (row, idx) => (page - 1) * 15 + idx + 1
+      render: (row) => (
+        <div 
+          className="d-flex align-items-center justify-content-center"
+          style={{ width: 22, margin: "0 auto" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            className="form-check-input m-0 cursor-pointer"
+            checked={selectedIds.includes(row.id)}
+            onChange={(e) => handleToggleSelectRow(row.id, e as any)}
+          />
+        </div>
+      )
     },
     {
       header: "Tên khách hàng",
@@ -640,15 +743,24 @@ export function DealersManagementTable({
             <div className="d-flex align-items-center gap-2 flex-wrap">
               <span className="badge bg-secondary" style={{ fontSize: '10px' }}>{row.code || "N/A"}</span>
               <span className="fw-bold text-dark">{row.name}</span>
-              {showAllCustomers && (
-                (row.nhom === "ca-nhan" || row.nhom === "ca_nhan") ? (
-                  <span className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25" style={{ fontSize: '9.5px', padding: '2px 6px' }}>Cá nhân</span>
-                ) : (row.nhom === "dai-ly" || row.nhom === "dai_ly") ? (
-                  <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style={{ fontSize: '9.5px', padding: '2px 6px' }}>Đại lý</span>
-                ) : (
-                  <span className="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25" style={{ fontSize: '9.5px', padding: '2px 6px' }}>Khác</span>
-                )
-              )}
+              {showAllCustomers && (() => {
+                const groupInfo = getCustomerGroupInfo(row.nhom, nhomCategories);
+                if (!groupInfo) return null;
+                return (
+                  <span
+                    className="badge"
+                    style={{
+                      fontSize: '9.5px',
+                      padding: '2px 6px',
+                      backgroundColor: groupInfo.badgeBg,
+                      color: groupInfo.badgeText,
+                      border: `1px solid ${groupInfo.badgeBorder}`
+                    }}
+                  >
+                    {groupInfo.name}
+                  </span>
+                );
+              })()}
             </div>
             {actualAddress && (
               <span className="text-muted small mt-1">
@@ -746,6 +858,37 @@ export function DealersManagementTable({
 
   const mobileColumns: TableColumn<CustomerRow>[] = [
     {
+      header: (
+        <div className="d-flex align-items-center justify-content-center" style={{ width: 22, margin: "0 auto" }}>
+          <input
+            type="checkbox"
+            className="form-check-input m-0 cursor-pointer"
+            checked={isAllCurrentPageSelected}
+            ref={el => {
+              if (el) el.indeterminate = isSomeCurrentPageSelected;
+            }}
+            onChange={handleToggleSelectAll}
+          />
+        </div>
+      ),
+      width: 38,
+      align: "center",
+      render: (row) => (
+        <div 
+          className="d-flex align-items-center justify-content-center"
+          style={{ width: 22, margin: "0 auto" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            className="form-check-input m-0 cursor-pointer"
+            checked={selectedIds.includes(row.id)}
+            onChange={(e) => handleToggleSelectRow(row.id, e as any)}
+          />
+        </div>
+      )
+    },
+    {
       header: "Đại lý & Liên hệ",
       render: (row) => {
         let actualAddress = row.address;
@@ -768,13 +911,24 @@ export function DealersManagementTable({
               <div className="d-flex align-items-center gap-1.5 text-truncate" style={{ minWidth: 0 }}>
                 <span className="badge bg-secondary flex-shrink-0" style={{ fontSize: "10px" }}>{row.code || "N/A"}</span>
                 <span className="fw-bold text-dark text-truncate" style={{ fontSize: "13px" }}>{row.name}</span>
-                {showAllCustomers && (
-                  (row.nhom === "ca-nhan" || row.nhom === "ca_nhan") ? (
-                    <span className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 flex-shrink-0" style={{ fontSize: '9px' }}>Cá nhân</span>
-                  ) : (
-                    <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 flex-shrink-0" style={{ fontSize: '9px' }}>Đại lý</span>
-                  )
-                )}
+                {showAllCustomers && (() => {
+                  const groupInfo = getCustomerGroupInfo(row.nhom, nhomCategories);
+                  if (!groupInfo) return null;
+                  return (
+                    <span
+                      className="badge flex-shrink-0"
+                      style={{
+                        fontSize: '9px',
+                        padding: '1px 5px',
+                        backgroundColor: groupInfo.badgeBg,
+                        color: groupInfo.badgeText,
+                        border: `1px solid ${groupInfo.badgeBorder}`
+                      }}
+                    >
+                      {groupInfo.name}
+                    </span>
+                  );
+                })()}
               </div>
               {rankLabel && (
                 <span className="badge bg-primary-subtle text-primary text-uppercase flex-shrink-0" style={{ fontSize: "9.5px" }}>
@@ -1134,6 +1288,24 @@ export function DealersManagementTable({
                     <i className="bi bi-file-earmark-excel"></i>
                   )}
                 </button>
+                {selectedIds.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-danger d-flex align-items-center justify-content-center gap-1.5 shadow-sm px-2.5"
+                    style={{
+                      height: 34,
+                      fontSize: "12.5px",
+                      borderRadius: 8,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap"
+                    }}
+                    title={`Xoá ${selectedIds.length} đại lý đã chọn`}
+                    onClick={handleConfirmDeleteBulk}
+                  >
+                    <i className="bi bi-trash" />
+                    <span>Xoá ({selectedIds.length})</span>
+                  </button>
+                )}
                 {!isMobile && (
                   <button
                     onClick={handleOpenCreate}
@@ -1429,7 +1601,11 @@ export function DealersManagementTable({
                     <i className="bi bi-printer me-2" /> Báo cáo
                   </button>
                   <button
-                    onClick={() => setDeleteConfirmOpen(true)}
+                    onClick={() => {
+                      setDeleteType("single");
+                      setDeleteTarget(selectedCustomer);
+                      setDeleteConfirmOpen(true);
+                    }}
                     className="btn btn-outline-danger d-flex align-items-center justify-content-center px-4"
                     style={{ borderRadius: "8px", fontWeight: 500 }}
                     title="Xoá đại lý này"
@@ -1578,7 +1754,7 @@ export function DealersManagementTable({
                         <label className="form-label small fw-bold text-muted mb-1">Nhóm</label>
                         <select
                           className="form-select form-select-sm"
-                          value={editForm.nhom || "dai-ly"}
+                          value={normalizeCustomerGroupCode(editForm.nhom) || "dai-ly"}
                           onChange={(e) => setEditForm(p => ({ ...p, nhom: e.target.value }))}
                         >
                           <option value="">Chọn nhóm</option>
@@ -1814,19 +1990,70 @@ export function DealersManagementTable({
       {/* Modal Xác nhận xoá */}
       {deleteConfirmOpen && (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1070 }}>
-          <div className="modal-dialog modal-dialog-centered modal-sm">
+          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 420 }}>
             <div className="modal-content rounded-4 border-0 shadow">
               <div className="modal-body p-4 text-center">
-                <i className="bi bi-exclamation-triangle text-danger" style={{ fontSize: "42px" }}></i>
-                <h6 className="fw-bold mt-2">Xác nhận xoá đại lý?</h6>
-                <p className="text-muted small mb-0">Hành động này không thể hoàn tác.</p>
+                <div 
+                  className="rounded-circle bg-danger bg-opacity-10 text-danger d-inline-flex align-items-center justify-content-center mb-3"
+                  style={{ width: 60, height: 60 }}
+                >
+                  <i className="bi bi-trash3" style={{ fontSize: "28px" }}></i>
+                </div>
+                <h6 className="fw-bold mb-2 fs-6">
+                  {deleteType === "bulk" 
+                    ? `Xác nhận xoá ${selectedIds.length} đại lý?`
+                    : `Xác nhận xoá đại lý?`
+                  }
+                </h6>
+                <div className="text-muted small mb-0 px-2">
+                  {deleteType === "bulk" ? (
+                    <>
+                      Bạn có chắc chắn muốn xoá <strong className="text-dark">{selectedIds.length}</strong> đại lý đã chọn không?
+                      <div className="alert alert-danger bg-danger-subtle border-0 text-danger small mt-2.5 mb-0 text-start py-2 px-2.5 rounded-3">
+                        <i className="bi bi-exclamation-triangle-fill me-1.5" />
+                        Dữ liệu của các đại lý này sẽ bị xoá khỏi hệ thống. Hành động này không thể hoàn tác!
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      Bạn có chắc chắn muốn xoá đại lý <strong className="text-dark">{(deleteTarget || selectedCustomer)?.name}</strong> ({(deleteTarget || selectedCustomer)?.code || "N/A"})?
+                      <div className="alert alert-danger bg-danger-subtle border-0 text-danger small mt-2.5 mb-0 text-start py-2 px-2.5 rounded-3">
+                        <i className="bi bi-exclamation-triangle-fill me-1.5" />
+                        Hành động này không thể hoàn tác!
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="modal-footer border-top py-2 px-3 d-flex justify-content-center gap-2">
-                <button type="button" className="btn btn-sm btn-light px-3" onClick={() => setDeleteConfirmOpen(false)}>
-                  Huỷ
+              <div className="modal-footer border-top py-2.5 px-4 d-flex justify-content-end gap-2 bg-light rounded-bottom-4">
+                <button 
+                  type="button" 
+                  className="btn btn-sm btn-light border px-3" 
+                  onClick={() => {
+                    setDeleteConfirmOpen(false);
+                    setDeleteTarget(null);
+                  }}
+                  disabled={submitting}
+                >
+                  Huỷ bỏ
                 </button>
-                <button type="button" className="btn btn-sm btn-danger px-3" onClick={handleDeleteCustomer} disabled={submitting}>
-                  {submitting ? "Đang xoá..." : "Xoá"}
+                <button 
+                  type="button" 
+                  className="btn btn-sm btn-danger px-3.5 d-flex align-items-center gap-1.5 shadow-sm" 
+                  onClick={handleDeleteCustomer} 
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                      <span>Đang xoá...</span>
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-trash" />
+                      <span>Xác nhận xoá</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

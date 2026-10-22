@@ -19,6 +19,7 @@ import { OmnichannelContent } from "../omnichannel/page";
 import { CreateDefectOffcanvas } from "../../production/defects/components/CreateDefectOffcanvas";
 import { DefectSummaryOffcanvas } from "../../production/defects/components/DefectSummaryOffcanvas";
 import { TableFooter } from "@/components/ui/TableFooter";
+import { getCustomerGroupLabel } from "@/lib/customer-group-utils";
 
 interface Quotation {
   id: string;
@@ -146,6 +147,8 @@ export function QuotationsContent() {
   const [quotationTotal, setQuotationTotal] = useState(0);
   const [quotationTotalPages, setQuotationTotalPages] = useState(1);
 
+  const [quotationMatchingCustomers, setQuotationMatchingCustomers] = useState<any[]>([]);
+
   // Step 2: Orders state
   const [orderPage, setOrderPage] = useState(1);
   const [orderPageSize, setOrderPageSize] = useState(10);
@@ -156,6 +159,7 @@ export function QuotationsContent() {
   const [orderSearchTerm, setOrderSearchTerm] = useState("");
   const [orderEmployeeFilter, setOrderEmployeeFilter] = useState("");
   const [orders, setOrders] = useState<any[]>([]);
+  const [orderMatchingCustomers, setOrderMatchingCustomers] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -210,8 +214,14 @@ export function QuotationsContent() {
   // Function to fetch customers
   const fetchCustomers = async (search: string = "") => {
     try {
-      const nhom = customerTab === "dai_ly" ? "dai-ly" : "ca-nhan";
-      const res = await fetch(`/api/plan-finance/customers?search=${search}&nhom=${nhom}`);
+      const trimmed = search.trim();
+      const params = new URLSearchParams({ pageSize: "100" });
+      if (trimmed) {
+        params.set("search", trimmed);
+      } else {
+        params.set("nhom", customerTab === "dai_ly" ? "dai-ly" : "ca-nhan");
+      }
+      const res = await fetch(`/api/plan-finance/customers?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setCustomersList(data.customers || []);
@@ -294,6 +304,7 @@ export function QuotationsContent() {
         setQuotations(items);
         setQuotationTotal(data.total || 0);
         setQuotationTotalPages(data.totalPages || 1);
+        setQuotationMatchingCustomers(data.matchingCustomers || []);
       }
     } catch (e) {
       console.error("Lỗi tải báo giá", e);
@@ -334,6 +345,7 @@ export function QuotationsContent() {
         setOrders(items);
         setOrderTotal(data.total || 0);
         setOrderTotalPages(data.totalPages || 1);
+        setOrderMatchingCustomers(data.matchingCustomers || []);
       }
     } catch (e) {
       console.error("Lỗi tải đơn hàng", e);
@@ -525,16 +537,7 @@ export function QuotationsContent() {
   useEffect(() => {
     if (!showCustomerSelectModal) return;
     const timer = setTimeout(async () => {
-      try {
-        const nhom = customerTab === "dai_ly" ? "dai-ly" : "ca-nhan";
-        const res = await fetch(`/api/plan-finance/customers?search=${customerSearchTerm}&nhom=${nhom}`);
-        if (res.ok) {
-          const data = await res.json();
-          setCustomersList(data.customers || []);
-        }
-      } catch (e) {
-        console.error("Lỗi tải danh sách khách hàng", e);
-      }
+      fetchCustomers(customerSearchTerm);
     }, 250);
     return () => clearTimeout(timer);
   }, [customerSearchTerm, showCustomerSelectModal, customerTab]);
@@ -1269,7 +1272,7 @@ export function QuotationsContent() {
                   <div className="d-flex align-items-center gap-2 flex-grow-1 justify-content-between justify-content-md-end">
                     <div className="flex-grow-1" style={{ maxWidth: isMobile ? "none" : 300, minWidth: 0 }}>
                       <SearchInput
-                        placeholder="Tìm kiếm..."
+                        placeholder="Tìm mã báo giá, tên KH, mã KH, SĐT..."
                         value={searchTerm}
                         onChange={(val) => {
                           setSearchTerm(val);
@@ -1317,6 +1320,36 @@ export function QuotationsContent() {
                       </button>
                     </div>
                   </div>
+                  {searchTerm && quotations.length === 0 && quotationMatchingCustomers.length > 0 && (
+                    <div className="mt-2 p-2.5 rounded-3 border bg-light d-flex flex-column gap-2" style={{ fontSize: "12.5px" }}>
+                      <div className="d-flex align-items-center gap-2">
+                        <i className="bi bi-info-circle-fill text-primary" />
+                        <span>
+                          Tìm thấy <strong>{quotationMatchingCustomers.length}</strong> khách hàng khớp với từ khoá <strong>&ldquo;{searchTerm}&rdquo;</strong> (chưa phát sinh báo giá):
+                        </span>
+                      </div>
+                      <div className="d-flex flex-wrap gap-2">
+                        {quotationMatchingCustomers.map((c: any) => (
+                          <div key={c.id} className="badge bg-white text-dark border p-2 d-flex align-items-center gap-2 shadow-sm" style={{ fontSize: "12px", fontWeight: 500 }}>
+                            <span className="badge bg-secondary">{c.code || "N/A"}</span>
+                            <span className="fw-bold">{c.name}</span>
+                            <span className="badge bg-primary-subtle text-primary">{getCustomerGroupLabel(c.nhom)}</span>
+                            {c.dienThoai && <span className="text-muted small"><i className="bi bi-telephone me-1" />{c.dienThoai}</span>}
+                            <button
+                              className="btn btn-primary btn-sm py-0 px-2 fw-bold ms-1"
+                              style={{ fontSize: "11px", height: "24px" }}
+                              onClick={() => {
+                                setIsDirectOrder(false);
+                                handleSelectCustomer(c);
+                              }}
+                            >
+                              <i className="bi bi-plus-lg me-1" /> Tạo báo giá ngay
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               }
               table={
@@ -1399,7 +1432,7 @@ export function QuotationsContent() {
                   <div className="d-flex align-items-center gap-2 flex-grow-1 justify-content-between justify-content-md-end">
                     <div className="flex-grow-1" style={{ maxWidth: isMobile ? "none" : 300, minWidth: 0 }}>
                       <SearchInput 
-                        placeholder="Tìm kiếm..."
+                        placeholder="Tìm mã đơn, tên KH, mã KH, SĐT..."
                         value={orderSearchTerm}
                         onChange={(val) => {
                           setOrderSearchTerm(val);
@@ -1447,6 +1480,36 @@ export function QuotationsContent() {
                       </button>
                     </div>
                   </div>
+                  {orderSearchTerm && orders.length === 0 && orderMatchingCustomers.length > 0 && (
+                    <div className="mt-2 p-2.5 rounded-3 border bg-light d-flex flex-column gap-2" style={{ fontSize: "12.5px" }}>
+                      <div className="d-flex align-items-center gap-2">
+                        <i className="bi bi-info-circle-fill text-primary" />
+                        <span>
+                          Tìm thấy <strong>{orderMatchingCustomers.length}</strong> khách hàng khớp với từ khoá <strong>&ldquo;{orderSearchTerm}&rdquo;</strong> (chưa có đơn hàng):
+                        </span>
+                      </div>
+                      <div className="d-flex flex-wrap gap-2">
+                        {orderMatchingCustomers.map((c: any) => (
+                          <div key={c.id} className="badge bg-white text-dark border p-2 d-flex align-items-center gap-2 shadow-sm" style={{ fontSize: "12px", fontWeight: 500 }}>
+                            <span className="badge bg-secondary">{c.code || "N/A"}</span>
+                            <span className="fw-bold">{c.name}</span>
+                            <span className="badge bg-primary-subtle text-primary">{getCustomerGroupLabel(c.nhom)}</span>
+                            {c.dienThoai && <span className="text-muted small"><i className="bi bi-telephone me-1" />{c.dienThoai}</span>}
+                            <button
+                              className="btn btn-primary btn-sm py-0 px-2 fw-bold ms-1"
+                              style={{ fontSize: "11px", height: "24px" }}
+                              onClick={() => {
+                                setIsDirectOrder(true);
+                                handleSelectCustomer(c);
+                              }}
+                            >
+                              <i className="bi bi-plus-lg me-1" /> Tạo đơn hàng ngay
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               }
               table={
@@ -1755,11 +1818,16 @@ export function QuotationsContent() {
                               </div>
                             )}
                             <div className="flex-grow-1 ms-1">
-                              <div className="fw-bold text-dark d-flex align-items-center gap-2" style={{ fontSize: 13.5 }}>
-                                {c.name}
+                              <div className="fw-bold text-dark d-flex align-items-center gap-2 flex-wrap" style={{ fontSize: 13.5 }}>
+                                <span>{c.name}</span>
+                                {c.code && <span className="badge bg-secondary" style={{ fontSize: 10 }}>{c.code}</span>}
+                                {c.nhom && <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style={{ fontSize: 9.5 }}>{getCustomerGroupLabel(c.nhom)}</span>}
                                 {c.outstandingDebt > 0 && <span className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style={{ fontSize: 9 }}>Có công nợ</span>}
                               </div>
-                              <div className="text-muted mt-1" style={{ fontSize: 11 }}>
+                              <div className="text-muted mt-1 d-flex align-items-center gap-2 flex-wrap" style={{ fontSize: 11 }}>
+                                {c.dienThoai && (
+                                  <span><i className="bi bi-telephone me-1" />{c.dienThoai}</span>
+                                )}
                                 {c.address ? (
                                   <span><i className="bi bi-geo-alt me-1" />{c.address}</span>
                                 ) : (

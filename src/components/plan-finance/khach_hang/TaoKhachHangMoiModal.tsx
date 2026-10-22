@@ -3,6 +3,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/Toast";
+import { buildCustomerGroupOptions, normalizeCustomerGroupCode } from "@/lib/customer-group-utils";
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 type EmployeeOption = { id: string; fullName: string };
@@ -90,11 +91,12 @@ export function TaoKhachHangMoiModal({ open, onClose, onCreated, employees, defa
     if (!form.nguon) { setError("Vui lòng chọn nguồn"); return; }
     setSaving(true); setError("");
     try {
+      const normalizedNhom = normalizeCustomerGroupCode(form.nhom) || form.nhom;
       const res = await fetch("/api/plan-finance/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: form.ten, address: form.diaChi, nguon: form.nguon, nhom: form.nhom,
+          name: form.ten, address: form.diaChi, nguon: form.nguon, nhom: normalizedNhom,
           daiDien: form.daiDien, xungHo: form.xungHo, chucVu: form.chucVu,
           dienThoai: form.dienThoai, email: form.email, ghiChu: form.ghiChu, ngayTao: form.ngayTao,
           nguoiChamSocId: form.nguoiChamSocId || undefined,
@@ -111,8 +113,9 @@ export function TaoKhachHangMoiModal({ open, onClose, onCreated, employees, defa
   };
 
   // Nhóm "cá nhân" hoặc "khách lẻ" thì ẩn trường Tên (dùng theo Đại diện)
-  const personalCodes = ["ca-nhan", "khach-le"];
-  const isPersonal = personalCodes.includes(form.nhom);
+  const normalizedGroup = normalizeCustomerGroupCode(form.nhom);
+  const isPersonal = normalizedGroup === "ca-nhan" || normalizedGroup === "khach-le";
+  const groupSelectOptions = React.useMemo(() => buildCustomerGroupOptions(nhomOptions), [nhomOptions]);
 
   return (
     <AnimatePresence>
@@ -166,10 +169,10 @@ export function TaoKhachHangMoiModal({ open, onClose, onCreated, employees, defa
                 </div>
                 <div>
                   <Label text="Nhóm khách hàng" />
-                  <Select value={form.nhom} onChange={set("nhom")}>
+                  <Select value={normalizedGroup} onChange={set("nhom")}>
                     <option value="">Chọn nhóm...</option>
-                    {nhomOptions.map(o => (
-                      <option key={o.id} value={o.code}>{o.name}</option>
+                    {groupSelectOptions.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </Select>
                 </div>

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getCustomerGroupInfo } from "@/lib/customer-group-utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type CustomerBrief = {
@@ -22,13 +23,15 @@ interface Props {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const nhomColor: Record<string, string> = {
-  "ca-nhan": "#6366f1", "doanh-nghiep": "#10b981",
-  "doi-tac": "#f59e0b", "khach-le": "#06b6d4",
+  "dai-ly": "#003087", "ca-nhan": "#d97706", "du-an": "#7c3aed",
+  "doanh-nghiep": "#059669", "doi-tac": "#ea580c", "khach-le": "#0891b2",
+  "nha-phan-phoi": "#4f46e5",
 };
 
 const NHOM_LABEL: Record<string, string> = {
-  "ca-nhan": "Cá nhân", "doanh-nghiep": "Doanh nghiệp",
-  "doi-tac": "Đối tác", "khach-le": "Khách lẻ",
+  "dai-ly": "Đại lý", "ca-nhan": "Cá nhân", "du-an": "Dự án",
+  "doanh-nghiep": "Doanh nghiệp", "doi-tac": "Đối tác", "khach-le": "Khách lẻ",
+  "nha-phan-phoi": "Nhà phân phối",
 };
 
 function Avatar({ name, nhom }: { name: string; nhom: string | null }) {
@@ -62,11 +65,16 @@ function CustomerCard({ c, onSelect }: { c: CustomerBrief; onSelect?: () => void
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: 0, fontSize: 13, fontWeight: "normal", color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</p>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-          {c.nhom && (
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10, background: `color-mix(in srgb, ${nhomColor[c.nhom] ?? "#94a3b8"} 12%, transparent)`, color: nhomColor[c.nhom] ?? "#94a3b8" }}>
-              {NHOM_LABEL[c.nhom] ?? c.nhom}
-            </span>
-          )}
+          {c.nhom && (() => {
+            const groupInfo = getCustomerGroupInfo(c.nhom);
+            const label = groupInfo?.name ?? NHOM_LABEL[c.nhom] ?? c.nhom;
+            const color = groupInfo?.color ?? nhomColor[c.nhom] ?? "#94a3b8";
+            return (
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10, background: `color-mix(in srgb, ${color} 12%, transparent)`, color }}>
+                {label}
+              </span>
+            );
+          })()}
           {c.nguoiChamSoc && (
             <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{c.nguoiChamSoc.fullName}</span>
           )}

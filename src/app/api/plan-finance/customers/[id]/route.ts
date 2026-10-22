@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { normalizeCustomerGroupCode } from "@/lib/customer-group-utils";
 
 
 // GET /api/plan-finance/customers/[id]
@@ -131,7 +132,17 @@ export async function DELETE(
     const { id } = await context.params;
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-    await prisma.customer.delete({ where: { id } });
+    await prisma.$transaction([
+      prisma.customerCareHistory.deleteMany({ where: { customerId: id } }),
+      prisma.saleOrder.updateMany({ where: { customerId: id }, data: { customerId: null } }),
+      prisma.quotation.updateMany({ where: { customerId: id }, data: { customerId: null } }),
+      prisma.debt.updateMany({ where: { customerId: id }, data: { customerId: null } }),
+      prisma.paymentNotification.updateMany({ where: { customerId: id }, data: { customerId: null } }),
+      prisma.contract.updateMany({ where: { customerId: id }, data: { customerId: null } }),
+      prisma.dealerSupportTicket.updateMany({ where: { customerId: id }, data: { customerId: null } }),
+      prisma.customer.delete({ where: { id } }),
+    ]);
+
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -175,7 +186,7 @@ export async function PATCH(
         ...(name        !== undefined && { name }),
         ...(address     !== undefined && { address }),
         ...(nguon       !== undefined && { nguon }),
-        ...(nhom        !== undefined && { nhom }),
+        ...(nhom        !== undefined && { nhom: normalizeCustomerGroupCode(nhom) || null }),
         ...(loai        !== undefined && { loai }),
         ...(daiDien     !== undefined && { daiDien }),
         ...(xungHo      !== undefined && { xungHo }),

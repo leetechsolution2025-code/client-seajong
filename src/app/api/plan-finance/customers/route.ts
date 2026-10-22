@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCustomerGroupFilterQuery, normalizeCustomerGroupCode } from "@/lib/customer-group-utils";
+import { getSearchVariants } from "@/lib/search-utils";
 
 const PAGE_SIZE = 10;
 
@@ -45,22 +47,23 @@ export async function GET(req: NextRequest) {
     // Admins or Managers see all. Normal users only see their own assigned customers.
     const isManager = user?.role === "ADMIN" || user?.role === "MANAGER" || user?.role === "SUPERADMIN";
 
+    const searchVariants = getSearchVariants(search);
+    const searchOrConditions: any[] = [];
+    if (searchVariants.length > 0) {
+      for (const v of searchVariants) {
+        searchOrConditions.push({ name: { contains: v } });
+        searchOrConditions.push({ code: { contains: v } });
+        searchOrConditions.push({ daiDien: { contains: v } });
+        searchOrConditions.push({ dienThoai: { contains: v } });
+        searchOrConditions.push({ address: { contains: v } });
+      }
+    }
+
     const where: any = {
-      ...(search && {
-        OR: [
-          { name: { contains: search } },
-          { daiDien: { contains: search } },
-          { dienThoai: { contains: search } },
-          { code: { contains: search } },
-        ]
-      }),
+      ...(searchOrConditions.length > 0 && { OR: searchOrConditions }),
       ...(nguon  && { nguon }),
       ...(nhom   && { 
-        nhom: (nhom === "dai-ly" || nhom === "dai_ly")
-          ? { in: ["dai-ly", "dai_ly"] }
-          : (nhom === "ca-nhan" || nhom === "ca_nhan")
-          ? { in: ["ca-nhan", "ca_nhan"] }
-          : nhom
+        nhom: { in: getCustomerGroupFilterQuery(nhom) }
       }),
       ...(loai   && { loai }),
     };
@@ -253,8 +256,10 @@ export async function POST(req: NextRequest) {
       } catch (e) {}
     }
 
+    const normalizedNhom = normalizeCustomerGroupCode(nhom) || "dai-ly";
+
     const customerData = {
-      code: finalCode, name: resolvedName, address, nguon, nhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu,
+      code: finalCode, name: resolvedName, address, nguon, nhom: normalizedNhom, loai, daiDien, xungHo, chucVu, dienThoai, email, ghiChu,
       hanMucCongNo: parseFloat(hanMucCongNo) || 0,
       formValues: typeof formValues === "object" ? JSON.stringify(formValues) : formValues,
       doanhSoCamKet,
@@ -291,6 +296,39 @@ export async function POST(req: NextRequest) {
     console.error("[POST /customers]", msg);
     require('fs').writeFileSync('/tmp/customer_err.txt', msg);
     return NextResponse.json({ error: `Lỗi: ${msg}` }, { status: 500 });
+  }
+}
+
+// DELETE /api/plan-finance/customers (Xoá hàng loạt hoặc xoá theo danh sách ids)
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await req.json().catch(() => ({}));
+    const ids: string[] = Array.isArray(body.ids) ? body.ids : (body.id ? [body.id] : []);
+
+    if (!ids.length) {
+      return NextResponse.json({ error: "Danh sách ID không hợp lệ" }, { status: 400 });
+    }
+
+    // Gỡ liên kết an toàn để không vi phạm ràng buộc khoá ngoại trước khi xoá Customer
+    await prisma.$transaction([
+      prisma.customerCareHistory.deleteMany({ where: { customerId: { in: ids } } }),
+      prisma.saleOrder.updateMany({ where: { customerId: { in: ids } }, data: { customerId: null } }),
+      prisma.quotation.updateMany({ where: { customerId: { in: ids } }, data: { customerId: null } }),
+      prisma.debt.updateMany({ where: { customerId: { in: ids } }, data: { customerId: null } }),
+      prisma.paymentNotification.updateMany({ where: { customerId: { in: ids } }, data: { customerId: null } }),
+      prisma.contract.updateMany({ where: { customerId: { in: ids } }, data: { customerId: null } }),
+      prisma.dealerSupportTicket.updateMany({ where: { customerId: { in: ids } }, data: { customerId: null } }),
+      prisma.customer.deleteMany({ where: { id: { in: ids } } }),
+    ]);
+
+    return NextResponse.json({ success: true, count: ids.length });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[DELETE /api/plan-finance/customers]", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 

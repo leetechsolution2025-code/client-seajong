@@ -46,6 +46,7 @@ info "Thư mục cài đặt trên máy chủ: ${SSH_DIR}"
 info "Bắt đầu biên dịch (Build) tại máy tính cá nhân..."
 BUILD_START=$(date +%s)
 echo "{\"version\": \"${BUILD_START}\"}" > public/version.json
+rm -rf .next/cache
 npm run build
 BUILD_END=$(date +%s)
 log "Build xong trong $((BUILD_END - BUILD_START)) giây."

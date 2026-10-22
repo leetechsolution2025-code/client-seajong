@@ -13,6 +13,11 @@ import { useToast } from "@/components/ui/Toast";
 import { Table } from "@/components/ui/Table";
 import { Timeline } from "@/components/ui/Timeline";
 import { CareHistoryTimeline, type CareHistoryItem } from "@/components/ui/CareHistoryTimeline";
+import { 
+  buildCustomerGroupOptions, 
+  normalizeCustomerGroupCode, 
+  getCustomerGroupLabel 
+} from "@/lib/customer-group-utils";
 import { genDocCode } from "@/lib/genDocCode";
 import { ThemKetQuaChamSocModal } from "@/components/plan-finance/khach_hang/ThemKetQuaChamSocModal";
 import { ChiTietKhachHangOffcanvas } from "@/components/plan-finance/khach_hang/ChiTietKhachHangOffcanvas";
@@ -90,7 +95,7 @@ function EditCustomerModal({ open, customer, onClose, onSaved, employees, nguonO
       setForm({
         nguoiChamSocId: customer.nguoiChamSocId ?? "",
         nguon: customer.nguon ?? "",
-        nhom: customer.nhom ?? "",
+        nhom: normalizeCustomerGroupCode(customer.nhom) ?? "",
         ten: customer.name ?? "",
         diaChi: customer.address ?? "",
         daiDien: customer.daiDien ?? "",
@@ -114,11 +119,12 @@ function EditCustomerModal({ open, customer, onClose, onSaved, employees, nguonO
     try {
       const isPersonal = form.nhom === "ca-nhan" || form.nhom === "khach-le";
       const resolvedName = (!isPersonal && form.ten.trim()) ? form.ten.trim() : (form.daiDien.trim() || customer!.name);
+      const normalizedNhom = normalizeCustomerGroupCode(form.nhom) || form.nhom;
       const res = await fetch(`/api/plan-finance/customers/${customer!.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: resolvedName, address: form.diaChi, nguon: form.nguon, nhom: form.nhom,
+          name: resolvedName, address: form.diaChi, nguon: form.nguon, nhom: normalizedNhom,
           daiDien: form.daiDien, xungHo: form.xungHo, chucVu: form.chucVu,
           dienThoai: form.dienThoai, email: form.email, ghiChu: form.ghiChu,
           nguoiChamSocId: form.nguoiChamSocId || null,
@@ -137,8 +143,9 @@ function EditCustomerModal({ open, customer, onClose, onSaved, employees, nguonO
     finally { setSaving(false); }
   };
 
-  const personalCodes = nhomOptions.filter(o => ["ca-nhan", "khach-le"].includes(o.code)).map(o => o.code);
-  const isPersonal = personalCodes.includes(form.nhom) || form.nhom === "ca-nhan" || form.nhom === "khach-le";
+  const normalizedGroup = normalizeCustomerGroupCode(form.nhom);
+  const isPersonal = normalizedGroup === "ca-nhan" || normalizedGroup === "khach-le";
+  const groupSelectOptions = React.useMemo(() => buildCustomerGroupOptions(nhomOptions), [nhomOptions]);
 
   return (
     <AnimatePresence>
@@ -181,10 +188,10 @@ function EditCustomerModal({ open, customer, onClose, onSaved, employees, nguonO
                 </div>
                 <div>
                   <Label text="Nhóm khách hàng" />
-                  <Select value={form.nhom} onChange={set("nhom")}>
+                  <Select value={normalizedGroup} onChange={set("nhom")}>
                     <option value="">Chọn nhóm...</option>
-                    {nhomOptions.map(o => (
-                      <option key={o.id} value={o.code}>{o.name}</option>
+                    {groupSelectOptions.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </Select>
                 </div>
@@ -904,7 +911,7 @@ export default function CustomersPage() {
                       <>
                         <p style={{ margin: 0, fontWeight: 600, fontSize: 13, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }}>{c.name}</p>
                         <p style={{ margin: 0, fontSize: 11, color: "var(--muted-foreground)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }}>
-                        {[c.nhom ? (nhomOptions.find(o => o.code === c.nhom)?.name ?? c.nhom) : "",
+                        {[c.nhom ? getCustomerGroupLabel(c.nhom, nhomOptions) : "",
                           c.nguon ? (nguonOptions.find(o => o.code === c.nguon)?.name ?? c.nguon) : ""].filter(Boolean).join(" · ") || "—"}
                         </p>
                       </>

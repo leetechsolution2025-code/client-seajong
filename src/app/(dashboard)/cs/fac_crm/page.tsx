@@ -13,6 +13,7 @@ import { ChiTietKhachHangOffcanvas } from "@/components/plan-finance/khach_hang/
 import { Pagination } from "@/components/ui/Pagination";
 
 import { useToast } from "@/components/ui/Toast";
+import { normalizeCustomerGroupCode } from "@/lib/customer-group-utils";
 
 const STEPS = [
   { num: 1, id: "customer", title: "Khách hàng", desc: "Hồ sơ & Thông tin", icon: "bi-people" },
@@ -57,7 +58,7 @@ function AddCustomerModal({ isOpen, onClose, onSaved, employees, currentUserEmpl
           createdAt: customerToEdit.createdAt ? new Date(customerToEdit.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
           nguoiChamSocId: customerToEdit.nguoiChamSocId || "",
           nguon: customerToEdit.nguon || "tu-nhien",
-          nhom: customerToEdit.nhom || "doanh-nghiep",
+          nhom: normalizeCustomerGroupCode(customerToEdit.nhom) || "dai-ly",
           loai: customerToEdit.loai || "vang",
           name: customerToEdit.name || "",
           address: customerToEdit.address || "",
@@ -107,7 +108,7 @@ function AddCustomerModal({ isOpen, onClose, onSaved, employees, currentUserEmpl
     try {
       const payload = {
         name: form.name || "Khách hàng mới",
-        nhom: form.nhom,
+        nhom: normalizeCustomerGroupCode(form.nhom) || form.nhom,
         nguon: form.nguon,
         loai: form.loai,
         dienThoai: form.dienThoai,
@@ -293,9 +294,11 @@ function AddCustomerModal({ isOpen, onClose, onSaved, employees, currentUserEmpl
                     style={inputStyle}
                     required
                   >
-                    <option value="doi-tac">Đại lý / Đối tác</option>
+                    <option value="dai-ly">Đại lý</option>
+                    <option value="doi-tac">Đối tác</option>
                     <option value="doanh-nghiep">Doanh nghiệp</option>
                     <option value="ca-nhan">Cá nhân</option>
+                    <option value="du-an">Dự án</option>
                   </select>
                 </div>
                 <div className="col-12 col-sm-4">
