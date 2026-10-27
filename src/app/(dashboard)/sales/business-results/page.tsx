@@ -68,6 +68,7 @@ export default function BusinessResultsPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [partnersCountThisMonth, setPartnersCountThisMonth] = useState<number>(0);
+  const [hidePlan, setHidePlan] = useState<boolean>(true);
 
   useEffect(() => {
     const ts = Date.now();
@@ -118,7 +119,7 @@ export default function BusinessResultsPage() {
   const apiTrends = data?.monthlyTrends || Array.from({ length: 12 }, (_, i) => ({ month: `Tháng ${i + 1}`, target: 0, actualRevenue: (i + 1) > (new Date().getMonth() + 1) ? null : 0 }));
 
   const targetRevenue = apiSummary.targetRevenue || 0;
-  const totalRevenue = apiSummary.totalRevenue || 0;
+  const totalRevenue = apiSummary.totalSales || apiSummary.totalRevenue || 0;
 
   // Calculate achievement percentage
   const achievementRate = targetRevenue > 0 ? Math.round((totalRevenue / targetRevenue) * 100) : (totalRevenue > 0 ? 100 : 0);
@@ -130,13 +131,19 @@ export default function BusinessResultsPage() {
   const monthlyTrends = apiTrends.map((t: any) => {
     const targetVal = t.target || 0;
     
-    // API returns actualRevenue, but we safely fallback to actual or actualSales if present
-    const actualVal = t.actualRevenue !== undefined ? t.actualRevenue : (t.actual !== undefined ? t.actual : (t.actualSales || null));
+    // Ưu tiên actual (doanh số thực tế đạt được), fallback sang actualSales, cuối cùng là actualRevenue
+    const actualVal = (t.actual !== undefined && t.actual !== null) 
+      ? t.actual 
+      : ((t.actualSales !== undefined && t.actualSales !== null) 
+          ? t.actualSales 
+          : (t.actualRevenue !== undefined ? t.actualRevenue : null));
     
     return {
       month: t.month,
       target: targetVal,
       actual: actualVal,
+      seajongSales: t.seajongSales !== undefined ? t.seajongSales : (actualVal || 0),
+      otherSales: t.otherSales !== undefined ? t.otherSales : 0,
       achievement: (actualVal !== null && targetVal > 0) ? Math.round((actualVal / targetVal) * 100) : (actualVal > 0 && targetVal === 0 ? 100 : 0)
     };
   });
@@ -155,6 +162,18 @@ export default function BusinessResultsPage() {
 
   const currentMonthLabel = `Doanh thu tháng | ${mmYYYY}`;
   const currentMonthDealersLabel = `Phát triển đại lý | ${mmYYYY}`;
+
+  // 6 tháng gần nhất cho biểu đồ cột
+  const recent6Months = monthlyTrends.slice(Math.max(0, currentMonthIdx - 5), currentMonthIdx + 1);
+
+  // Danh sách các tháng trong bảng: chỉ hiển thị đến tháng hiện tại, sắp xếp giảm dần (tháng 1 xuống dưới cùng)
+  const tableMonthlyTrends = monthlyTrends
+    .slice(0, currentMonthIdx + 1)
+    .map((t: any, idx: number) => ({
+      ...t,
+      isCurrentMonth: idx === currentMonthIdx
+    }))
+    .reverse();
 
   // Category Distribution from DB API
   const apiCategoryBreakdown = data?.categoryBreakdown || [];
@@ -176,26 +195,35 @@ export default function BusinessResultsPage() {
     series: [0, 0, 0]
   };
 
-  // Apex Charts Configurations
+  // Apex Charts Configurations - Bar chart 6 tháng gần nhất
   const revenueTrendChartOptions: ApexCharts.ApexOptions = {
     chart: {
-      type: "area",
+      type: "bar",
       height: 320,
+      stacked: !hidePlan,
       toolbar: { show: false },
       zoom: { enabled: false },
       fontFamily: "inherit",
       background: "transparent",
     },
-    colors: ["#003087", "#10b981"], // Seajong Blue for target, Emerald for actual
-    fill: {
-      type: "gradient",
-      gradient: { shadeIntensity: 1, opacityFrom: 0.25, opacityTo: 0.02, stops: [0, 100] },
+    plotOptions: {
+      bar: {
+        horizontal: false,
+        columnWidth: hidePlan ? "45%" : "48%",
+        borderRadius: 5,
+        borderRadiusApplication: "end",
+      },
     },
+    colors: hidePlan ? ["#10b981", "#f59e0b"] : ["#003087", "#10b981", "#f59e0b"],
     dataLabels: { enabled: false },
-    stroke: { curve: "smooth", width: 2.5 },
+    stroke: {
+      show: true,
+      width: 2,
+      colors: ["transparent"],
+    },
     xaxis: {
-      categories: monthlyTrends.map((t: any) => t.month),
-      labels: { style: { colors: "#64748b", fontSize: "11px" } },
+      categories: recent6Months.map((t: any) => t.month),
+      labels: { style: { colors: "#64748b", fontSize: "11px", fontWeight: 600 } },
       axisBorder: { show: false },
       axisTicks: { show: false },
     },
@@ -219,13 +247,39 @@ export default function BusinessResultsPage() {
     grid: { borderColor: "rgba(100, 116, 139, 0.08)", strokeDashArray: 4 },
     tooltip: {
       theme: "light",
-      y: { formatter: (val: number) => val === null || val === undefined ? "—" : `${val.toLocaleString("vi-VN")} đ` },
+      shared: true,
+      intersect: false,
+      y: {
+        formatter: (val: number) => val === null || val === undefined ? "—" : `${val.toLocaleString("vi-VN")} đ`,
+      },
     },
   };
 
-  const revenueTrendSeries = [
-    { name: "Doanh số mục tiêu", data: monthlyTrends.map((t: any) => t.target) },
-    { name: "Doanh số thực tế", data: monthlyTrends.map((t: any) => t.actual) },
+  const revenueTrendSeries = hidePlan ? [
+    {
+      name: "Doanh thu Seajong",
+      data: recent6Months.map((t: any) => t.seajongSales || 0),
+    },
+    {
+      name: "Hàng khác (OEM)",
+      data: recent6Months.map((t: any) => t.otherSales || 0),
+    },
+  ] : [
+    {
+      name: "Kế hoạch",
+      group: "ke_hoach",
+      data: recent6Months.map((t: any) => t.target || 0),
+    },
+    {
+      name: "Thực tế: Hàng Seajong",
+      group: "thuc_te",
+      data: recent6Months.map((t: any) => t.seajongSales || 0),
+    },
+    {
+      name: "Thực tế: Hàng khác",
+      group: "thuc_te",
+      data: recent6Months.map((t: any) => t.otherSales || 0),
+    },
   ];
 
   const categoryPieOptions: ApexCharts.ApexOptions = {
@@ -255,7 +309,8 @@ export default function BusinessResultsPage() {
               color: "#64748b",
               formatter: () => {
                 if (totalRevenue >= 1000000000) return `${(totalRevenue / 1000000000).toFixed(2)} Tỷ`;
-                return `${(totalRevenue / 1000000).toFixed(0)} Tr`;
+                if (totalRevenue >= 1000000) return `${(totalRevenue / 1000000).toFixed(1)} Tr`;
+                return `${totalRevenue.toLocaleString("vi-VN")} đ`;
               }
             }
           }
@@ -338,17 +393,86 @@ export default function BusinessResultsPage() {
           {/* Revenue Trends */}
           <div className="col-12 col-xl-8">
             <div className="bg-card border rounded-4 p-3 p-md-4 d-flex flex-column h-100 shadow-sm">
-              <div className="mb-3">
-                <span className="fw-extrabold text-dark d-block" style={{ fontSize: 14 }}>
-                  <i className="bi bi-graph-up text-primary me-2" />
-                  Biểu đồ so sánh doanh số thực tế với mục tiêu tháng
-                </span>
-                <span className="text-muted" style={{ fontSize: 11.5 }}>
-                  Bản trực quan hóa hiệu suất theo từng tháng, đối sánh KPI doanh thu được giao
-                </span>
+              <div className="d-flex align-items-start justify-content-between mb-3 flex-wrap gap-2">
+                <div>
+                  <span className="fw-extrabold text-dark d-block" style={{ fontSize: 14 }}>
+                    <i className="bi bi-bar-chart-fill text-primary me-2" />
+                    Biểu đồ so sánh doanh số thực tế với mục tiêu 6 tháng gần nhất
+                  </span>
+                  <span className="text-muted" style={{ fontSize: 11.5 }}>
+                    {hidePlan
+                      ? "Bản trực quan hóa 6 tháng gần nhất: Tách riêng thanh doanh thu Seajong và Hàng khác"
+                      : "Bản trực quan hóa 6 tháng gần nhất: Kế hoạch mục tiêu và Thực tế (nhập chung hàng Seajong)"}
+                  </span>
+                </div>
+                <div className="d-flex align-items-center">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setHidePlan((prev) => !prev)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setHidePlan((prev) => !prev);
+                      }
+                    }}
+                    className="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill user-select-none border shadow-2xs"
+                    style={{
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background: hidePlan
+                        ? "color-mix(in srgb, var(--primary) 10%, var(--card))"
+                        : "var(--card)",
+                      borderColor: hidePlan
+                        ? "color-mix(in srgb, var(--primary) 35%, transparent)"
+                        : "var(--border)",
+                      color: hidePlan ? "var(--primary)" : "var(--muted-foreground)",
+                      transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                    }}
+                    title={hidePlan ? "Bấm để hiển thị lại cột kế hoạch (nhập thanh Seajong)" : "Bấm để ẩn kế hoạch (tách riêng thanh Seajong)"}
+                  >
+                    <i
+                      className={`bi ${hidePlan ? "bi-eye-slash-fill text-primary" : "bi-eye text-muted"}`}
+                      style={{ fontSize: 13 }}
+                    />
+                    <span>Ẩn đồ thị kế hoạch</span>
+                    <div
+                      style={{
+                        width: 30,
+                        height: 16,
+                        borderRadius: 99,
+                        background: hidePlan ? "var(--primary, #003087)" : "#cbd5e1",
+                        position: "relative",
+                        transition: "background 0.2s ease",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: "50%",
+                          background: "#ffffff",
+                          position: "absolute",
+                          top: 2,
+                          left: hidePlan ? 16 : 2,
+                          transition: "left 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               <div style={{ flex: 1, minHeight: 320 }}>
-                <ReactApexChart options={revenueTrendChartOptions} series={revenueTrendSeries} type="area" height={320} />
+                <ReactApexChart
+                  key={hidePlan ? "unstacked-seajong-split" : "stacked-plan-visible"}
+                  options={revenueTrendChartOptions}
+                  series={revenueTrendSeries}
+                  type="bar"
+                  height={320}
+                />
               </div>
             </div>
           </div>
@@ -416,12 +540,18 @@ export default function BusinessResultsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {monthlyTrends.map((t: any, index: number) => {
+                    {tableMonthlyTrends.map((t: any, index: number) => {
                       const achievementColor = t.achievement >= 100 ? "text-success" : t.achievement >= 75 ? "text-primary" : t.achievement > 0 ? "text-warning" : "text-muted";
-                      const isFutureMonth = t.actual === null;
                       return (
-                        <tr key={index} style={{ borderBottom: "1px solid var(--border)", opacity: isFutureMonth ? 0.6 : 1 }}>
-                          <td className="py-2 fw-semibold">{t.month}</td>
+                        <tr key={index} style={{ borderBottom: "1px solid var(--border)", background: t.isCurrentMonth ? "rgba(0, 48, 135, 0.03)" : "transparent" }}>
+                          <td className="py-2 fw-semibold">
+                            <span>{t.month}</span>
+                            {t.isCurrentMonth && (
+                              <span className="badge bg-primary-subtle text-primary rounded-pill ms-2" style={{ fontSize: 9.5, fontWeight: 600 }}>
+                                Tháng này
+                              </span>
+                            )}
+                          </td>
                           <td className="py-2 text-end text-muted">{t.target.toLocaleString("vi-VN")}</td>
                           <td className="py-2 text-end fw-bold">{t.actual === null ? "—" : t.actual.toLocaleString("vi-VN")}</td>
                           <td className="py-2 text-center">
@@ -436,7 +566,7 @@ export default function BusinessResultsPage() {
                               </div>
                             )}
                           </td>
-                          <td className="py-2 text-end text-muted">{isFutureMonth ? "—" : `${profitMargin}%`}</td>
+                          <td className="py-2 text-end text-muted">{`${profitMargin}%`}</td>
                         </tr>
                       );
                     })}

@@ -215,17 +215,17 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
       setInfo(prev => ({
         ...prev,
-        soPhieu: editOrder.code || editOrder.id,
+        soPhieu: editOrder.code || editOrder.id || prev.soPhieu || "DBH-Tự động tạo",
         ngayLap: editOrder.ngayDat ? new Date(editOrder.ngayDat).toISOString().split("T")[0] : prev.ngayLap,
         ngayGiaoHang: editOrder.ngayGiao ? new Date(editOrder.ngayGiao).toISOString().split("T")[0] : prev.ngayGiaoHang,
-        ghiChu: rawGhiChu,
-        tenNguoiNhan,
-        sdtNguoiNhan,
-        diaChiGiaoHang,
-        chiPhiKhac,
+        ghiChu: rawGhiChu || prev.ghiChu || "",
+        tenNguoiNhan: tenNguoiNhan || prev.tenNguoiNhan || "",
+        sdtNguoiNhan: sdtNguoiNhan || prev.sdtNguoiNhan || "",
+        diaChiGiaoHang: diaChiGiaoHang || prev.diaChiGiaoHang || "",
+        chiPhiKhac: editOrder.chiPhiKhac || chiPhiKhac || 0,
         chietKhauTong: editOrder.discount || 0,
         thue: editOrder.vat || 0,
-        daThanhToan: parsedDaThanhToan
+        daThanhToan: parsedDaThanhToan || 0
       }));
       if (editOrder.customer) {
         setCustInfo({
@@ -1385,7 +1385,7 @@ export function TaoDonHangModal({ open, onClose, customer, onSaved, type = "agen
 
             <div>
               <FLabel text="Số đơn hàng (Tham chiếu)" required />
-              <input value={info.soPhieu} onChange={setInfoField("soPhieu")} style={{ ...inputSt, fontFamily: "monospace" }} />
+              <input value={info.soPhieu || ""} onChange={setInfoField("soPhieu")} style={{ ...inputSt, fontFamily: "monospace" }} />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>

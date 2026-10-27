@@ -388,7 +388,7 @@ export async function POST(req: NextRequest) {
               soLuong: parseFloat(String(it.soLuong ?? 1)),
               donGia: parseFloat(String(it.donGia ?? 0)),
               thanhTien: parseFloat(String(it.thanhTien ?? 0)),
-              dinhMucId: ghiChuObj.dinhMucId || null,
+              dinhMucId: (ghiChuObj.dinhMucId && String(ghiChuObj.dinhMucId).trim()) ? ghiChuObj.dinhMucId : null,
               ghiChu: it.ghiChu ?? null,
             });
           }

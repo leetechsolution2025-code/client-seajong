@@ -469,14 +469,15 @@ export async function GET(req: Request) {
       const currentMonthStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}`;
 
       const orders = await prisma.saleOrder.findMany({
-        select: { daThanhToan: true, createdAt: true },
+        where: { trangThai: { notIn: ["draft", "cancelled"] } },
+        select: { tongTien: true, daThanhToan: true, createdAt: true, ngayDat: true },
       });
-      const totalRevenue = orders.reduce((sum, o) => sum + (o.daThanhToan || 0), 0);
+      const totalRevenue = orders.reduce((sum, o) => sum + (o.tongTien || 0), 0);
       const currentMonthOrders = orders.filter((o) => {
-        const d = new Date(o.createdAt);
+        const d = o.ngayDat ? new Date(o.ngayDat) : new Date(o.createdAt);
         return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
       });
-      const currentMonthRevenue = currentMonthOrders.reduce((sum, o) => sum + (o.daThanhToan || 0), 0);
+      const currentMonthRevenue = currentMonthOrders.reduce((sum, o) => sum + (o.tongTien || 0), 0);
 
       // Yearly Plan Target
       const yearlyPlan = await prisma.salesYearlyPlan.findUnique({ where: { year: currentYear } });

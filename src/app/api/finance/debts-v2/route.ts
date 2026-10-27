@@ -41,7 +41,12 @@ export async function GET(request: Request) {
              s."contactName" as "supplierContactName",
              s."taxCode" as "supplierTaxCode",
              s.email as "supplierEmail",
-             cr.address as "carrierAddress"
+             cr.address as "carrierAddress",
+             cr.name as "carrierName",
+             cr.phone as "carrierPhone",
+             cr."contactName" as "carrierContactName",
+             cr.code as "carrierCode",
+             cr.email as "carrierEmail"
       FROM "Debt" d
       LEFT JOIN "Customer" c ON d."customerId" = c.id
       LEFT JOIN "Supplier" s ON d."supplierId" = s.id
@@ -130,6 +135,7 @@ export async function POST(request: Request) {
 
     let customerId = body.customerId || null;
     let supplierId = body.supplierId || null;
+    let carrierId = body.carrierId || null;
 
     if (!customerId && customerCode) {
       const cust = await prisma.customer.findUnique({ where: { code: customerCode } });
@@ -141,14 +147,32 @@ export async function POST(request: Request) {
       if (supp) supplierId = supp.id;
     }
 
-    if (!customerId && !supplierId && partnerName) {
+    if (!carrierId && body.carrierCode) {
+      const carr = await prisma.carrier.findUnique({ where: { code: body.carrierCode } });
+      if (carr) carrierId = carr.id;
+    }
+
+    if (!customerId && !supplierId && !carrierId && partnerName) {
        const baseName = partnerName.split(/[-–]/)[0].trim();
        if (type === "phai-thu" || type === "RECEIVABLE") {
           const cust = await prisma.customer.findFirst({ where: { name: { startsWith: baseName } }});
           if (cust) customerId = cust.id;
        } else if (type === "phai-tra" || type === "PAYABLE") {
-          const supp = await prisma.supplier.findFirst({ where: { name: { startsWith: baseName } }});
-          if (supp) supplierId = supp.id;
+          // Kiểm tra nhà vận chuyển trước
+          const carr = await prisma.carrier.findFirst({
+            where: {
+              OR: [
+                { name: { contains: baseName } },
+                { name: baseName }
+              ]
+            }
+          });
+          if (carr) {
+            carrierId = carr.id;
+          } else {
+            const supp = await prisma.supplier.findFirst({ where: { name: { startsWith: baseName } }});
+            if (supp) supplierId = supp.id;
+          }
        }
     }
 
@@ -158,6 +182,7 @@ export async function POST(request: Request) {
         partnerName,
         customerId,
         supplierId,
+        carrierId,
         amount: Number(amount) || 0,
         paidAmount: Number(paidAmount) || 0,
         dueDate: dueDate ? new Date(dueDate) : null,
@@ -187,13 +212,14 @@ export async function POST(request: Request) {
           });
         } else {
           const isLoan = typeUpper === "LOAN" || typeUpper === "VAY";
+          const isCarrier = Boolean(carrierId);
           await createAutoJournal({
-            event: isLoan ? "CASH_PAYMENT_OTHER" : "VENDOR_PAYMENT", 
+            event: isLoan ? "CASH_PAYMENT_OTHER" : (isCarrier ? "CARRIER_PAYMENT" : "VENDOR_PAYMENT"), 
             overrideDebitCode: isLoan ? "341" : "331",
             overrideCreditCode: methodCode,
             amount: Number(paidAmount),
             referenceCode: referenceId || debt.id,
-            description: isLoan ? `Trả nợ vay - ${partnerName}` : `Thanh toán NCC - ${partnerName}`
+            description: isLoan ? `Trả nợ vay - ${partnerName}` : (isCarrier ? `Thanh toán cước vận chuyển - ${partnerName}` : `Thanh toán NCC - ${partnerName}`)
           });
         }
       } catch (journalErr) {
@@ -223,14 +249,27 @@ export async function PUT(request: Request) {
 
     let customerId = body.customerId || undefined;
     let supplierId = body.supplierId || undefined;
-    if (partnerName && customerId === undefined && supplierId === undefined) {
+    let carrierId = body.carrierId || undefined;
+    if (partnerName && customerId === undefined && supplierId === undefined && carrierId === undefined) {
        const baseName = partnerName.split(/[-–]/)[0].trim();
        if (type === "phai-thu" || type === "RECEIVABLE") {
           const cust = await prisma.customer.findFirst({ where: { name: { startsWith: baseName } }});
           if (cust) customerId = cust.id;
        } else if (type === "phai-tra" || type === "PAYABLE") {
-          const supp = await prisma.supplier.findFirst({ where: { name: { startsWith: baseName } }});
-          if (supp) supplierId = supp.id;
+          const carr = await prisma.carrier.findFirst({
+            where: {
+              OR: [
+                { name: { contains: baseName } },
+                { name: baseName }
+              ]
+            }
+          });
+          if (carr) {
+            carrierId = carr.id;
+          } else {
+            const supp = await prisma.supplier.findFirst({ where: { name: { startsWith: baseName } }});
+            if (supp) supplierId = supp.id;
+          }
        }
     }
 
@@ -241,6 +280,7 @@ export async function PUT(request: Request) {
         partnerName,
         ...(customerId !== undefined && { customerId }),
         ...(supplierId !== undefined && { supplierId }),
+        ...(carrierId !== undefined && { carrierId }),
         amount: Number(amount) || 0,
         paidAmount: Number(paidAmount) || 0,
         dueDate: dueDate ? new Date(dueDate) : null,

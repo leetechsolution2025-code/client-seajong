@@ -20,6 +20,7 @@ import { CreateDefectOffcanvas } from "../../production/defects/components/Creat
 import { DefectSummaryOffcanvas } from "../../production/defects/components/DefectSummaryOffcanvas";
 import { TableFooter } from "@/components/ui/TableFooter";
 import { getCustomerGroupLabel } from "@/lib/customer-group-utils";
+import { OrderCameraScannerModal } from "@/components/sales/OrderCameraScannerModal";
 
 interface Quotation {
   id: string;
@@ -202,6 +203,20 @@ export function QuotationsContent() {
   const [quotationEditData, setQuotationEditData] = useState<any>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerRow | null>(null);
   const [selectedQ, setSelectedQ] = useState<any>(null);
+  const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
+  const [orderPrefilledData, setOrderPrefilledData] = useState<any>(null);
+
+  const handleOrderScanned = (scannedOrder: { customer: any; items: any[]; ghiChu: string }) => {
+    setSelectedCustomer(scannedOrder.customer || null);
+    setOrderPrefilledData({
+      code: "DBH-Tự động tạo",
+      customer: scannedOrder.customer,
+      items: scannedOrder.items,
+      ghiChu: scannedOrder.ghiChu,
+    });
+    setIsDirectOrder(true);
+    setIsDonHangModalOpen(true);
+  };
 
   // Customer selection modal states
   const [showCustomerSelectModal, setShowCustomerSelectModal] = useState(false);
@@ -1298,6 +1313,25 @@ export function QuotationsContent() {
                         </button>
                       )}
                       <button
+                        type="button"
+                        className="btn d-flex align-items-center justify-content-center gap-2 shadow-sm px-3"
+                        style={{
+                          height: 34,
+                          fontSize: "12.5px",
+                          borderRadius: 8,
+                          fontWeight: 700,
+                          whiteSpace: "nowrap",
+                          background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+                          borderColor: "#86efac",
+                          color: "#15803d"
+                        }}
+                        title="Quét đơn hàng bằng Camera hoặc ảnh Zalo"
+                        onClick={() => setIsCameraScannerOpen(true)}
+                      >
+                        <i className="bi bi-camera-fill text-success" style={{ fontSize: "14px" }} />
+                        <span>Quét đơn</span>
+                      </button>
+                      <button
                         className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
                         style={{
                           height: 34,
@@ -1312,6 +1346,7 @@ export function QuotationsContent() {
                           setIsDirectOrder(false);
                           setSelectedCustomer(null);
                           setQuotationEditData(null);
+                          setOrderPrefilledData(null);
                           setShowCustomerSelectModal(true);
                         }}
                       >
@@ -1458,6 +1493,25 @@ export function QuotationsContent() {
                         </button>
                       )}
                       <button
+                        type="button"
+                        className="btn d-flex align-items-center justify-content-center gap-2 shadow-sm px-3"
+                        style={{
+                          height: 34,
+                          fontSize: "12.5px",
+                          borderRadius: 8,
+                          fontWeight: 700,
+                          whiteSpace: "nowrap",
+                          background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+                          borderColor: "#86efac",
+                          color: "#15803d"
+                        }}
+                        title="Quét đơn hàng bằng Camera hoặc ảnh Zalo"
+                        onClick={() => setIsCameraScannerOpen(true)}
+                      >
+                        <i className="bi bi-camera-fill text-success" style={{ fontSize: "14px" }} />
+                        <span>Quét đơn</span>
+                      </button>
+                      <button
                         className="btn text-white px-3 d-flex align-items-center justify-content-center gap-2"
                         style={{
                           height: 34,
@@ -1472,6 +1526,7 @@ export function QuotationsContent() {
                           setIsDirectOrder(true);
                           setSelectedCustomer(null);
                           setQuotationEditData(null);
+                          setOrderPrefilledData(null);
                           setShowCustomerSelectModal(true);
                         }}
                       >
@@ -1876,16 +1931,26 @@ export function QuotationsContent() {
           onClose={() => {
             setIsDonHangModalOpen(false);
             setSelectedCustomer(null);
+            setOrderPrefilledData(null);
           }}
           customer={selectedCustomer}
           type="retail"
+          editOrder={orderPrefilledData}
           onSaved={() => {
             setIsDonHangModalOpen(false);
             setSelectedCustomer(null);
+            setOrderPrefilledData(null);
             fetchOrders();
           }}
         />
       )}
+
+      {/* Modal Quét đơn hàng bằng Camera / Ảnh */}
+      <OrderCameraScannerModal
+        open={isCameraScannerOpen}
+        onClose={() => setIsCameraScannerOpen(false)}
+        onOrderScanned={handleOrderScanned}
+      />
 
       {/* Side Offcanvas Detail View */}
       <ChiTietBaoGia

@@ -250,7 +250,7 @@ export async function PATCH(
             soLuong: parseFloat(String(item.soLuong ?? 1)),
             donGia: parseFloat(String(item.donGia ?? 0)),
             thanhTien: parseFloat(String(item.thanhTien ?? 0)),
-            dinhMucId: ghiChuObj.dinhMucId || null,
+            dinhMucId: (ghiChuObj.dinhMucId && String(ghiChuObj.dinhMucId).trim()) ? ghiChuObj.dinhMucId : null,
             ghiChu: item.ghiChu ?? null,
           });
         }

@@ -53,8 +53,28 @@ export async function GET(req: NextRequest) {
 
     const totalOrdersCount = orders.length;
     const totalSales = orders.reduce((sum, o) => sum + (o.tongTien || 0), 0);
-    const totalRevenue = orders.reduce((sum, o) => sum + (o.daThanhToan || 0), 0);
-    const totalDebt = Math.max(0, totalSales - totalRevenue);
+    const paidFromOrders = orders.reduce((sum, o) => sum + (o.daThanhToan || 0), 0);
+
+    // Tính thêm tiền thực thu từ phiếu thu công nợ khách hàng trong năm
+    let paidFromDebts = 0;
+    try {
+      const debtReceipts = await prisma.debt.findMany({
+        where: {
+          type: { in: ["phai-thu", "RECEIVABLE"] },
+          paidAmount: { gt: 0 }
+        },
+        select: { paidAmount: true, createdAt: true, referenceId: true }
+      });
+      const validYearDebtReceipts = debtReceipts.filter(d => {
+        const dDate = new Date(d.createdAt);
+        return dDate.getFullYear() === currentYear && (d.referenceId?.startsWith("PT-") || d.referenceId?.startsWith("PAY-"));
+      });
+      paidFromDebts = validYearDebtReceipts.reduce((sum, d) => sum + (d.paidAmount || 0), 0);
+    } catch (e) {}
+
+    const totalCollected = Math.max(paidFromOrders, paidFromDebts);
+    const totalRevenue = totalSales; // Doanh thu ghi nhận theo đơn hàng để đối sánh KPI
+    const totalDebt = Math.max(0, totalSales - totalCollected);
 
     // 2. Fetch Customers summary (from CRM MarketingLead)
     const leadsForCount = await (prisma as any).marketingLead.findMany({
@@ -106,22 +126,73 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 4. Group actual orders by month for the current year
+    // 4. Lấy thông tin hàng hoá để phân loại Brand (Seajong vs OEM/Khác) & Danh mục
+    const allItemNames = [...new Set(orders.flatMap(o => o.saleOrderItems?.map((i: any) => i.tenHang)).filter(Boolean))];
+    const inventoryItems = await prisma.inventoryItem.findMany({
+      where: { tenHang: { in: allItemNames as string[] } },
+      select: {
+        id: true,
+        tenHang: true,
+        brand: true,
+        category: { select: { id: true, name: true } }
+      }
+    });
+
+    const itemNameToCategory: Record<string, string> = {};
+    const itemNameToBrand: Record<string, string> = {};
+    inventoryItems.forEach(item => {
+      if (item.tenHang) {
+        itemNameToCategory[item.tenHang] = item.category?.name || "Thiết bị khác";
+        itemNameToBrand[item.tenHang] = item.brand || "Seajong";
+      }
+    });
+
+    // 5. Group actual orders by month for the current year
     const monthlySalesMap: Record<number, number> = {};
+    const monthlySeajongMap: Record<number, number> = {};
+    const monthlyOtherMap: Record<number, number> = {};
     const monthlyRevenueMap: Record<number, number> = {};
     for (let m = 1; m <= 12; m++) {
       monthlySalesMap[m] = 0;
+      monthlySeajongMap[m] = 0;
+      monthlyOtherMap[m] = 0;
       monthlyRevenueMap[m] = 0;
     }
 
     orders.forEach(order => {
       const orderDate = order.ngayDat ? new Date(order.ngayDat) : new Date(order.createdAt);
       const month = orderDate.getMonth() + 1; // 1-indexed
-      monthlySalesMap[month] += (order.tongTien || 0);
+      const orderTotal = order.tongTien || 0;
+      monthlySalesMap[month] += orderTotal;
       monthlyRevenueMap[month] += (order.daThanhToan || 0);
+
+      // Phân tách doanh số Seajong vs Hàng khác trong đơn hàng
+      const items = order.saleOrderItems || [];
+      const itemsTotal = items.reduce((s: number, it: any) => s + (it.thanhTien || 0), 0);
+      let orderSeajongItems = 0;
+
+      items.forEach((it: any) => {
+        const b = (itemNameToBrand[it.tenHang] || "").toLowerCase();
+        const t = (it.tenHang || "").toLowerCase();
+        const isSeajong = b === "seajong" || t.includes("seajong") || t.includes("sj-") || (!b && !t.includes("oem") && !t.includes("voriger"));
+        if (isSeajong) {
+          orderSeajongItems += (it.thanhTien || 0);
+        }
+      });
+
+      let seajongAmt = 0;
+      if (itemsTotal > 0) {
+        seajongAmt = Math.round((orderSeajongItems / itemsTotal) * orderTotal);
+      } else {
+        seajongAmt = orderTotal;
+      }
+      const otherAmt = Math.max(0, orderTotal - seajongAmt);
+
+      monthlySeajongMap[month] += seajongAmt;
+      monthlyOtherMap[month] += otherAmt;
     });
 
-    // 5. Fetch Recent Customer Care History (from CRM PartnerCareHistory)
+    // 6. Fetch Recent Customer Care History (from CRM PartnerCareHistory)
     const dbRecentCare = await (prisma as any).partnerCareHistory.findMany({
       take: 5,
       orderBy: { executionDate: "desc" },
@@ -164,20 +235,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // 6. Calculate category breakdown
-    const allItemNames = [...new Set(orders.flatMap(o => o.saleOrderItems?.map((i: any) => i.tenHang)).filter(Boolean))];
-    const inventoryItems = await prisma.inventoryItem.findMany({
-      where: { tenHang: { in: allItemNames as string[] } },
-      include: { category: true }
-    });
-
-    const itemNameToCategory: Record<string, string> = {};
-    inventoryItems.forEach(item => {
-      if (item.tenHang) {
-        itemNameToCategory[item.tenHang] = item.category?.name || "Thiết bị khác";
-      }
-    });
-
+    // 7. Calculate category breakdown
     // Map to exactly 4 buckets as requested: Thiết bị vệ sinh, Thiết bị nhà bếp, Phụ kiện, Loại khác
     const predefinedBuckets: Record<string, number> = {
       "Thiết bị vệ sinh": 0,
@@ -238,11 +296,18 @@ export async function GET(req: NextRequest) {
     const currentMonth = new Date().getMonth() + 1;
     const monthlyTrends = Array.from({ length: 12 }, (_, i) => {
       const month = i + 1;
+      const sales = monthlySalesMap[month] || 0;
+      const seajong = monthlySeajongMap[month] || 0;
+      const other = monthlyOtherMap[month] || 0;
+      const rev = monthlyRevenueMap[month] || 0;
       return {
         month: `Tháng ${month}`,
         target: monthlyTargetsMap[month],
-        actualSales: month > currentMonth ? null : monthlySalesMap[month],
-        actualRevenue: month > currentMonth ? null : monthlyRevenueMap[month]
+        actualSales: month > currentMonth ? null : sales,
+        actualRevenue: month > currentMonth ? null : rev,
+        actual: month > currentMonth ? null : sales, // Doanh số thực tế đạt được để đối sánh với KPI
+        seajongSales: month > currentMonth ? null : seajong,
+        otherSales: month > currentMonth ? null : other,
       };
     });
 
@@ -265,23 +330,22 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // 7. Calculate region breakdown
+    // 7. Calculate region breakdown based on actual order sales
     const regionSalesMap = { "Miền Bắc": 0, "Miền Trung": 0, "Miền Nam": 0 };
     orders.forEach(order => {
       const address = (order.customer?.address || "").toLowerCase();
-      const revenue = order.daThanhToan || 0;
+      const amount = order.tongTien || 0;
+      if (amount <= 0) return;
       
-      if (address.includes("hồ chí minh") || address.includes("hcm") || address.includes("sài gòn") || address.includes("cần thơ") || address.includes("bình dương") || address.includes("đồng nai") || address.includes("vũng tàu") || address.includes("long an")) {
-        regionSalesMap["Miền Nam"] += revenue;
-      } else if (address.includes("đà nẵng") || address.includes("huế") || address.includes("quảng nam") || address.includes("quảng ngãi") || address.includes("bình định") || address.includes("khánh hòa") || address.includes("nghệ an") || address.includes("thanh hóa")) {
-        regionSalesMap["Miền Trung"] += revenue;
-      } else if (revenue > 0) {
-        // Default to Miền Bắc if there's revenue but no explicit matching
-        regionSalesMap["Miền Bắc"] += revenue;
+      if (address.includes("hồ chí minh") || address.includes("hcm") || address.includes("sài gòn") || address.includes("cần thơ") || address.includes("bình dương") || address.includes("đồng nai") || address.includes("vũng tàu") || address.includes("long an") || address.includes("củ chi")) {
+        regionSalesMap["Miền Nam"] += amount;
+      } else if (address.includes("đà nẵng") || address.includes("huế") || address.includes("quảng nam") || address.includes("quảng ngãi") || address.includes("bình định") || address.includes("khánh hòa") || address.includes("nghệ an") || address.includes("thanh hóa") || address.includes("hà tĩnh")) {
+        regionSalesMap["Miền Trung"] += amount;
+      } else {
+        // Miền Bắc (Hà Nội, Bắc Ninh, Từ Sơn,...) hoặc khách hàng nội bộ
+        regionSalesMap["Miền Bắc"] += amount;
       }
     });
-    
-    // Removed mock fallback for empty database
 
     const regionBreakdown = [
       { name: "Miền Bắc", value: regionSalesMap["Miền Bắc"] },
@@ -293,6 +357,7 @@ export async function GET(req: NextRequest) {
       summary: {
         totalSales,
         totalRevenue,
+        totalCollected,
         targetRevenue,
         totalOrdersCount,
         totalDebt,

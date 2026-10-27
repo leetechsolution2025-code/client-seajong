@@ -1764,8 +1764,8 @@ export default function FinancePage() {
                                     if (!item.ghiChu) return null;
                                     try { return JSON.parse(item.ghiChu); } catch { return null; }
                                   })();
-                                  const dmCode = item.dinhMucCode || parsedNote?.bomCode || (parsedNote?.code && typeof parsedNote.code === "string" && parsedNote.code.startsWith("DM-") ? parsedNote.code : null);
-                                  const dmTen = item.dinhMucTen || parsedNote?.dinhMucTen || (typeof item.ghiChu === "string" && !item.ghiChu.startsWith("{") ? item.ghiChu : null);
+                                  const dmCode = item.dinhMucCode || (parsedNote?.bomCode && String(parsedNote.bomCode).trim() ? parsedNote.bomCode : null) || (parsedNote?.code && typeof parsedNote.code === "string" && parsedNote.code.startsWith("DM-") ? parsedNote.code : null);
+                                  const dmTen = item.dinhMucTen || (parsedNote?.dinhMucTen && String(parsedNote.dinhMucTen).trim() ? parsedNote.dinhMucTen : null);
 
                                   return (
                                     <div className="d-flex flex-column">

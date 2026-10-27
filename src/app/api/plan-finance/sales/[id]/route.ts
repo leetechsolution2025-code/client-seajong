@@ -51,7 +51,22 @@ export async function GET(
         customer: { select: { id: true, name: true, dienThoai: true, address: true, hanMucCongNo: true, nhom: true } },
         saleOrderItems: {
           include: {
-            inventoryItem: { select: { imageUrl: true, code: true, loai: true, webProductId: true, color: true, giaBan: true } }
+            inventoryItem: {
+              select: {
+                id: true,
+                imageUrl: true,
+                code: true,
+                tenHang: true,
+                loai: true,
+                webProductId: true,
+                color: true,
+                giaBan: true,
+                soLuong: true,
+                stocks: {
+                  select: { soLuong: true, soLuongGiu: true, warehouse: { select: { code: true, name: true } } }
+                }
+              }
+            }
           }
         },
         logisticsTickets: {
@@ -176,22 +191,38 @@ export async function GET(
       if (!item.inventoryItem && item.tenHang) {
         const invItem = await prisma.inventoryItem.findFirst({
           where: { tenHang: item.tenHang },
-          select: { id: true, imageUrl: true, code: true, soLuong: true, dinhMucs: { take: 1, select: { id: true } }, loai: true, webProductId: true }
+          select: {
+            id: true,
+            imageUrl: true,
+            code: true,
+            tenHang: true,
+            soLuong: true,
+            dinhMucs: { take: 1, select: { id: true } },
+            loai: true,
+            webProductId: true,
+            stocks: {
+              select: { soLuong: true, soLuongGiu: true, warehouse: { select: { code: true, name: true } } }
+            }
+          }
         });
         if (invItem) {
           item.inventoryItem = invItem;
+          item.inventoryItemId = invItem.id;
         } else {
           const matItem = await (prisma as any).inventoryItem.findFirst({
             where: { tenHang: item.tenHang },
             select: { 
+              id: true,
               imageUrl: true, 
               code: true, 
-              stocks: { select: { soLuong: true } }
+              tenHang: true,
+              stocks: { select: { soLuong: true, soLuongGiu: true, warehouse: { select: { code: true, name: true } } } }
             }
           });
           if (matItem) {
             const soLuong = matItem.stocks ? matItem.stocks.reduce((acc: number, curr: any) => acc + (curr.soLuong || 0), 0) : 0;
             item.inventoryItem = { ...matItem, soLuong };
+            item.inventoryItemId = matItem.id;
           }
         }
       }
@@ -200,7 +231,21 @@ export async function GET(
     // Tính toán số lượng thiếu và kiểm tra kho vật tư
     for (const item of orderItems) {
       const requiredQty = item.soLuong || 1;
-      const currentStock = item.inventoryItem?.soLuong || 0;
+      
+      let currentStock = 0;
+      if (item.inventoryItem) {
+        if (item.inventoryItem.stocks && item.inventoryItem.stocks.length > 0) {
+          currentStock = item.inventoryItem.stocks.reduce((acc: number, s: any) => {
+            return acc + Math.max(0, (s.soLuong || 0) - (s.soLuongGiu || 0));
+          }, 0);
+          if (currentStock === 0 && (item.inventoryItem.soLuong || 0) > 0) {
+            currentStock = item.inventoryItem.soLuong || 0;
+          }
+        } else {
+          currentStock = item.inventoryItem.soLuong || 0;
+        }
+      }
+      
       const missingQty = Math.max(0, requiredQty - currentStock);
       
       item.missingQty = missingQty;
@@ -214,11 +259,15 @@ export async function GET(
       }
 
       // Tìm BOM để biết có thể sản xuất hay không
-      let resolvedDinhMucId = item.dinhMucId || parsedGhiChu?.dinhMucId || item.inventoryItem?.dinhMucId || null;
+      let resolvedDinhMucId = (item.dinhMucId && String(item.dinhMucId).trim()) 
+        ? item.dinhMucId 
+        : (parsedGhiChu?.dinhMucId && String(parsedGhiChu.dinhMucId).trim() ? parsedGhiChu.dinhMucId : null);
       let warehouseCode = "KHO-CHINH";
-      if (!resolvedDinhMucId && item.inventoryItem) {
+      
+      const targetInvItemId = item.inventoryItemId || item.inventoryItem?.id || null;
+      if (!resolvedDinhMucId && targetInvItemId) {
         const dm = await prisma.dinhMuc.findFirst({
-          where: { inventoryItemId: item.inventoryItem.id }
+          where: { inventoryItemId: targetInvItemId }
         });
         if (dm) resolvedDinhMucId = dm.id;
       }
@@ -235,10 +284,10 @@ export async function GET(
       }
 
       item.dinhMucId = resolvedDinhMucId;
-      item.dinhMucCode = bom?.code || parsedGhiChu?.bomCode || (parsedGhiChu?.code && typeof parsedGhiChu.code === "string" && parsedGhiChu.code.startsWith("DM-") ? parsedGhiChu.code : null) || null;
-      item.dinhMucTen = bom?.tenDinhMuc || parsedGhiChu?.dinhMucTen || (typeof item.ghiChu === "string" && !item.ghiChu.startsWith("{") ? item.ghiChu : null) || null;
+      item.dinhMucCode = bom?.code || (parsedGhiChu?.bomCode && String(parsedGhiChu.bomCode).trim() ? parsedGhiChu.bomCode : null) || (parsedGhiChu?.code && typeof parsedGhiChu.code === "string" && parsedGhiChu.code.startsWith("DM-") ? parsedGhiChu.code : null) || null;
+      item.dinhMucTen = bom?.tenDinhMuc || (parsedGhiChu?.dinhMucTen && String(parsedGhiChu.dinhMucTen).trim() ? parsedGhiChu.dinhMucTen : null) || null;
       
-      if (missingQty > 0) {
+      if (resolvedDinhMucId && missingQty > 0) {
         if (bom && bom.vatTu && bom.vatTu.length > 0) {
           let hasEnoughMaterials = true;
           for (const vt of bom.vatTu) {
@@ -416,11 +465,12 @@ export async function PATCH(
               const ghiChuObj = (() => { try { return JSON.parse(it.ghiChu || "{}"); } catch(e) { return {}; } })();
               return {
                 saleOrderId: id,
+                inventoryItemId: it.inventoryItemId || null,
                 tenHang: it.tenHang ?? "",
                 soLuong: parseFloat(String(it.soLuong ?? 1)),
                 donGia: parseFloat(String(it.donGia ?? 0)),
                 thanhTien: parseFloat(String(it.thanhTien ?? 0)),
-                dinhMucId: ghiChuObj.dinhMucId || null,
+                dinhMucId: (ghiChuObj.dinhMucId && String(ghiChuObj.dinhMucId).trim()) ? ghiChuObj.dinhMucId : null,
                 ghiChu: it.ghiChu ?? null,
               };
             })
@@ -642,9 +692,11 @@ export async function PATCH(
             if (item.ghiChu) {
               try { parsedItemGhiChu = JSON.parse(item.ghiChu); } catch (e) {}
             }
-            let resolvedDinhMucId = (item as any).dinhMucId || parsedItemGhiChu?.dinhMucId || (invItem as any)?.dinhMucId || null;
+            let resolvedDinhMucId = ((item as any).dinhMucId && String((item as any).dinhMucId).trim()) 
+              ? (item as any).dinhMucId 
+              : (parsedItemGhiChu?.dinhMucId && String(parsedItemGhiChu.dinhMucId).trim() ? parsedItemGhiChu.dinhMucId : null);
             
-            if (!resolvedDinhMucId && invItem) {
+            if (!resolvedDinhMucId && invItem?.id) {
               const dm = await tx.dinhMuc.findFirst({
                 where: { inventoryItemId: invItem.id }
               });

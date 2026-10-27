@@ -275,7 +275,7 @@ export default function DebtsPage() {
         header: isLoan ? "Ngân hàng / Gói vay" : (isExpense ? "Khoản chi phí" : "Đối tác / Nội dung"),
         render: (row) => {
           if (row.isGroupHeader) {
-            const isCarrier = Boolean(row.items?.[0]?.carrierId);
+            const isCarrier = Boolean(row.carrierId || row.items?.some((i: any) => i.carrierId));
             const isAgency = row.partnerName?.toLowerCase().startsWith("đại lý");
             
             let textColorClass = "text-dark";
@@ -296,7 +296,7 @@ export default function DebtsPage() {
                 className="d-flex align-items-center gap-2 cursor-pointer py-1"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const groupKey = row.groupKey || row.items[0]?.customerId || row.items[0]?.supplierId || row.items[0]?.carrierId || row.partnerName;
+                  const groupKey = row.groupKey || row.items?.find((i: any) => i.customerId)?.customerId || row.items?.find((i: any) => i.supplierId)?.supplierId || row.items?.find((i: any) => i.carrierId)?.carrierId || row.partnerName;
                   setExpandedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
                 }}
               >
@@ -437,6 +437,11 @@ export default function DebtsPage() {
               supplierContactName: row.originalItems.find((it: any) => it.supplierContactName)?.supplierContactName,
               supplierTaxCode: row.originalItems.find((it: any) => it.supplierTaxCode)?.supplierTaxCode,
               supplierEmail: row.originalItems.find((it: any) => it.supplierEmail)?.supplierEmail,
+              carrierName: row.originalItems.find((it: any) => it.carrierName)?.carrierName,
+              carrierPhone: row.originalItems.find((it: any) => it.carrierPhone)?.carrierPhone,
+              carrierContactName: row.originalItems.find((it: any) => it.carrierContactName)?.carrierContactName,
+              carrierTaxCode: row.originalItems.find((it: any) => it.carrierTaxCode)?.carrierTaxCode,
+              carrierEmail: row.originalItems.find((it: any) => it.carrierEmail)?.carrierEmail,
               groupItems: row.originalItems 
             } 
           : row;
@@ -706,9 +711,21 @@ export default function DebtsPage() {
 
   if (debts.length > 0) {
     if (currentStepId === "RECEIVABLE" || currentStepId === "PAYABLE") {
+      // 1. Tạo mapping partnerName -> ID từ các bản ghi có sẵn ID để đối chiếu gom nhóm
+      const partnerIdMap = new Map<string, string>();
+      debts.forEach(d => {
+        const id = d.customerId || d.supplierId || d.carrierId;
+        const name = (d.partnerName || "").split(/[-–]/)[0].trim().toLowerCase();
+        if (id && name && !partnerIdMap.has(name)) {
+          partnerIdMap.set(name, id);
+        }
+      });
+
       const groupedByPartner = debts.reduce((acc, curr) => {
-        // Ưu tiên nhóm theo ID, nếu không có thì nhóm theo Tên
-        const groupKey = curr.customerId || curr.supplierId || curr.carrierId || curr.partnerName;
+        // Ưu tiên nhóm theo ID của đối tượng, nếu bản ghi chưa có ID thì tra cứu ID từ mapping, cuối cùng mới dùng Tên
+        const cleanName = (curr.partnerName || "").split(/[-–]/)[0].trim().toLowerCase();
+        const mappedId = partnerIdMap.get(cleanName);
+        const groupKey = curr.customerId || curr.supplierId || curr.carrierId || mappedId || curr.partnerName;
         if (!acc[groupKey]) acc[groupKey] = [];
         acc[groupKey].push(curr);
         return acc;
@@ -745,7 +762,10 @@ export default function DebtsPage() {
       pagedGroups.forEach(({ groupKey, items }) => {
         let displayName = items[0].partnerName || "";
         displayName = displayName.split(/[-–]/)[0].trim();
-        const address = items[0].customerAddress || items[0].supplierAddress || "Chưa cập nhật địa chỉ";
+        const address = items.find((i: any) => i.customerAddress || i.supplierAddress || i.carrierAddress || i.address)?.customerAddress 
+          || items.find((i: any) => i.customerAddress || i.supplierAddress || i.carrierAddress || i.address)?.supplierAddress 
+          || items.find((i: any) => i.customerAddress || i.supplierAddress || i.carrierAddress || i.address)?.carrierAddress 
+          || items[0].customerAddress || items[0].supplierAddress || items[0].carrierAddress || items[0].address || "Chưa cập nhật địa chỉ";
         
         const expandedItems: any[] = [];
         items.forEach((item: any) => {
@@ -840,6 +860,11 @@ export default function DebtsPage() {
             isGroupHeader: true,
             partnerName: displayName,
             address,
+            carrierId: items.find((i: any) => i.carrierId)?.carrierId || null,
+            supplierId: items.find((i: any) => i.supplierId)?.supplierId || null,
+            customerId: items.find((i: any) => i.customerId)?.customerId || null,
+            carrierName: items.find((i: any) => i.carrierName)?.carrierName || null,
+            carrierPhone: items.find((i: any) => i.carrierPhone)?.carrierPhone || null,
             items: expandedItems,
             originalItems: items,
             amount: groupAmount,
@@ -1231,6 +1256,10 @@ export default function DebtsPage() {
                           supplierPhone: row.supplierPhone || row.phone || row.groupItems?.[0]?.supplierPhone || row.groupItems?.[0]?.phone,
                           supplierTaxCode: row.supplierTaxCode || row.groupItems?.[0]?.supplierTaxCode,
                           supplierContactName: row.supplierContactName || row.groupItems?.[0]?.supplierContactName,
+                          carrierName: row.carrierName || row.partnerName || row.groupItems?.[0]?.carrierName,
+                          carrierAddress: row.carrierAddress || row.address || row.groupItems?.[0]?.carrierAddress,
+                          carrierPhone: row.carrierPhone || row.phone || row.groupItems?.[0]?.carrierPhone,
+                          carrierContactName: row.carrierContactName || row.groupItems?.[0]?.carrierContactName,
                         };
                         setSelectedPayableDebt(partnerRow);
                         return;

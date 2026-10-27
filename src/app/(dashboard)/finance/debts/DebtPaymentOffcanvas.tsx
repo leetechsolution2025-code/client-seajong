@@ -251,7 +251,8 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
         defaultNote = `Thu nợ khách hàng - ${debt.partnerName}`;
       } else {
         const isLoan = debt.type?.toUpperCase() === "LOAN" || debt.type === "vay";
-        defaultNote = isLoan ? `Trả nợ vay - ${debt.partnerName}` : `Trả nợ nhà cung cấp - ${debt.partnerName}`;
+        const isCarrier = Boolean(debt.carrierId || debt.groupItems?.some((i: any) => i.carrierId));
+        defaultNote = isLoan ? `Trả nợ vay - ${debt.partnerName}` : (isCarrier ? `Thanh toán cước vận chuyển - ${debt.partnerName}` : `Trả nợ nhà cung cấp - ${debt.partnerName}`);
       }
       setPayNote(defaultNote);
 
@@ -332,18 +333,24 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
       let method = "PUT";
       let bodyData: any = {};
 
+      const isCarrier = Boolean(debt.carrierId || debt.groupItems?.some((i: any) => i.carrierId));
+      const resolvedCarrierId = debt.carrierId || debt.originalItems?.find((it: any) => it.carrierId)?.carrierId || debt.groupItems?.find((it: any) => it.carrierId)?.carrierId || null;
+      const resolvedSupplierId = debt.supplierId || debt.originalItems?.find((it: any) => it.supplierId)?.supplierId || debt.groupItems?.find((it: any) => it.supplierId)?.supplierId || null;
+      const resolvedCustomerId = debt.customerId || debt.originalItems?.find((it: any) => it.customerId)?.customerId || debt.groupItems?.find((it: any) => it.customerId)?.customerId || null;
+
       if (isGroup) {
-        // Thu theo khách hàng -> POST phiếu thu độc lập
+        // Thu theo khách hàng / đối tác -> POST phiếu thu/chi độc lập
         url = `/api/finance/debts-v2`;
         method = "POST";
-        const cleanNote = payNote.trim() || (isReceivable ? "Thu nợ khách hàng" : "Thanh toán nhà cung cấp");
+        const cleanNote = payNote.trim() || (isReceivable ? "Thu nợ khách hàng" : (isCarrier ? "Thanh toán cước vận chuyển" : "Thanh toán nhà cung cấp"));
         const newDesc = serializeDebtDescription(cleanNote, [newHistoryItem], []);
         bodyData = {
           type: debt.type,
           partnerName: debt.partnerName,
-          customerId: debt.customerId,
-          supplierId: debt.supplierId,
-          amount: 0, // Là khoản thu nên phát sinh nợ = 0
+          customerId: resolvedCustomerId,
+          supplierId: resolvedSupplierId,
+          carrierId: resolvedCarrierId,
+          amount: 0, // Là khoản thu/chi nên phát sinh nợ = 0
           paidAmount: payAmount,
           dueDate: null,
           createdAt: payDate,
@@ -365,6 +372,7 @@ export function DebtPaymentOffcanvas({ open, onClose, onSuccess, debt }: DebtPay
         const { groupItems, ...safeDebtData } = debt;
         bodyData = {
           ...safeDebtData,
+          carrierId: resolvedCarrierId || safeDebtData.carrierId || undefined,
           paidAmount: newPaidAmount,
           status: newStatus,
           description: updatedDescription,

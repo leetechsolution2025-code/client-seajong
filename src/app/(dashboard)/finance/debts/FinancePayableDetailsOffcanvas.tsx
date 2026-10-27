@@ -69,11 +69,11 @@ export function FinancePayableDetailsOffcanvas({ item, onClose, onPayDebt }: Pro
   const remaining = Math.max(0, originalAmount - paid);
 
   const isCarrier = !!item.carrierId || item.referenceId?.endsWith("-VC") || item.displayDescription?.toLowerCase().includes("vận chuyển");
-  const partnerName = item.supplierName || item.partnerName || poData?.supplier?.name || "Nhà cung cấp";
-  const partnerPhone = item.supplierPhone || item.phone || poData?.supplier?.phone;
-  const partnerAddress = item.supplierAddress || item.address || poData?.supplier?.address;
+  const partnerName = (isCarrier ? item.carrierName : null) || item.supplierName || item.partnerName || (isCarrier ? poData?.carrier?.name : null) || poData?.supplier?.name || "Đối tác";
+  const partnerPhone = (isCarrier ? item.carrierPhone : null) || item.supplierPhone || item.phone || (isCarrier ? poData?.carrier?.phone : null) || poData?.supplier?.phone;
+  const partnerAddress = (isCarrier ? item.carrierAddress : null) || item.supplierAddress || item.address || (isCarrier ? poData?.carrier?.address : null) || poData?.supplier?.address;
   const partnerTaxCode = item.supplierTaxCode || poData?.supplier?.taxCode;
-  const partnerContact = item.supplierContactName || poData?.supplier?.contactName;
+  const partnerContact = (isCarrier ? item.carrierContactName : null) || item.supplierContactName || (isCarrier ? poData?.carrier?.contactName : null) || poData?.supplier?.contactName;
 
   const fmtDate = (d: string | Date | null | undefined) => {
     if (!d) return "—";

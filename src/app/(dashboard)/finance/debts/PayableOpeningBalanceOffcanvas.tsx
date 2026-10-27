@@ -39,6 +39,7 @@ export function PayableOpeningBalanceOffcanvas({ open, onClose, onSuccess, initi
   const defaultForm = {
     partnerName: "",
     supplierId: "",
+    carrierId: "",
     amount: 0,
     paidAmount: 0,
     dueDate: new Date().toISOString().split("T")[0],
@@ -83,12 +84,25 @@ export function PayableOpeningBalanceOffcanvas({ open, onClose, onSuccess, initi
   const fetchSuggestions = async (query: string) => {
     try {
       setSearching(true);
-      const res = await fetch(`/api/plan-finance/suppliers?search=${encodeURIComponent(query)}&page=1&limit=1000`);
-      if (res.ok) {
-        const data = await res.json();
-        setSuggestions(data.items || []);
-        setShowSuggestions(true);
+      const [resSuppliers, resCarriers] = await Promise.all([
+        fetch(`/api/plan-finance/suppliers?search=${encodeURIComponent(query)}&page=1&limit=50`),
+        fetch(`/api/plan-finance/carriers?search=${encodeURIComponent(query)}&page=1&limit=50`)
+      ]);
+      
+      let combined: any[] = [];
+      if (resSuppliers.ok) {
+        const sData = await resSuppliers.json();
+        const sItems = (sData.items || []).map((it: any) => ({ ...it, _entityType: "supplier" }));
+        combined.push(...sItems);
       }
+      if (resCarriers.ok) {
+        const cData = await resCarriers.json();
+        const cItems = (cData.items || []).map((it: any) => ({ ...it, _entityType: "carrier" }));
+        combined.push(...cItems);
+      }
+
+      setSuggestions(combined);
+      setShowSuggestions(true);
     } catch (e) {
       console.error(e);
     } finally {
@@ -96,8 +110,22 @@ export function PayableOpeningBalanceOffcanvas({ open, onClose, onSuccess, initi
     }
   };
 
-  const selectSuggestion = (name: string, id: string) => {
-    setFormData({ ...formData, partnerName: name, supplierId: id });
+  const selectSuggestion = (item: any) => {
+    if (item._entityType === "carrier") {
+      setFormData({ 
+        ...formData, 
+        partnerName: item.name, 
+        carrierId: item.id,
+        supplierId: "" 
+      });
+    } else {
+      setFormData({ 
+        ...formData, 
+        partnerName: item.name, 
+        supplierId: item.id,
+        carrierId: "" 
+      });
+    }
     setSuggestions([]);
     setShowSuggestions(false);
   };
@@ -105,7 +133,7 @@ export function PayableOpeningBalanceOffcanvas({ open, onClose, onSuccess, initi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.partnerName.trim()) {
-       error("Lỗi", "Vui lòng nhập tên đối tác / ngân hàng");
+       error("Lỗi", "Vui lòng nhập tên đối tác / nhà cung cấp / vận chuyển");
        return;
     }
     if (formData.amount <= 0) {
@@ -125,6 +153,8 @@ export function PayableOpeningBalanceOffcanvas({ open, onClose, onSuccess, initi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          supplierId: formData.supplierId || undefined,
+          carrierId: formData.carrierId || undefined,
           type: "PAYABLE"
         }),
       });
@@ -218,17 +248,34 @@ export function PayableOpeningBalanceOffcanvas({ open, onClose, onSuccess, initi
                   )}
                   {showSuggestions && suggestions.length > 0 && (
                     <ul className="list-group position-absolute w-100 shadow-sm" style={{ zIndex: 1000, maxHeight: "200px", overflowY: "auto", top: "100%", marginTop: "4px" }}>
-                      {suggestions.map((c: any, idx: number) => (
-                        <li
-                          key={idx}
-                          className="list-group-item list-group-item-action cursor-pointer"
-                          style={{ fontSize: 13, padding: "8px 12px" }}
-                          onClick={() => selectSuggestion(c.name, c.id)}
-                        >
-                          <div className="fw-bold">{c.name}</div>
-                          {c.dienThoai && <div className="text-muted small">ĐT: {c.dienThoai}</div>}
-                        </li>
-                      ))}
+                      {suggestions.map((c: any, idx: number) => {
+                        const isCarr = c._entityType === "carrier";
+                        const phone = c.dienThoai || c.phone;
+                        return (
+                          <li
+                            key={idx}
+                            className="list-group-item list-group-item-action cursor-pointer d-flex justify-content-between align-items-center"
+                            style={{ fontSize: 13, padding: "8px 12px" }}
+                            onClick={() => selectSuggestion(c)}
+                          >
+                            <div>
+                              <div className="fw-bold">{c.name}</div>
+                              {phone && <div className="text-muted small">ĐT: {phone}</div>}
+                            </div>
+                            <span 
+                              className="badge" 
+                              style={{ 
+                                fontSize: 10.5, 
+                                fontWeight: 500,
+                                background: isCarr ? "#e0f2fe" : "#fef3c7",
+                                color: isCarr ? "#0369a1" : "#b45309"
+                              }}
+                            >
+                              {isCarr ? "Vận chuyển" : "Nhà cung cấp"}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>
