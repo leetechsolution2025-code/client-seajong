@@ -34,9 +34,10 @@ export default function UpdatePriceOffcanvas({
     cost: initialCost,
     marginPct: initialMarginPct || 30,
     marginType: initialMarginType || "cost",
-    finalPrice: initialPrice,
+    finalPrice: 0,
     calculatedPrice: initialPrice
   });
+  const [finalPriceInput, setFinalPriceInput] = useState("");
   const [applyAllPrice, setApplyAllPrice] = useState(false);
   const [marketPrice, setMarketPrice] = useState<number | null>(null);
   const [loadingMarketPrice, setLoadingMarketPrice] = useState(false);
@@ -48,8 +49,6 @@ export default function UpdatePriceOffcanvas({
       const marginPct = initialMarginPct !== undefined ? initialMarginPct : 30; // Mặc định luôn là 30% nếu chưa có
       const marginType = initialMarginType || "cost";
       
-      // Nếu đã có giá bán lưu trong DB, ta giữ nguyên giá bán đó
-      // Còn giá tính toán sẽ dựa trên marginPct và marginType đang lưu (hoặc mặc định)
       let calculatedPrice = marginType === "revenue" 
         ? (marginPct < 100 ? Math.round((initialCost / (1 - marginPct / 100)) / 1000) * 1000 : 0)
         : Math.round((initialCost * (1 + marginPct / 100)) / 1000) * 1000;
@@ -58,9 +57,10 @@ export default function UpdatePriceOffcanvas({
         cost: initialCost,
         marginPct,
         marginType,
-        finalPrice: calculatedPrice,
+        finalPrice: 0,
         calculatedPrice: calculatedPrice
       });
+      setFinalPriceInput("");
       setApplyAllPrice(false);
 
       // Fetch market price
@@ -73,6 +73,9 @@ export default function UpdatePriceOffcanvas({
         .finally(() => setLoadingMarketPrice(false));
     }
   }, [show, initialCost, initialPrice, itemName]);
+
+  const hasFinalPrice = finalPriceInput.trim() !== "" && Number(finalPriceInput) > 0;
+  const isSaveDisabled = !isBulkOnly && !hasFinalPrice;
 
   return (
     <>
@@ -96,7 +99,7 @@ export default function UpdatePriceOffcanvas({
                 const calculated = priceSetup.marginType === "revenue" 
                   ? (val < 100 ? Math.round((priceSetup.cost / (1 - val / 100)) / 1000) * 1000 : 0)
                   : Math.round((priceSetup.cost * (1 + val / 100)) / 1000) * 1000;
-                setPriceSetup(prev => ({ ...prev, marginPct: val, finalPrice: calculated, calculatedPrice: calculated }));
+                setPriceSetup(prev => ({ ...prev, marginPct: val, calculatedPrice: calculated }));
               }} />
             </div>
             <div className="col-12 mt-2">
@@ -106,7 +109,7 @@ export default function UpdatePriceOffcanvas({
                 const calculated = newType === "revenue" 
                   ? (priceSetup.marginPct < 100 ? Math.round((priceSetup.cost / (1 - priceSetup.marginPct / 100)) / 1000) * 1000 : 0)
                   : Math.round((priceSetup.cost * (1 + priceSetup.marginPct / 100)) / 1000) * 1000;
-                setPriceSetup(prev => ({ ...prev, marginType: newType, finalPrice: calculated, calculatedPrice: calculated }));
+                setPriceSetup(prev => ({ ...prev, marginType: newType, calculatedPrice: calculated }));
               }}>
                 <option value="cost">Trên giá vốn (Giá bán = Giá vốn x (1 + %Lợi nhuận))</option>
                 <option value="revenue">Trên doanh thu (Giá bán = Giá vốn / (1 - %Lợi nhuận))</option>
@@ -123,10 +126,17 @@ export default function UpdatePriceOffcanvas({
               <hr className="my-3" />
               <div className="mb-3">
                 <label className="form-label small fw-bold text-success">Giá bán chính thức áp dụng *</label>
-                <input type="text" className="form-control form-control-lg text-success fw-bold" value={(priceSetup.finalPrice || 0).toLocaleString()} onChange={(e) => {
-                  const val = Number(e.target.value.replace(/[^0-9]/g, ''));
-                  setPriceSetup(prev => ({ ...prev, finalPrice: val }));
-                }} />
+                <input
+                  type="text"
+                  className="form-control form-control-lg text-success fw-bold"
+                  placeholder="Nhập giá bán chính thức..."
+                  value={finalPriceInput ? Number(finalPriceInput).toLocaleString() : ""}
+                  onChange={(e) => {
+                    const rawDigits = e.target.value.replace(/[^0-9]/g, "");
+                    setFinalPriceInput(rawDigits);
+                    setPriceSetup(prev => ({ ...prev, finalPrice: rawDigits ? Number(rawDigits) : 0 }));
+                  }}
+                />
                 <div className="form-text text-muted" style={{ fontSize: '11px' }}>
                   <strong>Công thức:</strong> {priceSetup.marginType === "revenue"
                     ? `${priceSetup.cost.toLocaleString()} đ / (1 - ${priceSetup.marginPct}%) = ${(priceSetup.calculatedPrice || 0).toLocaleString()} đ`
@@ -158,18 +168,23 @@ export default function UpdatePriceOffcanvas({
               </div>
             </div>
           ) : (
-            <button className="btn btn-success w-100" onClick={async () => {
-              setIsProcessing(true);
-              try {
-                if ((applyAllPrice || isBulkOnly) && onSaveAll) {
-                  await onSaveAll(priceSetup.marginPct, priceSetup.marginType);
-                } else {
-                  await onSaveSingle(priceSetup.finalPrice, priceSetup.marginPct, priceSetup.marginType);
+            <button
+              className="btn btn-success w-100"
+              disabled={isSaveDisabled}
+              onClick={async () => {
+                if (isSaveDisabled) return;
+                setIsProcessing(true);
+                try {
+                  if ((applyAllPrice || isBulkOnly) && onSaveAll) {
+                    await onSaveAll(priceSetup.marginPct, priceSetup.marginType);
+                  } else {
+                    await onSaveSingle(priceSetup.finalPrice, priceSetup.marginPct, priceSetup.marginType);
+                  }
+                } finally {
+                  setIsProcessing(false);
                 }
-              } finally {
-                setIsProcessing(false);
-              }
-            }}>
+              }}
+            >
               <i className="bi bi-check-circle me-2"></i>
               Lưu giá bán
             </button>

@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { BrandButton } from "@/components/ui/BrandButton";
 import { useToast } from "@/components/ui/Toast";
 import { CurrencyInput } from "@/components/ui/CurrencyInput";
-import { printDocumentById } from "@/components/ui/PrintPreviewModal";
+import { PrintPreviewModal, printDocumentById } from "@/components/ui/PrintPreviewModal";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
 import { 
@@ -56,6 +56,17 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
 
   // Print helper state
   const [activePrintItem, setActivePrintItem] = useState<any | null>(null);
+
+  // Sales order items map (by order reference code/id) & expand/collapse state
+  const [orderDetailsByRef, setOrderDetailsByRef] = useState<Record<string, { items: any[]; discount?: number; vat?: number; tongTien?: number; loading?: boolean }>>({});
+  const [expandedOrderTxIds, setExpandedOrderTxIds] = useState<Record<string, boolean>>({});
+
+  const toggleOrderExpand = (txId: string) => {
+    setExpandedOrderTxIds((prev) => ({
+      ...prev,
+      [txId]: !prev[txId],
+    }));
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -229,6 +240,71 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
       setEndDate(format(defaultEnd, "yyyy-MM-dd'T'HH:mm:ss"));
       
       setActivePrintItem(null);
+      setExpandedOrderTxIds({});
+
+      // Fetch sales order details (items list) for all sales orders in this debt group
+      if (isRec) {
+        const orderRefs = Array.from(
+          new Set(
+            items
+              .filter((it: any) => {
+                const isOp =
+                  it.referenceId === "Dư nợ đầu kỳ" ||
+                  it.description?.includes("Dư nợ đầu kỳ") ||
+                  it.referenceId === "Nợ cũ" ||
+                  it.description?.includes("Nợ cũ");
+                const isRet =
+                  it.amount < 0 ||
+                  it.referenceId?.startsWith("ERR-") ||
+                  it.referenceId?.startsWith("WR-") ||
+                  it.description?.includes("Trả lại hàng") ||
+                  it.description?.includes("hàng trả về");
+                return !isOp && !isRet && it.amount > 0 && it.referenceId && it.referenceId !== "---";
+              })
+              .map((it: any) => String(it.referenceId).trim())
+          )
+        ) as string[];
+
+        if (orderRefs.length > 0) {
+          const initialLoadingMap: Record<string, { items: any[]; loading?: boolean }> = {};
+          orderRefs.forEach((ref) => {
+            initialLoadingMap[ref] = { items: [], loading: true };
+          });
+          setOrderDetailsByRef(initialLoadingMap);
+
+          Promise.all(
+            orderRefs.map(async (ref) => {
+              try {
+                const res = await fetch(`/api/plan-finance/sales/${encodeURIComponent(ref)}`);
+                if (!res.ok) return { ref, detail: { items: [], loading: false } };
+                const data = await res.json();
+                return {
+                  ref,
+                  detail: {
+                    items: Array.isArray(data.items) ? data.items : (Array.isArray(data.saleOrderItems) ? data.saleOrderItems : []),
+                    discount: data.discount || 0,
+                    vat: data.vat || 0,
+                    tongTien: data.tongTien || 0,
+                    loading: false,
+                  },
+                };
+              } catch {
+                return { ref, detail: { items: [], loading: false } };
+              }
+            })
+          ).then((results) => {
+            const nextMap: Record<string, { items: any[]; discount?: number; vat?: number; tongTien?: number; loading?: boolean }> = {};
+            results.forEach(({ ref, detail }) => {
+              nextMap[ref] = detail;
+            });
+            setOrderDetailsByRef(nextMap);
+          });
+        } else {
+          setOrderDetailsByRef({});
+        }
+      } else {
+        setOrderDetailsByRef({});
+      }
     }
   }, [open, debt, session]);
 
@@ -561,10 +637,6 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
       partnerInfo: finalPartnerInfo,
       reconcilerInfo
     });
-
-    setTimeout(() => {
-      printDocumentById("recon-print-area", "portrait", `Biên bản đối chiếu công nợ - ${debt.partnerName}`, true, "15mm 15mm 15mm 20mm");
-    }, 150);
   };
 
   if (!mounted || !open || !debt) return null;
@@ -813,6 +885,11 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                       {[...filteredTransactions].reverse().map((tx: any, idx: number) => {
                         const isOpening = tx.id === "OPENING_BALANCE";
                         const isMain = tx.id?.startsWith("MAIN_DEBT");
+                        const isSalesOrder = isMain && tx.type === "Bán hàng";
+                        const txKey = String(tx.id || idx);
+                        const isExpanded = !!expandedOrderTxIds[txKey];
+                        const orderDetail = isSalesOrder && tx.ref ? orderDetailsByRef[tx.ref] : undefined;
+                        const orderItems = orderDetail?.items || [];
                         
                         // Format date helper: "HH:mm:ss dd/MM/yyyy"
                         const displayDate = tx.date 
@@ -820,35 +897,133 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
                           : "---";
 
                         return (
-                          <tr key={tx.id || idx} className={isOpening ? "table-light text-muted" : ""}>
-                            <td className="ps-3 py-1.5" style={{ whiteSpace: "nowrap" }}>
-                              {displayDate}
-                            </td>
-                            <td className="fw-bold py-1.5">{tx.ref}</td>
-                            <td className="py-1">
-                              <div className="d-flex flex-column align-items-start gap-0.5">
-                                <span className={`badge px-2 py-0.5 rounded-pill ${
-                                  isOpening ? "bg-secondary-subtle text-secondary" :
-                                  (tx.isReturn || tx.type === "Hàng trả về") ? "bg-danger-subtle text-danger" :
-                                  isMain ? "bg-primary-subtle text-primary" : "bg-success-subtle text-success"
-                                }`} style={{ fontSize: 9.5, whiteSpace: "nowrap" }}>
-                                  {tx.type}
-                                </span>
-                                <span className="text-muted" title={tx.note} style={{ fontSize: 11.5 }}>
-                                  {tx.note}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="text-end fw-medium text-primary py-1.5">
-                              {tx.increase > 0 ?formatCurrency( tx.increase) : "-"}
-                            </td>
-                            <td className="text-end fw-medium text-success py-1.5">
-                              {tx.decrease > 0 ?formatCurrency( tx.decrease) : "-"}
-                            </td>
-                            <td className="text-end pe-3 fw-bold text-dark py-1.5">
-                              {formatCurrency(tx.balance)}
-                            </td>
-                          </tr>
+                          <React.Fragment key={txKey}>
+                            <tr
+                              className={isOpening ? "table-light text-muted" : ""}
+                              style={isSalesOrder ? { cursor: "pointer" } : undefined}
+                              onClick={isSalesOrder ? () => toggleOrderExpand(txKey) : undefined}
+                            >
+                              <td className="ps-3 py-1.5" style={{ whiteSpace: "nowrap" }}>
+                                {displayDate}
+                              </td>
+                              <td className="fw-bold py-1.5" style={{ whiteSpace: "nowrap" }}>
+                                <div className="d-inline-flex align-items-center gap-1.5">
+                                  {isSalesOrder && (
+                                    <i
+                                      className={`bi ${isExpanded ? "bi-caret-down-fill" : "bi-caret-right-fill"} text-primary`}
+                                      style={{ fontSize: 11 }}
+                                      title={isExpanded ? "Ẩn danh sách hàng hoá" : "Hiện danh sách hàng hoá"}
+                                    />
+                                  )}
+                                  <span>{tx.ref}</span>
+                                </div>
+                              </td>
+                              <td className="py-1">
+                                <div className="d-flex flex-column align-items-start gap-0.5">
+                                  <div className="d-flex align-items-center gap-1.5 flex-wrap">
+                                    <span className={`badge px-2 py-0.5 rounded-pill ${
+                                      isOpening ? "bg-secondary-subtle text-secondary" :
+                                      (tx.isReturn || tx.type === "Hàng trả về") ? "bg-danger-subtle text-danger" :
+                                      isMain ? "bg-primary-subtle text-primary" : "bg-success-subtle text-success"
+                                    }`} style={{ fontSize: 9.5, whiteSpace: "nowrap" }}>
+                                      {tx.type}
+                                    </span>
+                                    {isSalesOrder && (
+                                      <span
+                                        className="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-0.5"
+                                        style={{ fontSize: 9.5, whiteSpace: "nowrap" }}
+                                      >
+                                        {orderDetail?.loading
+                                          ? "Đang tải hàng hoá..."
+                                          : `Hàng hoá (${orderItems.length})`}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-muted" title={tx.note} style={{ fontSize: 11.5 }}>
+                                    {tx.note}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="text-end fw-medium text-primary py-1.5">
+                                {tx.increase > 0 ? formatCurrency(tx.increase) : "-"}
+                              </td>
+                              <td className="text-end fw-medium text-success py-1.5">
+                                {tx.decrease > 0 ? formatCurrency(tx.decrease) : "-"}
+                              </td>
+                              <td className="text-end pe-3 fw-bold text-dark py-1.5">
+                                {formatCurrency(tx.balance)}
+                              </td>
+                            </tr>
+                            {isSalesOrder && isExpanded && (
+                              <tr className="bg-light-subtle">
+                                <td colSpan={6} className="px-3 py-2 border-bottom" style={{ background: "#f8fafc" }}>
+                                  <div className="ps-3 border-start border-2 border-primary-subtle">
+                                    <div className="fw-semibold text-primary mb-1.5 d-flex align-items-center gap-1.5" style={{ fontSize: 11.5 }}>
+                                      <i className="bi bi-box-seam" />
+                                      <span>Danh sách hàng hoá thuộc đơn {tx.ref}</span>
+                                    </div>
+                                    {orderDetail?.loading ? (
+                                      <div className="text-muted small py-1">Đang tải danh sách hàng hoá...</div>
+                                    ) : orderItems.length === 0 ? (
+                                      <div className="text-muted small fst-italic py-1">Không có dữ liệu chi tiết hàng hoá cho đơn này.</div>
+                                    ) : (
+                                      <div className="table-responsive rounded-2 border bg-white">
+                                        <table className="table table-sm align-middle mb-0" style={{ fontSize: 11.5 }}>
+                                          <thead className="table-light">
+                                            <tr className="text-muted" style={{ fontSize: 10.5 }}>
+                                              <th className="text-center py-1 px-2" style={{ width: 36 }}>STT</th>
+                                              <th className="py-1 px-2" style={{ width: 100 }}>Mã hàng</th>
+                                              <th className="py-1 px-2">Tên hàng hoá</th>
+                                              <th className="text-center py-1 px-2" style={{ width: 65 }}>ĐVT</th>
+                                              <th className="text-end py-1 px-2" style={{ width: 65 }}>SL</th>
+                                              <th className="text-end py-1 px-2" style={{ width: 105 }}>Đơn giá</th>
+                                              <th className="text-end py-1 px-2" style={{ width: 115 }}>Thành tiền</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {orderItems.map((item: any, itemIdx: number) => {
+                                              const itemCode = item.inventoryItem?.code || item.code || "—";
+                                              const itemName = item.tenHang || item.inventoryItem?.tenHang || "Hàng hoá";
+                                              const itemUnit = item.donVi || item.inventoryItem?.donVi || "Cái";
+                                              const itemQty = Number(item.soLuong || 0);
+                                              const itemPrice = Number(item.donGia || 0);
+                                              const itemTotal = Number(item.thanhTien ?? itemQty * itemPrice);
+                                              return (
+                                                <tr key={item.id || itemIdx}>
+                                                  <td className="text-center text-muted py-1 px-2">{itemIdx + 1}</td>
+                                                  <td className="fw-medium text-secondary py-1 px-2">{itemCode}</td>
+                                                  <td className="fw-medium text-dark py-1 px-2">{itemName}</td>
+                                                  <td className="text-center text-muted py-1 px-2">{itemUnit}</td>
+                                                  <td className="text-end fw-semibold py-1 px-2">{itemQty}</td>
+                                                  <td className="text-end py-1 px-2">{formatCurrency(itemPrice)}</td>
+                                                  <td className="text-end fw-semibold text-primary py-1 px-2">{formatCurrency(itemTotal)}</td>
+                                                </tr>
+                                              );
+                                            })}
+                                            {(Number(orderDetail?.discount || 0) > 0 || Number(orderDetail?.vat || 0) > 0) && (
+                                              <tr className="table-light" style={{ fontSize: 11 }}>
+                                                <td colSpan={6} className="text-end text-muted py-1 px-2">
+                                                  {Number(orderDetail?.discount || 0) > 0 && (
+                                                    <span className="me-3">Chiết khấu: <strong>-{formatCurrency(Number(orderDetail?.discount || 0))}</strong></span>
+                                                  )}
+                                                  {Number(orderDetail?.vat || 0) > 0 && (
+                                                    <span>VAT: <strong>+{formatCurrency(Number(orderDetail?.vat || 0))}</strong></span>
+                                                  )}
+                                                </td>
+                                                <td className="text-end fw-bold text-primary py-1 px-2">
+                                                  {formatCurrency(tx.increase)}
+                                                </td>
+                                              </tr>
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>
@@ -945,253 +1120,321 @@ export function DebtReconciliationModal({ open, onClose, onSuccess, debt }: Debt
         </div>
       </div>
 
-      {/* PRINTING RENDER AREA (HIDDEN FROM SCREEN, VISIBLE ON PRINT) */}
+      {/* PRINT PREVIEW MODAL */}
       {activePrintItem && (
-        <div id="recon-print-area" className="d-none">
-          <div style={{ fontFamily: "'Roboto Condensed', sans-serif", padding: "15px", color: "#000", fontSize: "13.5px", lineHeight: 1.5 }}>
-            {/* Logo/Header */}
-            <div style={{ display: "flex", alignItems: "center", marginBottom: "20px", borderBottom: "2px solid #003087", paddingBottom: "10px" }}>
-              <div style={{ display: "flex", gap: "15px", alignItems: "center", width: "100%" }}>
-                {activePrintItem.companyInfo?.logoUrl ? (
-                  <img src={activePrintItem.companyInfo.logoUrl} style={{ height: "45px", objectFit: "contain" }} alt="Logo" />
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                    <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-                      <div style={{
-                        position: "absolute",
-                        left: -4, right: -4, top: -2, bottom: -2,
-                        border: "1.5px solid #ef4444",
-                        borderRadius: "50% / 40% 45% 35% 50%",
-                        transform: "skewX(-10deg) rotate(-3deg)",
-                        pointerEvents: "none"
-                      }} />
-                      <span style={{ fontFamily: "sans-serif", fontWeight: 950, fontSize: 24, color: "#003087", letterSpacing: -0.5, zIndex: 2 }}>
-                        Seajong<span style={{ color: "#ef4444", fontSize: 8, verticalAlign: "super", marginLeft: 1 }}>®</span>
-                      </span>
+        <PrintPreviewModal
+          title="Xem trước Biên bản đối chiếu công nợ"
+          subtitle={
+            <>
+              {isReceivable ? "Khách hàng" : "Nhà cung cấp"}:{" "}
+              <strong>{activePrintItem.partnerInfo?.name || activePrintItem.debt.partnerName}</strong>
+            </>
+          }
+          documentId="recon-print-area"
+          printOrientation="portrait"
+          printMargins="15mm 15mm 15mm 20mm"
+          onClose={() => setActivePrintItem(null)}
+          actions={
+            <BrandButton
+              variant="primary"
+              onClick={() =>
+                printDocumentById(
+                  "recon-print-area",
+                  "portrait",
+                  `Biên bản đối chiếu công nợ - ${activePrintItem.partnerInfo?.name || activePrintItem.debt.partnerName}`,
+                  true,
+                  "15mm 15mm 15mm 20mm"
+                )
+              }
+              style={{ height: 32, fontSize: 12.5, padding: "0 16px" }}
+            >
+              <i className="bi bi-printer me-1.5" /> In biên bản
+            </BrandButton>
+          }
+          document={
+            <div className="pdf-content-page" style={{ fontFamily: "'Roboto Condensed', sans-serif", color: "#000", fontSize: "13.5px", lineHeight: 1.5 }}>
+              {/* Logo/Header */}
+              <div style={{ display: "flex", alignItems: "center", marginBottom: "20px", borderBottom: "2px solid #003087", paddingBottom: "10px" }}>
+                <div style={{ display: "flex", gap: "15px", alignItems: "center", width: "100%" }}>
+                  {activePrintItem.companyInfo?.logoUrl ? (
+                    <img src={activePrintItem.companyInfo.logoUrl} style={{ height: "45px", objectFit: "contain" }} alt="Logo" />
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                        <div style={{
+                          position: "absolute",
+                          left: -4, right: -4, top: -2, bottom: -2,
+                          border: "1.5px solid #ef4444",
+                          borderRadius: "50% / 40% 45% 35% 50%",
+                          transform: "skewX(-10deg) rotate(-3deg)",
+                          pointerEvents: "none"
+                        }} />
+                        <span style={{ fontFamily: "sans-serif", fontWeight: 950, fontSize: 24, color: "#003087", letterSpacing: -0.5, zIndex: 2 }}>
+                          Seajong<span style={{ color: "#ef4444", fontSize: 8, verticalAlign: "super", marginLeft: 1 }}>®</span>
+                        </span>
+                      </div>
                     </div>
+                  )}
+                  <div>
+                    <h6 style={{ fontWeight: "bold", margin: 0, textTransform: "uppercase", fontSize: "11px", color: "#003087" }}>
+                      {activePrintItem.companyInfo?.name || "CÔNG TY CỔ PHẦN SEAJONG FAUCET VIỆT NAM"}
+                    </h6>
+                    <p style={{ margin: "2px 0 0 0", fontSize: "9.5px", color: "#444" }}>
+                      Địa chỉ: {activePrintItem.companyInfo?.address || "Đường số 3, KCN Yên Phong, Huyện Yên Phong, Tỉnh Bắc Ninh"}
+                    </p>
+                    <p style={{ margin: "1px 0 0 0", fontSize: "9.5px", color: "#444" }}>
+                      Điện thoại: {activePrintItem.companyInfo?.phone || "0222.368.6868"} {activePrintItem.companyInfo?.email ? `| Email: ${activePrintItem.companyInfo.email}` : ""} {activePrintItem.companyInfo?.website ? `| Website: ${activePrintItem.companyInfo.website}` : ""}
+                    </p>
                   </div>
-                )}
-                <div>
-                  <h6 style={{ fontWeight: "bold", margin: 0, textTransform: "uppercase", fontSize: "11px", color: "#003087" }}>
-                    {activePrintItem.companyInfo?.name || "CÔNG TY CỔ PHẦN SEAJONG FAUCET VIỆT NAM"}
-                  </h6>
-                  <p style={{ margin: "2px 0 0 0", fontSize: "9.5px", color: "#444" }}>
-                    Địa chỉ: {activePrintItem.companyInfo?.address || "Đường số 3, KCN Yên Phong, Huyện Yên Phong, Tỉnh Bắc Ninh"}
-                  </p>
-                  <p style={{ margin: "1px 0 0 0", fontSize: "9.5px", color: "#444" }}>
-                    Điện thoại: {activePrintItem.companyInfo?.phone || "0222.368.6868"} {activePrintItem.companyInfo?.email ? `| Email: ${activePrintItem.companyInfo.email}` : ""} {activePrintItem.companyInfo?.website ? `| Website: ${activePrintItem.companyInfo.website}` : ""}
-                  </p>
+                </div>
+              </div>
+
+              {/* Title */}
+              <div style={{ textAlign: "center", margin: "25px 0" }}>
+                <h3 style={{ fontWeight: "bold", margin: 0, fontSize: "22px", color: "#003087", letterSpacing: "1px", textTransform: "uppercase" }}>
+                  BIÊN BẢN ĐỐI CHIẾU CÔNG NỢ
+                </h3>
+                <div style={{ fontSize: "12px", fontStyle: "italic", marginTop: "4px" }}>
+                  Hôm nay, ngày {new Date(activePrintItem.log.date).getDate()} tháng {new Date(activePrintItem.log.date).getMonth() + 1} năm {new Date(activePrintItem.log.date).getFullYear()}
+                </div>
+                <div style={{ fontSize: "12px", fontStyle: "italic", marginTop: "2px" }}>
+                  Chúng tôi gồm có:
+                </div>
+              </div>
+
+              {/* Parties Info */}
+              <div style={{ marginBottom: "20px" }}>
+                <div style={{ fontWeight: "bold", marginBottom: "5px", textTransform: "uppercase" }}>
+                  BÊN A: {activePrintItem.companyInfo?.name || "CÔNG TY CỔ PHẦN SEAJONG FAUCET VIỆT NAM"}
+                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "15px", fontSize: "12.5px" }}>
+                  <tbody>
+                    <tr>
+                      <td style={{ width: "15%", padding: "2px 0", verticalAlign: "top" }}>Địa chỉ:</td>
+                      <td colSpan={3} style={{ padding: "2px 0" }}>{activePrintItem.companyInfo?.address || "............................................................"}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ width: "15%", padding: "2px 0" }}>Đại diện:</td>
+                      <td style={{ width: "35%", fontWeight: "bold" }}>{activePrintItem.log.reconciler || "............................................................"}</td>
+                      <td style={{ width: "15%", padding: "2px 0" }}>Chức vụ:</td>
+                      <td style={{ width: "35%" }}>{activePrintItem.reconcilerInfo?.position ? getPositionName(activePrintItem.reconcilerInfo.position) : (activePrintItem.companyInfo?.legalRep === activePrintItem.log.reconciler ? "Người đại diện pháp luật" : "............................................................")}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ width: "15%", padding: "2px 0" }}>Điện thoại:</td>
+                      <td colSpan={3} style={{ padding: "2px 0" }}>{activePrintItem.reconcilerInfo?.phone || activePrintItem.companyInfo?.phone || "............................................................"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div style={{ fontWeight: "bold", marginBottom: "5px", textTransform: "uppercase" }}>
+                  BÊN B: {activePrintItem.partnerInfo?.name || activePrintItem.debt.partnerName}
+                </div>
+                <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "15px", fontSize: "12.5px" }}>
+                  <tbody>
+                    <tr>
+                      <td style={{ width: "15%", padding: "2px 0", verticalAlign: "top" }}>Địa chỉ:</td>
+                      <td colSpan={3} style={{ padding: "2px 0" }}>{activePrintItem.partnerInfo?.address && activePrintItem.partnerInfo.address !== "Khu vực đối tác giao nhận hàng" ? activePrintItem.partnerInfo.address : (activePrintItem.debt?.address || "............................................................")}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ width: "15%", padding: "2px 0" }}>Đại diện:</td>
+                      <td style={{ width: "35%", fontWeight: "bold" }}>{activePrintItem.partnerInfo?.daiDien || activePrintItem.debt.partnerName || "............................................................"}</td>
+                      <td style={{ width: "15%", padding: "2px 0" }}>Chức vụ:</td>
+                      <td style={{ width: "35%" }}>{activePrintItem.partnerInfo?.chucVu && activePrintItem.partnerInfo.chucVu !== "Khách hàng doanh nghiệp / Đối tác liên kết" && activePrintItem.partnerInfo.chucVu !== "Nhà cung cấp / Đối tác liên kết" ? activePrintItem.partnerInfo.chucVu : "............................................................"}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ width: "15%", padding: "2px 0" }}>Điện thoại:</td>
+                      <td style={{ width: "35%", padding: "2px 0" }}>{activePrintItem.partnerInfo?.phone && activePrintItem.partnerInfo.phone !== "---" ? activePrintItem.partnerInfo.phone : "............................................................"}</td>
+                      {activePrintItem.partnerInfo?.taxCode && activePrintItem.partnerInfo.taxCode !== "---" ? (
+                        <>
+                          <td style={{ width: "15%", padding: "2px 0" }}>Mã số thuế:</td>
+                          <td style={{ width: "35%", padding: "2px 0" }}>{activePrintItem.partnerInfo.taxCode}</td>
+                        </>
+                      ) : (
+                        <td colSpan={2}></td>
+                      )}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p style={{ fontSize: "12.5px" }}>
+                Cùng nhau đối chiếu các khoản công nợ phát sinh trong kỳ báo cáo kể từ ngày {activePrintItem.log.periodStart ? new Date(activePrintItem.log.periodStart).toLocaleDateString("vi-VN") : "đầu kỳ"} đến ngày {activePrintItem.log.periodEnd ? new Date(activePrintItem.log.periodEnd).toLocaleDateString("vi-VN") : new Date(activePrintItem.log.date).toLocaleDateString("vi-VN")}. Kết quả cụ thể như sau:
+              </p>
+
+              <div style={{ textAlign: "right", fontStyle: "italic", fontSize: "12px", marginBottom: "5px" }}>
+                Đơn vị tính: đồng
+              </div>
+
+              {/* Reconciliation table */}
+              <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "20px", fontSize: "12px" }}>
+                <thead>
+                  <tr style={{ background: "#eee", textAlign: "center", fontWeight: "bold" }}>
+                    <th style={{ border: "1px solid #000", padding: "6px" }}>STT</th>
+                    <th style={{ border: "1px solid #000", padding: "6px" }}>Ngày chứng từ</th>
+                    <th style={{ border: "1px solid #000", padding: "6px" }}>Diễn giải nội dung giao dịch</th>
+                    <th style={{ border: "1px solid #000", padding: "6px" }}>Phát sinh tăng</th>
+                    <th style={{ border: "1px solid #000", padding: "6px" }}>Phát sinh giảm</th>
+                    <th style={{ border: "1px solid #000", padding: "6px" }}>Số dư nợ lũy kế</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activePrintItem.transactions.map((tx: any, idx: number) => {
+                    let typeText = tx.type;
+                    let bg = "#f3f4f6";
+                    let color = "#374151";
+                    let border = "#e5e7eb";
+
+                    if (tx.type === "Phiếu thu (Thu nợ)" || tx.type === "Phiếu thu") {
+                      typeText = "Phiếu thu";
+                      bg = "#dcfce7";
+                      color = "#15803d";
+                      border = "#bbf7d0";
+                    } else if (tx.type === "Phiếu chi (Trả nợ)" || tx.type === "Phiếu chi") {
+                      typeText = "Phiếu chi";
+                      bg = "#ffe4e6";
+                      color = "#b91c1c";
+                      border = "#fecdd3";
+                    } else if (tx.type === "Bán hàng") {
+                      bg = "#e0f2fe";
+                      color = "#0369a1";
+                      border = "#bae6fd";
+                    } else if (tx.type === "Mua hàng") {
+                      bg = "#fef3c7";
+                      color = "#b45309";
+                      border = "#fde68a";
+                    } else if (tx.type === "Hàng trả về" || tx.isReturn) {
+                      typeText = "Hàng trả về";
+                      bg = "#fee2e2";
+                      color = "#b91c1c";
+                      border = "#fca5a5";
+                    }
+
+                    const isPrintSalesOrder = tx.type === "Bán hàng" && tx.ref && tx.ref !== "---";
+                    const printOrderDetail = isPrintSalesOrder ? orderDetailsByRef[tx.ref] : undefined;
+                    const printOrderItems = printOrderDetail?.items || [];
+
+                    return (
+                      <tr key={tx.id || idx}>
+                        <td style={{ border: "1px solid #000", padding: "5px", textAlign: "center", verticalAlign: "top" }}>{idx + 1}</td>
+                        <td style={{ border: "1px solid #000", padding: "5px", textAlign: "center", verticalAlign: "top" }}>
+                          {tx.date ? new Date(tx.date).toLocaleDateString("vi-VN") : "---"}
+                        </td>
+                        <td style={{ border: "1px solid #000", padding: "5px", verticalAlign: "top" }}>
+                          <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap", marginBottom: "3px" }}>
+                            {tx.ref && tx.ref !== "---" && tx.ref !== "DK" && (
+                              <span style={{ fontWeight: "bold", fontSize: "11px", color: "#1e3a8a" }}>
+                                {tx.ref}
+                              </span>
+                            )}
+                            <span style={{
+                              display: "inline-block",
+                              padding: "1px 5px",
+                              fontSize: "10px",
+                              fontWeight: "bold",
+                              borderRadius: "3px",
+                              background: bg,
+                              color: color,
+                              border: `1px solid ${border}`,
+                              lineHeight: "1.2"
+                            }}>
+                              {typeText}
+                            </span>
+                          </div>
+                          <div style={{ color: "#333", fontSize: "12px", lineHeight: "1.3" }}>
+                            {tx.note}
+                          </div>
+                          {isPrintSalesOrder && printOrderItems.length > 0 && (
+                            <div style={{ marginTop: "6px", borderTop: "1px dashed #9ca3af", paddingTop: "5px" }}>
+                              <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "3px", color: "#1e3a8a" }}>
+                                Danh sách hàng hoá ({printOrderItems.length} mặt hàng):
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "3px", fontSize: "11px", color: "#111" }}>
+                                {printOrderItems.map((item: any, itemIdx: number) => {
+                                  const itemCode = item.inventoryItem?.code || item.code || "";
+                                  const itemName = item.tenHang || item.inventoryItem?.tenHang || "Hàng hoá";
+                                  const itemUnit = item.donVi || item.inventoryItem?.donVi || "Cái";
+                                  const itemQty = Number(item.soLuong || 0);
+                                  const itemPrice = Number(item.donGia || 0);
+                                  const itemTotal = Number(item.thanhTien ?? itemQty * itemPrice);
+                                  return (
+                                    <div key={item.id || itemIdx} style={{ padding: "2px 6px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "3px", lineHeight: "1.4" }}>
+                                      <span style={{ fontWeight: "bold" }}>{itemIdx + 1}. {itemName}</span>
+                                      {itemCode ? <span style={{ color: "#555" }}> ({itemCode})</span> : null}
+                                      <span> — SL: <strong>{itemQty}</strong> {itemUnit} × {formatCurrency(itemPrice)} = <strong>{formatCurrency(itemTotal)}</strong></span>
+                                    </div>
+                                  );
+                                })}
+                                {(Number(printOrderDetail?.discount || 0) > 0 || Number(printOrderDetail?.vat || 0) > 0) && (
+                                  <div style={{ fontSize: "10.5px", textAlign: "right", color: "#444", paddingTop: "2px" }}>
+                                    {Number(printOrderDetail?.discount || 0) > 0 && (
+                                      <span style={{ marginRight: "10px" }}>Chiết khấu: <strong>-{formatCurrency(Number(printOrderDetail?.discount || 0))}</strong></span>
+                                    )}
+                                    {Number(printOrderDetail?.vat || 0) > 0 && (
+                                      <span>VAT: <strong>+{formatCurrency(Number(printOrderDetail?.vat || 0))}</strong></span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ border: "1px solid #000", padding: "5px", textAlign: "right", verticalAlign: "top" }}>
+                          {tx.increase > 0 ? formatCurrency(tx.increase) : "-"}
+                        </td>
+                        <td style={{ border: "1px solid #000", padding: "5px", textAlign: "right", verticalAlign: "top" }}>
+                          {tx.decrease > 0 ? formatCurrency(tx.decrease) : "-"}
+                        </td>
+                        <td style={{ border: "1px solid #000", padding: "5px", textAlign: "right", fontWeight: "bold", verticalAlign: "top" }}>
+                          {formatCurrency(tx.balance)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr style={{ fontWeight: "bold", background: "#f9f9f9" }}>
+                    <td colSpan={3} style={{ border: "1px solid #000", padding: "6px", textTransform: "uppercase" }}>Tổng cộng phát sinh</td>
+                    <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>
+                      {formatCurrency(activePrintItem.totals.increase)}
+                    </td>
+                    <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>
+                      {formatCurrency(activePrintItem.totals.decrease)}
+                    </td>
+                    <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right", color: "red" }}>
+                      {formatCurrency((activePrintItem.totals.openingBalance + activePrintItem.totals.increase - activePrintItem.totals.decrease))}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* Conclusion and Notes */}
+              <div style={{ marginBottom: "25px", fontSize: "12.5px" }}>
+                <div style={{ fontWeight: "bold", marginBottom: "5px" }}>Kết luận đối chiếu:</div>
+                <ul style={{ paddingLeft: "20px", margin: "5px 0" }}>
+                  <li>Số dư cuối kỳ Bên B nợ Bên A là: <strong>{formatCurrency((activePrintItem.totals.openingBalance + activePrintItem.totals.increase - activePrintItem.totals.decrease))} đồng</strong></li>
+                  <li>Bằng chữ: <em>{docSoTien(activePrintItem.totals.openingBalance + activePrintItem.totals.increase - activePrintItem.totals.decrease)}</em></li>
+                  <li>Tình trạng khớp số liệu: <strong>{
+                    activePrintItem.log.status === "MATCHED" ? "HAI BÊN KHỚP ĐÚNG SỐ LIỆU, KHÔNG CÓ CHÊNH LỆCH" : 
+                    activePrintItem.log.status === "DISCREPANCY" ? `CÓ CHÊNH LỆCH SỐ TIỀN: ${activePrintItem.log.differenceAmount?.toLocaleString("vi-VN")}` : "ĐANG CHỜ XÁC THỰC THÊM"
+                  }</strong></li>
+                  <li style={{ marginTop: "4px" }}>Ghi chú chi tiết: {activePrintItem.log.note}</li>
+                </ul>
+              </div>
+
+              {/* Signatures */}
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: "40px", fontSize: "12px", textAlign: "center" }}>
+                <div style={{ width: "45%" }}>
+                  <div style={{ fontWeight: "bold", textTransform: "uppercase" }}>ĐẠI DIỆN BÊN A</div>
+                  <div style={{ height: "60px" }} />
+                  <div style={{ fontWeight: "bold" }}>{activePrintItem.log.reconciler}</div>
+                </div>
+                <div style={{ width: "45%" }}>
+                  <div style={{ fontWeight: "bold", textTransform: "uppercase" }}>ĐẠI DIỆN BÊN B</div>
+                  <div style={{ height: "60px" }} />
+                  <div style={{ fontWeight: "bold" }}>{activePrintItem.partnerInfo?.daiDien || activePrintItem.debt.partnerName}</div>
                 </div>
               </div>
             </div>
-
-            {/* Title */}
-            <div style={{ textAlign: "center", margin: "25px 0" }}>
-              <h3 style={{ fontWeight: "bold", margin: 0, fontSize: "22px", color: "#003087", letterSpacing: "1px", textTransform: "uppercase" }}>
-                BIÊN BẢN ĐỐI CHIẾU CÔNG NỢ
-              </h3>
-              <div style={{ fontSize: "12px", fontStyle: "italic", marginTop: "4px" }}>
-                Hôm nay, ngày {new Date(activePrintItem.log.date).getDate()} tháng {new Date(activePrintItem.log.date).getMonth() + 1} năm {new Date(activePrintItem.log.date).getFullYear()}
-              </div>
-              <div style={{ fontSize: "12px", fontStyle: "italic", marginTop: "2px" }}>
-                Chúng tôi gồm có:
-              </div>
-            </div>
-
-            {/* Parties Info */}
-            <div style={{ marginBottom: "20px" }}>
-              <div style={{ fontWeight: "bold", marginBottom: "5px", textTransform: "uppercase" }}>
-                BÊN A: {activePrintItem.companyInfo?.name || "CÔNG TY CỔ PHẦN SEAJONG FAUCET VIỆT NAM"}
-              </div>
-              <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "15px", fontSize: "12.5px" }}>
-                <tbody>
-                  <tr>
-                    <td style={{ width: "15%", padding: "2px 0", verticalAlign: "top" }}>Địa chỉ:</td>
-                    <td colSpan={3} style={{ padding: "2px 0" }}>{activePrintItem.companyInfo?.address || "............................................................"}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ width: "15%", padding: "2px 0" }}>Đại diện:</td>
-                    <td style={{ width: "35%", fontWeight: "bold" }}>{activePrintItem.log.reconciler || "............................................................"}</td>
-                    <td style={{ width: "15%", padding: "2px 0" }}>Chức vụ:</td>
-                    <td style={{ width: "35%" }}>{activePrintItem.reconcilerInfo?.position ? getPositionName(activePrintItem.reconcilerInfo.position) : (activePrintItem.companyInfo?.legalRep === activePrintItem.log.reconciler ? "Người đại diện pháp luật" : "............................................................")}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ width: "15%", padding: "2px 0" }}>Điện thoại:</td>
-                    <td colSpan={3} style={{ padding: "2px 0" }}>{activePrintItem.reconcilerInfo?.phone || activePrintItem.companyInfo?.phone || "............................................................"}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div style={{ fontWeight: "bold", marginBottom: "5px", textTransform: "uppercase" }}>
-                BÊN B: {activePrintItem.partnerInfo?.name || activePrintItem.debt.partnerName}
-              </div>
-              <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "15px", fontSize: "12.5px" }}>
-                <tbody>
-                  <tr>
-                    <td style={{ width: "15%", padding: "2px 0", verticalAlign: "top" }}>Địa chỉ:</td>
-                    <td colSpan={3} style={{ padding: "2px 0" }}>{activePrintItem.partnerInfo?.address && activePrintItem.partnerInfo.address !== "Khu vực đối tác giao nhận hàng" ? activePrintItem.partnerInfo.address : (activePrintItem.debt?.address || "............................................................")}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ width: "15%", padding: "2px 0" }}>Đại diện:</td>
-                    <td style={{ width: "35%", fontWeight: "bold" }}>{activePrintItem.partnerInfo?.daiDien || activePrintItem.debt.partnerName || "............................................................"}</td>
-                    <td style={{ width: "15%", padding: "2px 0" }}>Chức vụ:</td>
-                    <td style={{ width: "35%" }}>{activePrintItem.partnerInfo?.chucVu && activePrintItem.partnerInfo.chucVu !== "Khách hàng doanh nghiệp / Đối tác liên kết" && activePrintItem.partnerInfo.chucVu !== "Nhà cung cấp / Đối tác liên kết" ? activePrintItem.partnerInfo.chucVu : "............................................................"}</td>
-                  </tr>
-                  <tr>
-                    <td style={{ width: "15%", padding: "2px 0" }}>Điện thoại:</td>
-                    <td style={{ width: "35%", padding: "2px 0" }}>{activePrintItem.partnerInfo?.phone && activePrintItem.partnerInfo.phone !== "---" ? activePrintItem.partnerInfo.phone : "............................................................"}</td>
-                    {activePrintItem.partnerInfo?.taxCode && activePrintItem.partnerInfo.taxCode !== "---" ? (
-                      <>
-                        <td style={{ width: "15%", padding: "2px 0" }}>Mã số thuế:</td>
-                        <td style={{ width: "35%", padding: "2px 0" }}>{activePrintItem.partnerInfo.taxCode}</td>
-                      </>
-                    ) : (
-                      <td colSpan={2}></td>
-                    )}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <p style={{ fontSize: "12.5px" }}>
-              Cùng nhau đối chiếu các khoản công nợ phát sinh trong kỳ báo cáo kể từ ngày {activePrintItem.log.periodStart ? new Date(activePrintItem.log.periodStart).toLocaleDateString("vi-VN") : "đầu kỳ"} đến ngày {activePrintItem.log.periodEnd ? new Date(activePrintItem.log.periodEnd).toLocaleDateString("vi-VN") : new Date(activePrintItem.log.date).toLocaleDateString("vi-VN")}. Kết quả cụ thể như sau:
-            </p>
-
-            <div style={{ textAlign: "right", fontStyle: "italic", fontSize: "12px", marginBottom: "5px" }}>
-              Đơn vị tính: đồng
-            </div>
-
-            {/* Reconciliation table */}
-            <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "20px", fontSize: "12px" }}>
-              <thead>
-                <tr style={{ background: "#eee", textAlign: "center", fontWeight: "bold" }}>
-                  <th style={{ border: "1px solid #000", padding: "6px" }}>STT</th>
-                  <th style={{ border: "1px solid #000", padding: "6px" }}>Ngày chứng từ</th>
-                  <th style={{ border: "1px solid #000", padding: "6px" }}>Diễn giải nội dung giao dịch</th>
-                  <th style={{ border: "1px solid #000", padding: "6px" }}>Phát sinh tăng</th>
-                  <th style={{ border: "1px solid #000", padding: "6px" }}>Phát sinh giảm</th>
-                  <th style={{ border: "1px solid #000", padding: "6px" }}>Số dư nợ lũy kế</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activePrintItem.transactions.map((tx: any, idx: number) => {
-                  let typeText = tx.type;
-                  let bg = "#f3f4f6";
-                  let color = "#374151";
-                  let border = "#e5e7eb";
-
-                  if (tx.type === "Phiếu thu (Thu nợ)" || tx.type === "Phiếu thu") {
-                    typeText = "Phiếu thu";
-                    bg = "#dcfce7";
-                    color = "#15803d";
-                    border = "#bbf7d0";
-                  } else if (tx.type === "Phiếu chi (Trả nợ)" || tx.type === "Phiếu chi") {
-                    typeText = "Phiếu chi";
-                    bg = "#ffe4e6";
-                    color = "#b91c1c";
-                    border = "#fecdd3";
-                  } else if (tx.type === "Bán hàng") {
-                    bg = "#e0f2fe";
-                    color = "#0369a1";
-                    border = "#bae6fd";
-                  } else if (tx.type === "Mua hàng") {
-                    bg = "#fef3c7";
-                    color = "#b45309";
-                    border = "#fde68a";
-                  } else if (tx.type === "Hàng trả về" || tx.isReturn) {
-                    typeText = "Hàng trả về";
-                    bg = "#fee2e2";
-                    color = "#b91c1c";
-                    border = "#fca5a5";
-                  }
-
-                  return (
-                    <tr key={tx.id || idx}>
-                      <td style={{ border: "1px solid #000", padding: "5px", textAlign: "center" }}>{idx + 1}</td>
-                      <td style={{ border: "1px solid #000", padding: "5px", textAlign: "center" }}>
-                        {tx.date ? new Date(tx.date).toLocaleDateString("vi-VN") : "---"}
-                      </td>
-                      <td style={{ border: "1px solid #000", padding: "5px" }}>
-                        <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap", marginBottom: "3px" }}>
-                          {tx.ref && tx.ref !== "---" && tx.ref !== "DK" && (
-                            <span style={{ fontWeight: "bold", fontSize: "11px", color: "#1e3a8a" }}>
-                              {tx.ref}
-                            </span>
-                          )}
-                          <span style={{
-                            display: "inline-block",
-                            padding: "1px 5px",
-                            fontSize: "10px",
-                            fontWeight: "bold",
-                            borderRadius: "3px",
-                            background: bg,
-                            color: color,
-                            border: `1px solid ${border}`,
-                            lineHeight: "1.2"
-                          }}>
-                            {typeText}
-                          </span>
-                        </div>
-                        <div style={{ color: "#333", fontSize: "12px", lineHeight: "1.3" }}>
-                          {tx.note}
-                        </div>
-                      </td>
-                      <td style={{ border: "1px solid #000", padding: "5px", textAlign: "right" }}>
-                        {tx.increase > 0 ?formatCurrency( tx.increase) : "-"}
-                      </td>
-                      <td style={{ border: "1px solid #000", padding: "5px", textAlign: "right" }}>
-                        {tx.decrease > 0 ?formatCurrency( tx.decrease) : "-"}
-                      </td>
-                      <td style={{ border: "1px solid #000", padding: "5px", textAlign: "right", fontWeight: "bold" }}>
-                        {formatCurrency(tx.balance)}
-                      </td>
-                    </tr>
-                  );
-                })}
-                <tr style={{ fontWeight: "bold", background: "#f9f9f9" }}>
-                  <td colSpan={3} style={{ border: "1px solid #000", padding: "6px", textTransform: "uppercase" }}>Tổng cộng phát sinh</td>
-                  <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>
-                    {formatCurrency(activePrintItem.totals.increase)}
-                  </td>
-                  <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right" }}>
-                    {formatCurrency(activePrintItem.totals.decrease)}
-                  </td>
-                  <td style={{ border: "1px solid #000", padding: "6px", textAlign: "right", color: "red" }}>
-                    {formatCurrency((activePrintItem.totals.openingBalance + activePrintItem.totals.increase - activePrintItem.totals.decrease))}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* Conclusion and Notes */}
-            <div style={{ marginBottom: "25px", fontSize: "12.5px" }}>
-              <div style={{ fontWeight: "bold", marginBottom: "5px" }}>Kết luận đối chiếu:</div>
-              <ul style={{ paddingLeft: "20px", margin: "5px 0" }}>
-                <li>Số dư cuối kỳ Bên B nợ Bên A là: <strong>{formatCurrency((activePrintItem.totals.openingBalance + activePrintItem.totals.increase - activePrintItem.totals.decrease))} đồng</strong></li>
-                <li>Bằng chữ: <em>{docSoTien(activePrintItem.totals.openingBalance + activePrintItem.totals.increase - activePrintItem.totals.decrease)}</em></li>
-                <li>Tình trạng khớp số liệu: <strong>{
-                  activePrintItem.log.status === "MATCHED" ? "HAI BÊN KHỚP ĐÚNG SỐ LIỆU, KHÔNG CÓ CHÊNH LỆCH" : 
-                  activePrintItem.log.status === "DISCREPANCY" ? `CÓ CHÊNH LỆCH SỐ TIỀN: ${activePrintItem.log.differenceAmount?.toLocaleString("vi-VN")}` : "ĐANG CHỜ XÁC THỰC THÊM"
-                }</strong></li>
-                <li style={{ marginTop: "4px" }}>Ghi chú chi tiết: {activePrintItem.log.note}</li>
-              </ul>
-            </div>
-
-            {/* Signatures */}
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "40px", fontSize: "12px", textAlign: "center" }}>
-              <div style={{ width: "45%" }}>
-                <div style={{ fontWeight: "bold", textTransform: "uppercase" }}>ĐẠI DIỆN BÊN A</div>
-                <div style={{ height: "60px" }} />
-                <div style={{ fontWeight: "bold" }}>{activePrintItem.log.reconciler}</div>
-              </div>
-              <div style={{ width: "45%" }}>
-                <div style={{ fontWeight: "bold", textTransform: "uppercase" }}>ĐẠI DIỆN BÊN B</div>
-                <div style={{ height: "60px" }} />
-                <div style={{ fontWeight: "bold" }}>{activePrintItem.partnerInfo?.daiDien || activePrintItem.debt.partnerName}</div>
-              </div>
-            </div>
-          </div>
-        </div>
+          }
+        />
       )}
     </div>,
     document.body

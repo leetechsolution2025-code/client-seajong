@@ -57,6 +57,7 @@ export async function GET(
                 imageUrl: true,
                 code: true,
                 tenHang: true,
+                donVi: true,
                 loai: true,
                 webProductId: true,
                 color: true,

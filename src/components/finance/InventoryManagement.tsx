@@ -127,18 +127,143 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
   const [showSkippedOffcanvas, setShowSkippedOffcanvas] = useState(false);
 
   const [isProcessingExcel, setIsProcessingExcel] = useState(false);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { error, success } = useToast();
 
-  const handleDownloadTemplate = () => {
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([
-      ["Mã hàng hoá (SKU)", "Mã thay thế", "Tên hàng hoá", "Mã nhóm cha", "Tên phân loại", "Đơn vị tính", "Số lượng", "Giá nhập", "Giá bán", "Thương hiệu", "Ghi chú"],
-      ["", "Ví dụ: SJ-123", "Ví dụ: Vòi chậu rửa mặt", "VTSX_VESINH", "Nhóm vật tư", "Cái", "10", "150000", "200000", "Seajong", "Hàng mới"]
+  const buildInventoryWorkbook = (
+    exportItems: any[],
+    whObj?: { label: string; value: string; type: string; code?: string | null }
+  ) => {
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const whTitle = whObj
+      ? `${whObj.label.toUpperCase()}${whObj.code ? ` (MÃ: ${whObj.code.toUpperCase()})` : ""}`
+      : "TẤT CẢ CÁC KHO";
+    const defaultLoai = whObj?.code === "KVP" || whObj?.type === "MATERIAL" ? "vat-tu" : "hang-hoa";
+
+    const dataRows = exportItems.map((it: any, idx: number) => [
+      idx + 1,
+      it.code ?? "",
+      it.tenHang || it.name || "",
+      it.loai || defaultLoai,
+      it.brand || "Seajong",
+      Number(it.soLuong ?? 0),
+      it.donVi || it.unit || "Cái"
     ]);
-    XLSX.utils.book_append_sheet(wb, ws, "Template");
+
+    const totalQty = exportItems.reduce((sum: number, it: any) => sum + (Number(it.soLuong) || 0), 0);
+    const totalRow = ["Tổng cộng", "", "", "", "", totalQty, ""];
+
+    const aoa = [
+      ["CÔNG TY CỔ PHẦN SEAJONG FAUCET VIỆT NAM", "", "", "", "", "", ""],
+      [`BÁO CÁO TỒN KHO - ${whTitle}`, "", "", "", "", "", ""],
+      [`Ngày xuất báo cáo: ${dateStr} | Tổng số mặt hàng: ${exportItems.length}`, "", "", "", "", "", ""],
+      ["", "", "", "", "", "", ""],
+      ["STT", "Mã SKU", "Tên Vật Tư / Linh Kiện", "Loại hàng", "Thương hiệu", "Số lượng tồn", "Đơn vị tính"],
+      ...dataRows,
+      totalRow
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const lastDataRowExcelNum = 5 + exportItems.length;
+    const totalRowExcelNum = 6 + exportItems.length;
+
+    if (exportItems.length > 0) {
+      ws[`F${totalRowExcelNum}`] = {
+        t: "n",
+        f: `SUM(F6:F${lastDataRowExcelNum})`,
+        v: totalQty,
+        z: "#,##0.##"
+      };
+      for (let r = 6; r <= lastDataRowExcelNum; r++) {
+        if (ws[`F${r}`]) {
+          ws[`F${r}`].z = "#,##0.##";
+        }
+      }
+    }
+
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 6 } },
+      { s: { r: 5 + exportItems.length, c: 0 }, e: { r: 5 + exportItems.length, c: 4 } }
+    ];
+
+    ws["!cols"] = [
+      { wch: 8 },
+      { wch: 22 },
+      { wch: 45 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 14 }
+    ];
+
+    const wsRows: any[] = [undefined, undefined, undefined, undefined, { hpt: 25, hpx: 25 }];
+    for (let i = 0; i <= exportItems.length; i++) {
+      wsRows.push({ hpt: 20, hpx: 20 });
+    }
+    ws["!rows"] = wsRows;
+
+    const sheetCode = whObj?.code || "ALL";
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `TonKho_${sheetCode}`.slice(0, 31));
+    return { wb, sheetCode, dateStr };
+  };
+
+  const handleDownloadTemplate = () => {
+    const selectedWH = warehouses.find(w => w.value === warehouseId);
+    const defaultLoai = selectedWH?.code === "KVP" || selectedWH?.type === "MATERIAL" ? "vat-tu" : "hang-hoa";
+    const sampleItems = [
+      { code: "ONT50", tenHang: "Ốc kết nối với chân sen ONT50", loai: defaultLoai, brand: "OEM", soLuong: 100, donVi: "cái" },
+      { code: "LS40", tenHang: "Lõi sen nhựa thường dùng cho sen vòi LS40", loai: defaultLoai, brand: "Seajong", soLuong: 50, donVi: "cái" }
+    ];
+    const { wb } = buildInventoryWorkbook(sampleItems, selectedWH);
     XLSX.writeFile(wb, "Mau_Nhap_Kho.xlsx");
+  };
+
+  const handleExportExcel = async () => {
+    setIsExportingExcel(true);
+    try {
+      const selectedWH = warehouses.find(w => w.value === warehouseId);
+      const params = new URLSearchParams({
+        nolimit: "true",
+        excludeDinhMucs: "true",
+        search: searchTerm,
+        categoryId,
+        trangThai,
+        warehouseId,
+        mode
+      });
+
+      const res = await fetch(`/api/logistics/inventory?${params.toString()}`);
+      if (!res.ok) throw new Error("Không thể tải dữ liệu tồn kho để xuất Excel");
+      const data = await res.json();
+      const exportItems: any[] = Array.isArray(data.items) ? [...data.items] : [];
+
+      if (exportItems.length === 0) {
+        error("Không có dữ liệu hàng hoá để xuất Excel.");
+        return;
+      }
+
+      exportItems.sort((a: any, b: any) => {
+        const codeA = (a.code || "").toString().trim();
+        const codeB = (b.code || "").toString().trim();
+        if (codeA !== codeB) return codeA.localeCompare(codeB, "vi");
+        return (a.tenHang || a.name || "").toString().localeCompare((b.tenHang || b.name || "").toString(), "vi");
+      });
+
+      const { wb, sheetCode, dateStr } = buildInventoryWorkbook(exportItems, selectedWH);
+      XLSX.writeFile(wb, `TonKho_${sheetCode}_${dateStr}.xlsx`);
+      success(`Đã xuất ${exportItems.length} mặt hàng ra file Excel!`);
+    } catch (err: any) {
+      console.error(err);
+      error("Lỗi khi xuất Excel: " + (err.message || "Không xác định"));
+    } finally {
+      setIsExportingExcel(false);
+    }
   };
 
   const handleUploadExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,6 +272,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
 
     if (!warehouseId) {
       error("Vui lòng chọn Kho hàng cụ thể trước khi Import.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
@@ -155,26 +281,94 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      
-      const itemsToImport = [];
-      // Skip header row
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i] as any[];
-        if (!row || row.length === 0 || !row[2]) continue; // Skip empty rows or rows without name
+      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" }) as any[][];
 
-        itemsToImport.push({
-          sku: row[0]?.toString() || "",
-          alternateCode: row[1]?.toString() || "",
-          name: row[2]?.toString() || "",
-          categoryCode: row[3]?.toString() || "",
-          unit: row[5]?.toString() || "Cái",
-          quantity: parseFloat(row[6]) || 0,
-          importPrice: parseFloat(row[7]) || 0,
-          sellPrice: parseFloat(row[8]) || 0,
-          brand: row[9]?.toString() || "Seajong",
-          note: row[10]?.toString() || ""
-        });
+      const normHeader = (val: any) =>
+        String(val ?? "")
+          .trim()
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/đ/g, "d");
+
+      // Tự động tìm dòng tiêu đề cột (hỗ trợ cả mẫu Báo cáo tồn kho có 4 dòng đầu và mẫu Template cũ)
+      let headerRowIdx = -1;
+      for (let r = 0; r < Math.min(rows.length, 15); r++) {
+        const rowCells = (rows[r] || []).map(normHeader);
+        const hasSkuCol = rowCells.some(c => c.includes("ma sku") || c.includes("ma hang") || c === "sku");
+        const hasNameCol = rowCells.some(c => c.includes("ten vat tu") || c.includes("ten hang") || c.includes("linh kien") || c.includes("ten san pham"));
+        if (hasSkuCol || hasNameCol) {
+          headerRowIdx = r;
+          break;
+        }
+      }
+
+      const itemsToImport = [];
+
+      if (headerRowIdx !== -1) {
+        const headers = (rows[headerRowIdx] || []).map(normHeader);
+        const findCol = (pred: (h: string) => boolean) => headers.findIndex(pred);
+
+        const skuIdx = findCol(h => h === "ma sku" || h.includes("ma sku") || h.includes("ma hang hoa") || h === "ma hang" || h === "sku");
+        const altCodeIdx = findCol(h => h.includes("ma thay the"));
+        const nameIdx = findCol(h => h.includes("ten vat tu") || h.includes("ten hang") || h.includes("linh kien") || h.includes("ten san pham"));
+        const loaiIdx = findCol(h => h === "loai hang" || h === "loai");
+        const catIdx = findCol(h => h.includes("ma nhom") || h.includes("danh muc"));
+        const brandIdx = findCol(h => h.includes("thuong hieu") || h.includes("nhan hieu") || h === "hang");
+        const qtyIdx = findCol(h => h.includes("so luong ton") || h === "so luong" || h.includes("tong ton") || h.includes("thuc ton") || h === "ton kho");
+        const unitIdx = findCol(h => h.includes("don vi tinh") || h === "dvt" || h === "don vi");
+        const importPriceIdx = findCol(h => h.includes("gia nhap"));
+        const costPriceIdx = findCol(h => h.includes("gia von"));
+        const sellPriceIdx = findCol(h => h.includes("gia ban"));
+        const noteIdx = findCol(h => h.includes("ghi chu"));
+
+        for (let i = headerRowIdx + 1; i < rows.length; i++) {
+          const row = rows[i] as any[];
+          if (!row || row.length === 0) continue;
+
+          const firstCellNorm = normHeader(row[0]);
+          if (firstCellNorm.startsWith("tong cong") || firstCellNorm === "total") continue;
+
+          const name = (nameIdx !== -1 ? row[nameIdx] : row[2])?.toString().trim() || "";
+          if (!name) continue;
+
+          const rawQty = qtyIdx !== -1 ? row[qtyIdx] : 0;
+          const parsedQty = typeof rawQty === "number"
+            ? rawQty
+            : parseFloat(String(rawQty ?? "0").replace(/,/g, "")) || 0;
+
+          itemsToImport.push({
+            sku: (skuIdx !== -1 ? row[skuIdx] : "")?.toString().trim() || "",
+            alternateCode: (altCodeIdx !== -1 ? row[altCodeIdx] : "")?.toString().trim() || "",
+            name,
+            loai: (loaiIdx !== -1 ? row[loaiIdx] : "")?.toString().trim() || "",
+            categoryCode: (catIdx !== -1 ? row[catIdx] : "")?.toString().trim() || "",
+            unit: (unitIdx !== -1 ? row[unitIdx] : "Cái")?.toString().trim() || "Cái",
+            quantity: Math.max(0, parsedQty),
+            importPrice: importPriceIdx !== -1 ? (parseFloat(String(row[importPriceIdx] ?? "0").replace(/,/g, "")) || 0) : undefined,
+            costPrice: costPriceIdx !== -1 ? (parseFloat(String(row[costPriceIdx] ?? "0").replace(/,/g, "")) || 0) : undefined,
+            sellPrice: sellPriceIdx !== -1 ? (parseFloat(String(row[sellPriceIdx] ?? "0").replace(/,/g, "")) || 0) : undefined,
+            brand: (brandIdx !== -1 ? row[brandIdx] : "Seajong")?.toString().trim() || "Seajong",
+            note: noteIdx !== -1 ? row[noteIdx]?.toString().trim() || "" : undefined
+          });
+        }
+      } else {
+        // Fallback nếu file không có dòng tiêu đề chuẩn
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i] as any[];
+          if (!row || row.length === 0 || !row[2]) continue;
+          const firstCellNorm = normHeader(row[0]);
+          if (firstCellNorm.startsWith("tong cong")) continue;
+
+          itemsToImport.push({
+            sku: row[1]?.toString().trim() || "",
+            name: row[2]?.toString().trim() || "",
+            loai: row[3]?.toString().trim() || "",
+            brand: row[4]?.toString().trim() || "Seajong",
+            quantity: parseFloat(row[5]) || 0,
+            unit: row[6]?.toString().trim() || "Cái"
+          });
+        }
       }
 
       if (itemsToImport.length === 0) {
@@ -792,7 +986,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                         style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
                         title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để tải file mẫu" : "Tải file mẫu"} 
                         onClick={handleDownloadTemplate}
-                        disabled={isProcessingExcel || !warehouseId}
+                        disabled={isProcessingExcel || isExportingExcel || !warehouseId}
                       >
                         <i className="bi bi-file-earmark-arrow-down" />
                       </button>
@@ -801,9 +995,18 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                         style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
                         title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để Import" : "Import Excel"} 
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={isProcessingExcel || !warehouseId}
+                        disabled={isProcessingExcel || isExportingExcel || !warehouseId}
                       >
                         {isProcessingExcel ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-file-earmark-arrow-up" />}
+                      </button>
+                      <button 
+                        className="btn btn-light btn-sm border shadow-sm text-success d-flex align-items-center justify-content-center" 
+                        style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
+                        title="Export Excel" 
+                        onClick={handleExportExcel}
+                        disabled={isProcessingExcel || isExportingExcel}
+                      >
+                        {isExportingExcel ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-file-earmark-excel" />}
                       </button>
                       <button 
                         className="btn btn-light btn-sm border shadow-sm d-flex align-items-center justify-content-center" 
@@ -852,7 +1055,7 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                           style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
                           title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để tải file mẫu" : "Tải file mẫu"} 
                           onClick={handleDownloadTemplate}
-                          disabled={isProcessingExcel || !warehouseId}
+                          disabled={isProcessingExcel || isExportingExcel || !warehouseId}
                         >
                           <i className="bi bi-file-earmark-arrow-down" />
                         </button>
@@ -861,9 +1064,18 @@ export function InventoryManagement({ allowAdd = true, mode = "finance", onTicke
                           style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
                           title={!warehouseId ? "Vui lòng chọn Kho hàng cụ thể để Import" : "Import Excel"} 
                           onClick={() => fileInputRef.current?.click()}
-                          disabled={isProcessingExcel || !warehouseId}
+                          disabled={isProcessingExcel || isExportingExcel || !warehouseId}
                         >
                           {isProcessingExcel ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-file-earmark-arrow-up" />}
+                        </button>
+                        <button 
+                          className="btn btn-light btn-sm border shadow-sm text-success d-flex align-items-center justify-content-center" 
+                          style={{ height: 34, width: 34, borderRadius: 8, padding: 0 }}
+                          title="Export Excel" 
+                          onClick={handleExportExcel}
+                          disabled={isProcessingExcel || isExportingExcel}
+                        >
+                          {isExportingExcel ? <span className="spinner-border spinner-border-sm" /> : <i className="bi bi-file-earmark-excel" />}
                         </button>
                         <button 
                           className="btn btn-light btn-sm border shadow-sm d-flex align-items-center justify-content-center" 
